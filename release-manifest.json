@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "release": {
+    "version": "1.0.0-rc.1",
+    "channel": "prerelease",
+    "status": "standalone_runtime_seal_pending"
+  },
+  "player_environment": {
+    "protocol": "1.0-rc.2",
+    "contract": "contracts/player-environment-contract.json"
+  },
+  "host": {
+    "implementation_id": "STS2_MCP",
+    "implementation_id_policy": "immutable_compatibility_id_for_major_1",
+    "manifest": "host/mod_manifest.json"
+  },
+  "client": {
+    "npm_package": "@rsgcsg/sts2-connector-client",
+    "version": "1.0.0-rc.1"
+  },
+  "exact_game_audit": {
+    "version": "v0.110.1",
+    "commit": "db5d3552",
+    "main_assembly_sha256": "7c446efabf80614c429b5088e87101423aa5bb4c04fc3e73393261f6e6d404fd",
+    "main_assembly_mvid": "c0f649b8-8d57-4a9c-8b07-21aece97dca0"
+  },
+  "evidence": {
+    "predecessor_source": "4bc448f1fbfa034232b88587faf9a51ea2a15581",
+    "standalone_loaded_identity": null,
+    "standalone_live_journey": null
+  }
+}

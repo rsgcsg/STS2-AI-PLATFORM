@@ -1,0 +1,96 @@
+{
+  "contract_id": "sts2.player-environment",
+  "protocol_version": "1.0-rc.2",
+  "status": "release_candidate",
+  "routes": {
+    "capabilities": "/api/player-environment/capabilities",
+    "snapshot": "/api/player-environment/snapshot",
+    "read": "/api/player-environment/reads/{read_id}",
+    "submit_action": "/api/player-environment/actions",
+    "action_receipt": "/api/player-environment/actions/{request_id}",
+    "register_client": "/api/player-environment/clients/register",
+    "controller_snapshot": "/api/player-environment/controller",
+    "controller_acquire": "/api/player-environment/controller/acquire",
+    "controller_renew": "/api/player-environment/controller/renew",
+    "controller_release": "/api/player-environment/controller/release",
+    "native_page_sessions": "/api/player-environment/evidence/native-pages/sessions"
+  },
+  "schemas": {
+    "snapshot": "sts2.player-environment/snapshot-1",
+    "bound_actions": "sts2.player-environment/bound-actions-1",
+    "action": "sts2.player-environment/action-1",
+    "receipt": "sts2.player-environment/receipt-1",
+    "read": "sts2.player-environment/read-1",
+    "control": "sts2.player-environment/control-1",
+    "native_page_evidence": "sts2.player-environment/native-page-evidence-1"
+  },
+  "action_verbs": [
+    "activate",
+    "cancel",
+    "close",
+    "confirm",
+    "deselect",
+    "end_turn",
+    "open",
+    "play",
+    "select",
+    "skip",
+    "target",
+    "use"
+  ],
+  "snapshot_contract": {
+    "required_fields": [
+      "snapshot_id",
+      "sequence",
+      "status",
+      "persistent",
+      "interaction",
+      "referents",
+      "bound_actions",
+      "reads",
+      "completeness",
+      "session",
+      "information_policy"
+    ],
+    "interaction_content_required_tags": ["surface.kind", "context.kind"],
+    "unknown_interaction_behavior": "visible_unsupported_or_observed_without_action_authority",
+    "finite_projection_requirement": "only_complete_bound_action_projection_can_authorize_submission",
+    "interactive_status_requirement": "interactive_exactly_means_complete_non_empty_bound_action_projection",
+    "referent_authority_requirement": "every_public_action_operand_must_already_be_a_player_visible_referent"
+  },
+  "read_kinds": {
+    "run_deck": "state_bound_player_openable_page",
+    "combat_piles": "state_bound_player_openable_page",
+    "shop_catalog": "state_bound_current_visible_catalog",
+    "surface_card": "state_bound_current_visible_or_focusable_card_detail"
+  },
+  "information_closure": {
+    "c1_scope": "stable_and_inspectable_player_information",
+    "hot_snapshot": "current stable visible decision facts and finite current actions",
+    "on_demand_reads": "stable player-reachable detail that need not occupy every hot snapshot",
+    "current_game_tooltip_subtypes": ["HoverTip", "CardHoverTip"],
+    "tooltip_subtype_drift": "exact_game_test_and_fail_closed",
+    "bounded_collection_policy": "complete_player_reachable_logical_collection_without_gesture_replay",
+    "unsupported_must_be_explicit": true,
+    "transient_player_cues": "deferred_to_c1_x"
+  },
+  "delivery_contract": {
+    "states": ["delivered", "not_delivered", "unknown"],
+    "unknown_retry_allowed": false,
+    "receipt_non_claim": "delivery_does_not_prove_business_completion"
+  },
+  "hard_shell": [
+    "fair_player_information_only",
+    "exact_native_operands_host_local",
+    "snapshot_bound_stale_rejection",
+    "execute_time_native_revalidation",
+    "request_idempotency",
+    "single_writer_controller",
+    "unknown_delivery_never_retried",
+    "reads_are_read_only_and_non_authorizing"
+  ],
+  "evidence_profiles": [{
+    "id": "native_pages.v1",
+    "default_in_consumer_flow": false,
+    "creates_mutation_authority": false,
+  

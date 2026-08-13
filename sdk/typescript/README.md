@@ -1,0 +1,13 @@
+# STS2 Connector TypeScript Client
+
+Strategy-free strict validators, REST calls and controller lease mechanics for
+the STS2 Player Environment protocol. This package does not score actions,
+reconstruct legality, interpret game effects or retry `unknown` delivery.
+
+Consumers provide their own explicit product identity when constructing
+`EnvironmentControllerSession`.
+
+`prefetchPlayerEnvironmentDecisionBundle` can eagerly fetch advertised Reads
+for memoryless consumers. It verifies snapshot, runtime, environment, kind and
+target coherence and returns the original observation plus Read responses. It
+does not normalize game semantics, select actions or create authority.

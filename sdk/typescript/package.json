@@ -1,0 +1,33 @@
+{
+  "name": "@rsgcsg/sts2-connector-client",
+  "version": "1.0.0-rc.1",
+  "description": "Strategy-free TypeScript client and strict validators for the STS2 Player Environment",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.typecheck.json",
+    "test": "vitest run",
+    "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
+    "check": "npm run typecheck && npm run test && npm run build"
+  },
+  "dependencies": {
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.14",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

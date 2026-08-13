@@ -1,0 +1,73 @@
+#!/usr/bin/env node
+import assert from "node:assert/strict";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import {
+  configurePlayerEnvironmentEvidenceProfile,
+  evaluateEnvironmentReadiness,
+  evaluateLoadedArtifact,
+  inspectModInstallation,
+  resolveModsDir,
+  sourceProtocols,
+  windowsTaskListHasGame
+} from "./connector.mjs";
+
+assert.deepEqual(sourceProtocols(), { csharp: "1.0-rc.2", client: "1.0-rc.2" });
+assert.equal(resolveModsDir("C:\\Game", "win32"), "C:\\Game\\mods");
+assert.equal(windowsTaskListHasGame('"SlayTheSpire2.exe","123"'), true);
+assert.equal(windowsTaskListHasGame('"steam.exe","123"'), false);
+
+const capabilities = {
+  protocol_version: "1.0-rc.2",
+  execution_available: true,
+  host: {
+    runtime_instance_id: "runtime-1",
+    implementation: {
+      artifact_sha256: "a".repeat(64),
+      module_version_id: "mvid-1",
+      source_revision: "b".repeat(40)
+    }
+  },
+  game: {
+    compatibility: { observation_allowed: true },
+    modset: { status: "exact_player_environment_only" }
+  }
+};
+assert.equal(evaluateLoadedArtifact({
+  csharpProtocol: "1.0-rc.2",
+  clientProtocol: "1.0-rc.2",
+  builtSha: "a".repeat(64),
+  installedSha: "a".repeat(64),
+  builtMvid: "mvid-1",
+  installedMvid: "mvid-1",
+  builtSourceRevision: "b".repeat(40),
+  capabilities
+}).ok, true);
+assert.deepEqual(evaluateEnvironmentReadiness(capabilities, "1.0-rc.2").blockers, []);
+
+const temporary = mkdtempSync(path.join(os.tmpdir(), "sts2-connector-cli-"));
+try {
+  mkdirSync(path.join(temporary, "backup"));
+  writeFileSync(path.join(temporary, "STS2_MCP.json"), JSON.stringify({ id: "STS2_MCP", version: "1" }));
+  writeFileSync(path.join(temporary, "backup", "duplicate.json"), JSON.stringify({ id: "STS2_MCP", version: "old" }));
+  const installation = inspectModInstallation(temporary);
+  assert.equal(installation.duplicate_installation_blocker, true);
+  assert.equal(installation.duplicate_manifests.length, 1);
+  const configPath = path.join(temporary, "STS2_MCP.conf");
+  writeFileSync(configPath, JSON.stringify({
+    port: 15526,
+    permission_mode: "retired",
+    qualification_store: "retired.json",
+    human_equivalence_enabled: true
+  }));
+  configurePlayerEnvironmentEvidenceProfile(configPath, true);
+  assert.deepEqual(JSON.parse(readFileSync(configPath, "utf8")), {
+    port: 15526,
+    player_environment_native_page_evidence_enabled: true
+  });
+} finally {
+  rmSync(temporary, { recursive: true, force: true });
+}
+
+console.log("connector CLI checks passed");

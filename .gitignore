@@ -1,0 +1,28 @@
+host/**/bin/
+host/**/obj/
+host/out/
+TestResults/
+.DS_Store
+.local/
+node_modules/
+sdk/typescript/node_modules/
+sdk/typescript/dist/
+*.tgz
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+transports/mcp/.venv/
+transports/mcp/.uv-lock-env/
+
+# Claude Code
+# .claude/
+.mcp.json
+.env
+.env.local
+CLAUDE.md
+GUIDE.md
+.claude/settings.local.json
+
+# Qod
