@@ -44,10 +44,14 @@ const hostArchive = `STS2-Connector-${version}-host.tar.gz`;
 execFileSync("tar", ["-czf", path.join(releaseRoot, hostArchive), "-C", stageRoot, "."], { stdio: "inherit" });
 const packOutput = execFileSync(
   "npm",
-  ["pack", "--prefix", "sdk/typescript", "--pack-destination", releaseRoot, "--json"],
-  { cwd: root, encoding: "utf8" }
+  ["pack", "--pack-destination", releaseRoot, "--json"],
+  { cwd: path.join(root, "sdk", "typescript"), encoding: "utf8" }
 );
-const sdkArchive = JSON.parse(packOutput)[0].filename;
+const packReport = JSON.parse(packOutput)[0];
+if (packReport?.name !== "@rsgcsg/sts2-connector-client") {
+  throw new Error(`Release SDK pack resolved the wrong package: ${packReport?.name ?? "missing"}`);
+}
+const sdkArchive = packReport.filename;
 
 function sha256(file) {
   return createHash("sha256").update(fs.readFileSync(file)).digest("hex");
