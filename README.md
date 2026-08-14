@@ -18,8 +18,9 @@ second legality model. Reads are state-bound and non-authorizing. A complete
 finite BoundAction projection is required for input authority; delivery is
 revalidated against the current native UI. Unknown delivery is not retryable.
 
-Current release candidate: `1.0.0-rc.1`. Player Environment protocol:
-`1.0-rc.2`. This source is not runtime-frozen or generally released yet.
+Current release candidate: `1.0.0-rc.2`. Player Environment protocol:
+`1.0-rc.2`. RC1 remains published as predecessor evidence but its binary
+archive layout is superseded by RC2.
 
 ## Repository Map
 

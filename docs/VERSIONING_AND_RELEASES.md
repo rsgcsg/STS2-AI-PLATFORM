@@ -2,7 +2,7 @@
 
 Four identities are intentionally separate:
 
-1. **Connector release** (`1.0.0-rc.1`): source/product packaging.
+1. **Connector release** (`1.0.0-rc.2`): source/product packaging.
 2. **Player Environment protocol** (`1.0-rc.2`): wire compatibility.
 3. **Capabilities**: loaded features, exact game/Modset and observation/input
    availability.
@@ -43,5 +43,10 @@ produces the install-ready Host archive, SDK tarball, machine contract, release
 manifest and checksums under `.local/release/v<version>/`. The Git tag and
 published assets must all refer to that exact source revision; a branch name or
 working-tree build is not a release.
+
+The static release manifest names a separate runtime-seal asset. This avoids a
+circular artifact identity: runtime evidence is produced only after the exact
+tagged Host has been built, installed and cold-loaded. A release is not sealed
+unless that exact runtime-seal asset is present.
 
 Build, install or predecessor Live evidence cannot skip a later gate.

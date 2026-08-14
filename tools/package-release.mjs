@@ -27,18 +27,33 @@ if (identity.source_revision !== head
 
 const releaseRoot = path.join(root, ".local", "release", `v${version}`);
 const stageRoot = path.join(releaseRoot, "stage");
-const modRoot = path.join(stageRoot, "STS2_MCP");
+const payloadRoot = path.join(stageRoot, "payload");
+const toolsRoot = path.join(stageRoot, "tools");
 fs.rmSync(releaseRoot, { recursive: true, force: true });
-fs.mkdirSync(modRoot, { recursive: true });
+fs.mkdirSync(payloadRoot, { recursive: true });
+fs.mkdirSync(toolsRoot, { recursive: true });
 
 for (const name of ["STS2_MCP.dll", "STS2_MCP.pdb", "STS2_MCP.deps.json", "build-identity.json"]) {
   const source = path.join(hostOut, name);
-  if (fs.existsSync(source)) fs.copyFileSync(source, path.join(modRoot, name));
+  if (fs.existsSync(source)) fs.copyFileSync(source, path.join(payloadRoot, name));
 }
-fs.copyFileSync(path.join(root, "host", "mod_manifest.json"), path.join(modRoot, "mod_manifest.json"));
+fs.copyFileSync(path.join(root, "host", "mod_manifest.json"), path.join(payloadRoot, "STS2_MCP.json"));
+for (const name of ["install-release.mjs", "verify-release.mjs", "steam-paths.mjs"]) {
+  fs.copyFileSync(path.join(root, "tools", name), path.join(toolsRoot, name));
+}
 fs.copyFileSync(path.join(root, "docs", "INSTALLATION.md"), path.join(stageRoot, "INSTALL.md"));
 fs.copyFileSync(path.join(root, "contracts", "player-environment-contract.json"), path.join(stageRoot, "player-environment-contract.json"));
 fs.copyFileSync(path.join(root, "release-manifest.json"), path.join(stageRoot, "release-manifest.json"));
+
+for (const required of [
+  path.join(payloadRoot, "STS2_MCP.dll"),
+  path.join(payloadRoot, "STS2_MCP.json"),
+  path.join(payloadRoot, "build-identity.json"),
+  path.join(toolsRoot, "install-release.mjs"),
+  path.join(toolsRoot, "verify-release.mjs")
+]) {
+  if (!fs.existsSync(required)) throw new Error(`Release layout is missing ${path.relative(stageRoot, required)}`);
+}
 
 const hostArchive = `STS2-Connector-${version}-host.tar.gz`;
 execFileSync("tar", ["-czf", path.join(releaseRoot, hostArchive), "-C", stageRoot, "."], { stdio: "inherit" });

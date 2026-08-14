@@ -99,7 +99,7 @@ async def _ensure_controller() -> dict:
                     "client_instance_id": client_instance_id,
                     "product_id": "sts2mcp-python-player-environment-adapter",
                     "product_name": "STS2 Player Environment MCP Adapter",
-                    "product_version": "1.0.0-rc.1",
+                    "product_version": "1.0.0-rc.2",
                 },
             )
             _control = {

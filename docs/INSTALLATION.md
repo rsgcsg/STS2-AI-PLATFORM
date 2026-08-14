@@ -1,5 +1,48 @@
 # Installation, Update And Rollback
 
+## Release Installation
+
+Ordinary users install the tagged Host archive, not a branch or source build.
+Download these assets from the same GitHub release:
+
+- `STS2-Connector-<version>-host.tar.gz`
+- `checksums.sha256`
+
+Verify the archive against `checksums.sha256`, extract it, fully close STS2,
+then run from the extracted directory:
+
+```bash
+node tools/install-release.mjs
+```
+
+Use `--game-dir "<path>"` only when Steam discovery cannot find the game. The
+installer copies only `payload/STS2_MCP.dll` and
+`payload/STS2_MCP.json`, records a timestamped backup outside the game, and
+prints its exact rollback path. It does not start the game or claim the Host is
+loaded.
+
+Cold-start STS2 through Steam, then verify source revision, protocol, artifact
+SHA, MVID and runtime identity against the release payload:
+
+```bash
+node tools/verify-release.mjs
+```
+
+The release is supported only when the matching runtime-seal asset exists on
+the GitHub release and the verifier reports `ok: true`.
+
+## Release Rollback
+
+Fully close STS2 and use the exact backup printed by the installer:
+
+```bash
+node tools/install-release.mjs --rollback "<backup directory>"
+```
+
+Cold-start the game after rollback. The tool restores only the prior Connector
+DLL and manifest; it never changes the Steam game, saves, other Mods or Agent
+data.
+
 ## Source Deployment
 
 This release candidate currently supports verified source deployment.
@@ -40,7 +83,7 @@ Verification requires source/build/installed/loaded protocol, SHA-256, MVID and
 source revision agreement. It also reports runtime, exact game and Modset
 identity. A matching loaded artifact is still not an ordinary Live journey.
 
-## Rollback
+## Source Rollback
 
 The deploy output includes `rollback_backup`. Fully close the game, then run:
 
@@ -52,8 +95,5 @@ Cold-start STS2 and verify the restored process. Rollback only restores the
 known Host DLL/manifest/provenance in that backup; it never rewrites game files,
 saves, other Mods or consumer data.
 
-## Binary Releases
-
-Ordinary users should consume a tagged release artifact, not a development
-branch. The first public binary release remains blocked on the standalone
-artifact runtime seal documented in [Status](STATUS.md).
+Source rollback uses repository-local deployment backups. Release and source
+backups are intentionally separate and must not be interchanged.
