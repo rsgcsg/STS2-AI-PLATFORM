@@ -178,6 +178,9 @@ internal static class LiveObservationReader
         if (TryBuildRunMountNoInputTransition(snapshot, entities, game) is { } runTransition)
             return runTransition;
 
+        if (TryBuildEventRoomMountNoInputTransition(snapshot, game) is { } eventMountTransition)
+            return eventMountTransition;
+
         if (TryBuildEventNoInputTransition(snapshot, game) is { } eventTransition)
             return eventTransition;
 
@@ -433,6 +436,88 @@ internal static class LiveObservationReader
         runInProgress
         && (!runStatePresent || !currentRoomPresent)
         && !hasBlockingSurface
+        && string.Equals(sourceType, "run_without_visible_overlay", StringComparison.Ordinal);
+
+    private static LiveObservation? TryBuildEventRoomMountNoInputTransition(
+        ActiveSurfaceSnapshot snapshot,
+        GameBuildIdentity game)
+    {
+        RunState? runState = RunManager.Instance.DebugOnlyGetState();
+        bool eventRoomNodePresent = NEventRoom.Instance is { } uiRoom
+                                    && ConnectorMod.IsLiveNode(uiRoom);
+        if (!ClassifyEventRoomMountNoInputTransition(
+                RunManager.Instance.IsInProgress,
+                runState?.CurrentRoom is EventRoom,
+                snapshot.HasBlockingSurface,
+                snapshot.SourceType,
+                eventRoomNodePresent))
+        {
+            return null;
+        }
+
+        var context = new RunTransitionLiveContext(
+            "run_transition",
+            "setup",
+            "awaiting_event_room_mount");
+        var surface = new NoActionSurface(
+            "no_action",
+            "settling",
+            "The native event room model is current, but its player-visible room node has not mounted yet.");
+        var completeness = new StateCompleteness(
+            "complete_for_event_room_mount_transition",
+            "none_no_input_owner",
+            new[]
+            {
+                "RunState.CurrentRoom exact EventRoom",
+                "NEventRoom lifecycle",
+                "ActiveInputResolver"
+            },
+            Array.Empty<string>());
+        string signature = StableIdentityHash.Object(new
+        {
+            game.Version,
+            game.Commit,
+            context,
+            surface,
+            runState!.CurrentActIndex,
+            runState.TotalFloor
+        });
+
+        return new LiveObservation(
+            signature,
+            "settling",
+            context,
+            surface,
+            completeness,
+            game,
+            Array.Empty<string>())
+        {
+            InputOwnership = new InputOwnership(
+                "none_fail_closed",
+                null,
+                "The exact event room model has no mounted player-input owner; the Host observes without publishing actions."),
+            Diagnostics = new[]
+            {
+                HostDiagnostics.Create(
+                    "host.lifecycle.event_room_mount_settling",
+                    "info",
+                    "runtime",
+                    "none",
+                    "settle")
+            }
+        };
+    }
+
+    internal static bool ClassifyEventRoomMountNoInputTransition(
+        bool runInProgress,
+        bool currentRoomIsEvent,
+        bool hasBlockingSurface,
+        string sourceType,
+        bool eventRoomNodePresent) =>
+        runInProgress
+        && currentRoomIsEvent
+        && !hasBlockingSurface
+        && !eventRoomNodePresent
         && string.Equals(sourceType, "run_without_visible_overlay", StringComparison.Ordinal);
 
     private static LiveObservation? TryBuildEventNoInputTransition(

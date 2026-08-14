@@ -14,7 +14,9 @@ objects remain Host-local. Unknown owner or target fails closed. Unknown
 business provenance alone does not suppress an exact visible native control.
 The no-owner frame between a delivered standard-run entry and the mounted run
 is a bounded `settling` lifecycle, not a transient unsupported Surface. A real
-unknown owner remains fail-closed.
+unknown owner remains fail-closed. The exact event-room model also settles while
+its native room node mounts; this does not authorize an event option before the
+real visible controls exist.
 
 ## Information
 

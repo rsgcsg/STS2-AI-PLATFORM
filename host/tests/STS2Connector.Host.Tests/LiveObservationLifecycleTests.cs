@@ -54,6 +54,38 @@ public sealed class LiveObservationLifecycleTests
             inDialogue: false));
     }
 
+    [Fact]
+    public void CurrentEventModelWithoutMountedRoomIsASettlingTransition()
+    {
+        Assert.True(LiveObservationReader.ClassifyEventRoomMountNoInputTransition(
+            runInProgress: true,
+            currentRoomIsEvent: true,
+            hasBlockingSurface: false,
+            sourceType: "run_without_visible_overlay",
+            eventRoomNodePresent: false));
+    }
+
+    [Theory]
+    [InlineData(false, true, false, "run_without_visible_overlay", false)]
+    [InlineData(true, false, false, "run_without_visible_overlay", false)]
+    [InlineData(true, true, true, "run_without_visible_overlay", false)]
+    [InlineData(true, true, false, "unknown_modal", false)]
+    [InlineData(true, true, false, "run_without_visible_overlay", true)]
+    public void EventRoomMountTransitionDoesNotMaskOtherOwners(
+        bool runInProgress,
+        bool currentRoomIsEvent,
+        bool hasBlockingSurface,
+        string sourceType,
+        bool eventRoomNodePresent)
+    {
+        Assert.False(LiveObservationReader.ClassifyEventRoomMountNoInputTransition(
+            runInProgress,
+            currentRoomIsEvent,
+            hasBlockingSurface,
+            sourceType,
+            eventRoomNodePresent));
+    }
+
     [Theory]
     [InlineData(false, true, false, "run_without_visible_overlay", true, false)]
     [InlineData(true, false, false, "run_without_visible_overlay", true, false)]
