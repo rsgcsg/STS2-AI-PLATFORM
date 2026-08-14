@@ -6,8 +6,10 @@ import {
   mkdirSync,
   readFileSync,
   rmSync,
+  symlinkSync,
   writeFileSync
 } from "node:fs";
+import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { installRelease, rollbackRelease } from "./install-release.mjs";
@@ -70,6 +72,12 @@ try {
   });
   assert.equal(rolledBack.status, "rollback_restored_game_must_be_cold_started");
   assert.equal(readFileSync(path.join(modsDir, "STS2_MCP.dll"), "utf8"), "old-host");
+
+  const linkedVerifier = path.join(root, "verify-link.mjs");
+  symlinkSync(path.resolve("tools/verify-release.mjs"), linkedVerifier);
+  const help = spawnSync(process.execPath, [linkedVerifier, "--help"], { encoding: "utf8" });
+  assert.equal(help.status, 0);
+  assert.match(help.stdout, /Usage: node tools\/verify-release\.mjs/u);
 } finally {
   rmSync(root, { recursive: true, force: true });
 }
