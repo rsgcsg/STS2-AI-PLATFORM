@@ -18,10 +18,9 @@ second legality model. Reads are state-bound and non-authorizing. A complete
 finite BoundAction projection is required for input authority; delivery is
 revalidated against the current native UI. Unknown delivery is not retryable.
 
-Current release candidate: `1.0.0-rc.2`. Player Environment protocol:
-`1.0-rc.2`. RC1 remains published as predecessor evidence but its binary
-archive layout is superseded by the
-[runtime-sealed RC2 release](https://github.com/rsgcsg/STS2-Connector/releases/tag/v1.0.0-rc.2).
+Current stable line: `1.0.0`. Player Environment protocol: `1.0.0`. The
+runtime-sealed RC2 remains predecessor evidence; stable publication requires a
+new exact-artifact runtime seal and does not inherit RC2 qualification.
 
 ## Repository Map
 
@@ -83,6 +82,6 @@ optional adapter over the same endpoints, not another authority.
 
 Source, tests, build, install, loaded identity, targeted Live gates, ordinary
 journey and release support are different evidence levels. Pre-extraction
-SpireAgent evidence is predecessor evidence only. RC2's exact SHA-256, MVID,
-runtime, game/Modset and journey seal are attached to its release.
+SpireAgent and RC evidence is predecessor evidence only. Stable release support
+must be tied to the exact `v1.0.0` SHA-256, MVID, runtime, game and Modset.
 See [Current status](docs/STATUS.md) for the precise non-claims.

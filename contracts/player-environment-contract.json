@@ -1,6 +1,6 @@
 {
   "contract_id": "sts2.player-environment",
-  "protocol_version": "1.0-rc.2",
+  "protocol_version": "1.0.0",
   "status": "release_candidate",
   "routes": {
     "capabilities": "/api/player-environment/capabilities",

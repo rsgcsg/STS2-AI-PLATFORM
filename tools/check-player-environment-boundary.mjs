@@ -35,7 +35,7 @@ for (const legacy of ["/api/he", "/api/v2", "/api/v3", "legal_actions"])
   forbidText(client, legacy, `legacy client seam ${legacy}`);
 
 const protocol = "sdk/typescript/src/protocol.ts";
-requireText(protocol, 'SUPPORTED_PLAYER_ENVIRONMENT_PROTOCOL = "1.0-rc.2"', "current protocol");
+requireText(protocol, 'SUPPORTED_PLAYER_ENVIRONMENT_PROTOCOL = "1.0.0"', "current protocol");
 requireText(protocol, "information_policy:", "fair-player information boundary");
 requireText(protocol, "bound_actions:", "finite Host projection");
 for (const legacy of [

@@ -14,14 +14,14 @@ import {
 } from "./connector.mjs";
 import { canonicalSourceBytes } from "./connector-provenance.mjs";
 
-assert.deepEqual(sourceProtocols(), { csharp: "1.0-rc.2", client: "1.0-rc.2" });
+assert.deepEqual(sourceProtocols(), { csharp: "1.0.0", client: "1.0.0" });
 assert.equal(resolveModsDir("C:\\Game", "win32"), "C:\\Game\\mods");
 assert.equal(windowsTaskListHasGame('"SlayTheSpire2.exe","123"'), true);
 assert.equal(windowsTaskListHasGame('"steam.exe","123"'), false);
 assert.equal(canonicalSourceBytes(Buffer.from("first\r\nsecond\n")).toString("utf8"), "first\nsecond\n");
 
 const capabilities = {
-  protocol_version: "1.0-rc.2",
+  protocol_version: "1.0.0",
   execution_available: true,
   host: {
     runtime_instance_id: "runtime-1",
@@ -37,8 +37,8 @@ const capabilities = {
   }
 };
 assert.equal(evaluateLoadedArtifact({
-  csharpProtocol: "1.0-rc.2",
-  clientProtocol: "1.0-rc.2",
+  csharpProtocol: "1.0.0",
+  clientProtocol: "1.0.0",
   builtSha: "a".repeat(64),
   installedSha: "a".repeat(64),
   builtMvid: "mvid-1",
@@ -46,7 +46,15 @@ assert.equal(evaluateLoadedArtifact({
   builtSourceRevision: "b".repeat(40),
   capabilities
 }).ok, true);
-assert.deepEqual(evaluateEnvironmentReadiness(capabilities, "1.0-rc.2").blockers, []);
+assert.deepEqual(evaluateEnvironmentReadiness(capabilities, "1.0.0").blockers, []);
+assert.deepEqual(
+  evaluateEnvironmentReadiness(capabilities, "1.0-rc.2").blockers,
+  [
+    "unsupported_player_environment_protocol",
+    "player_snapshot_disabled",
+    "player_input_delivery_disabled"
+  ]
+);
 
 const temporary = mkdtempSync(path.join(os.tmpdir(), "sts2-connector-cli-"));
 try {

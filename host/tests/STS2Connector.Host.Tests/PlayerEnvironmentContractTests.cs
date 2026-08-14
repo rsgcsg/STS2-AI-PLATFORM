@@ -180,7 +180,7 @@ public sealed class PlayerEnvironmentContractTests
     [Fact]
     public void BreakingWireCleanupUsesRevisionedSchemas()
     {
-        Assert.Equal("1.0-rc.2", PlayerEnvironmentContract.ProtocolVersion);
+        Assert.Equal("1.0.0", PlayerEnvironmentContract.ProtocolVersion);
         Assert.Equal("sts2.player-environment/snapshot-1", PlayerEnvironmentContract.SnapshotSchema);
         Assert.Equal("sts2.player-environment/action-1", PlayerEnvironmentContract.ActionSchema);
         Assert.Equal("sts2.player-environment/receipt-1", PlayerEnvironmentContract.ReceiptSchema);

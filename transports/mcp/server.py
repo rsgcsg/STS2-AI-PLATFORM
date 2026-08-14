@@ -21,7 +21,7 @@ _trust_env: bool = True
 _http: httpx.AsyncClient | None = None
 _control_lock: asyncio.Lock | None = None
 _control: dict | None = None
-_CONTROL_PROTOCOL = "1.0-rc.2"
+_CONTROL_PROTOCOL = "1.0.0"
 _CONTROL_SCHEMA = "sts2.player-environment/control-1"
 
 
@@ -99,7 +99,7 @@ async def _ensure_controller() -> dict:
                     "client_instance_id": client_instance_id,
                     "product_id": "sts2mcp-python-player-environment-adapter",
                     "product_name": "STS2 Player Environment MCP Adapter",
-                    "product_version": "1.0.0-rc.2",
+                    "product_version": "1.0.0",
                 },
             )
             _control = {

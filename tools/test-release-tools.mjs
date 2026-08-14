@@ -29,7 +29,7 @@ try {
   const artifactSha = createHash("sha256").update("new-host").digest("hex");
   const identity = {
     source_revision: "a".repeat(40),
-    source_protocol: "1.0-rc.2",
+    source_protocol: "1.0.0",
     artifact_sha256: artifactSha,
     artifact_mvid: "11111111-2222-3333-4444-555555555555"
   };

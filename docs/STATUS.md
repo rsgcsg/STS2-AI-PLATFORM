@@ -1,11 +1,11 @@
 # Current Status
 
-Release candidate: `1.0.0-rc.2`
+Stable candidate: `1.0.0`
 
-Player Environment protocol: `1.0-rc.2`
+Player Environment protocol: `1.0.0`
 
-Verdict: **C1 RC2 is a published, runtime-sealed prerelease and the temporary
-Player Environment freeze baseline**
+Verdict: **C1 stable source is being promoted from the runtime-sealed RC2
+baseline; stable support remains pending a new exact `v1.0.0` artifact seal**
 
 ## Implemented
 
@@ -22,7 +22,7 @@ Player Environment freeze baseline**
 
 ## Evidence State
 
-The recommended release is source/tag
+The predecessor release is source/tag
 `547c9addac624f7df363a93a3873ee1c2062ecc3` / `v1.0.0-rc.2`:
 
 - source digest: `a04ae9cf77ea22532e27a120b6df4ed5975e40f9ce6f4699bf6503ca17de4484`;
@@ -36,11 +36,13 @@ source/build/install/load identity, controller/idempotency/stale gates, 261
 state-bound Reads, native-page open/read/return, a fresh ordinary Journey to
 `game_over` with 117 delivered actions and zero unknown outcomes, archive-
 extracted identity verification, and an actual rollback/cold-load/restore
-roundtrip. The public runtime-seal asset is the machine evidence summary.
+roundtrip. That public runtime-seal asset remains RC2 evidence only. The
+`v1.0.0` source, artifact and runtime must pass the same gates before stable
+publication.
 
-RC1 remains auditable predecessor evidence, but its development-stage binary
-layout is superseded. This current-docs commit is newer than the RC2 tag and is
-not itself a built or loaded Host identity.
+RC1 and RC2 remain auditable predecessor evidence. RC1's development-stage
+binary layout is superseded, and neither predecessor release qualifies the
+`v1.0.0` artifact or runtime.
 
 ## Explicit Non-Claims
 

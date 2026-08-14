@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "release": {
-    "version": "1.0.0-rc.2",
-    "channel": "prerelease",
+    "version": "1.0.0",
+    "channel": "stable",
     "status": "runtime_seal_asset_required"
   },
   "player_environment": {
-    "protocol": "1.0-rc.2",
+    "protocol": "1.0.0",
     "contract": "contracts/player-environment-contract.json"
   },
   "host": {
@@ -16,7 +16,7 @@
   },
   "client": {
     "npm_package": "@rsgcsg/sts2-connector-client",
-    "version": "1.0.0-rc.2"
+    "version": "1.0.0"
   },
   "exact_game_audit": {
     "version": "v0.111.0",
@@ -25,8 +25,8 @@
     "main_assembly_mvid": "57785517-0b16-42b9-8b36-bad6fb28384b"
   },
   "evidence": {
-    "predecessor_source": "a5db1aea0aabfde457383012b4cae9aa41c92a74",
-    "runtime_seal_asset": "STS2-Connector-1.0.0-rc.2-runtime-seal.json",
+    "predecessor_source": "547c9addac624f7df363a93a3873ee1c2062ecc3",
+    "runtime_seal_asset": "STS2-Connector-1.0.0-runtime-seal.json",
     "transfer_policy": "No predecessor artifact, runtime or journey evidence qualifies this release."
   }
 }

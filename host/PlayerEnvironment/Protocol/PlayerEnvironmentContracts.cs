@@ -11,7 +11,7 @@ namespace STS2Connector.PlayerEnvironment.Protocol;
 /// </summary>
 public static class PlayerEnvironmentContract
 {
-    public const string ProtocolVersion = "1.0-rc.2";
+    public const string ProtocolVersion = "1.0.0";
     public const string EnvironmentId = "sts2_player_environment";
     public const string EnvironmentName = "STS2 Player Environment";
     public const string SnapshotSchema = "sts2.player-environment/snapshot-1";

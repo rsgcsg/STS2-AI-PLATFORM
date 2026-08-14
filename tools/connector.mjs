@@ -98,7 +98,7 @@ export function evaluateEnvironmentReadiness(
   const compatibility = capabilities?.game?.compatibility;
   const modset = capabilities?.game?.modset;
   const protocolSupported = typeof expectedProtocol === "string"
-    && expectedProtocol.startsWith("1.0-")
+    && expectedProtocol.length > 0
     && capabilities?.protocol_version === expectedProtocol;
   const observationReady = protocolSupported
     && compatibility?.observation_allowed === true;
