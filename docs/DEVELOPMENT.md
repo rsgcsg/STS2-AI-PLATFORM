@@ -37,6 +37,12 @@ Build a Release Host and SDK:
 npm run build
 ```
 
+The canonical build clears the release output, disables incremental C#
+compilation and uses deterministic CI compilation with a fixed virtual source
+path. Before publishing, repeat the build from an independent clean checkout
+and compare the Host DLL/PDB SHA-256 and MVID. A clean Git status alone does
+not prove that an incremental artifact is reproducible.
+
 `npm run deploy` is the release-grade clean-source path. `npm run dev-deploy`
 is reserved for explicitly dirty local development and records that fact; its
 artifact cannot support a release or transferable support claim.

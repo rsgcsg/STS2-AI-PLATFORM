@@ -12,11 +12,13 @@ import {
   sourceProtocols,
   windowsTaskListHasGame
 } from "./connector.mjs";
+import { canonicalSourceBytes } from "./connector-provenance.mjs";
 
 assert.deepEqual(sourceProtocols(), { csharp: "1.0-rc.2", client: "1.0-rc.2" });
 assert.equal(resolveModsDir("C:\\Game", "win32"), "C:\\Game\\mods");
 assert.equal(windowsTaskListHasGame('"SlayTheSpire2.exe","123"'), true);
 assert.equal(windowsTaskListHasGame('"steam.exe","123"'), false);
+assert.equal(canonicalSourceBytes(Buffer.from("first\r\nsecond\n")).toString("utf8"), "first\nsecond\n");
 
 const capabilities = {
   protocol_version: "1.0-rc.2",

@@ -653,14 +653,19 @@ function build(options) {
   const resolved = paths(options);
   const source = playerEnvironmentSourceIdentity();
   if (!source) throw new Error("Could not establish Player Environment source identity before build.");
+  rmSync(path.dirname(resolved.builtDll), { recursive: true, force: true });
   run("dotnet", [
     "build",
     "host/STS2Connector.Host.csproj",
     "-c", "Release",
     "-o", "host/out/STS2_MCP",
+    "--no-incremental",
     `-p:STS2GameDir=${resolved.gameDir}`,
     `-p:SourceRevision=${source.revision}`,
-    "-p:UseSharedCompilation=false"
+    "-p:UseSharedCompilation=false",
+    "-p:Deterministic=true",
+    "-p:ContinuousIntegrationBuild=true",
+    `-p:PathMap=${WORKSPACE}=/_/sts2-connector`
   ]);
   run("dotnet", [
     "build",

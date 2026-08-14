@@ -3,6 +3,10 @@ import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
+export function canonicalSourceBytes(contents) {
+  return Buffer.from(contents.toString("utf8").replace(/\r\n/gu, "\n"), "utf8");
+}
+
 export function playerEnvironmentSourceIdentity(workspace) {
   const headResult = spawnSync("git", ["rev-parse", "--verify", "HEAD"], {
     cwd: workspace,
@@ -36,7 +40,10 @@ export function playerEnvironmentSourceIdentity(workspace) {
     .sort();
   const digest = createHash("sha256");
   for (const file of files) {
-    digest.update(file).update("\0").update(readFileSync(path.join(workspace, file))).update("\0");
+    digest.update(file)
+      .update("\0")
+      .update(canonicalSourceBytes(readFileSync(path.join(workspace, file))))
+      .update("\0");
   }
   const statusResult = spawnSync("git", ["status", "--porcelain", "--", ...files], {
     cwd: workspace,
