@@ -32,7 +32,7 @@ internal static class LiveObservationReader
     private static readonly BoundedSettlingWindow MissingPersistentStateWindow =
         new(TimeSpan.FromSeconds(20));
     private static readonly BoundedSettlingWindow MenuOrRunEntryNoInputWindow =
-        new(TimeSpan.FromSeconds(10));
+        new(TimeSpan.FromSeconds(20));
     private sealed record ReaderRegistration(string Kind, Func<ILiveSurfaceReader> Create);
 
     private static readonly ReaderRegistration[] ReaderRegistrations =
