@@ -1,11 +1,11 @@
 # Current Status
 
-Stable candidate: `1.0.0`
+Stable release: `v1.0.0`
 
 Player Environment protocol: `1.0.0`
 
-Verdict: **C1 stable source is being promoted from the runtime-sealed RC2
-baseline; stable support remains pending a new exact `v1.0.0` artifact seal**
+Verdict: **Player Environment C1 `v1.0.0` is the runtime-sealed stable
+baseline for its exact artifact, game and Modset identity**
 
 ## Implemented
 
@@ -20,29 +20,37 @@ baseline; stable support remains pending a new exact `v1.0.0` artifact seal**
 - standalone doctor/build/deploy/verify/rollback tooling;
 - a strategy-free SDK helper for coherence-checked eager Read aggregation.
 
-## Evidence State
+## Stable Evidence State
 
-The predecessor release is source/tag
-`547c9addac624f7df363a93a3873ee1c2062ecc3` / `v1.0.0-rc.2`:
+The stable release is exact source/tag
+`c38d4ad2e9d6eb029f8853ed852cce1152bc6d50` / `v1.0.0`:
 
-- source digest: `a04ae9cf77ea22532e27a120b6df4ed5975e40f9ce6f4699bf6503ca17de4484`;
-- DLL SHA-256: `cf7ed1454437cb796f5931b361f655222d2f3f2e3da3a21f038a752694645cc6`;
-- MVID: `6824e21d-7486-40fd-a131-43e789fdc8d2`;
+- Player Environment source digest:
+  `fdc91b0ee57046b9695d6f5b7c53ac04d43abf363ba2db618251a89796b4c258`;
+- built/installed/loaded DLL SHA-256:
+  `5014224ce8a1f5a61455f21d6873a87052eac533acffce04ac3fb75195bff185`;
+- built/installed/loaded MVID: `68f7a9aa-c293-4897-94cd-1e59ab6dd180`;
 - exact game: `v0.111.0/41cef1ea`, assembly hash `1010476334`;
-- Modset: the exact Connector artifact only.
+- Modset: `exact_player_environment_only`, with only `STS2_MCP` loaded;
+- final loaded runtime: `81aa04efe03a4ea8ad79ee07d781cc52`.
 
-RC2 passed deterministic checks, a byte-identical fresh-clone DLL/PDB build,
-source/build/install/load identity, controller/idempotency/stale gates, 261
-state-bound Reads, native-page open/read/return, a fresh ordinary Journey to
-`game_over` with 117 delivered actions and zero unknown outcomes, archive-
-extracted identity verification, and an actual rollback/cold-load/restore
-roundtrip. That public runtime-seal asset remains RC2 evidence only. The
-`v1.0.0` source, artifact and runtime must pass the same gates before stable
-publication.
+The tag passed 106/106 Host tests, 7/7 SDK tests, strict typecheck/build,
+contract/boundary/CLI/docs/Python/package checks, a fresh-clone identity match,
+and anonymous release archive/checksum verification. Exact-runtime gates passed
+for controller exclusion, duplicate request/Receipt identity, stale action and
+Read rejection, wrong-runtime native-page refusal, `run_deck` open/read/return
+and owner restoration. An ordinary same-artifact run reached `game_over`; its
+final continuous segment delivered 89 inputs, performed 209 Reads, rejected
+105 stale Reads and nine stale Snapshot actions, and returned zero `unknown`.
 
-RC1 and RC2 remain auditable predecessor evidence. RC1's development-stage
-binary layout is superseded, and neither predecessor release qualifies the
-`v1.0.0` artifact or runtime.
+Rollback restored RC2 SHA `cf7ed1454437cb796f5931b361f655222d2f3f2e3da3a21f038a752694645cc6`
+and MVID `6824e21d-7486-40fd-a131-43e789fdc8d2`, cold-loaded it as runtime
+`f1de33c153084e4e9b8c6f958e2a8f09`, then reinstalled and cold-loaded stable.
+The public release contains the matching machine-readable runtime seal.
+
+RC1, RC2 and monorepo runs remain auditable predecessor evidence only. Commits
+after the `v1.0.0` tag are not built or loaded merely because they document the
+release.
 
 ## Explicit Non-Claims
 

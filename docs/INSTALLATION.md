@@ -45,7 +45,7 @@ data.
 
 ## Source Deployment
 
-This release candidate currently supports verified source deployment.
+The stable release also supports verified source deployment for contributors.
 
 1. Install prerequisites and run `npm run bootstrap`.
 2. Run `npm run doctor` and review the discovered game directory.

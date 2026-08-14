@@ -19,8 +19,8 @@ finite BoundAction projection is required for input authority; delivery is
 revalidated against the current native UI. Unknown delivery is not retryable.
 
 Current stable line: `1.0.0`. Player Environment protocol: `1.0.0`. The
-runtime-sealed RC2 remains predecessor evidence; stable publication requires a
-new exact-artifact runtime seal and does not inherit RC2 qualification.
+`v1.0.0` release is runtime-sealed for its exact artifact, game and Modset.
+RC1/RC2 remain predecessor evidence only and do not qualify later artifacts.
 
 ## Repository Map
 
