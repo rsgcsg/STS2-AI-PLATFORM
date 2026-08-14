@@ -14,6 +14,19 @@ if (release.release.version !== version) {
 const status = execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).trim();
 if (status) throw new Error("Release packaging requires a clean source worktree");
 const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+let taggedHead = null;
+try {
+  taggedHead = execFileSync("git", ["rev-list", "-n", "1", `v${version}`], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"]
+  }).trim() || null;
+} catch {
+  // A not-yet-tagged version may be packaged for its pre-publication gates.
+}
+if (taggedHead && taggedHead !== head) {
+  throw new Error(`Release v${version} is immutable at ${taggedHead}; bump the version before packaging ${head}`);
+}
 
 const hostOut = path.join(root, "host", "out", "STS2_MCP");
 const identityPath = path.join(hostOut, "build-identity.json");

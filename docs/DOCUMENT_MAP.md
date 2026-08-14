@@ -26,3 +26,4 @@ authority.
 - [Monorepo semantic-seal predecessor](evidence/MONOREPO_C1_SEMANTIC_SEAL_2026-08-13.md)
 - [Standalone targeted runtime gates](evidence/STANDALONE_C1_TARGETED_RUNTIME_GATES_2026-08-13.md)
 - [Standalone final-source runtime gates](evidence/STANDALONE_C1_FINAL_SOURCE_RUNTIME_GATES_2026-08-13.md)
+- [C1 RC2 runtime seal](evidence/STANDALONE_C1_RC2_RUNTIME_SEAL_2026-08-14.md)
