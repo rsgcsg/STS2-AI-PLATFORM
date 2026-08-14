@@ -410,7 +410,9 @@ internal static class NativeUiActionRuntime
                 "NTreasureRoom.OnChestButtonReleased+OpenChest+native-result-stage",
                 new[] { room }));
         }
-        if (surface.Stage == "relic_choice" && surface.Relics.Count == 1)
+        if (surface.Stage == "relic_choice"
+            && surface.CanChoose
+            && surface.Relics.Count == 1)
         {
             VisibleTreasureRelic relic = surface.Relics[0];
             actions.Add(NativeDescriptor(

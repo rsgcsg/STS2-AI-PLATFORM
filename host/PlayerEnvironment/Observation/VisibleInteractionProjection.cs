@@ -275,7 +275,7 @@ internal static partial class PlayerEnvironmentService
             TreasureRoomSurface value => ToNode(new
             {
                 value.Kind, value.Stage, value.ChestOpened,
-                value.Relics, value.CanSkip, value.CanProceed
+                value.Relics, value.CanChoose, value.CanSkip, value.CanProceed
             }),
             GameOverSurface value => ToNode(new
             {

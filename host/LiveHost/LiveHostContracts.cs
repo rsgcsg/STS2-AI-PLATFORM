@@ -614,7 +614,7 @@ public sealed record ShopRoomSurface(
 
 /// <summary>
 /// The single-player treasure-room lifecycle. Chest opening, relic choice,
-/// skip, and room departure are distinct semantic commits.
+/// skip, and room departure expose distinct current native controls.
 /// </summary>
 public sealed record TreasureRoomSurface(
     string Kind,
@@ -622,6 +622,7 @@ public sealed record TreasureRoomSurface(
     string RoomEntityId,
     bool ChestOpened,
     IReadOnlyList<VisibleTreasureRelic> Relics,
+    bool CanChoose,
     bool CanSkip,
     bool CanProceed) : ILiveSurface;
 

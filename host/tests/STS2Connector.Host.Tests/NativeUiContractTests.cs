@@ -829,6 +829,7 @@ public sealed class NativeUiContractTests
             false,
             Array.Empty<VisibleTreasureRelic>(),
             false,
+            false,
             false);
         var choice = new TreasureRoomSurface(
             "treasure_room",
@@ -847,6 +848,7 @@ public sealed class NativeUiContractTests
                     Array.Empty<VisibleCard>())
             },
             true,
+            true,
             false);
 
         NativeUiActionDescriptor open = Assert.Single(
@@ -857,6 +859,10 @@ public sealed class NativeUiContractTests
         Assert.Equal("open_treasure_chest", open.Kind);
         Assert.Contains(choices, action => action.Kind == "choose_treasure_relic");
         Assert.Contains(choices, action => action.Kind == "skip_treasure_relic");
+        Assert.DoesNotContain(
+            NativeUiActionRuntime.DescribeTreasureRoomCommands(
+                choice with { CanChoose = false }),
+            action => action.Kind == "choose_treasure_relic");
         Assert.All(choices, action => Assert.Contains(
             action.EntityBindings!,
             binding => binding.Role == "treasure_room"

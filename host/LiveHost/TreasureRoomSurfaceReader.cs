@@ -131,6 +131,7 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
             roomId,
             chestOpened,
             visibleRelics,
+            stage == "relic_choice" && holderActionable,
             canSkip,
             canProceed);
         bool hasActionableControl = canOpenChest
