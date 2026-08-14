@@ -68,7 +68,6 @@ internal static class LiveModsetIdentity
                      && exactConnectorAssembly
                      && exactConnectorVersion
                      && !hazardousDetectedState;
-
         if (exact)
         {
             return new ModsetIdentity(
@@ -78,7 +77,6 @@ internal static class LiveModsetIdentity
                 mods,
                 "ModManager is initialized and the only loaded Mod is this exact STS2Connector assembly.");
         }
-
         string status = !string.Equals(managerState, "Initialized", StringComparison.Ordinal)
             ? "manager_not_initialized"
             : hazardousDetectedState

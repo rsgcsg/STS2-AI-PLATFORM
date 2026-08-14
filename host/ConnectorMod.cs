@@ -18,7 +18,7 @@ namespace STS2Connector;
 [ModInitializer("Initialize")]
 public static partial class ConnectorMod
 {
-    public const string Version = "1.0.0";
+    public const string Version = "1.0.1";
     public const int DefaultPort = 15526;
     internal const string ConfigFileName = "STS2_MCP.conf";
 

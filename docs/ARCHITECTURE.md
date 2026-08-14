@@ -16,8 +16,11 @@ STS2
 -> consumer
 ```
 
-The Connector is not a strategy engine, simulator, Headless implementation, UI
-automation system, or source-code interpreter.
+The Connector is not a strategy engine, simulator, Headless process manager,
+UI automation system, or source-code interpreter. The same embedded Host can
+report `live_ui` or `headless` according to the actual Godot display driver;
+launching that process, save/profile policy and lifecycle belong to a Host
+launcher such as STS2-headless.
 
 ## Ownership
 

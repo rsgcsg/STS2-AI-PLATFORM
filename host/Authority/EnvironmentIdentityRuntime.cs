@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using Godot;
 using MegaCrit.Sts2.Core.Debug;
 using STS2Connector.LiveHost;
 using STS2Connector.LiveHost.Contracts;
@@ -77,6 +78,23 @@ internal static class EnvironmentIdentityRuntime
         ArtifactSha256 = HostArtifactIdentity.LoadedAssemblySha256 ?? string.Empty
     };
 
+    internal static string HostKind()
+    {
+        try
+        {
+            return HostKind(DisplayServer.GetName());
+        }
+        catch
+        {
+            return "live_ui";
+        }
+    }
+
+    internal static string HostKind(string? displayServerName) =>
+        string.Equals(displayServerName, "headless", StringComparison.OrdinalIgnoreCase)
+            ? "headless"
+            : "live_ui";
+
     internal static InformationPolicyInfo InformationPolicy() => new(
         "player_visible_v1",
         "Information currently presented by, or normally inspectable through, the local player's game UI.",
@@ -103,10 +121,7 @@ internal static class EnvironmentIdentityRuntime
         && IsExactSupportedModset(game.Modset);
 
     private static bool IsExactSupportedModset(ModsetIdentity? modset) =>
-        string.Equals(
-            modset?.Status,
-            "exact_player_environment_only",
-            StringComparison.Ordinal);
+        string.Equals(modset?.Status, "exact_player_environment_only", StringComparison.Ordinal);
 
     private static bool IsExactSourceRevision(string? sourceRevision) =>
         sourceRevision?.Length == 40

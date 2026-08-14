@@ -2,10 +2,18 @@
 
 Stable release: `v1.0.0`
 
+Host patch candidate: `1.0.1` (`loaded = non-claim` until its own seal)
+
 Player Environment protocol: `1.0.0`
 
 Verdict: **Player Environment C1 `v1.0.0` is the runtime-sealed stable
 baseline for its exact artifact, game and Modset identity**
+
+The 1.0.1 source candidate fixes one Host-neutral identity defect: a process
+running the shipped game with Godot's headless display driver now reports
+`host_kind: headless` instead of the hard-coded `live_ui`. It changes neither
+the Player Environment wire nor action authority and admits no additional Mod.
+Tests/build/install do not prove that candidate loaded or ran.
 
 ## Implemented
 
@@ -57,7 +65,8 @@ release.
 - arbitrary game versions or Modsets;
 - hidden-state access;
 - coordinate/reflection mutation or visual computer use;
-- Headless, training, search or strategy implementation;
+- Headless process lifecycle, save isolation, training, search or strategy
+  implementation;
 - business completion inferred from a delivery Receipt;
 - native pages outside the fixed evidence profile;
 - transient VFX/SFX/history information closure;

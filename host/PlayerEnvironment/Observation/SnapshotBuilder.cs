@@ -184,7 +184,7 @@ internal static partial class PlayerEnvironmentService
         PlayerEnvironmentContract.EnvironmentName,
         identity.Version,
         identity.RuntimeInstanceId,
-        "live_ui",
+        EnvironmentIdentityRuntime.HostKind(),
         new PlayerEnvironmentImplementationIdentity(
             identity.SourceRevision,
             identity.ModuleVersionId,

@@ -18,9 +18,11 @@ second legality model. Reads are state-bound and non-authorizing. A complete
 finite BoundAction projection is required for input authority; delivery is
 revalidated against the current native UI. Unknown delivery is not retryable.
 
-Current stable line: `1.0.0`. Player Environment protocol: `1.0.0`. The
-`v1.0.0` release is runtime-sealed for its exact artifact, game and Modset.
-RC1/RC2 remain predecessor evidence only and do not qualify later artifacts.
+Current runtime-sealed stable release: `1.0.0`. Current Host patch candidate:
+`1.0.1`. Player Environment protocol and TypeScript SDK remain `1.0.0`.
+Release `1.0.1` reports the real display driver as `live_ui` or `headless`;
+until its own exact runtime seal is published, `v1.0.0` remains the supported
+artifact. RC1/RC2 remain predecessor evidence only.
 
 ## Repository Map
 
@@ -83,5 +85,6 @@ optional adapter over the same endpoints, not another authority.
 Source, tests, build, install, loaded identity, targeted Live gates, ordinary
 journey and release support are different evidence levels. Pre-extraction
 SpireAgent and RC evidence is predecessor evidence only. Stable release support
-must be tied to the exact `v1.0.0` SHA-256, MVID, runtime, game and Modset.
+must be tied to the exact release SHA-256, MVID, runtime, game and Modset.
+Source, build or install never transfers the `v1.0.0` seal to `1.0.1`.
 See [Current status](docs/STATUS.md) for the precise non-claims.

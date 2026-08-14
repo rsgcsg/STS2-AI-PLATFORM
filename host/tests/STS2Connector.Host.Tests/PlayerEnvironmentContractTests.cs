@@ -88,6 +88,14 @@ public sealed class PlayerEnvironmentContractTests
         Assert.Equal("connector_identity_missing", renamedId.Status);
     }
 
+    [Theory]
+    [InlineData("headless", "headless")]
+    [InlineData("HEADLESS", "headless")]
+    [InlineData("macos", "live_ui")]
+    [InlineData(null, "live_ui")]
+    public void HostKindReflectsTheActualDisplayDriver(string? displayDriver, string expected) =>
+        Assert.Equal(expected, EnvironmentIdentityRuntime.HostKind(displayDriver));
+
     [Fact]
     public void PublicModsetListsOnlyActuallyLoadedMods()
     {

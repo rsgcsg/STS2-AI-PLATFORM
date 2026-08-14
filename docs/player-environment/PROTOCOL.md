@@ -76,9 +76,11 @@ immediate successor.
 
 ## Current Host Scope
 
-The current product is a Live Host embedded in the real game. Headless,
-reset/seed control, save/load, clone/fork, fast-step, scenario mutation,
-training rewards and tensors are outside this contract and repository scope.
+The Host is embedded in the real game and reports whether the active Godot
+display driver is `live_ui` or `headless`. Process launch/lifecycle, profile
+isolation, reset/seed control, save/load, clone/fork, fast-step, scenario
+mutation, training rewards and tensors are outside this contract and
+repository scope.
 
 ## Exclusions
 

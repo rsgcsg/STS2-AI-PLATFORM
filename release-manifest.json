@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "release": {
-    "version": "1.0.0",
+    "version": "1.0.1",
     "channel": "stable",
     "status": "runtime_seal_asset_required"
   },
@@ -25,8 +25,8 @@
     "main_assembly_mvid": "57785517-0b16-42b9-8b36-bad6fb28384b"
   },
   "evidence": {
-    "predecessor_source": "547c9addac624f7df363a93a3873ee1c2062ecc3",
-    "runtime_seal_asset": "STS2-Connector-1.0.0-runtime-seal.json",
+    "predecessor_source": "c38d4ad2e9d6eb029f8853ed852cce1152bc6d50",
+    "runtime_seal_asset": "STS2-Connector-1.0.1-runtime-seal.json",
     "transfer_policy": "No predecessor artifact, runtime or journey evidence qualifies this release."
   }
 }

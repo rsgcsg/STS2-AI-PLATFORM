@@ -53,5 +53,6 @@ and cannot qualify the repaired source. Monorepo journeys are predecessor-only.
 ## Unsupported
 
 There is no arbitrary click/reflection, visual computer-use fallback, Headless
-Host, Training authority, hidden-state projection or arbitrary-version/Mod
-compatibility claim. Retired V2/V3 protocols are not fallbacks.
+process lifecycle or profile isolation, Training authority, hidden-state
+projection or arbitrary-version/Mod compatibility claim. Retired V2/V3
+protocols are not fallbacks.
