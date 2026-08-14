@@ -214,6 +214,16 @@ internal static partial class PlayerEnvironmentService
                 value.CanPreview, value.CanCancelSelection,
                 value.CanCancelPreview, value.CanConfirm, value.Cards
             }),
+            NativeDeckUpgradeSelectionSurface value => ToNode(new
+            {
+                value.Kind, value.Stage, value.Prompt,
+                value.MinSelect, value.MaxSelect, value.SelectedCount,
+                value.SelectedCardEntityIds, value.SelectableCardEntityIds,
+                value.DeselectableCardEntityIds, value.Cancelable,
+                value.ShowingUpgradePreviews, value.CanToggleUpgradeView,
+                value.CanCancelSelection, value.CanCancelPreview,
+                value.CanConfirm, value.Cards, value.PreviewCards
+            }),
             NativeCombatPileSelectionSurface value => ToNode(new
             {
                 value.Kind, value.Stage, value.Prompt, value.PileType,

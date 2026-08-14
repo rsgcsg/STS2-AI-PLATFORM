@@ -138,6 +138,7 @@ internal static partial class PlayerEnvironmentService
     private static IEnumerable<VisibleCard> VisibleSurfaceCards(ILiveSurface surface) =>
         surface switch
         {
+            NativeDeckUpgradeSelectionSurface value => value.Cards.Concat(value.PreviewCards),
             NativeDeckCardSelectionSurface value => value.Cards,
             NativeCombatPileSelectionSurface value => value.Cards,
             NativeGeneratedCardChoiceSurface value => value.Cards,

@@ -2,16 +2,43 @@ using STS2Connector.LiveHost.Contracts;
 using STS2Connector.LiveHost;
 using STS2Connector.Authority;
 using STS2Connector.NativeUi;
+using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Godot;
+using MegaCrit.Sts2.Core.CardSelection;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.HoverTips;
+using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Potions;
+using MegaCrit.Sts2.Core.Nodes.Cards;
+using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
+using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 
 namespace STS2Connector.Tests;
 
 public sealed class NativeUiContractTests
 {
+    [Fact]
+    public void CurrentGameDeckUpgradeSelectorHasAuditedNativeBindings()
+    {
+        const BindingFlags flags = BindingFlags.Instance
+                                   | BindingFlags.Public
+                                   | BindingFlags.NonPublic;
+
+        FieldInfo? preferences = typeof(NDeckUpgradeSelectScreen).GetField("_prefs", flags);
+        FieldInfo? selection = typeof(NDeckUpgradeSelectScreen).GetField("_selectedCards", flags);
+        FieldInfo? clickable = typeof(NCardHolder).GetField("_isClickable", flags);
+        FieldInfo? previewAfter = typeof(NUpgradePreview).GetField("_after", flags);
+
+        Assert.Equal(typeof(CardSelectorPrefs), preferences?.FieldType);
+        Assert.True(selection?.FieldType.IsAssignableTo(typeof(IEnumerable<CardModel>)));
+        Assert.Equal(typeof(bool), clickable?.FieldType);
+        Assert.True(previewAfter?.FieldType.IsAssignableTo(typeof(Control)));
+        Assert.True(typeof(NCardGridSelectionScreen).IsAssignableFrom(
+            typeof(NDeckUpgradeSelectScreen)));
+    }
+
     [Fact]
     public void CurrentGameHoverTipKindsAreExhaustivelyProjected()
     {
@@ -227,6 +254,37 @@ public sealed class NativeUiContractTests
         Assert.All(transformCommands, command => Assert.Contains(
             command.EntityBindings!,
             binding => binding.Role == "screen" && binding.EntityId == "transform-screen"));
+
+        var upgrade = new NativeDeckUpgradeSelectionSurface(
+            NativeDeckUpgradeSelection.SurfaceKind,
+            "selecting",
+            "upgrade-screen",
+            "Choose a card to upgrade.",
+            1,
+            1,
+            0,
+            Array.Empty<string>(),
+            new[] { card.EntityId },
+            Array.Empty<string>(),
+            Cancelable: true,
+            ShowingUpgradePreviews: false,
+            CanToggleUpgradeView: true,
+            CanCancelSelection: true,
+            CanCancelPreview: false,
+            CanConfirm: false,
+            Cards: new[] { card },
+            PreviewCards: Array.Empty<VisibleCard>());
+        NativeUiActionDescriptor[] upgradeCommands =
+            NativeDeckUpgradeSelection.DescribeCommands(upgrade).ToArray();
+        Assert.Contains(upgradeCommands, command =>
+            command.Kind == NativeDeckUpgradeSelection.SelectOperation);
+        Assert.Contains(upgradeCommands, command =>
+            command.Kind == NativeDeckUpgradeSelection.CancelSelectionOperation);
+        Assert.Contains(upgradeCommands, command =>
+            command.Kind == NativeDeckUpgradeSelection.ToggleUpgradeViewOperation);
+        Assert.All(upgradeCommands, command => Assert.Contains(
+            command.EntityBindings!,
+            binding => binding.Role == "screen" && binding.EntityId == "upgrade-screen"));
 
         var pile = new NativeCombatPileSelectionSurface(
             NativeCombatPileSelection.SurfaceKind,

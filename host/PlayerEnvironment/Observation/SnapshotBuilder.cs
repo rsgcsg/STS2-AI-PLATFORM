@@ -21,6 +21,7 @@ internal static partial class PlayerEnvironmentService
         LiveObservation? sourceFreeSurface =
             NativeGeneratedCardChoice.TryBuild(Entities, game)
             ?? NativeSimpleCardSelection.TryBuild(Entities, game)
+            ?? NativeDeckUpgradeSelection.TryBuild(Entities, game)
             ?? NativeDeckTransformSelection.TryBuild(Entities, game)
             ?? NativeCombatPileSelection.TryBuild(Entities, game)
             ?? NativeDeckCardSelection.TryBuild(Entities, game)

@@ -16,6 +16,8 @@ internal static partial class PlayerEnvironmentService
     {
         IReadOnlyList<NativeUiActionDescriptor>? descriptors = draft.Surface switch
         {
+            NativeDeckUpgradeSelectionSurface deckUpgradeSelection =>
+                NativeDeckUpgradeSelection.DescribeCommands(deckUpgradeSelection),
             NativeDeckCardSelectionSurface deckSelection =>
                 NativeDeckCardSelection.DescribeCommands(deckSelection),
             NativeCombatPileSelectionSurface combatPileSelection =>

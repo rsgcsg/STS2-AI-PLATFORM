@@ -210,6 +210,14 @@ internal static partial class PlayerEnvironmentService
                 binding,
                 parameters);
         }
+        if (snapshot.HostObservation.Surface is NativeDeckUpgradeSelectionSurface deckUpgradeSelection)
+        {
+            return NativeDeckUpgradeSelection.Start(
+                Entities,
+                deckUpgradeSelection,
+                binding,
+                parameters);
+        }
         if (snapshot.HostObservation.Surface is NativeSimpleCardSelectionSurface simpleSelection)
         {
             return NativeSimpleCardSelection.Start(
