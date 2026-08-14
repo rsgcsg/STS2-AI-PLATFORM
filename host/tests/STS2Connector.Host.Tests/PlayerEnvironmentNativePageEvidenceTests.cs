@@ -96,6 +96,29 @@ public sealed class PlayerEnvironmentNativePageEvidenceTests
     }
 
     [Fact]
+    public void ReturnAcceptsAFreshSuccessorSnapshotAfterTheExactOwnerIsRestored()
+    {
+        var environment = new FakePlayerEnvironment
+        {
+            AdvanceSnapshotOnReturn = true
+        };
+        var machine = new PlayerEnvironmentNativePageSession(environment);
+        machine.Configure(enabled: true);
+        PlayerEnvironmentNativePageResponse opened = machine.Open(Request()).Response!;
+
+        PlayerEnvironmentNativePageResponse returned = machine.Return(
+            opened.SessionId,
+            new PlayerEnvironmentNativePageReturnRequest(
+                PlayerEnvironmentContract.NativePageEvidenceProfile,
+                "runtime-a")).Response!;
+
+        Assert.Equal("returned", returned.Phase);
+        Assert.Equal("state-after-return", returned.PostSnapshotId);
+        Assert.Equal(returned.PreOwner, returned.PostOwner);
+        Assert.False(machine.ReservesInputOwner);
+    }
+
+    [Fact]
     public void FailedReturnKeepsInputReservedUntilExactRecoverySucceeds()
     {
         var environment = new FakePlayerEnvironment
@@ -191,6 +214,7 @@ public sealed class PlayerEnvironmentNativePageEvidenceTests
         public bool FailFirstReturn { get; init; }
         public bool FailOpenWithOwnedPage { get; init; }
         public bool ThrowOnPostOpenCapture { get; init; }
+        public bool AdvanceSnapshotOnReturn { get; init; }
         public bool HasOwnedPage { get; private set; }
         private bool _throwNextCapture;
 
@@ -237,7 +261,9 @@ public sealed class PlayerEnvironmentNativePageEvidenceTests
                     "fixture failure");
             }
             HasOwnedPage = false;
-            _snapshot = Snapshot("state-a", PreOwner);
+            _snapshot = Snapshot(
+                AdvanceSnapshotOnReturn ? "state-after-return" : "state-a",
+                PreOwner);
             return new PlayerEnvironmentNativePageResult(null, null, null);
         }
 

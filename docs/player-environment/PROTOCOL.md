@@ -91,4 +91,9 @@ strategy, reward or privileged simulator control.
 `native_pages.v1` is a default-off operator evidence profile, not a consumer
 action API. Sessions are snapshot/runtime bound, reserve the current input owner,
 suppress mutation, verify open/read/return and expose explicit recovery. They do
-not create mutation authority or enter the action ledger.
+not create mutation authority or enter the action ledger. A successful return
+requires the exact page close path and restoration of the pre-page input owner
+in the same runtime. Opening and closing a real native page may advance the
+Snapshot, so `post_snapshot_id` is a fresh successor rather than a promise that
+the old token becomes current again. Any prior Snapshot/Read/action token stays
+stale.

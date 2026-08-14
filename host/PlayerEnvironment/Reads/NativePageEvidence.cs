@@ -234,7 +234,7 @@ internal sealed class PlayerEnvironmentNativePageSession
 
         Session session = _session!;
         PlayerEnvironmentNativePageRuntimeSnapshot current = _environment.Capture();
-        if (IsRestored(session.Pre, current))
+        if (IsOwnerRestored(session.Pre, current))
         {
             _environment.Reset();
             _session = session with
@@ -294,7 +294,7 @@ internal sealed class PlayerEnvironmentNativePageSession
 
         Session session = _session!;
         PlayerEnvironmentNativePageRuntimeSnapshot beforeReturn = _environment.Capture();
-        if (IsRestored(session.Pre, beforeReturn))
+        if (IsOwnerRestored(session.Pre, beforeReturn))
         {
             _environment.Reset();
             _session = session with
@@ -323,7 +323,7 @@ internal sealed class PlayerEnvironmentNativePageSession
         }
 
         PlayerEnvironmentNativePageRuntimeSnapshot post = _environment.Capture();
-        bool restored = IsRestored(session.Pre, post);
+        bool restored = IsOwnerRestored(session.Pre, post);
         if (restored)
             _environment.Reset();
         _session = session with
@@ -407,11 +407,10 @@ internal sealed class PlayerEnvironmentNativePageSession
         return null;
     }
 
-    private static bool IsRestored(
+    private static bool IsOwnerRestored(
         PlayerEnvironmentNativePageRuntimeSnapshot pre,
         PlayerEnvironmentNativePageRuntimeSnapshot current) =>
         string.Equals(pre.RuntimeInstanceId, current.RuntimeInstanceId, StringComparison.Ordinal)
-        && string.Equals(pre.SnapshotId, current.SnapshotId, StringComparison.Ordinal)
         && pre.Owner == current.Owner;
 
     private static string CreateSessionId(
