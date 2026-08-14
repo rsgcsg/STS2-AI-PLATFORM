@@ -22,10 +22,10 @@ public sealed class PlayerEnvironmentContractTests
             ReadAllowed: false,
             Detail: "Current visible UI remains the action authority.");
         var game = new GameBuildIdentity(
-            "v0.110.1",
-            "db5d3552",
-            "v0.110.1",
-            -205573697,
+            "v0.111.0",
+            "41cef1ea",
+            "v0.111.0",
+            1010476334,
             compatibility,
             modset);
 
@@ -107,10 +107,10 @@ public sealed class PlayerEnvironmentContractTests
             }
         };
         var game = new GameBuildIdentity(
-            "v0.110.1",
-            "db5d3552",
-            "v0.110.1",
-            -205573697,
+            "v0.111.0",
+            "41cef1ea",
+            "v0.111.0",
+            1010476334,
             new CompatibilityAssessment("identified", true, true, true, "test"),
             modset);
 

@@ -56,10 +56,10 @@ Live evidence. The profile is evidence tooling, not the normal consumer path.
 
 ## Exact Tooltip Audit
 
-For the locally installed `v0.110.1/db5d3552` game assembly
+For the locally installed `v0.111.0/41cef1ea` game assembly
 (`sts2.dll` SHA-256
-`7c446efabf80614c429b5088e87101423aa5bb4c04fc3e73393261f6e6d404fd`,
-MVID `c0f649b8-8d57-4a9c-8b07-21aece97dca0`), direct metadata inspection found
+`9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4`,
+MVID `57785517-0b16-42b9-8b36-bad6fb28384b`), direct metadata inspection found
 exactly two concrete `IHoverTip` implementations: `HoverTip` and
 `CardHoverTip`. C projects both as typed text/keyword facts or complete visible
 card previews. `CurrentGameHoverTipKindsAreExhaustivelyProjected` makes a new

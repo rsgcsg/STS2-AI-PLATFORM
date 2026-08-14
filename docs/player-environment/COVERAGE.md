@@ -24,7 +24,7 @@ Implemented:
 - default-off native-page evidence for run deck, combat draw/discard/exhaust
   piles and shop catalog.
 
-The exact `v0.110.1/db5d3552` assembly exposes only `HoverTip` and
+The exact `v0.111.0/41cef1ea` assembly exposes only `HoverTip` and
 `CardHoverTip` as concrete `IHoverTip` implementations; both are typed and an
 exact-game test rejects subtype drift. Supported bounded lists/grids project
 their complete player-reachable logical collections without requiring scroll
