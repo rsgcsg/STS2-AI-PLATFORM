@@ -77,8 +77,9 @@ export function evaluateMenuControlGate({
     errors.push("stale_receipt_recovery_policy_invalid");
   }
   if (successorSnapshot?.status !== "interactive"
-      || successorSnapshot?.interaction?.kind !== "singleplayer_menu") {
-    errors.push("singleplayer_successor_not_observed");
+      || successorSnapshot?.snapshot_id === initialSnapshot?.snapshot_id
+      || successorSnapshot?.interaction?.interaction_id === initialSnapshot?.interaction?.interaction_id) {
+    errors.push("interactive_successor_not_observed");
   }
   return {
     verdict: errors.length === 0 ? "h1_pass" : "h1_incomplete",
@@ -92,8 +93,8 @@ export function evaluateMenuControlGate({
     successor_snapshot_id: successorSnapshot?.snapshot_id ?? null,
     successor_interaction: successorSnapshot?.interaction?.kind ?? null,
     non_claims: [
-      "The gate exercises only main-menu to single-player-menu delivery.",
-      "It does not start a run or prove combat, selectors, settling, or journey parity."
+      "The gate exercises one current main-menu action; a saved run may resume to its native current decision.",
+      "It does not assert business completion or qualify combat, selectors, settling, or journey parity."
     ]
   };
 }

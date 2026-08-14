@@ -163,6 +163,7 @@ export async function runBoundedJourney({
 
   const diskIdentity = readDiskIdentity(installation);
   const compatibility = evaluateRuntimeCompatibility(diskIdentity);
+  const headlessIdentity = readProjectIdentity();
   if (compatibility.status !== "supported_exact" && !experimentalBuildAcknowledged) {
     throw new Error(
       `Unsupported STS2 runtime (${compatibility.mismatches.join(", ")}); `
@@ -203,7 +204,7 @@ export async function runBoundedJourney({
     session = new EnvironmentControllerSession(client, {
       productId: "sts2-headless-bounded-journey",
       productName: "STS2 Headless Bounded Journey",
-      productVersion: "0.1.0-dev"
+      productVersion: headlessIdentity.version
     });
     await session.register(capabilities.host, capabilities.control);
 
@@ -291,7 +292,7 @@ export async function runBoundedJourney({
     const report = {
       schema_version: 1,
       generated_at: new Date().toISOString(),
-      headless: readProjectIdentity(),
+      headless: headlessIdentity,
       route: "shipped_godot_headless",
       command: { executable: installation.executable, args },
       profile: { mode: "shared_steam_profile", isolation: "not_proven", acknowledged: true },
@@ -322,7 +323,7 @@ export async function runBoundedJourney({
     const report = {
       schema_version: 1,
       generated_at: new Date().toISOString(),
-      headless: readProjectIdentity(),
+      headless: headlessIdentity,
       route: "shipped_godot_headless",
       command: { executable: installation.executable, args },
       profile: { mode: "shared_steam_profile", isolation: "not_proven", acknowledged: true },

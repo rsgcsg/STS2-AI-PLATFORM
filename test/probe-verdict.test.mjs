@@ -127,7 +127,10 @@ test("accepts delivery, duplicate idempotency, stale refusal, and successor", ()
     action: { bound_action_id: "action-1" }
   };
   const verdict = evaluateMenuControlGate({
-    initialSnapshot: { snapshot_id: "state-1", interaction: { kind: "main_menu" } },
+    initialSnapshot: {
+      snapshot_id: "state-1",
+      interaction: { kind: "main_menu", interaction_id: "menu-1" }
+    },
     receipt,
     duplicateReceipt: { ...receipt },
     staleReceipt: {
@@ -139,16 +142,47 @@ test("accepts delivery, duplicate idempotency, stale refusal, and successor", ()
     successorSnapshot: {
       snapshot_id: "state-2",
       status: "interactive",
-      interaction: { kind: "singleplayer_menu" }
+      interaction: { kind: "singleplayer_menu", interaction_id: "menu-2" }
     }
   });
   assert.equal(verdict.verdict, "h1_pass");
   assert.deepEqual(verdict.errors, []);
 });
 
+test("accepts the native saved-run successor without reconstructing flow", () => {
+  const receipt = {
+    request_id: "request-1",
+    delivery: "delivered",
+    action: { bound_action_id: "continue" }
+  };
+  const verdict = evaluateMenuControlGate({
+    initialSnapshot: {
+      snapshot_id: "state-1",
+      interaction: { kind: "main_menu", interaction_id: "menu-1" }
+    },
+    receipt,
+    duplicateReceipt: { ...receipt },
+    staleReceipt: {
+      delivery: "not_delivered",
+      reason_code: "stale_snapshot",
+      retry: { allowed: true, reason: "fresh_snapshot_required" }
+    },
+    successorSnapshot: {
+      snapshot_id: "state-8",
+      status: "interactive",
+      interaction: { kind: "combat_turn", interaction_id: "combat-8" }
+    }
+  });
+  assert.equal(verdict.verdict, "h1_pass");
+  assert.equal(verdict.successor_interaction, "combat_turn");
+});
+
 test("rejects a duplicate that resolves to a different action", () => {
   const verdict = evaluateMenuControlGate({
-    initialSnapshot: { interaction: { kind: "main_menu" } },
+    initialSnapshot: {
+      snapshot_id: "state-1",
+      interaction: { kind: "main_menu", interaction_id: "menu-1" }
+    },
     receipt: {
       request_id: "request-1",
       delivery: "delivered",
@@ -164,7 +198,11 @@ test("rejects a duplicate that resolves to a different action", () => {
       reason_code: "stale_snapshot",
       retry: { allowed: true, reason: "fresh_snapshot_required" }
     },
-    successorSnapshot: { status: "interactive", interaction: { kind: "singleplayer_menu" } }
+    successorSnapshot: {
+      snapshot_id: "state-2",
+      status: "interactive",
+      interaction: { kind: "singleplayer_menu", interaction_id: "menu-2" }
+    }
   });
   assert.deepEqual(verdict.errors, ["duplicate_request_not_idempotent"]);
 });

@@ -29,7 +29,8 @@ The current source independently reproduced these gates on macOS arm64, STS2
   interactive main-menu snapshot mounted.
 - **H1 pass**, same runtime: current opaque menu action delivered, duplicate
   request returned the same action/Receipt, stale snapshot was refused, and a
-  single-player successor mounted.
+  different interactive successor mounted. A saved run may natively resume
+  directly to its current decision; the harness does not reconstruct that flow.
 - **H2 pass**, runtime `1312db720419489ab1ae364456ca9557`: 10 delivered
   actions crossed `main_menu`, `singleplayer_menu`, `character_select`,
   `event_option`, `reward_claim`, `map_navigation`, and `combat_turn`; three

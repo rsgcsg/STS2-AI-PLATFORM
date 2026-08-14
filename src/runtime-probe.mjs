@@ -93,7 +93,7 @@ async function waitForSuccessor(client, previousInteractionId, timeoutMs, child)
   return latest;
 }
 
-async function exerciseMenuControl(endpoint, child, timeoutMs) {
+async function exerciseMenuControl(endpoint, child, timeoutMs, productVersion) {
   const client = new PlayerEnvironmentRestClient(endpoint, 5_000);
   const capabilities = (await client.capabilities()).data;
   const initialSnapshot = (await client.observe()).data;
@@ -109,7 +109,7 @@ async function exerciseMenuControl(endpoint, child, timeoutMs) {
   const session = new EnvironmentControllerSession(client, {
     productId: "sts2-headless-probe",
     productName: "STS2 Headless Probe",
-    productVersion: "0.1.0-dev"
+    productVersion
   });
   await session.register(capabilities.host, capabilities.control);
   try {
@@ -224,6 +224,7 @@ export async function runShippedProbe({
 
   const diskIdentityBefore = readDiskIdentity(installation);
   const compatibility = evaluateRuntimeCompatibility(diskIdentityBefore);
+  const headlessIdentity = readProjectIdentity();
   if (compatibility.status !== "supported_exact" && !experimentalBuildAcknowledged) {
     throw new Error(
       `Unsupported STS2 runtime (${compatibility.mismatches.join(", ")}); `
@@ -254,7 +255,7 @@ export async function runShippedProbe({
   }
   let controlGate = null;
   if (exerciseMenu && snapshotIsInteractive(snapshots.at(-1))) {
-    controlGate = await exerciseMenuControl(endpoint, child, timeoutMs);
+    controlGate = await exerciseMenuControl(endpoint, child, timeoutMs, headlessIdentity.version);
   }
 
   const processExit = await stopChild(child);
@@ -277,7 +278,7 @@ export async function runShippedProbe({
   const report = {
     schema_version: 1,
     generated_at: new Date().toISOString(),
-    headless: readProjectIdentity(),
+    headless: headlessIdentity,
     command: {
       executable: installation.executable,
       args,
