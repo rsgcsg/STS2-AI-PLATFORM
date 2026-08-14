@@ -31,6 +31,8 @@ internal static class LiveObservationReader
 {
     private static readonly BoundedSettlingWindow MissingPersistentStateWindow =
         new(TimeSpan.FromSeconds(20));
+    private static readonly BoundedSettlingWindow MenuOrRunEntryNoInputWindow =
+        new(TimeSpan.FromSeconds(10));
     private sealed record ReaderRegistration(string Kind, Func<ILiveSurfaceReader> Create);
 
     private static readonly ReaderRegistration[] ReaderRegistrations =
@@ -147,7 +149,10 @@ internal static class LiveObservationReader
         }
 
         if (resolution.Draft != null)
+        {
+            MenuOrRunEntryNoInputWindow.Observe(condition: false, DateTimeOffset.UtcNow);
             return resolution.Draft;
+        }
         if (resolution.MatchedKinds.Count > 1)
         {
             return Unsupported(
@@ -163,6 +168,9 @@ internal static class LiveObservationReader
                     "actions_suppressed",
                     "restart"));
         }
+
+        if (TryBuildMenuOrRunEntryNoInputTransition(snapshot, game) is { } menuTransition)
+            return menuTransition;
 
         if (TryBuildCombatNoInputTransition(snapshot, entities, game) is { } transition)
             return transition;
@@ -193,6 +201,78 @@ internal static class LiveObservationReader
                 null,
                 "No Player Environment interaction owns the current input state."));
     }
+
+    private static LiveObservation? TryBuildMenuOrRunEntryNoInputTransition(
+        ActiveSurfaceSnapshot snapshot,
+        GameBuildIdentity game)
+    {
+        bool condition = ClassifyMenuOrRunEntryNoInputTransition(
+            RunManager.Instance.IsInProgress,
+            snapshot.HasBlockingSurface,
+            snapshot.SourceType);
+        if (!MenuOrRunEntryNoInputWindow.Observe(condition, DateTimeOffset.UtcNow))
+            return null;
+
+        var context = new RunTransitionLiveContext(
+            "run_transition",
+            "setup",
+            "awaiting_menu_or_run_mount");
+        var surface = new NoActionSurface(
+            "no_action",
+            "settling",
+            "No native input owner is mounted while the main menu or a standard run is loading.");
+        var completeness = new StateCompleteness(
+            "complete_for_bounded_menu_or_run_entry_transition",
+            "none_no_input_owner",
+            new[]
+            {
+                "RunManager.IsInProgress",
+                "NGame.MainMenu",
+                "NGame.MainMenu.SubmenuStack",
+                "ActiveInputResolver"
+            },
+            Array.Empty<string>());
+        string signature = StableIdentityHash.Object(new
+        {
+            game.Version,
+            game.Commit,
+            context,
+            surface
+        });
+
+        return new LiveObservation(
+            signature,
+            "settling",
+            context,
+            surface,
+            completeness,
+            game,
+            Array.Empty<string>())
+        {
+            InputOwnership = new InputOwnership(
+                "none_fail_closed",
+                null,
+                "The bounded menu/run-entry handoff has no current input owner; the Host observes without publishing actions."),
+            Diagnostics = new[]
+            {
+                HostDiagnostics.Create(
+                    "host.lifecycle.menu_or_run_entry_settling",
+                    "info",
+                    "runtime",
+                    "none",
+                    "settle",
+                    snapshot.SourceType)
+            }
+        };
+    }
+
+    internal static bool ClassifyMenuOrRunEntryNoInputTransition(
+        bool runInProgress,
+        bool hasBlockingSurface,
+        string sourceType) =>
+        !runInProgress
+        && !hasBlockingSurface
+        && string.Equals(sourceType, "menu_or_no_run", StringComparison.Ordinal);
 
     private static LiveObservation? TryBuildCombatNoInputTransition(
         ActiveSurfaceSnapshot snapshot,

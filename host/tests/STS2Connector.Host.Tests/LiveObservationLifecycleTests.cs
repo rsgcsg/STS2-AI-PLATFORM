@@ -18,6 +18,31 @@ public sealed class LiveObservationLifecycleTests
     }
 
     [Fact]
+    public void MenuToRunEntryWithoutAMountedOwnerIsASettlingTransition()
+    {
+        Assert.True(LiveObservationReader.ClassifyMenuOrRunEntryNoInputTransition(
+            runInProgress: false,
+            hasBlockingSurface: false,
+            sourceType: "menu_or_no_run"));
+    }
+
+    [Theory]
+    [InlineData(true, false, "menu_or_no_run")]
+    [InlineData(false, true, "menu_or_no_run")]
+    [InlineData(false, false, "NMainMenu")]
+    [InlineData(false, false, "unknown_modal")]
+    public void MenuRunEntryTransitionDoesNotMaskARealOrUnknownOwner(
+        bool runInProgress,
+        bool hasBlockingSurface,
+        string sourceType)
+    {
+        Assert.False(LiveObservationReader.ClassifyMenuOrRunEntryNoInputTransition(
+            runInProgress,
+            hasBlockingSurface,
+            sourceType));
+    }
+
+    [Fact]
     public void CompletedEventPresentationIsASettlingStateWithoutAuthority()
     {
         Assert.True(LiveObservationReader.ClassifyEventNoInputTransition(

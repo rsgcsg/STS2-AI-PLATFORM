@@ -48,6 +48,13 @@ current visible Referent. Counts, limit and deterministic ordering make loss
 auditable. `status=interactive` is valid exactly when the complete projection
 is non-empty.
 
+`status=settling` means the Host has proved a bounded native no-input
+lifecycle, not an unsupported interaction. This includes combat/room handoffs,
+run-state mounting, and the short `menu_or_no_run` gap while a standard run or
+the main menu mounts. The last case is capped at ten seconds and cannot hide a
+real modal, menu, run owner, or unknown source; after the bound expires it fails
+closed as visible unsupported.
+
 `reads[]` advertises all bounded, non-authorizing information reads. Consumers
 send the opaque `read_id`; C rejects stale snapshots and arbitrary fields.
 Interactive consumers may read lazily. Memoryless consumers may prefetch and
