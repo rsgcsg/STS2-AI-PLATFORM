@@ -90,4 +90,7 @@ internal static partial class PlayerEnvironmentService
             });
     }
 
-  
+    public static PlayerEnvironmentSnapshot Observe() =>
+        BuildSnapshot().Snapshot;
+
+}

@@ -93,4 +93,8 @@
     "id": "native_pages.v1",
     "default_in_consumer_flow": false,
     "creates_mutation_authority": false,
-  
+    "enters_action_ledger": false,
+    "snapshot_bound": true,
+    "runtime_bound": true
+  }]
+}

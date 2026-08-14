@@ -25,4 +25,6 @@ internal sealed class SnapshotIdentityTracker
             StateId = $"state_{_sessionId}_{Sequence:x}";
         }
 
-        return (S
+        return (StateId, Sequence);
+    }
+}

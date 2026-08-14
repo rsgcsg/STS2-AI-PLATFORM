@@ -423,4 +423,12 @@ internal static class NativeDeckCardSelection
         string detail) =>
         NativeUiFailClosedObservation.BindingUnavailable(
             game,
-     
+            context,
+            nameof(NDeckCardSelectScreen),
+            detail,
+            new[] { "NDeckCardSelectScreen current visible UI mechanics" },
+            new[] { "visible_cards", "current_controls" },
+            "player_environment_deck_selection_binding_unavailable",
+            "native-ui.deck-selection.binding-unavailable",
+            "The current UI cannot be represented without guessing a target.");
+}

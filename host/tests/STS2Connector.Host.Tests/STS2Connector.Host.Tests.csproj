@@ -34,4 +34,6 @@
     <Reference Include="GodotSharp">
       <HintPath>$(STS2GameDataDir)/GodotSharp.dll</HintPath>
       <Private>true</Private>
-    </Refere
+    </Reference>
+  </ItemGroup>
+</Project>

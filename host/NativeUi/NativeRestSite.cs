@@ -238,4 +238,9 @@ internal static class NativeRestSite
             nameof(NRestSiteRoom),
             reason,
             new[] { "NRestSiteRoom current UI mechanics" },
-            new[] { "visible_rest
+            new[] { "visible_rest_options", "current_controls" },
+            "player_environment_rest_binding_unavailable",
+            "native-ui.rest.binding-unavailable",
+            "The current rest-site UI cannot be represented without guessing a target.");
+    }
+}

@@ -119,4 +119,8 @@ internal static class LiveModsetIdentity
     {
         AssemblyName name = assembly.GetName();
         return new LoadedModAssemblyIdentity(
-            name.Name ?? "unknow
+            name.Name ?? "unknown",
+            name.Version?.ToString(),
+            assembly.ManifestModule.ModuleVersionId.ToString("D"));
+    }
+}

@@ -1187,4 +1187,60 @@ export async function main(argv = process.argv.slice(2)) {
     return;
   }
   if (command === "wait-for-host") {
-    const result = await waitForPlayerEn
+    const result = await waitForPlayerEnvironmentHost({
+      endpoint: options.endpoint ?? DEFAULT_ENDPOINT,
+      timeoutMs: options.waitMs,
+      pollMs: options.pollMs
+    });
+    console.log(JSON.stringify(summarizeHostWait(result), null, 2));
+    if (!result.ready) process.exitCode = 1;
+    return;
+  }
+  if (command === "restore-known-environment") {
+    console.log(JSON.stringify(restoreKnownEnvironment(options), null, 2));
+    return;
+  }
+  if (command === "collect-evidence") {
+    console.log(JSON.stringify(await collectEvidence(options), null, 2));
+    return;
+  }
+  if (command === "evidence-profile") {
+    const result = await evidenceProfile(options);
+    console.log(JSON.stringify(result, null, 2));
+    if (result?.ok === false) process.exitCode = 1;
+    return;
+  }
+  if (command === "audit-run-identity") {
+    const args = [];
+    if (options.run) args.push("--run", options.run);
+    if (options.runs) args.push("--runs", options.runs);
+    run("node", [path.join(WORKSPACE, "tools/connector-run-identity-audit.mjs"), ...args]);
+    return;
+  }
+  if (command === "run-agent") {
+    console.log(JSON.stringify(await prepareAgentRun(options), null, 2));
+    const sourceIdentity = workspaceSourceIdentity();
+    run("npm", ["--prefix", "Re-SpireAgent", "run", "agent:run:direct", "--", ...options.passthrough], {
+      env: {
+        ...process.env,
+        STS2_API_URL: options.endpoint ?? process.env.STS2_API_URL ?? DEFAULT_ENDPOINT,
+        ...(sourceIdentity
+          ? {
+              SPIREAGENT_RE_SOURCE_REVISION: sourceIdentity.revision,
+              SPIREAGENT_RE_SOURCE_DIGEST: sourceIdentity.sourceDigest,
+              SPIREAGENT_RE_WORKTREE_STATUS: sourceIdentity.worktreeStatus
+            }
+          : {})
+      }
+    });
+    return;
+  }
+  throw new Error(`Unknown command ${command}.\n${usage()}`);
+}
+
+if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
+}

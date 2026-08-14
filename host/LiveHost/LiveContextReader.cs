@@ -374,4 +374,18 @@ internal static class LiveContextReader
                 // The concrete event layout can own this unique-name label
                 // below NEventRoom. Prefer already-rendered player-visible
                 // text over unbound localization model variables.
-                node = owner.FindChild(nodeName, recursive: true,
+                node = owner.FindChild(nodeName, recursive: true, owned: false);
+            }
+            if (node == null)
+                return null;
+            Variant text = node.Get("text");
+            return text.VariantType == Variant.Type.Nil
+                ? null
+                : ConnectorMod.StripRichTextTags(text.AsString()).Replace("\n", " ");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+}

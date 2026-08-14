@@ -100,4 +100,8 @@ internal static class PlayerVisibilityCatalog
             kinds.Add(PlayerVisibleReadBuilder.RunDeckKind);
         if (draft.Context.Kind == "combat")
             kinds.Add(PlayerVisibleReadBuilder.CombatPilesKind);
-        if (draft.Context.Kind == "shop" && shopCatalogSourceAvail
+        if (draft.Context.Kind == "shop" && shopCatalogSourceAvailable)
+            kinds.Add(PlayerVisibleReadBuilder.ShopCatalogKind);
+        return kinds;
+    }
+}

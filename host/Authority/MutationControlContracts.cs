@@ -90,4 +90,6 @@ internal sealed record MutationAdmission(
     public static MutationAdmission Allow(MutationAttribution attribution) =>
         new(true, null, null, attribution);
 
-    public static Mutati
+    public static MutationAdmission Reject(string code, string detail) =>
+        new(false, code, detail, null);
+}

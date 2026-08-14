@@ -370,4 +370,13 @@ internal static partial class PlayerEnvironmentService
     };
 
     private static object ProjectShopCardRemovalOffer(VisibleShopCardRemovalOffer value) => new
-  
+    {
+        value.EntityId, value.InventoryIndex, value.Price, value.NextPriceIncrease,
+        value.Stocked, value.Visible, value.Affordable, value.CanPurchase,
+        value.BlockedReason
+    };
+
+    private static JsonNode ToNode(object value) =>
+        JsonSerializer.SerializeToNode(value, value.GetType(), ConnectorMod._jsonOptions)
+        ?? new JsonObject();
+}

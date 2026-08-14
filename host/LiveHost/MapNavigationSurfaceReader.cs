@@ -524,4 +524,23 @@ internal sealed class MapNavigationSurfaceReader : ILiveSurfaceReader
         string signature = StableIdentityHash.Object(new { game.Version, reason });
         return new LiveObservation(
             signature,
-            "degr
+            "degraded",
+            context,
+            surface,
+            completeness,
+            game,
+            new[] { "map_navigation_binding_unavailable" })
+        {
+            Diagnostics = new[]
+            {
+                HostDiagnostics.Create(
+                    "host.surface.map_navigation.binding_unavailable",
+                    "error",
+                    "surface",
+                    "actions_suppressed",
+                    "update_host_adapter",
+                    reason)
+            }
+        };
+    }
+}

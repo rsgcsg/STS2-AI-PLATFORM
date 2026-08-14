@@ -24,4 +24,5 @@ export function isJsonValue(value: unknown): value is JsonValue {
 }
 
 export function cloneJson<T extends JsonValue>(value: T): T {
-  return JSON.parse(JSON.
+  return JSON.parse(JSON.stringify(value)) as T;
+}

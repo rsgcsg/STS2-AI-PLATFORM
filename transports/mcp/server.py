@@ -231,4 +231,14 @@ def main() -> None:
         action="store_true",
         help="Ignore HTTP_PROXY and HTTPS_PROXY",
     )
-    args =
+    args = parser.parse_args()
+
+    global _base_url, _trust_env
+    _base_url = f"http://{args.host}:{args.port}"
+    _trust_env = not args.no_trust_env
+    _get_client()
+    mcp.run(transport="stdio")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,5 +1,10 @@
 # Standalone C1 Targeted Runtime Gates
 
+> Historical evidence note: the named local source object is unavailable from
+> both public repositories and retained local object databases. This record is
+> predecessor diagnostic evidence only and does not qualify the repaired public
+> source.
+
 Date: 2026-08-13
 
 Status: intermediate standalone artifact evidence; not a release seal

@@ -263,4 +263,13 @@ internal sealed class EventDialogueSurfaceReader : ILiveSurfaceReader
             Diagnostics = new[]
             {
                 HostDiagnostics.Create(
-            
+                    "host.surface.event_dialogue.binding_unavailable",
+                    "error",
+                    "surface",
+                    "actions_suppressed",
+                    "update_host_adapter",
+                    reason)
+            }
+        };
+    }
+}

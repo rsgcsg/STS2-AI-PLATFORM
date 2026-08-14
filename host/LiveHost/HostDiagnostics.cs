@@ -49,4 +49,5 @@ internal static class HostDiagnostics
         new(code, severity, category, effect, recoverability, SafeDetail: Bound(detail));
 
     private static string? Bound(string? value) =>
-        value == nul
+        value == null || value.Length <= 500 ? value : value[..500];
+}

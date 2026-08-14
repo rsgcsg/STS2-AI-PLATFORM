@@ -27,4 +27,6 @@ public sealed class NativeEntityRegistryTests
         Assert.False(registry.TryResolve<string>(id, out _));
         Assert.True(registry.TryResolve<object>(id, out object? resolved));
         Assert.Same(entity, resolved);
-        Assert.False(registry.TryResolve<object>("card_
+        Assert.False(registry.TryResolve<object>("card_missing_1", out _));
+    }
+}

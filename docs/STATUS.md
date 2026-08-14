@@ -4,8 +4,8 @@ Release candidate: `1.0.0-rc.1`
 
 Player Environment protocol: `1.0-rc.2`
 
-Verdict: **standalone release candidate; targeted runtime gates passed,
-ordinary-journey seal pending**
+Verdict: **standalone source repair candidate; deterministic gates pass, final
+exact-runtime seal and release are pending**
 
 ## Implemented
 
@@ -22,23 +22,19 @@ ordinary-journey seal pending**
 
 ## Evidence State
 
-The source was history-preservingly extracted from SpireAgent after monorepo
-semantic seal commit `4bc448f1fbfa034232b88587faf9a51ea2a15581`.
-Monorepo Live runs are predecessor evidence only.
+The responsibility source point is SpireAgent semantic-seal commit
+`4bc448f1fbfa034232b88587faf9a51ea2a15581`. Monorepo Live runs are predecessor
+evidence only.
 
-Standalone commit `b050c46ffa8dc3317e66c261175f92ac8e7d3cb4` completed
-clean build/install/load identity and targeted runtime gates on one exact
-artifact. That evidence is recorded in
-[the standalone targeted-runtime closeout](evidence/STANDALONE_C1_TARGETED_RUNTIME_GATES_2026-08-13.md).
-It is valid only for that source/artifact/runtime and is predecessor evidence
-for any later commit.
+The first public standalone snapshot, `a91e3e72e37a896945a9f0c4f0b667ce28423e6e`,
+contained truncated text files and was not releasable. The repaired source has
+93/93 exact-game Host tests, 7/7 SDK tests, strict typecheck/build, package,
+contract, boundary, CLI, Python and documentation evidence. It still requires
+a clean commit, build, install, cold-load and exact-runtime exercise.
 
-Host source `f104e16b6585599e6acf5481c255fa74ea1d221e` completed a
-clean build/install, cold-load identity and affected targeted runtime gates.
-See the [final-source gate closeout](evidence/STANDALONE_C1_FINAL_SOURCE_RUNTIME_GATES_2026-08-13.md).
-It still needs an ordinary same-artifact journey and runtime rollback exercise
-before freeze or publication. Until then it is neither generally supported nor
-a binary release.
+The evidence notes for local-only source names `b050c46...` and `f104e16...`
+remain operator-recorded predecessor diagnostics. Those Git objects are not
+fetchable and their evidence cannot qualify this source or release.
 
 ## Explicit Non-Claims
 
@@ -49,7 +45,9 @@ a binary release.
 - business completion inferred from a delivery Receipt;
 - native pages outside the fixed evidence profile;
 - transient VFX/SFX/history information closure;
-- an ordinary complete standalone same-artifact journey;
-- published GitHub, binary or package releases.
+- exact loaded identity or Live mutation for the repaired public source;
+- an ordinary complete same-artifact journey;
+- a tested runtime rollback;
+- published binary or SDK package releases.
 
 See [Coverage](player-environment/COVERAGE.md) and [Support](SUPPORT.md).

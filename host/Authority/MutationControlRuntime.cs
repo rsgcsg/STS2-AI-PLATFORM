@@ -26,4 +26,5 @@ internal static class MutationControlRuntime
     public static MutationAdmission Authorize(MutationAuthorizationRequest request) =>
         Coordinator.Authorize(request);
 
-    public static MutationControlCapability Capability() => 
+    public static MutationControlCapability Capability() => Coordinator.Capability();
+}

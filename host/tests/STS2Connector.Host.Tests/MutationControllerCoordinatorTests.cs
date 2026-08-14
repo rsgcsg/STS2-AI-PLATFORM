@@ -112,4 +112,7 @@ public sealed class MutationControllerCoordinatorTests
         MutationClientRegistrationResult client,
         MutationLease lease) =>
         new(
-         
+            client.Client.ClientSessionId,
+            lease.ControllerLeaseId,
+            lease.ControllerGeneration);
+}

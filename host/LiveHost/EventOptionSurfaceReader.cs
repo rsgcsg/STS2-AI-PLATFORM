@@ -249,4 +249,12 @@ internal sealed class EventOptionSurfaceReader : ILiveSurfaceReader
                                 ownerEntityId,
                                 card.Card.Id.Entry,
                                 cardOrdinal++),
-                            displa
+                            displayPile: PileType.Deck)));
+                    break;
+                default:
+                    throw new NotSupportedException($"Unsupported event-option hover-tip type: {tip.GetType().Name}");
+            }
+        }
+        return result;
+    }
+}

@@ -658,4 +658,22 @@ public sealed class PlayerEnvironmentContractTests
         "exact_player_environment_only",
         "fingerprint",
         "test_scope",
- 
+        new[]
+        {
+            new LoadedModIdentity(
+                "STS2_MCP",
+                ConnectorMod.Version,
+                "ModsDirectory",
+                "Loaded",
+                false,
+                null,
+                new[]
+                {
+                    new LoadedModAssemblyIdentity(
+                        "STS2_MCP",
+                        ConnectorMod.Version,
+                        "00000000-0000-0000-0000-000000000001")
+                })
+        },
+        "Exact test Connector Modset.");
+}

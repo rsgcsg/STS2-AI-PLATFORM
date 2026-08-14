@@ -462,4 +462,14 @@ internal sealed class CombatHandCardSelectionSurfaceReader : ILiveSurfaceReader
             context,
             nameof(NPlayerHand),
             reason,
-            new[] { "NPlay
+            new[] { "NPlayerHand exact-version selection binding" },
+            missing,
+            "combat_hand_card_selection_binding_unavailable",
+            "host.surface.combat_hand_card_selection.binding_unavailable",
+            "The current combat hand-selection controls or selected-card representation are not exact.");
+
+    private sealed record Binding(
+        CardSelectorPrefs Preferences,
+        IReadOnlyList<CardModel> SelectedCards,
+        NPlayerHand.Mode Mode);
+}

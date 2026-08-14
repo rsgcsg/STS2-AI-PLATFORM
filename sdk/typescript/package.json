@@ -3,6 +3,16 @@
   "version": "1.0.0-rc.1",
   "description": "Strategy-free TypeScript client and strict validators for the STS2 Player Environment",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rsgcsg/STS2-Connector.git",
+    "directory": "sdk/typescript"
+  },
+  "homepage": "https://github.com/rsgcsg/STS2-Connector/tree/main/sdk/typescript",
+  "bugs": "https://github.com/rsgcsg/STS2-Connector/issues",
+  "publishConfig": {
+    "access": "public"
+  },
   "type": "module",
   "engines": {
     "node": ">=20"
@@ -20,7 +30,8 @@
     "typecheck": "tsc -p tsconfig.typecheck.json",
     "test": "vitest run",
     "build": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.json",
-    "check": "npm run typecheck && npm run test && npm run build"
+    "check": "npm run typecheck && npm run test && npm run build",
+    "prepare": "npm run build"
   },
   "dependencies": {
     "zod": "^3.25.76"

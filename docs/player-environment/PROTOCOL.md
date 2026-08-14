@@ -82,4 +82,5 @@ strategy, reward or privileged simulator control.
 
 `native_pages.v1` is a default-off operator evidence profile, not a consumer
 action API. Sessions are snapshot/runtime bound, reserve the current input owner,
-suppress mutation, verify open/read/return and expose explicit
+suppress mutation, verify open/read/return and expose explicit recovery. They do
+not create mutation authority or enter the action ledger.

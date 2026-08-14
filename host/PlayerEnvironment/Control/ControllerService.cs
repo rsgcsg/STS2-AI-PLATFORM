@@ -85,4 +85,7 @@ internal static partial class PlayerEnvironmentService
             value.Status,
             value.ControllerLeaseId,
             value.ControllerGeneration,
-          
+            value.ClientSessionId,
+            value.AcquiredAt,
+            value.ExpiresAt);
+}

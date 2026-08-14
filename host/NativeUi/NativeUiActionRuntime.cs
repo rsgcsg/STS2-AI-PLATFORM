@@ -2015,4 +2015,48 @@ internal static class NativeUiActionRuntime
                     surface.RoomEntityId,
                     potionId,
                     operands.GetValueOrDefault("target_id")),
-  
+            "end_turn" => CombatTurnSurfaceReader.StartDirectEndTurn(
+                Entities,
+                surface.RoomEntityId),
+            _ => NativeInputResult.Rejected(
+                "command_not_supported",
+                "This command is not supported by the combat direct resolver.")
+        };
+    }
+
+    private static string PublicCommand(string operation)
+    {
+        if (operation is "play_card" or "use_potion" or "end_turn")
+            return operation;
+        if (operation.StartsWith("purchase_", StringComparison.Ordinal))
+            return "purchase";
+        if (operation == "choose_map_node")
+            return "navigate";
+        if (operation.StartsWith("deselect_", StringComparison.Ordinal))
+            return "deselect_entity";
+        if (operation.StartsWith("toggle_", StringComparison.Ordinal)
+            || operation.StartsWith("select_", StringComparison.Ordinal)
+            || operation.StartsWith("choose_", StringComparison.Ordinal)
+            || operation.StartsWith("claim_", StringComparison.Ordinal))
+            return operation.StartsWith("toggle_", StringComparison.Ordinal)
+                || operation.StartsWith("select_", StringComparison.Ordinal)
+                ? "select_entity"
+                : "choose";
+        if (operation.StartsWith("confirm_", StringComparison.Ordinal)
+            || operation.StartsWith("preview_", StringComparison.Ordinal))
+            return "confirm_interaction";
+        if (operation.StartsWith("cancel_", StringComparison.Ordinal)
+            || operation.StartsWith("close_", StringComparison.Ordinal))
+            return "cancel_interaction";
+        return "activate_control";
+    }
+
+    private static string OperandName(string role) => role switch
+    {
+        "option" or "reward" or "relic" or "bundle" or "alternative" => "choice_id",
+        "node" => "destination_id",
+        "offer" or "service" => "offer_id",
+        _ => role.EndsWith("_id", StringComparison.Ordinal) ? role : $"{role}_id"
+    };
+
+}

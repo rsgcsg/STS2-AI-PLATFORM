@@ -345,4 +345,12 @@ internal sealed class RewardClaimSurfaceReader : ILiveSurfaceReader
         IReadOnlyList<string> missing)
         => NativeUiFailClosedObservation.BindingUnavailable(
             game,
-            new RewardFlowLiveContext("reward_flow"
+            new RewardFlowLiveContext("reward_flow", "room_rewards"),
+            nameof(NRewardsScreen),
+            reason,
+            new[] { "NRewardsScreen exact-version binding" },
+            missing,
+            "reward_claim_binding_unavailable",
+            "host.surface.reward_claim.binding_unavailable",
+            "The current visible reward entries or controls are not exact.");
+}

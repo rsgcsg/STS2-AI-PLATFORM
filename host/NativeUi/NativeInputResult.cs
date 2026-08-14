@@ -10,4 +10,5 @@ internal sealed record NativeInputResult(
         new(true, null, null, evidence);
 
     public static NativeInputResult Rejected(string code, string detail) =>
-        new(false, code, detai
+        new(false, code, detail, null);
+}

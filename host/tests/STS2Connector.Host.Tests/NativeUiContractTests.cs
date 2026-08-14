@@ -1160,4 +1160,42 @@ public sealed class NativeUiContractTests
             }));
     }
 
-   
+    [Fact]
+    public void IdempotencyIdentityBindsInteractionCommandAndCanonicalOperands()
+    {
+        var operands = new Dictionary<string, string>
+        {
+            ["target_id"] = "creature-a",
+            ["card_id"] = "card-a"
+        };
+        var reordered = new Dictionary<string, string>
+        {
+            ["card_id"] = "card-a",
+            ["target_id"] = "creature-a"
+        };
+
+        string identity = NativeUiActionRuntime.BuildCommandIdentity(
+            "interaction-a",
+            "play_card",
+            operands);
+
+        Assert.Equal(
+            identity,
+            NativeUiActionRuntime.BuildCommandIdentity(
+                "interaction-a",
+                "play_card",
+                reordered));
+        Assert.NotEqual(
+            identity,
+            NativeUiActionRuntime.BuildCommandIdentity(
+                "interaction-b",
+                "play_card",
+                operands));
+        Assert.NotEqual(
+            identity,
+            NativeUiActionRuntime.BuildCommandIdentity(
+                "interaction-a",
+                "use_potion",
+                operands));
+    }
+}

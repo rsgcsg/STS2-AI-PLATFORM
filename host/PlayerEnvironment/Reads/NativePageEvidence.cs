@@ -911,4 +911,28 @@ internal sealed class LiveNativePageEvidenceHost :
         }
         catch
         {
-            // Recovery never closes 
+            // Recovery never closes an owner that is not the exact page opened here.
+        }
+        return false;
+    }
+}
+
+internal static partial class PlayerEnvironmentService
+{
+    public static void ConfigureNativePageEvidence(bool enabled) =>
+        NativePageEvidence.Configure(enabled);
+
+    public static PlayerEnvironmentNativePageOperationResult OpenNativePageEvidence(
+        PlayerEnvironmentNativePageOpenRequest request) =>
+        NativePageEvidence.Open(request);
+
+    public static PlayerEnvironmentNativePageOperationResult ReadNativePageEvidence(
+        string sessionId,
+        string expectedRuntimeInstanceId) =>
+        NativePageEvidence.Read(sessionId, expectedRuntimeInstanceId);
+
+    public static PlayerEnvironmentNativePageOperationResult ReturnNativePageEvidence(
+        string sessionId,
+        PlayerEnvironmentNativePageReturnRequest request) =>
+        NativePageEvidence.Return(sessionId, request);
+}

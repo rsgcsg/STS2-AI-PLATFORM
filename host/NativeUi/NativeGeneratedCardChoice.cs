@@ -329,4 +329,18 @@ internal static class NativeGeneratedCardChoice
         {
             Variant value = node.Get("text");
             return value.VariantType == Variant.Type.Nil
-           
+                ? null
+                : ConnectorMod.StripRichTextTags(value.AsString()).Replace("\n", " ");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private sealed record Binding(
+        IReadOnlyList<CardModel> Cards,
+        bool CanSkip,
+        ulong OpenedTicks,
+        bool ScreenComplete);
+}

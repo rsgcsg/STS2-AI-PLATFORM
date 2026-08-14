@@ -122,4 +122,8 @@ internal static class PersistentVisibleStateReader
             HostDiagnostics.Create(
                 $"host.shared_state.{code}",
                 "error",
-                "
+                "visibility",
+                "actions_suppressed",
+                "restart",
+                exception.GetType().Name));
+}

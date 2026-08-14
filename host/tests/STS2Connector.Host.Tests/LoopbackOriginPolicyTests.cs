@@ -20,4 +20,6 @@ public sealed class LoopbackOriginPolicyTests
     [InlineData("not a uri")]
     public void RejectsNonLoopbackBrowserOrigins(string origin)
     {
-        Assert.False(LoopbackOriginPolicy.IsAllo
+        Assert.False(LoopbackOriginPolicy.IsAllowed(origin));
+    }
+}

@@ -346,4 +346,12 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
         && IsActionablePlayerTurn(player)
         && potion.Usage != PotionUsage.Automatic
         && !potion.IsQueued
-        && !potion.Owner.Creature.IsDe
+        && !potion.Owner.Creature.IsDead
+        && potion.PassesCustomUsabilityCheck;
+
+    internal static bool IsActionablePlayerTurn(Player player) =>
+        CombatManager.Instance.IsInProgress
+        && !CombatManager.Instance.PlayerActionsDisabled
+        && player.PlayerCombatState?.Phase == PlayerTurnPhase.Play
+        && CombatManager.Instance.IsPartOfPlayerTurn(player);
+}

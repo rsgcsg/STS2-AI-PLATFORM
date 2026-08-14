@@ -94,4 +94,5 @@ objects are reachable by reflection.
 
 A supported Surface may be called information-complete only when its hot facts,
 advertised reads and relevant visible detail paths are covered. Missing detail
-must be listed here and i
+must be listed here and in component coverage; it cannot be deferred merely
+because the current consumer does not request it.

@@ -38,4 +38,10 @@ release number.
 8. evidence record tied to source, SHA, MVID, runtime, game and Modset;
 9. tag, release artifact and SDK package publication.
 
+`npm run package:release` accepts only a clean current-source Host build and
+produces the install-ready Host archive, SDK tarball, machine contract, release
+manifest and checksums under `.local/release/v<version>/`. The Git tag and
+published assets must all refer to that exact source revision; a branch name or
+working-tree build is not a release.
+
 Build, install or predecessor Live evidence cannot skip a later gate.

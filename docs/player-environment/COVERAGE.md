@@ -37,25 +37,16 @@ See the repository [Player Environment Information Closure](../INFORMATION_CLOSU
 
 ## Evidence
 
-Standalone commit `b050c46ffa8dc3317e66c261175f92ac8e7d3cb4` has exact
-loaded and targeted Live evidence for Read current/stale behavior, the fixed
-run-deck native page, linked card detail, card-bundle reversible selection,
-single-controller refusal, request idempotency, stale-action refusal and
-bounded room-to-combat settling. See the
-[dated closeout](../evidence/STANDALONE_C1_TARGETED_RUNTIME_GATES_2026-08-13.md).
+The repaired public source has exact-game Host tests and portable SDK, package,
+contract, boundary, CLI, Python and documentation checks. It has no current
+loaded or Live evidence until a clean commit is built, installed and cold-loaded.
 
-That evidence does not transfer to a later DLL and does not include an ordinary
-complete same-artifact journey. Monorepo journeys remain predecessor evidence
-for their exact old artifacts.
-
-Current Host source `f104e16b6585599e6acf5481c255fa74ea1d221e` has its own
-clean build/install/load identity and targeted Live gates, including corrected
-combat-pile hidden-information completeness. Its exact identity and remaining
-Journey/rollback gates are recorded in the
-[final-source closeout](../evidence/STANDALONE_C1_FINAL_SOURCE_RUNTIME_GATES_2026-08-13.md).
+The targeted runtime notes for local-only sources `b050c46...` and `f104e16...`
+remain useful predecessor diagnostics, but those Git objects are not fetchable
+and cannot qualify the repaired source. Monorepo journeys are predecessor-only.
 
 ## Unsupported
 
 There is no arbitrary click/reflection, visual computer-use fallback, Headless
 Host, Training authority, hidden-state projection or arbitrary-version/Mod
-compatibility claim.
+compatibility claim. Retired V2/V3 protocols are not fallbacks.

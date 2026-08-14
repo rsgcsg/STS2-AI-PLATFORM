@@ -705,4 +705,22 @@ internal static class LiveObservationReader
             StableIdentityHash.Object(new
             {
                 observation.Signature,
-                persistentStateFailu
+                persistentStateFailure = true
+            }),
+            "unsupported",
+            observation.Context,
+            surface,
+            completeness,
+            observation.Game,
+            observation.Warnings.Append("active_run_persistent_visible_state_unavailable").ToArray())
+        {
+            InputOwnership = new InputOwnership(
+                "none_fail_closed",
+                null,
+                "The Host cannot expose executable actions without the decision-relevant persistent run HUD."),
+            Diagnostics = failure == null
+                ? observation.Diagnostics
+                : observation.Diagnostics.Append(failure).ToArray()
+        };
+    }
+}

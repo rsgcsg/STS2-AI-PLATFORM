@@ -434,4 +434,18 @@ public static partial class ConnectorMod
                 : successStatus;
             SendJson(response, result.Response);
             return;
-       
+        }
+
+        int statusCode = result.ErrorCode switch
+        {
+            "native_page_evidence_session_not_found" => 404,
+            "native_page_evidence_kind_not_supported" => 400,
+            _ => 409
+        };
+        SendApiError(
+            response,
+            statusCode,
+            result.ErrorCode ?? "native_page_evidence_failed",
+            result.Detail ?? "Native-page evidence operation failed closed.");
+    }
+}

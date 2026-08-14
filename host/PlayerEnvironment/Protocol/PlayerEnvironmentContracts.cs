@@ -366,4 +366,16 @@ public sealed record PlayerEnvironmentAttribution(
     string ControllerLeaseId,
     long ControllerGeneration);
 
-public sealed re
+public sealed record PlayerEnvironmentActionReceipt(
+    string ProtocolVersion,
+    string Schema,
+    string RequestId,
+    string Delivery,
+    PlayerEnvironmentActionSummary Action,
+    string? ReasonCode,
+    string? Detail,
+    PlayerEnvironmentRetryPolicy Retry,
+    PlayerEnvironmentSnapshot? Successor)
+{
+    public PlayerEnvironmentAttribution? Attribution { get; init; }
+}

@@ -264,4 +264,9 @@ internal static class PlayerVisibleReadBuilder
                 card,
                 entities.GetId(card, "card"),
                 displayPile: displayPile))
-            // Serialization order is deterministic only. The protocol
+            // Serialization order is deterministic only. The protocol declares
+            // the collection unordered and never exposes the model's draw order.
+            .OrderBy(card => card.DefinitionId, StringComparer.Ordinal)
+            .ThenBy(card => card.EntityId, StringComparer.Ordinal)
+            .ToArray();
+}

@@ -367,4 +367,15 @@ internal sealed class CardBundleSelectionSurfaceReader : ILiveSurfaceReader
             new[] { "card_bundle_selection_binding_unavailable" })
         {
             Diagnostics = new[]
-      
+            {
+                HostDiagnostics.Create(
+                    "host.surface.card_bundle_selection.binding_unavailable",
+                    "error",
+                    "surface",
+                    "actions_suppressed",
+                    "update_host_adapter",
+                    reason)
+            }
+        };
+    }
+}

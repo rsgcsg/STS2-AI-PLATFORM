@@ -302,4 +302,15 @@ internal sealed class CardRewardSurfaceReader : ILiveSurfaceReader
         {
             Node? label = button.GetNodeOrNull("Label");
             if (label == null)
-                
+                return null;
+            Variant value = label.Get("text");
+            return value.VariantType == Variant.Type.Nil
+                ? null
+                : ConnectorMod.StripRichTextTags(value.AsString()).Replace("\n", " ");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+}

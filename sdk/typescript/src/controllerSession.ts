@@ -221,4 +221,14 @@ export class EnvironmentControllerSession {
         } catch {
           // The new operation gets one independent attempt.
         }
-      
+      }
+      await operation();
+    })();
+    this.operation = current;
+    try {
+      await current;
+    } finally {
+      if (this.operation === current) this.operation = undefined;
+    }
+  }
+}

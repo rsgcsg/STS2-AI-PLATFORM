@@ -240,4 +240,12 @@ internal static partial class PlayerEnvironmentService
     private static PlayerEnvironmentAttribution ToAttribution(
         MutationAttribution value) => new(
             value.RuntimeInstanceId,
-            
+            value.ClientSessionId,
+            value.ClientInstanceId,
+            value.ProductId,
+            value.ProductName,
+            value.ProductVersion,
+            value.ControllerLeaseId,
+            value.ControllerGeneration);
+
+}

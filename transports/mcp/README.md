@@ -46,8 +46,8 @@ Example MCP configuration:
 Validate with:
 
 ```bash
-uv lock --check --directory /absolute/path/to/STS2-Connector/transports/mcp
-uv run --directory /absolute/path/to/STS2-Connector/transports/mcp python -m py_compile server.py
+uv lock --check --directory /absolute/path/to/STS2MCP/mcp
+uv run --directory /absolute/path/to/STS2MCP/mcp python -m py_compile server.py
 ```
 
-Import success proves transpor
+Import success proves transport shape only, not a loaded game or Live action.

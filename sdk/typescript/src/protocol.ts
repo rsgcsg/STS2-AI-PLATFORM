@@ -436,3 +436,17 @@ export function decodePlayerControllerLeaseResponse(value: unknown): DecodedPlay
   return decode<PlayerEnvironmentControllerLeaseResponse>(value, controllerLeaseResponseSchema, "Player Environment controller lease");
 }
 
+function decode<T>(value: unknown, schema: z.ZodType<T>, label: string): DecodedPlayerPayload<T> {
+  if (!isJsonObject(value)) {
+    throw new Error(`${label} was not a JSON object`);
+  }
+  const parsed = schema.safeParse(value);
+  if (!parsed.success) {
+    const issues = parsed.error.issues
+      .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+      .join("; ");
+    throw new Error(`${label} failed strict decoding: ${issues}`);
+  }
+  return { raw: value, data: parsed.data };
+}
+

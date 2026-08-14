@@ -38,4 +38,7 @@ internal sealed class NativeEntityRegistry
         if (target is not T typed)
             return false;
 
-        entit
+        entity = typed;
+        return true;
+    }
+}

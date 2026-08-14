@@ -17,4 +17,6 @@ internal static class LoopbackOriginPolicy
         return uri.IsLoopback
                || string.Equals(uri.Host, "localhost", StringComparison.OrdinalIgnoreCase)
                || uri.Host == "127.0.0.1"
-               || uri.Host
+               || uri.Host == "::1";
+    }
+}

@@ -163,4 +163,10 @@ internal static partial class PlayerEnvironmentService
     internal static PlayerEnvironmentCompleteness ToCompleteness(
         PlayerReadCompleteness completeness,
         IReadOnlyList<string> hiddenByPolicy) => new(
-            completeness.Missing.Count == 0 ? "comple
+            completeness.Missing.Count == 0 ? "complete" : "partial",
+            completeness.PlayerVisibleSemantics,
+            "read_only",
+            completeness.Missing,
+            hiddenByPolicy);
+
+}

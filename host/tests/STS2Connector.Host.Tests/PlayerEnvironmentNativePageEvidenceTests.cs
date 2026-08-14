@@ -268,4 +268,12 @@ public sealed class PlayerEnvironmentNativePageEvidenceTests
                     "run_deck",
                     0,
                     Array.Empty<VisibleCard>()))!,
-          
+            new PlayerEnvironmentCompleteness(
+                "complete",
+                "fixture visible information",
+                "fixture discovery",
+                Array.Empty<string>(),
+                Array.Empty<string>()),
+            new[] { "fixture" });
+    }
+}

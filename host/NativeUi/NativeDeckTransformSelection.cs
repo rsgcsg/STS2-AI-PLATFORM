@@ -515,4 +515,18 @@ internal static class NativeDeckTransformSelection
     private static LiveObservation BindingUnavailable(
         GameBuildIdentity game,
         ILiveContext context,
-        string 
+        string reason,
+        IReadOnlyList<string> missing)
+    {
+        return NativeUiFailClosedObservation.BindingUnavailable(
+            game,
+            context,
+            nameof(NDeckTransformSelectScreen),
+            reason,
+            new[] { "NDeckTransformSelectScreen exact current UI binding" },
+            missing,
+            "deck_transform_binding_unavailable",
+            "host.surface.deck_transform.binding_unavailable",
+            "The current random-transform UI cannot be bound exactly.");
+    }
+}

@@ -77,4 +77,5 @@ revalidation, one controller, idempotency and unknown-no-retry remain intact.
 - Standalone extraction must produce a new source SHA, artifact SHA/MVID and
   runtime identity before any freeze or release verdict.
 
-Verdict: **C1 semantic-seal candidate; ready for resp
+Verdict: **C1 semantic-seal candidate; ready for responsibility extraction, not
+frozen and not released.**

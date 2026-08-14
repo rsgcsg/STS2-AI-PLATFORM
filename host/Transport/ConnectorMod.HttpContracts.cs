@@ -98,4 +98,7 @@ public static partial class ConnectorMod
         string code,
         string detail)
     {
-        response
+        response.StatusCode = statusCode;
+        SendJson(response, new { error = new { code, detail } });
+    }
+}

@@ -823,4 +823,35 @@ public sealed record RewardClaimSurface(
     string Kind,
     string ScreenEntityId,
     IReadOnlyList<VisibleReward> Rewards,
-    bo
+    bool PotionSlotsFull,
+    IReadOnlyList<VisibleCombatPotion> DiscardablePotions,
+    bool CanProceed,
+    bool ProceedSkipsRemainingRewards) : ILiveSurface;
+
+public sealed record VisibleMapChoice(
+    string EntityId,
+    int Col,
+    int Row,
+    string PointType);
+
+public sealed record MapNavigationSurface(
+    string Kind,
+    string ScreenEntityId,
+    bool TravelEnabled,
+    bool Traveling,
+    string DrawingMode,
+    IReadOnlyList<VisibleMapChoice> NextOptions) : ILiveSurface
+{
+    public string? AnnotationInputEntityId { get; init; }
+    public bool CanExitAnnotation { get; init; }
+}
+
+public sealed record UnsupportedSurface(
+    string Kind,
+    string SourceType,
+    string Reason) : ILiveSurface;
+
+public sealed record NoActionSurface(
+    string Kind,
+    string Reason,
+    string? Message) : ILiveSurface;

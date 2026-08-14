@@ -145,4 +145,10 @@ export class PlayerEnvironmentRestClient {
 }
 
 function safeMessage(value: unknown): string {
-  if (value instanceof Error) return value.message.sl
+  if (value instanceof Error) return value.message.slice(0, 500);
+  try {
+    return JSON.stringify(value).slice(0, 500);
+  } catch {
+    return String(value).slice(0, 500);
+  }
+}

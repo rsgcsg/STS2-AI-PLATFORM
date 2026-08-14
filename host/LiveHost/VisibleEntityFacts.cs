@@ -100,4 +100,7 @@ internal static class VisibleEntityFacts
         string cardDefinitionId,
         int ordinal)
     {
-        string digest = StableIdentityHash.Text($"{
+        string digest = StableIdentityHash.Text($"{ownerEntityId}|{cardDefinitionId}|{ordinal}")[..20];
+        return $"tooltip_card_{digest}";
+    }
+}

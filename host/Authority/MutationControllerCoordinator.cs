@@ -323,4 +323,16 @@ internal sealed class MutationControllerCoordinator
 
         public string LeaseId { get; }
         public long Generation { get; }
-        public string Cli
+        public string ClientSessionId { get; }
+        public DateTimeOffset AcquiredAt { get; }
+        public DateTimeOffset ExpiresAt { get; set; }
+
+        public MutationLease ToInfo() => new(
+            "active",
+            LeaseId,
+            Generation,
+            ClientSessionId,
+            AcquiredAt,
+            ExpiresAt);
+    }
+}

@@ -516,4 +516,21 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
 
 internal static class TreasureVisibilityFacts
 {
-    public static bool CanReadSing
+    public static bool CanReadSingleplayerRelic(bool collectionOpen, int currentRelicCount) =>
+        collectionOpen && currentRelicCount == 1;
+}
+
+internal static class TreasureLifecycleFacts
+{
+    public static string Stage(
+        bool chestOpened,
+        bool collectionOpen,
+        int currentRelicCount,
+        bool chestActionable) =>
+        !chestOpened
+            ? chestActionable ? "closed" : "opening"
+            : collectionOpen
+                ? currentRelicCount > 0 ? "relic_choice" : "opening"
+                : "completed";
+
+}

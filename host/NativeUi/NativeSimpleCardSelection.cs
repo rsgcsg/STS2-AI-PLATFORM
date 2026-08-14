@@ -339,4 +339,9 @@ internal static class NativeSimpleCardSelection
             context,
             nameof(NSimpleCardSelectScreen),
             detail,
-            new[] { "NSimpleCa
+            new[] { "NSimpleCardSelectScreen current visible UI mechanics" },
+            new[] { "visible_cards", "current_controls" },
+            "player_environment_simple_card_selection_binding_unavailable",
+            "player-environment.simple-card-selection.binding-unavailable",
+            "The current UI cannot be represented without guessing a target.");
+}

@@ -262,4 +262,11 @@ internal static partial class PlayerEnvironmentService
             reasonCode,
             detail,
             new PlayerEnvironmentRetryPolicy(
-       
+                status == "not_delivered",
+                status == "unknown" ? "unknown_delivery_never_retry" : "fresh_snapshot_required"),
+            successor)
+        {
+            Attribution = attribution == null ? null : ToAttribution(attribution)
+        };
+
+}

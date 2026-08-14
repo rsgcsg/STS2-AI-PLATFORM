@@ -9,4 +9,4 @@ dependencies = [
 ]
 
 [project.scripts]
-sts2-connector-mcp = "se
+sts2-connector-mcp = "server:main"

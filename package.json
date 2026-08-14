@@ -26,6 +26,7 @@
     "check:cli": "node tools/test-connector-cli.mjs",
     "check:python": "python -m py_compile transports/mcp/server.py",
     "check:package": "node tools/pack-sdk.mjs --dry-run",
-    "pack:sdk": "node tools/pack-sdk.mjs --dry-run"
+    "pack:sdk": "node tools/pack-sdk.mjs --dry-run",
+    "package:release": "node tools/package-release.mjs"
   }
 }

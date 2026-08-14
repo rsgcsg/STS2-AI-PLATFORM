@@ -501,4 +501,17 @@ internal static class MenuSurfaceSupport
     {
         var context = new MenuLiveContext("menu", flow);
         var surface = new UnsupportedSurface("unsupported", sourceType, reason);
-   
+        return new LiveObservation(
+            StableIdentityHash.Object(new { game.Version, sourceType, flow, reason }),
+            "unsupported",
+            context,
+            surface,
+            new StateCompleteness(
+                "binding_unavailable",
+                "empty_fail_closed",
+                new[] { $"{sourceType} exact current-build binding" },
+                new[] { "menu_binding_unavailable" }),
+            game,
+            new[] { "menu_binding_unavailable" });
+    }
+}

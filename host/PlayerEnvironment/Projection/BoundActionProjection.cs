@@ -337,4 +337,14 @@ internal static partial class PlayerEnvironmentService
 
     private static string SchemaToken(string value)
     {
-        char[] token = val
+        char[] token = value
+            .ToLowerInvariant()
+            .Select(character => char.IsLetterOrDigit(character) || character == '_'
+                ? character
+                : '_')
+            .ToArray();
+        string normalized = new string(token).Trim('_');
+        return string.IsNullOrWhiteSpace(normalized) ? "entity" : normalized;
+    }
+
+}

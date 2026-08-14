@@ -351,4 +351,15 @@ public static partial class ConnectorMod
 
     // Called on HTTP thread (not main thread) as a best-effort guard.
     // The try/catch handles race conditions during run transitions.
-    // Aut
+    // Authoritative checks happen inside RunOnMainThread lambdas.
+    internal static bool IsMultiplayerRun()
+    {
+        try
+        {
+            return MegaCrit.Sts2.Core.Runs.RunManager.Instance.IsInProgress
+                && MegaCrit.Sts2.Core.Runs.RunManager.Instance.NetService.Type.IsMultiplayer();
+        }
+        catch { return false; }
+    }
+
+}

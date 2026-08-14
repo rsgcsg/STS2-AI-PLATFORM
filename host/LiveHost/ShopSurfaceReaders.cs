@@ -783,4 +783,23 @@ internal static class ShopSurfaceFacts
 
     public static bool CanProcurePotion(Player player, PotionModel? potion) =>
         potion != null
-  
+        && OccupiedPotionSlots(player) < player.PotionSlots.Count
+        && Hook.ShouldProcurePotion(player.RunState, player.Creature.CombatState, potion, player);
+
+    public static bool ContainsPotionInstance(Player player, PotionModel expectedPotion)
+    {
+        for (int slot = 0; slot < player.PotionSlots.Count; slot++)
+        {
+            if (ReferenceEquals(player.GetPotionAtSlotIndex(slot), expectedPotion))
+                return true;
+        }
+        return false;
+    }
+
+    public static string? BlockedReason(bool stocked, bool visible, bool affordable, bool canPurchase) =>
+        !stocked ? "sold_out"
+            : !visible ? "not_visible"
+            : !affordable ? "insufficient_gold"
+            : !canPurchase ? "ui_control_disabled"
+            : null;
+}

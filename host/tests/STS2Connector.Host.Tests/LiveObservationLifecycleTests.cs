@@ -77,4 +77,7 @@ public sealed class LiveObservationLifecycleTests
         Assert.False(TreasureRoomSurfaceReader.ClassifyScreenHandoff(
             runInProgress,
             currentRoomIsTreasure,
-   
+            uiRoomIsLive,
+            ownsCurrentScreen));
+    }
+}

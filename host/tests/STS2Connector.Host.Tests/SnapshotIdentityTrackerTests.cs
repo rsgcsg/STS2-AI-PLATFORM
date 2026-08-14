@@ -26,4 +26,6 @@ public sealed class SnapshotIdentityTrackerTests
 
         Assert.Equal(1, first.Sequence);
         Assert.Equal(2, second.Sequence);
-        Assert.NotEqual(first.StateI
+        Assert.NotEqual(first.StateId, second.StateId);
+    }
+}

@@ -494,4 +494,17 @@ internal sealed class DeckEnchantSurfaceReader : ILiveSurfaceReader
 
     private static Control? GetVisiblePreview(NDeckEnchantSelectScreen screen)
     {
-        Control? single = screen.GetNodeOrNull<Control>("%Ench
+        Control? single = screen.GetNodeOrNull<Control>("%EnchantSinglePreviewContainer");
+        if (single != null && ConnectorMod.IsNodeVisible(single))
+            return single;
+
+        Control? multi = screen.GetNodeOrNull<Control>("%EnchantMultiPreviewContainer");
+        return multi != null && ConnectorMod.IsNodeVisible(multi) ? multi : null;
+    }
+
+    internal sealed record Binding(
+        CardSelectorPrefs Preferences,
+        IReadOnlyList<CardModel> SelectedCards,
+        EnchantmentModel Enchantment,
+        int EnchantmentAmount);
+}

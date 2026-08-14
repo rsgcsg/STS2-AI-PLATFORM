@@ -362,4 +362,9 @@ internal static class NativeCombatPileSelection
             context,
             nameof(NCombatPileCardSelectScreen),
             detail,
-  
+            new[] { "NCombatPileCardSelectScreen current visible UI mechanics" },
+            new[] { "visible_cards", "current_controls" },
+            "player_environment_combat_pile_selection_binding_unavailable",
+            "native-ui.combat-pile-selection.binding-unavailable",
+            "The current UI cannot be represented without guessing a target.");
+}

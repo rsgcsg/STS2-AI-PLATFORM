@@ -102,4 +102,8 @@ export function evaluateBuildProvenance({
     }
     if (buildMetadata
         && installedMetadata.source_revision !== buildMetadata.source_revision) {
-      errors.push(
+      errors.push("build_installed_revision_mismatch");
+    }
+  }
+  return { ok: errors.length === 0, errors };
+}

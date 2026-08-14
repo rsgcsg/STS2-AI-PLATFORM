@@ -27,4 +27,6 @@ Console.WriteLine(JsonSerializer.Serialize(new
     schema_version = 1,
     sha256,
     module_version_id = mvid.ToString(),
-    file_name = Path.GetF
+    file_name = Path.GetFileName(file)
+}));
+return 0;

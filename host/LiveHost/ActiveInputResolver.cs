@@ -148,4 +148,7 @@ internal static class ActiveInputResolver
         bool hasVisibleOverlay,
         bool mapIsOpen,
         bool hasMenuSubmenu = false) =>
-        providerLayer == SelectLayer(hasVi
+        providerLayer == SelectLayer(hasVisibleOverlay, mapIsOpen, hasMenuSubmenu);
+
+    internal static bool ShouldSuppressProviders(bool hasHigherPriorityModal) => hasHigherPriorityModal;
+}

@@ -774,4 +774,29 @@ public static partial class ConnectorMod
 
         try
         {
-            fo
+            foreach (var field in ftue.GetType().GetFields(
+                         System.Reflection.BindingFlags.Public |
+                         System.Reflection.BindingFlags.NonPublic |
+                         System.Reflection.BindingFlags.Instance))
+            {
+                if (field.GetValue(ftue) is NClickableControl fieldButton &&
+                    IsPopupButtonActionable(fieldButton))
+                {
+                    return fieldButton;
+                }
+            }
+        }
+        catch (ObjectDisposedException)
+        {
+            return null;
+        }
+
+        foreach (var button in FindAll<NClickableControl>(ftue))
+        {
+            if (IsPopupButtonActionable(button))
+                return button;
+        }
+
+        return null;
+    }
+}

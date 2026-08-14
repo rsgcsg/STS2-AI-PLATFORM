@@ -12,4 +12,5 @@ internal interface ILiveSurfaceReader
     LiveObservation? TryBuild(
         ActiveSurfaceSnapshot snapshot,
         NativeEntityRegistry entities,
-        GameBuildIden
+        GameBuildIdentity game);
+}

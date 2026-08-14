@@ -276,3 +276,10 @@ internal sealed class GameOverSurfaceReader : ILiveSurfaceReader
             surface,
             new StateCompleteness(
                 "incomplete_fail_closed",
+                "empty_fail_closed",
+                new[] { "NGameOverScreen exact-current standard single-player contract" },
+                new[] { "game_over_exact_controls_or_semantics" }),
+            game,
+            new[] { "game_over_binding_unavailable" });
+    }
+}

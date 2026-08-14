@@ -19,4 +19,5 @@ internal sealed record LiveObservation(
         "The exact current native UI owns this interaction.");
 
     public IReadOnlyList<HostDiagnostic> Diagnostics { get; init; } =
-        Array.Empty<
+        Array.Empty<HostDiagnostic>();
+}

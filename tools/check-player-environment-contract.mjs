@@ -75,4 +75,5 @@ if (failures.length > 0) {
   console.error(["Player Environment contract checks failed:", ...failures.map((item) => `- ${item}`)].join("\n"));
   process.exitCode = 1;
 } else {
-  
+  console.log("player-environment contract checks passed");
+}

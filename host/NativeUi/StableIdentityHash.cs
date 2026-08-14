@@ -21,4 +21,6 @@ internal static class StableIdentityHash
     public static string Text(string value)
     {
         byte[] hash = SHA256.HashData(Encoding.UTF8.GetBytes(value));
-        return Convert.ToHexString(hash).ToLow
+        return Convert.ToHexString(hash).ToLowerInvariant();
+    }
+}

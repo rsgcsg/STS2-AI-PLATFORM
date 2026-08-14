@@ -37,4 +37,4 @@ internal sealed record NativeUiBoundAction(NativeUiActionCandidate Candidate);
 
 internal sealed record NativeUiInput(
     string? Command,
-    IReadOnly
+    IReadOnlyDictionary<string, string>? Operands);

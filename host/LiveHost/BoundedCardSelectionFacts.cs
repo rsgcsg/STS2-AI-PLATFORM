@@ -57,4 +57,9 @@ internal static class BoundedCardSelectionFacts
         {
             FieldInfo? field = type.GetField(fieldName, flags);
             if (field != null)
-                return field
+                return field.GetValue(source);
+        }
+
+        return null;
+    }
+}

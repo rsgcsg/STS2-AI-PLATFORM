@@ -421,4 +421,15 @@ internal sealed class CharacterSelectSurfaceReader : ILiveSurfaceReader
         var completeness = new StateCompleteness(
             "binding_unavailable",
             "empty_fail_closed",
-            new[] { "NCharac
+            new[] { "NCharacterSelectScreen exact current-build binding" },
+            new[] { "player_visible_semantics", "legal_actions" });
+        return new LiveObservation(
+            StableIdentityHash.Object(new { game.Version, context, surface, reason }),
+            "unsupported",
+            context,
+            surface,
+            completeness,
+            game,
+            new[] { "character_select_binding_unavailable" });
+    }
+}

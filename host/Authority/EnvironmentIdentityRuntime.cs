@@ -110,4 +110,6 @@ internal static class EnvironmentIdentityRuntime
 
     private static bool IsExactSourceRevision(string? sourceRevision) =>
         sourceRevision?.Length == 40
-        && sourceRe
+        && sourceRevision.All(character =>
+            character is >= '0' and <= '9' or >= 'a' and <= 'f');
+}

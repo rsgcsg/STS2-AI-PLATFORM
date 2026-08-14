@@ -49,4 +49,6 @@ internal static class HostArtifactIdentity
             .FirstOrDefault(attribute =>
                 string.Equals(attribute.Key, "SourceRevision", StringComparison.Ordinal))
             ?.Value;
-        return string.IsNul
+        return string.IsNullOrWhiteSpace(revision) ? null : revision;
+    }
+}

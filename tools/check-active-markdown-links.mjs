@@ -53,4 +53,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log(`Active Markdown link check p
+console.log(`Active Markdown link check passed (${files.length} files).`);

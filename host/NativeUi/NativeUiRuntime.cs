@@ -7,4 +7,5 @@ namespace STS2Connector.NativeUi;
 /// </summary>
 internal static class NativeUiRuntime
 {
-    internal static NativeEntityRegistry Entities { get; } = 
+    internal static NativeEntityRegistry Entities { get; } = new();
+}

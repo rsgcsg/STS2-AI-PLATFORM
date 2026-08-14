@@ -51,4 +51,8 @@ internal static class NativeUiFailClosedObservation
                     "surface",
                     "actions_suppressed",
                     "update_host_adapter",
-        
+                    reason)
+            }
+        };
+    }
+}
