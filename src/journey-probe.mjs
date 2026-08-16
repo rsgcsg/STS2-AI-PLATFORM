@@ -11,6 +11,7 @@ import {
   listGameProcesses,
   readJson,
   requestHostProvenance,
+  resolveExperimentalConnectorCanary,
   shippedRuntimeLaunch,
   stopChild,
   waitForExit,
@@ -352,6 +353,11 @@ export async function runBoundedJourney({
       + "pass --experimental-build only to collect non-support evidence."
     );
   }
+  const connectorCanary = resolveExperimentalConnectorCanary({
+    installation,
+    compatibility,
+    acknowledged: experimentalBuildAcknowledged
+  });
 
   const evidenceDirectory = path.join(
     evidenceRoot,
@@ -374,7 +380,8 @@ export async function runBoundedJourney({
   const { child, args, connector, hostControlToken, hostConfiguration } = shippedRuntimeLaunch(installation, {
     launchProfile,
     connectorEndpoint: endpoint,
-    runSeed: canonicalRunSeed
+    runSeed: canonicalRunSeed,
+    connectorCanary
   });
   const resourceSampler = new ProcessResourceSampler(child.pid, {
     onSample: (sample) => resourceRecorder.append({ type: "process_resource", ...sample })

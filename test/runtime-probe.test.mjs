@@ -1,9 +1,42 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import {
   requestHostProvenance,
-  requestHostShutdown
+  requestHostShutdown,
+  resolveExperimentalConnectorCanary
 } from "../src/runtime-probe.mjs";
+
+test("experimental authority binds a verified artifact and known game candidate", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "sts2-headless-canary-"));
+  const modsDir = path.join(directory, "mods");
+  mkdirSync(modsDir);
+  writeFileSync(path.join(modsDir, "STS2_MCP.dll"), "candidate");
+  const artifactSha = createHash("sha256").update("candidate").digest("hex");
+  writeFileSync(path.join(modsDir, "STS2_MCP.identity"), JSON.stringify({
+    source_revision: "a".repeat(40),
+    artifact_sha256: artifactSha
+  }));
+
+  assert.equal(resolveExperimentalConnectorCanary({
+    installation: { mods_dir: modsDir },
+    compatibility: { status: "known_experimental", support_id: "game-candidate" },
+    acknowledged: false
+  }), null);
+  assert.deepEqual(resolveExperimentalConnectorCanary({
+    installation: { mods_dir: modsDir },
+    compatibility: { status: "known_experimental", support_id: "game-candidate" },
+    acknowledged: true
+  }), {
+    game_id: "game-candidate",
+    source_revision: "a".repeat(40),
+    artifact_sha256: artifactSha
+  });
+  rmSync(directory, { recursive: true, force: true });
+});
 
 test("Host control routes share authentication without sharing response semantics", async (context) => {
   const calls = [];

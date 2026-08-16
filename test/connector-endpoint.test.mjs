@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   CONNECTOR_PORT_ENVIRONMENT_VARIABLE,
+  GAME_CANARY_ENVIRONMENT_VARIABLE,
   HOST_CONTROL_TOKEN_ENVIRONMENT_VARIABLE,
-  resolveConnectorEndpoint
+  resolveConnectorEndpoint,
+  SOURCE_CANARY_ENVIRONMENT_VARIABLE
 } from "../src/connector-endpoint.mjs";
 
 test("binds one explicit loopback endpoint to process-local Connector config", () => {
@@ -14,6 +16,8 @@ test("binds one explicit loopback endpoint to process-local Connector config", (
   });
   assert.equal(resolveConnectorEndpoint("http://localhost:16002").port, 16002);
   assert.equal(HOST_CONTROL_TOKEN_ENVIRONMENT_VARIABLE, "STS2_CONNECTOR_HOST_CONTROL_TOKEN");
+  assert.equal(GAME_CANARY_ENVIRONMENT_VARIABLE, "STS2_CONNECTOR_EXPERIMENTAL_GAME_ID");
+  assert.equal(SOURCE_CANARY_ENVIRONMENT_VARIABLE, "STS2_CONNECTOR_EXPERIMENTAL_SOURCE_REVISION");
 });
 
 test("rejects ambiguous, remote, implicit, and path-bearing endpoints", () => {

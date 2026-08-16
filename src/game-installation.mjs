@@ -52,6 +52,7 @@ export function resolveInstallation(gameDirectory, {
       game_dir: gameDir,
       executable: platformPath.join(app, "MacOS", "Slay the Spire 2"),
       executable_cwd: platformPath.join(app, "MacOS"),
+      mods_dir: platformPath.join(app, "MacOS", "mods"),
       data_dir: platformPath.join(app, "Resources", `data_sts2_macos_${runtimeArch}`),
       release_info: platformPath.join(app, "Resources", "release_info.json"),
       log_file: platformPath.join(os.homedir(), "Library/Application Support/SlayTheSpire2/logs/godot.log")
@@ -62,6 +63,7 @@ export function resolveInstallation(gameDirectory, {
       game_dir: gameDir,
       executable: platformPath.join(gameDir, "SlayTheSpire2.exe"),
       executable_cwd: gameDir,
+      mods_dir: platformPath.join(gameDir, "mods"),
       data_dir: platformPath.join(gameDir, "data_sts2_windows_x86_64"),
       release_info: platformPath.join(gameDir, "release_info.json"),
       log_file: null
@@ -74,6 +76,7 @@ export function resolveInstallation(gameDirectory, {
     game_dir: gameDir,
     executable,
     executable_cwd: gameDir,
+    mods_dir: platformPath.join(gameDir, "mods"),
     data_dir: platformPath.join(gameDir, "data_sts2_linuxbsd_x86_64"),
     release_info: platformPath.join(gameDir, "release_info.json"),
     log_file: platformPath.join(os.homedir(), ".local/share/SlayTheSpire2/logs/godot.log")
@@ -83,6 +86,42 @@ export function resolveInstallation(gameDirectory, {
 export function sha256File(file) {
   if (!file || !existsSync(file)) return null;
   return createHash("sha256").update(readFileSync(file)).digest("hex");
+}
+
+export function readInstalledConnectorIdentity(installation) {
+  const identityFile = installation?.mods_dir
+    ? path.join(installation.mods_dir, "STS2_MCP.identity")
+    : null;
+  const dll = installation?.mods_dir
+    ? path.join(installation.mods_dir, "STS2_MCP.dll")
+    : null;
+  if (!identityFile || !existsSync(identityFile)) {
+    return { status: "missing", identity_file: identityFile, identity: null };
+  }
+  let identity;
+  try {
+    identity = JSON.parse(readFileSync(identityFile, "utf8"));
+  } catch {
+    return { status: "invalid_json", identity_file: identityFile, identity: null };
+  }
+  const installedSha = sha256File(dll);
+  const sourceRevision = identity?.source_revision;
+  const validRevision = typeof sourceRevision === "string"
+    && /^[a-f0-9]{40}$/u.test(sourceRevision);
+  if (!validRevision || installedSha == null || identity?.artifact_sha256 !== installedSha) {
+    return {
+      status: "identity_mismatch",
+      identity_file: identityFile,
+      identity,
+      installed_sha256: installedSha
+    };
+  }
+  return {
+    status: "verified",
+    identity_file: identityFile,
+    identity,
+    installed_sha256: installedSha
+  };
 }
 
 export function sts2RuntimeAssemblyHash(file) {

@@ -8,12 +8,41 @@ import {
   PlayerEnvironmentRestClient
 } from "@rsgcsg/sts2-connector-client";
 import { evaluateMenuControlGate, evaluateShippedProbe } from "./probe-verdict.mjs";
-import { readDiskIdentity, STS2_APP_ID } from "./game-installation.mjs";
+import {
+  readDiskIdentity,
+  readInstalledConnectorIdentity,
+  STS2_APP_ID
+} from "./game-installation.mjs";
 import { evaluateRuntimeCompatibility } from "./compatibility.mjs";
 import { readProjectIdentity } from "./project-identity.mjs";
 import { publicProfileDescriptor, resolveLaunchProfile } from "./profile-isolation.mjs";
-import { resolveConnectorEndpoint } from "./connector-endpoint.mjs";
-import { HOST_CONTROL_TOKEN_ENVIRONMENT_VARIABLE } from "./connector-endpoint.mjs";
+import {
+  GAME_CANARY_ENVIRONMENT_VARIABLE,
+  HOST_CONTROL_TOKEN_ENVIRONMENT_VARIABLE,
+  resolveConnectorEndpoint,
+  SOURCE_CANARY_ENVIRONMENT_VARIABLE
+} from "./connector-endpoint.mjs";
+
+export function resolveExperimentalConnectorCanary({
+  installation,
+  compatibility,
+  acknowledged
+}) {
+  if (!acknowledged) return null;
+  const installed = readInstalledConnectorIdentity(installation);
+  if (installed.status !== "verified") {
+    throw new Error(
+      `Experimental Connector authority requires a verified installed identity sidecar; got ${installed.status}.`
+    );
+  }
+  return {
+    game_id: compatibility?.status === "known_experimental"
+      ? compatibility.support_id
+      : null,
+    source_revision: installed.identity.source_revision,
+    artifact_sha256: installed.installed_sha256
+  };
+}
 
 export function listGameProcesses(platform = process.platform) {
   if (platform === "win32") {
@@ -278,7 +307,8 @@ export function shippedRuntimeLaunch(installation, {
   extraEnvironment = {},
   launchProfile = null,
   connectorEndpoint = null,
-  runSeed = null
+  runSeed = null,
+  connectorCanary = null
 } = {}) {
   const connector = connectorEndpoint == null
     ? null
@@ -295,6 +325,12 @@ export function shippedRuntimeLaunch(installation, {
       ? {}
       : { [HOST_CONTROL_TOKEN_ENVIRONMENT_VARIABLE]: hostControlToken }),
     ...(runSeed == null ? {} : { STS2_CONNECTOR_RUN_SEED: runSeed }),
+    ...(connectorCanary?.game_id == null
+      ? {}
+      : { [GAME_CANARY_ENVIRONMENT_VARIABLE]: connectorCanary.game_id }),
+    ...(connectorCanary?.source_revision == null
+      ? {}
+      : { [SOURCE_CANARY_ENVIRONMENT_VARIABLE]: connectorCanary.source_revision }),
     ...extraEnvironment
   };
   if (launchProfile?.steam === "disabled_before_platform_initialization") {
@@ -315,7 +351,12 @@ export function shippedRuntimeLaunch(installation, {
     hostConfiguration: {
       display_driver: "headless",
       audio_driver: "Dummy",
-      scene_thread_mode: "default"
+      scene_thread_mode: "default",
+      authority_profile: connectorCanary == null
+        ? "sealed_only"
+        : "exact_process_local_canary",
+      canary_game_id: connectorCanary?.game_id ?? null,
+      canary_source_revision: connectorCanary?.source_revision ?? null
     }
   };
 }
@@ -353,6 +394,11 @@ export async function runShippedProbe({
       + "pass --experimental-build only to collect non-support evidence."
     );
   }
+  const connectorCanary = resolveExperimentalConnectorCanary({
+    installation,
+    compatibility,
+    acknowledged: experimentalBuildAcknowledged
+  });
 
   const evidenceDir = path.join(evidenceRoot, `shipped-h0-${safeTimestamp()}`);
   mkdirSync(evidenceDir, { recursive: true });
@@ -367,7 +413,8 @@ export async function runShippedProbe({
   const endpointBefore = await readJson(endpoint, "/api/player-environment/capabilities", 1000);
   const { child, args, connector, hostControlToken } = shippedRuntimeLaunch(installation, {
     launchProfile,
-    connectorEndpoint: endpoint
+    connectorEndpoint: endpoint,
+    connectorCanary
   });
   const stdoutStream = createWriteStream(stdoutFile);
   const stderrStream = createWriteStream(stderrFile);
@@ -412,6 +459,7 @@ export async function runShippedProbe({
       executable: installation.executable,
       args,
       connector,
+      authority_canary: connectorCanary,
       steam_app_environment: launchProfile.steam === "enabled"
         ? { SteamAppId: STS2_APP_ID, SteamGameId: STS2_APP_ID }
         : null
