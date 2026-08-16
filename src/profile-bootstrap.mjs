@@ -2,6 +2,11 @@ import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync }
 import path from "node:path";
 import { finished } from "node:stream/promises";
 import { readDiskIdentity } from "./game-installation.mjs";
+import {
+  compareFilesystemSnapshots,
+  sharedGameUserDataRoot,
+  snapshotFilesystemTree
+} from "./filesystem-sentinel.mjs";
 import { listGameProcesses, shippedRuntimeLaunch, stopChild } from "./runtime-probe.mjs";
 import { publicProfileDescriptor, resolveLaunchProfile } from "./profile-isolation.mjs";
 import { readProjectIdentity } from "./project-identity.mjs";
@@ -24,6 +29,23 @@ export function readNativeSettingsSchema(file) {
   } catch {
     return null;
   }
+}
+
+export function evaluateProfileBootstrap({
+  settingsSchema,
+  steamDisabledObserved,
+  sharedProfileSentinel
+}) {
+  const errors = [];
+  if (!Number.isSafeInteger(settingsSchema) || settingsSchema < 1) {
+    errors.push("isolated_native_settings_missing");
+  }
+  if (!steamDisabledObserved) errors.push("steam_disable_not_observed");
+  if (sharedProfileSentinel?.unchanged !== true) errors.push("shared_profile_changed_or_unmeasured");
+  return {
+    status: errors.length === 0 ? "native_profile_bootstrap_pass" : "native_profile_bootstrap_incomplete",
+    errors
+  };
 }
 
 async function waitForNativeSettings(file, timeoutMs, child) {
@@ -70,6 +92,7 @@ export async function bootstrapIsolatedProfile({
   const stdoutFile = path.join(evidenceDirectory, "stdout.log");
   const stderrFile = path.join(evidenceDirectory, "stderr.log");
   const reportFile = path.join(evidenceDirectory, "report.json");
+  const sharedProfileBefore = snapshotFilesystemTree(sharedGameUserDataRoot());
   const { child, args } = shippedRuntimeLaunch(installation, { launchProfile: profile });
   const stdout = createWriteStream(stdoutFile);
   const stderr = createWriteStream(stderrFile);
@@ -97,13 +120,22 @@ export async function bootstrapIsolatedProfile({
 
   const profilePathLogged = stdoutTail.includes(profile.expected_user_data_root.replaceAll("\\", "/"))
     || stdoutTail.includes(profile.expected_user_data_root);
-  const steamDisabledObserved = /Steam not initialized|Skipping Steam initialization/iu.test(stdoutTail);
+  const steamDisabledObserved = /Steam not initialized|Skipping Steam initialization|Steam initialization skipped/iu
+    .test(stdoutTail);
+  const sharedProfileSentinel = compareFilesystemSnapshots(
+    sharedProfileBefore,
+    snapshotFilesystemTree(sharedGameUserDataRoot())
+  );
+  const verdict = evaluateProfileBootstrap({
+    settingsSchema: schema,
+    steamDisabledObserved,
+    sharedProfileSentinel
+  });
   const report = {
     schema_version: 1,
     generated_at: new Date().toISOString(),
-    status: schema != null && steamDisabledObserved
-      ? "native_profile_bootstrap_pass"
-      : "native_profile_bootstrap_incomplete",
+    status: verdict.status,
+    errors: verdict.errors,
     headless: readProjectIdentity(),
     route: "shipped_godot_headless_profile_bootstrap",
     command: { executable: installation.executable, args },
@@ -115,6 +147,7 @@ export async function bootstrapIsolatedProfile({
       expected_profile_settings_created: schema != null,
       expected_profile_path_logged: profilePathLogged,
       steam_disabled_observed: steamDisabledObserved,
+      shared_profile_sentinel: sharedProfileSentinel,
       process_exit: exit
     },
     loaded_connector: "non_claim"
