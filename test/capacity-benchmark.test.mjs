@@ -10,6 +10,11 @@ function result(id, start, end) {
       worker: { worker_id: id },
       profile: { profile_id: id, generation_id: `gen-${id}` },
       command: { connector: { endpoint: `http://127.0.0.1:16${id === "a" ? "001" : "002"}` } },
+      host_configuration: {
+        display_driver: "headless",
+        audio_driver: "Dummy",
+        scene_thread_mode: "default"
+      },
       loaded_identity: {
         protocol: "1.0-rc.2",
         host: {
@@ -29,15 +34,18 @@ function result(id, start, end) {
         }
       },
       performance: {
+        status: "measured",
         delivered_normalized_semantic_decisions: 10,
         decision_window_seconds: (end - start) / 1000,
         normalized_semantic_decisions_per_second: 1,
         cpu_seconds: 2,
         peak_rss_bytes: 1024 ** 3,
-        sample_errors: []
+        sample_errors: [],
+        decision_window_sample_errors: []
       },
       episode_provenance: { verdict: "provenance_pass", actual_seed: "H1CAPACITY01" },
-      verdict: { integrity: { verdict: "integrity_pass" } }
+      verdict: { integrity: { verdict: "integrity_pass" } },
+      shutdown_containment: { verdict: "bounded_containment_candidate" }
     }
   };
 }
@@ -76,4 +84,17 @@ test("capacity measurement fails closed without comparable episode provenance", 
   const second = result("b", 0, 1000);
   second.report.episode_provenance.actual_seed = "OTHERSEED";
   assert.equal(summarizeCapacityGroup([first, second]).status, "measurement_incomplete");
+});
+
+test("capacity measurement fails closed on decision-window samples or shutdown containment", () => {
+  const samplingFailure = result("a", 0, 1000);
+  samplingFailure.report.performance.status = "measurement_error";
+  samplingFailure.report.performance.decision_window_sample_errors = [
+    { monotonic_ms: 500, error: "sample failed" }
+  ];
+  assert.equal(summarizeCapacityGroup([samplingFailure]).status, "measurement_incomplete");
+
+  const shutdownFailure = result("a", 0, 1000);
+  shutdownFailure.report.shutdown_containment.verdict = "shutdown_containment_rejected";
+  assert.equal(summarizeCapacityGroup([shutdownFailure]).status, "measurement_incomplete");
 });

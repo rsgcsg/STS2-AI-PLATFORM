@@ -90,6 +90,7 @@ export class ProcessResourceSampler {
       .catch((error) => {
         this.#errors.push({
           at: new Date().toISOString(),
+          monotonic_ms: performance.now(),
           error: error instanceof Error ? error.message : String(error)
         });
       })
@@ -133,6 +134,10 @@ export function summarizeHostPerformance({
   deliveredDecisions
 }) {
   const windowSamples = samplesForWindow(samples, decisionWindowStartedMs, decisionWindowEndedMs);
+  const decisionWindowSampleErrors = sampleErrors.filter((error) =>
+    Number.isFinite(error.monotonic_ms)
+      ? error.monotonic_ms >= decisionWindowStartedMs && error.monotonic_ms <= decisionWindowEndedMs
+      : true);
   const windowSeconds = Number.isFinite(decisionWindowStartedMs)
     && Number.isFinite(decisionWindowEndedMs)
     && decisionWindowEndedMs > decisionWindowStartedMs
@@ -154,14 +159,19 @@ export function summarizeHostPerformance({
   const averageCores = cpuSeconds != null && sampledSeconds > 0 ? cpuSeconds / sampledSeconds : null;
   const decisionsPerSecond = windowSeconds > 0 ? deliveredDecisions / windowSeconds : null;
   return {
-    status: windowSamples.length >= 2 && decisionsPerSecond != null
+    status: windowSamples.length >= 2
+      && decisionsPerSecond != null
+      && decisionWindowSampleErrors.length === 0
       ? "measured"
-      : "insufficient_samples",
+      : decisionWindowSampleErrors.length > 0
+        ? "measurement_error"
+        : "insufficient_samples",
     delivered_normalized_semantic_decisions: deliveredDecisions,
     decision_window_seconds: windowSeconds,
     normalized_semantic_decisions_per_second: decisionsPerSecond,
     sample_count: windowSamples.length,
     sample_errors: sampleErrors,
+    decision_window_sample_errors: decisionWindowSampleErrors,
     cpu_seconds: cpuSeconds,
     sampled_wall_seconds: sampledSeconds,
     average_cpu_cores: averageCores,

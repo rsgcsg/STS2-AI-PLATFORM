@@ -34,7 +34,8 @@ function comparableIdentity(report) {
     game_version: report.loaded_identity.game.version,
     game_commit: report.loaded_identity.game.commit,
     game_main_assembly_hash: report.loaded_identity.game.main_assembly_hash,
-    modset_fingerprint: report.loaded_identity.game.modset.fingerprint
+    modset_fingerprint: report.loaded_identity.game.modset.fingerprint,
+    host_configuration: report.host_configuration
   };
 }
 
@@ -69,6 +70,12 @@ export function summarizeCapacityGroup(results) {
     (result) => result.report.verdict.integrity.verdict === "integrity_pass"
   );
   const sampleErrors = results.flatMap((result) => result.report.performance.sample_errors);
+  const decisionWindowSampleErrors = results.flatMap(
+    (result) => result.report.performance.decision_window_sample_errors ?? []
+  );
+  const performanceMeasured = results.every(
+    (result) => result.report.performance.status === "measured"
+  );
   const seeds = results.map((result) => result.report.episode_provenance?.actual_seed ?? null);
   const provenancePass = results.every(
     (result) => result.report.episode_provenance?.verdict === "provenance_pass"
@@ -80,7 +87,10 @@ export function summarizeCapacityGroup(results) {
     (verdict) => verdict === "clean_shutdown" || verdict === "bounded_containment_candidate"
   );
   return {
-    status: integrityPass && provenancePass && sampleErrors.length === 0
+    status: integrityPass
+      && provenancePass
+      && performanceMeasured
+      && shutdownContainmentBounded
       ? "measured"
       : "measurement_incomplete",
     worker_count: results.length,
@@ -102,6 +112,7 @@ export function summarizeCapacityGroup(results) {
     shutdown_containment_bounded: shutdownContainmentBounded,
     shutdown_containment_verdicts: shutdownContainmentVerdicts,
     sample_errors: sampleErrors,
+    decision_window_sample_errors: decisionWindowSampleErrors,
     workers: results.map((result) => ({
       worker_id: result.report.worker.worker_id,
       profile: result.report.profile,
@@ -129,7 +140,8 @@ export async function runCapacityBenchmark({
   maxActions = 12,
   timeoutMs = 90_000,
   actionTimeoutMs = 20_000,
-  runSeed = "H1CAPACITY01"
+  runSeed = "H1CAPACITY01",
+  sceneThreadMode = "default"
 }) {
   const canonicalRunSeed = canonicalizeEpisodeSeed(runSeed);
   const counts = parseWorkerCounts(workerCounts.join(","));
@@ -156,6 +168,7 @@ export async function runCapacityBenchmark({
     base_port: basePort,
     max_actions_per_worker: maxActions,
     requested_seed: canonicalRunSeed,
+    host_configuration: { scene_thread_mode: sceneThreadMode },
     groups: [],
     non_claims: [
       "Capacity measurement is not semantic qualification or Training Ready evidence.",
@@ -196,7 +209,8 @@ export async function runCapacityBenchmark({
         experimentalBuildAcknowledged: true,
         allowConcurrentProcesses: true,
         evidenceLabel: worker.workerId,
-        runSeed: canonicalRunSeed
+        runSeed: canonicalRunSeed,
+        sceneThreadMode
       })));
       const failures = settled
         .filter((entry) => entry.status === "rejected")

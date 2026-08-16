@@ -311,7 +311,8 @@ export async function runBoundedJourney({
   faultAfterDeliveredActions = null,
   faultMode = "process_crash",
   shutdownDrainMs = 2_000,
-  runSeed = null
+  runSeed = null,
+  sceneThreadMode = "default"
 }) {
   const canonicalRunSeed = canonicalizeEpisodeSeed(runSeed);
   const launchProfile = resolveLaunchProfile({
@@ -371,10 +372,11 @@ export async function runBoundedJourney({
     eventCount += 1;
   };
   const processStartedMs = performance.now();
-  const { child, args, connector, hostControlToken } = shippedRuntimeLaunch(installation, {
+  const { child, args, connector, hostControlToken, hostConfiguration } = shippedRuntimeLaunch(installation, {
     launchProfile,
     connectorEndpoint: endpoint,
-    runSeed: canonicalRunSeed
+    runSeed: canonicalRunSeed,
+    sceneThreadMode
   });
   const resourceSampler = new ProcessResourceSampler(child.pid, {
     onSample: (sample) => resourceRecorder.append({ type: "process_resource", ...sample })
@@ -673,6 +675,7 @@ export async function runBoundedJourney({
       route: "shipped_godot_headless",
       worker: evidenceLabel == null ? null : { worker_id: evidenceLabel, concurrent: allowConcurrentProcesses },
       command: { executable: installation.executable, args, connector },
+      host_configuration: hostConfiguration,
       profile: publicProfileDescriptor(launchProfile),
       disk_identity: diskIdentity,
       compatibility,
@@ -743,6 +746,7 @@ export async function runBoundedJourney({
       route: "shipped_godot_headless",
       worker: evidenceLabel == null ? null : { worker_id: evidenceLabel, concurrent: allowConcurrentProcesses },
       command: { executable: installation.executable, args, connector },
+      host_configuration: hostConfiguration,
       profile: publicProfileDescriptor(launchProfile),
       disk_identity: diskIdentity,
       compatibility,

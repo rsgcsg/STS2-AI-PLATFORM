@@ -278,13 +278,22 @@ export function shippedRuntimeLaunch(installation, {
   extraEnvironment = {},
   launchProfile = null,
   connectorEndpoint = null,
-  runSeed = null
+  runSeed = null,
+  sceneThreadMode = "default"
 } = {}) {
+  if (!new Set(["default", "single_threaded_scene"]).has(sceneThreadMode)) {
+    throw new Error("Scene thread mode must be default or single_threaded_scene.");
+  }
   const connector = connectorEndpoint == null
     ? null
     : resolveConnectorEndpoint(connectorEndpoint);
   const hostControlToken = connector == null ? null : randomBytes(32).toString("hex");
-  const args = ["--headless", "--verbose", ...(launchProfile?.args ?? [])];
+  const args = [
+    "--headless",
+    "--verbose",
+    ...(sceneThreadMode === "single_threaded_scene" ? ["--single-threaded-scene"] : []),
+    ...(launchProfile?.args ?? [])
+  ];
   const environment = {
     ...process.env,
     SteamAppId: process.env.SteamAppId ?? STS2_APP_ID,
@@ -306,7 +315,18 @@ export function shippedRuntimeLaunch(installation, {
     env: environment,
     stdio: ["ignore", stdout, stderr]
   });
-  return { child, args, environment, connector, hostControlToken };
+  return {
+    child,
+    args,
+    environment,
+    connector,
+    hostControlToken,
+    hostConfiguration: {
+      display_driver: "headless",
+      audio_driver: "Dummy",
+      scene_thread_mode: sceneThreadMode
+    }
+  };
 }
 
 export async function runShippedProbe({
