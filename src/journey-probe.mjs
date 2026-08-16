@@ -258,15 +258,26 @@ export async function runBoundedJourney({
   evidenceRoot,
   sharedProfileAcknowledged = false,
   isolatedProfileId = null,
-  experimentalBuildAcknowledged = false
+  experimentalBuildAcknowledged = false,
+  allowConcurrentProcesses = false,
+  evidenceLabel = null
 }) {
   const launchProfile = resolveLaunchProfile({
     localRoot,
     isolatedProfileId,
     sharedProfileAcknowledged
   });
+  if (allowConcurrentProcesses
+      && (launchProfile.mode !== "isolated_local_profile" || sharedProfileAcknowledged)) {
+    throw new Error("Concurrent probes require one isolated local profile per process.");
+  }
+  if (evidenceLabel != null && !/^[a-z0-9][a-z0-9._-]{0,63}$/u.test(evidenceLabel)) {
+    throw new Error("Evidence labels must be bounded lowercase identifiers.");
+  }
   const running = listGameProcesses();
-  if (running.length > 0) throw new Error(`Refusing to launch beside an existing STS2 process:\n${running.join("\n")}`);
+  if (running.length > 0 && !allowConcurrentProcesses) {
+    throw new Error(`Refusing to launch beside an existing STS2 process:\n${running.join("\n")}`);
+  }
   const endpointBefore = await readJson(endpoint, "/api/player-environment/capabilities", 1000);
   if (endpointBefore.ok) throw new Error("The Connector endpoint is already owned by another process.");
 
@@ -280,7 +291,10 @@ export async function runBoundedJourney({
     );
   }
 
-  const evidenceDirectory = path.join(evidenceRoot, `bounded-journey-${safeTimestamp()}`);
+  const evidenceDirectory = path.join(
+    evidenceRoot,
+    `bounded-journey-${safeTimestamp()}${evidenceLabel == null ? "" : `-${evidenceLabel}`}`
+  );
   mkdirSync(evidenceDirectory, { recursive: true });
   const eventsFile = path.join(evidenceDirectory, "events.jsonl");
   const resourcesFile = path.join(evidenceDirectory, "resources.jsonl");
@@ -496,6 +510,7 @@ export async function runBoundedJourney({
       generated_at: new Date().toISOString(),
       headless: headlessIdentity,
       route: "shipped_godot_headless",
+      worker: evidenceLabel == null ? null : { worker_id: evidenceLabel, concurrent: allowConcurrentProcesses },
       command: { executable: installation.executable, args, connector },
       profile: publicProfileDescriptor(launchProfile),
       disk_identity: diskIdentity,
@@ -526,7 +541,7 @@ export async function runBoundedJourney({
       verdict,
       non_claims: [
         "The deterministic policy is a test consumer, not a gameplay agent.",
-        "H2 does not prove full-run completion, semantic parity, save isolation, determinism, or performance.",
+        "One bounded journey does not prove full-run completion, semantic parity, determinism, capacity, or support.",
         launchProfile.mode === "shared_steam_profile"
           ? "The active Steam profile was explicitly used; profile isolation was not exercised."
           : "The isolated profile path is source-backed experimental until runtime sentinel and Cloud checks pass."
@@ -534,7 +549,17 @@ export async function runBoundedJourney({
     };
     recorder.close();
     writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`);
-    return { report, reportFile, eventsFile, evidenceDirectory };
+    return {
+      report,
+      reportFile,
+      eventsFile,
+      evidenceDirectory,
+      measurement: {
+        process_started_ms: processStartedMs,
+        decision_window_started_ms: decisionWindowStartedMs,
+        decision_window_ended_ms: decisionWindowEndedMs
+      }
+    };
   } catch (error) {
     terminal = terminal === "not_started" ? "probe_error" : terminal;
     const message = error instanceof Error ? error.message : String(error);
@@ -551,6 +576,7 @@ export async function runBoundedJourney({
       generated_at: new Date().toISOString(),
       headless: headlessIdentity,
       route: "shipped_godot_headless",
+      worker: evidenceLabel == null ? null : { worker_id: evidenceLabel, concurrent: allowConcurrentProcesses },
       command: { executable: installation.executable, args, connector },
       profile: publicProfileDescriptor(launchProfile),
       disk_identity: diskIdentity,

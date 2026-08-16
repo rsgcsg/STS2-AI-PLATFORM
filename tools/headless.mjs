@@ -25,6 +25,7 @@ import {
   captureProfileTemplate,
   instantiateProfileTemplate
 } from "../src/profile-template.mjs";
+import { parseWorkerCounts, runCapacityBenchmark } from "../src/capacity-benchmark.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -226,6 +227,22 @@ async function main() {
     process.exitCode = result.report.verdict.verdict === "h2_pass" ? 0 : 4;
     return;
   }
+  if (command === "bench-capacity") {
+    const result = await runCapacityBenchmark({
+      installation: resolveCurrentInstallation(),
+      localRoot: path.join(ROOT, ".local"),
+      evidenceRoot: path.join(ROOT, ".local", "evidence"),
+      templateId: option(args, "--template", "vanilla-clean"),
+      workerCounts: parseWorkerCounts(option(args, "--workers", "1,2,4")),
+      basePort: Number(option(args, "--base-port", "15600")),
+      maxActions: Number(option(args, "--max-actions", "12")),
+      timeoutMs: Number(option(args, "--timeout-ms", "90000")),
+      actionTimeoutMs: Number(option(args, "--action-timeout-ms", "20000"))
+    });
+    console.log(JSON.stringify({ report_file: result.reportFile, status: result.report.status }, null, 2));
+    process.exitCode = result.report.status === "measured" ? 0 : 5;
+    return;
+  }
   console.log(`Usage:
   node tools/headless.mjs setup
   node tools/headless.mjs rollback --backup DIRECTORY
@@ -240,7 +257,8 @@ async function main() {
   node tools/headless.mjs instantiate-profile-template --template ID --isolated-profile ID
   node tools/headless.mjs probe-shipped (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
   node tools/headless.mjs probe-menu-control (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
-  node tools/headless.mjs probe-journey (--isolated-profile ID | --shared-profile) [--experimental-build] [--max-actions 40] [--tutorials disable|enable] [--timeout-ms 90000]`);
+  node tools/headless.mjs probe-journey (--isolated-profile ID | --shared-profile) [--experimental-build] [--max-actions 40] [--tutorials disable|enable] [--timeout-ms 90000]
+  node tools/headless.mjs bench-capacity [--template vanilla-clean] [--workers 1,2,4] [--base-port 15600] [--max-actions 12]`);
 }
 
 main().catch((error) => {
