@@ -160,6 +160,7 @@ async function main() {
       timeoutMs: Number(option(args, "--timeout-ms", "90000")),
       actionTimeoutMs: Number(option(args, "--action-timeout-ms", "20000")),
       maxActions: Number(option(args, "--max-actions", "40")),
+      tutorialPreference: option(args, "--tutorials", "disable"),
       evidenceRoot: path.join(ROOT, ".local", "evidence"),
       sharedProfileAcknowledged: args.includes("--shared-profile"),
       isolatedProfileId: option(args, "--isolated-profile", null),
@@ -184,7 +185,7 @@ async function main() {
   node tools/headless.mjs enable-profile-mods --isolated-profile ID --settings-schema VERSION [--accept-ea-disclaimer]
   node tools/headless.mjs probe-shipped (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
   node tools/headless.mjs probe-menu-control (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
-  node tools/headless.mjs probe-journey (--isolated-profile ID | --shared-profile) [--experimental-build] [--max-actions 40] [--timeout-ms 90000]`);
+  node tools/headless.mjs probe-journey (--isolated-profile ID | --shared-profile) [--experimental-build] [--max-actions 40] [--tutorials disable|enable] [--timeout-ms 90000]`);
 }
 
 main().catch((error) => {

@@ -38,7 +38,21 @@ test("first-run tutorial preference stays inside the advertised action set", () 
   const enable = { bound_action_id: "enable", verb: "select", label: "Confirm" };
   assert.equal(
     chooseBoundAction(snapshot("tutorial_preference", [disable, enable])),
+    disable
+  );
+  assert.equal(
+    chooseBoundAction(
+      snapshot("tutorial_preference", [disable, enable]),
+      { tutorialPreference: "enable" }
+    ),
     enable
+  );
+  assert.throws(
+    () => chooseBoundAction(
+      snapshot("tutorial_preference", [disable, enable]),
+      { tutorialPreference: "guess" }
+    ),
+    /Unsupported tutorial preference/u
   );
 });
 

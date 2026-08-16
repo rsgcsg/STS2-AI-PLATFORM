@@ -39,7 +39,7 @@ function actionWithVerb(actions, ...verbs) {
   return actions.find((action) => verbs.includes(action.verb));
 }
 
-export function chooseBoundAction(snapshot) {
+export function chooseBoundAction(snapshot, { tutorialPreference = "disable" } = {}) {
   if (snapshot?.status !== "interactive"
       || snapshot?.bound_actions?.status !== "complete"
       || snapshot.bound_actions.actions.length === 0) {
@@ -61,7 +61,12 @@ export function chooseBoundAction(snapshot) {
       ?? null;
   }
   if (kind === "tutorial_preference") {
-    return actionWithLabel(actions, /confirm|enable|yes/i) ?? actions[0];
+    if (!new Set(["enable", "disable"]).has(tutorialPreference)) {
+      throw new Error(`Unsupported tutorial preference: ${tutorialPreference}.`);
+    }
+    return tutorialPreference === "disable"
+      ? actionWithLabel(actions, /cancel|disable|no/i) ?? null
+      : actionWithLabel(actions, /confirm|enable|yes/i) ?? null;
   }
   if (kind === "combat_turn") {
     return actionWithVerb(actions, "play")
@@ -225,6 +230,7 @@ export async function runBoundedJourney({
   timeoutMs = 90_000,
   actionTimeoutMs = 20_000,
   maxActions = 40,
+  tutorialPreference = "disable",
   evidenceRoot,
   sharedProfileAcknowledged = false,
   isolatedProfileId = null,
@@ -346,7 +352,7 @@ export async function runBoundedJourney({
         }
       }
 
-      const action = chooseBoundAction(snapshot);
+      const action = chooseBoundAction(snapshot, { tutorialPreference });
       const policySelectedMs = performance.now();
       if (!action) {
         record({
@@ -438,6 +444,10 @@ export async function runBoundedJourney({
       disk_identity: diskIdentity,
       compatibility,
       evidence_mode: compatibility.status === "supported_exact" ? "supported" : "experimental",
+      probe_policy: {
+        kind: "deterministic_test_consumer",
+        tutorial_preference: tutorialPreference
+      },
       loaded_identity: {
         protocol: capabilities.protocol_version,
         host: capabilities.host,
@@ -472,6 +482,10 @@ export async function runBoundedJourney({
       disk_identity: diskIdentity,
       compatibility,
       evidence_mode: compatibility.status === "supported_exact" ? "supported" : "experimental",
+      probe_policy: {
+        kind: "deterministic_test_consumer",
+        tutorial_preference: tutorialPreference
+      },
       loaded_identity: capabilities
         ? { protocol: capabilities.protocol_version, host: capabilities.host, game: capabilities.game }
         : null,
