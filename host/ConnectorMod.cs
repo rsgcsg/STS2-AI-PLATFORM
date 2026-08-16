@@ -12,6 +12,7 @@ using Godot;
 using MegaCrit.Sts2.Core.Modding;
 using MegaCrit.Sts2.Core.Multiplayer.Game;
 using STS2Connector.Authority;
+using STS2Connector.HostControl;
 
 namespace STS2Connector;
 
@@ -22,6 +23,8 @@ public static partial class ConnectorMod
     public const int DefaultPort = 15526;
     internal const string ConfigFileName = "STS2_MCP.conf";
     internal const string PortEnvironmentVariable = "STS2_CONNECTOR_PORT";
+    internal const string HostControlTokenEnvironmentVariable =
+        "STS2_CONNECTOR_HOST_CONTROL_TOKEN";
 
     private static HttpListener? _listener;
     private static Thread? _serverThread;
@@ -37,7 +40,8 @@ public static partial class ConnectorMod
 
     private sealed record RuntimeConfig(
         int Port,
-        bool NativePageEvidenceEnabled);
+        bool NativePageEvidenceEnabled,
+        string? HostControlToken);
 
     private static RuntimeConfig LoadRuntimeConfig()
     {
@@ -45,7 +49,9 @@ public static partial class ConnectorMod
         int processPort = ResolveProcessPort(
             fileConfig.Port,
             System.Environment.GetEnvironmentVariable(PortEnvironmentVariable));
-        return fileConfig with { Port = processPort };
+        string? hostControlToken = HostLifecycleControl.ResolveConfiguredToken(
+            System.Environment.GetEnvironmentVariable(HostControlTokenEnvironmentVariable));
+        return fileConfig with { Port = processPort, HostControlToken = hostControlToken };
     }
 
     internal static int ResolveProcessPort(int configuredPort, string? processPort)
@@ -69,7 +75,8 @@ public static partial class ConnectorMod
             if (modDir == null)
                 return new RuntimeConfig(
                     DefaultPort,
-                    NativePageEvidenceEnabled: false);
+                    NativePageEvidenceEnabled: false,
+                    HostControlToken: null);
 
             string configPath = Path.Combine(modDir, ConfigFileName);
             if (!File.Exists(configPath))
@@ -91,7 +98,8 @@ public static partial class ConnectorMod
                 }
                 return new RuntimeConfig(
                     DefaultPort,
-                    NativePageEvidenceEnabled: false);
+                    NativePageEvidenceEnabled: false,
+                    HostControlToken: null);
             }
 
             string content = File.ReadAllText(configPath);
@@ -126,7 +134,8 @@ public static partial class ConnectorMod
             }
             return new RuntimeConfig(
                 configuredPort,
-                nativePageEvidenceEnabled);
+                nativePageEvidenceEnabled,
+                HostControlToken: null);
         }
         catch (Exception ex)
         {
@@ -134,7 +143,8 @@ public static partial class ConnectorMod
                 $"[STS2 Connector] Failed to load config: {ex.Message}; using safe defaults");
             return new RuntimeConfig(
                 DefaultPort,
-                NativePageEvidenceEnabled: false);
+                NativePageEvidenceEnabled: false,
+                HostControlToken: null);
         }
     }
 
@@ -149,6 +159,7 @@ public static partial class ConnectorMod
             RuntimeConfig config = LoadRuntimeConfig();
             PlayerEnvironment.PlayerEnvironmentService.ConfigureNativePageEvidence(
                 config.NativePageEvidenceEnabled);
+            HostLifecycleControl.Configure(config.HostControlToken);
             int port = config.Port;
 
             _listener = new HttpListener();
@@ -170,6 +181,8 @@ public static partial class ConnectorMod
             }
             GD.Print(
                 $"[STS2 Connector] Player Environment native-page evidence: {(config.NativePageEvidenceEnabled ? "enabled" : "disabled")}");
+            GD.Print(
+                $"[STS2 Connector] Host lifecycle control: {(HostLifecycleControl.Enabled ? "enabled for this process" : "disabled")}");
         }
         catch (Exception ex)
         {
@@ -357,6 +370,13 @@ public static partial class ConnectorMod
                 }
                 else if (request.HttpMethod is "GET" or "POST")
                     SendError(response, 404, "Unknown native-page evidence operation");
+                else
+                    SendError(response, 405, "Method not allowed");
+            }
+            else if (path == "/api/host-control/shutdown")
+            {
+                if (request.HttpMethod == "POST")
+                    HandlePostHostShutdown(request, response);
                 else
                     SendError(response, 405, "Method not allowed");
             }

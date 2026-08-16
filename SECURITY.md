@@ -1,9 +1,15 @@
 # Security Policy
 
-STS2 Connector is a release candidate. Its HTTP service is loopback-only but
-does not authenticate hostile local processes. Client registration and
-controller leases enforce one-writer integrity; they are not an OS security
-boundary. Never expose port `15526` to another machine.
+STS2 Connector is a release candidate. Its Player Environment HTTP service is
+loopback-only but does not authenticate hostile local processes. Client
+registration and controller leases enforce one-writer integrity; they are not
+an OS security boundary. Never expose port `15526` to another machine.
+
+The separate Host shutdown route is disabled unless a supervisor injects a
+process-local 256-bit token. It also requires the current runtime instance ID.
+The token must remain outside shared configuration, capabilities, logs,
+evidence, SDKs and MCP. This prevents accidental use; it does not defend
+against hostile code running inside the game process or under the same account.
 
 Report vulnerabilities privately when they could leak hidden game information,
 bypass Snapshot/native binding, defeat controller/idempotency checks, turn a

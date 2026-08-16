@@ -31,6 +31,7 @@ launcher such as STS2-headless.
 | `PlayerEnvironment` | Snapshot, Interaction, Referent, Read, BoundAction, Receipt, stale semantics | hidden state; second legality/effect model |
 | `Authority` | artifact/runtime/environment identity, one controller, request idempotency | UI legality or outcomes |
 | REST/MCP | bytes and endpoint translation | semantics or authority |
+| optional Host control | process-local, runtime-bound graceful shutdown requested by a supervisor | Player Environment actions, gameplay authority or remote lifecycle control |
 | TypeScript SDK | strict decoding, HTTP and controller session mechanics | strategy, normalization, legality or retries of unknown delivery |
 | consumer | strategy, prompts, search, memory and progress interpretation | native operands or mutation authority |
 
@@ -41,6 +42,12 @@ inventory. C# records implement the wire. TypeScript schemas independently
 reject malformed responses. `npm run check:contract` keeps protocol version,
 routes, schemas, verbs and hard-shell invariants aligned. Neither the SDK nor a
 consumer may extend authority by accepting more than the Host publishes.
+
+The default-disabled `/api/host-control/shutdown` route is outside this
+canonical contract. A Host supervisor may enable it for one process with a
+256-bit environment token, then request shutdown bound to the loaded runtime
+instance. The Host schedules the native Godot `SceneTree` quit path. The token
+is not published through capabilities, SDK, MCP, Snapshot, Read or BoundAction.
 
 ## Observe, Read, Interact
 

@@ -70,6 +70,13 @@ still prove that each endpoint was clear before launch and bind the endpoint to
 the loaded runtime instance in its evidence. This transport setting grants no
 gameplay authority.
 
+A Host supervisor may also inject the process-local
+`STS2_CONNECTOR_HOST_CONTROL_TOKEN` used by the default-disabled graceful
+shutdown route. The value must be exactly 64 lowercase hexadecimal characters.
+It must never be written to logs, capabilities, evidence, shared configuration,
+the SDK or MCP. The route additionally requires the current runtime instance
+ID and is not part of the Player Environment gameplay contract.
+
 ## Development Deployment
 
 For a deliberate local experiment with uncommitted Host changes:
