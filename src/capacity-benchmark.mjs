@@ -6,6 +6,7 @@ import { instantiateProfileTemplate } from "./profile-template.mjs";
 import { readDiskIdentity } from "./game-installation.mjs";
 import { readProjectIdentity } from "./project-identity.mjs";
 import { canonicalizeEpisodeSeed } from "./episode-provenance.mjs";
+import { readSystemIdentity } from "./system-identity.mjs";
 
 const GIB = 1024 ** 3;
 
@@ -138,6 +139,7 @@ export async function runCapacityBenchmark({
     status: "running",
     route: "reference_shipped_multi_process",
     headless: readProjectIdentity(),
+    system_identity: readSystemIdentity(),
     disk_identity: readDiskIdentity(installation),
     template_id: templateId,
     worker_counts: counts,

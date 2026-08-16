@@ -6,6 +6,7 @@ import { runBoundedJourney } from "./journey-probe.mjs";
 import { instantiateProfileTemplate } from "./profile-template.mjs";
 import { readProjectIdentity } from "./project-identity.mjs";
 import { listGameProcesses } from "./runtime-probe.mjs";
+import { readSystemIdentity } from "./system-identity.mjs";
 
 function safeTimestamp() {
   return new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
@@ -188,6 +189,7 @@ export async function runReferenceRepeatability({
     status: "running",
     route: "same_artifact_reference_repeatability",
     headless: readProjectIdentity(),
+    system_identity: readSystemIdentity(),
     disk_identity: diskIdentity,
     template_id: templateId,
     requested_seed: canonicalSeed,

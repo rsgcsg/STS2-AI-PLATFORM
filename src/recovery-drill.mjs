@@ -6,6 +6,7 @@ import { instantiateProfileTemplate } from "./profile-template.mjs";
 import { readProjectIdentity } from "./project-identity.mjs";
 import { listGameProcesses, readJson } from "./runtime-probe.mjs";
 import { canonicalizeEpisodeSeed } from "./episode-provenance.mjs";
+import { readSystemIdentity } from "./system-identity.mjs";
 
 function safeTimestamp() {
   return new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
@@ -126,6 +127,7 @@ export async function runRecoveryDrill({
     status: "running",
     route: "reference_shipped_crash_recovery",
     headless: readProjectIdentity(),
+    system_identity: readSystemIdentity(),
     disk_identity: exactGameIdentity,
     template_id: templateId,
     profile_id: profileId,
