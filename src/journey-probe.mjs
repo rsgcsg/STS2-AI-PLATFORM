@@ -208,6 +208,12 @@ export function terminalForReceipt(receipt) {
   return null;
 }
 
+export function isRefreshableStaleReceipt(receipt) {
+  return receipt?.delivery === "not_delivered"
+    && receipt?.reason_code === "stale_snapshot"
+    && receipt?.successor?.snapshot_id != null;
+}
+
 export function evaluateSurfaceCoverage({
   surfaces,
   combatDeliveries,
@@ -317,7 +323,8 @@ export async function runBoundedJourney({
   faultAfterDeliveredActions = null,
   faultMode = "process_crash",
   shutdownDrainMs = 2_000,
-  runSeed = null
+  runSeed = null,
+  maxConsecutiveStale = 8
 }) {
   const canonicalRunSeed = canonicalizeEpisodeSeed(runSeed);
   const launchProfile = resolveLaunchProfile({
@@ -341,6 +348,11 @@ export async function runBoundedJourney({
   }
   if (!Number.isSafeInteger(shutdownDrainMs) || shutdownDrainMs < 0 || shutdownDrainMs > 10_000) {
     throw new Error("Shutdown drain must be an integer from 0 through 10000 milliseconds.");
+  }
+  if (!Number.isSafeInteger(maxConsecutiveStale)
+      || maxConsecutiveStale < 0
+      || maxConsecutiveStale > 100) {
+    throw new Error("Maximum consecutive stale refusals must be an integer from 0 through 100.");
   }
   const running = listGameProcesses();
   if (running.length > 0 && !allowConcurrentProcesses) {
@@ -422,6 +434,8 @@ export async function runBoundedJourney({
   });
   let deliveredActions = 0;
   let combatDeliveries = 0;
+  let staleRefusals = 0;
+  let consecutiveStale = 0;
   const surfaces = new Set();
   const semanticDecisionDurations = [];
   const readKinds = new Set();
@@ -550,6 +564,36 @@ export async function runBoundedJourney({
         controllerGeneration: credentials.controllerGeneration
       })).data;
       const receiptMs = performance.now();
+      if (isRefreshableStaleReceipt(receipt)) {
+        staleRefusals += 1;
+        consecutiveStale += 1;
+        record({
+          type: "stale_refusal",
+          ...compactStep(snapshot, action, receipt, null),
+          consecutive_stale: consecutiveStale
+        });
+        if (consecutiveStale > maxConsecutiveStale) {
+          terminal = "stale_livelock";
+          break;
+        }
+        let refreshed = receipt.successor;
+        if (refreshed.status === "settling") {
+          refreshed = await waitForSuccessor(
+            client,
+            refreshed.snapshot_id,
+            child,
+            actionTimeoutMs
+          );
+        }
+        if (!refreshed) {
+          successorFailures += 1;
+          terminal = "stale_successor_timeout";
+          break;
+        }
+        snapshot = refreshed;
+        index -= 1;
+        continue;
+      }
       const receiptTerminal = terminalForReceipt(receipt);
       if (receiptTerminal) {
         if (receipt.delivery === "unknown") unknownCount += 1;
@@ -586,6 +630,7 @@ export async function runBoundedJourney({
       record({ type: "action", ...compactStep(snapshot, action, receipt, timing) });
       surfaces.add(snapshot.interaction.kind);
       if (receipt.delivery === "delivered") {
+        consecutiveStale = 0;
         deliveredActions += 1;
         if (snapshot.interaction.kind === "combat_turn") combatDeliveries += 1;
       }
@@ -693,6 +738,7 @@ export async function runBoundedJourney({
       probe_policy: {
         kind: "deterministic_test_consumer",
         tutorial_preference: tutorialPreference,
+        max_consecutive_stale: maxConsecutiveStale,
         fault_after_delivered_actions: faultAfterDeliveredActions,
         requested_seed: canonicalRunSeed
       },
@@ -702,6 +748,7 @@ export async function runBoundedJourney({
         game: capabilities.game
       },
       read_kinds_exercised: [...readKinds].sort(),
+      stale_refusals: staleRefusals,
       event_count: eventCount,
       events_files: recorder.files.map((file) => path.basename(file)),
       resources_files: resourceRecorder.files.map((file) => path.basename(file)),
@@ -764,6 +811,7 @@ export async function runBoundedJourney({
       probe_policy: {
         kind: "deterministic_test_consumer",
         tutorial_preference: tutorialPreference,
+        max_consecutive_stale: maxConsecutiveStale,
         fault_after_delivered_actions: faultAfterDeliveredActions,
         requested_seed: canonicalRunSeed
       },
@@ -771,6 +819,7 @@ export async function runBoundedJourney({
         ? { protocol: capabilities.protocol_version, host: capabilities.host, game: capabilities.game }
         : null,
       episode_provenance: episodeProvenance,
+      stale_refusals: staleRefusals,
       read_kinds_exercised: [...readKinds].sort(),
       event_count: eventCount,
       events_files: recorder.files.map((file) => path.basename(file)),

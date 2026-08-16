@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   faultInjectionReady,
   chooseBoundAction,
+  isRefreshableStaleReceipt,
   evaluateBoundedJourney,
   evaluateJourneyIntegrity,
   evaluateSurfaceCoverage,
@@ -108,6 +109,28 @@ test("bounded probes stop immediately after a non-delivery or unknown outcome", 
   );
   assert.equal(terminalForReceipt({ delivery: "unknown" }), "unknown_delivery");
   assert.equal(terminalForReceipt({ delivery: "delivered" }), null);
+});
+
+test("only proven not-delivered stale receipts can refresh the test consumer", () => {
+  assert.equal(isRefreshableStaleReceipt({
+    delivery: "not_delivered",
+    reason_code: "stale_snapshot",
+    successor: { snapshot_id: "state-new", status: "interactive" }
+  }), true);
+  assert.equal(isRefreshableStaleReceipt({
+    delivery: "unknown",
+    reason_code: "stale_snapshot",
+    successor: { snapshot_id: "state-new" }
+  }), false);
+  assert.equal(isRefreshableStaleReceipt({
+    delivery: "not_delivered",
+    reason_code: "bound_action_not_current",
+    successor: { snapshot_id: "state-new" }
+  }), false);
+  assert.equal(isRefreshableStaleReceipt({
+    delivery: "not_delivered",
+    reason_code: "stale_snapshot"
+  }), false);
 });
 
 test("bounded journey gate accepts equivalent run-entry surfaces", () => {
