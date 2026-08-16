@@ -42,3 +42,14 @@ test("soak summary fails closed for reused runtime or infrastructure leakage", (
   assert.ok(result.errors.includes("process_leak_observed"));
   assert.ok(result.errors.includes("endpoint_leak_observed"));
 });
+
+test("soak summary fails closed when the normal player profile changes", () => {
+  const result = summarizeSoakEpisodes(
+    [episode(1, "runtime-a", "generation-a")],
+    1,
+    1,
+    { unchanged: false }
+  );
+  assert.equal(result.verdict, "soak_incomplete");
+  assert.ok(result.errors.includes("shared_profile_mutation_observed"));
+});

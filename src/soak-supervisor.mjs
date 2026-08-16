@@ -2,6 +2,11 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { summarizeCapacityGroup } from "./capacity-benchmark.mjs";
 import { canonicalizeEpisodeSeed } from "./episode-provenance.mjs";
+import {
+  compareFilesystemSnapshots,
+  sharedGameUserDataRoot,
+  snapshotFilesystemTree
+} from "./filesystem-sentinel.mjs";
 import { readDiskIdentity } from "./game-installation.mjs";
 import { runBoundedJourney } from "./journey-probe.mjs";
 import { instantiateProfileTemplate } from "./profile-template.mjs";
@@ -20,7 +25,12 @@ export function episodeSeed(baseSeed, episode) {
   return canonicalizeEpisodeSeed(`${baseSeed}${String(episode).padStart(6, "0")}`);
 }
 
-export function summarizeSoakEpisodes(episodes, requestedEpisodes, workerCount) {
+export function summarizeSoakEpisodes(
+  episodes,
+  requestedEpisodes,
+  workerCount,
+  sharedProfileSentinel = null
+) {
   const completed = episodes.filter((episode) => episode.status === "measured");
   const failures = episodes.flatMap((episode) => episode.failures ?? []);
   const runtimeIds = completed.flatMap((episode) => episode.runtime_instance_ids);
@@ -35,6 +45,9 @@ export function summarizeSoakEpisodes(episodes, requestedEpisodes, workerCount) 
   }
   if (episodes.some((episode) => episode.endpoint_release_pass !== true)) {
     errors.push("endpoint_leak_observed");
+  }
+  if (sharedProfileSentinel?.unchanged === false) {
+    errors.push("shared_profile_mutation_observed");
   }
   const decisions = completed.reduce(
     (sum, episode) => sum + episode.delivered_normalized_semantic_decisions,
@@ -96,6 +109,8 @@ export async function runReferenceSoak({
     throw new Error(`Reference soak requires a clean process baseline:\n${existing.join("\n")}`);
   }
   const diskIdentity = readDiskIdentity(installation);
+  const sharedProfileRoot = sharedGameUserDataRoot();
+  const sharedProfileBefore = snapshotFilesystemTree(sharedProfileRoot);
   const evidenceDirectory = path.join(evidenceRoot, `reference-soak-${safeTimestamp()}`);
   const reportFile = path.join(evidenceDirectory, "report.json");
   mkdirSync(evidenceDirectory, { recursive: true });
@@ -118,7 +133,8 @@ export async function runReferenceSoak({
     non_claims: [
       "A bounded smoke is not the 72-hour or 10-million-decision H1.0 soak gate.",
       "Infrastructure truncation is not a gameplay loss or terminal state.",
-      "The deterministic policy is a test consumer, not a gameplay or learning agent."
+      "The deterministic policy is a test consumer, not a gameplay or learning agent.",
+      "An unchanged local shared-profile tree does not prove Steam Cloud server isolation."
     ]
   };
   writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`);
@@ -213,7 +229,16 @@ export async function runReferenceSoak({
     }
   }
 
-  report.summary = summarizeSoakEpisodes(report.episodes, episodes, workerCount);
+  report.shared_profile_sentinel = compareFilesystemSnapshots(
+    sharedProfileBefore,
+    snapshotFilesystemTree(sharedProfileRoot)
+  );
+  report.summary = summarizeSoakEpisodes(
+    report.episodes,
+    episodes,
+    workerCount,
+    report.shared_profile_sentinel
+  );
   report.status = report.summary.verdict;
   report.completed_at = new Date().toISOString();
   writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`);
