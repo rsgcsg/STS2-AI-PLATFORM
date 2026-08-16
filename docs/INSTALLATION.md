@@ -62,6 +62,14 @@ the artifact.
 The installed names `STS2_MCP.dll`, `STS2_MCP.json` and `STS2_MCP.conf` are the
 stable major-1 Mod implementation identity. They do not mean MCP is required.
 
+For supervised multi-process experiments, the Host accepts a process-local
+`STS2_CONNECTOR_PORT` environment variable. It takes precedence over the shared
+config file and must be an integer from 1 through 65535; an invalid value stops
+the Connector listener instead of silently falling back. The supervisor must
+still prove that each endpoint was clear before launch and bind the endpoint to
+the loaded runtime instance in its evidence. This transport setting grants no
+gameplay authority.
+
 ## Development Deployment
 
 For a deliberate local experiment with uncommitted Host changes:
