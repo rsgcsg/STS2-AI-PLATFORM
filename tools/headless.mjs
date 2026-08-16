@@ -29,6 +29,7 @@ import { parseWorkerCounts, runCapacityBenchmark } from "../src/capacity-benchma
 import { runRecoveryDrill } from "../src/recovery-drill.mjs";
 import { runReferenceRepeatability } from "../src/semantic-differential.mjs";
 import { runReferenceSoak } from "../src/soak-supervisor.mjs";
+import { runRequalificationDrill } from "../src/requalification.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -108,6 +109,20 @@ async function main() {
       localRoot: path.join(ROOT, ".local"),
       endpoint: option(args, "--endpoint", "http://127.0.0.1:15526")
     }), null, 2));
+    return;
+  }
+  if (command === "drill-update") {
+    const result = runRequalificationDrill({
+      installation: resolveCurrentInstallation(),
+      evidenceRoot: path.join(ROOT, ".local", "evidence")
+    });
+    console.log(JSON.stringify({
+      report_file: result.reportFile,
+      status: result.report.status,
+      authority: result.report.plan.authority,
+      required_gates: result.report.plan.required_gates
+    }, null, 2));
+    process.exitCode = result.report.plan.authority === "supported_exact" ? 0 : 8;
     return;
   }
   if (command === "reset-profile") {
