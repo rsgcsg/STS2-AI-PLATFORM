@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const ignored = new Set([".git", ".local", "node_modules"]);
+const ignored = new Set([".git", ".local", "node_modules", "bin", "obj"]);
 const forbiddenExtensions = new Set([".dll", ".pck", ".dylib", ".so", ".exe"]);
 const forbiddenNames = new Set(["current_run.save", "progress.save", "godot.log"]);
 const homePrefix = process.env.HOME ? `${process.env.HOME}/` : null;

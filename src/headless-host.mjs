@@ -20,6 +20,7 @@ import {
 import { readDiskIdentity } from "./game-installation.mjs";
 import { requireSupportedRuntime } from "./compatibility.mjs";
 import { readProjectIdentity } from "./project-identity.mjs";
+import { publicProfileDescriptor, resolveLaunchProfile } from "./profile-isolation.mjs";
 
 const DEFAULT_ENDPOINT = "http://127.0.0.1:15526";
 
@@ -158,13 +159,14 @@ export async function runHeadlessHost({
   endpoint = DEFAULT_ENDPOINT,
   timeoutMs = 90_000,
   mirrorLogs = false,
-  sharedProfileAcknowledged = false
+  sharedProfileAcknowledged = false,
+  isolatedProfileId = null
 }) {
-  if (!sharedProfileAcknowledged) {
-    throw new Error(
-      "The shipped-runtime route currently uses the active Steam profile. Pass --shared-profile to acknowledge that save/cloud isolation is not yet proven."
-    );
-  }
+  const launchProfile = resolveLaunchProfile({
+    localRoot,
+    isolatedProfileId,
+    sharedProfileAcknowledged
+  });
   const files = hostFiles(localRoot);
   const diskIdentity = readDiskIdentity(installation);
   const compatibility = requireSupportedRuntime(diskIdentity);
@@ -177,7 +179,7 @@ export async function runHeadlessHost({
   mkdirSync(sessionDirectory, { recursive: true });
   const stdoutFile = path.join(sessionDirectory, "stdout.log");
   const stderrFile = path.join(sessionDirectory, "stderr.log");
-  const launch = shippedRuntimeLaunch(installation);
+  const launch = shippedRuntimeLaunch(installation, { launchProfile });
   const { child, args } = launch;
   const stdoutStream = createWriteStream(stdoutFile);
   const stderrStream = createWriteStream(stderrFile);
@@ -196,11 +198,7 @@ export async function runHeadlessHost({
     executable: installation.executable,
     args,
     endpoint,
-    profile: {
-      mode: "shared_steam_profile",
-      isolation: "not_proven",
-      acknowledged: true
-    },
+    profile: publicProfileDescriptor(launchProfile),
     headless: readProjectIdentity(),
     session_directory: sessionDirectory,
     stdout_file: stdoutFile,

@@ -11,6 +11,7 @@ import { evaluateMenuControlGate, evaluateShippedProbe } from "./probe-verdict.m
 import { readDiskIdentity, STS2_APP_ID } from "./game-installation.mjs";
 import { evaluateRuntimeCompatibility } from "./compatibility.mjs";
 import { readProjectIdentity } from "./project-identity.mjs";
+import { publicProfileDescriptor, resolveLaunchProfile } from "./profile-isolation.mjs";
 
 export function listGameProcesses(platform = process.platform) {
   if (platform === "win32") {
@@ -183,15 +184,21 @@ function safeTimestamp() {
 export function shippedRuntimeLaunch(installation, {
   stdout = "pipe",
   stderr = "pipe",
-  extraEnvironment = {}
+  extraEnvironment = {},
+  launchProfile = null
 } = {}) {
-  const args = ["--headless", "--verbose"];
+  const args = ["--headless", "--verbose", ...(launchProfile?.args ?? [])];
   const environment = {
     ...process.env,
     SteamAppId: process.env.SteamAppId ?? STS2_APP_ID,
     SteamGameId: process.env.SteamGameId ?? STS2_APP_ID,
+    ...(launchProfile?.environment ?? {}),
     ...extraEnvironment
   };
+  if (launchProfile?.steam === "disabled_before_platform_initialization") {
+    delete environment.SteamAppId;
+    delete environment.SteamGameId;
+  }
   const child = spawn(installation.executable, args, {
     cwd: installation.executable_cwd,
     env: environment,
@@ -202,18 +209,20 @@ export function shippedRuntimeLaunch(installation, {
 
 export async function runShippedProbe({
   installation,
+  localRoot,
   endpoint = "http://127.0.0.1:15526",
   timeoutMs = 90_000,
   evidenceRoot,
   exerciseMenu = false,
   sharedProfileAcknowledged = false,
+  isolatedProfileId = null,
   experimentalBuildAcknowledged = false
 }) {
-  if (!sharedProfileAcknowledged) {
-    throw new Error(
-      "The shipped-runtime probe reaches the active Steam profile during startup. Pass --shared-profile to acknowledge that isolation is not proven."
-    );
-  }
+  const launchProfile = resolveLaunchProfile({
+    localRoot,
+    isolatedProfileId,
+    sharedProfileAcknowledged
+  });
   const existing = listGameProcesses();
   if (existing.length > 0) {
     throw new Error(`Refusing to launch beside an existing STS2 process:\n${existing.join("\n")}`);
@@ -243,7 +252,7 @@ export async function runShippedProbe({
   if (beforeLog != null) writeFileSync(path.join(evidenceDir, "godot.before.log"), beforeLog);
 
   const endpointBefore = await readJson(endpoint, "/api/player-environment/capabilities", 1000);
-  const { child, args } = shippedRuntimeLaunch(installation);
+  const { child, args } = shippedRuntimeLaunch(installation, { launchProfile });
   const stdoutStream = createWriteStream(stdoutFile);
   const stderrStream = createWriteStream(stderrFile);
   child.stdout.pipe(stdoutStream);
@@ -282,8 +291,11 @@ export async function runShippedProbe({
     command: {
       executable: installation.executable,
       args,
-      environment: { SteamAppId: STS2_APP_ID, SteamGameId: STS2_APP_ID }
+      steam_app_environment: launchProfile.steam === "enabled"
+        ? { SteamAppId: STS2_APP_ID, SteamGameId: STS2_APP_ID }
+        : null
     },
+    profile: publicProfileDescriptor(launchProfile),
     disk_identity_before: diskIdentityBefore,
     disk_identity_after: readDiskIdentity(installation),
     compatibility,

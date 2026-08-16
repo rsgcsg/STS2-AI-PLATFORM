@@ -25,6 +25,7 @@ import {
   canonicalizeSelectedAction,
   canonicalizeSnapshot
 } from "./semantic-decision.mjs";
+import { publicProfileDescriptor, resolveLaunchProfile } from "./profile-isolation.mjs";
 
 function safeTimestamp() {
   return new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
@@ -205,17 +206,21 @@ function compactStep(snapshot, action, receipt, timing) {
 
 export async function runBoundedJourney({
   installation,
+  localRoot,
   endpoint = "http://127.0.0.1:15526",
   timeoutMs = 90_000,
   actionTimeoutMs = 20_000,
   maxActions = 40,
   evidenceRoot,
   sharedProfileAcknowledged = false,
+  isolatedProfileId = null,
   experimentalBuildAcknowledged = false
 }) {
-  if (!sharedProfileAcknowledged) {
-    throw new Error("The bounded journey mutates the active Steam profile; pass --shared-profile to acknowledge this.");
-  }
+  const launchProfile = resolveLaunchProfile({
+    localRoot,
+    isolatedProfileId,
+    sharedProfileAcknowledged
+  });
   const running = listGameProcesses();
   if (running.length > 0) throw new Error(`Refusing to launch beside an existing STS2 process:\n${running.join("\n")}`);
   const endpointBefore = await readJson(endpoint, "/api/player-environment/capabilities", 1000);
@@ -243,7 +248,7 @@ export async function runBoundedJourney({
     recorder.append(event);
     eventCount += 1;
   };
-  const { child, args } = shippedRuntimeLaunch(installation);
+  const { child, args } = shippedRuntimeLaunch(installation, { launchProfile });
   const stdoutStream = createWriteStream(stdoutFile);
   const stderrStream = createWriteStream(stderrFile);
   child.stdout.pipe(stdoutStream);
@@ -393,7 +398,7 @@ export async function runBoundedJourney({
       headless: headlessIdentity,
       route: "shipped_godot_headless",
       command: { executable: installation.executable, args },
-      profile: { mode: "shared_steam_profile", isolation: "not_proven", acknowledged: true },
+      profile: publicProfileDescriptor(launchProfile),
       disk_identity: diskIdentity,
       compatibility,
       evidence_mode: compatibility.status === "supported_exact" ? "supported" : "experimental",
@@ -410,7 +415,9 @@ export async function runBoundedJourney({
       non_claims: [
         "The deterministic policy is a test consumer, not a gameplay agent.",
         "H2 does not prove full-run completion, semantic parity, save isolation, determinism, or performance.",
-        "The active Steam profile was explicitly used; profile isolation remains unproven."
+        launchProfile.mode === "shared_steam_profile"
+          ? "The active Steam profile was explicitly used; profile isolation was not exercised."
+          : "The isolated profile path is source-backed experimental until runtime sentinel and Cloud checks pass."
       ]
     };
     recorder.close();
@@ -425,7 +432,7 @@ export async function runBoundedJourney({
       headless: headlessIdentity,
       route: "shipped_godot_headless",
       command: { executable: installation.executable, args },
-      profile: { mode: "shared_steam_profile", isolation: "not_proven", acknowledged: true },
+      profile: publicProfileDescriptor(launchProfile),
       disk_identity: diskIdentity,
       compatibility,
       evidence_mode: compatibility.status === "supported_exact" ? "supported" : "experimental",

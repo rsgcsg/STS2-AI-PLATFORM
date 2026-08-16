@@ -19,6 +19,7 @@ import {
 import { listGameProcesses, runShippedProbe } from "../src/runtime-probe.mjs";
 import { runBoundedJourney } from "../src/journey-probe.mjs";
 import { evaluateRuntimeCompatibility } from "../src/compatibility.mjs";
+import { resetIsolatedProfile } from "../src/profile-isolation.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -81,7 +82,8 @@ async function main() {
       endpoint: option(args, "--endpoint", "http://127.0.0.1:15526"),
       timeoutMs: Number(option(args, "--timeout-ms", "90000")),
       mirrorLogs: args.includes("--verbose"),
-      sharedProfileAcknowledged: args.includes("--shared-profile")
+      sharedProfileAcknowledged: args.includes("--shared-profile"),
+      isolatedProfileId: option(args, "--isolated-profile", null)
     });
     return;
   }
@@ -99,17 +101,29 @@ async function main() {
     }), null, 2));
     return;
   }
+  if (command === "reset-profile") {
+    const profileId = option(args, "--isolated-profile", null);
+    if (!profileId) throw new Error("reset-profile requires --isolated-profile <id>.");
+    const running = listGameProcesses();
+    if (running.length > 0) {
+      throw new Error(`Refusing to reset a profile while STS2 is running:\n${running.join("\n")}`);
+    }
+    console.log(JSON.stringify(resetIsolatedProfile(path.join(ROOT, ".local"), profileId), null, 2));
+    return;
+  }
   if (command === "probe-shipped" || command === "probe-menu-control") {
     const installation = resolveCurrentInstallation();
     const timeoutMs = Number(option(args, "--timeout-ms", "90000"));
     const endpoint = option(args, "--endpoint", "http://127.0.0.1:15526");
     const result = await runShippedProbe({
       installation,
+      localRoot: path.join(ROOT, ".local"),
       endpoint,
       timeoutMs,
       evidenceRoot: path.join(ROOT, ".local", "evidence"),
       exerciseMenu: command === "probe-menu-control",
       sharedProfileAcknowledged: args.includes("--shared-profile"),
+      isolatedProfileId: option(args, "--isolated-profile", null),
       experimentalBuildAcknowledged: args.includes("--experimental-build")
     });
     console.log(JSON.stringify({
@@ -127,12 +141,14 @@ async function main() {
   if (command === "probe-journey") {
     const result = await runBoundedJourney({
       installation: resolveCurrentInstallation(),
+      localRoot: path.join(ROOT, ".local"),
       endpoint: option(args, "--endpoint", "http://127.0.0.1:15526"),
       timeoutMs: Number(option(args, "--timeout-ms", "90000")),
       actionTimeoutMs: Number(option(args, "--action-timeout-ms", "20000")),
       maxActions: Number(option(args, "--max-actions", "40")),
       evidenceRoot: path.join(ROOT, ".local", "evidence"),
       sharedProfileAcknowledged: args.includes("--shared-profile"),
+      isolatedProfileId: option(args, "--isolated-profile", null),
       experimentalBuildAcknowledged: args.includes("--experimental-build")
     });
     console.log(JSON.stringify({
@@ -147,12 +163,13 @@ async function main() {
   node tools/headless.mjs setup
   node tools/headless.mjs rollback --backup DIRECTORY
   node tools/headless.mjs doctor
-  node tools/headless.mjs start --shared-profile [--timeout-ms 90000] [--endpoint URL] [--verbose]
+  node tools/headless.mjs start (--isolated-profile ID | --shared-profile) [--timeout-ms 90000] [--endpoint URL] [--verbose]
   node tools/headless.mjs status [--endpoint URL]
   node tools/headless.mjs stop [--endpoint URL]
-  node tools/headless.mjs probe-shipped --shared-profile [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
-  node tools/headless.mjs probe-menu-control --shared-profile [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
-  node tools/headless.mjs probe-journey --shared-profile [--experimental-build] [--max-actions 40] [--timeout-ms 90000]`);
+  node tools/headless.mjs reset-profile --isolated-profile ID
+  node tools/headless.mjs probe-shipped (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
+  node tools/headless.mjs probe-menu-control (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
+  node tools/headless.mjs probe-journey (--isolated-profile ID | --shared-profile) [--experimental-build] [--max-actions 40] [--timeout-ms 90000]`);
 }
 
 main().catch((error) => {
