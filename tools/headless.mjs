@@ -21,6 +21,10 @@ import { runBoundedJourney } from "../src/journey-probe.mjs";
 import { evaluateRuntimeCompatibility } from "../src/compatibility.mjs";
 import { enableConnectorModLoading, resetIsolatedProfile } from "../src/profile-isolation.mjs";
 import { bootstrapIsolatedProfile } from "../src/profile-bootstrap.mjs";
+import {
+  captureProfileTemplate,
+  instantiateProfileTemplate
+} from "../src/profile-template.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -138,6 +142,41 @@ async function main() {
     }), null, 2));
     return;
   }
+  if (command === "capture-profile-template") {
+    const profileId = option(args, "--isolated-profile", null);
+    const templateId = option(args, "--template", null);
+    if (!profileId || !templateId) {
+      throw new Error("capture-profile-template requires --isolated-profile ID --template ID.");
+    }
+    const running = listGameProcesses();
+    if (running.length > 0) {
+      throw new Error(`Refusing to capture a profile while STS2 is running:\n${running.join("\n")}`);
+    }
+    console.log(JSON.stringify(captureProfileTemplate({
+      localRoot: path.join(ROOT, ".local"),
+      profileId,
+      templateId,
+      gameIdentity: readDiskIdentity(resolveCurrentInstallation())
+    }), null, 2));
+    return;
+  }
+  if (command === "instantiate-profile-template") {
+    const profileId = option(args, "--isolated-profile", null);
+    const templateId = option(args, "--template", null);
+    if (!profileId || !templateId) {
+      throw new Error("instantiate-profile-template requires --template ID --isolated-profile ID.");
+    }
+    const running = listGameProcesses();
+    if (running.length > 0) {
+      throw new Error(`Refusing to replace a profile while STS2 is running:\n${running.join("\n")}`);
+    }
+    console.log(JSON.stringify(instantiateProfileTemplate({
+      localRoot: path.join(ROOT, ".local"),
+      templateId,
+      profileId
+    }), null, 2));
+    return;
+  }
   if (command === "probe-shipped" || command === "probe-menu-control") {
     const installation = resolveCurrentInstallation();
     const timeoutMs = Number(option(args, "--timeout-ms", "90000"));
@@ -197,6 +236,8 @@ async function main() {
   node tools/headless.mjs reset-profile --isolated-profile ID
   node tools/headless.mjs bootstrap-profile --isolated-profile ID [--timeout-ms 60000]
   node tools/headless.mjs enable-profile-mods --isolated-profile ID --settings-schema VERSION [--accept-ea-disclaimer]
+  node tools/headless.mjs capture-profile-template --isolated-profile ID --template ID
+  node tools/headless.mjs instantiate-profile-template --template ID --isolated-profile ID
   node tools/headless.mjs probe-shipped (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
   node tools/headless.mjs probe-menu-control (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
   node tools/headless.mjs probe-journey (--isolated-profile ID | --shared-profile) [--experimental-build] [--max-actions 40] [--tutorials disable|enable] [--timeout-ms 90000]`);
