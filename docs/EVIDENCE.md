@@ -48,6 +48,15 @@ Raw runtime logs, saves, local paths, and reports remain under `.local/evidence`
 and are never published. The machine-readable Connector 1.0.1 runtime seal is a
 public GitHub Release asset.
 
+## Windows Experimental Evidence
+
+On the installed Windows x64 STS2 `v0.111.0` / `41cef1ea` tuple, the real
+shipped runtime created native SettingsSave v8 plus initial prefs/progress under
+a fresh `h1-train` namespace. Its log recorded that Steam was not initialized.
+The bootstrap used `--headless --force-steam=off --clientId=1`; Connector loading
+was intentionally a non-claim. This proves the named native bootstrap event,
+not durable reset, Cloud isolation, support, or training readiness.
+
 ## Non-Claims
 
 - H2 is a bounded test consumer, not a full-run Agent or gameplay policy.

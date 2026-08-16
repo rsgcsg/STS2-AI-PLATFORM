@@ -69,16 +69,21 @@ not player actions and must never enter the fair-player action set.
 
 ## Profile Boundary
 
-The supported route initializes Steam and uses STS2's normal save startup. The
-game can synchronize cloud state before Mods initialize, so a Mod or startup
-hook cannot honestly guarantee pre-save isolation. The current implementation
-therefore refuses all runtime commands unless the operator passes
-`--shared-profile`.
+The released route initializes Steam and uses STS2's normal save startup. A Mod
+cannot guarantee pre-save isolation because it loads after platform and save
+initialization.
 
-A safe unattended server route needs an earlier, proven isolation boundary:
-for example a dedicated OS/Steam account or an exact Host seam that precedes
-cloud/local save initialization. It must be tested against real startup order;
-changing an environment variable after startup is not sufficient evidence.
+The development route therefore establishes its boundary before process
+creation: it redirects the OS user-data roots, passes the game's native
+`--force-steam=off` option, and uses a process-local client ID. A separate
+bootstrap command lets the exact shipped runtime create its own settings,
+profile, prefs, and progress files. Headless may then atomically enable only the
+explicit Mod/disclaimer consent in the exact observed settings schema.
+
+This is a source-backed experimental seam, not yet a durable-reset or Cloud
+qualification. Promotion requires shared-profile sentinels, repeated clean
+startup/reset, crash recovery, and soak evidence. Every runtime command still
+requires exactly one explicit profile mode.
 
 ## Project Boundaries
 

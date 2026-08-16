@@ -20,14 +20,21 @@ Completed:
 - separate journey integrity and named-surface coverage verdicts;
 - public game-independent tests and repository boundary checks.
 
-Blocking unattended/server support:
+Current isolation boundary:
 
-- isolated profile/save/cloud startup is not proven; current operation requires
-  explicit shared-profile acknowledgement.
+- an experimental Windows namespace redirects `HOME`, `USERPROFILE`,
+  `APPDATA`, and `LOCALAPPDATA` before process creation and disables Steam
+  before platform initialization;
+- a fresh real runtime created native SettingsSave v8, prefs, and progress only
+  under that namespace while logging that Steam was not initialized;
+- this is not yet a release support claim: shared-profile sentinel checks,
+  repeated reset, crash recovery, and long-duration Cloud/write isolation still
+  need explicit evidence.
 
 Pending evidence, not current blockers for the exact preview:
 
 - full ordinary run and long-duration stability;
 - deterministic/replay and differential Live-vs-Headless cases;
 - performance and hang/crash recovery measurements;
-- Windows, Linux, macOS x86_64, additional game builds and Modsets.
+- Windows release qualification, Linux, macOS x86_64, additional game builds
+  and Modsets.

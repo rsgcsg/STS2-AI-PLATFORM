@@ -22,11 +22,13 @@ and protocol/SDK `1.0.0`:
 - H2: menu, character select, event, reward, map, combat, `run_deck`, and
   `combat_piles`, with 10 deliveries, 0 unknown deliveries, and 0 Read failures.
 
-This is not yet an unattended server product. The shipped route currently uses
-the active Steam profile and may write local and Steam Cloud saves. Every
-runtime command requires an explicit `--shared-profile` acknowledgement.
-Profile isolation, full-run completion, deterministic replay, multi-instance
-operation, performance, and Windows/Linux compatibility remain unproven.
+This is not yet an unattended server product. The development branch now has a
+source-backed experimental Windows profile namespace that disables Steam before
+platform initialization. It has native first-run bootstrap evidence, but not
+yet reset/soak/Cloud-sentinel qualification. Shared-profile use remains an
+explicit opt-in. Full-run completion, deterministic replay, multi-instance
+operation, performance, and Windows/Linux release compatibility remain
+unproven.
 
 See [Status](docs/STATUS.md), [Compatibility](docs/COMPATIBILITY.md), and
 [Evidence](docs/EVIDENCE.md) for exact scope.
@@ -61,6 +63,20 @@ Fully exit all STS2 processes. The smallest real boot gate is:
 ```bash
 npm run probe:shipped -- --shared-profile
 ```
+
+Maintainers testing the experimental isolated Windows route first let the game
+create its own native profile files, then grant only the explicit local Mod and
+disclaimer consent required by that exact settings schema:
+
+```bash
+node tools/headless.mjs reset-profile --isolated-profile h1-train
+npm run bootstrap:profile -- --isolated-profile h1-train
+node tools/headless.mjs enable-profile-mods --isolated-profile h1-train --settings-schema 8 --accept-ea-disclaimer
+npm run probe:shipped -- --isolated-profile h1-train --experimental-build
+```
+
+The bootstrap command does not fabricate a save or claim that Connector was
+loaded. `--experimental-build` collects evidence; it does not grant support.
 
 The mutation and lifecycle gates are deliberately separate:
 

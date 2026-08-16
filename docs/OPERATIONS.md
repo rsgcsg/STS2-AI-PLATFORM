@@ -18,12 +18,27 @@ using a newly installed artifact.
 
 ## Start And Stop
 
-The current route can alter the active Steam profile. Use a disposable profile
-or accept that risk explicitly:
+Shared-profile operation can alter the active Steam profile. Accept that risk
+explicitly:
 
 ```bash
 npm start -- --shared-profile
 ```
+
+The development-only isolated Windows workflow is deliberately staged so the
+game, not this repository, creates the save schema:
+
+```bash
+node tools/headless.mjs reset-profile --isolated-profile h1-train
+npm run bootstrap:profile -- --isolated-profile h1-train
+node tools/headless.mjs enable-profile-mods --isolated-profile h1-train --settings-schema 8 --accept-ea-disclaimer
+npm start -- --isolated-profile h1-train --experimental-build
+```
+
+Bootstrap records exact game/profile evidence and requires a native positive
+settings schema plus a Steam-disabled runtime log. The following consent step
+fails closed on schema drift and atomically backs up `settings.save`; it does
+not pre-answer tutorial or gameplay choices.
 
 `start` runs in the foreground. It prints readiness only after exact-build,
 headless-host, Connector, Modset, execution, and interactive-snapshot gates
@@ -74,7 +89,7 @@ verify loaded identity before making a runtime claim.
   process.
 - `Connector endpoint did not become ready`: check local session logs and exact
   Connector installation, then rerun setup if necessary.
-- `profile acknowledgement required`: this is intentional; profile isolation
-  is not implemented.
+- `profile acknowledgement required`: choose one explicit mode; the isolated
+  route is experimental and the shared route requires `--shared-profile`.
 - `unknown` delivery: stop the consumer and inspect evidence. Never retry the
   mutation.

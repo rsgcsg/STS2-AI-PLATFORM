@@ -20,6 +20,7 @@ import { listGameProcesses, runShippedProbe } from "../src/runtime-probe.mjs";
 import { runBoundedJourney } from "../src/journey-probe.mjs";
 import { evaluateRuntimeCompatibility } from "../src/compatibility.mjs";
 import { enableConnectorModLoading, resetIsolatedProfile } from "../src/profile-isolation.mjs";
+import { bootstrapIsolatedProfile } from "../src/profile-bootstrap.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -111,6 +112,18 @@ async function main() {
     console.log(JSON.stringify(resetIsolatedProfile(path.join(ROOT, ".local"), profileId), null, 2));
     return;
   }
+  if (command === "bootstrap-profile") {
+    const profileId = option(args, "--isolated-profile", null);
+    if (!profileId) throw new Error("bootstrap-profile requires --isolated-profile <id>.");
+    console.log(JSON.stringify(await bootstrapIsolatedProfile({
+      installation: resolveCurrentInstallation(),
+      localRoot: path.join(ROOT, ".local"),
+      profileId,
+      timeoutMs: Number(option(args, "--timeout-ms", "60000")),
+      evidenceRoot: path.join(ROOT, ".local", "evidence")
+    }), null, 2));
+    return;
+  }
   if (command === "enable-profile-mods") {
     const profileId = option(args, "--isolated-profile", null);
     const expectedSettingsSchema = Number(option(args, "--settings-schema", ""));
@@ -182,6 +195,7 @@ async function main() {
   node tools/headless.mjs status [--endpoint URL]
   node tools/headless.mjs stop [--endpoint URL]
   node tools/headless.mjs reset-profile --isolated-profile ID
+  node tools/headless.mjs bootstrap-profile --isolated-profile ID [--timeout-ms 60000]
   node tools/headless.mjs enable-profile-mods --isolated-profile ID --settings-schema VERSION [--accept-ea-disclaimer]
   node tools/headless.mjs probe-shipped (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
   node tools/headless.mjs probe-menu-control (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
