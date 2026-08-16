@@ -213,7 +213,7 @@ export async function stopChild(child, {
     hostControlToken,
     expectedRuntimeInstanceId
   });
-  if (hostShutdown.status === "requested") {
+  if (hostShutdown.status === "requested" || hostShutdown.status === "transport_error") {
     const gracefulExit = await waitForExit(child, 10_000);
     if (gracefulExit != null) return { ...gracefulExit, host_shutdown: hostShutdown, forced: false };
   }
