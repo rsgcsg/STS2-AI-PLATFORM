@@ -47,9 +47,12 @@ export function evaluateRecoveryCycle({
   if (recoveryReport?.verdict?.integrity?.verdict !== "integrity_pass") {
     errors.push("recovery_journey_integrity_failed");
   }
-  if (faultReport?.runtime_diagnostics?.status !== "clean"
-      || recoveryReport?.runtime_diagnostics?.status !== "clean") {
-    errors.push("runtime_diagnostics_not_clean");
+  const diagnosticFindings = [];
+  if (faultReport?.runtime_diagnostics?.status !== "clean") {
+    diagnosticFindings.push("fault_process_diagnostics_observed");
+  }
+  if (recoveryReport?.runtime_diagnostics?.status !== "clean") {
+    diagnosticFindings.push("recovered_process_shutdown_diagnostics_observed");
   }
   const faultIdentity = comparableRuntimeIdentity(faultReport);
   const recoveryIdentity = comparableRuntimeIdentity(recoveryReport);
@@ -67,6 +70,10 @@ export function evaluateRecoveryCycle({
   return {
     verdict: errors.length === 0 ? "recovery_cycle_pass" : "recovery_cycle_incomplete",
     errors,
+    diagnostic_findings: diagnosticFindings,
+    shutdown_quality: diagnosticFindings.includes("recovered_process_shutdown_diagnostics_observed")
+      ? "diagnostics_observed"
+      : "clean",
     exact_identity: recoveryIdentity,
     fault_runtime_instance_id: faultRuntime,
     recovery_runtime_instance_id: recoveryRuntime,
@@ -193,10 +200,15 @@ export async function runRecoveryDrill({
     writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`);
     if (verdict.verdict !== "recovery_cycle_pass") break;
   }
-  report.status = report.cycles.length === cycles
-      && report.cycles.every((cycle) => cycle.verdict.verdict === "recovery_cycle_pass")
-    ? "recovery_pass"
-    : "recovery_incomplete";
+  const operationalPass = report.cycles.length === cycles
+    && report.cycles.every((cycle) => cycle.verdict.verdict === "recovery_cycle_pass");
+  const cleanShutdown = operationalPass
+    && report.cycles.every((cycle) => cycle.verdict.shutdown_quality === "clean");
+  report.status = !operationalPass
+    ? "recovery_incomplete"
+    : cleanShutdown
+      ? "recovery_pass_clean_shutdown"
+      : "recovery_operational_pass_shutdown_diagnostics_observed";
   report.completed_at = new Date().toISOString();
   writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`);
   return { report, reportFile, evidenceDirectory };

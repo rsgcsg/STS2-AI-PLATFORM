@@ -661,13 +661,14 @@ export async function runBoundedJourney({
         && shutdownDrainMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, shutdownDrainMs));
     }
-    await stopChild(child, {
+    const processCleanup = await stopChild(child, {
       endpoint,
       hostControlToken,
       expectedRuntimeInstanceId: capabilities?.host?.runtime_instance_id ?? null
     });
     await Promise.allSettled([finished(stdoutStream), finished(stderrStream)]);
     if (completedReport != null) {
+      completedReport.process_cleanup = processCleanup;
       completedReport.runtime_diagnostics = analyzeRuntimeDiagnostics({
         stdout: readFileSync(stdoutFile, "utf8"),
         stderr: readFileSync(stderrFile, "utf8")

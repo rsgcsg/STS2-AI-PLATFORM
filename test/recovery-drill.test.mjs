@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { evaluateRecoveryCycle } from "../src/recovery-drill.mjs";
 
-function report(runtimeId, terminal, integrity, delivered = 1) {
+function report(runtimeId, terminal, integrity, delivered = 1, diagnostics = "clean") {
   return {
-    runtime_diagnostics: { status: "clean" },
+    runtime_diagnostics: { status: diagnostics },
     loaded_identity: {
       protocol: "1.0",
       host: {
@@ -40,6 +40,38 @@ test("accepts an exact reset and distinct recovered runtime", () => {
   });
   assert.equal(result.verdict, "recovery_cycle_pass");
   assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.diagnostic_findings, []);
+  assert.equal(result.shutdown_quality, "clean");
+});
+
+test("reports shutdown diagnostics without invalidating operational recovery", () => {
+  const result = evaluateRecoveryCycle({
+    faultProfile: { generation_id: "old", template_payload_sha256: "template" },
+    recoveryProfile: { generation_id: "new", template_payload_sha256: "template" },
+    faultReport: report(
+      "fault",
+      "injected_process_crash",
+      "integrity_incomplete",
+      1,
+      "runtime_errors_observed"
+    ),
+    recoveryReport: report(
+      "recovery",
+      "action_limit",
+      "integrity_pass",
+      1,
+      "runtime_errors_observed"
+    ),
+    remainingProcesses: [],
+    endpointReleased: true
+  });
+  assert.equal(result.verdict, "recovery_cycle_pass");
+  assert.deepEqual(result.errors, []);
+  assert.deepEqual(result.diagnostic_findings, [
+    "fault_process_diagnostics_observed",
+    "recovered_process_shutdown_diagnostics_observed"
+  ]);
+  assert.equal(result.shutdown_quality, "diagnostics_observed");
 });
 
 test("rejects reused generations, runtimes, and incomplete recovery", () => {
