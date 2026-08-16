@@ -167,7 +167,7 @@ export async function runRecoveryDrill({
       endpoint,
       timeoutMs,
       actionTimeoutMs,
-      maxActions: faultAfterDeliveredActions,
+      maxActions: Math.max(faultAfterDeliveredActions, 12),
       tutorialPreference: "disable",
       evidenceRoot,
       isolatedProfileId: profileId,

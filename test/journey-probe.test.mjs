@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  faultInjectionReady,
   chooseBoundAction,
   evaluateBoundedJourney,
   evaluateJourneyIntegrity,
@@ -15,6 +16,27 @@ function snapshot(kind, actions, stage = "ready") {
     bound_actions: { status: "complete", actions }
   };
 }
+
+test("seeded fault injection waits for comparable episode provenance", () => {
+  assert.equal(faultInjectionReady({
+    deliveredActions: 5,
+    faultAfterDeliveredActions: 2,
+    requestedSeed: "SEED",
+    provenanceVerdict: "provenance_incomplete"
+  }), false);
+  assert.equal(faultInjectionReady({
+    deliveredActions: 5,
+    faultAfterDeliveredActions: 2,
+    requestedSeed: "SEED",
+    provenanceVerdict: "provenance_pass"
+  }), true);
+  assert.equal(faultInjectionReady({
+    deliveredActions: 2,
+    faultAfterDeliveredActions: 2,
+    requestedSeed: null,
+    provenanceVerdict: "provenance_incomplete"
+  }), true);
+});
 
 test("chooses only a published action and avoids back navigation", () => {
   const back = { bound_action_id: "back", verb: "cancel", label: "Back to main menu" };

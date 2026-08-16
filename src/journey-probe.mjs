@@ -54,6 +54,17 @@ function orderedActions(actions) {
       .localeCompare((right.arguments ?? []).map((argument) => argument.role).join(",")));
 }
 
+export function faultInjectionReady({
+  deliveredActions,
+  faultAfterDeliveredActions,
+  requestedSeed,
+  provenanceVerdict
+}) {
+  return faultAfterDeliveredActions != null
+    && deliveredActions >= faultAfterDeliveredActions
+    && (requestedSeed == null || provenanceVerdict === "provenance_pass");
+}
+
 function actionWithLabel(actions, pattern) {
   return orderedActions(actions).find((action) => pattern.test(action.label));
 }
@@ -569,8 +580,12 @@ export async function runBoundedJourney({
       snapshot = successor;
       await refreshEpisodeProvenance();
 
-      if (faultAfterDeliveredActions != null
-          && deliveredActions >= faultAfterDeliveredActions) {
+      if (faultInjectionReady({
+        deliveredActions,
+        faultAfterDeliveredActions,
+        requestedSeed: canonicalRunSeed,
+        provenanceVerdict: episodeProvenance.verdict
+      })) {
         const requestedAt = new Date().toISOString();
         if (faultMode === "process_crash") {
           const signalAccepted = child.kill("SIGKILL");
