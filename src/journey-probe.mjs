@@ -43,6 +43,7 @@ import {
   evaluateEpisodeProvenance
 } from "./episode-provenance.mjs";
 import { resumeProcess, suspendProcess } from "./process-faults.mjs";
+import { evaluateHostExecutionProfile } from "./host-execution-profile.mjs";
 
 function safeTimestamp() {
   return new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
@@ -214,13 +215,15 @@ export function evaluateJourneyIntegrity({
   unknownCount,
   readFailures,
   successorFailures = 0,
-  provenanceFailures = 0
+  provenanceFailures = 0,
+  hostExecutionProfileFailures = 0
 }) {
   const errors = [];
   if (unknownCount > 0) errors.push("unknown_delivery_observed");
   if (readFailures > 0) errors.push("advertised_read_failed");
   if (successorFailures > 0) errors.push("stable_successor_missing");
   if (provenanceFailures > 0) errors.push("episode_provenance_unverified");
+  if (hostExecutionProfileFailures > 0) errors.push("host_execution_profile_unverified");
   if (!["coverage_reached", "game_over", "action_limit"].includes(terminal)) {
     errors.push(`terminal:${terminal}`);
   }
@@ -231,6 +234,7 @@ export function evaluateJourneyIntegrity({
     read_failures: readFailures,
     successor_failures: successorFailures,
     provenance_failures: provenanceFailures,
+    host_execution_profile_failures: hostExecutionProfileFailures,
     terminal
   };
 }
@@ -453,7 +457,8 @@ export async function runBoundedJourney({
   faultMode = "process_crash",
   shutdownDrainMs = 2_000,
   runSeed = null,
-  maxConsecutiveStale = 8
+  maxConsecutiveStale = 8,
+  hostExecutionProfile = null
 }) {
   const canonicalRunSeed = canonicalizeEpisodeSeed(runSeed);
   const launchProfile = resolveLaunchProfile({
@@ -527,7 +532,8 @@ export async function runBoundedJourney({
     launchProfile,
     connectorEndpoint: endpoint,
     runSeed: canonicalRunSeed,
-    connectorCanary
+    connectorCanary,
+    hostExecutionProfile
   });
   const resourceSampler = new ProcessResourceSampler(child.pid, {
     onSample: (sample) => resourceRecorder.append({ type: "process_resource", ...sample })
@@ -561,6 +567,10 @@ export async function runBoundedJourney({
     expectedRuntimeInstanceId: null,
     response: null
   });
+  let executionProfileEvidence = evaluateHostExecutionProfile({
+    requestedProfile: hostExecutionProfile,
+    response: null
+  });
   let deliveredActions = 0;
   let combatDeliveries = 0;
   let staleRefusals = 0;
@@ -575,9 +585,10 @@ export async function runBoundedJourney({
   };
   let lastProvenanceEvent = null;
   const refreshEpisodeProvenance = async () => {
-    if (canonicalRunSeed == null
-        || capabilities == null
-        || episodeProvenance.verdict === "provenance_pass") {
+    if (capabilities == null
+        || ((canonicalRunSeed == null || episodeProvenance.verdict === "provenance_pass")
+          && (hostExecutionProfile == null
+            || executionProfileEvidence.verdict === "profile_pass"))) {
       return episodeProvenance;
     }
     const provenanceResponse = await requestHostProvenance({
@@ -588,6 +599,10 @@ export async function runBoundedJourney({
     episodeProvenance = evaluateEpisodeProvenance({
       requestedSeed: canonicalRunSeed,
       expectedRuntimeInstanceId: capabilities.host.runtime_instance_id,
+      response: provenanceResponse
+    });
+    executionProfileEvidence = evaluateHostExecutionProfile({
+      requestedProfile: hostExecutionProfile,
       response: provenanceResponse
     });
     const fingerprint = JSON.stringify(episodeProvenance);
@@ -873,7 +888,9 @@ export async function runBoundedJourney({
       unknownCount,
       readFailures,
       successorFailures,
-      provenanceFailures: episodeProvenance.verdict === "provenance_incomplete" ? 1 : 0
+      provenanceFailures: episodeProvenance.verdict === "provenance_incomplete" ? 1 : 0,
+      hostExecutionProfileFailures:
+        executionProfileEvidence.verdict === "profile_incomplete" ? 1 : 0
     });
     const resources = await stopResourceSampling();
     const performanceSummary = summarizeHostPerformance({
@@ -900,7 +917,8 @@ export async function runBoundedJourney({
         tutorial_preference: tutorialPreference,
         max_consecutive_stale: maxConsecutiveStale,
         fault_after_delivered_actions: faultAfterDeliveredActions,
-        requested_seed: canonicalRunSeed
+        requested_seed: canonicalRunSeed,
+        requested_host_execution_profile: hostExecutionProfile
       },
       loaded_identity: {
         protocol: capabilities.protocol_version,
@@ -921,6 +939,7 @@ export async function runBoundedJourney({
         semantic_decision_ms: summarizeDurations(semanticDecisionDurations)
       },
       episode_provenance: episodeProvenance,
+      host_execution_profile: executionProfileEvidence,
       performance: performanceSummary,
       verdict,
       non_claims: [
@@ -973,12 +992,14 @@ export async function runBoundedJourney({
         tutorial_preference: tutorialPreference,
         max_consecutive_stale: maxConsecutiveStale,
         fault_after_delivered_actions: faultAfterDeliveredActions,
-        requested_seed: canonicalRunSeed
+        requested_seed: canonicalRunSeed,
+        requested_host_execution_profile: hostExecutionProfile
       },
       loaded_identity: capabilities
         ? { protocol: capabilities.protocol_version, host: capabilities.host, game: capabilities.game }
         : null,
       episode_provenance: episodeProvenance,
+      host_execution_profile: executionProfileEvidence,
       stale_refusals: staleRefusals,
       read_kinds_exercised: [...readKinds].sort(),
       event_count: eventCount,
@@ -1002,7 +1023,9 @@ export async function runBoundedJourney({
         unknownCount,
         readFailures,
         successorFailures,
-        provenanceFailures: episodeProvenance.verdict === "provenance_incomplete" ? 1 : 0
+        provenanceFailures: episodeProvenance.verdict === "provenance_incomplete" ? 1 : 0,
+        hostExecutionProfileFailures:
+          executionProfileEvidence.verdict === "profile_incomplete" ? 1 : 0
       })
     };
     completedReport = report;

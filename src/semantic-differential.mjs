@@ -23,6 +23,44 @@ function readJsonl(file) {
     .map((line) => JSON.parse(line));
 }
 
+export function loadJourneyEvidence(directory) {
+  const reportFile = path.join(directory, "report.json");
+  const report = JSON.parse(readFileSync(reportFile, "utf8"));
+  const eventFiles = Array.isArray(report.events_files) && report.events_files.length > 0
+    ? report.events_files.map((file) => path.join(directory, file))
+    : [path.join(directory, "events.jsonl")];
+  return {
+    report,
+    events: eventFiles.flatMap(readJsonl),
+    evidence: {
+      directory,
+      report_file: reportFile,
+      event_files: eventFiles
+    }
+  };
+}
+
+export function journeyEvidenceRun({ evidence, semanticTarget, scenario, driverId }) {
+  const targetErrors = validateSemanticTarget(semanticTarget);
+  if (targetErrors.length > 0) {
+    throw new TypeError(`Invalid evidence semantic target: ${targetErrors.join(", ")}`);
+  }
+  const implementation = implementationIdentity(evidence?.report);
+  return {
+    driver: {
+      schema: "sts2.headless/host-driver-1",
+      driver_id: driverId,
+      host_kind: implementation.host_kind,
+      semantic_target: semanticTarget,
+      implementation
+    },
+    scenario,
+    report: evidence.report,
+    events: evidence.events,
+    evidence: evidence.evidence
+  };
+}
+
 function comparableIdentity(report) {
   return {
     protocol: report?.loaded_identity?.protocol ?? null,

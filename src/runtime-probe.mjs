@@ -22,6 +22,7 @@ import {
   resolveConnectorEndpoint,
   SOURCE_CANARY_ENVIRONMENT_VARIABLE
 } from "./connector-endpoint.mjs";
+import { validateRequestedHostExecutionProfile } from "./host-execution-profile.mjs";
 
 export function resolveExperimentalConnectorCanary({
   installation,
@@ -308,8 +309,10 @@ export function shippedRuntimeLaunch(installation, {
   launchProfile = null,
   connectorEndpoint = null,
   runSeed = null,
-  connectorCanary = null
+  connectorCanary = null,
+  hostExecutionProfile = null
 } = {}) {
+  const requestedHostExecutionProfile = validateRequestedHostExecutionProfile(hostExecutionProfile);
   const connector = connectorEndpoint == null
     ? null
     : resolveConnectorEndpoint(connectorEndpoint);
@@ -331,6 +334,9 @@ export function shippedRuntimeLaunch(installation, {
     ...(connectorCanary?.source_revision == null
       ? {}
       : { [SOURCE_CANARY_ENVIRONMENT_VARIABLE]: connectorCanary.source_revision }),
+    ...(requestedHostExecutionProfile == null
+      ? {}
+      : { STS2_CONNECTOR_HOST_EXECUTION_PROFILE: requestedHostExecutionProfile }),
     ...extraEnvironment
   };
   if (launchProfile?.steam === "disabled_before_platform_initialization") {
@@ -356,7 +362,8 @@ export function shippedRuntimeLaunch(installation, {
         ? "sealed_only"
         : "exact_process_local_canary",
       canary_game_id: connectorCanary?.game_id ?? null,
-      canary_source_revision: connectorCanary?.source_revision ?? null
+      canary_source_revision: connectorCanary?.source_revision ?? null,
+      requested_execution_profile: requestedHostExecutionProfile
     }
   };
 }

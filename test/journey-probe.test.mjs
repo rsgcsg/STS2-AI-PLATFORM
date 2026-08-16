@@ -311,3 +311,15 @@ test("journey integrity fails when requested episode provenance is not verified"
   assert.equal(result.verdict, "integrity_incomplete");
   assert.deepEqual(result.errors, ["episode_provenance_unverified"]);
 });
+
+test("journey integrity requires an explicitly requested Host execution profile", () => {
+  const result = evaluateJourneyIntegrity({
+    terminal: "action_limit",
+    unknownCount: 0,
+    readFailures: 0,
+    successorFailures: 0,
+    hostExecutionProfileFailures: 1
+  });
+  assert.equal(result.verdict, "integrity_incomplete");
+  assert.deepEqual(result.errors, ["host_execution_profile_unverified"]);
+});
