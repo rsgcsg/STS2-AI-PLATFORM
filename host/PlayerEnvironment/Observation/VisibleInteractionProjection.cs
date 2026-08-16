@@ -287,7 +287,7 @@ internal static partial class PlayerEnvironmentService
                 value.Kind, value.Stage, value.Characters, value.SelectedDetails,
                 value.Ascension, value.AscensionTitle, value.AscensionDescription,
                 value.CanDecreaseAscension, value.CanIncreaseAscension,
-                value.CanEmbark, value.CanGoBack, value.ActionAuthorityEnabled
+                value.CanEmbark, value.CanGoBack
             }),
             TutorialSurface value => ToNode(new
             {

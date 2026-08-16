@@ -731,9 +731,6 @@ internal static class NativeUiActionRuntime
     internal static IReadOnlyList<NativeUiActionDescriptor> DescribeCharacterSelectCommands(
         CharacterSelectSurface surface)
     {
-        if (!surface.ActionAuthorityEnabled)
-            return Array.Empty<NativeUiActionDescriptor>();
-
         var actions = new List<NativeUiActionDescriptor>();
         ActionEntityBinding screen = new("screen", surface.ScreenEntityId);
         foreach (VisibleCharacterChoice character in surface.Characters.Where(value =>

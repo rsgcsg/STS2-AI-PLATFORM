@@ -682,10 +682,7 @@ public sealed record CharacterSelectSurface(
     bool CanDecreaseAscension,
     bool CanIncreaseAscension,
     bool CanEmbark,
-    bool CanGoBack) : ILiveSurface
-{
-    public bool ActionAuthorityEnabled { get; init; } = true;
-}
+    bool CanGoBack) : ILiveSurface;
 
 public sealed record VisibleTutorialOption(
     string SemanticId,

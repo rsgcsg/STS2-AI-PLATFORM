@@ -94,32 +94,24 @@ internal sealed class CharacterSelectSurfaceReader : ILiveSurfaceReader
         bool ascensionVisible = ConnectorMod.IsNodeVisible(ascensionPanel);
         int? ascension = ascensionVisible ? ascensionPanel.Ascension : null;
         bool tutorialGateClear = SaveManager.Instance.SeenFtue("accept_tutorials_ftue");
-        bool canEmbark = tutorialGateClear
-                         && embark.IsEnabled
+        bool canEmbark = embark.IsEnabled
                          && ConnectorMod.IsNodeVisible(embark)
                          && !selected.IsLocked;
-        bool canGoBack = tutorialGateClear
-                         && back.IsEnabled
-                         && ConnectorMod.IsNodeVisible(back);
-        bool canDecreaseAscension = tutorialGateClear
-                                    && ascensionVisible
+        bool canGoBack = back.IsEnabled && ConnectorMod.IsNodeVisible(back);
+        bool canDecreaseAscension = ascensionVisible
                                     && leftArrow.IsEnabled
                                     && ConnectorMod.IsNodeVisible(leftArrow);
-        bool canIncreaseAscension = tutorialGateClear
-                                    && ascensionVisible
+        bool canIncreaseAscension = ascensionVisible
                                     && rightArrow.IsEnabled
                                     && ConnectorMod.IsNodeVisible(rightArrow);
 
-        bool hasActionableControl = tutorialGateClear
-            && (visibleCharacters.Any(character =>
-                character.IsEnabled && !character.IsLocked && !character.IsSelected)
+        bool hasActionableControl = visibleCharacters.Any(character =>
+            character.IsEnabled && !character.IsLocked && !character.IsSelected)
             || canDecreaseAscension
             || canIncreaseAscension
             || canEmbark
-            || canGoBack);
-        string stage = !tutorialGateClear
-            ? "awaiting_tutorial_preference"
-            : hasActionableControl ? "choosing" : "transitioning";
+            || canGoBack;
+        string stage = hasActionableControl ? "choosing" : "transitioning";
         var surface = new CharacterSelectSurface(
             Kind,
             stage,
@@ -132,17 +124,9 @@ internal sealed class CharacterSelectSurfaceReader : ILiveSurfaceReader
             canDecreaseAscension,
             canIncreaseAscension,
             canEmbark,
-            canGoBack)
-        {
-            ActionAuthorityEnabled = tutorialGateClear
-        };
-        string[] missing = tutorialGateClear
-            ? Array.Empty<string>()
-            : new[] { "accept_tutorials_ftue_child_surface" };
+            canGoBack);
         var completeness = new StateCompleteness(
-            tutorialGateClear
-                ? "contract_complete_for_singleplayer_character_select"
-                : "contract_incomplete_for_first_run_tutorial_child",
+            "contract_complete_for_singleplayer_character_select_and_native_tutorial_handoff",
             hasActionableControl
                 ? "derived_from_exact_visible_character_and_menu_controls"
                 : "temporarily_empty_during_character_select_transition",
@@ -152,9 +136,12 @@ internal sealed class CharacterSelectSurfaceReader : ILiveSurfaceReader
                 "visible NCharacterSelectButton controls",
                 "selected character info-panel source fields",
                 "visible NAscensionPanel controls",
-                "ConfirmButton and BackButton"
+                "ConfirmButton and BackButton",
+                tutorialGateClear
+                    ? "SaveManager accept_tutorials_ftue complete"
+                    : "NCharacterSelectScreen.OnEmbarkPressed exact tutorial-modal handoff"
             },
-            missing);
+            Array.Empty<string>());
         string signature = StableIdentityHash.Object(new
         {
             game.Version,
@@ -167,9 +154,7 @@ internal sealed class CharacterSelectSurfaceReader : ILiveSurfaceReader
             surface,
             completeness,
             game,
-            missing.Length == 0
-                ? Array.Empty<string>()
-                : new[] { "first_run_tutorial_child_mount_pending" });
+            Array.Empty<string>());
     }
 
     private static VisibleSelectedCharacterDetails BuildSelectedDetails(NCharacterSelectButton selected)
@@ -301,7 +286,6 @@ internal sealed class CharacterSelectSurfaceReader : ILiveSurfaceReader
         NConfirmButton expectedEmbark)
     {
         if (!IsCurrentSingleplayerScreen(expectedScreen, expectedLobby)
-            || !SaveManager.Instance.SeenFtue("accept_tutorials_ftue")
             || !expectedSelected.IsSelected
             || expectedSelected.IsLocked
             || !expectedEmbark.IsEnabled
