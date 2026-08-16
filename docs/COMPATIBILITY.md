@@ -34,6 +34,12 @@ used to audit a new version, but does not become support until source/owner
 audit, automated checks, exact H0/H1/H2 runtime gates, and a reviewed support
 table update are complete.
 
+`npm run drill:update` records the current disk tuple and emits the exact gates
+required by the nearest known tuple. Any mismatch keeps authority fail closed.
+Assembly/version drift requires a new exact source inventory and impact review;
+platform/executable/Godot drift also requires Host lifecycle qualification.
+The planner never edits this support table or promotes a build.
+
 Windows, Linux, macOS x86_64, additional Mods, and any later game build are
 currently `pending exact-runtime evidence`, not implicitly supported.
 
@@ -53,3 +59,9 @@ The development branch recognizes, but does not support, this exact tuple:
 `doctor` reports this tuple as `known_experimental`. Local RC Connector
 artifacts, Modsets and runtime instances are always recorded separately. No
 artifact or Modset inherits support from this disk identity.
+
+The current Windows development runtime evidence uses Connector source
+`3e5c5a8b582f5d4ae07675b490d9a019bbd4602b`, protocol `1.0-rc.2`, DLL SHA
+`e96734970a6bd32e112fe351316bf05b56c236f5e48044d3e4f07995defd581c`,
+and MVID `c5bcd426-932f-41d1-a3ae-cc0c5d0e9407`. This identifies evidence;
+it does not add Windows support.

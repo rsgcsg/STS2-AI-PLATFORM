@@ -13,6 +13,9 @@
 10. [Roadmap](ROADMAP.md): H1.0 Core, Training-Ready and H* experiment gates.
 11. [Windows route evidence closeout](evidence/WINDOWS_REFERENCE_CAPACITY_RECOVERY_AND_MANAGED_ADMISSION_2026-08-16.md):
     current capacity, recovery, shutdown and managed-candidate verdicts.
+12. [Windows seed, differential and supervisor closeout](evidence/WINDOWS_REFERENCE_SEED_DIFFERENTIAL_SUPERVISOR_AND_REQUALIFICATION_2026-08-16.md):
+    current-artifact provenance, repeatability, bounded soak, profile sentinel
+    and update-planning evidence.
 
 `README.md`, Status, Architecture, and Compatibility are current truth. Local
 raw evidence under `.local/` is not documentation and must not be committed.

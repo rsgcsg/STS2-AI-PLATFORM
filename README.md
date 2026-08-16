@@ -18,24 +18,28 @@ it preserves the official runtime, SceneTree, Mod loader, legality, RNG and
 effects. It is not a practical primary trainer on the measured Windows tuple.
 
 Current exact Windows experimental evidence on STS2 `v0.111.0` (`41cef1ea`)
-includes native profile isolation, verified template reset, process-local
-Connector endpoints, 1/2/4/8-worker capacity, fault/restart recovery, and
-runtime-bound native shutdown. Eight workers delivered only `2.91` normalized
-semantic decisions/s while using about `5.70 GiB` summed peak RSS. This is far
-below the current `>=1000` aggregate decisions/s trainer hypothesis.
+includes native profile isolation, verified template reset, game-owned seed
+provenance, process-local Connector endpoints, same-artifact semantic
+repeatability, capacity, crash/restart recovery, bounded multi-worker
+supervision, a shared-profile write sentinel, and runtime-bound native
+shutdown.
 
-The latest loaded development artifact used protocol `1.0-rc.2`, Connector
-source `08a5990...`, DLL SHA `97727e...`, and MVID `7a6992a7...`. Its recovery
-cycle passed operational identity/reset/process/endpoint gates, but the shipped
-headless runtime emitted about 1090 Godot teardown errors even when stopped
-from the main menu through STS2's native quit path. Clean shutdown therefore
-remains unresolved and is not hidden inside the recovery verdict.
+The current measured development artifact uses protocol `1.0-rc.2`, Connector
+source `3e5c5a8...`, DLL SHA `e9673497...`, and MVID `c5bcd426...`. It measured
+only `1.52` aggregate normalized semantic decisions/s at four workers. A
+predecessor artifact reached `2.91` at eight workers with about `5.70 GiB`
+summed peak RSS. Both are far below the current `>=1000` trainer hypothesis.
+Native exit returns code zero and releases processes/endpoints, but this exact
+Windows route still emits roughly 950-1000 Godot diagnostics per bounded exit.
+Clean shutdown therefore remains unresolved and is not hidden inside an
+operational verdict.
 
 The released macOS arm64 tuple remains the only declared supported tuple.
 Windows x64 is `known_experimental`; a matching hash does not grant support.
-Deterministic seed control, semantic differential, long soak, update drill, a
+Long soak, broad fault/hang recovery, a real changed-build update drill, a
 reproducibly published RC Connector SDK/Host, and a high-throughput qualified
-backend remain open gates.
+backend remain open gates. The current same-artifact differential is a
+repeatability baseline, not cross-Host equivalence.
 
 See [Status](docs/STATUS.md), [Compatibility](docs/COMPATIBILITY.md), and
 [Evidence](docs/EVIDENCE.md) for exact scope.
@@ -93,10 +97,16 @@ npm run probe:menu-control -- --shared-profile
 npm run probe:journey -- --shared-profile
 npm run bench:capacity -- --workers 1,2,4,8
 npm run probe:recovery -- --template vanilla-clean --experimental-build
+npm run probe:differential -- --template vanilla-clean --seed H1D1FF01 --experimental-build
+npm run soak:reference -- --template vanilla-clean --workers 2 --episodes 2 --actions 8 --experimental-build
+npm run drill:update
 ```
 
 `probe:journey` starts and mutates a standard run with a deterministic test
 consumer. It is evidence tooling, not a gameplay agent.
+
+`drill:update` exits nonzero for experimental or changed identities by design.
+It generates required gates; it never promotes compatibility.
 
 See [Roadmap](docs/ROADMAP.md) for the separate H1.0 Core Release,
 Training-Ready, and H* route gates.

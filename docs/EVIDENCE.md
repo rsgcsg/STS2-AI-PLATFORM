@@ -53,35 +53,50 @@ public GitHub Release asset.
 On the exact Windows x64 STS2 `v0.111.0` / `41cef1ea` tuple, the shipped runtime
 created native SettingsSave v8 plus prefs/progress in isolated namespaces with
 Steam disabled before platform initialization. The current branch additionally
-has exact-template reset, process-local endpoint, capacity and fault/restart
-evidence.
+has exact-template reset, process-local endpoint, game-owned seed provenance,
+capacity, fault/restart, semantic repeatability, bounded supervisor and local
+profile-write evidence.
 
-The latest recovery evidence belongs to Connector source `08a5990...`, protocol
-`1.0-rc.2`, DLL SHA `97727e...`, MVID `7a6992a7...`, and its exact Modset. One
-cycle changed profile generation and runtime instance, retained exact identity,
-delivered three recovery decisions, and released both process and endpoint.
-Its status is `recovery_operational_pass_shutdown_diagnostics_observed`, not
-clean shutdown qualification.
+The current evidence artifact is Connector source `3e5c5a8...`, protocol
+`1.0-rc.2`, DLL SHA `e9673497...`, MVID `c5bcd426...`, and its exact
+Connector-only Modset:
 
-Reference capacity belongs to the earlier Connector source `b9df6c1...` and
-cannot be transferred to `08a5990...`. Measured aggregate normalized decisions/s
-were `0.4966`, `0.9483`, `1.7388`, and `2.9085` for 1/2/4/8 workers. Eight
-workers averaged `2.710` CPU cores and `5.696 GiB` summed peak RSS.
+- two independent seed `H1D1FF01` runs produced 14 matching canonical semantic
+  events each with distinct runtime/profile generations and no first divergence;
+- one crash/restart cycle preserved seed `H1REC0VERY01`, replaced runtime and
+  profile generation, returned five stable decisions, and released the process
+  and endpoint;
+- current-artifact 1/2/4-worker capacity measured `0.4981`, `0.8975`, and
+  `1.5246` aggregate normalized decisions/s;
+- a 2-worker x 2-episode smoke delivered 32 decisions through four unique
+  runtime/profile generations, with no worker, endpoint or process leak;
+- a separate bounded sentinel run left the normal user-data tree unchanged at
+  1,051 files and tree digest `f9e58712...`.
 
-See the [dated Windows closeout](evidence/WINDOWS_REFERENCE_CAPACITY_RECOVERY_AND_MANAGED_ADMISSION_2026-08-16.md).
+Native shutdown returned code zero without forced fallback, but bounded exits
+still emitted roughly 950-1000 Godot diagnostics. Recovery is operational, not
+clean-shutdown qualification. A predecessor artifact's 8-worker `2.9085`
+decisions/s result remains historical and is not merged into current evidence.
+
+See the [capacity/recovery closeout](evidence/WINDOWS_REFERENCE_CAPACITY_RECOVERY_AND_MANAGED_ADMISSION_2026-08-16.md)
+and [seed/differential/supervisor closeout](evidence/WINDOWS_REFERENCE_SEED_DIFFERENTIAL_SUPERVISOR_AND_REQUALIFICATION_2026-08-16.md).
 
 ## Non-Claims
 
 - H2 is a bounded test consumer, not a full-run Agent or gameplay policy.
-- No deterministic replay, semantic differential, long soak, broad
-  cross-platform support or Training-Ready claim is made.
+- Same-artifact, same-seed repeatability is not deterministic replay or
+  cross-Host semantic equivalence.
+- No long soak, broad cross-platform support or Training-Ready claim is made.
 - The game wrote the active Steam profile and cloud store during H2.
 - Delivery Receipt does not assert business completion.
 - Old Connector, Live-UI, fixture, or external-project evidence is not evidence
   for the current exact Headless tuple.
 - Operational recovery does not imply clean shutdown; the shipped Windows
-  headless runtime emitted about 1090 Godot teardown errors after native quit.
+  headless runtime emitted about 950-1090 Godot diagnostics after native quit
+  across recorded artifact windows.
 - A manually replaced local SDK is not reproducible release evidence.
+- The local shared-profile sentinel does not inspect Steam Cloud server state.
+- The update planner and drift fixtures are not a real changed-build drill.
 
 ## Reproduce
 
@@ -94,6 +109,9 @@ npm run probe:menu-control -- --shared-profile
 npm run probe:journey -- --shared-profile
 npm run bench:capacity -- --template vanilla-clean --workers 1,2,4,8
 npm run probe:recovery -- --template vanilla-clean --experimental-build
+npm run probe:differential -- --template vanilla-clean --seed H1D1FF01 --experimental-build
+npm run soak:reference -- --template vanilla-clean --workers 2 --episodes 2 --actions 8 --experimental-build
+npm run drill:update
 ```
 
 Each probe creates a timestamped local directory with process logs, identity,

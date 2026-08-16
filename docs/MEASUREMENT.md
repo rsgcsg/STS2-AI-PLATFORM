@@ -33,6 +33,9 @@ successor, and timing chain.
 The canonical form removes runtime-local identifiers and timestamps while
 retaining visible content and referent/action relationships. It is a comparison
 artifact only. It never creates legality, execution authority, or an action.
+Equivalent duplicate visible entities are compared as a multiset when no
+player-visible fact distinguishes them; execution still uses each runtime's
+exact private binding.
 
 ## Integrity Versus Coverage
 
@@ -54,22 +57,28 @@ The current `>=1000` aggregate decisions/s trainer target is a route hypothesis,
 not a release fact. Promotion also requires semantic differential, reset and
 recovery evidence, resource efficiency, and representative training workload.
 
-## Current Reference Baseline
+## Current Reference Baselines
 
-On Windows x64 STS2 `v0.111.0` / `41cef1ea`, Connector source `b9df6c1...`,
-the isolated shipped Host measured:
+On Windows x64 STS2 `v0.111.0` / `41cef1ea`, current development Connector
+source `3e5c5a8...`, DLL SHA `e9673497...`, MVID `c5bcd426...`, and seed
+`H1CAPAC1TY01`, the isolated shipped Host measured:
 
 | Workers | Aggregate decisions/s | Average CPU cores | Summed peak RSS |
 |---:|---:|---:|---:|
-| 1 | 0.4966 | 0.378 | 0.711 GiB |
-| 2 | 0.9483 | 0.683 | 1.425 GiB |
-| 4 | 1.7388 | 1.411 | 2.838 GiB |
-| 8 | 2.9085 | 2.710 | 5.696 GiB |
+| 1 | 0.4981 | 0.245 | 0.711 GiB |
+| 2 | 0.8975 | 0.519 | 1.423 GiB |
+| 4 | 1.5246 | 0.943 | 2.857 GiB |
 
-All measured workers passed journey integrity for their bounded action windows.
-These numbers are artifact-specific and do not transfer to later Connector
-builds. They are sufficient to reject shipped Godot as the current primary
-trainer; they do not measure a simulator or managed candidate.
+All workers passed seed provenance and journey integrity for their bounded
+windows. A predecessor Connector artifact reached `2.9085` decisions/s at
+eight workers with `5.696 GiB` summed peak RSS. The two artifact-specific runs
+cannot be merged, but both independently reject shipped Godot as the current
+primary trainer.
+
+A two-worker, two-episode supervisor smoke on the current artifact delivered 32
+decisions across four unique runtime instances and profile generations at
+`0.8630` aggregate decisions/s over summed episode windows. It proved bounded
+lifecycle repetition, not a long-soak throughput result.
 
 The current performance stop rule is workload-based: once the Host is at most
 about 20% of end-to-end training time and doubling Host speed improves total

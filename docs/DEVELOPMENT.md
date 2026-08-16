@@ -24,8 +24,13 @@ Modset, process, profile, and verdict identities separately.
 - `src/runtime-probe.mjs`: H0/H1 harness;
 - `src/journey-probe.mjs`: bounded H2 test consumer;
 - `src/profile-template.mjs`: exact-runtime template capture and generation reset;
+- `src/episode-provenance.mjs`: requested/canonical/actual game-owned seed gate;
+- `src/filesystem-sentinel.mjs`: privacy-bounded local profile tree mutation gate;
 - `src/capacity-benchmark.mjs`: concurrent normalized-decision/resource runs;
 - `src/recovery-drill.mjs`: fault, restart, identity and cleanup verdicts;
+- `src/semantic-differential.mjs`: same-artifact canonical comparison and first divergence;
+- `src/soak-supervisor.mjs`: repeated bounded worker supervision;
+- `src/requalification.mjs`: exact identity drift and required-gate planning;
 - `src/runtime-diagnostics.mjs`: diagnostics separate from semantic integrity;
 - `src/connector-release.mjs`: pinned release setup/rollback integration;
 - `tools/headless.mjs`: CLI transport only.
@@ -48,3 +53,5 @@ contract and execution authority.
 - A local Connector RC or replaced SDK must be recorded as development evidence.
   Never release from a lock file that resolves to different protocol bytes than
   the runtime-tested SDK.
+- Same-artifact repeatability is a canonicalizer baseline. Cross-Host parity
+  requires an independently identified candidate and may not inherit it.

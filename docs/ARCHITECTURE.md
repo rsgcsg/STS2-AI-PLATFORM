@@ -52,6 +52,13 @@ simulation surface is not admitted as truth without differential evidence.
 This rejects that revision as the primary trainer, not every possible managed
 Host.
 
+The exact shipped source also contains Mega Crit's `AutoSlayer`: a broad smoke
+runner with game-owned seed override, watchdog, native commands and UI
+handlers. The Steam assembly makes its command-line entry unreachable through
+`NGame.IsReleaseGame()`. An exact patch could measure an official-runtime upper
+bound, but AutoSlayer's fixed policy and UI-click orchestration are not a
+Host-neutral decision contract and cannot replace Connector conformance.
+
 A rules simulator is also not Headless truth by construction. It may become a
 candidate only through the same normalized decision, semantic differential,
 reset, recovery and resource gates.
@@ -82,6 +89,12 @@ or MCP, and create no gameplay authority. Current native shutdown follows
 `NGame.Quit()` and is operationally bounded, but shipped headless teardown is
 not diagnostically clean.
 
+Seed is also Host lifecycle state, not a player action. The current development
+Host accepts it only before run creation, reports requested/canonical/actual
+seed through a secret runtime-bound provenance route, and never publishes it as
+mutation authority. Differential and supervisor admission require that exact
+provenance to match.
+
 ## Profile Boundary
 
 A Mod cannot guarantee pre-save isolation because it loads after platform and
@@ -95,9 +108,14 @@ templates bind payload and exact game identity; hard reset creates a fresh
 generation; fault/restart evidence verifies a distinct runtime and released
 endpoint.
 
-This remains experimental. Promotion still requires Cloud/write sentinels, a
-broader recovery matrix, soak and an update drill. Every runtime command
-requires exactly one explicit profile mode.
+This remains experimental. Promotion still requires Steam Cloud server
+evidence, a broader recovery matrix, long soak and a real changed-build drill.
+Every runtime command requires exactly one explicit profile mode.
+
+The bounded supervisor now hashes the normal user-data tree before any worker
+starts and after every worker exits. A changed tree fails the supervisor even
+when gameplay integrity passed. This protects local profile files; it does not
+observe or prove Steam Cloud server state.
 
 ## Release Gates
 

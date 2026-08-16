@@ -4,11 +4,11 @@ Release: `0.1.0` evidence preview
 
 Verdict: **H1.0 Core incomplete; Training Ready false; H* unresolved.**
 
-The shipped Godot `--headless` route is retained as the highest-confidence
-Reference Host. It has real boot, native control, Read, settling, bounded
-journey, isolated reset, capacity and crash/restart evidence. Measured Windows
-capacity (`2.91` aggregate normalized decisions/s at 8 workers, about `5.70
-GiB` summed peak RSS) rejects it as the current primary trainer.
+The shipped Godot `--headless` route remains the highest-confidence Reference
+Host. It has real boot, native control, Read, settling, bounded journey,
+game-owned seed provenance, isolated reset, same-artifact repeatability,
+capacity, crash/restart, multi-worker supervisor and shared-profile sentinel
+evidence. Its throughput rejects it as the current primary trainer.
 
 Completed:
 
@@ -26,6 +26,15 @@ Completed:
 - 1/2/4/8 worker capacity and resource measurement;
 - fault injection, new-generation restart, distinct-runtime verification,
   process cleanup and endpoint-release checks;
+- game-owned seed application plus runtime-bound episode provenance;
+- canonical Snapshot/Read/action comparison with first-divergence reporting;
+- same-seed, same-artifact repeatability across independent runtime/profile
+  generations;
+- a bounded supervisor smoke covering four independent Host processes and
+  thirty-two delivered semantic decisions;
+- before/after hashing of the normal user-data tree during isolated execution;
+- an exact-identity update planner that fails closed and emits source, Host and
+  runtime requalification gates;
 - process-local, secret, runtime-bound native shutdown control outside the
   Player Environment contract;
 - public game-independent tests and repository boundary checks.
@@ -42,18 +51,20 @@ Current isolation boundary:
 - one current-artifact fault/restart cycle replaced both profile generation and
   runtime instance, preserved exact environment identity, released process and
   endpoint, and returned no unknown delivery;
-- this is still not a release support claim: long soak, Cloud/write sentinels,
-  update drill and broader recovery corpus remain absent.
+- one bounded sentinel run left all 1,051 normal-profile files, counts, sizes,
+  metadata and content digest unchanged;
+- this is still not a release support claim: Steam Cloud server isolation,
+  long soak, a real changed-build drill and broader recovery remain absent.
 
 Current blockers:
 
-- game-owned seed/provenance and replay admission;
-- semantic differential and first-divergence corpus;
 - clean shutdown: native `NGame.Quit()` exits with code 0 and no forced fallback,
-  but shipped headless teardown emits roughly 1090 Godot errors at main menu;
-- long soak, hang watchdog/fault matrix and game-update requalification drill;
+  but current bounded exits emit roughly 950-1000 Godot diagnostics;
+- long soak, hang watchdog/fault matrix and a real changed-build
+  requalification drill;
 - reproducible RC Host/SDK publication: current local RC evidence cannot be
-  reproduced by the stable dependency lock alone;
+  reproduced by the stable dependency lock, and `npm ls` correctly reports the
+  local `1.0.0-rc.1` SDK as invalid against the pinned public `1.0.0` spec;
 - a qualified high-throughput backend and real learning/policy-transfer smoke;
 - Windows release qualification, Linux, macOS x86_64, later builds and Modsets.
 
@@ -62,3 +73,8 @@ primary trainer candidate for now: it reached a decision state only after local
 API repairs and then reported profile/bootstrap, CoreCLR patch, localization
 and save failures. It remains a useful failure and source-audit corpus, not
 semantic parity evidence.
+
+The exact game source also contains an official `AutoSlayer`, but the shipped
+Steam build hard-codes `NGame.IsReleaseGame()` to true, so its `--autoslay`
+entry is unreachable without an exact-build patch. It is a candidate upper-
+bound experiment, not a current Host or Connector path.
