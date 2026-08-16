@@ -43,12 +43,26 @@ function safeTimestamp() {
   return new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
 }
 
+function orderedActions(actions) {
+  return [...actions].sort((left, right) => left.verb.localeCompare(right.verb)
+    || left.label.localeCompare(right.label)
+    || (left.arguments ?? []).map((argument) => argument.role).join(",")
+      .localeCompare((right.arguments ?? []).map((argument) => argument.role).join(",")));
+}
+
 function actionWithLabel(actions, pattern) {
-  return actions.find((action) => pattern.test(action.label));
+  return orderedActions(actions).find((action) => pattern.test(action.label));
 }
 
 function actionWithVerb(actions, ...verbs) {
-  return actions.find((action) => verbs.includes(action.verb));
+  const preference = new Map(verbs.map((verb, index) => [verb, index]));
+  return orderedActions(actions).filter((action) => preference.has(action.verb))
+    .sort((left, right) => preference.get(left.verb) - preference.get(right.verb)
+      || left.label.localeCompare(right.label))[0];
+}
+
+function firstSemanticAction(actions) {
+  return orderedActions(actions)[0] ?? null;
 }
 
 export function chooseBoundAction(snapshot, { tutorialPreference = "disable" } = {}) {
@@ -61,15 +75,17 @@ export function chooseBoundAction(snapshot, { tutorialPreference = "disable" } =
   const kind = snapshot.interaction.kind;
   const stage = snapshot.interaction.stage;
 
-  if (kind === "main_menu") return actionWithLabel(actions, /single player/i) ?? actions[0];
+  if (kind === "main_menu") {
+    return actionWithLabel(actions, /single player/i) ?? firstSemanticAction(actions);
+  }
   if (kind === "singleplayer_menu") {
     return actionWithLabel(actions, /standard|continue|resume/i)
-      ?? actions.find((action) => !/back/i.test(action.label))
+      ?? orderedActions(actions).find((action) => !/back/i.test(action.label))
       ?? null;
   }
   if (kind === "character_select") {
     return actionWithLabel(actions, /embark/i)
-      ?? actions.find((action) => action.verb === "select" && !/random/i.test(action.label))
+      ?? orderedActions(actions).find((action) => action.verb === "select" && !/random/i.test(action.label))
       ?? null;
   }
   if (kind === "tutorial_preference") {
@@ -93,13 +109,13 @@ export function chooseBoundAction(snapshot, { tutorialPreference = "disable" } =
   if (kind === "reward_claim") {
     return actionWithLabel(actions, /skip remaining|continue/i)
       ?? actionWithLabel(actions, /gold|金币/i)
-      ?? actions[0];
+      ?? firstSemanticAction(actions);
   }
   if (kind === "card_reward_selection") {
     return actionWithLabel(actions, /skip|跳过/i) ?? actionWithVerb(actions, "select") ?? null;
   }
   if (kind === "rest_site") {
-    return actionWithLabel(actions, /rest|heal|休息/i) ?? actions[0];
+    return actionWithLabel(actions, /rest|heal|休息/i) ?? firstSemanticAction(actions);
   }
   if (stage === "preview") return actionWithVerb(actions, "confirm") ?? actionWithVerb(actions, "cancel");
 

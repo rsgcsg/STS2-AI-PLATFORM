@@ -44,7 +44,7 @@ function action(digest = "decision-a", verb = "select", referentId = "referent-0
         label: "Defend",
         state: { visible: true },
         properties_schema: "card-1",
-        properties: { definition_id: "DEFEND", cost: "1" }
+        properties: { entity_id: referentId, definition_id: "DEFEND", cost: "1" }
       }]
     },
     canonical_selected_action: { verb, subject_referent_id: referentId, arguments: [], label: verb },

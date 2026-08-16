@@ -33,6 +33,13 @@ test("combat policy uses a native play binding then end turn", () => {
   assert.equal(chooseBoundAction(snapshot("combat_turn", [end])), end);
 });
 
+test("deterministic test policy does not depend on runtime action publication order", () => {
+  const bash = { bound_action_id: "runtime-bash", verb: "play", label: "Play Bash", arguments: [] };
+  const strike = { bound_action_id: "runtime-strike", verb: "play", label: "Play Strike", arguments: [] };
+  assert.equal(chooseBoundAction(snapshot("combat_turn", [strike, bash])).label, "Play Bash");
+  assert.equal(chooseBoundAction(snapshot("combat_turn", [bash, strike])).label, "Play Bash");
+});
+
 test("first-run tutorial preference stays inside the advertised action set", () => {
   const disable = { bound_action_id: "disable", verb: "select", label: "Cancel" };
   const enable = { bound_action_id: "enable", verb: "select", label: "Confirm" };

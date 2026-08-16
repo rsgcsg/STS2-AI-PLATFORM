@@ -31,11 +31,23 @@ function comparableIdentity(report) {
   };
 }
 
+function operandSemantics(value, key = null) {
+  if (key != null && /(?:^|_)(?:entity|referent)_ids?$/u.test(key)) {
+    return Array.isArray(value)
+      ? value.map(() => "equivalent-entity")
+      : value == null ? null : "equivalent-entity";
+  }
+  if (Array.isArray(value)) return value.map((item) => operandSemantics(item));
+  if (value == null || typeof value !== "object") return value;
+  return Object.fromEntries(Object.keys(value).sort()
+    .map((childKey) => [childKey, operandSemantics(value[childKey], childKey)]));
+}
+
 function semanticEvent(event) {
   if (event.type === "action") {
     const referents = new Map((event.canonical_decision?.referents ?? []).map((referent) => {
       const { canonical_referent_id: id, ...semantics } = referent;
-      return [id, semantics];
+      return [id, operandSemantics(semantics)];
     }));
     const selected = event.canonical_selected_action;
     const selectedSemantics = selected == null ? null : {
