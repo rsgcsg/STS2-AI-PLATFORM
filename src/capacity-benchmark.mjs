@@ -140,6 +140,7 @@ export async function runCapacityBenchmark({
     ]
   };
   writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`);
+  const exactGameIdentity = report.disk_identity;
 
   try {
     for (const workerCount of counts) {
@@ -149,7 +150,12 @@ export async function runCapacityBenchmark({
         const workerId = `capacity-${workerCount}-w${String(workerNumber).padStart(2, "0")}`;
         const profileId = `capacity-w${String(workerNumber).padStart(2, "0")}`;
         const endpoint = `http://127.0.0.1:${basePort + workerNumber - 1}`;
-        const profile = instantiateProfileTemplate({ localRoot, templateId, profileId });
+        const profile = instantiateProfileTemplate({
+          localRoot,
+          templateId,
+          profileId,
+          expectedGameIdentity: exactGameIdentity
+        });
         workers.push({ workerId, profileId, endpoint, profile });
       }
       const groupStartedMs = performance.now();

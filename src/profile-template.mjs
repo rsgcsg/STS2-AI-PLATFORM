@@ -81,12 +81,33 @@ function inventoryFiles(root) {
   return { files, digest: digest.digest("hex") };
 }
 
+export function normalizeTemplateGameIdentity(identity) {
+  const normalized = {
+    platform: identity?.platform ?? null,
+    architecture: identity?.architecture ?? null,
+    game_version: identity?.game_version ?? identity?.release?.version ?? null,
+    game_commit: identity?.game_commit ?? identity?.release?.commit ?? null,
+    executable_sha256: identity?.executable_sha256 ?? identity?.executable?.sha256 ?? null,
+    runtime_main_assembly_hash:
+      identity?.runtime_main_assembly_hash ?? identity?.release?.main_assembly_hash ?? null,
+    sts2_assembly_sha256:
+      identity?.sts2_assembly_sha256 ?? identity?.sts2_assembly?.sha256 ?? null,
+    godotsharp_assembly_sha256:
+      identity?.godotsharp_assembly_sha256 ?? identity?.godotsharp_assembly?.sha256 ?? null
+  };
+  if (Object.values(normalized).some((value) => value == null || value === "")) {
+    throw new Error("Profile templates require one complete exact game identity.");
+  }
+  return normalized;
+}
+
 export function captureProfileTemplate({
   localRoot,
   profileId,
   templateId,
   gameIdentity
 }) {
+  const exactGameIdentity = normalizeTemplateGameIdentity(gameIdentity);
   const profile = prepareIsolatedProfile(localRoot, profileId);
   const paths = profileTemplatePaths(localRoot, templateId);
   const nativeSettings = path.join(
@@ -114,7 +135,7 @@ export function captureProfileTemplate({
       steam: "disabled_before_platform_initialization",
       client_id: "1"
     },
-    game_identity: gameIdentity,
+    game_identity: exactGameIdentity,
     file_count: inventory.files.length,
     payload_sha256: inventory.digest,
     files: inventory.files
@@ -126,7 +147,12 @@ export function captureProfileTemplate({
   return { status: "captured", ...manifest, template_root: paths.template_root };
 }
 
-export function instantiateProfileTemplate({ localRoot, templateId, profileId }) {
+export function instantiateProfileTemplate({
+  localRoot,
+  templateId,
+  profileId,
+  expectedGameIdentity
+}) {
   const template = profileTemplatePaths(localRoot, templateId);
   if (!existsSync(template.manifest) || !existsSync(template.user_data)) {
     throw new Error(`Profile template is incomplete: ${template.template_root}`);
@@ -134,6 +160,11 @@ export function instantiateProfileTemplate({ localRoot, templateId, profileId })
   const manifest = JSON.parse(readFileSync(template.manifest, "utf8"));
   if (manifest.schema_version !== 1 || manifest.template_id !== templateId) {
     throw new Error("Profile template manifest identity is invalid.");
+  }
+  const recordedGameIdentity = normalizeTemplateGameIdentity(manifest.game_identity);
+  const currentGameIdentity = normalizeTemplateGameIdentity(expectedGameIdentity);
+  if (JSON.stringify(recordedGameIdentity) !== JSON.stringify(currentGameIdentity)) {
+    throw new Error("Profile template game identity does not match the current exact runtime.");
   }
   const inventory = inventoryFiles(template.user_data);
   if (inventory.digest !== manifest.payload_sha256
@@ -153,6 +184,6 @@ export function instantiateProfileTemplate({ localRoot, templateId, profileId })
     generation_id: profile.generation.generation_id,
     profile_root: profile.profile_root,
     expected_user_data_root: profile.expected_user_data_root,
-    game_identity: manifest.game_identity
+    game_identity: recordedGameIdentity
   };
 }

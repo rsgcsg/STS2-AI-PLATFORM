@@ -26,6 +26,7 @@ import {
   instantiateProfileTemplate
 } from "../src/profile-template.mjs";
 import { parseWorkerCounts, runCapacityBenchmark } from "../src/capacity-benchmark.mjs";
+import { runRecoveryDrill } from "../src/recovery-drill.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -174,7 +175,8 @@ async function main() {
     console.log(JSON.stringify(instantiateProfileTemplate({
       localRoot: path.join(ROOT, ".local"),
       templateId,
-      profileId
+      profileId,
+      expectedGameIdentity: readDiskIdentity(resolveCurrentInstallation())
     }), null, 2));
     return;
   }
@@ -243,6 +245,25 @@ async function main() {
     process.exitCode = result.report.status === "measured" ? 0 : 5;
     return;
   }
+  if (command === "probe-recovery") {
+    const result = await runRecoveryDrill({
+      installation: resolveCurrentInstallation(),
+      localRoot: path.join(ROOT, ".local"),
+      evidenceRoot: path.join(ROOT, ".local", "evidence"),
+      templateId: option(args, "--template", "vanilla-clean"),
+      profileId: option(args, "--isolated-profile", "recovery-worker"),
+      endpoint: option(args, "--endpoint", "http://127.0.0.1:15700"),
+      cycles: Number(option(args, "--cycles", "3")),
+      faultAfterDeliveredActions: Number(option(args, "--fault-after", "1")),
+      recoveryActions: Number(option(args, "--recovery-actions", "3")),
+      timeoutMs: Number(option(args, "--timeout-ms", "90000")),
+      actionTimeoutMs: Number(option(args, "--action-timeout-ms", "20000")),
+      experimentalBuildAcknowledged: args.includes("--experimental-build")
+    });
+    console.log(JSON.stringify({ report_file: result.reportFile, status: result.report.status }, null, 2));
+    process.exitCode = result.report.status === "recovery_pass" ? 0 : 6;
+    return;
+  }
   console.log(`Usage:
   node tools/headless.mjs setup
   node tools/headless.mjs rollback --backup DIRECTORY
@@ -258,7 +279,8 @@ async function main() {
   node tools/headless.mjs probe-shipped (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
   node tools/headless.mjs probe-menu-control (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
   node tools/headless.mjs probe-journey (--isolated-profile ID | --shared-profile) [--experimental-build] [--max-actions 40] [--tutorials disable|enable] [--timeout-ms 90000]
-  node tools/headless.mjs bench-capacity [--template vanilla-clean] [--workers 1,2,4] [--base-port 15600] [--max-actions 12]`);
+  node tools/headless.mjs bench-capacity [--template vanilla-clean] [--workers 1,2,4] [--base-port 15600] [--max-actions 12]
+  node tools/headless.mjs probe-recovery [--template vanilla-clean] [--isolated-profile recovery-worker] [--cycles 3] [--fault-after 1] [--recovery-actions 3] [--experimental-build]`);
 }
 
 main().catch((error) => {

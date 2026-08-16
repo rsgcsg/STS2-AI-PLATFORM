@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { createWriteStream, mkdirSync, writeFileSync } from "node:fs";
+import { createWriteStream, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { finished } from "node:stream/promises";
 import {
@@ -12,6 +12,7 @@ import {
   readJson,
   shippedRuntimeLaunch,
   stopChild,
+  waitForExit,
   waitForEndpoint,
   waitForInteractiveSnapshot
 } from "./runtime-probe.mjs";
@@ -30,6 +31,7 @@ import {
   ProcessResourceSampler,
   summarizeHostPerformance
 } from "./process-resource-sampler.mjs";
+import { analyzeRuntimeDiagnostics } from "./runtime-diagnostics.mjs";
 
 function safeTimestamp() {
   return new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
@@ -260,7 +262,9 @@ export async function runBoundedJourney({
   isolatedProfileId = null,
   experimentalBuildAcknowledged = false,
   allowConcurrentProcesses = false,
-  evidenceLabel = null
+  evidenceLabel = null,
+  faultAfterDeliveredActions = null,
+  shutdownDrainMs = 2_000
 }) {
   const launchProfile = resolveLaunchProfile({
     localRoot,
@@ -273,6 +277,13 @@ export async function runBoundedJourney({
   }
   if (evidenceLabel != null && !/^[a-z0-9][a-z0-9._-]{0,63}$/u.test(evidenceLabel)) {
     throw new Error("Evidence labels must be bounded lowercase identifiers.");
+  }
+  if (faultAfterDeliveredActions != null
+      && (!Number.isSafeInteger(faultAfterDeliveredActions) || faultAfterDeliveredActions < 1)) {
+    throw new Error("Fault injection requires a positive delivered-action count.");
+  }
+  if (!Number.isSafeInteger(shutdownDrainMs) || shutdownDrainMs < 0 || shutdownDrainMs > 10_000) {
+    throw new Error("Shutdown drain must be an integer from 0 through 10000 milliseconds.");
   }
   const running = listGameProcesses();
   if (running.length > 0 && !allowConcurrentProcesses) {
@@ -309,7 +320,7 @@ export async function runBoundedJourney({
     eventCount += 1;
   };
   const processStartedMs = performance.now();
-  const { child, args, connector } = shippedRuntimeLaunch(installation, {
+  const { child, args, connector, hostControlToken } = shippedRuntimeLaunch(installation, {
     launchProfile,
     connectorEndpoint: endpoint
   });
@@ -328,6 +339,7 @@ export async function runBoundedJourney({
   let decisionWindowStartedMs = null;
   let decisionWindowEndedMs = null;
   let resourceSamplingResult = null;
+  let completedReport = null;
   let terminal = "not_started";
   let unknownCount = 0;
   let readFailures = 0;
@@ -478,6 +490,23 @@ export async function runBoundedJourney({
       }
       snapshot = successor;
 
+      if (faultAfterDeliveredActions != null
+          && deliveredActions >= faultAfterDeliveredActions) {
+        const requestedAt = new Date().toISOString();
+        const signalAccepted = child.kill("SIGKILL");
+        const processExit = await waitForExit(child, 5_000);
+        record({
+          type: "fault_injection",
+          at: requestedAt,
+          kind: "process_kill_after_stable_successor",
+          delivered_actions: deliveredActions,
+          signal_accepted: signalAccepted,
+          process_exit: processExit
+        });
+        terminal = "injected_process_crash";
+        break;
+      }
+
       if (evaluateSurfaceCoverage({
         surfaces: [...surfaces],
         combatDeliveries
@@ -518,7 +547,8 @@ export async function runBoundedJourney({
       evidence_mode: compatibility.status === "supported_exact" ? "supported" : "experimental",
       probe_policy: {
         kind: "deterministic_test_consumer",
-        tutorial_preference: tutorialPreference
+        tutorial_preference: tutorialPreference,
+        fault_after_delivered_actions: faultAfterDeliveredActions
       },
       loaded_identity: {
         protocol: capabilities.protocol_version,
@@ -547,6 +577,7 @@ export async function runBoundedJourney({
           : "The isolated profile path is source-backed experimental until runtime sentinel and Cloud checks pass."
       ]
     };
+    completedReport = report;
     recorder.close();
     writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`);
     return {
@@ -584,7 +615,8 @@ export async function runBoundedJourney({
       evidence_mode: compatibility.status === "supported_exact" ? "supported" : "experimental",
       probe_policy: {
         kind: "deterministic_test_consumer",
-        tutorial_preference: tutorialPreference
+        tutorial_preference: tutorialPreference,
+        fault_after_delivered_actions: faultAfterDeliveredActions
       },
       loaded_identity: capabilities
         ? { protocol: capabilities.protocol_version, host: capabilities.host, game: capabilities.game }
@@ -613,6 +645,7 @@ export async function runBoundedJourney({
         successorFailures
       })
     };
+    completedReport = report;
     recorder.close();
     writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`);
     throw new Error(`${message}; evidence: ${reportFile}`);
@@ -624,7 +657,22 @@ export async function runBoundedJourney({
     } catch {
       // Cleanup must never prevent termination of the real game process.
     }
-    await stopChild(child);
+    if (faultAfterDeliveredActions == null && child.exitCode == null && child.signalCode == null
+        && shutdownDrainMs > 0) {
+      await new Promise((resolve) => setTimeout(resolve, shutdownDrainMs));
+    }
+    await stopChild(child, {
+      endpoint,
+      hostControlToken,
+      expectedRuntimeInstanceId: capabilities?.host?.runtime_instance_id ?? null
+    });
     await Promise.allSettled([finished(stdoutStream), finished(stderrStream)]);
+    if (completedReport != null) {
+      completedReport.runtime_diagnostics = analyzeRuntimeDiagnostics({
+        stdout: readFileSync(stdoutFile, "utf8"),
+        stderr: readFileSync(stderrFile, "utf8")
+      });
+      writeFileSync(reportFile, `${JSON.stringify(completedReport, null, 2)}\n`);
+    }
   }
 }

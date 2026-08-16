@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { finished } from "node:stream/promises";
@@ -13,6 +13,7 @@ import { evaluateRuntimeCompatibility } from "./compatibility.mjs";
 import { readProjectIdentity } from "./project-identity.mjs";
 import { publicProfileDescriptor, resolveLaunchProfile } from "./profile-isolation.mjs";
 import { resolveConnectorEndpoint } from "./connector-endpoint.mjs";
+import { HOST_CONTROL_TOKEN_ENVIRONMENT_VARIABLE } from "./connector-endpoint.mjs";
 
 export function listGameProcesses(platform = process.platform) {
   if (platform === "win32") {
@@ -167,15 +168,64 @@ export async function waitForExit(child, timeoutMs) {
   ]);
 }
 
-export async function stopChild(child) {
+export async function requestHostShutdown({
+  endpoint,
+  hostControlToken,
+  expectedRuntimeInstanceId,
+  timeoutMs = 5_000
+}) {
+  if (!endpoint || !hostControlToken || !expectedRuntimeInstanceId) {
+    return { status: "unavailable", response: null, error: "host_control_not_configured" };
+  }
+  try {
+    const response = await fetch(`${endpoint.replace(/\/$/u, "")}/api/host-control/shutdown`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        expected_runtime_instance_id: expectedRuntimeInstanceId,
+        host_control_token: hostControlToken
+      }),
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+    const body = await response.json();
+    return {
+      status: response.ok && body?.status === "shutdown_requested" ? "requested" : "rejected",
+      http_status: response.status,
+      response: body,
+      error: response.ok ? null : body?.error?.code ?? `HTTP ${response.status}`
+    };
+  } catch (error) {
+    return {
+      status: "transport_error",
+      response: null,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+export async function stopChild(child, {
+  endpoint = null,
+  hostControlToken = null,
+  expectedRuntimeInstanceId = null
+} = {}) {
+  const hostShutdown = await requestHostShutdown({
+    endpoint,
+    hostControlToken,
+    expectedRuntimeInstanceId
+  });
+  if (hostShutdown.status === "requested") {
+    const gracefulExit = await waitForExit(child, 10_000);
+    if (gracefulExit != null) return { ...gracefulExit, host_shutdown: hostShutdown, forced: false };
+  }
   child.kill("SIGINT");
   let exit = await waitForExit(child, 5_000);
-  if (exit != null) return exit;
+  if (exit != null) return { ...exit, host_shutdown: hostShutdown, forced: true };
   child.kill("SIGTERM");
   exit = await waitForExit(child, 5_000);
-  if (exit != null) return exit;
+  if (exit != null) return { ...exit, host_shutdown: hostShutdown, forced: true };
   child.kill("SIGKILL");
-  return await waitForExit(child, 3_000);
+  exit = await waitForExit(child, 3_000);
+  return exit == null ? null : { ...exit, host_shutdown: hostShutdown, forced: true };
 }
 
 function safeTimestamp() {
@@ -192,6 +242,7 @@ export function shippedRuntimeLaunch(installation, {
   const connector = connectorEndpoint == null
     ? null
     : resolveConnectorEndpoint(connectorEndpoint);
+  const hostControlToken = connector == null ? null : randomBytes(32).toString("hex");
   const args = ["--headless", "--verbose", ...(launchProfile?.args ?? [])];
   const environment = {
     ...process.env,
@@ -199,6 +250,9 @@ export function shippedRuntimeLaunch(installation, {
     SteamGameId: process.env.SteamGameId ?? STS2_APP_ID,
     ...(launchProfile?.environment ?? {}),
     ...(connector?.process_environment ?? {}),
+    ...(hostControlToken == null
+      ? {}
+      : { [HOST_CONTROL_TOKEN_ENVIRONMENT_VARIABLE]: hostControlToken }),
     ...extraEnvironment
   };
   if (launchProfile?.steam === "disabled_before_platform_initialization") {
@@ -210,7 +264,7 @@ export function shippedRuntimeLaunch(installation, {
     env: environment,
     stdio: ["ignore", stdout, stderr]
   });
-  return { child, args, environment, connector };
+  return { child, args, environment, connector, hostControlToken };
 }
 
 export async function runShippedProbe({
@@ -258,7 +312,7 @@ export async function runShippedProbe({
   if (beforeLog != null) writeFileSync(path.join(evidenceDir, "godot.before.log"), beforeLog);
 
   const endpointBefore = await readJson(endpoint, "/api/player-environment/capabilities", 1000);
-  const { child, args, connector } = shippedRuntimeLaunch(installation, {
+  const { child, args, connector, hostControlToken } = shippedRuntimeLaunch(installation, {
     launchProfile,
     connectorEndpoint: endpoint
   });
@@ -276,7 +330,11 @@ export async function runShippedProbe({
     controlGate = await exerciseMenuControl(endpoint, child, timeoutMs, headlessIdentity.version);
   }
 
-  const processExit = await stopChild(child);
+  const processExit = await stopChild(child, {
+    endpoint,
+    hostControlToken,
+    expectedRuntimeInstanceId: capabilitiesResult.value?.host?.runtime_instance_id ?? null
+  });
   await Promise.allSettled([finished(stdoutStream), finished(stderrStream)]);
 
   const stdout = existsSync(stdoutFile) ? readFileSync(stdoutFile, "utf8") : "";

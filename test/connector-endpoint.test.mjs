@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   CONNECTOR_PORT_ENVIRONMENT_VARIABLE,
+  HOST_CONTROL_TOKEN_ENVIRONMENT_VARIABLE,
   resolveConnectorEndpoint
 } from "../src/connector-endpoint.mjs";
 
@@ -12,6 +13,7 @@ test("binds one explicit loopback endpoint to process-local Connector config", (
     process_environment: { [CONNECTOR_PORT_ENVIRONMENT_VARIABLE]: "16001" }
   });
   assert.equal(resolveConnectorEndpoint("http://localhost:16002").port, 16002);
+  assert.equal(HOST_CONTROL_TOKEN_ENVIRONMENT_VARIABLE, "STS2_CONNECTOR_HOST_CONTROL_TOKEN");
 });
 
 test("rejects ambiguous, remote, implicit, and path-bearing endpoints", () => {

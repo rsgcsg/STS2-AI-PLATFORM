@@ -12,6 +12,7 @@ import { finished } from "node:stream/promises";
 import { SUPPORTED_PLAYER_ENVIRONMENT_PROTOCOL } from "@rsgcsg/sts2-connector-client";
 import {
   readJson,
+  requestHostShutdown,
   shippedRuntimeLaunch,
   snapshotIsInteractive,
   stopChild,
@@ -85,7 +86,8 @@ function hostFiles(localRoot) {
   const runtimeRoot = path.join(localRoot, "runtime");
   return {
     runtimeRoot,
-    current: path.join(runtimeRoot, "current.json")
+    current: path.join(runtimeRoot, "current.json"),
+    control: path.join(runtimeRoot, "current-control.json")
   };
 }
 
@@ -142,17 +144,39 @@ export async function stopHeadlessHost({ localRoot, endpoint = DEFAULT_ENDPOINT 
   if (!commandOwnsHeadlessRuntime(command, record.executable)) {
     throw new Error(`Refusing to signal PID ${record.pid}; it is not the recorded Headless runtime.`);
   }
-  process.kill(record.pid, "SIGINT");
+  const control = existsSync(files.control)
+    ? JSON.parse(readFileSync(files.control, "utf8"))
+    : null;
+  const hostShutdown = await requestHostShutdown({
+    endpoint,
+    hostControlToken: control?.host_control_token ?? null,
+    expectedRuntimeInstanceId: record.loaded_identity?.host?.runtime_instance_id ?? null
+  });
   const started = Date.now();
-  while (Date.now() - started < 10_000 && processCommand(record.pid)) {
+  while (hostShutdown.status === "requested"
+      && Date.now() - started < 10_000
+      && processCommand(record.pid)) {
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  const stopped = processCommand(record.pid) == null;
+  let stopped = processCommand(record.pid) == null;
+  let forced = false;
+  if (!stopped) {
+    process.kill(record.pid, "SIGKILL");
+    forced = true;
+    const forcedStarted = Date.now();
+    while (Date.now() - forcedStarted < 5_000 && processCommand(record.pid)) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+    stopped = processCommand(record.pid) == null;
+  }
   if (stopped && existsSync(files.current)) unlinkSync(files.current);
+  if (stopped && existsSync(files.control)) unlinkSync(files.control);
   const endpointAfter = await readJson(endpoint, "/api/player-environment/capabilities", 1000);
   return {
     status: stopped ? "stopped" : "still_running",
     pid: record.pid,
+    host_shutdown: hostShutdown,
+    forced,
     endpoint_released: !endpointAfter.ok
   };
 }
@@ -188,6 +212,15 @@ export async function runHeadlessHost({
     connectorEndpoint: endpoint
   });
   const { child, args } = launch;
+  if (launch.hostControlToken == null) {
+    throw new Error("Connector Host lifecycle control was not configured for the process.");
+  }
+  mkdirSync(files.runtimeRoot, { recursive: true });
+  writeFileSync(files.control, `${JSON.stringify({
+    schema_version: 1,
+    pid: child.pid,
+    host_control_token: launch.hostControlToken
+  })}\n`, { mode: 0o600 });
   const stdoutStream = createWriteStream(stdoutFile);
   const stderrStream = createWriteStream(stderrFile);
   child.stdout.pipe(stdoutStream);
@@ -256,7 +289,11 @@ export async function runHeadlessHost({
     const forwardSignal = () => {
       if (stopping) return;
       stopping = true;
-      child.kill("SIGINT");
+      void stopChild(child, {
+        endpoint,
+        hostControlToken: launch.hostControlToken,
+        expectedRuntimeInstanceId: record.loaded_identity?.host?.runtime_instance_id ?? null
+      });
     };
     process.once("SIGINT", forwardSignal);
     process.once("SIGTERM", forwardSignal);
@@ -268,9 +305,14 @@ export async function runHeadlessHost({
     if (existsSync(files.current) && readHostRecord(files.current)?.pid === child.pid) {
       unlinkSync(files.current);
     }
+    if (existsSync(files.control)) unlinkSync(files.control);
     return record;
   } catch (error) {
-    const exit = await stopChild(child);
+    const exit = await stopChild(child, {
+      endpoint,
+      hostControlToken: launch.hostControlToken,
+      expectedRuntimeInstanceId: record.loaded_identity?.host?.runtime_instance_id ?? null
+    });
     record = {
       ...record,
       status: "failed",
@@ -282,6 +324,7 @@ export async function runHeadlessHost({
     if (existsSync(files.current) && readHostRecord(files.current)?.pid === child.pid) {
       unlinkSync(files.current);
     }
+    if (existsSync(files.control)) unlinkSync(files.control);
     throw error;
   } finally {
     await Promise.allSettled([finished(stdoutStream), finished(stderrStream)]);
