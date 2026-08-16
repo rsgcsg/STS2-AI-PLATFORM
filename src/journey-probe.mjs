@@ -286,25 +286,114 @@ export function evaluateBoundedJourney(input) {
   };
 }
 
-async function waitForSuccessor(client, previousSnapshotId, child, timeoutMs) {
-  const started = Date.now();
-  let latest = null;
-  while (Date.now() - started < timeoutMs) {
-    latest = (await client.observe()).data;
-    const actionable = latest.status === "interactive"
-      && latest.bound_actions?.status === "complete"
-      && latest.bound_actions.actions.length > 0;
-    if (latest.snapshot_id !== previousSnapshotId
-        && (actionable || latest.status === "visible_unsupported")) {
-      return latest;
-    }
-    if (child.exitCode != null || child.signalCode != null) return latest;
-    await new Promise((resolve) => setTimeout(resolve, 150));
-  }
-  return latest;
+function successorObservation(snapshot, elapsedMs) {
+  return {
+    first_elapsed_ms: elapsedMs,
+    last_elapsed_ms: elapsedMs,
+    sample_count: 1,
+    first_snapshot_id: snapshot?.snapshot_id ?? null,
+    last_snapshot_id: snapshot?.snapshot_id ?? null,
+    status: snapshot?.status ?? null,
+    interaction_kind: snapshot?.interaction?.kind ?? null,
+    interaction_stage: snapshot?.interaction?.stage ?? null,
+    bound_action_status: snapshot?.bound_actions?.status ?? null,
+    bound_action_count: Array.isArray(snapshot?.bound_actions?.actions)
+      ? snapshot.bound_actions.actions.length
+      : null
+  };
 }
 
-function compactStep(snapshot, action, receipt, timing) {
+function successorObservationKey(observation) {
+  return JSON.stringify({
+    status: observation.status,
+    interaction_kind: observation.interaction_kind,
+    interaction_stage: observation.interaction_stage,
+    bound_action_status: observation.bound_action_status,
+    bound_action_count: observation.bound_action_count
+  });
+}
+
+function appendSuccessorObservation(observations, snapshot, elapsedMs) {
+  const next = successorObservation(snapshot, elapsedMs);
+  const previous = observations.at(-1);
+  if (previous != null && successorObservationKey(previous) === successorObservationKey(next)) {
+    previous.last_elapsed_ms = elapsedMs;
+    previous.sample_count += 1;
+    previous.last_snapshot_id = next.last_snapshot_id;
+    return;
+  }
+  observations.push(next);
+}
+
+function stableSuccessor(snapshot, previousSnapshotId) {
+  const actionable = snapshot?.status === "interactive"
+    && snapshot?.bound_actions?.status === "complete"
+    && snapshot.bound_actions.actions.length > 0;
+  return snapshot?.snapshot_id !== previousSnapshotId
+    && (actionable || snapshot?.status === "visible_unsupported");
+}
+
+function immediateSuccessorWait(previousSnapshotId, snapshot, terminal = "receipt_successor") {
+  const observations = [];
+  appendSuccessorObservation(observations, snapshot, 0);
+  return {
+    schema: "sts2.headless/successor-wait-1",
+    previous_snapshot_id: previousSnapshotId,
+    terminal,
+    poll_count: 0,
+    elapsed_ms: 0,
+    observations
+  };
+}
+
+export async function waitForSuccessor(
+  client,
+  previousSnapshotId,
+  child,
+  timeoutMs,
+  { initialSnapshot = null, pollIntervalMs = 150 } = {}
+) {
+  const started = performance.now();
+  const observations = [];
+  if (initialSnapshot != null) appendSuccessorObservation(observations, initialSnapshot, 0);
+  let latest = initialSnapshot;
+  let terminal = "timeout";
+  let pollCount = 0;
+  while (performance.now() - started < timeoutMs) {
+    latest = (await client.observe()).data;
+    pollCount += 1;
+    const elapsedMs = performance.now() - started;
+    appendSuccessorObservation(observations, latest, elapsedMs);
+    if (stableSuccessor(latest, previousSnapshotId)) {
+      terminal = "stable_successor";
+      break;
+    }
+    if (child.exitCode != null || child.signalCode != null) {
+      terminal = "child_exit";
+      break;
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+  return {
+    snapshot: latest,
+    profile: {
+      schema: "sts2.headless/successor-wait-1",
+      previous_snapshot_id: previousSnapshotId,
+      terminal,
+      poll_count: pollCount,
+      elapsed_ms: performance.now() - started,
+      observations
+    }
+  };
+}
+
+function compactStep(
+  snapshot,
+  action,
+  receipt,
+  timing,
+  { successorWait = null, observedSuccessor = receipt.successor } = {}
+) {
   return {
     at: new Date().toISOString(),
     snapshot_id: snapshot.snapshot_id,
@@ -324,6 +413,11 @@ function compactStep(snapshot, action, receipt, timing) {
     reason_code: receipt.reason_code ?? null,
     successor_snapshot_id: receipt.successor?.snapshot_id ?? null,
     successor_status: receipt.successor?.status ?? null,
+    observed_successor_snapshot_id: observedSuccessor?.snapshot_id ?? null,
+    observed_successor_status: observedSuccessor?.status ?? null,
+    observed_successor_interaction_kind: observedSuccessor?.interaction?.kind ?? null,
+    observed_successor_interaction_stage: observedSuccessor?.interaction?.stage ?? null,
+    successor_wait: successorWait,
     timing
   };
 }
@@ -589,24 +683,40 @@ export async function runBoundedJourney({
       if (isRefreshableStaleReceipt(receipt)) {
         staleRefusals += 1;
         consecutiveStale += 1;
-        record({
-          type: "stale_refusal",
-          ...compactStep(snapshot, action, receipt, null),
-          consecutive_stale: consecutiveStale
-        });
         if (consecutiveStale > maxConsecutiveStale) {
+          record({
+            type: "stale_refusal",
+            ...compactStep(snapshot, action, receipt, null),
+            consecutive_stale: consecutiveStale
+          });
           terminal = "stale_livelock";
           break;
         }
         let refreshed = receipt.successor;
+        let successorWait = immediateSuccessorWait(
+          snapshot.snapshot_id,
+          refreshed,
+          "receipt_stale_successor"
+        );
         if (refreshed.status === "settling") {
-          refreshed = await waitForSuccessor(
+          const waitResult = await waitForSuccessor(
             client,
             refreshed.snapshot_id,
             child,
-            actionTimeoutMs
+            actionTimeoutMs,
+            { initialSnapshot: refreshed }
           );
+          refreshed = waitResult.snapshot;
+          successorWait = waitResult.profile;
         }
+        record({
+          type: "stale_refusal",
+          ...compactStep(snapshot, action, receipt, null, {
+            successorWait,
+            observedSuccessor: refreshed
+          }),
+          consecutive_stale: consecutiveStale
+        });
         if (!refreshed) {
           successorFailures += 1;
           terminal = "stale_successor_timeout";
@@ -627,8 +737,17 @@ export async function runBoundedJourney({
         break;
       }
       let successor = receipt.successor;
+      let successorWait = immediateSuccessorWait(snapshot.snapshot_id, successor);
       if (!successor || successor.snapshot_id === snapshot.snapshot_id || successor.status === "settling") {
-        successor = await waitForSuccessor(client, snapshot.snapshot_id, child, actionTimeoutMs);
+        const waitResult = await waitForSuccessor(
+          client,
+          snapshot.snapshot_id,
+          child,
+          actionTimeoutMs,
+          { initialSnapshot: successor }
+        );
+        successor = waitResult.snapshot;
+        successorWait = waitResult.profile;
       }
       if (!successor) {
         successorFailures += 1;
@@ -649,7 +768,13 @@ export async function runBoundedJourney({
         successorReadyMs
       });
       semanticDecisionDurations.push(timing.semantic_decision_ms);
-      record({ type: "action", ...compactStep(snapshot, action, receipt, timing) });
+      record({
+        type: "action",
+        ...compactStep(snapshot, action, receipt, timing, {
+          successorWait,
+          observedSuccessor: successor
+        })
+      });
       surfaces.add(snapshot.interaction.kind);
       if (receipt.delivery === "delivered") {
         consecutiveStale = 0;

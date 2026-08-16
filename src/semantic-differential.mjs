@@ -2,6 +2,11 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { readDiskIdentity } from "./game-installation.mjs";
 import { canonicalizeEpisodeSeed } from "./episode-provenance.mjs";
+import {
+  canonicalDescriptorJson,
+  runHostScenario,
+  validateSemanticTarget
+} from "./host-driver.mjs";
 import { runBoundedJourney } from "./journey-probe.mjs";
 import { instantiateProfileTemplate } from "./profile-template.mjs";
 import { readProjectIdentity } from "./project-identity.mjs";
@@ -29,6 +34,16 @@ function comparableIdentity(report) {
     game_commit: report?.loaded_identity?.game?.commit ?? null,
     game_main_assembly_hash: report?.loaded_identity?.game?.main_assembly_hash ?? null,
     modset_fingerprint: report?.loaded_identity?.game?.modset?.fingerprint ?? null
+  };
+}
+
+function implementationIdentity(report) {
+  return {
+    host_kind: report?.loaded_identity?.host?.host_kind ?? null,
+    source_revision: report?.loaded_identity?.host?.implementation?.source_revision ?? null,
+    artifact_sha256: report?.loaded_identity?.host?.implementation?.artifact_sha256 ?? null,
+    module_version_id: report?.loaded_identity?.host?.implementation?.module_version_id ?? null,
+    runtime_instance_id: report?.loaded_identity?.host?.runtime_instance_id ?? null
   };
 }
 
@@ -87,6 +102,24 @@ function semanticEvent(event) {
   return null;
 }
 
+function compareSemanticEventStreams(referenceEvents, candidateEvents) {
+  const expected = referenceEvents.map(semanticEvent).filter(Boolean);
+  const actual = candidateEvents.map(semanticEvent).filter(Boolean);
+  let firstDivergence = null;
+  const length = Math.max(expected.length, actual.length);
+  for (let index = 0; index < length; index += 1) {
+    if (JSON.stringify(expected[index] ?? null) !== JSON.stringify(actual[index] ?? null)) {
+      firstDivergence = {
+        semantic_event_index: index,
+        reference: expected[index] ?? null,
+        candidate: actual[index] ?? null
+      };
+      break;
+    }
+  }
+  return { expected, actual, firstDivergence };
+}
+
 export function compareSemanticTrajectories({
   referenceReport,
   candidateReport,
@@ -125,20 +158,10 @@ export function compareSemanticTrajectories({
     errors.push("trajectory_integrity_incomplete");
   }
 
-  const expected = referenceEvents.map(semanticEvent).filter(Boolean);
-  const actual = candidateEvents.map(semanticEvent).filter(Boolean);
-  let firstDivergence = null;
-  const length = Math.max(expected.length, actual.length);
-  for (let index = 0; index < length; index += 1) {
-    if (JSON.stringify(expected[index] ?? null) !== JSON.stringify(actual[index] ?? null)) {
-      firstDivergence = {
-        semantic_event_index: index,
-        reference: expected[index] ?? null,
-        candidate: actual[index] ?? null
-      };
-      break;
-    }
-  }
+  const { expected, actual, firstDivergence } = compareSemanticEventStreams(
+    referenceEvents,
+    candidateEvents
+  );
   if (firstDivergence != null) errors.push("semantic_trajectory_diverged");
 
   return {
@@ -151,6 +174,116 @@ export function compareSemanticTrajectories({
     reference_semantic_event_count: expected.length,
     candidate_semantic_event_count: actual.length,
     first_divergence: firstDivergence
+  };
+}
+
+function reportedTargetErrors(report, target, side) {
+  const errors = [];
+  if (report?.loaded_identity?.protocol !== target.protocol_version) {
+    errors.push(`${side}_protocol_does_not_meet_semantic_target`);
+  }
+  const game = report?.loaded_identity?.game;
+  if (game?.version !== target.game_build.version
+      || game?.commit !== target.game_build.commit
+      || game?.main_assembly_hash !== target.game_build.main_assembly_hash) {
+    errors.push(`${side}_game_build_does_not_meet_semantic_target`);
+  }
+  return errors;
+}
+
+function eventInformationPolicyErrors(events, target, side) {
+  const ids = events.flatMap((event) => {
+    if (event?.type === "action") {
+      return [event.canonical_decision?.information_policy?.id ?? null];
+    }
+    if (event?.type === "read") {
+      return [event.canonical_read?.information_policy?.id ?? null];
+    }
+    return [];
+  });
+  if (ids.length === 0 || ids.some((id) => id !== target.information_policy_id)) {
+    return [`${side}_information_policy_does_not_meet_semantic_target`];
+  }
+  return [];
+}
+
+export function compareCrossHostTrajectories({ referenceRun, candidateRun }) {
+  const errors = [];
+  const referenceTarget = referenceRun?.driver?.semantic_target;
+  const candidateTarget = candidateRun?.driver?.semantic_target;
+  if (validateSemanticTarget(referenceTarget).length > 0
+      || validateSemanticTarget(candidateTarget).length > 0
+      || canonicalDescriptorJson(referenceTarget) !== canonicalDescriptorJson(candidateTarget)) {
+    errors.push("semantic_target_mismatch");
+  }
+  if (canonicalDescriptorJson(referenceRun?.scenario ?? null)
+      !== canonicalDescriptorJson(candidateRun?.scenario ?? null)) {
+    errors.push("scenario_descriptor_mismatch");
+  }
+  if (errors.length === 0) {
+    errors.push(...reportedTargetErrors(referenceRun.report, referenceTarget, "reference"));
+    errors.push(...reportedTargetErrors(candidateRun.report, candidateTarget, "candidate"));
+    errors.push(...eventInformationPolicyErrors(referenceRun.events, referenceTarget, "reference"));
+    errors.push(...eventInformationPolicyErrors(candidateRun.events, candidateTarget, "candidate"));
+  }
+
+  const referenceImplementation = implementationIdentity(referenceRun?.report);
+  const candidateImplementation = implementationIdentity(candidateRun?.report);
+  if (Object.values(referenceImplementation).some((value) => value == null)) {
+    errors.push("reference_implementation_identity_incomplete");
+  }
+  if (Object.values(candidateImplementation).some((value) => value == null)) {
+    errors.push("candidate_implementation_identity_incomplete");
+  }
+  if (referenceImplementation.runtime_instance_id === candidateImplementation.runtime_instance_id) {
+    errors.push("runtime_instances_not_independent");
+  }
+  const requestedSeed = referenceRun?.scenario?.seed ?? null;
+  const referenceProvenance = referenceRun?.report?.episode_provenance;
+  const candidateProvenance = candidateRun?.report?.episode_provenance;
+  if (referenceProvenance?.verdict !== "provenance_pass"
+      || candidateProvenance?.verdict !== "provenance_pass"
+      || referenceProvenance?.actual_seed !== requestedSeed
+      || candidateProvenance?.actual_seed !== requestedSeed) {
+    errors.push("episode_seed_not_comparable");
+  }
+  if (referenceRun?.report?.verdict?.integrity?.verdict !== "integrity_pass"
+      || candidateRun?.report?.verdict?.integrity?.verdict !== "integrity_pass") {
+    errors.push("trajectory_integrity_incomplete");
+  }
+
+  const { expected, actual, firstDivergence } = compareSemanticEventStreams(
+    referenceRun?.events ?? [],
+    candidateRun?.events ?? []
+  );
+  if (firstDivergence != null) errors.push("semantic_trajectory_diverged");
+
+  return {
+    schema: "sts2.headless/cross-host-differential-1",
+    verdict: errors.length === 0 ? "cross_host_semantic_match" : "cross_host_semantic_mismatch",
+    errors,
+    semantic_target: errors.includes("semantic_target_mismatch") ? null : referenceTarget,
+    scenario: errors.includes("scenario_descriptor_mismatch") ? null : referenceRun?.scenario ?? null,
+    reference_implementation: referenceImplementation,
+    candidate_implementation: candidateImplementation,
+    reference_semantic_event_count: expected.length,
+    candidate_semantic_event_count: actual.length,
+    first_divergence: firstDivergence,
+    non_claims: [
+      "A matching bounded scenario is not full-run or changed-build qualification.",
+      "Implementation identity is provenance, not a requirement that different Hosts share binaries.",
+      "The semantic target and scenario must be expanded as the qualified corpus grows."
+    ]
+  };
+}
+
+export async function runCrossHostDifferential({ referenceDriver, candidateDriver, scenario }) {
+  const referenceRun = await runHostScenario(referenceDriver, scenario);
+  const candidateRun = await runHostScenario(candidateDriver, scenario);
+  return {
+    reference_run: referenceRun,
+    candidate_run: candidateRun,
+    comparison: compareCrossHostTrajectories({ referenceRun, candidateRun })
   };
 }
 

@@ -1,0 +1,124 @@
+{
+  "schema": "sts2.headless/exact-source-wait-seams-1",
+  "status": "hypothesis_only",
+  "game_identity": {
+    "platform": "darwin-arm64",
+    "version": "v0.111.0",
+    "commit": "41cef1ea",
+    "main_assembly_hash": 1010476334,
+    "sts2_dll_sha256": "9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4"
+  },
+  "source_basis": {
+    "kind": "local_decompilation_for_research",
+    "committed_source": false,
+    "purpose": "Map measured Player Environment waits to exact-build symbols without redistributing proprietary source."
+  },
+  "seams": [
+    {
+      "id": "singleplayer_run_entry",
+      "symbol": "MegaCrit.Sts2.Core.Nodes.Screens.CharacterSelect.NCharacterSelectScreen.StartNewSingleplayerRun",
+      "source_locator": "Core/Nodes/Screens/CharacterSelect/NCharacterSelectScreen.cs:433-456",
+      "observed_structure": [
+        "optional Cmd.Wait before embark",
+        "character transition fade",
+        "native NGame.StartNewSingleplayerRun"
+      ],
+      "hypothesis": "The long run-mount boundary mixes presentation waits with required native run construction and asset loading.",
+      "safe_to_remove": "unproven"
+    },
+    {
+      "id": "native_run_construction",
+      "symbol": "MegaCrit.Sts2.Core.Nodes.NGame.StartRun",
+      "source_locator": "Core/Nodes/NGame.cs:797-807",
+      "observed_structure": [
+        "load run assets",
+        "load first act assets",
+        "finalize starting relics",
+        "launch RunManager",
+        "mount NRun",
+        "enter first act"
+      ],
+      "hypothesis": "This work is semantic/native initialization and must not be classified as presentation-only without differential evidence.",
+      "safe_to_remove": false
+    },
+    {
+      "id": "map_travel",
+      "symbol": "MegaCrit.Sts2.Core.Nodes.Screens.Map.NMapScreen.TravelToMapCoord",
+      "source_locator": "Core/Nodes/Screens/Map/NMapScreen.cs:534-592",
+      "observed_structure": [
+        "map selection and path presentation",
+        "Cmd.Wait path ticks",
+        "fade-out",
+        "native RunManager.EnterMapCoord",
+        "fade-in"
+      ],
+      "hypothesis": "The room-mount boundary mixes skippable presentation timing with required native room entry.",
+      "safe_to_remove": "unproven"
+    },
+    {
+      "id": "native_action_queue_execution",
+      "symbol": "MegaCrit.Sts2.Core.GameActions.ActionExecutor.ExecuteActions",
+      "source_locator": "Core/GameActions/ActionExecutor.cs:123-197",
+      "observed_structure": [
+        "normal mode waits on ProcessFrame while each native action executes",
+        "NonInteractiveMode directly awaits the same GameAction.Execute",
+        "native win-condition checks remain in both branches"
+      ],
+      "hypothesis": "NonInteractiveMode may remove frame/presentation coupling while retaining native action semantics, but this must be tested against the canonical Player Environment.",
+      "safe_to_remove": "not_applicable"
+    },
+    {
+      "id": "native_wait_command",
+      "symbol": "MegaCrit.Sts2.Core.Commands.Cmd.Wait",
+      "source_locator": "Core/Commands/Cmd.cs:36-49",
+      "observed_structure": [
+        "normal mode creates a Godot SceneTreeTimer",
+        "NonInteractiveMode skips the timer"
+      ],
+      "hypothesis": "Enabling the shipped non-interactive seam is a bounded candidate for removing presentation waits without replacing game rules.",
+      "safe_to_remove": "unproven"
+    },
+    {
+      "id": "shipped_non_interactive_switch",
+      "symbol": "MegaCrit.Sts2.Core.Helpers.NonInteractiveMode.IsActive",
+      "source_locator": "Core/Helpers/NonInteractiveMode.cs:6-20",
+      "observed_structure": [
+        "active in TestMode or when AutoSlayerCheck returns true"
+      ],
+      "hypothesis": "An exact-build, process-local experiment can exercise this shipped seam without patching individual gameplay methods.",
+      "safe_to_remove": "not_applicable"
+    },
+    {
+      "id": "official_autoslayer_activation",
+      "symbol": "MegaCrit.Sts2.Core.AutoSlay.AutoSlayer..cctor",
+      "source_locator": "Core/AutoSlay/AutoSlayer.cs:71-74",
+      "observed_structure": [
+        "assigns NonInteractiveMode.AutoSlayerCheck to AutoSlayer.IsActive"
+      ],
+      "hypothesis": "The game itself treats NonInteractiveMode as a supported internal execution mode, but that does not qualify Connector-driven use.",
+      "safe_to_remove": "not_applicable"
+    }
+  ],
+  "experiment_contract": {
+    "status": "not_run",
+    "required_sequence": [
+      "exact Reference baseline",
+      "minimal process-local opt-in",
+      "same seed and deterministic policy benchmark",
+      "same-artifact repeatability",
+      "cross-Host semantic differential",
+      "keep or revert"
+    ],
+    "kill_conditions": [
+      "Player Environment publication disappears or becomes incomplete",
+      "native legality or Commit path is bypassed",
+      "canonical semantic trajectory diverges without an explained Reference defect",
+      "unknown delivery or non-deterministic mutation appears"
+    ]
+  },
+  "non_claims": [
+    "Source inspection does not prove runtime causality.",
+    "A shipped internal switch is not a public compatibility promise.",
+    "No wait seam in this ledger is qualified for H1.0 until measured on the exact artifact."
+  ]
+}

@@ -7,7 +7,8 @@ import {
   evaluateBoundedJourney,
   evaluateJourneyIntegrity,
   evaluateSurfaceCoverage,
-  terminalForReceipt
+  terminalForReceipt,
+  waitForSuccessor
 } from "../src/journey-probe.mjs";
 
 function snapshot(kind, actions, stage = "ready") {
@@ -190,6 +191,51 @@ test("only proven not-delivered stale receipts can refresh the test consumer", (
     delivery: "not_delivered",
     reason_code: "stale_snapshot"
   }), false);
+});
+
+test("successor wait trace coalesces equivalent settling states and retains the terminal state", async () => {
+  const observed = [
+    {
+      snapshot_id: "state-2",
+      status: "settling",
+      interaction: { kind: "character_select", stage: "committing" },
+      bound_actions: { status: "unavailable", actions: [] }
+    },
+    {
+      snapshot_id: "state-3",
+      status: "settling",
+      interaction: { kind: "character_select", stage: "committing" },
+      bound_actions: { status: "unavailable", actions: [] }
+    },
+    {
+      snapshot_id: "state-4",
+      status: "interactive",
+      interaction: { kind: "event_option", stage: "ready" },
+      bound_actions: { status: "complete", actions: [{ bound_action_id: "continue" }] }
+    }
+  ];
+  const client = { observe: async () => ({ data: observed.shift() }) };
+  const result = await waitForSuccessor(client, "state-1", {
+    exitCode: null,
+    signalCode: null
+  }, 1_000, {
+    initialSnapshot: {
+      snapshot_id: "state-receipt",
+      status: "settling",
+      interaction: { kind: "character_select", stage: "committing" },
+      bound_actions: { status: "unavailable", actions: [] }
+    },
+    pollIntervalMs: 0
+  });
+
+  assert.equal(result.snapshot.snapshot_id, "state-4");
+  assert.equal(result.profile.terminal, "stable_successor");
+  assert.equal(result.profile.poll_count, 3);
+  assert.equal(result.profile.observations.length, 2);
+  assert.equal(result.profile.observations[0].sample_count, 3);
+  assert.equal(result.profile.observations[0].first_snapshot_id, "state-receipt");
+  assert.equal(result.profile.observations[0].last_snapshot_id, "state-3");
+  assert.equal(result.profile.observations[1].interaction_kind, "event_option");
 });
 
 test("bounded journey gate accepts equivalent run-entry surfaces", () => {

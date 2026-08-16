@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { compareSemanticTrajectories } from "../src/semantic-differential.mjs";
+import {
+  compareCrossHostTrajectories,
+  compareSemanticTrajectories
+} from "../src/semantic-differential.mjs";
 
 function report(runtime, seed = "SEED01", sha = "artifact") {
   return {
@@ -37,6 +40,7 @@ function action(digest = "decision-a", verb = "select", referentId = "referent-0
     type: "action",
     canonical_decision_digest: digest,
     canonical_decision: {
+      information_policy: { id: "player_visible_v1" },
       referents: [{
         canonical_referent_id: referentId,
         role: "card",
@@ -101,4 +105,63 @@ test("semantic differential rejects different artifacts and seeds before qualifi
   assert.equal(result.verdict, "semantic_mismatch");
   assert.ok(result.errors.includes("environment_identity_not_comparable"));
   assert.ok(result.errors.includes("episode_seed_not_comparable"));
+});
+
+const crossHostTarget = {
+  schema: "sts2.headless/semantic-target-1",
+  target_id: "sts2-v0.111.0-player-visible-v1",
+  protocol_version: "1.0-rc.2",
+  game_build: { version: "v0.111.0", commit: "41cef1ea", main_assembly_hash: 222455745 },
+  content_policy_id: "vanilla_connector_only",
+  information_policy_id: "player_visible_v1"
+};
+
+const crossHostScenario = {
+  schema: "sts2.headless/scenario-1",
+  scenario_id: "combat-smoke",
+  seed: "SEED01",
+  policy_id: "deterministic-probe-1",
+  max_actions: 8
+};
+
+function crossHostRun({ runtime, sha, hostKind, target = crossHostTarget, events = [action()] }) {
+  const value = report(runtime, crossHostScenario.seed, sha);
+  value.loaded_identity.host.host_kind = hostKind;
+  return {
+    driver: {
+      semantic_target: target,
+      implementation: { artifact_sha256: sha }
+    },
+    scenario: crossHostScenario,
+    report: value,
+    events
+  };
+}
+
+test("cross-Host differential admits different artifacts against one explicit semantic target", () => {
+  const result = compareCrossHostTrajectories({
+    referenceRun: crossHostRun({ runtime: "runtime-reference", sha: "shipped-artifact", hostKind: "shipped_reference" }),
+    candidateRun: crossHostRun({ runtime: "runtime-fast", sha: "fast-artifact", hostKind: "managed_exact" })
+  });
+  assert.equal(result.verdict, "cross_host_semantic_match");
+  assert.equal(result.reference_implementation.artifact_sha256, "shipped-artifact");
+  assert.equal(result.candidate_implementation.artifact_sha256, "fast-artifact");
+});
+
+test("cross-Host differential fails closed when targets differ", () => {
+  const changedTarget = {
+    ...crossHostTarget,
+    information_policy_id: "privileged_debug"
+  };
+  const result = compareCrossHostTrajectories({
+    referenceRun: crossHostRun({ runtime: "runtime-reference", sha: "reference", hostKind: "shipped_reference" }),
+    candidateRun: crossHostRun({
+      runtime: "runtime-fast",
+      sha: "candidate",
+      hostKind: "managed_exact",
+      target: changedTarget
+    })
+  });
+  assert.equal(result.verdict, "cross_host_semantic_mismatch");
+  assert.ok(result.errors.includes("semantic_target_mismatch"));
 });
