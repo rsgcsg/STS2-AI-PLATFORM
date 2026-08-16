@@ -36,4 +36,25 @@ public sealed class HostLifecycleControlTests
         Assert.True(allowed.Allowed);
         Assert.Equal("shutdown_authorized", allowed.Status);
     }
+
+    [Fact]
+    public void RunSeedCanonicalizesTheNativeSeedAlphabet()
+    {
+        Assert.Equal("01ABC123", HostRunSeedControl.ResolveConfiguredSeed(" oiabc123 "));
+        Assert.Null(HostRunSeedControl.ResolveConfiguredSeed(null));
+        Assert.Throws<InvalidOperationException>(() => HostRunSeedControl.ResolveConfiguredSeed("bad-seed"));
+    }
+
+    [Fact]
+    public void RunSeedRequiresHeadlessAndRefusesAConflictingOverride()
+    {
+        HostSeedApplication ready = HostRunSeedControl.EvaluateApplication("ABC", "headless", null, false);
+        Assert.True(ready.Allowed);
+        Assert.True(ready.ShouldApply);
+
+        Assert.False(
+            HostRunSeedControl.EvaluateApplication("ABC", "windows", null, false).Allowed);
+        Assert.False(
+            HostRunSeedControl.EvaluateApplication("ABC", "headless", "OTHER", false).Allowed);
+    }
 }

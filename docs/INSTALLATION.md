@@ -71,11 +71,20 @@ the loaded runtime instance in its evidence. This transport setting grants no
 gameplay authority.
 
 A Host supervisor may also inject the process-local
-`STS2_CONNECTOR_HOST_CONTROL_TOKEN` used by the default-disabled graceful
-shutdown route. The value must be exactly 64 lowercase hexadecimal characters.
+`STS2_CONNECTOR_HOST_CONTROL_TOKEN` used by the default-disabled Host shutdown
+and provenance routes. The value must be exactly 64 lowercase hexadecimal
+characters.
 It must never be written to logs, capabilities, evidence, shared configuration,
 the SDK or MCP. The route additionally requires the current runtime instance
 ID and is not part of the Player Environment gameplay contract.
+
+A Headless supervisor may additionally set `STS2_CONNECTOR_RUN_SEED` for one
+process. It must canonicalize to 1-64 ASCII letters or digits. Connector applies
+it only on the headless standard-run Embark path, after exact owner/control
+revalidation and immediately before the native click. It does not become a
+BoundAction operand or fair-player observation. The protected provenance route
+is the only Connector endpoint that reports configured and game-observed seed
+agreement to the Host supervisor.
 
 ## Development Deployment
 

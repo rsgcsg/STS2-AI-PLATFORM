@@ -302,6 +302,14 @@ internal sealed class CharacterSelectSurfaceReader : ILiveSurfaceReader
                 "The advertised character-select commit is no longer current and enabled.");
         }
 
+        HostControl.HostSeedApplication seed = HostControl.HostRunSeedControl.ApplyForEmbark();
+        if (!seed.Allowed)
+        {
+            return NativeInputResult.Rejected(
+                "host_seed_binding_failed",
+                $"The process-local Host seed could not be bound safely: {seed.Status}.");
+        }
+
         expectedEmbark.ForceClick();
         return NativeInputResult.Delivered(EmbarkDeliveryEvidence);
     }
