@@ -50,6 +50,13 @@ CPU cores and peaked at `0.865 GiB` RSS. This proves that route can drive the
 native game end to end; its 616 log actions are not normalized semantic
 decisions and do not qualify it as a Connector Host or trainer.
 
+A rebuilt exact managed candidate now keeps the installed game assembly
+byte-identical and uses a strict partial Player Environment projection. Its
+8-worker bounded window measured `1,017.39` reset-inclusive canonical
+decisions/s with 3,317/3,317 deliveries, but it has not passed full-run or
+cross-Host semantic qualification. It is a candidate, not the default route.
+See [Managed Exact Candidate](experiments/managed-exact/README.md).
+
 Godot's official `--single-threaded-scene` option was tested as a bounded Host
 configuration candidate. It produced one admitted and one rejected
 eight-worker window, no material throughput gain, and no reliable diagnostic

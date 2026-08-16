@@ -1,0 +1,3032 @@
+diff --git a/setup.sh b/setup.sh
+index ef00d6f..c00c031 100755
+--- a/setup.sh
++++ b/setup.sh
+@@ -111,109 +111,13 @@ fi
+ echo ""
+ echo "🔧 .NET SDK: $DOTNET ($($DOTNET --version))"
+ 
+-# ── IL Patch sts2.dll ──
+-
+-echo ""
+-echo "🔨 Applying IL patches to sts2.dll..."
+-
+-# Create a temporary patching project
+-PATCH_DIR=$(mktemp -d)
+-cat > "$PATCH_DIR/Patcher.csproj" << 'PROJ'
+-<Project Sdk="Microsoft.NET.Sdk">
+-  <PropertyGroup>
+-    <OutputType>Exe</OutputType>
+-    <TargetFramework>net9.0</TargetFramework>
+-  </PropertyGroup>
+-  <ItemGroup>
+-    <PackageReference Include="Mono.Cecil" Version="0.11.6" />
+-  </ItemGroup>
+-</Project>
+-PROJ
+-
+-cat > "$PATCH_DIR/Program.cs" << 'CSHARP'
+-using System;
+-using System.IO;
+-using Mono.Cecil;
+-using Mono.Cecil.Cil;
+-
+-var dllPath = args[0];
+-Console.WriteLine($"Patching {dllPath}...");
+-
+-var resolver = new DefaultAssemblyResolver();
+-var libDir = Path.GetDirectoryName(dllPath)!;
+-resolver.AddSearchDirectory(libDir);
+-// Also search for GodotSharp.dll in the GodotStubs output (fallback)
+-var stubsDir = Path.Combine(Path.GetDirectoryName(libDir)!, "src", "GodotStubs", "bin", "Debug", "net9.0");
+-if (Directory.Exists(stubsDir)) resolver.AddSearchDirectory(stubsDir);
+-var module = ModuleDefinition.ReadModule(dllPath, new ReaderParameters {
+-    AssemblyResolver = resolver,
+-    ReadingMode = ReadingMode.Deferred  // Don't force-resolve all references upfront
+-});
+-
+-int patches = 0;
+-
+-// Patch 1: Task.Yield() — make YieldAwaitable.YieldAwaiter.IsCompleted return true
+-// This prevents async deadlocks in headless mode
+-foreach (var type in module.Types)
+-{
+-    foreach (var nested in type.NestedTypes)
+-    {
+-        foreach (var nested2 in nested.NestedTypes)
+-        {
+-            if (nested2.Name.Contains("YieldAwaiter") || nested2.Name == "<>c")
+-            {
+-                foreach (var method in nested2.Methods)
+-                {
+-                    if (method.Name == "get_IsCompleted" && method.Body != null)
+-                    {
+-                        var il = method.Body.GetILProcessor();
+-                        il.Body.Instructions.Clear();
+-                        il.Emit(OpCodes.Ldc_I4_1);
+-                        il.Emit(OpCodes.Ret);
+-                        patches++;
+-                        Console.WriteLine($"  Patched {type.Name}.{nested.Name}.{nested2.Name}.IsCompleted");
+-                    }
+-                }
+-            }
+-        }
+-    }
+-}
+-
+-// Patch 2: WaitUntilQueueIsEmptyOrWaitingOnNonPlayerDrivenAction → return Task.CompletedTask
+-foreach (var type in module.Types)
+-{
+-    foreach (var method in type.Methods)
+-    {
+-        if (method.Name == "WaitUntilQueueIsEmptyOrWaitingOnNonPlayerDrivenAction" && method.Body != null)
+-        {
+-            var il = method.Body.GetILProcessor();
+-            il.Body.Instructions.Clear();
+-            // return Task.CompletedTask
+-            var taskType = module.ImportReference(typeof(System.Threading.Tasks.Task));
+-            var completedProp = module.ImportReference(
+-                typeof(System.Threading.Tasks.Task).GetProperty("CompletedTask")!.GetGetMethod()!);
+-            il.Emit(OpCodes.Call, completedProp);
+-            il.Emit(OpCodes.Ret);
+-            patches++;
+-            Console.WriteLine($"  Patched {type.Name}.{method.Name} → Task.CompletedTask");
+-        }
+-    }
+-}
+-
+-Console.WriteLine($"Applied {patches} patches");
+-var outPath = dllPath + ".patched";
+-module.Write(outPath);
+-module.Dispose();
+-File.Delete(dllPath);
+-File.Move(outPath, dllPath);
+-Console.WriteLine("Done!");
+-CSHARP
+-
+-REPO_DIR="$(pwd)"
+-cd "$PATCH_DIR"
+-$DOTNET run -- "$REPO_DIR/lib/sts2.dll" 2>&1
+-cd "$REPO_DIR"
+-rm -rf "$PATCH_DIR"
++# Keep the game assembly byte-for-byte exact. Host-specific lifecycle support
++# belongs in the host process, not in a globally rewritten rules assembly.
++if ! cmp -s "lib/sts2.dll" "lib/sts2.dll.original"; then
++    echo "❌ Refusing to build with a modified sts2.dll"
++    exit 1
++fi
++echo "  ✓ Using unmodified exact sts2.dll"
+ 
+ # ── Build ──
+ 
+diff --git a/src/GodotStubs/Core.cs b/src/GodotStubs/Core.cs
+index b80bedc..9d39e43 100644
+--- a/src/GodotStubs/Core.cs
++++ b/src/GodotStubs/Core.cs
+@@ -2,6 +2,30 @@ using System.Runtime.CompilerServices;
+ 
+ namespace Godot;
+ 
++public static class StringExtensions
++{
++    public static string PathJoin(this string path, string file)
++    {
++        if (string.IsNullOrEmpty(path)) return file ?? string.Empty;
++        if (string.IsNullOrEmpty(file)) return path;
++        return path.TrimEnd('/') + "/" + file.TrimStart('/');
++    }
++
++    public static string GetBaseDir(this string path)
++    {
++        if (string.IsNullOrEmpty(path)) return string.Empty;
++        var index = path.LastIndexOf('/');
++        return index < 0 ? string.Empty : path[..index];
++    }
++
++    public static string GetFile(this string path)
++    {
++        if (string.IsNullOrEmpty(path)) return string.Empty;
++        var index = path.LastIndexOf('/');
++        return index < 0 ? path : path[(index + 1)..];
++    }
++}
++
+ public class GodotObject
+ {
+     public class SignalName { }
+diff --git a/src/GodotStubs/GodotStubs.csproj b/src/GodotStubs/GodotStubs.csproj
+index 35b1ba0..91c5d63 100644
+--- a/src/GodotStubs/GodotStubs.csproj
++++ b/src/GodotStubs/GodotStubs.csproj
+@@ -7,5 +7,8 @@
+     <AssemblyVersion>4.5.1.0</AssemblyVersion>
+     <ImplicitUsings>enable</ImplicitUsings>
+     <Nullable>enable</Nullable>
++    <Deterministic>true</Deterministic>
++    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
++    <PathMap>$(MSBuildProjectDirectory)=/_/sts2-headless/src/GodotStubs</PathMap>
+   </PropertyGroup>
+ </Project>
+diff --git a/src/Sts2Headless/Program.cs b/src/Sts2Headless/Program.cs
+index 800f139..272107b 100644
+--- a/src/Sts2Headless/Program.cs
++++ b/src/Sts2Headless/Program.cs
+@@ -1,7 +1,9 @@
+ using System.Reflection;
+ using System.Runtime.Loader;
++using System.Security.Cryptography;
+ using System.Text.Json;
+ using System.Text.Json.Serialization;
++using MegaCrit.Sts2.Core.Runs;
+ 
+ namespace Sts2Headless;
+ 
+@@ -85,7 +87,7 @@ class Program
+             try
+             {
+                 var cmd = JsonSerializer.Deserialize<JsonElement>(line);
+-                result = HandleCommand(sim, cmd);
++                result = HandleCommand(ref sim, cmd);
+             }
+             catch (JsonException ex)
+             {
+@@ -93,7 +95,8 @@ class Program
+             }
+             catch (Exception ex)
+             {
+-                result = new Dictionary<string, object?> { ["type"] = "error", ["message"] = $"{ex.GetType().Name}: {ex.Message}" };
++                Console.Error.WriteLine(ex);
++                result = new Dictionary<string, object?> { ["type"] = "error", ["message"] = ex.ToString() };
+             }
+ 
+             if (result != null)
+@@ -108,11 +111,47 @@ class Program
+         }
+     }
+ 
+-    static Dictionary<string, object?>? HandleCommand(RunSimulator sim, JsonElement cmd)
++    static Dictionary<string, object?>? HandleCommand(ref RunSimulator sim, JsonElement cmd)
+     {
+         var cmdType = cmd.GetProperty("cmd").GetString() ?? "";
+         switch (cmdType)
+         {
++            case "runtime_identity":
++            {
++                var assembly = typeof(RunState).Assembly;
++                var assemblyPath = assembly.Location;
++                using var stream = File.OpenRead(assemblyPath);
++                var hostAssembly = typeof(Program).Assembly;
++                var hostAssemblyPath = hostAssembly.Location;
++                using var hostStream = File.OpenRead(hostAssemblyPath);
++                return new Dictionary<string, object?>
++                {
++                    ["type"] = "runtime_identity",
++                    ["process_id"] = Environment.ProcessId,
++                    ["host_assembly_path"] = hostAssemblyPath,
++                    ["host_assembly_sha256"] = Convert.ToHexStringLower(SHA256.HashData(hostStream)),
++                    ["host_module_mvid"] = hostAssembly.ManifestModule.ModuleVersionId.ToString("D"),
++                    ["sts2_assembly_path"] = assemblyPath,
++                    ["sts2_assembly_sha256"] = Convert.ToHexStringLower(SHA256.HashData(stream)),
++                    ["sts2_module_mvid"] = assembly.ManifestModule.ModuleVersionId.ToString("D"),
++                };
++            }
++
++            case "run_identity":
++                return sim.GetRunIdentity();
++
++            case "reset_run":
++                sim.CleanUp();
++                sim = new RunSimulator();
++                return sim.StartRun(
++                    cmd.TryGetProperty("character", out var resetCharacter)
++                        ? resetCharacter.GetString() ?? "Ironclad"
++                        : "Ironclad",
++                    cmd.TryGetProperty("ascension", out var resetAscension) ? resetAscension.GetInt32() : 0,
++                    cmd.TryGetProperty("seed", out var resetSeed) ? resetSeed.GetString() : null,
++                    cmd.TryGetProperty("lang", out var resetLang) ? resetLang.GetString() ?? "en" : "en"
++                );
++
+             case "start_run":
+                 return sim.StartRun(
+                     cmd.TryGetProperty("character", out var ch) ? ch.GetString() ?? "Ironclad" : "Ironclad",
+diff --git a/src/Sts2Headless/RunSimulator.cs b/src/Sts2Headless/RunSimulator.cs
+index 6b9de4a..e5032c5 100644
+--- a/src/Sts2Headless/RunSimulator.cs
++++ b/src/Sts2Headless/RunSimulator.cs
+@@ -1,4 +1,5 @@
+ using System.Reflection;
++using System.Runtime.CompilerServices;
+ using MegaCrit.Sts2.Core.Combat;
+ using MegaCrit.Sts2.Core.Commands;
+ using MegaCrit.Sts2.Core.Context;
+@@ -7,21 +8,25 @@ using MegaCrit.Sts2.Core.Entities.Ascension;
+ using MegaCrit.Sts2.Core.Entities.Cards;
+ using MegaCrit.Sts2.Core.Entities.Creatures;
+ using MegaCrit.Sts2.Core.Entities.Players;
++using MegaCrit.Sts2.Core.Entities.Potions;
++using MegaCrit.Sts2.Core.Entities.TreasureRelicPicking;
+ using MegaCrit.Sts2.Core.GameActions;
+ using MegaCrit.Sts2.Core.Helpers;
++using MegaCrit.Sts2.Core.Hooks;
+ using MegaCrit.Sts2.Core.Map;
+ using MegaCrit.Sts2.Core.Models;
+ using MegaCrit.Sts2.Core.Models.Characters;
+ using MegaCrit.Sts2.Core.Multiplayer;
++using MegaCrit.Sts2.Core.Multiplayer.Game;
+ using MegaCrit.Sts2.Core.CardSelection;
+ using MegaCrit.Sts2.Core.Entities.CardRewardAlternatives;
+ using MegaCrit.Sts2.Core.Entities.Merchant;
+ using MegaCrit.Sts2.Core.Entities.RestSite;
+ using MegaCrit.Sts2.Core.Rewards;
+ using MegaCrit.Sts2.Core.Rooms;
+-using MegaCrit.Sts2.Core.Models.Powers;
+ using MegaCrit.Sts2.Core.GameActions.Multiplayer;
+ using MegaCrit.Sts2.Core.Runs;
++using MegaCrit.Sts2.Core.Modding;
+ using MegaCrit.Sts2.Core.TestSupport;
+ using HarmonyLib;
+ using MegaCrit.Sts2.Core.Localization;
+@@ -31,6 +36,29 @@ using MegaCrit.Sts2.Core.Unlocks;
+ 
+ namespace Sts2Headless;
+ 
++internal static class NativeObjectIdentity
++{
++    private sealed class Token
++    {
++        public Token(long value) => Value = value;
++        public long Value { get; }
++    }
++
++    private static long _next;
++    private static readonly ConditionalWeakTable<object, Token> Tokens = new();
++
++    public static string Get(object value)
++    {
++        var token = Tokens.GetValue(value, static _ => new Token(Interlocked.Increment(ref _next)));
++        return $"native-{token.Value}";
++    }
++
++    public static bool Matches(object value, object? expected)
++    {
++        return expected is string identity && identity == Get(value);
++    }
++}
++
+ /// <summary>
+ /// Synchronization context that executes continuations inline immediately.
+ /// Task.Yield() posts to SynchronizationContext.Current — by executing inline,
+@@ -85,6 +113,12 @@ internal class InlineSynchronizationContext : SynchronizationContext
+             finally { _executing = false; }
+         }
+     }
++
++    public void Reset()
++    {
++        _queue.Clear();
++        _executing = false;
++    }
+ }
+ 
+ /// <summary>
+@@ -217,14 +251,19 @@ public class RunSimulator
+     private static readonly LocLookup _loc = new();
+     private bool _eventOptionChosen;
+     private int _lastEventOptionCount;
+-
+-    // Pending rewards for card selection (populated after combat, before proceeding)
+-    private List<Reward>? _pendingRewards;
+-    private CardReward? _pendingCardReward;
++    private bool _combatHandlersAttached;
++    private IDisposable? _cardSelectorScope;
++    private Task? _pendingHostOperation;
++    private bool _mapPresentationOpen;
++    private bool _combatRewardsStarted;
+     private bool _rewardsProcessed;
+-    private int _goldBeforeCombat;
+     private int _lastKnownHp;
+     private readonly HeadlessCardSelector _cardSelector = new();
++    private readonly HeadlessRewardsSelector _rewardsSelector = new();
++    private Func<RewardsSet, Task>? _rewardsTestSelector;
++    private TreasureRoom? _treasurePresentationRoom;
++    private bool _treasureChestOpened;
++    private bool _treasureRelicResolved;
+     // Pending bundle selection (Scroll Boxes: pick 1 of N packs)
+     private IReadOnlyList<IReadOnlyList<CardModel>>? _pendingBundles;
+     private TaskCompletionSource<IEnumerable<CardModel>>? _pendingBundleTcs;
+@@ -234,52 +273,51 @@ public class RunSimulator
+         try
+         {
+             _loc.Lang = lang;
++            _mapPresentationOpen = false;
++            ResetTreasurePresentation();
+             EnsureModelDbInitialized();
+ 
+-            var player = CreatePlayer(character);
++            var unlockState = SaveManager.Instance.GenerateUnlockStateFromProgress();
++            var player = CreatePlayer(character, unlockState);
+             if (player == null)
+                 return Error($"Unknown character: {character}");
+ 
+             var seedStr = seed ?? "headless_" + DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+             Log($"Creating RunState with seed={seedStr}");
+ 
+-            // Use CreateForTest which properly handles mutable copies internally
+-            _runState = RunState.CreateForTest(
+-                players: new[] { player },
+-                ascensionLevel: ascension,
+-                seed: seedStr
++            _runState = RunState.CreateForNewRun(
++                new[] { player },
++                ActModel.GetDefaultList().Select(act => act.ToMutable()).ToList(),
++                Array.Empty<ModifierModel>(),
++                GameMode.Standard,
++                ascension,
++                seedStr
+             );
+ 
+-            // Set up RunManager with test mode
+-            var netService = new NetSingleplayerGameService();
+-            RunManager.Instance.SetUpTest(_runState, netService);
+-            LocalContext.NetId = netService.NetId;
+-
+-            // Force Neow event (blessing selection at start)
+-            _runState.ExtraFields.StartedWithNeow = true;
+-
+-            // Generate rooms for all acts
+-            RunManager.Instance.GenerateRooms();
+-            Log("Rooms generated");
+-
+-            // Launch the run
+-            RunManager.Instance.Launch();
+-            Log("Run launched");
++            // Follow the shipped single-player bootstrap. TestMode remains on only
++            // for the managed runtime seams; it must not replace run semantics.
++            RunManager.Instance.ForceDiscoveryOrderModifications = true;
++            RunManager.Instance.SetUpNewSingleplayer(_runState, shouldSave: false);
++            LocalContext.NetId = RunManager.Instance.NetService.NetId;
+ 
+             // Register event handlers for combat turn transitions
+-            CombatManager.Instance.TurnStarted += _ => _turnStarted.Set();
+-            CombatManager.Instance.CombatEnded += _ => _combatEnded.Set();
++            AttachCombatHandlers();
+ 
+-            // Finalize starting relics
++            // Match NGame.StartRun ordering: relic hooks run before Launch/EnterAct.
+             RunManager.Instance.FinalizeStartingRelics().GetAwaiter().GetResult();
+             Log("Starting relics finalized");
+ 
++            RunManager.Instance.Launch();
++            Log("Run launched");
++
+             // Enter first act (generates map)
+             RunManager.Instance.EnterAct(0, doTransition: false).GetAwaiter().GetResult();
+             Log("Entered Act 0");
+ 
+             // Register card selector for cards that need player choice
+-            CardSelectCmd.UseSelector(_cardSelector);
++            _cardSelectorScope = CardSelectCmd.UseSelector(_cardSelector);
++            _rewardsTestSelector = _rewardsSelector.SelectAsync;
++            RewardsSet.testSelector = _rewardsTestSelector;
+             LocPatches._bundleSimRef = this;
+ 
+             // Now we should be at the map — detect decision point
+@@ -402,6 +440,8 @@ public class RunSimulator
+         try
+         {
+             if (_runState == null) return Error("No run in progress");
++            _mapPresentationOpen = false;
++            ResetTreasurePresentation();
+             var runState = _runState;
+             Log($"EnterRoom: type={roomType} encounter={encounter} event={eventId}");
+ 
+@@ -496,6 +536,8 @@ public class RunSimulator
+         try
+         {
+             _loc.Lang = lang;
++            _mapPresentationOpen = false;
++            ResetTreasurePresentation();
+             EnsureModelDbInitialized();
+ 
+             Log("Loading save file...");
+@@ -517,12 +559,13 @@ public class RunSimulator
+             Log($"RunState created, players={_runState.Players?.Count}");
+ 
+             var netService = new NetSingleplayerGameService();
+-            RunManager.Instance.SetUpSavedSinglePlayer(_runState, save);
++            RunManager.Instance.SetUpSavedSingleplayer(_runState, save).GetAwaiter().GetResult();
+             LocalContext.NetId = netService.NetId;
+ 
+-            CombatManager.Instance.TurnStarted += _ => _turnStarted.Set();
+-            CombatManager.Instance.CombatEnded += _ => _combatEnded.Set();
+-            CardSelectCmd.UseSelector(_cardSelector);
++            AttachCombatHandlers();
++            _cardSelectorScope = CardSelectCmd.UseSelector(_cardSelector);
++            _rewardsTestSelector = _rewardsSelector.SelectAsync;
++            RewardsSet.testSelector = _rewardsTestSelector;
+             LocPatches._bundleSimRef = this;
+ 
+             var savedRoom = _runState.CurrentRoom;
+@@ -874,13 +917,23 @@ public class RunSimulator
+                 case "play_card":
+                     return DoPlayCard(player, args);
+                 case "end_turn":
+-                    return DoEndTurn(player);
++                    return DoEndTurn(player, args);
+                 case "choose_option":
+                     return DoChooseOption(player, args);
+                 case "select_card_reward":
+                     return DoSelectCardReward(player, args);
+                 case "skip_card_reward":
+                     return DoSkipCardReward(player);
++                case "select_reward":
++                    return DoSelectReward(player, args);
++                case "skip_rewards":
++                    return DoSkipRewards(player);
++                case "open_treasure":
++                    return DoOpenTreasure(player, args);
++                case "select_treasure_relic":
++                    return DoSelectTreasureRelic(player, args);
++                case "skip_treasure_relic":
++                    return DoSkipTreasureRelic(player, args);
+                 case "buy_card":
+                     return DoBuyCard(player, args);
+                 case "buy_relic":
+@@ -888,7 +941,9 @@ public class RunSimulator
+                 case "buy_potion":
+                     return DoBuyPotion(player, args);
+                 case "remove_card":
+-                    return DoRemoveCard(player);
++                    return DoRemoveCard(player, args);
++                case "leave_shop":
++                    return DoLeaveShop(args);
+                 case "select_bundle":
+                     return DoSelectBundle(player, args);
+                 case "select_cards":
+@@ -900,9 +955,9 @@ public class RunSimulator
+                 case "discard_potion":
+                     return DoDiscardPotion(player, args);
+                 case "leave_room":
+-                    return DoLeaveRoom(player);
++                    return DoLeaveRoom(player, args);
+                 case "proceed":
+-                    return DoProceed(player);
++                    return DoProceed(player, args);
+                 default:
+                     return Error($"Unknown action: {action}");
+             }
+@@ -915,21 +970,34 @@ public class RunSimulator
+ 
+     #region Actions
+ 
+-    private Dictionary<string, object?> DoMapSelect(Player player, Dictionary<string, object?>? args)
++    private IReadOnlyList<MapPoint> CurrentTravelableMapPoints()
+     {
+-        if (args == null || !args.ContainsKey("col") || !args.ContainsKey("row"))
+-            return Error("select_map_node requires 'col' and 'row'");
++        if (_runState?.Map == null)
++            return Array.Empty<MapPoint>();
+ 
+-        // Reset tracking for new room
+-        _rewardsProcessed = false;
+-        _pendingCardReward = null;
+-        _eventOptionChosen = false;
+-        _lastEventOptionCount = 0;
+-        _pendingRewards = null;
+-        _lastKnownHp = player.Creature?.CurrentHp ?? 0;
++        if (!_runState.CurrentMapCoord.HasValue)
++            return new[] { _runState.Map.StartingMapPoint };
++
++        var currentPoint = _runState.Map.GetPoint(_runState.CurrentMapCoord.Value);
++        return currentPoint == null
++            ? Array.Empty<MapPoint>()
++            : MapTravel.GetTravelablePointsFrom(_runState, currentPoint).ToList();
++    }
++
++    private Dictionary<string, object?> DoMapSelect(Player player, Dictionary<string, object?>? args)
++    {
++        if (args == null || !args.ContainsKey("col") || !args.ContainsKey("row") || !args.ContainsKey("map_point_ref"))
++            return Error("select_map_node requires 'col', 'row', and 'map_point_ref'");
+ 
+         var col = Convert.ToInt32(args["col"]);
+         var row = Convert.ToInt32(args["row"]);
++        var point = CurrentTravelableMapPoints().SingleOrDefault(candidate =>
++            candidate.coord.col == col && candidate.coord.row == row);
++        if (point == null)
++            return Error($"Map point ({col},{row}) is not currently travelable");
++        if (!NativeObjectIdentity.Matches(point, args["map_point_ref"]))
++            return Error($"Map point ({col},{row}) no longer matches the observed native object");
++
+         var coord = new MapCoord((byte)col, (byte)row);
+ 
+         Log($"Moving to map coord ({col},{row})");
+@@ -938,85 +1006,76 @@ public class RunSimulator
+         WaitForActionExecutor();
+         _syncCtx.Pump();
+ 
+-        // Call EnterMapCoord directly (same as what MoveToMapCoordAction does in TestMode)
+-        // This avoids the action executor which can swallow errors silently.
+-        RunManager.Instance.EnterMapCoord(coord).GetAwaiter().GetResult();
++        var source = new MapLocation(_runState!.CurrentMapCoord, _runState.CurrentActIndex);
++        var destination = new MapVote
++        {
++            coord = coord,
++            mapGenerationCount = RunManager.Instance.MapSelectionSynchronizer.MapGenerationCount
++        };
++        RunManager.Instance.ActionQueueSynchronizer.RequestEnqueue(
++            new VoteForMapCoordAction(player, source, destination));
+         _syncCtx.Pump();
+-        WaitForActionExecutor();
++        WaitForNativeCommit();
++        _rewardsSelector.NotifyStateChanged();
++        AdvancePendingHostOperation();
++        _mapPresentationOpen = false;
++
++        // Reset tracking only after the native map vote has exited the prior
++        // room. That exit is what skips any unclaimed native rewards.
++        _combatRewardsStarted = false;
++        _rewardsProcessed = false;
++        _eventOptionChosen = false;
++        _lastEventOptionCount = 0;
++        _lastKnownHp = player.Creature?.CurrentHp ?? 0;
+ 
+         return DetectDecisionPoint();
+     }
+ 
+     private Dictionary<string, object?> DoPlayCard(Player player, Dictionary<string, object?>? args)
+     {
+-        if (args == null || !args.ContainsKey("card_index"))
+-            return Error("play_card requires 'card_index'");
++        if (args == null || !args.ContainsKey("card_ref"))
++            return Error("play_card requires 'card_ref'");
+ 
+-        var cardIndex = Convert.ToInt32(args["card_index"]);
+         var pcs = player.PlayerCombatState;
+         if (pcs == null)
+             return Error("Not in combat");
+ 
+         var hand = pcs.Hand.Cards;
+-        if (cardIndex < 0 || cardIndex >= hand.Count)
+-            return Error($"Invalid card index {cardIndex}, hand has {hand.Count} cards");
++        var card = hand.FirstOrDefault(candidate => NativeObjectIdentity.Matches(candidate, args["card_ref"]));
++        if (card == null)
++            return Error("The observed card is no longer in the current hand");
+ 
+-        var card = hand[cardIndex];
+-
+-        // Determine target based on card's TargetType first
+-        // Self/None/All cards: target = null (game handles internally)
+-        // AnyEnemy cards: use target_index or auto-pick first alive enemy
+         Creature? target = null;
+-        var cardTargetType = card.TargetType;
+-        if (cardTargetType == TargetType.AnyEnemy)
++        if (card.TargetType == TargetType.AnyEnemy || card.TargetType == TargetType.AnyAlly)
+         {
+-            // Use caller's target_index if provided
+-            if (args.TryGetValue("target_index", out var targetObj) && targetObj != null)
+-            {
+-                var targetIndex = Convert.ToInt32(targetObj);
+-                var state = CombatManager.Instance.DebugOnlyGetState();
+-                if (state != null)
+-                {
+-                    var enemies = state.Enemies.Where(e => e != null && e.IsAlive).ToList();
+-                    if (targetIndex >= 0 && targetIndex < enemies.Count)
+-                        target = enemies[targetIndex];
+-                }
+-            }
+-            // No target_index given: only auto-target when the choice is unambiguous
+-            // (a single alive enemy). With multiple enemies, picking one is a real game
+-            // decision — return an error instead of silently targeting enemy 0 (#79).
++            if (!args.TryGetValue("target_ref", out var expectedTarget))
++                return Error($"Card {card.Id.Entry} requires 'target_ref'");
++            target = CombatManager.Instance.DebugOnlyGetState()?.Creatures
++                .FirstOrDefault(candidate => NativeObjectIdentity.Matches(candidate, expectedTarget));
+             if (target == null)
+-            {
+-                var state = CombatManager.Instance.DebugOnlyGetState();
+-                var alive = state?.Enemies?.Where(e => e != null && e.IsAlive).ToList() ?? new();
+-                if (alive.Count == 1)
+-                    target = alive[0];
+-                else if (alive.Count > 1)
+-                    return Error($"Card {card.Id.Entry} targets a single enemy (AnyEnemy); " +
+-                                 $"'target_index' is required when multiple enemies are alive ({alive.Count}).");
+-            }
++                return Error("The observed card target is no longer in the current combat");
++        }
++        else if (args.ContainsKey("target_ref"))
++        {
++            return Error($"Card {card.Id.Entry} does not accept a creature target");
+         }
+-        // All other target types (None, All, etc.) → leave target as null
+ 
+-        // Check if card can be played
+-        if (!card.CanPlay(out var reason, out var _))
++        if (!card.CanPlayTargeting(target))
+         {
+-            return Error($"Cannot play card {card.GetType().Name}: {reason}");
++            return Error($"Card {card.Id.Entry} is no longer natively playable with the bound target");
+         }
+ 
+-        Log($"Playing card {card.GetType().Name} (index {cardIndex}) targeting {(target != null ? target.Monster?.GetType().Name ?? "creature" : "none")}");
++        Log($"Playing card {card.GetType().Name} targeting {(target != null ? target.Monster?.GetType().Name ?? "creature" : "none")}");
+ 
+         var handCountBefore = hand.Count;
++        if (!card.TryManualPlay(target))
++            return Error($"Card {card.Id.Entry} rejected native manual play");
++        WaitForNativeCommit();
+ 
+-        var playAction = new PlayCardAction(card, target);
+-        RunManager.Instance.ActionQueueSet.EnqueueWithoutSynchronizing(playAction);
+-        WaitForActionExecutor();
+-
+-        // Check if card play had no effect (hand unchanged, same card still at same index)
+         var handAfter = pcs.Hand.Cards;
+-        if (handAfter.Count == handCountBefore && cardIndex < handAfter.Count && handAfter[cardIndex] == card)
++        if (handAfter.Count == handCountBefore && handAfter.Contains(card))
+         {
+-            return Error($"Card could not be played (still in hand after action): {card.GetType().Name} [{card.Id}]");
++            return Error($"Card delivery is unknown because the exact card remains in hand: {card.Id}");
+         }
+ 
+         return DetectDecisionPoint();
+@@ -1031,181 +1090,38 @@ public class RunSimulator
+         return p?.PlayerCombatState?.Phase == MegaCrit.Sts2.Core.Combat.PlayerTurnPhase.Play;
+     }
+ 
+-    private Dictionary<string, object?> DoEndTurn(Player player)
++    private Dictionary<string, object?> DoEndTurn(Player player, Dictionary<string, object?>? args)
+     {
+-        // A pending card / card-reward / bundle selection is an unresolved prompt; ending
+-        // the turn here would silently mutate combat instead. Surface the prompt unchanged
+-        // and let the caller resolve it first (#61).
+-        if (_cardSelector.HasPending || _cardSelector.HasPendingReward || _pendingBundles != null)
++        if (args == null || !args.TryGetValue("player_ref", out var expectedPlayer)
++            || !NativeObjectIdentity.Matches(player, expectedPlayer))
+         {
+-            Log("end_turn ignored: a card selection is pending");
+-            return DetectDecisionPoint();
++            return Error("end_turn requires the current observed 'player_ref'");
+         }
+-
+-        if (!IsPlayPhase())
++        if (_cardSelector.HasPending || _cardSelector.HasPendingReward || _pendingBundles != null)
++            return Error("Cannot end turn while a native selection is pending");
++        if (!CombatManager.Instance.IsInProgress || player.Creature.IsDead || !IsPlayPhase())
++            return Error("The player is no longer in the native combat play phase");
++        if (CombatManager.Instance.PlayerActionsDisabled)
++            return Error("Native player actions are currently disabled");
++        if (CombatManager.Instance.PlayersTakingExtraTurn.Count > 0
++            && !CombatManager.Instance.PlayersTakingExtraTurn.Contains(player))
+         {
+-            // Might be between phases — pump and check
+-            _syncCtx.Pump();
+-            if (!IsPlayPhase())
+-            {
+-                if (!CombatManager.Instance.IsInProgress || player.Creature.IsDead)
+-                    return DetectDecisionPoint();
+-                // Brief wait for ThreadPool if sync context didn't catch it
+-                Thread.Sleep(100);
+-                _syncCtx.Pump();
+-                if (!IsPlayPhase())
+-                    return DetectDecisionPoint();
+-            }
++            return Error("Another player owns the current extra turn");
+         }
++        if (CombatManager.Instance.IsPlayerReadyToEndTurn(player))
++            return Error("The player is already ready to end the current turn");
+ 
+-        // Ensure no actions are still running before ending turn
+-        WaitForActionExecutor();
+-
+-        Log($"Ending turn (round={CombatManager.Instance.DebugOnlyGetState()?.RoundNumber ?? 0})");
++        Log($"Ending turn through native action queue (round={CombatManager.Instance.DebugOnlyGetState()?.RoundNumber ?? 0})");
+         _turnStarted.Reset();
+         _combatEnded.Reset();
+-
+-        // Enable SuppressYield so Task.Yield() runs inline during enemy turn processing.
+-        // This prevents deadlocks during boss fights (e.g., Vantom) where continuations
+-        // would otherwise be posted to ThreadPool and never complete.
+-        // Keep SuppressYield=true through the initial fallback wait loop — multi-hit
+-        // attacks (e.g., 10x2) have continuations between hits that also need suppression.
+-        YieldPatches.SuppressYield = true;
+-        try
+-        {
+-            PlayerCmd.EndTurn(player, canBackOut: false);
+-            _syncCtx.Pump();
+-
+-            // Fallback: if turn didn't complete synchronously, keep pumping with SuppressYield on
+-            if (CombatManager.Instance.IsInProgress && !IsPlayPhase() && !player.Creature.IsDead)
+-            {
+-                for (int i = 0; i < 50; i++)
+-                {
+-                    _syncCtx.Pump();
+-                    if (_turnStarted.IsSet || _combatEnded.IsSet) break;
+-                    if (!CombatManager.Instance.IsInProgress || player.Creature.IsDead) break;
+-                    if (IsPlayPhase()) break;
+-                    Thread.Sleep(5);
+-                }
+-            }
+-        }
+-        finally
+-        {
+-            YieldPatches.SuppressYield = false;
+-        }
+-
+-        // Second fallback: if still stuck after SuppressYield window, cancel and retry.
+-        // The WaitUntilQueue TCS is likely deadlocked.
+-        if (CombatManager.Instance.IsInProgress && !IsPlayPhase() && !player.Creature.IsDead)
+-        {
+-            Log("EndTurn stuck, cancelling and retrying with SuppressYield...");
+-            try
+-            {
+-                RunManager.Instance.ActionExecutor.Cancel();
+-                _syncCtx.Pump();
+-                Thread.Sleep(50);
+-                _syncCtx.Pump();
+-
+-                // Reset the player ready state and try again with SuppressYield
+-                CombatManager.Instance.UndoReadyToEndTurn(player);
+-                _syncCtx.Pump();
+-
+-                YieldPatches.SuppressYield = true;
+-                try
+-                {
+-                    PlayerCmd.EndTurn(player, canBackOut: false);
+-                    _syncCtx.Pump();
+-                }
+-                finally
+-                {
+-                    YieldPatches.SuppressYield = false;
+-                }
+-
+-                for (int i = 0; i < 100; i++)
+-                {
+-                    _syncCtx.Pump();
+-                    if (_turnStarted.IsSet || _combatEnded.IsSet) break;
+-                    if (!CombatManager.Instance.IsInProgress || player.Creature.IsDead) break;
+-                    if (IsPlayPhase()) break;
+-                    Thread.Sleep(10);
+-                }
+-            }
+-            catch (Exception ex) { Log($"Cancel retry: {ex.Message}"); }
+-
+-            // NUCLEAR OPTION: If STILL stuck after 2 attempts, use ThreadPool to force
+-            // the enemy turn processing to complete with SuppressYield permanently on.
+-            if (CombatManager.Instance.IsInProgress && !IsPlayPhase() && !player.Creature.IsDead)
+-            {
+-                var stuckState = CombatManager.Instance.DebugOnlyGetState();
+-                var stuckEnemies = stuckState?.Enemies?.Where(e => e != null && e.IsAlive)
+-                    .Select(e => $"{e.Monster?.GetType().Name}(hp={e.CurrentHp})").ToList();
+-                Log($"EndTurn STILL stuck after retry — nuclear fallback. Round={stuckState?.RoundNumber}, " +
+-                    $"Enemies=[{string.Join(",", stuckEnemies ?? new())}], " +
+-                    $"IsPlayPhase={IsPlayPhase()}, " +
+-                    $"IsInProgress={CombatManager.Instance.IsInProgress}, " +
+-                    $"ActionExecutor.IsRunning={RunManager.Instance.ActionExecutor.IsRunning}");
+-                try
+-                {
+-                    // Cancel again and undo
+-                    RunManager.Instance.ActionExecutor.Cancel();
+-                    _syncCtx.Pump();
+-                    CombatManager.Instance.UndoReadyToEndTurn(player);
+-                    _syncCtx.Pump();
+-                    Thread.Sleep(50);
+-
+-                    // Run EndTurn on ThreadPool with SuppressYield permanently on
+-                    YieldPatches.SuppressYield = true;
+-                    var endTurnTask = Task.Run(() =>
+-                    {
+-                        PlayerCmd.EndTurn(player, canBackOut: false);
+-                    });
+-
+-                    // Aggressively pump sync context while waiting (up to 5 seconds)
+-                    for (int i = 0; i < 500; i++)
+-                    {
+-                        _syncCtx.Pump();
+-                        if (endTurnTask.IsCompleted) break;
+-                        if (_turnStarted.IsSet || _combatEnded.IsSet) break;
+-                        if (!CombatManager.Instance.IsInProgress || player.Creature.IsDead) break;
+-                        if (IsPlayPhase()) break;
+-                        Thread.Sleep(10);
+-                    }
+-                    YieldPatches.SuppressYield = false;
+-
+-                    // If still not play phase, try just waiting a bit more
+-                    if (CombatManager.Instance.IsInProgress && !IsPlayPhase() && !player.Creature.IsDead)
+-                    {
+-                        for (int i = 0; i < 200; i++)
+-                        {
+-                            _syncCtx.Pump();
+-                            Thread.Sleep(10);
+-                            if (IsPlayPhase() || !CombatManager.Instance.IsInProgress || player.Creature.IsDead)
+-                                break;
+-                        }
+-                    }
+-
+-                    if (IsPlayPhase())
+-                        Log("Nuclear fallback SUCCEEDED — play phase resumed");
+-                    else
+-                    {
+-                        Log("Nuclear fallback FAILED — forcing game_over to escape deadlock");
+-                        return GameOverState(false);
+-                    }
+-                }
+-                catch (Exception ex)
+-                {
+-                    Log($"Nuclear fallback error: {ex.Message}");
+-                    YieldPatches.SuppressYield = false;
+-                }
+-            }
+-        }
+-
++        RunManager.Instance.ActionQueueSynchronizer.RequestEnqueue(
++            new EndPlayerTurnAction(player, player.PlayerCombatState!.TurnNumber));
++        WaitForNativeCommit();
+         return DetectDecisionPoint();
+     }
+ 
+     private Dictionary<string, object?> DoSelectCardReward(Player player, Dictionary<string, object?>? args)
+     {
+-        // Handle event-triggered card reward (blocking GetSelectedCardReward)
+         if (_cardSelector.HasPendingReward)
+         {
+             if (args == null || !args.ContainsKey("card_index"))
+@@ -1215,81 +1131,212 @@ public class RunSimulator
+             _cardSelector.ResolveReward(idx);
+             Thread.Sleep(50);
+             _syncCtx.Pump();
++            AdvancePendingHostOperation();
++            WaitForActionExecutor();
++            return DetectDecisionPoint();
++        }
++        return Error("No native card reward selection is pending");
++    }
++
++    private Dictionary<string, object?> DoSkipCardReward(Player player)
++    {
++        if (_cardSelector.HasPendingReward)
++        {
++            Log("Skipping event card reward");
++            _cardSelector.SkipReward();
++            Thread.Sleep(50);
++            _syncCtx.Pump();
++            AdvancePendingHostOperation();
+             WaitForActionExecutor();
+             return DetectDecisionPoint();
+         }
++        return Error("No native card reward selection is pending");
++    }
+ 
+-        if (_pendingCardReward == null)
+-            return Error("No pending card reward");
+-        if (args == null || !args.ContainsKey("card_index"))
+-            return Error("select_card_reward requires 'card_index'");
++    private Dictionary<string, object?> DoSelectReward(Player player, Dictionary<string, object?>? args)
++    {
++        if (args == null || !args.TryGetValue("reward_ref", out var expectedReward))
++            return Error("select_reward requires 'reward_ref'");
++        if (!_rewardsSelector.ResolveReward(expectedReward, out var error))
++            return Error(error ?? "The observed reward is no longer selectable");
+ 
+-        var cardIndex = Convert.ToInt32(args["card_index"]);
+-        var cards = _pendingCardReward.Cards.ToList();
+-        if (cardIndex < 0 || cardIndex >= cards.Count)
+-            return Error($"Invalid card index {cardIndex}, {cards.Count} cards available");
++        WaitForRewardSelectionProgress();
++        AdvancePendingHostOperation();
++        WaitForActionExecutor();
++        return DetectDecisionPoint();
++    }
+ 
+-        var card = cards[cardIndex];
+-        Log($"Selected card reward: {card.GetType().Name}");
++    private Dictionary<string, object?> DoSkipRewards(Player player)
++    {
++        if (!_rewardsSelector.ResolveSkip(out var error))
++            return Error(error ?? "The current reward set cannot be skipped");
+ 
+-        // Add card to deck
+-        try
++        WaitForRewardSelectionProgress();
++        AdvancePendingHostOperation();
++        WaitForActionExecutor();
++        return DetectDecisionPoint();
++    }
++
++    private Dictionary<string, object?> DoOpenTreasure(Player player, Dictionary<string, object?>? args)
++    {
++        if (_runState?.CurrentRoom is not TreasureRoom treasureRoom)
++            return Error("Not in a treasure room");
++        EnsureTreasurePresentation(treasureRoom);
++        if (args == null || !args.TryGetValue("room_ref", out var expectedRoom)
++            || !NativeObjectIdentity.Matches(treasureRoom, expectedRoom))
++            return Error("The observed treasure room is no longer current");
++        if (_treasureChestOpened || _treasureRelicResolved)
++            return Error("The treasure chest is no longer closed");
++
++        Log("Opening treasure chest through game-owned reward commands");
++        var operation = BeginHostOperation(async () =>
++        {
++            await treasureRoom.DoNormalRewards().ConfigureAwait(false);
++            await treasureRoom.DoExtraRewardsIfNeeded().ConfigureAwait(false);
++            _treasureChestOpened = true;
++        });
++        for (int i = 0; i < 500; i++)
+         {
+-            MegaCrit.Sts2.Core.Commands.CardPileCmd
+-                .Add(card, MegaCrit.Sts2.Core.Entities.Cards.PileType.Deck)
+-                .GetAwaiter().GetResult();
+             _syncCtx.Pump();
+-            RunManager.Instance.RewardSynchronizer.SyncLocalObtainedCard(card);
+-        }
+-        catch (Exception ex) { Log($"Add card to deck: {ex.Message}"); }
++            if (_cardSelector.HasPending
++                || _cardSelector.HasPendingReward
++                || _rewardsSelector.IsAwaitingAction
++                || _pendingBundles != null
++                || operation.IsCompleted)
++                break;
++            Thread.Sleep(1);
++        }
++        if (_cardSelector.HasPending
++            || _cardSelector.HasPendingReward
++            || _rewardsSelector.IsAwaitingAction
++            || _pendingBundles != null)
++            return DetectDecisionPoint();
+ 
+-        _pendingCardReward = null;
+-        // Check if more rewards pending
++        AdvancePendingHostOperation();
+         return DetectDecisionPoint();
+     }
+ 
+-    private Dictionary<string, object?> DoSkipCardReward(Player player)
++    private Dictionary<string, object?> DoSelectTreasureRelic(Player player, Dictionary<string, object?>? args)
+     {
+-        if (_cardSelector.HasPendingReward)
++        if (_runState?.CurrentRoom is not TreasureRoom treasureRoom)
++            return Error("Not in a treasure room");
++        EnsureTreasurePresentation(treasureRoom);
++        if (!_treasureChestOpened || _treasureRelicResolved)
++            return Error("No treasure relic selection is currently actionable");
++        if (args == null || !args.TryGetValue("relic_ref", out var expectedRelic))
++            return Error("select_treasure_relic requires 'relic_ref'");
++
++        var synchronizer = RunManager.Instance.TreasureRoomRelicSynchronizer;
++        var currentRelics = synchronizer.CurrentRelics;
++        if (currentRelics == null)
++            return Error("The native treasure relic selection is no longer active");
++        var index = -1;
++        for (int i = 0; i < currentRelics.Count; i++)
++        {
++            if (NativeObjectIdentity.Matches(currentRelics[i], expectedRelic))
++            {
++                index = i;
++                break;
++            }
++        }
++        if (index < 0)
++            return Error("The observed treasure relic is no longer selectable");
++
++        List<RelicPickingResult>? awarded = null;
++        Action<List<RelicPickingResult>> capture = results => awarded = results;
++        synchronizer.RelicsAwarded += capture;
++        try
+         {
+-            Log("Skipping event card reward");
+-            _cardSelector.SkipReward();
+-            Thread.Sleep(50);
++            synchronizer.PickRelicLocally(index);
++            _syncCtx.Pump();
++            WaitForNativeCommit();
+             _syncCtx.Pump();
+-            WaitForActionExecutor();
+-            return DetectDecisionPoint();
+         }
+-        if (_pendingCardReward != null)
++        finally
+         {
+-            Log("Skipping card reward");
+-            _pendingCardReward.OnSkipped();
+-            _pendingCardReward = null;
++            synchronizer.RelicsAwarded -= capture;
+         }
++
++        if (awarded == null)
++            throw new InvalidOperationException(
++                "Treasure vote was dispatched but the native synchronizer did not report an award result.");
++
++        CompleteTreasureRelicPresentation(awarded);
++        _treasureRelicResolved = true;
+         return DetectDecisionPoint();
+     }
+ 
++    private Dictionary<string, object?> DoSkipTreasureRelic(Player player, Dictionary<string, object?>? args)
++    {
++        if (_runState?.CurrentRoom is not TreasureRoom treasureRoom)
++            return Error("Not in a treasure room");
++        EnsureTreasurePresentation(treasureRoom);
++        if (!_treasureChestOpened || _treasureRelicResolved)
++            return Error("No treasure relic selection is currently actionable");
++        if (args == null || !args.TryGetValue("room_ref", out var expectedRoom)
++            || !NativeObjectIdentity.Matches(treasureRoom, expectedRoom))
++            return Error("The observed treasure room is no longer current");
++        if (RunManager.Instance.TreasureRoomRelicSynchronizer.CurrentRelics == null)
++            return Error("The native treasure relic selection is no longer active");
++
++        RunManager.Instance.TreasureRoomRelicSynchronizer.SkipRelicLocally();
++        _syncCtx.Pump();
++        WaitForNativeCommit();
++        _treasureRelicResolved = true;
++        RunManager.Instance.ProceedFromTerminalRewardsScreen().GetAwaiter().GetResult();
++        _syncCtx.Pump();
++        OpenMapPresentation();
++        return MapSelectState();
++    }
++
++    private void CompleteTreasureRelicPresentation(IReadOnlyList<RelicPickingResult> results)
++    {
++        if (_runState == null)
++            throw new InvalidOperationException("Cannot complete treasure presentation without an active run.");
++
++        foreach (var result in results.OrderBy(result => result.type))
++        {
++            if (result.type != RelicPickingResultType.Skipped)
++            {
++                if (result.player == null)
++                    throw new InvalidOperationException("A native awarded treasure relic had no recipient.");
++                RelicCmd.Obtain(result.relic.ToMutable(), result.player).GetAwaiter().GetResult();
++            }
++            foreach (var otherPlayer in _runState.Players)
++            {
++                if (otherPlayer != result.player)
++                    otherPlayer.RelicGrabBag.MoveToFallback(result.relic);
++            }
++        }
++        _syncCtx.Pump();
++        WaitForActionExecutor();
++        _syncCtx.Pump();
++    }
++
+     private Dictionary<string, object?> DoBuyCard(Player player, Dictionary<string, object?>? args)
+     {
+         if (_runState?.CurrentRoom is not MerchantRoom merchantRoom)
+             return Error("Not in a shop");
+-        if (args == null || !args.ContainsKey("card_index"))
+-            return Error("buy_card requires 'card_index'");
++        if (args == null || !args.TryGetValue("entry_ref", out var expectedEntry))
++            return Error("buy_card requires 'entry_ref'");
+ 
+-        var idx = Convert.ToInt32(args["card_index"]);
+         var allEntries = merchantRoom.GetLocalInventory().CharacterCardEntries
+             .Concat(merchantRoom.GetLocalInventory().ColorlessCardEntries).ToList();
+-        if (idx < 0 || idx >= allEntries.Count)
+-            return Error($"Invalid card index {idx}");
+-
+-        var entry = allEntries[idx];
++        var entry = allEntries.SingleOrDefault(candidate => NativeObjectIdentity.Matches(candidate, expectedEntry));
++        if (entry == null) return Error("The observed shop card entry is no longer in the current inventory");
+         if (!entry.IsStocked) return Error("Card already purchased");
+-        if (player.Gold < entry.Cost) return Error("Not enough gold");
++        if (!entry.EnoughGold) return Error("Not enough gold");
++
++        var cardName = entry.CreationResult?.Card?.GetType().Name ?? "unknown card";
++        var quotedCost = entry.Cost;
+ 
+         try
+         {
+-            entry.OnTryPurchaseWrapper(merchantRoom.GetLocalInventory()).GetAwaiter().GetResult();
++            var purchased = entry.OnTryPurchaseWrapper(merchantRoom.GetLocalInventory()).GetAwaiter().GetResult();
+             _syncCtx.Pump();
+-            Log($"Bought card: {entry.CreationResult?.Card?.GetType().Name ?? "?"} for {entry.Cost}g");
++            Log(purchased
++                ? $"Bought card: {cardName} for {quotedCost}g"
++                : $"Native purchase rejected card: {cardName}");
+         }
+         catch (Exception ex) { return Error($"Buy card failed: {ex.Message}"); }
+ 
+@@ -1300,16 +1347,18 @@ public class RunSimulator
+     {
+         if (_runState?.CurrentRoom is not MerchantRoom merchantRoom)
+             return Error("Not in a shop");
+-        if (args == null || !args.ContainsKey("relic_index"))
+-            return Error("buy_relic requires 'relic_index'");
++        if (args == null || !args.TryGetValue("entry_ref", out var expectedEntry))
++            return Error("buy_relic requires 'entry_ref'");
+ 
+-        var idx = Convert.ToInt32(args["relic_index"]);
+         var entries = merchantRoom.GetLocalInventory().RelicEntries;
+-        if (idx < 0 || idx >= entries.Count) return Error($"Invalid relic index {idx}");
+-
+-        var entry = entries[idx];
++        var entry = entries.SingleOrDefault(candidate => NativeObjectIdentity.Matches(candidate, expectedEntry));
++        if (entry == null) return Error("The observed shop relic entry is no longer in the current inventory");
+         if (!entry.IsStocked) return Error("Relic already purchased");
+-        if (player.Gold < entry.Cost) return Error("Not enough gold");
++        if (!entry.EnoughGold) return Error("Not enough gold");
++        if (entry.Model == null) return Error("The observed shop relic entry no longer has a native relic model");
++
++        var relicName = entry.Model.GetType().Name;
++        var quotedCost = entry.Cost;
+ 
+         try
+         {
+@@ -1318,7 +1367,7 @@ public class RunSimulator
+             // pending selection appears so the caller can resolve it; the background task
+             // continues once the selector's TCS is fed by select_cards.
+             var inv = merchantRoom.GetLocalInventory();
+-            var task = Task.Run(() => entry.OnTryPurchaseWrapper(inv));
++            var task = BeginHostOperation(() => entry.OnTryPurchaseWrapper(inv));
+             for (int i = 0; i < 100; i++)
+             {
+                 _syncCtx.Pump();
+@@ -1329,12 +1378,11 @@ public class RunSimulator
+             }
+             if (_cardSelector.HasPending || _cardSelector.HasPendingReward || _pendingBundles != null)
+             {
+-                Log($"Buy relic {entry.Model.GetType().Name}: yielded for pending selection");
++                Log($"Buy relic {relicName}: yielded for pending selection");
+                 return DetectDecisionPoint();
+             }
+-            if (!task.IsCompleted) task.Wait(2000);
+-            _syncCtx.Pump();
+-            Log($"Bought relic: {entry.Model.GetType().Name} for {entry.Cost}g");
++            AdvancePendingHostOperation();
++            Log($"Native relic purchase settled: {relicName} (quoted {quotedCost}g)");
+         }
+         catch (Exception ex) { return Error($"Buy relic failed: {ex.Message}"); }
+ 
+@@ -1345,45 +1393,50 @@ public class RunSimulator
+     {
+         if (_runState?.CurrentRoom is not MerchantRoom merchantRoom)
+             return Error("Not in a shop");
+-        if (args == null || !args.ContainsKey("potion_index"))
+-            return Error("buy_potion requires 'potion_index'");
++        if (args == null || !args.TryGetValue("entry_ref", out var expectedEntry))
++            return Error("buy_potion requires 'entry_ref'");
+ 
+-        var idx = Convert.ToInt32(args["potion_index"]);
+         var entries = merchantRoom.GetLocalInventory().PotionEntries;
+-        if (idx < 0 || idx >= entries.Count) return Error($"Invalid potion index {idx}");
+-
+-        var entry = entries[idx];
++        var entry = entries.SingleOrDefault(candidate => NativeObjectIdentity.Matches(candidate, expectedEntry));
++        if (entry == null) return Error("The observed shop potion entry is no longer in the current inventory");
+         if (!entry.IsStocked) return Error("Potion already purchased");
+-        if (player.Gold < entry.Cost) return Error("Not enough gold");
++        if (!entry.EnoughGold) return Error("Not enough gold");
++
++        var potion = entry.Model;
++        if (potion == null) return Error("Potion entry lost its model before native purchase");
++        var potionName = potion.GetType().Name;
++        var quotedCost = entry.Cost;
+ 
+         try
+         {
+-            entry.OnTryPurchaseWrapper(merchantRoom.GetLocalInventory()).GetAwaiter().GetResult();
++            var purchased = entry.OnTryPurchaseWrapper(merchantRoom.GetLocalInventory()).GetAwaiter().GetResult();
+             _syncCtx.Pump();
+-            Log($"Bought potion: {entry.Model.GetType().Name} for {entry.Cost}g");
+-        }
+-        catch (Exception ex)
+-        {
+-            // Potion purchase sometimes NullRefs in headless (missing potion slot UI)
+-            Log($"Buy potion failed: {ex.Message}");
++            Log(purchased
++                ? $"Bought potion: {potionName} for {quotedCost}g"
++                : $"Native purchase rejected potion: {potionName}");
+         }
++        catch (Exception ex) { return Error($"Buy potion failed: {ex.Message}"); }
+ 
+         return DetectDecisionPoint();
+     }
+ 
+-    private Dictionary<string, object?> DoRemoveCard(Player player)
++    private Dictionary<string, object?> DoRemoveCard(Player player, Dictionary<string, object?>? args)
+     {
+         if (_runState?.CurrentRoom is not MerchantRoom merchantRoom)
+             return Error("Not in a shop");
+ 
+         var removal = merchantRoom.GetLocalInventory().CardRemovalEntry;
+         if (removal == null) return Error("No card removal available");
+-        if (player.Gold < removal.Cost) return Error("Not enough gold");
++        if (args == null || !args.TryGetValue("entry_ref", out var expectedEntry)
++            || !NativeObjectIdentity.Matches(removal, expectedEntry))
++            return Error("The observed card-removal entry is no longer current");
++        if (!removal.IsStocked) return Error("Card removal already used");
++        if (!removal.EnoughGold) return Error("Not enough gold");
+ 
+         try
+         {
+             // Run on background thread so card selection can pause (same pattern as event options)
+-            var task = Task.Run(() => removal.OnTryPurchaseWrapper(merchantRoom.GetLocalInventory()));
++            var task = BeginHostOperation(() => removal.OnTryPurchaseWrapper(merchantRoom.GetLocalInventory()));
+             for (int i = 0; i < 100; i++)
+             {
+                 _syncCtx.Pump();
+@@ -1396,8 +1449,7 @@ public class RunSimulator
+                 WaitForActionExecutor();
+                 return DetectDecisionPoint();
+             }
+-            if (!task.IsCompleted) task.Wait(2000);
+-            _syncCtx.Pump();
++            AdvancePendingHostOperation();
+             Log($"Removed card for {removal.Cost}g");
+         }
+         catch (Exception ex) { return Error($"Remove card failed: {ex.Message}"); }
+@@ -1405,6 +1457,23 @@ public class RunSimulator
+         return DetectDecisionPoint();
+     }
+ 
++    private Dictionary<string, object?> DoLeaveShop(Dictionary<string, object?>? args)
++    {
++        if (_runState?.CurrentRoom is not MerchantRoom merchantRoom)
++            return Error("Not in a shop");
++        if (args == null || !args.TryGetValue("room_ref", out var expectedRoom)
++            || !NativeObjectIdentity.Matches(merchantRoom, expectedRoom))
++            return Error("The observed merchant room is no longer current");
++        if (_pendingHostOperation != null || _cardSelector.HasPending || _cardSelector.HasPendingReward)
++            return Error("Cannot leave the shop while a native purchase interaction is pending");
++
++        RunManager.Instance.ProceedFromTerminalRewardsScreen().GetAwaiter().GetResult();
++        _syncCtx.Pump();
++        WaitForActionExecutor();
++        _mapPresentationOpen = true;
++        return MapSelectState();
++    }
++
+     private Dictionary<string, object?> DoSelectBundle(Player player, Dictionary<string, object?>? args)
+     {
+         if (_pendingBundleTcs == null || _pendingBundles == null)
+@@ -1424,6 +1493,7 @@ public class RunSimulator
+         tcs.TrySetResult(selected);
+ 
+         _syncCtx.Pump();
++        AdvancePendingHostOperation();
+         WaitForActionExecutor();
+         return DetectDecisionPoint();
+     }
+@@ -1444,6 +1514,7 @@ public class RunSimulator
+         Log($"Card selection: indices [{string.Join(",", indices)}]");
+         _cardSelector.ResolvePendingByIndices(indices);
+         _syncCtx.Pump();
++        AdvancePendingHostOperation();
+         WaitForActionExecutor();
+ 
+         // Extra wait for rest-site SMITH: the background ChooseLocalOption task
+@@ -1455,7 +1526,7 @@ public class RunSimulator
+             WaitForActionExecutor();
+             // Force to map after SMITH completes (same pattern as HEAL)
+             Log("Card selection in rest site (SMITH), forcing to map");
+-            ForceToMap();
++            OpenMapPresentation();
+             return MapSelectState();
+         }
+ 
+@@ -1478,105 +1549,102 @@ public class RunSimulator
+             Log("Skipping card selection");
+             _cardSelector.CancelPending();
+             _syncCtx.Pump();
++            AdvancePendingHostOperation();
+             WaitForActionExecutor();
+         }
+         return DetectDecisionPoint();
+     }
+ 
+-    private Dictionary<string, object?> DoUsePotion(Player player, Dictionary<string, object?>? args)
++    private bool CanUsePotionNow(Player player, PotionModel potion)
+     {
+-        if (args == null || !args.ContainsKey("potion_index"))
+-            return Error("use_potion requires 'potion_index'");
+-
+-        var idx = Convert.ToInt32(args["potion_index"]);
+-        var potionsList = player.Potions?.ToList() ?? new();
+-        if (idx < 0 || idx >= potionsList.Count) return Error($"Invalid potion index {idx}");
+-        var potion = potionsList[idx];
+-        if (potion == null) return Error($"No potion at index {idx}");
+-
+-        // Determine target based on potion's TargetType first, then fall back to target_index
+-        Creature? target = null;
+-        var potionTargetType = potion.TargetType;
+-
+-        // Self-targeting potions (Flex, Fortifier, etc.) ALWAYS target the player
+-        // regardless of any target_index the caller provides
+-        if (potionTargetType == TargetType.Self || potionTargetType == TargetType.TargetedNoCreature)
+-        {
+-            target = player.Creature;
+-        }
+-        else if (potionTargetType == TargetType.AnyEnemy)
+-        {
+-            // Use caller's target_index if provided, otherwise pick first alive enemy
+-            if (args.TryGetValue("target_index", out var tObj) && tObj != null)
+-            {
+-                var targetIdx = Convert.ToInt32(tObj);
+-                var combatState = CombatManager.Instance.DebugOnlyGetState();
+-                if (combatState != null)
+-                {
+-                    var enemies = combatState.Enemies.Where(e => e != null && e.IsAlive).ToList();
+-                    if (targetIdx >= 0 && targetIdx < enemies.Count)
+-                        target = enemies[targetIdx];
+-                }
+-            }
+-            // Same single-enemy rule as play_card: only auto-target when unambiguous (#79).
+-            if (target == null && CombatManager.Instance.IsInProgress)
+-            {
+-                var combatState = CombatManager.Instance.DebugOnlyGetState();
+-                var alive = combatState?.Enemies?.Where(e => e != null && e.IsAlive).ToList() ?? new();
+-                if (alive.Count == 1)
+-                    target = alive[0];
+-                else if (alive.Count > 1)
+-                    return Error($"Potion {potion.Id.Entry} targets a single enemy (AnyEnemy); " +
+-                                 $"'target_index' is required when multiple enemies are alive ({alive.Count}).");
+-            }
+-        }
+-        // All other target types (None, All, etc.) → leave target as null
+-
+-        Log($"Using potion: {potion.GetType().Name} at slot {idx} target={target?.GetType().Name ?? "none"}");
+-        try
+-        {
+-            var action = new MegaCrit.Sts2.Core.GameActions.UsePotionAction(potion, target, CombatManager.Instance.IsInProgress);
+-            RunManager.Instance.ActionQueueSet.EnqueueWithoutSynchronizing(action);
+-            WaitForActionExecutor();
+-            _syncCtx.Pump();
+-
+-            // Effect may require card_select before the potion slot clears — do not discard as "stuck".
+-            if (_cardSelector.HasPending || _cardSelector.HasPendingReward)
+-                return DetectDecisionPoint();
++        if (potion.IsQueued || potion.HasBeenRemovedFromState || !potion.PassesCustomUsabilityCheck)
++            return false;
++        if (!ReferenceEquals(potion.Owner, player) || !player.CanUseOrRemovePotions)
++            return false;
++        if (potion.Usage == PotionUsage.Automatic || potion.Usage == PotionUsage.None)
++            return false;
++        if (potion.Usage == PotionUsage.AnyTime)
++            return true;
++        return CombatManager.Instance.IsInProgress
++            && player.Creature.CombatState?.CurrentSide == player.Creature.Side
++            && player.Creature.IsAlive
++            && !_cardSelector.HasPending
++            && !_cardSelector.HasPendingReward
++            && _pendingBundles == null
++            && !CombatManager.Instance.PlayerActionsDisabled;
++    }
+ 
+-            // Verify potion was consumed
+-            var afterPotions = player.Potions?.ToList() ?? new();
+-            if (afterPotions.Contains(potion))
+-            {
+-                // Potion wasn't consumed — manually discard it
+-                Log("Potion not consumed by action, manually discarding");
+-                MegaCrit.Sts2.Core.Commands.PotionCmd.Discard(potion).GetAwaiter().GetResult();
+-                _syncCtx.Pump();
+-            }
+-        }
+-        catch (Exception ex)
+-        {
+-            Log($"Use potion failed: {ex.Message}");
+-            // Try manual discard as fallback
+-            try { MegaCrit.Sts2.Core.Commands.PotionCmd.Discard(potion).GetAwaiter().GetResult(); } catch { }
+-        }
++    private Dictionary<string, object?> DoUsePotion(Player player, Dictionary<string, object?>? args)
++    {
++        if (args == null || !args.ContainsKey("potion_slot") || !args.ContainsKey("potion_ref"))
++            return Error("use_potion requires 'potion_slot' and 'potion_ref'");
++
++        var slot = Convert.ToInt32(args["potion_slot"]);
++        PotionModel? potion;
++        try { potion = player.GetPotionAtSlotIndex(slot); }
++        catch (IndexOutOfRangeException) { return Error($"Invalid potion slot {slot}"); }
++        if (potion == null || !NativeObjectIdentity.Matches(potion, args["potion_ref"]))
++            return Error("The observed potion is no longer in the bound belt slot");
++        if (!CanUsePotionNow(player, potion))
++            return Error($"Potion {potion.Id.Entry} is no longer natively usable");
++
++        Creature? target;
++        switch (potion.TargetType)
++        {
++            case TargetType.Self:
++                target = player.Creature;
++                break;
++            case TargetType.AnyEnemy:
++                if (!args.TryGetValue("target_ref", out var expectedTarget))
++                    return Error($"Potion {potion.Id.Entry} requires 'target_ref'");
++                target = CombatManager.Instance.DebugOnlyGetState()?.Enemies
++                    .FirstOrDefault(candidate => NativeObjectIdentity.Matches(candidate, expectedTarget));
++                if (target == null)
++                    return Error("The observed potion target is no longer a living enemy");
++                break;
++            case TargetType.None:
++            case TargetType.AllEnemies:
++            case TargetType.RandomEnemy:
++            case TargetType.AllAllies:
++                target = null;
++                break;
++            default:
++                return Error($"Potion target type {potion.TargetType} is not supported by the managed native binding");
++        }
++        if (!potion.IsValidTarget(target))
++            return Error($"Potion {potion.Id.Entry} rejected the bound native target");
++
++        Log($"Using potion through native commit: {potion.GetType().Name} at slot {slot}");
++        potion.EnqueueManualUse(target);
++        WaitForNativeCommit();
++
++        if ((_cardSelector.HasPending || _cardSelector.HasPendingReward) && player.PotionSlots.Contains(potion))
++            return DetectDecisionPoint();
++        if (player.PotionSlots.Contains(potion))
++            return Error($"Potion delivery is unknown because the exact potion remains in slot {slot}");
+ 
+         return DetectDecisionPoint();
+     }
+ 
+     private Dictionary<string, object?> DoDiscardPotion(Player player, Dictionary<string, object?>? args)
+     {
+-        if (args == null || !args.ContainsKey("potion_index"))
+-            return Error("discard_potion requires 'potion_index'");
+-
+-        var idx = Convert.ToInt32(args["potion_index"]);
+-        var potionsList = player.Potions?.ToList() ?? new();
+-        if (idx < 0 || idx >= potionsList.Count) return Error($"Invalid potion index {idx}");
+-        var potion = potionsList[idx];
+-        if (potion == null) return Error($"No potion at index {idx}");
+-
+-        MegaCrit.Sts2.Core.Commands.PotionCmd.Discard(potion).GetAwaiter().GetResult();
+-        _syncCtx.Pump();
++        if (args == null || !args.ContainsKey("potion_slot") || !args.ContainsKey("potion_ref"))
++            return Error("discard_potion requires 'potion_slot' and 'potion_ref'");
++
++        var slot = Convert.ToInt32(args["potion_slot"]);
++        PotionModel? potion;
++        try { potion = player.GetPotionAtSlotIndex(slot); }
++        catch (IndexOutOfRangeException) { return Error($"Invalid potion slot {slot}"); }
++        if (potion == null || !NativeObjectIdentity.Matches(potion, args["potion_ref"]))
++            return Error("The observed potion is no longer in the bound belt slot");
++        if (!ReferenceEquals(potion.Owner, player) || !player.CanUseOrRemovePotions || potion.IsQueued)
++            return Error($"Potion {potion.Id.Entry} is no longer natively discardable");
++
++        RunManager.Instance.ActionQueueSynchronizer.RequestEnqueue(
++            new DiscardPotionGameAction(player, (uint)slot, CombatManager.Instance.IsInProgress));
++        WaitForNativeCommit();
++        if (player.PotionSlots.Contains(potion))
++            return Error($"Potion discard delivery is unknown because the exact potion remains in slot {slot}");
+         return DetectDecisionPoint();
+     }
+ 
+@@ -1595,7 +1663,8 @@ public class RunSimulator
+             try
+             {
+                 // Run on background thread so Smith card selection can pause
+-                var task = Task.Run(() => RunManager.Instance.RestSiteSynchronizer.ChooseLocalOption(optionIndex));
++                var task = BeginHostOperation(() =>
++                    RunManager.Instance.RestSiteSynchronizer.ChooseLocalOption(optionIndex));
+                 for (int i = 0; i < 100; i++)
+                 {
+                     _syncCtx.Pump();
+@@ -1608,8 +1677,7 @@ public class RunSimulator
+                     WaitForActionExecutor();
+                     return DetectDecisionPoint();
+                 }
+-                if (!task.IsCompleted) task.Wait(2000);
+-                _syncCtx.Pump();
++                AdvancePendingHostOperation();
+             }
+             catch (Exception ex)
+             {
+@@ -1627,7 +1695,7 @@ public class RunSimulator
+                 Thread.Sleep(200);
+                 _syncCtx.Pump();
+                 WaitForActionExecutor();
+-                ForceToMap();
++                OpenMapPresentation();
+                 return MapSelectState();
+             }
+         }
+@@ -1648,7 +1716,7 @@ public class RunSimulator
+                         _eventOptionChosen = true;
+                         _lastEventOptionCount = options.Count;
+                         // Run on thread pool so GetSelectedCards/GetSelectedCardReward can block
+-                        var task = Task.Run(() => options[optionIndex].Chosen());
++                        var task = BeginHostOperation(() => options[optionIndex].Chosen());
+                         for (int i = 0; i < 100; i++)
+                         {
+                             _syncCtx.Pump();
+@@ -1662,8 +1730,7 @@ public class RunSimulator
+                             WaitForActionExecutor();
+                             return DetectDecisionPoint();
+                         }
+-                        if (!task.IsCompleted) task.Wait(2000);
+-                        _syncCtx.Pump();
++                        AdvancePendingHostOperation();
+                     }
+                     catch (Exception ex) { Log($"Event choose: {ex.Message}"); }
+                 }
+@@ -1679,86 +1746,69 @@ public class RunSimulator
+         return DetectDecisionPoint();
+     }
+ 
+-    private Dictionary<string, object?> DoLeaveRoom(Player player)
++    private Dictionary<string, object?> DoLeaveRoom(Player player, Dictionary<string, object?>? args)
+     {
++        var room = _runState?.CurrentRoom;
++        if (args?.TryGetValue("room_ref", out var expectedRoom) == true
++            && (room == null || !NativeObjectIdentity.Matches(room, expectedRoom)))
++            return Error("The observed room is no longer current");
+         Log("Leaving room");
+         try { RunManager.Instance.ProceedFromTerminalRewardsScreen().GetAwaiter().GetResult(); }
+         catch { }
+         _syncCtx.Pump();
+         WaitForActionExecutor();
+ 
+-        // If still in a non-combat room, force to map
+-        var room = _runState?.CurrentRoom;
++        // The shipped room controls open the map; the subsequent native map
++        // vote owns the actual room exit.
+         if (room is RestSiteRoom || room is MerchantRoom || room is EventRoom || room is TreasureRoom)
+         {
+-            Log("Force leaving non-combat room to map");
+-            try
+-            {
+-                RunManager.Instance.EnterRoom(new MapRoom()).GetAwaiter().GetResult();
+-                _syncCtx.Pump();
+-                WaitForActionExecutor();
+-            }
+-            catch (Exception ex) { Log($"Force leave: {ex.Message}"); }
++            _mapPresentationOpen = true;
++            return MapSelectState();
+         }
+         return DetectDecisionPoint();
+     }
+ 
+-    /// <summary>
+-    /// Headless mode skips Godot transition callbacks that normally trigger between-act healing
+-    /// (AncientEventModel.BeforeEventStarted). Replicates the original sts2.dll formula:
+-    ///   healAmount = MaxHp - CurrentHp  (i.e. heal to full)
+-    ///   if Ascension >= 2: healAmount *= 0.8
+-    /// No-op if the engine already healed (missingHp &lt;= 0), so this is safe alongside any
+-    /// future engine path that does fire the callback.
+-    /// Adapted from PR #83 commit cf75bec by @tianyumyum.
+-    /// </summary>
+-    private void HealBetweenActs()
++    private Dictionary<string, object?> DoProceed(Player player, Dictionary<string, object?>? args)
+     {
+-        if (_runState == null) return;
+-        var player = _runState.Players[0];
+-        if (player.Creature == null) return;
++        if (_runState?.CurrentRoom is not CombatRoom combatRoom)
++            return Error("Proceed is only available after combat rewards");
++        if (args == null || !args.TryGetValue("room_ref", out var expectedRoom)
++            || !NativeObjectIdentity.Matches(combatRoom, expectedRoom))
++            return Error("The observed combat room is no longer current");
++        var activeRewardSet = _rewardsSelector.PendingSet;
++        var hasCurrentCombatRewards = activeRewardSet != null
++            && ReferenceEquals(activeRewardSet.Room, combatRoom);
++        if (CombatManager.Instance.IsInProgress || (!hasCurrentCombatRewards && !_rewardsProcessed))
++            return Error("Combat rewards are not ready to proceed");
++        if (!Hook.ShouldProceedToNextMapPoint(_runState))
++            return Error("Native hooks currently disallow proceeding from this reward screen");
++
++        Log("Proceeding from completed combat rewards");
+ 
+-        var currentHp = player.Creature.CurrentHp;
+-        var maxHp = player.Creature.MaxHp;
+-        var missingHp = maxHp - currentHp;
+-        if (missingHp <= 0) return;
+-
+-        decimal healAmount = missingHp;
+-        if (RunManager.Instance.HasAscension((AscensionLevel)2))
+-            healAmount *= 0.8m;
+-
+-        var newHp = currentHp + (int)Math.Ceiling(healAmount);
+-        if (newHp > maxHp) newHp = maxHp;
+-        SetField(player.Creature, "_currentHp", newHp);
+-        Log($"Between-act heal: {currentHp} → {newHp} (missing={missingHp}, ascension2+={RunManager.Instance.HasAscension((AscensionLevel)2)})");
+-    }
+-
+-    private Dictionary<string, object?> DoProceed(Player player)
+-    {
+-        Log("Proceeding");
+-
+-        // Check if we need to move to next act (boss defeated)
+-        var room = _runState?.CurrentRoom;
+-        if (room is CombatRoom combatRoom && combatRoom.RoomType == RoomType.Boss)
++        if (combatRoom.RoomType == RoomType.Boss)
+         {
+-            if (combatRoom.IsPreFinished || !CombatManager.Instance.IsInProgress)
++            // A double-boss act returns to the map after the first boss. Every
++            // other boss proceed is a native act-change vote, including Act 3:
++            // EnterNextAct then owns the transition into The Architect event.
++            if (_runState.Map.SecondBossMapPoint != null
++                && _runState.CurrentMapCoord == _runState.Map.BossMapPoint.coord)
+             {
+-                // Final act boss → victory (same rule as DetectPostCombatState, #81).
+-                if (_runState != null && _runState.CurrentActIndex >= 2)
+-                {
+-                    Log($"Final boss defeated via Proceed (Act {_runState.CurrentActIndex + 1}), reporting victory");
+-                    return GameOverState(true);
+-                }
+-                RunManager.Instance.EnterNextAct().GetAwaiter().GetResult();
+-                WaitForActionExecutor();
+-                HealBetweenActs();
+-                return DetectDecisionPoint();
++                OpenMapPresentation();
++                return MapSelectState();
+             }
++
++            var previousActIndex = _runState.CurrentActIndex;
++            var previousRoom = _runState.CurrentRoom;
++            RunManager.Instance.ActChangeSynchronizer.SetLocalPlayerReady();
++            WaitForNativeCommit();
++            WaitForRunLocationChange(previousActIndex, previousRoom);
++            _rewardsSelector.NotifyStateChanged();
++            AdvancePendingHostOperation();
++            return DetectDecisionPoint();
+         }
+ 
+-        RunManager.Instance.ProceedFromTerminalRewardsScreen().GetAwaiter().GetResult();
+-        WaitForActionExecutor();
+-        return DetectDecisionPoint();
++        OpenMapPresentation();
++        return MapSelectState();
+     }
+ 
+     #endregion
+@@ -1772,11 +1822,13 @@ public class RunSimulator
+ 
+         var player = _runState.Players[0];
+ 
+-        // Check game over (death)
++        // WinRun intentionally kills all players after setting the run outcome.
++        // The game-owned terminal state must therefore win over creature death.
++        if (RunManager.Instance.IsGameOver)
++            return GameOverState(true);
++
+         if (player.Creature != null && player.Creature.IsDead)
+-        {
+             return GameOverState(false);
+-        }
+ 
+         // Check if there's a pending bundle selection (Scroll Boxes: pick 1 of N packs)
+         if (_pendingBundles != null && _pendingBundleTcs != null && !_pendingBundleTcs.Task.IsCompleted)
+@@ -1885,20 +1937,23 @@ public class RunSimulator
+             };
+         }
+ 
+-        // Check if there's a pending card reward
+-        if (_pendingCardReward != null)
++        // RewardsSet owns reward generation, hooks, selection effects, history,
++        // and completion. The Host only replaces the absent rewards screen.
++        if (_rewardsSelector.IsAwaitingAction)
+         {
+-            return CardRewardState(player, _runState.CurrentRoom as CombatRoom);
++            return RewardSetState(player);
+         }
+ 
+-        // Check if RunManager reports game over (victory)
+-        if (RunManager.Instance.IsGameOver)
++        var room = _runState.CurrentRoom;
++
++        // In the shipped UI, room proceed controls open the map before the next
++        // map vote exits the current room. The managed Host represents that UI
++        // owner change without mutating CurrentRoom ahead of the native vote.
++        if (_mapPresentationOpen)
+         {
+-            return GameOverState(true);
++            return MapSelectState();
+         }
+ 
+-        var room = _runState.CurrentRoom;
+-
+         // Map room — need to select a node
+         if (room is MapRoom || room == null)
+         {
+@@ -1908,7 +1963,7 @@ public class RunSimulator
+         // Combat room
+         if (room is CombatRoom combatRoom)
+         {
+-            // With Task.Yield() patched, combat init should be synchronous
++            // NonInteractiveMode executes native actions without a SceneTree frame wait.
+             _syncCtx.Pump();
+             WaitForActionExecutor();
+ 
+@@ -1992,70 +2047,15 @@ public class RunSimulator
+             if (map == null)
+                 return Error("No map available");
+         }
+-        var currentCoord = _runState!.CurrentMapCoord;
+-
+-        List<Dictionary<string, object?>> choices;
+-        if (currentCoord.HasValue)
+-        {
+-            var currentPoint = map.GetPoint(currentCoord.Value);
+-            if (currentPoint == null)
++        var choices = CurrentTravelableMapPoints()
++            .Select(point => new Dictionary<string, object?>
+             {
+-                Log($"GetPoint returned null for coord ({currentCoord.Value.col},{currentCoord.Value.row}), falling back to start");
+-                // Current coord is invalid (stale after forced room transition); treat as no position
+-                choices = new List<Dictionary<string, object?>>();
+-                var sp = map.StartingMapPoint;
+-                if (sp?.Children != null)
+-                {
+-                    foreach (var child in sp.Children)
+-                    {
+-                        choices.Add(new Dictionary<string, object?>
+-                        {
+-                            ["col"] = (int)child.coord.col,
+-                            ["row"] = (int)child.coord.row,
+-                            ["type"] = child.PointType.ToString(),
+-                        });
+-                    }
+-                }
+-            }
+-            else
+-            {
+-                choices = (currentPoint.Children ?? Enumerable.Empty<MapPoint>())
+-                    .Select(child => new Dictionary<string, object?>
+-                    {
+-                        ["col"] = (int)child.coord.col,
+-                        ["row"] = (int)child.coord.row,
+-                        ["type"] = child.PointType.ToString(),
+-                    })
+-                    .ToList();
+-            }
+-        }
+-        else
+-        {
+-            // Starting point — pick from starting row
+-            var startPoint = map.StartingMapPoint;
+-            choices = new List<Dictionary<string, object?>>
+-            {
+-                new()
+-                {
+-                    ["col"] = (int)startPoint.coord.col,
+-                    ["row"] = (int)startPoint.coord.row,
+-                    ["type"] = startPoint.PointType.ToString(),
+-                }
+-            };
+-            // Add all children of start point as well since we can travel to them
+-            if (startPoint.Children != null)
+-            {
+-                foreach (var child in startPoint.Children)
+-                {
+-                    choices.Add(new Dictionary<string, object?>
+-                    {
+-                        ["col"] = (int)child.coord.col,
+-                        ["row"] = (int)child.coord.row,
+-                        ["type"] = child.PointType.ToString(),
+-                    });
+-                }
+-            }
+-        }
++                ["col"] = (int)point.coord.col,
++                ["row"] = (int)point.coord.row,
++                ["type"] = point.PointType.ToString(),
++                ["native_ref"] = NativeObjectIdentity.Get(point),
++            })
++            .ToList();
+ 
+         return new Dictionary<string, object?>
+         {
+@@ -2079,11 +2079,6 @@ public class RunSimulator
+         if (player.Creature != null && player.Creature.CurrentHp > 0)
+             _lastKnownHp = player.Creature.CurrentHp;
+ 
+-        // Alive enemies in the same order play_card's AnyEnemy targeting uses, so
+-        // damage_by_target[i].target_index aligns with the target_index clients pass.
+-        var aliveEnemiesForTargeting = combatState?.Enemies?
+-            .Where(e => e != null && e.IsAlive).ToList() ?? new();
+-
+         var hand = pcs?.Hand?.Cards?.Select((c, i) =>
+         {
+             // Export the *currently resolved* stat values, not the card base: refresh the
+@@ -2109,69 +2104,15 @@ public class RunSimulator
+             }
+             catch { }
+ 
+-            // Per-target resolved damage for attack cards: the scalar `stats` above use the
+-            // card's CurrentTarget, but a single value can't capture target-specific modifiers
+-            // (Vulnerable #60, Slow #77) or conditional hit counts (Dismantle #78, X-cost
+-            // Whirlwind #82). Re-run the preview per enemy via MultiCreatureTargeting, the same
+-            // path the game uses to draw multi-target previews, and read the resolved vars.
+-            List<Dictionary<string, object?>>? damageByTarget = null;
+-            if (c.Type == CardType.Attack && aliveEnemiesForTargeting.Count > 0
+-                && (c.TargetType == TargetType.AnyEnemy || c.TargetType == TargetType.AllEnemies))
+-            {
+-                damageByTarget = new List<Dictionary<string, object?>>();
+-                for (int ti = 0; ti < aliveEnemiesForTargeting.Count; ti++)
+-                {
+-                    var tgt = aliveEnemiesForTargeting[ti];
+-                    try
+-                    {
+-                        c.DynamicVars.ClearPreview();
+-                        c.UpdateDynamicVarPreview(
+-                            MegaCrit.Sts2.Core.Entities.Cards.CardPreviewMode.MultiCreatureTargeting,
+-                            tgt, c.DynamicVars);
+-                        var tstats = new Dictionary<string, object?>();
+-                        foreach (var dv in c.DynamicVars.Values)
+-                            tstats[dv.Name.ToLowerInvariant()] = (int)dv.PreviewValue;
+-
+-                        // Per-hit damage = calculateddamage (override cards) or damage.
+-                        int? perHit = tstats.TryGetValue("calculateddamage", out var cdv) && cdv is int cdi && cdi > 0
+-                            ? cdi
+-                            : (tstats.TryGetValue("damage", out var dv2) && dv2 is int di ? di : (int?)null);
+-                        // Hit count: explicit `repeat` var if present, else for X-cost attacks
+-                        // the hit count is the current X (= available energy), e.g. Whirlwind (#82).
+-                        int repeat = tstats.TryGetValue("repeat", out var rv) && rv is int ri && ri > 0 ? ri : 1;
+-                        if (repeat == 1 && c.EnergyCost?.CostsX == true && pcs != null)
+-                            repeat = pcs.Energy;
+-                        // Dismantle hits twice when the target is Vulnerable (#78). The doubled
+-                        // hit count lives in Dismantle.OnPlay, not in any DynamicVar preview or
+-                        // the Hook.ModifyAttackHitCount path (which needs an AttackCommand we
+-                        // don't have at preview time), so it's special-cased by card entry.
+-                        if (repeat == 1 && c.Id.Entry == "DISMANTLE" && tgt.Powers != null
+-                            && tgt.Powers.Any(p => p?.Id.Entry == "VULNERABLE_POWER"))
+-                            repeat = 2;
+-
+-                        var row = new Dictionary<string, object?>
+-                        {
+-                            ["target_index"] = ti,
+-                            ["name"] = _loc.Monster(tgt.Monster?.Id.Entry ?? "UNKNOWN"),
+-                        };
+-                        if (perHit != null) row["damage"] = perHit;
+-                        if (repeat > 1)
+-                        {
+-                            row["repeat"] = repeat;
+-                            if (perHit != null) row["total_damage"] = perHit * repeat;
+-                        }
+-                        damageByTarget.Add(row);
+-                    }
+-                    catch { }
+-                    finally { c.DynamicVars.ClearPreview(); }
+-                }
+-            }
+-
+             // Use CurrentStarCost (combat-modified) for UI/can_play; BaseStarCost ignores temporary reductions.
+             var starCost = c.CurrentStarCost;
++            var validTargetRefs = (c.TargetType == TargetType.AnyEnemy || c.TargetType == TargetType.AnyAlly)
++                ? combatState?.Creatures.Where(c.IsValidTarget).Select(NativeObjectIdentity.Get).ToList() ?? new()
++                : null;
+             var cardInfo = new Dictionary<string, object?>
+             {
+                 ["index"] = i,
++                ["native_ref"] = NativeObjectIdentity.Get(c),
+                 ["id"] = c.Id.ToString(),
+                 ["name"] = _loc.Card(c.Id.Entry),
+                 ["cost"] = c.EnergyCost?.GetResolved() ?? 0,
+@@ -2179,6 +2120,7 @@ public class RunSimulator
+                 ["rarity"] = c.Rarity.ToString(),
+                 ["can_play"] = c.CanPlay(out _, out _),
+                 ["target_type"] = c.TargetType.ToString(),
++                ["valid_target_refs"] = validTargetRefs,
+                 ["stats"] = stats.Count > 0 ? stats : null,
+                 ["description"] = _loc.Bilingual("cards", c.Id.Entry + ".description"),
+             };
+@@ -2201,8 +2143,6 @@ public class RunSimulator
+                 cardInfo["affliction"] = _loc.Bilingual("afflictions", c.Affliction.Id.Entry + ".title");
+                 try { if (c.Affliction.Amount != 0) cardInfo["affliction_amount"] = c.Affliction.Amount; } catch { }
+             }
+-            if (damageByTarget != null && damageByTarget.Count > 0)
+-                cardInfo["damage_by_target"] = damageByTarget;
+             return cardInfo;
+         }).ToList() ?? new();
+ 
+@@ -2265,6 +2205,7 @@ public class RunSimulator
+                 return new Dictionary<string, object?>
+                 {
+                     ["index"] = i,
++                    ["native_ref"] = NativeObjectIdentity.Get(e),
+                     ["name"] = _loc.Monster(e.Monster?.Id.Entry ?? "UNKNOWN"),
+                     ["hp"] = e.CurrentHp,
+                     ["max_hp"] = e.MaxHp,
+@@ -2354,131 +2295,130 @@ public class RunSimulator
+         Log($"Post-combat: RoomType={combatRoom.RoomType}, IsPreFinished={combatRoom.IsPreFinished}");
+         _syncCtx.Pump();
+ 
+-        // Generate rewards manually instead of using TestMode auto-accept
+-        if (_pendingRewards == null && !_rewardsProcessed)
++        if (!_combatRewardsStarted)
+         {
+-            _goldBeforeCombat = player.Gold;
+-            try
++            _combatRewardsStarted = true;
++            var task = BeginHostOperation(async () =>
+             {
+-                var rewardsSet = new RewardsSet(player).WithRewardsFromRoom(combatRoom);
+-                // build 23372702: GenerateWithoutOffering() now returns Task (void);
+-                // generated rewards live on rewardsSet.Rewards afterwards.
+-                rewardsSet.GenerateWithoutOffering().GetAwaiter().GetResult();
+-                var rewards = rewardsSet.Rewards;
+-                _syncCtx.Pump();
+-
+-                // Auto-collect gold and potions, but present card choices to agent
+-                var cardRewards = new List<CardReward>();
+-                foreach (var reward in rewards)
+-                {
+-                    if (reward is GoldReward || reward is MegaCrit.Sts2.Core.Rewards.RelicReward
+-                        || reward is MegaCrit.Sts2.Core.Rewards.PotionReward)
+-                    {
+-                        try { reward.SelectUnsynchronized().GetAwaiter().GetResult(); _syncCtx.Pump(); }
+-                        catch (Exception ex) { Log($"Auto-collect reward: {ex.Message}"); }
+-                    }
+-                    else if (reward is CardReward cr)
+-                    {
+-                        cardRewards.Add(cr);
+-                    }
+-                }
+-
+-                if (cardRewards.Count > 0)
+-                {
+-                    _pendingCardReward = cardRewards[0];
+-                    _pendingRewards = rewards;
+-                    return CardRewardState(player, combatRoom);
+-                }
+-
+-                _pendingRewards = null;
+-            }
+-            catch (Exception ex) { Log($"Generate rewards: {ex.Message}"); }
+-        }
+-
+-        // No more pending rewards — proceed
+-        _pendingCardReward = null;
+-        _pendingRewards = null;
+-        _rewardsProcessed = true;
++                var rewardsSet = await RewardsCmd.GenerateForRoomEnd(player, combatRoom);
++                await Hook.BeforeCombatRewardOffered(rewardsSet, player.RunState, combatRoom);
++                await rewardsSet.Offer();
++                _rewardsProcessed = true;
++            });
+ 
+-        // Boss → next act, OR final victory after the last act's boss (#81). Act index is
+-        // 0-based and STS2 has 3 acts (0/1/2); killing the Act-3 (index 2) boss has no next
+-        // act — EnterNextAct NREs and DetectDecisionPoint falls through to an empty
+-        // map_select. Report victory directly in that case.
+-        if (combatRoom.RoomType == RoomType.Boss)
+-        {
+-            if (_runState != null && _runState.CurrentActIndex >= 2)
+-            {
+-                Log($"Final boss defeated (Act {_runState.CurrentActIndex + 1}), reporting victory");
+-                return GameOverState(true);
+-            }
+-            Log("Boss defeated, entering next act");
+-            try
++            for (int i = 0; i < 1000; i++)
+             {
+-                RunManager.Instance.EnterNextAct().GetAwaiter().GetResult();
+                 _syncCtx.Pump();
+-                WaitForActionExecutor();
+-                HealBetweenActs();
++                if (_rewardsSelector.IsAwaitingAction || task.IsCompleted) break;
++                Thread.Sleep(1);
+             }
+-            catch (Exception ex) { Log($"EnterNextAct: {ex.Message}"); }
+-            return DetectDecisionPoint();
+         }
+ 
+-        // Normal → go to map
+-        ForceToMap();
+-        return MapSelectState();
+-    }
++        if (_rewardsSelector.IsAwaitingAction)
++            return RewardSetState(player);
+ 
+-    private Dictionary<string, object?> CardRewardState(Player player, CombatRoom? combatRoom)
+-    {
+-        if (_pendingCardReward == null)
+-            return DetectPostCombatState(player, combatRoom ?? (_runState?.CurrentRoom as CombatRoom)!);
++        AdvancePendingHostOperation();
++        if (!_rewardsProcessed)
++            return Error("The native combat rewards operation did not reach an interactive or completed state");
+ 
+-        var cards = _pendingCardReward.Cards.Select((c, i) =>
++        // The shipped rewards screen exposes a Proceed button. Observation must
++        // not consume that player decision or bypass the act-change synchronizer.
++        return new Dictionary<string, object?>
+         {
+-            var stats = new Dictionary<string, object?>();
+-            try { foreach (var dv in c.DynamicVars.Values) stats[dv.Name.ToLowerInvariant()] = (int)dv.BaseValue; } catch { }
+-            var crkws = c.Keywords?.Where(k => k != CardKeyword.None).Select(k => k.ToString()).ToList();
+-            return new Dictionary<string, object?>
+-            {
+-                ["index"] = i,
+-                ["id"] = c.Id.ToString(),
+-                ["name"] = _loc.Card(c.Id.Entry),
+-                ["cost"] = c.EnergyCost?.GetResolved() ?? 0,
+-                ["type"] = c.Type.ToString(),
+-                ["rarity"] = c.Rarity.ToString(),
+-                ["description"] = _loc.Bilingual("cards", c.Id.Entry + ".description"),
+-                ["stats"] = stats.Count > 0 ? stats : null,
+-                ["keywords"] = crkws?.Count > 0 ? crkws : null,
+-                ["after_upgrade"] = GetUpgradedInfo(c),
+-            };
+-        }).ToList();
++            ["type"] = "decision",
++            ["decision"] = "combat_rewards_complete",
++            ["context"] = RunContext(),
++            ["room_ref"] = NativeObjectIdentity.Get(combatRoom),
++            ["is_boss"] = combatRoom.RoomType == RoomType.Boss,
++            ["player"] = PlayerSummary(player),
++        };
++    }
+ 
++    private Dictionary<string, object?> RewardSetState(Player player)
++    {
++        var rewardsSet = _rewardsSelector.PendingSet;
++        if (rewardsSet == null)
++            return Error("No native rewards set is awaiting player input");
++
++        var rewards = rewardsSet.Rewards
++            .Where(reward => !reward.SuccessfullySelected)
++            .Select((reward, index) => RewardSummary(reward, index))
++            .ToList();
++        var terminalRoom = rewardsSet.Room as CombatRoom;
++        var canProceed = terminalRoom != null && Hook.ShouldProceedToNextMapPoint(_runState!);
+         return new Dictionary<string, object?>
+         {
+             ["type"] = "decision",
+-            ["decision"] = "card_reward",
++            ["decision"] = "reward_set",
+             ["context"] = RunContext(),
+-            ["cards"] = cards,
+-            ["can_skip"] = _pendingCardReward.CanSkip,
+-            ["gold_earned"] = _runState!.Players[0].Gold - _goldBeforeCombat,
+-            ["player"] = PlayerSummary(_runState!.Players[0]),
++            ["rewards"] = rewards,
++            ["can_skip"] = !rewardsSet.DisallowSkipping,
++            ["is_terminal"] = terminalRoom != null,
++            ["can_proceed"] = canProceed,
++            ["room_ref"] = terminalRoom == null ? null : NativeObjectIdentity.Get(terminalRoom),
++            ["is_boss"] = terminalRoom?.RoomType == RoomType.Boss,
++            ["player"] = PlayerSummary(player),
++        };
++    }
++
++    private Dictionary<string, object?> RewardSummary(Reward reward, int index)
++    {
++        string kind;
++        string? name = null;
++        object? value = null;
++        switch (reward)
++        {
++            case GoldReward gold:
++                kind = "gold";
++                name = $"{gold.Amount} gold";
++                value = gold.Amount;
++                break;
++            case MegaCrit.Sts2.Core.Rewards.PotionReward potion:
++                kind = "potion";
++                name = potion.Potion == null ? null : _loc.Potion(potion.Potion.Id.Entry);
++                value = potion.Potion?.Id.ToString();
++                break;
++            case MegaCrit.Sts2.Core.Rewards.RelicReward relic:
++                kind = "relic";
++                name = relic.Relic == null ? null : _loc.Relic(relic.Relic.Id.Entry);
++                value = relic.Relic?.Id.ToString();
++                break;
++            case CardReward:
++                kind = "card_choice";
++                name = "Add a card to the deck";
++                break;
++            default:
++                kind = reward.GetType().Name;
++                name = reward.GetType().Name;
++                break;
++        }
++
++        string? description = null;
++        try { description = reward.Description.GetFormattedText(); }
++        catch { }
++        return new Dictionary<string, object?>
++        {
++            ["index"] = index,
++            ["native_ref"] = NativeObjectIdentity.Get(reward),
++            ["kind"] = kind,
++            ["name"] = name,
++            ["description"] = description,
++            ["value"] = value,
+         };
+     }
+ 
+-    private void ForceToMap()
++    private void OpenMapPresentation()
+     {
+         try
+         {
+             RunManager.Instance.ProceedFromTerminalRewardsScreen().GetAwaiter().GetResult();
+             _syncCtx.Pump();
+         }
+-        catch { }
+-
+-        if (_runState?.CurrentRoom is not MapRoom)
++        catch (Exception ex)
+         {
+-            try { RunManager.Instance.EnterRoom(new MapRoom()).GetAwaiter().GetResult(); _syncCtx.Pump(); }
+-            catch (Exception ex) { Log($"ForceToMap: {ex.Message}"); }
++            Log($"OpenMapPresentation: native proceed failed: {ex.Message}");
+         }
++        _mapPresentationOpen = true;
+     }
+ 
+     private Dictionary<string, object?> EventChoiceState(EventRoom eventRoom)
+@@ -2502,22 +2442,14 @@ public class RunSimulator
+                 _syncCtx.Pump();
+             }
+             catch { }
+-            // Force to map if still in event room
+-            if (_runState?.CurrentRoom is EventRoom)
+-            {
+-                try { RunManager.Instance.EnterRoom(new MapRoom()).GetAwaiter().GetResult(); _syncCtx.Pump(); }
+-                catch { }
+-            }
+-            return _runState?.CurrentRoom is MapRoom ? MapSelectState() : DetectDecisionPoint();
++            _mapPresentationOpen = true;
++            return MapSelectState();
+         }
+ 
+         var currentOptions = localEvent.CurrentOptions;
+         if (currentOptions == null || currentOptions.Count == 0)
+         {
+-            Log($"Event {localEvent.GetType().Name} has no options, auto-skipping");
+-            try { RunManager.Instance.EnterRoom(new MapRoom()).GetAwaiter().GetResult(); _syncCtx.Pump(); }
+-            catch { }
+-            return MapSelectState();
++            return Error($"Event {localEvent.GetType().Name} has no options before native completion");
+         }
+ 
+         var options = currentOptions
+@@ -2666,7 +2598,7 @@ public class RunSimulator
+         {
+             // Options empty = choice already made (synchronizer cleared them), go to map
+             Log("Rest site: options empty, proceeding to map");
+-            ForceToMap();
++            OpenMapPresentation();
+             return MapSelectState();
+         }
+ 
+@@ -2691,7 +2623,7 @@ public class RunSimulator
+     private Dictionary<string, object?> ShopState(MerchantRoom merchantRoom, Player player)
+     {
+         var inv = merchantRoom.GetLocalInventory();
+-        if (inv == null) { ForceToMap(); return MapSelectState(); }
++        if (inv == null) return Error("Merchant room has no local inventory");
+ 
+         var cards = inv.CharacterCardEntries.Concat(inv.ColorlessCardEntries)
+             .Select((e, i) =>
+@@ -2723,6 +2655,7 @@ public class RunSimulator
+                 return new Dictionary<string, object?>
+                 {
+                     ["index"] = i,
++                    ["native_ref"] = NativeObjectIdentity.Get(e),
+                     ["name"] = _loc.Card(entry),
+                     ["type"] = card?.Type.ToString() ?? "?",
+                     ["rarity"] = card?.Rarity.ToString() ?? "?",
+@@ -2733,6 +2666,7 @@ public class RunSimulator
+                     ["after_upgrade"] = card != null ? GetUpgradedInfo(card) : null,
+                     ["cost"] = e.Cost,
+                     ["is_stocked"] = e.IsStocked,
++                    ["can_purchase"] = e.IsStocked && e.EnoughGold,
+                     ["on_sale"] = e.IsOnSale,
+                 };
+             }).ToList();
+@@ -2740,19 +2674,23 @@ public class RunSimulator
+         var relics = inv.RelicEntries.Select((e, i) => new Dictionary<string, object?>
+         {
+             ["index"] = i,
++            ["native_ref"] = NativeObjectIdentity.Get(e),
+             ["name"] = _loc.Relic(e.Model?.Id.Entry ?? "?"),
+             ["description"] = _loc.Bilingual("relics", (e.Model?.Id.Entry ?? "?") + ".description"),
+             ["cost"] = e.Cost,
+             ["is_stocked"] = e.IsStocked,
++            ["can_purchase"] = e.IsStocked && e.EnoughGold,
+         }).ToList();
+ 
+         var potions = inv.PotionEntries.Select((e, i) => new Dictionary<string, object?>
+         {
+             ["index"] = i,
++            ["native_ref"] = NativeObjectIdentity.Get(e),
+             ["name"] = _loc.Potion(e.Model?.Id.Entry ?? "?"),
+             ["description"] = _loc.Bilingual("potions", (e.Model?.Id.Entry ?? "?") + ".description"),
+             ["cost"] = e.Cost,
+             ["is_stocked"] = e.IsStocked,
++            ["can_purchase"] = e.IsStocked && e.EnoughGold,
+         }).ToList();
+ 
+         var removal = merchantRoom.GetLocalInventory().CardRemovalEntry;
+@@ -2766,94 +2704,72 @@ public class RunSimulator
+             ["relics"] = relics,
+             ["potions"] = potions,
+             ["card_removal_cost"] = removal?.Cost,
++            ["card_removal"] = removal == null ? null : new Dictionary<string, object?>
++            {
++                ["native_ref"] = NativeObjectIdentity.Get(removal),
++                ["cost"] = removal.Cost,
++                ["is_stocked"] = removal.IsStocked,
++                ["can_purchase"] = removal.IsStocked && removal.EnoughGold,
++            },
++            ["room_ref"] = NativeObjectIdentity.Get(merchantRoom),
+             ["player"] = PlayerSummary(player),
+         };
+     }
+ 
+     private Dictionary<string, object?> TreasureState(TreasureRoom treasureRoom)
+     {
+-        // Treasure rooms give relics via TreasureRoomRelicSynchronizer
+-        Log("Treasure room — collecting rewards");
+-
+-        WaitForActionExecutor();
+-        _syncCtx.Pump();
++        EnsureTreasurePresentation(treasureRoom);
++        var player = _runState!.Players[0];
++        var roomRef = NativeObjectIdentity.Get(treasureRoom);
+ 
+-        // TreasureRoom.EnterInternal opens a relic-picking session (BeginRelicPicking) that the
+-        // headless must drive, otherwise (a) no relic is ever awarded and (b) the session stays
+-        // open so the NEXT treasure room's BeginRelicPicking throws "relic picking session while
+-        // one was already occurring!" (issue #56). Auto-pick the first offered relic: PickRelicLocally
+-        // enqueues a PickRelicAction whose execution awards the relic and ends the session
+-        // (OnPicked -> EndRelicVoting). An empty offer is closed with CompleteWithNoRelics.
+-        try
++        if (!_treasureChestOpened)
+         {
+-            var relicSync = RunManager.Instance.TreasureRoomRelicSynchronizer;
+-            if (relicSync?.CurrentRelics != null)
++            return new Dictionary<string, object?>
+             {
+-                // The actual relic grant normally lives in the UI node's RelicsAwarded handler
+-                // (RelicCmd.Obtain per result), which is absent in headless. Capture the awarded
+-                // results, then grant them ourselves after the pick resolves (granting inside the
+-                // event — mid action-execution — risks re-entrancy).
+-                List<MegaCrit.Sts2.Core.Entities.TreasureRelicPicking.RelicPickingResult>? awarded = null;
+-                Action<List<MegaCrit.Sts2.Core.Entities.TreasureRelicPicking.RelicPickingResult>> capture = r => awarded = r;
+-                relicSync.RelicsAwarded += capture;
+-                try
+-                {
+-                    if (relicSync.CurrentRelics.Count > 0)
+-                    {
+-                        Log($"Auto-picking treasure relic 0 of {relicSync.CurrentRelics.Count}");
+-                        relicSync.PickRelicLocally(0);
+-                    }
+-                    else
+-                    {
+-                        relicSync.CompleteWithNoRelics();
+-                    }
+-                    _syncCtx.Pump();
+-                    WaitForActionExecutor();
+-                    _syncCtx.Pump();
+-                }
+-                finally { relicSync.RelicsAwarded -= capture; }
+-
+-                if (awarded != null)
+-                {
+-                    foreach (var res in awarded)
+-                    {
+-                        if (res.relic != null && res.player != null)
+-                            RelicCmd.Obtain(res.relic.ToMutable(), res.player).GetAwaiter().GetResult();
+-                    }
+-                    _syncCtx.Pump();
+-                    WaitForActionExecutor();
+-                    _syncCtx.Pump();
+-                }
+-            }
++                ["type"] = "decision",
++                ["decision"] = "treasure_chest",
++                ["context"] = RunContext(),
++                ["room_ref"] = roomRef,
++                ["stage"] = "closed",
++                ["player"] = PlayerSummary(player),
++            };
+         }
+-        catch (Exception ex) { Log($"Treasure relic pick: {ex.Message}"); }
+ 
+-        try
+-        {
+-            treasureRoom.DoNormalRewards().GetAwaiter().GetResult();
+-            _syncCtx.Pump();
+-            treasureRoom.DoExtraRewardsIfNeeded().GetAwaiter().GetResult();
+-            _syncCtx.Pump();
+-        }
+-        catch (InvalidOperationException ex) when (ex.Message.Contains("relic picking session"))
++        var currentRelics = RunManager.Instance.TreasureRoomRelicSynchronizer.CurrentRelics;
++        if (!_treasureRelicResolved && currentRelics is { Count: > 0 })
+         {
+-            // BUG-013: Relic session conflict — wait for pending session then retry
+-            Log($"Relic session conflict, waiting and retrying: {ex.Message}");
+-            WaitForActionExecutor();
+-            _syncCtx.Pump();
+-            try
++            var relics = currentRelics.Select((relic, index) => new Dictionary<string, object?>
+             {
+-                treasureRoom.DoNormalRewards().GetAwaiter().GetResult();
+-                _syncCtx.Pump();
+-                treasureRoom.DoExtraRewardsIfNeeded().GetAwaiter().GetResult();
+-                _syncCtx.Pump();
+-            }
+-            catch (Exception retryEx) { Log($"Treasure rewards retry failed: {retryEx.Message}"); }
++                ["index"] = index,
++                ["native_ref"] = NativeObjectIdentity.Get(relic),
++                ["id"] = relic.Id.ToString(),
++                ["name"] = _loc.Relic(relic.Id.Entry),
++                ["description"] = _loc.Bilingual("relics", relic.Id.Entry + ".description"),
++                ["rarity"] = relic.Rarity.ToString(),
++            }).ToList();
++            return new Dictionary<string, object?>
++            {
++                ["type"] = "decision",
++                ["decision"] = "treasure_relic",
++                ["context"] = RunContext(),
++                ["room_ref"] = roomRef,
++                ["relics"] = relics,
++                ["can_skip"] = _runState.Players.Count == 1,
++                ["player"] = PlayerSummary(player),
++            };
+         }
+-        catch (Exception ex) { Log($"Treasure rewards: {ex.Message}"); }
+ 
+-        ForceToMap();
+-        return MapSelectState();
++        // BeginRelicPicking closes an empty chest immediately. A selected relic
++        // also clears CurrentRelics in the game-owned synchronizer.
++        _treasureRelicResolved = true;
++        return new Dictionary<string, object?>
++        {
++            ["type"] = "decision",
++            ["decision"] = "treasure_complete",
++            ["context"] = RunContext(),
++            ["room_ref"] = roomRef,
++            ["player"] = PlayerSummary(player),
++        };
+     }
+ 
+     private Dictionary<string, object?> GameOverState(bool isVictory)
+@@ -2879,6 +2795,44 @@ public class RunSimulator
+ 
+     #region Helpers
+ 
++    private void EnsureTreasurePresentation(TreasureRoom room)
++    {
++        if (ReferenceEquals(_treasurePresentationRoom, room)) return;
++        _treasurePresentationRoom = room;
++        _treasureChestOpened = false;
++        _treasureRelicResolved = false;
++    }
++
++    private void ResetTreasurePresentation()
++    {
++        _treasurePresentationRoom = null;
++        _treasureChestOpened = false;
++        _treasureRelicResolved = false;
++    }
++
++    private void WaitForNativeCommit()
++    {
++        WaitForActionExecutor();
++        if (_cardSelector.HasPending || _cardSelector.HasPendingReward || _pendingBundles != null)
++            return;
++        if (RunManager.Instance.ActionExecutor.IsRunning)
++            throw new TimeoutException("Native action queue did not reach a decision boundary within one second.");
++    }
++
++    private void WaitForRunLocationChange(int previousActIndex, AbstractRoom? previousRoom)
++    {
++        for (int i = 0; i < 5000; i++)
++        {
++            _syncCtx.Pump();
++            if (RunManager.Instance.IsGameOver
++                || _runState?.CurrentActIndex != previousActIndex
++                || !ReferenceEquals(_runState?.CurrentRoom, previousRoom))
++                return;
++            Thread.Sleep(1);
++        }
++        throw new TimeoutException("Native act transition did not change the run location within five seconds.");
++    }
++
+     private void WaitForActionExecutor()
+     {
+         try
+@@ -2891,7 +2845,7 @@ public class RunSimulator
+ 
+             // Executor may stay "running" while the game awaits headless card selection / reward (e.g. Attack Potion).
+             // Spinning here would time out and downstream code could mis-handle an in-flight potion use (BUG-026).
+-            if (_cardSelector.HasPending || _cardSelector.HasPendingReward)
++            if (_cardSelector.HasPending || _cardSelector.HasPendingReward || _rewardsSelector.IsAwaitingAction)
+                 return;
+ 
+             var executor = RunManager.Instance.ActionExecutor;
+@@ -2913,6 +2867,60 @@ public class RunSimulator
+         }
+     }
+ 
++    private Task BeginHostOperation(Func<Task> operation)
++    {
++        AdvancePendingHostOperation();
++        if (_pendingHostOperation is { IsCompleted: false })
++            throw new InvalidOperationException("A Host operation is already awaiting completion.");
++        _pendingHostOperation = Task.Run(operation);
++        return _pendingHostOperation;
++    }
++
++    private void WaitForRewardSelectionProgress()
++    {
++        for (int i = 0; i < 5000; i++)
++        {
++            _syncCtx.Pump();
++            if (_cardSelector.HasPending
++                || _cardSelector.HasPendingReward
++                || _rewardsSelector.IsAwaitingAction
++                || _pendingHostOperation is not { IsCompleted: false })
++            {
++                return;
++            }
++            Thread.Sleep(1);
++        }
++        throw new TimeoutException("The native reward selection did not reach a successor within 5 seconds.");
++    }
++
++    private void AdvancePendingHostOperation()
++    {
++        var operation = _pendingHostOperation;
++        if (operation == null) return;
++
++        for (int i = 0; i < 5000 && !operation.IsCompleted; i++)
++        {
++            _syncCtx.Pump();
++            if (_cardSelector.HasPending
++                || _cardSelector.HasPendingReward
++                || _rewardsSelector.IsAwaitingAction
++                || _pendingBundles != null)
++                return;
++            Thread.Sleep(1);
++        }
++
++        if (!operation.IsCompleted)
++            throw new TimeoutException("The pending Host operation did not settle within 5 seconds.");
++
++        _pendingHostOperation = null;
++        if (operation.IsCanceled)
++            throw new TaskCanceledException("The pending Host operation was canceled.");
++        if (operation.IsFaulted)
++            throw operation.Exception?.GetBaseException()
++                ?? new InvalidOperationException("The pending Host operation failed without an exception.");
++        _syncCtx.Pump();
++    }
++
+     private void SpinWaitForCombatStable()
+     {
+         int maxIterations = 200;
+@@ -2969,6 +2977,7 @@ public class RunSimulator
+     {
+         return new Dictionary<string, object?>
+         {
++            ["native_ref"] = NativeObjectIdentity.Get(player),
+             ["name"] = _loc.Bilingual("characters", (player.Character?.Id.Entry ?? "IRONCLAD") + ".title"),
+             ["hp"] = player.Creature?.CurrentHp ?? 0,
+             ["max_hp"] = player.Creature?.MaxHp ?? 0,
+@@ -2985,18 +2994,35 @@ public class RunSimulator
+                     ["vars"] = vars.Count > 0 ? vars : null,
+                 };
+             }).ToList(),
+-            ["potions"] = player.Potions?.Select((p, i) =>
++            ["potions"] = player.PotionSlots.Select((p, slot) =>
+             {
+                 if (p == null) return null;
+                 var pvars = new Dictionary<string, object?>();
+                 try { foreach (var dv in p.DynamicVars.Values) pvars[dv.Name] = (int)dv.BaseValue; } catch { }
++                var bindingSupported = p.TargetType is TargetType.Self
++                    or TargetType.AnyEnemy
++                    or TargetType.None
++                    or TargetType.AllEnemies
++                    or TargetType.RandomEnemy
++                    or TargetType.AllAllies;
++                var validTargetRefs = p.TargetType == TargetType.AnyEnemy
++                    ? CombatManager.Instance.DebugOnlyGetState()?.Enemies
++                        .Where(p.IsValidTarget).Select(NativeObjectIdentity.Get).ToList() ?? new()
++                    : null;
+                 return new Dictionary<string, object?>
+                 {
+-                    ["index"] = i,
++                    ["slot"] = slot,
++                    ["native_ref"] = NativeObjectIdentity.Get(p),
+                     ["name"] = _loc.Potion(p.Id.Entry),
+                     ["description"] = _loc.Bilingual("potions", p.Id.Entry + ".description"),
+                     ["vars"] = pvars.Count > 0 ? pvars : null,
+                     ["target_type"] = p.TargetType.ToString(),
++                    ["usage"] = p.Usage.ToString(),
++                    ["can_use"] = bindingSupported && CanUsePotionNow(player, p)
++                        && (p.TargetType != TargetType.AnyEnemy || validTargetRefs!.Count > 0),
++                    ["can_discard"] = !p.IsQueued && ReferenceEquals(p.Owner, player) && player.CanUseOrRemovePotions,
++                    ["binding_supported"] = bindingSupported,
++                    ["valid_target_refs"] = validTargetRefs,
+                 };
+             }).Where(x => x != null).ToList(),
+             ["deck_size"] = player.Deck?.Cards?.Count(c => c != null) ?? 0,
+@@ -3074,6 +3100,11 @@ public class RunSimulator
+ 
+         TestMode.IsOn = true;
+ 
++        // Use the game's own test-mode ModManager lifecycle. This sets the
++        // manager to Skipped and makes ReflectionHelper's empty mod type set
++        // available without mutating private runtime state.
++        ModManager.Initialize(new ModManagerFileIo(), null, null).GetAwaiter().GetResult();
++
+         // Install inline sync context on main thread
+         SynchronizationContext.SetSynchronizationContext(_syncCtx);
+ 
+@@ -3099,14 +3130,6 @@ public class RunSimulator
+         try { SaveManager.Instance.InitPrefsDataForTest(); }
+         catch (Exception ex) { Console.Error.WriteLine($"[WARN] SaveManager.InitPrefsDataForTest: {ex.Message}"); }
+ 
+-        // Initialize progress data for epoch/timeline tracking
+-        try { SaveManager.Instance.InitProgressData(); }
+-        catch (Exception ex) { Console.Error.WriteLine($"[WARN] InitProgressData: {ex.Message}"); }
+-
+-        // Install the Task.Yield patch but keep SuppressYield=false by default.
+-        // SuppressYield is toggled to true only during EndTurn to prevent boss fight deadlocks.
+-        PatchTaskYield();
+-
+         // Patch Cmd.Wait to be a no-op in headless mode.
+         // Cmd.Wait(duration) is used for UI animations (e.g., PreviewCardPileAdd during
+         // Vantom's Dismember move adding Wounds). In headless mode, these never complete
+@@ -3139,9 +3162,15 @@ public class RunSimulator
+         }
+         Console.Error.WriteLine($"[INFO] ModelDb: {registered} registered, {failed} failed out of {subtypes.Count}");
+ 
++        // Progress data indexes character/model IDs, so it is only valid after
++        // ModelDb has registered the exact-build model set.
++        try { SaveManager.Instance.InitProgressData(); }
++        catch (Exception ex) { Console.Error.WriteLine($"[WARN] InitProgressData: {ex.Message}"); }
++
+         // Initialize net ID serialization cache (needed for combat actions)
+         try
+         {
++            AssemblyInfo.Init();
+             ModelIdSerializationCache.Init();
+             Console.Error.WriteLine("[INFO] ModelIdSerializationCache initialized");
+         }
+@@ -3151,15 +3180,15 @@ public class RunSimulator
+         }
+     }
+ 
+-    private Player? CreatePlayer(string characterName)
++    private Player? CreatePlayer(string characterName, UnlockState unlockState)
+     {
+         return characterName.ToLowerInvariant() switch
+         {
+-            "ironclad" => Player.CreateForNewRun<Ironclad>(UnlockState.all, 1uL),
+-            "silent" => Player.CreateForNewRun<Silent>(UnlockState.all, 1uL),
+-            "defect" => Player.CreateForNewRun<Defect>(UnlockState.all, 1uL),
+-            "regent" => Player.CreateForNewRun<Regent>(UnlockState.all, 1uL),
+-            "necrobinder" => Player.CreateForNewRun<Necrobinder>(UnlockState.all, 1uL),
++            "ironclad" => Player.CreateForNewRun<Ironclad>(unlockState, 1uL),
++            "silent" => Player.CreateForNewRun<Silent>(unlockState, 1uL),
++            "defect" => Player.CreateForNewRun<Defect>(unlockState, 1uL),
++            "regent" => Player.CreateForNewRun<Regent>(unlockState, 1uL),
++            "necrobinder" => Player.CreateForNewRun<Necrobinder>(unlockState, 1uL),
+             _ => null
+         };
+     }
+@@ -3263,42 +3292,168 @@ public class RunSimulator
+         }
+     }
+ 
+-    private static void PatchTaskYield()
++    internal sealed class HeadlessRewardsSelector
+     {
+-        try
++        private enum RequestKind
++        {
++            Select,
++            Skip,
++            StateChanged,
++            Cancel,
++        }
++
++        private sealed record RewardRequest(RequestKind Kind, Reward? Reward = null);
++
++        private sealed class SelectionContext
++        {
++            public required RewardsSet Set { get; init; }
++            public TaskCompletionSource<RewardRequest>? Request { get; set; }
++        }
++
++        private readonly object _gate = new();
++        private readonly List<SelectionContext> _stack = new();
++
++        public RewardsSet? PendingSet
++        {
++            get
++            {
++                lock (_gate) return _stack.Count == 0 ? null : _stack[^1].Set;
++            }
++        }
++
++        public bool IsAwaitingAction
++        {
++            get
++            {
++                lock (_gate) return _stack.Count > 0 && _stack[^1].Request != null;
++            }
++        }
++
++        public async Task SelectAsync(RewardsSet set)
+         {
+-            var harmony = new Harmony("sts2headless.yieldpatch");
++            var synchronizer = RunManager.Instance.RewardsSetSynchronizer;
++            if (synchronizer.IsRewardsSetCompleted(set)) return;
++
++            foreach (var reward in set.Rewards)
++            {
++                reward.MarkContentAsSeen();
++            }
+ 
+-            // Patch YieldAwaitable.YieldAwaiter.IsCompleted to return true
+-            // This makes `await Task.Yield()` execute synchronously (continuation runs inline)
+-            var yieldAwaiterType = typeof(System.Runtime.CompilerServices.YieldAwaitable)
+-                .GetNestedType("YieldAwaiter");
+-            if (yieldAwaiterType != null)
++            var context = new SelectionContext { Set = set };
++            lock (_gate) _stack.Add(context);
++            try
+             {
+-                var isCompletedProp = yieldAwaiterType.GetProperty("IsCompleted");
+-                if (isCompletedProp != null)
++                while (!synchronizer.IsRewardsSetCompleted(set))
+                 {
+-                    var getter = isCompletedProp.GetGetMethod();
+-                    var prefix = typeof(YieldPatches).GetMethod(nameof(YieldPatches.IsCompletedPrefix),
+-                        System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+-                    if (getter != null && prefix != null)
++                    Task<RewardRequest> requestTask;
++                    lock (_gate)
++                    {
++                        context.Request ??= new TaskCompletionSource<RewardRequest>(
++                            TaskCreationOptions.RunContinuationsAsynchronously);
++                        requestTask = context.Request.Task;
++                    }
++
++                    var request = await requestTask.ConfigureAwait(false);
++                    if (request.Kind == RequestKind.Cancel)
++                        throw new TaskCanceledException("The Host canceled a pending native reward selection.");
++                    if (request.Kind == RequestKind.StateChanged)
++                        continue;
++                    if (request.Kind == RequestKind.Skip)
+                     {
+-                        harmony.Patch(getter, new HarmonyMethod(prefix));
+-                        Console.Error.WriteLine("[INFO] Patched Task.Yield() to be synchronous");
++                        if (set.DisallowSkipping)
++                            throw new InvalidOperationException("The native rewards set disallows skipping.");
++                        synchronizer.SkipLocalRewardsSet();
++                        continue;
+                     }
++
++                    var reward = request.Reward
++                        ?? throw new InvalidOperationException("A native reward selection had no reward binding.");
++                    if (!set.Rewards.Contains(reward) || reward.SuccessfullySelected)
++                        throw new InvalidOperationException("The bound native reward is no longer selectable.");
++                    await synchronizer.SelectLocalReward(reward).ConfigureAwait(false);
++                }
++            }
++            finally
++            {
++                lock (_gate)
++                {
++                    var index = _stack.LastIndexOf(context);
++                    if (index >= 0) _stack.RemoveAt(index);
+                 }
+             }
+         }
+-        catch (Exception ex)
++
++        public bool ResolveReward(object? expectedIdentity, out string? error)
++        {
++            lock (_gate)
++            {
++                if (_stack.Count == 0 || _stack[^1].Request == null)
++                {
++                    error = "No native reward set is awaiting a selection";
++                    return false;
++                }
++                var context = _stack[^1];
++                var reward = context.Set.Rewards.SingleOrDefault(candidate =>
++                    !candidate.SuccessfullySelected && NativeObjectIdentity.Matches(candidate, expectedIdentity));
++                if (reward == null)
++                {
++                    error = "The observed native reward is no longer selectable";
++                    return false;
++                }
++                var request = context.Request!;
++                context.Request = null;
++                error = null;
++                return request.TrySetResult(new RewardRequest(RequestKind.Select, reward));
++            }
++        }
++
++        public bool ResolveSkip(out string? error)
++        {
++            lock (_gate)
++            {
++                if (_stack.Count == 0 || _stack[^1].Request == null)
++                {
++                    error = "No native reward set is awaiting a selection";
++                    return false;
++                }
++                var context = _stack[^1];
++                if (context.Set.DisallowSkipping)
++                {
++                    error = "The native rewards set disallows skipping";
++                    return false;
++                }
++                var request = context.Request!;
++                context.Request = null;
++                error = null;
++                return request.TrySetResult(new RewardRequest(RequestKind.Skip));
++            }
++        }
++
++        public void NotifyStateChanged()
++        {
++            lock (_gate)
++            {
++                if (_stack.Count == 0 || _stack[^1].Request == null) return;
++                var context = _stack[^1];
++                var request = context.Request!;
++                context.Request = null;
++                request.TrySetResult(new RewardRequest(RequestKind.StateChanged));
++            }
++        }
++
++        public void CancelAllPending()
+         {
+-            Console.Error.WriteLine($"[WARN] Failed to patch Task.Yield: {ex.Message}");
++            lock (_gate)
++            {
++                foreach (var context in _stack)
++                {
++                    context.Request?.TrySetResult(new RewardRequest(RequestKind.Cancel));
++                    context.Request = null;
++                }
++            }
+         }
+     }
+ 
+-    /// <summary>
+-    /// Card selector for headless mode — picks first available card for any selection prompt.
+-    /// Used by cards like Headbutt, Armaments, etc. that need player to choose a card.
+-    /// </summary>
+     /// <summary>
+     /// Card selector that creates a pending selection decision point.
+     /// When the game needs the player to choose cards (upgrade, remove, transform, bundle pick),
+@@ -3362,6 +3517,12 @@ public class RunSimulator
+             _pendingTcs = null;
+         }
+ 
++        public void CancelAllPending()
++        {
++            CancelPending();
++            SkipReward();
++        }
++
+         // Pending card reward from events (GetSelectedCardReward blocks until resolved)
+         public List<MegaCrit.Sts2.Core.Entities.Cards.CardCreationResult>? PendingRewardCards { get; private set; }
+         private ManualResetEventSlim? _rewardWait;
+@@ -3411,19 +3572,6 @@ public class RunSimulator
+ 
+     internal static class YieldPatches
+     {
+-        // Only suppress Task.Yield() when this flag is set (during end_turn processing)
+-        public static volatile bool SuppressYield;
+-
+-        public static bool IsCompletedPrefix(ref bool __result)
+-        {
+-            if (SuppressYield)
+-            {
+-                __result = true;
+-                return false;
+-            }
+-            return true; // Let normal Yield behavior run
+-        }
+-
+         /// <summary>Harmony prefix: make Cmd.Wait() return completed task immediately (no-op in headless).</summary>
+         public static bool CmdWaitPrefix(ref Task __result)
+         {
+@@ -3635,25 +3783,6 @@ public class RunSimulator
+             }
+             catch (Exception ex) { Console.Error.WriteLine($"[WARN] Bundle patch: {ex.Message}"); }
+ 
+-            // Patch Neutralize.OnPlay to avoid NullRef in DamageCmd.Attack().Execute()
+-            try
+-            {
+-                var neutralizeType = typeof(MegaCrit.Sts2.Core.Models.Cards.Neutralize);
+-                var neutralizeOnPlay = neutralizeType.GetMethod("OnPlay",
+-                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+-                if (neutralizeOnPlay != null)
+-                {
+-                    var neutPrefix = typeof(LocPatches).GetMethod(nameof(LocPatches.NeutralizePrefix),
+-                        System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public);
+-                    if (neutPrefix != null)
+-                    {
+-                        harmony.Patch(neutralizeOnPlay, new HarmonyMethod(neutPrefix));
+-                        Console.Error.WriteLine("[INFO] Patched Neutralize.OnPlay");
+-                    }
+-                }
+-            }
+-            catch (Exception ex) { Console.Error.WriteLine($"[WARN] Neutralize patch: {ex.Message}"); }
+-
+             // Patch HasEntry to always return true
+             PatchMethod(harmony, typeof(LocTable), "HasEntry", nameof(LocPatches.HasEntryPrefix));
+ 
+@@ -3719,28 +3848,6 @@ public class RunSimulator
+             return false;
+         }
+ 
+-
+-        /// <summary>Harmony prefix: replace Neutralize.OnPlay with safe damage+weak.</summary>
+-        public static bool NeutralizePrefix(CardModel __instance, ref Task __result,
+-            PlayerChoiceContext choiceContext, CardPlay cardPlay)
+-        {
+-            if (cardPlay.Target == null) { __result = Task.CompletedTask; return false; }
+-            __result = NeutralizeSafe(__instance, choiceContext, cardPlay);
+-            return false;
+-        }
+-
+-        private static async Task NeutralizeSafe(CardModel card, PlayerChoiceContext ctx, CardPlay play)
+-        {
+-            try
+-            {
+-                await CreatureCmd.Damage(ctx, play.Target!, card.DynamicVars.Damage.BaseValue,
+-                    MegaCrit.Sts2.Core.ValueProps.ValueProp.Move, card);
+-                await PowerCmd.Apply<WeakPower>(ctx, play.Target!, card.DynamicVars["WeakPower"].BaseValue,
+-                    card.Owner.Creature, card, false);
+-            }
+-            catch (Exception ex) { Console.Error.WriteLine($"[WARN] Neutralize safe: {ex.Message}"); }
+-        }
+-
+         public static bool HasEntryPrefix(ref bool __result)
+         {
+             __result = true;
+@@ -3896,15 +4003,114 @@ public class RunSimulator
+     {
+         try
+         {
++            var oldExecutor = RunManager.Instance.IsInProgress
++                ? RunManager.Instance.ActionExecutor
++                : null;
++            DetachCombatHandlers();
++            DrainPendingInteractionForCleanup();
++            _cardSelectorScope?.Dispose();
++            _cardSelectorScope = null;
++            if (RewardsSet.testSelector == _rewardsTestSelector)
++                RewardsSet.testSelector = null;
++            _rewardsTestSelector = null;
+             if (RunManager.Instance.IsInProgress)
+                 RunManager.Instance.CleanUp(graceful: true);
++            WaitForExecutorToStop(oldExecutor);
+             _runState = null;
++            _combatRewardsStarted = false;
++            _rewardsProcessed = false;
++            _mapPresentationOpen = false;
++            ResetTreasurePresentation();
++            _turnStarted.Reset();
++            _combatEnded.Reset();
++            _syncCtx.Reset();
++            if (ReferenceEquals(LocPatches._bundleSimRef, this))
++                LocPatches._bundleSimRef = null;
+         }
+         catch (Exception ex)
+         {
+             Log($"CleanUp exception: {ex.Message}");
++            throw;
++        }
++    }
++
++    public Dictionary<string, object?> GetRunIdentity()
++    {
++        var state = RunManager.Instance.DebugOnlyGetState();
++        return new Dictionary<string, object?>
++        {
++            ["type"] = "run_identity",
++            ["active"] = RunManager.Instance.IsInProgress && state != null,
++            ["seed"] = state?.Rng.StringSeed,
++            ["act"] = state == null ? null : state.CurrentActIndex + 1,
++            ["floor"] = state?.ActFloor,
++            ["action_executor_running"] = RunManager.Instance.IsInProgress
++                && RunManager.Instance.ActionExecutor.IsRunning,
++            ["pending_host_operation"] = _pendingHostOperation is { IsCompleted: false },
++            ["pending_card_selection"] = _cardSelector.HasPending,
++            ["pending_card_reward"] = _cardSelector.HasPendingReward,
++            ["pending_reward_set"] = _rewardsSelector.PendingSet != null,
++            ["pending_bundle"] = _pendingBundleTcs is { Task.IsCompleted: false },
++        };
++    }
++
++    private void DrainPendingInteractionForCleanup()
++    {
++        var operation = _pendingHostOperation;
++        for (int i = 0; i < 5000 && operation is { IsCompleted: false }; i++)
++        {
++            _cardSelector.CancelAllPending();
++            _rewardsSelector.CancelAllPending();
++            _pendingBundleTcs?.TrySetCanceled();
++            _pendingBundleTcs = null;
++            _pendingBundles = null;
++            _syncCtx.Pump();
++            Thread.Sleep(1);
++        }
++        _cardSelector.CancelAllPending();
++        _rewardsSelector.CancelAllPending();
++        _pendingBundleTcs?.TrySetCanceled();
++        _pendingBundleTcs = null;
++        _pendingBundles = null;
++        if (operation is { IsCompleted: false })
++            throw new TimeoutException("The abandoned Host operation did not stop during cleanup.");
++        if (operation?.IsFaulted == true)
++            Log($"Abandoned Host operation ended with: {operation.Exception?.GetBaseException().Message}");
++        _pendingHostOperation = null;
++        _syncCtx.Pump();
++    }
++
++    private void WaitForExecutorToStop(MegaCrit.Sts2.Core.GameActions.ActionExecutor? executor)
++    {
++        if (executor == null) return;
++        for (int i = 0; i < 5000 && executor.IsRunning; i++)
++        {
++            _syncCtx.Pump();
++            Thread.Sleep(1);
+         }
++        if (executor.IsRunning)
++            throw new TimeoutException("The previous run ActionExecutor did not stop during cleanup.");
+     }
+ 
++    private void AttachCombatHandlers()
++    {
++        if (_combatHandlersAttached) return;
++        CombatManager.Instance.TurnStarted += OnTurnStarted;
++        CombatManager.Instance.CombatEnded += OnCombatEnded;
++        _combatHandlersAttached = true;
++    }
++
++    private void DetachCombatHandlers()
++    {
++        if (!_combatHandlersAttached) return;
++        CombatManager.Instance.TurnStarted -= OnTurnStarted;
++        CombatManager.Instance.CombatEnded -= OnCombatEnded;
++        _combatHandlersAttached = false;
++    }
++
++    private void OnTurnStarted(CombatState _) => _turnStarted.Set();
++
++    private void OnCombatEnded(CombatRoom _) => _combatEnded.Set();
++
+     #endregion
+ }
+diff --git a/src/Sts2Headless/Sts2Headless.csproj b/src/Sts2Headless/Sts2Headless.csproj
+index 8ae438a..967a609 100644
+--- a/src/Sts2Headless/Sts2Headless.csproj
++++ b/src/Sts2Headless/Sts2Headless.csproj
+@@ -5,6 +5,9 @@
+     <ImplicitUsings>enable</ImplicitUsings>
+     <Nullable>enable</Nullable>
+     <RollForward>LatestMajor</RollForward>
++    <Deterministic>true</Deterministic>
++    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
++    <PathMap>$(MSBuildProjectDirectory)=/_/sts2-headless/src/Sts2Headless</PathMap>
+   </PropertyGroup>
+ 
+   <ItemGroup>

@@ -1,0 +1,366 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  decodePlayerRead,
+  decodePlayerReceipt,
+  decodePlayerSnapshot
+} from "@rsgcsg/sts2-connector-client";
+import {
+  ManagedPlayerEnvironmentSession,
+  projectManagedCandidateDecision
+} from "../src/managed-player-environment.mjs";
+
+const projectionIdentity = {
+  runtimeInstanceId: "managed-runtime-test",
+  environmentFingerprint: "managed-environment-test",
+  sequence: 1
+};
+
+function player() {
+  return {
+    name: "The Ironclad",
+    hp: 80,
+    max_hp: 80,
+    gold: 99,
+    relics: [],
+    potions: [],
+    deck: [{
+      id: "CARD.STRIKE_IRONCLAD",
+      name: "Strike",
+      cost: 1,
+      type: "Attack",
+      rarity: "Basic",
+      upgraded: false,
+      description: "Deal 6 damage."
+    }]
+  };
+}
+
+function eventState() {
+  return {
+    type: "decision",
+    decision: "event_choice",
+    context: { act: 1, floor: 1, room_type: "Event" },
+    event_name: "Neow",
+    description: "Choose.",
+    options: [
+      { index: 0, title: "Open", description: "Available", is_locked: false },
+      { index: 1, title: "Locked", description: "Unavailable", is_locked: true }
+    ],
+    player: player()
+  };
+}
+
+test("projects a managed decision through the strict canonical SDK", () => {
+  const projection = projectManagedCandidateDecision({ state: eventState(), ...projectionIdentity });
+  assert.equal(decodePlayerSnapshot(projection.snapshot).data.status, "interactive");
+  assert.equal(projection.snapshot.interaction.kind, "event_option");
+  assert.equal(projection.snapshot.bound_actions.actions.length, 1);
+  assert.equal(projection.bindings.size, 1);
+  assert.equal(projection.snapshot.completeness.status, "partial");
+  assert.match(projection.snapshot.completeness.missing.join(","), /native_entity_identity/u);
+});
+
+test("projects combat reward completion as a state-bound player proceed", () => {
+  const projection = projectManagedCandidateDecision({
+    ...projectionIdentity,
+    state: {
+      type: "decision",
+      decision: "combat_rewards_complete",
+      context: { act: 3, floor: 17, room_type: "Boss" },
+      room_ref: "boss-room-a",
+      is_boss: true,
+      player: player()
+    }
+  });
+  assert.equal(decodePlayerSnapshot(projection.snapshot).data.status, "interactive");
+  assert.equal(projection.snapshot.interaction.kind, "reward_completion");
+  assert.equal(projection.snapshot.bound_actions.actions.length, 1);
+  assert.equal(projection.snapshot.bound_actions.actions[0].verb, "activate");
+  assert.equal(JSON.stringify(projection.snapshot).includes("boss-room-a"), false);
+  assert.deepEqual([...projection.bindings.values()][0].raw_request, {
+    action: "proceed",
+    args: { room_ref: "boss-room-a" },
+    cmd: "action"
+  });
+});
+
+test("projects native reward sets without exposing exact reward or room operands", () => {
+  const projection = projectManagedCandidateDecision({
+    ...projectionIdentity,
+    state: {
+      type: "decision",
+      decision: "reward_set",
+      context: { act: 1, floor: 2, room_type: "Monster" },
+      rewards: [
+        { index: 0, native_ref: "reward-gold-a", kind: "gold", name: "17 gold", value: 17 },
+        { index: 1, native_ref: "reward-card-a", kind: "card_choice", name: "Add a card" }
+      ],
+      can_skip: true,
+      is_terminal: true,
+      can_proceed: true,
+      room_ref: "combat-room-a",
+      is_boss: false,
+      player: player()
+    }
+  });
+  assert.equal(decodePlayerSnapshot(projection.snapshot).data.status, "interactive");
+  assert.equal(projection.snapshot.interaction.kind, "reward_collection");
+  assert.equal(projection.snapshot.bound_actions.actions.length, 3);
+  assert.equal(JSON.stringify(projection.snapshot).includes("reward-gold-a"), false);
+  assert.equal(JSON.stringify(projection.snapshot).includes("combat-room-a"), false);
+  const requests = [...projection.bindings.values()].map((binding) => binding.raw_request);
+  assert.equal(requests.some((request) => request.args?.reward_ref === "reward-gold-a"), true);
+  assert.equal(requests.some((request) => request.args?.room_ref === "combat-room-a"), true);
+});
+
+test("projects treasure stages with explicit native choice and Host-local operands", () => {
+  const closed = projectManagedCandidateDecision({
+    ...projectionIdentity,
+    state: {
+      type: "decision",
+      decision: "treasure_chest",
+      context: { act: 1, floor: 6, room_type: "Treasure" },
+      room_ref: "treasure-room-a",
+      player: player()
+    }
+  });
+  assert.equal(closed.snapshot.interaction.kind, "treasure_chest");
+  assert.equal(closed.snapshot.bound_actions.actions[0].label, "Open treasure chest");
+  assert.equal(JSON.stringify(closed.snapshot).includes("treasure-room-a"), false);
+
+  const choosing = projectManagedCandidateDecision({
+    ...projectionIdentity,
+    state: {
+      type: "decision",
+      decision: "treasure_relic",
+      context: { act: 1, floor: 6, room_type: "Treasure" },
+      room_ref: "treasure-room-a",
+      relics: [{
+        index: 0,
+        native_ref: "relic-a",
+        id: "RELIC.BAG_OF_PREPARATION",
+        name: "Bag of Preparation",
+        description: "Draw two additional cards.",
+        rarity: "Common"
+      }],
+      can_skip: true,
+      player: player()
+    }
+  });
+  assert.equal(decodePlayerSnapshot(choosing.snapshot).data.status, "interactive");
+  assert.equal(choosing.snapshot.interaction.kind, "treasure_relic_selection");
+  assert.deepEqual(choosing.snapshot.bound_actions.actions.map((action) => action.verb).sort(), ["select", "skip"]);
+  assert.equal(JSON.stringify(choosing.snapshot).includes("relic-a"), false);
+  assert.equal(JSON.stringify(choosing.snapshot).includes("treasure-room-a"), false);
+  const requests = [...choosing.bindings.values()].map((binding) => binding.raw_request);
+  assert.equal(requests.some((request) => request.args?.relic_ref === "relic-a"), true);
+  assert.equal(requests.some((request) => request.args?.room_ref === "treasure-room-a"), true);
+});
+
+test("materializes every combat card-target pair and keeps raw operands Host-local", () => {
+  const projection = projectManagedCandidateDecision({
+    ...projectionIdentity,
+    state: {
+      type: "decision",
+      decision: "combat_play",
+      context: { act: 1, floor: 2, room_type: "Combat" },
+      round: 1,
+      energy: 3,
+      max_energy: 3,
+      hand: [
+        { index: 0, native_ref: "card-strike", valid_target_refs: ["enemy-a", "enemy-b"], id: "CARD.STRIKE_IRONCLAD", name: "Strike", can_play: true, target_type: "AnyEnemy", type: "Attack", rarity: "Basic", cost: 1 },
+        { index: 1, native_ref: "card-defend", id: "CARD.DEFEND_IRONCLAD", name: "Defend", can_play: true, target_type: "Self", type: "Skill", rarity: "Basic", cost: 1 }
+      ],
+      enemies: [
+        { index: 0, native_ref: "enemy-a", name: "A", hp: 10, max_hp: 10 },
+        { index: 1, native_ref: "enemy-b", name: "B", hp: 10, max_hp: 10 }
+      ],
+      player: { ...player(), native_ref: "player-a" }
+    }
+  });
+  assert.equal(projection.snapshot.bound_actions.actions.length, 4);
+  assert.deepEqual(
+    projection.snapshot.bound_actions.actions.map((action) => action.verb).sort(),
+    ["end_turn", "play", "play", "play"]
+  );
+  assert.equal(JSON.stringify(projection.snapshot).includes("card_index"), false);
+  assert.equal(JSON.stringify(projection.snapshot).includes("native_ref"), false);
+  assert.equal([...projection.bindings.values()].some((binding) => binding.raw_request.args?.card_ref === "card-strike"), true);
+});
+
+test("projects native potion bindings without exposing Host-local identity", () => {
+  const projection = projectManagedCandidateDecision({
+    ...projectionIdentity,
+    state: {
+      type: "decision",
+      decision: "combat_play",
+      context: {},
+      hand: [],
+      enemies: [{ index: 0, native_ref: "enemy-a", name: "A", hp: 10, max_hp: 10 }],
+      player: {
+        ...player(),
+        native_ref: "player-a",
+        potions: [{
+          slot: 1,
+          native_ref: "potion-a",
+          name: "Fire Potion",
+          target_type: "AnyEnemy",
+          can_use: true,
+          can_discard: true,
+          binding_supported: true,
+          valid_target_refs: ["enemy-a"]
+        }]
+      }
+    }
+  });
+  assert.equal(projection.snapshot.status, "interactive");
+  assert.deepEqual(projection.snapshot.bound_actions.actions.map((action) => action.verb).sort(), [
+    "activate",
+    "end_turn",
+    "use"
+  ]);
+  assert.equal(JSON.stringify(projection.snapshot).includes("native_ref"), false);
+  const requests = [...projection.bindings.values()].map((binding) => binding.raw_request);
+  assert.equal(requests.some((request) => request.args?.potion_ref === "potion-a"), true);
+});
+
+test("fails closed when visible potion actionability is not represented", () => {
+  const combat = {
+    type: "decision",
+    decision: "combat_play",
+    context: {},
+    hand: [],
+    enemies: [],
+    player: { ...player(), potions: [{ index: 0, name: "Potion", target_type: "Self" }] }
+  };
+  const projection = projectManagedCandidateDecision({ state: combat, ...projectionIdentity });
+  assert.equal(projection.snapshot.status, "visible_unsupported");
+  assert.equal(projection.snapshot.bound_actions.status, "unavailable");
+  assert.equal(projection.bindings.size, 0);
+});
+
+test("projects shop entries from native actionability and keeps purchase identities Host-local", () => {
+  const projection = projectManagedCandidateDecision({
+    ...projectionIdentity,
+    state: {
+      type: "decision",
+      decision: "shop",
+      context: { act: 1, floor: 3, room_type: "Shop" },
+      room_ref: "room-a",
+      cards: [{
+        native_ref: "card-entry-a",
+        name: "Pommel Strike",
+        card_cost: 1,
+        cost: 50,
+        type: "Attack",
+        rarity: "Common",
+        is_stocked: true,
+        can_purchase: true
+      }],
+      relics: [{ native_ref: "relic-entry-a", name: "Bag", cost: 150, is_stocked: true, can_purchase: false }],
+      potions: [{ native_ref: "potion-entry-a", name: "Fire Potion", cost: 50, is_stocked: true, can_purchase: true }],
+      card_removal: { native_ref: "removal-a", cost: 75, is_stocked: true, can_purchase: true },
+      player: player()
+    }
+  });
+  assert.equal(projection.snapshot.status, "interactive");
+  assert.deepEqual(projection.snapshot.bound_actions.actions.map((action) => action.label).sort(), [
+    "Buy Fire Potion",
+    "Buy Pommel Strike",
+    "Buy card removal",
+    "Leave shop"
+  ]);
+  assert.equal(projection.snapshot.interaction.content.surface.cards[0].cost, "1");
+  assert.equal(projection.snapshot.interaction.content.surface.cards[0].price, 50);
+  assert.equal(JSON.stringify(projection.snapshot).includes("native_ref"), false);
+  const rawRequests = [...projection.bindings.values()].map((binding) => binding.raw_request);
+  assert.equal(rawRequests.some((request) => request.args?.entry_ref === "card-entry-a"), true);
+  assert.equal(rawRequests.some((request) => request.args?.room_ref === "room-a"), true);
+});
+
+test("state-bound run-deck reads pass the strict SDK and reject stale tokens", async () => {
+  const process = {
+    async request(request) {
+      assert.equal(request.cmd, "start_run");
+      return eventState();
+    }
+  };
+  const session = new ManagedPlayerEnvironmentSession({
+    process,
+    runtimeInstanceId: "managed-runtime-test",
+    environmentFingerprint: "managed-environment-test"
+  });
+  const snapshot = await session.mount({ seed: "TEST" });
+  const read = session.read({ readId: snapshot.reads[0].read_id, expectedSnapshotId: snapshot.snapshot_id });
+  assert.equal(decodePlayerRead(read).data.content.card_count, 1);
+  assert.throws(() => session.read({ readId: snapshot.reads[0].read_id, expectedSnapshotId: "old" }), /stale_snapshot/u);
+});
+
+test("enforces stale rejection and request idempotency before raw execution", async () => {
+  let actionCalls = 0;
+  const process = {
+    async request(request) {
+      if (request.cmd === "start_run") return eventState();
+      actionCalls += 1;
+      return { ...eventState(), event_name: "Successor" };
+    }
+  };
+  const session = new ManagedPlayerEnvironmentSession({
+    process,
+    runtimeInstanceId: "managed-runtime-test",
+    environmentFingerprint: "managed-environment-test"
+  });
+  const snapshot = await session.mount({ seed: "TEST" });
+  const action = snapshot.bound_actions.actions[0];
+  const stale = await session.submit({
+    requestId: "stale",
+    expectedSnapshotId: "old",
+    boundActionId: action.bound_action_id
+  });
+  assert.equal(decodePlayerReceipt(stale).data.reason_code, "stale_snapshot");
+  assert.equal(actionCalls, 0);
+
+  const input = {
+    requestId: "same",
+    expectedSnapshotId: snapshot.snapshot_id,
+    boundActionId: action.bound_action_id
+  };
+  const first = await session.submit(input);
+  const duplicate = await session.submit(input);
+  assert.equal(first.delivery, "delivered");
+  assert.deepEqual(duplicate, first);
+  assert.equal(actionCalls, 1);
+});
+
+test("taints the process after unknown delivery and never retries", async () => {
+  let actionCalls = 0;
+  const process = {
+    async request(request) {
+      if (request.cmd === "start_run") return eventState();
+      actionCalls += 1;
+      throw new Error("transport lost after write");
+    }
+  };
+  const session = new ManagedPlayerEnvironmentSession({
+    process,
+    runtimeInstanceId: "managed-runtime-test",
+    environmentFingerprint: "managed-environment-test"
+  });
+  const snapshot = await session.mount({ seed: "TEST" });
+  const action = snapshot.bound_actions.actions[0];
+  const unknown = await session.submit({
+    requestId: "unknown",
+    expectedSnapshotId: snapshot.snapshot_id,
+    boundActionId: action.bound_action_id
+  });
+  assert.equal(unknown.delivery, "unknown");
+  assert.equal(unknown.retry.allowed, false);
+  const refused = await session.submit({
+    requestId: "after",
+    expectedSnapshotId: snapshot.snapshot_id,
+    boundActionId: action.bound_action_id
+  });
+  assert.equal(refused.reason_code, "runtime_tainted_after_unknown");
+  assert.equal(actionCalls, 1);
+});

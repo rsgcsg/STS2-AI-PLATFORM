@@ -44,6 +44,24 @@ Completed:
   misplaced or over-limit diagnostic;
 - public game-independent tests and repository boundary checks.
 
+Current managed exact candidate:
+
+- a reproducible patch ledger now rebuilds the pinned upstream against the
+  unmodified exact macOS `v0.111.0` assembly instead of applying a global IL
+  rewrite;
+- its partial canonical Player Environment path preserves snapshot binding,
+  Host-local native operands, finite actions, idempotency and
+  unknown-no-retry;
+- native combat rewards and treasure selection now retain game-owned
+  generation, legality, vote/RNG and Commit rather than manually choosing or
+  settling them;
+- one 3-episode window delivered 441/441 canonical actions and 444 Reads with
+  zero unknown, while an 8-worker window delivered 3,317 actions at 1,017.39
+  reset-inclusive decisions/s and about 1.07 GiB summed peak RSS;
+- this route is still partial and unqualified: full-run and cross-Host
+  differential evidence are absent, and its TestMode/runtime projection seams
+  remain critical risks.
+
 Current isolation boundary:
 
 - an experimental Windows namespace redirects `HOME`, `USERPROFILE`,
@@ -76,14 +94,17 @@ Current blockers:
 - reproducible RC Host/SDK publication: current local RC evidence cannot be
   reproduced by the stable dependency lock, and `npm ls` correctly reports the
   local `1.0.0-rc.1` SDK as invalid against the pinned public `1.0.0` spec;
-- a qualified high-throughput backend and real learning/policy-transfer smoke;
+- semantic qualification, full-run lifecycle, 1M+ reliability and real
+  learning/policy-transfer evidence for the now-fast managed candidate;
 - Windows release qualification, Linux, macOS x86_64, later builds and Modsets.
 
-The local exact-build adaptation of `wuhao21/sts2-cli` was rejected as the
-primary trainer candidate for now: it reached a decision state only after local
-API repairs and then reported profile/bootstrap, CoreCLR patch, localization
-and save failures. It remains a useful failure and source-audit corpus, not
-semantic parity evidence.
+The first local `wuhao21/sts2-cli` spike was correctly rejected after
+profile/bootstrap, global CoreCLR patch, localization and save failures. A
+separately rebuilt candidate at the same upstream revision has since removed
+the global game-assembly rewrite and passed bounded canonical runtime/capacity
+gates. That supersedes the old implementation verdict, not its evidence: the
+new route is a promising unqualified candidate, not an admitted primary
+trainer. See the [managed exact closeout](evidence/MANAGED_EXACT_NATIVE_REWARDS_TREASURE_AND_CAPACITY_2026-08-17.md).
 
 The exact game source also contains an official `AutoSlayer`, but the shipped
 Steam build hard-codes `NGame.IsReleaseGame()` to true, so its `--autoslay`

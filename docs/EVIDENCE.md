@@ -101,6 +101,30 @@ See the [capacity/recovery closeout](evidence/WINDOWS_REFERENCE_CAPACITY_RECOVER
 [8-worker/scene-thread experiment closeout](evidence/WINDOWS_REFERENCE_EIGHT_WORKER_AND_SCENE_THREAD_EXPERIMENT_2026-08-16.md),
 and [seed/differential/supervisor closeout](evidence/WINDOWS_REFERENCE_SEED_DIFFERENTIAL_SUPERVISOR_AND_REQUALIFICATION_2026-08-16.md).
 
+## Managed Exact Candidate Evidence
+
+The rebuilt macOS arm64 candidate uses upstream `d11aa883...`, patch
+`b6dc69a...`, Host artifact `2b8fa6c...` / MVID `9ef2d858...`, and the
+byte-identical exact `v0.111.0` game assembly `9cb4f1a...` / MVID
+`57785517...`.
+
+- 24/24 targeted native binding gates passed, including exact negative
+  identities, canonical treasure projection, native treasure vote/effect, and
+  successor;
+- three fair-player episodes delivered 441/441 actions plus 444 Reads with
+  three matched game-owned seeds, zero unknown, and three `game_over`
+  boundaries;
+- organic native reward coverage included 23 reward selections, 10 card
+  choices and 10 reward completions;
+- 1/2/4/8-worker windows measured 236.12/428.22/750.25/1,017.39
+  reset-inclusive canonical decisions/s; the 8-worker group delivered 3,317
+  actions and 3,341 Reads using eight distinct runtime instances.
+
+The projection remains explicitly partial, treasure was targeted rather than
+organic, and no run passed Act 1 floor 7. These results establish a fast
+candidate and working bounded lifecycle, not semantic equivalence, complete
+gameplay, H1.0, or Training Ready. See the [managed exact closeout](evidence/MANAGED_EXACT_NATIVE_REWARDS_TREASURE_AND_CAPACITY_2026-08-17.md).
+
 ## Non-Claims
 
 - H2 is a bounded test consumer, not a full-run Agent or gameplay policy.
@@ -120,6 +144,8 @@ and [seed/differential/supervisor closeout](evidence/WINDOWS_REFERENCE_SEED_DIFF
 - The update planner and drift fixtures are not a real changed-build drill.
 - AutoSlayer room/native-action log rates are not normalized semantic decision
   throughput, cross-Host parity, Connector conformance or policy evidence.
+- Managed capacity is partial-canonical performance evidence. It is not
+  cross-Host parity, full-run coverage, 1M reliability, or learning transfer.
 
 ## Reproduce
 
@@ -135,6 +161,9 @@ npm run probe:recovery -- --template vanilla-clean --experimental-build
 npm run probe:differential -- --template vanilla-clean --seed H1D1FF01 --experimental-build
 npm run soak:reference -- --template vanilla-clean --workers 2 --episodes 2 --actions 8 --experimental-build
 npm run drill:update
+
+# Experimental and unqualified; requires the exact admitted game build.
+npm run experiment:managed -- prepare
 ```
 
 Each probe creates a timestamped local directory with process logs, identity,

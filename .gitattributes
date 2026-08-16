@@ -1,0 +1,3 @@
+# Unified-diff context uses a leading space by definition. Candidate source is
+# still checked by git apply --whitespace=error-all during every clean prepare.
+experiments/managed-exact/patches/*.patch -whitespace

@@ -31,6 +31,10 @@ Open:
   server evidence;
 - a real changed-build invalidation and targeted requalification drill;
 - reproducible release of the RC Connector Host and compatible SDK;
+- managed-to-Reference canonical differential, complete-run lifecycle and
+  randomized/high-risk interaction coverage;
+- managed reset/recovery/1M+ reliability plus an external consumer and minimal
+  learning/Reference-transfer smoke;
 - public release packaging and final exact-artifact gates.
 
 ## Training-Ready Claim Gate
@@ -49,9 +53,10 @@ No backend currently qualifies. The claim requires all of:
 1. Retain shipped Godot as Reference and differential authority.
 2. Use the completed seed/provenance and same-artifact canonicalizer to admit
    cross-Host candidates; do not confuse repeatability with parity.
-3. Keep the current `wuhao21/sts2-cli` revision rejected as primary trainer;
-   reuse only failure cases and source seams until its semantic changes can be
-   isolated and qualified.
+3. Continue the rebuilt exact `wuhao21/sts2-cli` candidate through cross-Host
+   semantic qualification. Its partial 8-worker window crossed 1,000
+   reset-inclusive canonical decisions/s, but speed, short losses and targeted
+   gates do not replace full-run parity or reliability.
 4. Admit managed, simulator or other candidates only through the same normalized
    decision, resource, reset, recovery and differential gates.
 5. Run end-to-end learning bottleneck and policy transfer only after one

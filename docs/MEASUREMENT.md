@@ -90,6 +90,24 @@ decisions across four unique runtime instances and profile generations at
 `0.8630` aggregate decisions/s over summed episode windows. It proved bounded
 lifecycle repetition, not a long-soak throughput result.
 
+## Current Managed Candidate Baseline
+
+The exact managed candidate patch `b6dc69a...` and Host artifact `2b8fa6c...`
+measured the same canonical decision unit through a partial strict Connector
+SDK projection:
+
+| Workers | Reset-inclusive decisions/s | Lifecycle-inclusive decisions/s | Summed peak RSS |
+|---:|---:|---:|---:|
+| 1 | 236.12 | 136.40 | 131.7 MiB |
+| 2 | 428.22 | 255.08 | 263.4 MiB |
+| 4 | 750.25 | 457.60 | 531.6 MiB |
+| 8 | 1,017.39 | 664.75 | 1,092.6 MiB |
+
+Each worker completed three short episodes and exited zero. This crosses the
+provisional aggregate throughput hypothesis only under the reset-inclusive
+metric. The projection is incomplete and unqualified, so this table is a route
+priority signal, not semantic or release admission.
+
 The current performance stop rule is workload-based: once the Host is at most
 about 20% of end-to-end training time and doubling Host speed improves total
 wall time by at most about 10%, further Host optimization stops being P0.

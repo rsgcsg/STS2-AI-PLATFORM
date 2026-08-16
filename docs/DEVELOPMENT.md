@@ -29,6 +29,14 @@ Modset, process, profile, and verdict identities separately.
 - `src/capacity-benchmark.mjs`: concurrent normalized-decision/resource runs;
 - `src/recovery-drill.mjs`: fault, restart, identity and cleanup verdicts;
 - `src/semantic-differential.mjs`: same-artifact canonical comparison and first divergence;
+- `src/json-line-process.mjs`: single-flight managed candidate transport and diagnostics;
+- `src/managed-candidate.mjs`: exact upstream preparation, audit and raw experimental probes;
+- `src/managed-player-environment.mjs`: strict partial canonical projection,
+  Host-local bindings, stale/idempotency ledger and unknown-no-retry shell;
+- `src/managed-player-environment-probe.mjs`: strategy-free measurement harness
+  plus a small deterministic test consumer;
+- `src/managed-native-binding-gates.mjs`: privileged exact-object negative and
+  delivery gates, never fair-player journey evidence;
 - `src/soak-supervisor.mjs`: repeated bounded worker supervision;
 - `src/requalification.mjs`: exact identity drift and required-gate planning;
 - `src/runtime-diagnostics.mjs`: diagnostics separate from semantic integrity;
@@ -36,6 +44,7 @@ Modset, process, profile, and verdict identities separately.
   only by Host lifecycle fault injection;
 - `src/connector-release.mjs`: pinned release setup/rollback integration;
 - `tools/headless.mjs`: CLI transport only.
+- `tools/managed-exact.mjs`: managed experiment CLI only.
 
 Do not put gameplay strategy, native operands, card/event rules, reward shaping,
 or simulator behavior in these modules. Connector remains the sole gameplay

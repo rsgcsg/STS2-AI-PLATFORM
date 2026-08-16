@@ -47,12 +47,26 @@ admitted capacity baselines because intermittent runtime diagnostics failed
 shutdown containment. This is far below the current realistic trainer
 hypothesis even before that reliability gate.
 
-The pinned `wuhao21/sts2-cli` source is useful research, but its exact-build
-spike required local API/bootstrap adaptation and still failed profile setup,
-CoreCLR task patches, localization and saves. Its reflection, patch and manual
-simulation surface is not admitted as truth without differential evidence.
-This rejects that revision as the primary trainer, not every possible managed
-Host.
+The first pinned `wuhao21/sts2-cli` spike failed bootstrap, profile,
+localization, save and global game-assembly patch boundaries and was rejected.
+The current rebuild keeps the exact installed `sts2.dll` byte-identical,
+follows native single-player bootstrap, and projects a strict but partial
+Player Environment. Its game-owned reward and treasure paths plus measured
+canonical throughput make it a serious candidate. Its TestMode runtime,
+managed observation extraction and presentation adapters remain Host-specific
+qualification risks; only cross-Host differential can admit their semantics.
+
+The managed route therefore has three explicit layers:
+
+```text
+exact STS2 managed runtime + narrow absent-UI presentation adapters
+-> raw exact-object decision state (experimental, not public contract)
+-> strict canonical Player Environment projection and request ledger
+```
+
+Raw commands and privileged scenario controls are never a consumer API. Native
+object references remain inside the candidate and projection binding map.
+Throughput cannot promote this route ahead of semantic parity.
 
 The exact shipped source also contains Mega Crit's `AutoSlayer`: a broad smoke
 runner with game-owned seed override, watchdog, native commands and UI
