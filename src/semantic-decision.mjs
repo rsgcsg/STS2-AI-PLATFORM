@@ -4,12 +4,17 @@ function compareJson(left, right) {
   return JSON.stringify(left).localeCompare(JSON.stringify(right));
 }
 
-function canonicalValue(value, referentIds) {
+function runtimeIdentityKey(key) {
+  return key != null && /(?:^|_)(?:entity|referent)_ids?$/u.test(key);
+}
+
+function canonicalValue(value, referentIds, key = null) {
   if (typeof value === "string" && referentIds.has(value)) return referentIds.get(value);
-  if (Array.isArray(value)) return value.map((item) => canonicalValue(item, referentIds));
+  if (typeof value === "string" && runtimeIdentityKey(key)) return "runtime-local-entity";
+  if (Array.isArray(value)) return value.map((item) => canonicalValue(item, referentIds, key));
   if (value == null || typeof value !== "object") return value;
   return Object.fromEntries(Object.keys(value).sort()
-    .map((key) => [key, canonicalValue(value[key], referentIds)]));
+    .map((childKey) => [childKey, canonicalValue(value[childKey], referentIds, childKey)]));
 }
 
 function semanticReferent(referent, referentIds = new Map()) {
@@ -136,7 +141,7 @@ export function compareCanonicalDecisions(reference, candidate) {
 }
 
 function canonicalReadValue(value, key = null) {
-  if (key != null && /(?:^|_)(?:entity|referent)_ids?$/u.test(key)) {
+  if (runtimeIdentityKey(key)) {
     return Array.isArray(value)
       ? value.map(() => "runtime-local-entity")
       : value == null ? null : "runtime-local-entity";

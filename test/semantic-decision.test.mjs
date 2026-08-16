@@ -46,6 +46,14 @@ function snapshot(prefix, damage = 6) {
 test("canonical decisions ignore runtime-local identities while preserving bindings", () => {
   const left = snapshot("left");
   const right = snapshot("right");
+  left.persistent.content.player = {
+    entity_id: "left-persistent-player",
+    relics: [{ entity_id: "left-persistent-relic", definition_id: "STARTER_RELIC" }]
+  };
+  right.persistent.content.player = {
+    entity_id: "right-persistent-player",
+    relics: [{ entity_id: "right-persistent-relic", definition_id: "STARTER_RELIC" }]
+  };
   assert.equal(compareCanonicalDecisions(left, right).equal, true);
   assert.equal(canonicalDecisionDigest(left), canonicalDecisionDigest(right));
   const canonical = canonicalizeSnapshot(left);
