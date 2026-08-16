@@ -45,6 +45,19 @@ test("accepts an exact reset and distinct recovered runtime", () => {
   assert.equal(result.shutdown_quality, "clean");
 });
 
+test("accepts a suspended-process hang followed by a distinct runtime", () => {
+  const result = evaluateRecoveryCycle({
+    faultProfile: { generation_id: "old", template_payload_sha256: "template" },
+    recoveryProfile: { generation_id: "new", template_payload_sha256: "template" },
+    faultReport: report("fault", "injected_process_hang", "integrity_incomplete"),
+    recoveryReport: report("recovery", "action_limit", "integrity_pass"),
+    remainingProcesses: [],
+    endpointReleased: true,
+    expectedFaultTerminal: "injected_process_hang"
+  });
+  assert.equal(result.verdict, "recovery_cycle_pass");
+});
+
 test("reports shutdown diagnostics without invalidating operational recovery", () => {
   const result = evaluateRecoveryCycle({
     faultProfile: { generation_id: "old", template_payload_sha256: "template" },

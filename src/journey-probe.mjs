@@ -41,6 +41,7 @@ import {
   canonicalizeEpisodeSeed,
   evaluateEpisodeProvenance
 } from "./episode-provenance.mjs";
+import { resumeProcess, suspendProcess } from "./process-faults.mjs";
 
 function safeTimestamp() {
   return new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
@@ -297,6 +298,7 @@ export async function runBoundedJourney({
   allowConcurrentProcesses = false,
   evidenceLabel = null,
   faultAfterDeliveredActions = null,
+  faultMode = "process_crash",
   shutdownDrainMs = 2_000,
   runSeed = null
 }) {
@@ -316,6 +318,9 @@ export async function runBoundedJourney({
   if (faultAfterDeliveredActions != null
       && (!Number.isSafeInteger(faultAfterDeliveredActions) || faultAfterDeliveredActions < 1)) {
     throw new Error("Fault injection requires a positive delivered-action count.");
+  }
+  if (!new Set(["process_crash", "process_hang"]).has(faultMode)) {
+    throw new Error("Fault mode must be process_crash or process_hang.");
   }
   if (!Number.isSafeInteger(shutdownDrainMs) || shutdownDrainMs < 0 || shutdownDrainMs > 10_000) {
     throw new Error("Shutdown drain must be an integer from 0 through 10000 milliseconds.");
@@ -567,17 +572,52 @@ export async function runBoundedJourney({
       if (faultAfterDeliveredActions != null
           && deliveredActions >= faultAfterDeliveredActions) {
         const requestedAt = new Date().toISOString();
-        const signalAccepted = child.kill("SIGKILL");
-        const processExit = await waitForExit(child, 5_000);
-        record({
-          type: "fault_injection",
-          at: requestedAt,
-          kind: "process_kill_after_stable_successor",
-          delivered_actions: deliveredActions,
-          signal_accepted: signalAccepted,
-          process_exit: processExit
-        });
-        terminal = "injected_process_crash";
+        if (faultMode === "process_crash") {
+          const signalAccepted = child.kill("SIGKILL");
+          const processExit = await waitForExit(child, 5_000);
+          record({
+            type: "fault_injection",
+            at: requestedAt,
+            kind: "process_kill_after_stable_successor",
+            delivered_actions: deliveredActions,
+            signal_accepted: signalAccepted,
+            process_exit: processExit
+          });
+          terminal = "injected_process_crash";
+        } else {
+          const suspension = suspendProcess(child.pid);
+          const endpointWhileSuspended = await readJson(
+            endpoint,
+            "/api/player-environment/capabilities",
+            1_000
+          );
+          const processRemained = child.exitCode == null && child.signalCode == null;
+          const hangObserved = suspension.status === "applied"
+            && !endpointWhileSuspended.ok
+            && processRemained;
+          const signalAccepted = child.kill("SIGKILL");
+          let processExit = await waitForExit(child, 5_000);
+          let resume = null;
+          if (processExit == null) {
+            resume = resumeProcess(child.pid);
+            child.kill("SIGKILL");
+            processExit = await waitForExit(child, 5_000);
+          }
+          record({
+            type: "fault_injection",
+            at: requestedAt,
+            kind: "process_suspend_after_stable_successor",
+            delivered_actions: deliveredActions,
+            suspension,
+            endpoint_while_suspended: endpointWhileSuspended,
+            process_remained_while_endpoint_unresponsive: processRemained,
+            hang_observed: hangObserved,
+            signal_accepted: signalAccepted,
+            resume,
+            process_exit: processExit
+          });
+          terminal = hangObserved ? "injected_process_hang" : "hang_injection_incomplete";
+        }
         break;
       }
 

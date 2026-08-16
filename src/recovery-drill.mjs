@@ -31,7 +31,8 @@ export function evaluateRecoveryCycle({
   faultReport,
   recoveryReport,
   remainingProcesses = [],
-  endpointReleased = true
+  endpointReleased = true,
+  expectedFaultTerminal = "injected_process_crash"
 }) {
   const errors = [];
   if (faultProfile?.generation_id === recoveryProfile?.generation_id) {
@@ -40,7 +41,7 @@ export function evaluateRecoveryCycle({
   if (faultProfile?.template_payload_sha256 !== recoveryProfile?.template_payload_sha256) {
     errors.push("hard_reset_template_changed");
   }
-  if (faultReport?.verdict?.integrity?.terminal !== "injected_process_crash") {
+  if (faultReport?.verdict?.integrity?.terminal !== expectedFaultTerminal) {
     errors.push("expected_process_fault_not_observed");
   }
   if ((faultReport?.verdict?.delivered_actions ?? 0) < 1) {
@@ -104,7 +105,8 @@ export async function runRecoveryDrill({
   timeoutMs = 90_000,
   actionTimeoutMs = 20_000,
   experimentalBuildAcknowledged = false,
-  runSeed = "H1RECOVERY01"
+  runSeed = "H1RECOVERY01",
+  faultMode = "process_crash"
 }) {
   const canonicalRunSeed = canonicalizeEpisodeSeed(runSeed);
   if (!Number.isSafeInteger(cycles) || cycles < 1 || cycles > 20) {
@@ -112,6 +114,9 @@ export async function runRecoveryDrill({
   }
   if (!Number.isSafeInteger(recoveryActions) || recoveryActions < 1) {
     throw new Error("Recovery actions must be a positive integer.");
+  }
+  if (!new Set(["process_crash", "process_hang"]).has(faultMode)) {
+    throw new Error("Recovery fault mode must be process_crash or process_hang.");
   }
   const existing = listGameProcesses();
   if (existing.length > 0) {
@@ -125,7 +130,9 @@ export async function runRecoveryDrill({
     schema_version: 1,
     generated_at: new Date().toISOString(),
     status: "running",
-    route: "reference_shipped_crash_recovery",
+    route: faultMode === "process_hang"
+      ? "reference_shipped_hang_recovery"
+      : "reference_shipped_crash_recovery",
     headless: readProjectIdentity(),
     system_identity: readSystemIdentity(),
     disk_identity: exactGameIdentity,
@@ -136,6 +143,7 @@ export async function runRecoveryDrill({
     fault_after_delivered_actions: faultAfterDeliveredActions,
     recovery_actions: recoveryActions,
     requested_seed: canonicalRunSeed,
+    fault_mode: faultMode,
     cycles: [],
     non_claims: [
       "A bounded recovery drill is not long-duration soak evidence.",
@@ -166,6 +174,7 @@ export async function runRecoveryDrill({
       experimentalBuildAcknowledged,
       evidenceLabel: `recovery-${cycleId}-fault`,
       faultAfterDeliveredActions,
+      faultMode,
       runSeed: canonicalRunSeed
     });
     const recoveryProfile = instantiateProfileTemplate({
@@ -200,7 +209,10 @@ export async function runRecoveryDrill({
       faultReport: fault.report,
       recoveryReport: recovery.report,
       remainingProcesses,
-      endpointReleased
+      endpointReleased,
+      expectedFaultTerminal: faultMode === "process_hang"
+        ? "injected_process_hang"
+        : "injected_process_crash"
     });
     report.cycles.push({
       cycle: index + 1,

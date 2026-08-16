@@ -297,7 +297,8 @@ async function main() {
       timeoutMs: Number(option(args, "--timeout-ms", "90000")),
       actionTimeoutMs: Number(option(args, "--action-timeout-ms", "20000")),
       experimentalBuildAcknowledged: args.includes("--experimental-build"),
-      runSeed: option(args, "--seed", "H1RECOVERY01")
+      runSeed: option(args, "--seed", "H1RECOVERY01"),
+      faultMode: option(args, "--fault-mode", "process_crash")
     });
     console.log(JSON.stringify({ report_file: result.reportFile, status: result.report.status }, null, 2));
     process.exitCode = result.report.status.startsWith("recovery_pass_")
@@ -359,7 +360,7 @@ async function main() {
   node tools/headless.mjs probe-journey (--isolated-profile ID | --shared-profile) [--experimental-build] [--max-actions 40] [--seed SEED] [--tutorials disable|enable] [--timeout-ms 90000]
   node tools/headless.mjs bench-capacity [--template vanilla-clean] [--workers 1,2,4] [--base-port 15600] [--max-actions 12] [--seed SEED]
   node tools/headless.mjs probe-reference-differential --seed SEED [--template vanilla-clean] [--max-actions 12] [--endpoint URL] [--experimental-build]
-  node tools/headless.mjs probe-recovery [--template vanilla-clean] [--isolated-profile recovery-worker] [--cycles 3] [--fault-after 5] [--recovery-actions 5] [--seed SEED] [--experimental-build]
+  node tools/headless.mjs probe-recovery [--template vanilla-clean] [--isolated-profile recovery-worker] [--cycles 3] [--fault-after 5] [--recovery-actions 5] [--seed SEED] [--fault-mode process_crash|process_hang] [--experimental-build]
   node tools/headless.mjs soak-reference [--template vanilla-clean] [--workers 2] [--episodes 2] [--actions 8] [--base-seed H1SOAK] [--max-worker-failures 0] [--experimental-build]
   node tools/headless.mjs experiment-autoslayer [--template vanilla-clean] [--isolated-profile autoslayer-upper-bound] [--seed H1AUTOSLAYER01] [--timeout-ms 1800000] [--experimental-build]`);
 }
