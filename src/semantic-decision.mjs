@@ -40,8 +40,13 @@ function buildReferentMap(referents) {
   indexed.sort((left, right) => compareJson(left.semantic, right.semantic)
     || left.sourceIndex - right.sourceIndex);
   const ids = new Map();
-  indexed.forEach(({ referent }, index) => {
-    ids.set(referent.referent_id, `referent-${String(index + 1).padStart(4, "0")}`);
+  let group = 0;
+  let previousSemantic = null;
+  indexed.forEach(({ referent, semantic }) => {
+    const currentSemantic = JSON.stringify(semantic);
+    if (currentSemantic !== previousSemantic) group += 1;
+    ids.set(referent.referent_id, `referent-${String(group).padStart(4, "0")}`);
+    previousSemantic = currentSemantic;
   });
   return ids;
 }

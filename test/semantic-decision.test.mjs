@@ -82,6 +82,20 @@ test("canonical decisions treat capability inventory as an unordered declaration
   assert.equal(compareCanonicalDecisions(left, right).equal, true);
 });
 
+test("canonical decisions do not invent cross-runtime identity for equivalent duplicate entities", () => {
+  const left = snapshot("left");
+  const right = snapshot("right");
+  left.referents.push({ ...left.referents[1], referent_id: "left-card-duplicate" });
+  right.referents.unshift({ ...right.referents[1], referent_id: "right-card-duplicate" });
+  left.interaction.content.surface.hand_entity_ids = ["left-card", "left-card-duplicate"];
+  right.interaction.content.surface.hand_entity_ids = ["right-card-duplicate", "right-card"];
+  assert.equal(compareCanonicalDecisions(left, right).equal, true);
+  const duplicateIds = canonicalizeSnapshot(left).referents
+    .filter((referent) => referent.role === "card")
+    .map((referent) => referent.canonical_referent_id);
+  assert.equal(new Set(duplicateIds).size, 1);
+});
+
 test("canonical reads remove runtime handles but retain player-visible semantics", () => {
   const read = (prefix, damage = 6, reverse = false) => ({
     protocol_version: "1.0-rc.2",
