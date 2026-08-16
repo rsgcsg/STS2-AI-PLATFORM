@@ -43,6 +43,39 @@ public sealed class LiveObservationLifecycleTests
     }
 
     [Fact]
+    public void InProgressCombatWithoutMountedRoomOrHandIsBoundedSetupSettling()
+    {
+        Assert.Equal(CombatNoInputPhase.Setup, LiveObservationReader.ClassifyCombatNoInputTransition(
+            runInProgress: true,
+            currentRoomIsCombat: true,
+            combatIsStarting: false,
+            combatInProgress: true,
+            combatStatePresent: true,
+            hasBlockingSurface: false,
+            liveCombatRoomPresent: false,
+            liveCombatHandPresent: false));
+    }
+
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(false, false, false)]
+    public void MountedCombatOrBlockingOwnerIsNotReclassifiedAsNoInput(
+        bool liveCombatRoomPresent,
+        bool liveCombatHandPresent,
+        bool expectedMounted)
+    {
+        Assert.Equal(CombatNoInputPhase.None, LiveObservationReader.ClassifyCombatNoInputTransition(
+            runInProgress: true,
+            currentRoomIsCombat: true,
+            combatIsStarting: false,
+            combatInProgress: true,
+            combatStatePresent: true,
+            hasBlockingSurface: !expectedMounted,
+            liveCombatRoomPresent,
+            liveCombatHandPresent));
+    }
+
+    [Fact]
     public void CompletedEventPresentationIsASettlingStateWithoutAuthority()
     {
         Assert.True(LiveObservationReader.ClassifyEventNoInputTransition(

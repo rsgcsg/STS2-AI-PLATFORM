@@ -3,7 +3,7 @@
 Stable release: `v1.0.0`
 
 Host lifecycle/exact-authority candidate: `1.1.0-rc.1`
-(`source/test only`; build/install/load/Live are not yet claimed)
+(`freeze blocked`; latest combat-mount fix has source/test evidence only)
 
 Player Environment protocol: `1.0.0`
 
@@ -20,11 +20,14 @@ an arbitrary clean-source rebuild could therefore reach mutation authority.
 unknown tuples. Candidate game and artifact identities require two exact,
 process-local opt-ins and remain non-support evidence.
 
-Current source evidence: 121 Host tests and 7 SDK tests pass, including empty,
+Current source evidence: 124 Host tests and 7 SDK tests pass, including empty,
 mismatched and explicit canary authority cases. The Windows symlink-dependent
 release check now remains runnable without Developer Mode while explicitly
-reporting that the symlink entry itself was not exercised. No candidate build,
-install, cold-load, journey or seal is claimed in this status yet.
+reporting that the symlink entry itself was not exercised. Pre-fix source
+`d32c0cb...` was built, installed and cold-loaded: exact canary admission and
+the H0/menu gate passed, but its seeded Journey stopped at a real combat UI
+mount gap. The current source bounds that known no-input window; old artifact
+evidence does not qualify the fix. See the dated H1 canary record.
 
 ## Implemented
 

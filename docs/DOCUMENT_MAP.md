@@ -28,3 +28,4 @@ authority.
 - [Standalone final-source runtime gates](evidence/STANDALONE_C1_FINAL_SOURCE_RUNTIME_GATES_2026-08-13.md)
 - [C1 RC2 runtime seal](evidence/STANDALONE_C1_RC2_RUNTIME_SEAL_2026-08-14.md)
 - [C1 v1.0.0 stable runtime seal](evidence/STANDALONE_C1_V1_RUNTIME_SEAL_2026-08-15.md)
+- [H1 exact authority and combat-mount canary](evidence/H1_EXACT_AUTHORITY_AND_COMBAT_MOUNT_CANARY_2026-08-16.md)
