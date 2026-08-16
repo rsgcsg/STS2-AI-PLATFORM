@@ -32,11 +32,22 @@ const profiles = {
   candidateProfile: { template_payload_sha256: "template", generation_id: "generation-b" }
 };
 
-function action(digest = "decision-a", verb = "select") {
+function action(digest = "decision-a", verb = "select", referentId = "referent-0001") {
   return {
     type: "action",
     canonical_decision_digest: digest,
-    canonical_selected_action: { verb, subject_referent_id: "referent-0001", arguments: [] },
+    canonical_decision: {
+      referents: [{
+        canonical_referent_id: referentId,
+        role: "card",
+        kind: "entity",
+        label: "Defend",
+        state: { visible: true },
+        properties_schema: "card-1",
+        properties: { definition_id: "DEFEND", cost: "1" }
+      }]
+    },
+    canonical_selected_action: { verb, subject_referent_id: referentId, arguments: [], label: verb },
     delivery: "delivered",
     reason_code: null
   };
@@ -64,8 +75,19 @@ test("semantic differential reports the first changed decision or action", () =>
   });
   assert.equal(result.verdict, "semantic_mismatch");
   assert.equal(result.first_divergence.semantic_event_index, 1);
-  assert.equal(result.first_divergence.reference.canonical_selected_action.verb, "confirm");
-  assert.equal(result.first_divergence.candidate.canonical_selected_action.verb, "cancel");
+  assert.equal(result.first_divergence.reference.selected_action_semantics.verb, "confirm");
+  assert.equal(result.first_divergence.candidate.selected_action_semantics.verb, "cancel");
+});
+
+test("indistinguishable operands remain exact at execution but equivalent in cross-runtime measurement", () => {
+  const result = compareSemanticTrajectories({
+    referenceReport: report("runtime-a"),
+    candidateReport: report("runtime-b"),
+    referenceEvents: [action("same-decision", "play", "referent-0002")],
+    candidateEvents: [action("same-decision", "play", "referent-0004")],
+    ...profiles
+  });
+  assert.equal(result.verdict, "semantic_match");
 });
 
 test("semantic differential rejects different artifacts and seeds before qualification", () => {

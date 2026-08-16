@@ -33,10 +33,26 @@ function comparableIdentity(report) {
 
 function semanticEvent(event) {
   if (event.type === "action") {
+    const referents = new Map((event.canonical_decision?.referents ?? []).map((referent) => {
+      const { canonical_referent_id: id, ...semantics } = referent;
+      return [id, semantics];
+    }));
+    const selected = event.canonical_selected_action;
+    const selectedSemantics = selected == null ? null : {
+      verb: selected.verb,
+      subject: selected.subject_referent_id == null
+        ? null
+        : referents.get(selected.subject_referent_id) ?? "unbound-referent",
+      arguments: selected.arguments.map((argument) => ({
+        role: argument.role,
+        referent: referents.get(argument.referent_id) ?? "unbound-referent"
+      })),
+      label: selected.label
+    };
     return {
       type: "action",
       canonical_decision_digest: event.canonical_decision_digest,
-      canonical_selected_action: event.canonical_selected_action,
+      selected_action_semantics: selectedSemantics,
       delivery: event.delivery,
       reason_code: event.reason_code ?? null
     };
