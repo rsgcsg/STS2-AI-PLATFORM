@@ -103,10 +103,24 @@ export function chooseBoundAction(snapshot, { tutorialPreference = "disable" } =
 export const DEFAULT_JOURNEY_COVERAGE = Object.freeze({
   required_surfaces: Object.freeze([
     "main_menu",
-    "singleplayer_menu",
-    "event_option",
     "map_navigation",
     "combat_turn"
+  ]),
+  required_surface_groups: Object.freeze([
+    Object.freeze({
+      id: "run_entry",
+      any_of: Object.freeze(["singleplayer_menu", "character_select"])
+    }),
+    Object.freeze({
+      id: "non_combat_decision",
+      any_of: Object.freeze([
+        "event_option",
+        "reward_claim",
+        "rest_site",
+        "shop_room",
+        "treasure_room"
+      ])
+    })
   ]),
   minimum_combat_deliveries: 3
 });
@@ -144,8 +158,13 @@ export function evaluateSurfaceCoverage({
 }) {
   const observed = [...new Set(surfaces)].sort();
   const missing = target.required_surfaces.filter((kind) => !observed.includes(kind));
+  const missingGroups = (target.required_surface_groups ?? []).filter((group) =>
+    !group.any_of.some((kind) => observed.includes(kind)));
   const errors = [];
   if (missing.length > 0) errors.push(`missing_surfaces:${missing.join(",")}`);
+  if (missingGroups.length > 0) {
+    errors.push(`missing_surface_groups:${missingGroups.map((group) => group.id).join(",")}`);
+  }
   if (combatDeliveries < target.minimum_combat_deliveries) {
     errors.push("insufficient_combat_deliveries");
   }
@@ -155,6 +174,7 @@ export function evaluateSurfaceCoverage({
     target,
     observed_surfaces: observed,
     missing_surfaces: missing,
+    missing_surface_groups: missingGroups,
     combat_deliveries: combatDeliveries
   };
 }

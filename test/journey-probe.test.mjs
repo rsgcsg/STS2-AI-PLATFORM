@@ -65,8 +65,8 @@ test("bounded probes stop immediately after a non-delivery or unknown outcome", 
   assert.equal(terminalForReceipt({ delivery: "delivered" }), null);
 });
 
-test("bounded journey gate requires representative surfaces and three combat deliveries", () => {
-  const kinds = ["main_menu", "singleplayer_menu", "event_option", "map_navigation"];
+test("bounded journey gate accepts equivalent run-entry surfaces", () => {
+  const kinds = ["main_menu", "character_select", "reward_claim", "map_navigation"];
   const steps = [
     ...kinds.map((interaction_kind) => ({ interaction_kind, delivery: "delivered" })),
     ...Array.from({ length: 3 }, () => ({ interaction_kind: "combat_turn", delivery: "delivered" }))
@@ -83,6 +83,18 @@ test("bounded journey gate requires representative surfaces and three combat del
     unknownCount: 0,
     readFailures: 0
   }).verdict, "h2_integrity_pass_coverage_incomplete");
+});
+
+test("bounded journey gate still requires one non-combat decision", () => {
+  const result = evaluateSurfaceCoverage({
+    surfaces: ["main_menu", "character_select", "map_navigation", "combat_turn"],
+    combatDeliveries: 3
+  });
+  assert.equal(result.verdict, "coverage_incomplete");
+  assert.deepEqual(
+    result.missing_surface_groups.map((group) => group.id),
+    ["non_combat_decision"]
+  );
 });
 
 test("journey integrity does not fail merely because a coverage target was not visited", () => {
