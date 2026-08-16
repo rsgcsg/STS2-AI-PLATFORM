@@ -72,6 +72,10 @@ Connector-only Modset:
   runtime/profile generations, with no worker, endpoint or process leak;
 - a separate bounded sentinel run left the normal user-data tree unchanged at
   1,051 files and tree digest `f9e58712...`.
+- an exact-build official AutoSlayer research Mod completed 50 room entries
+  across three acts in `394.5s`, exited zero, restored the Connector-only disk
+  Modset byte-for-byte and left the shared-profile sentinel unchanged. It used
+  `0.151` average CPU cores and `0.865 GiB` peak RSS.
 
 Native shutdown returned code zero without forced fallback. The current
 phase-aware policy rejects unknown, misplaced and over-limit diagnostics. A
@@ -102,6 +106,8 @@ and [seed/differential/supervisor closeout](evidence/WINDOWS_REFERENCE_SEED_DIFF
 - A manually replaced local SDK is not reproducible release evidence.
 - The local shared-profile sentinel does not inspect Steam Cloud server state.
 - The update planner and drift fixtures are not a real changed-build drill.
+- AutoSlayer room/native-action log rates are not normalized semantic decision
+  throughput, cross-Host parity, Connector conformance or policy evidence.
 
 ## Reproduce
 

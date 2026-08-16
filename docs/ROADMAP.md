@@ -51,9 +51,10 @@ No backend currently qualifies. The claim requires all of:
    decision, resource, reset, recovery and differential gates.
 5. Run end-to-end learning bottleneck and policy transfer only after one
    candidate clears semantic admission.
-6. Evaluate the exact-build official `AutoSlayer` only as a patched performance
-   upper bound and coverage generator. Its fixed policy/UI handlers cannot
-   become the training contract or inherit Connector qualification.
+6. Retain the completed exact-build official `AutoSlayer` experiment as a
+   native automation upper bound and coverage generator. Its `394.5s` full run
+   was CPU-light but UI/wait-bound; its fixed policy/UI handlers cannot become
+   the training contract or inherit Connector qualification.
 
 The route is deliberately open. H* is whichever measured Host or combination
 best satisfies fidelity, throughput, density, reset, reliability and update

@@ -78,7 +78,7 @@ export function parseAutoSlayerLog(content) {
     completed: lines.some((line) => /\[AutoSlay\] Run completed successfully with seed=/u.test(line)),
     failed: lines.some((line) => /\[AutoSlay\] Run failed with seed=/u.test(line)),
     room_entries: rooms.length,
-    max_total_floor_observed: rooms.length === 0 ? null : Math.max(...rooms.map((room) => room.floor)),
+    max_act_floor_observed: rooms.length === 0 ? null : Math.max(...rooms.map((room) => room.floor)),
     act_count_observed: new Set(rooms.map((room) => room.act)).size,
     native_action_log_entries: actions.length,
     warning_or_error_log_entries: errors.length,

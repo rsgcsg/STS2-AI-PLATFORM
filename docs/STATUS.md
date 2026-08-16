@@ -82,5 +82,7 @@ semantic parity evidence.
 
 The exact game source also contains an official `AutoSlayer`, but the shipped
 Steam build hard-codes `NGame.IsReleaseGame()` to true, so its `--autoslay`
-entry is unreachable without an exact-build patch. It is a candidate upper-
-bound experiment, not a current Host or Connector path.
+entry is unreachable. An exact-fingerprint research Mod invoked that same
+official class after native main-menu initialization and completed one full
+three-act run in `394.5s`. The run establishes a native automation upper bound,
+not Connector conformance, normalized decision throughput or qualification.

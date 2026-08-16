@@ -143,8 +143,37 @@ shutdown claim.
 The assembly also contains Mega Crit's broad `AutoSlayer`, including seed
 override, native commands, UI handlers and watchdog. The same assembly
 hard-codes `NGame.IsReleaseGame()` to true, making the `--autoslay` branch
-unreachable in the Steam build. It is a candidate exact-patch upper-bound
-experiment, not a current Host, semantic interface or qualification source.
+unreachable in the Steam build.
+
+An exact-fingerprint research Mod invoked the public `AutoSlayer` class after
+the native main menu became visible, without patching game methods. The first
+attempt (`autoslayer-upper-bound-2026-08-16T06-57-17-089Z`) started from the Mod
+initializer too early and hit a `SaveManager` initialization null reference;
+it failed, exited one, restored the prior Modset and changed no shared-profile
+files. That failure corrected the experiment lifecycle rather than the game.
+
+The clean-source rerun
+`autoslayer-upper-bound-2026-08-16T06-58-43-714Z` used Headless
+`4a0d2507a8720d26958ad59d03caa2bad21e57e1`, exact probe DLL SHA
+`c570570998b9761196620b359eea24f1199884258c4034b8ba4992ff3a685a83`
+and seed `H1AUTOSLAYER01`. It completed 50 room entries across three acts and
+returned to the main menu in `394.5s`, then exited zero. Resource sampling
+recorded `59.52` CPU seconds (`0.151` average cores) and `928,600,064` peak RSS
+bytes. The single warning was the official handler reporting no room handler
+for `Map`; the run still completed.
+
+The transaction removed the Connector from the experimental Modset, loaded
+only the research Mod, then restored the exact Connector-only files including
+DLL SHA `e9673497...`. No STS2 process remained and the shared-profile sentinel
+was unchanged. The report's `max_total_floor_observed` field is misnamed: the
+source log publishes act-local floor. Current code corrects the field to
+`max_act_floor_observed`; the raw historical report is preserved.
+
+The 616 native action log entries and 50 rooms are explicitly not normalized
+semantic decisions. The result says that official UI/Command automation can
+complete this exact run while remaining mostly CPU-idle; it does not provide a
+high-throughput Host, Connector conformance, cross-Host parity, policy quality
+or qualification.
 
 ## Reproducibility Gap
 
@@ -163,10 +192,8 @@ published, pinned and rerun through the gates.
 - Primary trainer: rejected on current performance evidence.
 - Managed `sts2-cli` candidate: rejected for now on exact-build bootstrap,
   patch, localization and save failures.
-- Next highest-information Host experiment: an isolated, exact-fingerprint
-  official AutoSlayer upper-bound spike, with no Connector authority claim.
-
-Before that experiment can affect route selection, it must record a patch
-manifest, separate Modset/artifact identity, normalized progress events,
-resources, profile isolation and clean rollback. It may not enter production or
-inherit Reference evidence.
+- Official AutoSlayer upper-bound: completed and retained only as route evidence.
+- Next highest-information work: broaden Reference operational gates while
+  admitting a genuinely faster candidate through normalized Connector
+  conformance and differential, rather than optimizing AutoSlayer's fixed UI
+  policy into a second gameplay contract.

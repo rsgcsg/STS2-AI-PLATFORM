@@ -42,6 +42,12 @@ reproducibly published RC Connector SDK/Host, and a high-throughput qualified
 backend remain open gates. The current same-artifact differential is a
 repeatability baseline, not cross-Host equivalence.
 
+An exact-build research Mod also completed one full official AutoSlayer run in
+`394.5s`, covering 50 room entries across three acts. It averaged only `0.151`
+CPU cores and peaked at `0.865 GiB` RSS. This proves that route can drive the
+native game end to end; its 616 log actions are not normalized semantic
+decisions and do not qualify it as a Connector Host or trainer.
+
 See [Status](docs/STATUS.md), [Compatibility](docs/COMPATIBILITY.md), and
 [Evidence](docs/EVIDENCE.md) for exact scope.
 

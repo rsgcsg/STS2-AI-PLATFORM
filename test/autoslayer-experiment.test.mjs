@@ -17,7 +17,7 @@ test("parses official AutoSlayer progress without calling it semantic decisions"
   assert.equal(parsed.started, true);
   assert.equal(parsed.completed, true);
   assert.equal(parsed.room_entries, 2);
-  assert.equal(parsed.max_total_floor_observed, 5);
+  assert.equal(parsed.max_act_floor_observed, 5);
   assert.equal(parsed.native_action_log_entries, 1);
 });
 
