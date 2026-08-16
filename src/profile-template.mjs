@@ -108,7 +108,7 @@ export function captureProfileTemplate({
   gameIdentity
 }) {
   const exactGameIdentity = normalizeTemplateGameIdentity(gameIdentity);
-  const profile = prepareIsolatedProfile(localRoot, profileId);
+  const profile = prepareIsolatedProfile(localRoot, profileId, exactGameIdentity.platform);
   const paths = profileTemplatePaths(localRoot, templateId);
   const nativeSettings = path.join(
     profile.expected_user_data_root,
@@ -171,9 +171,9 @@ export function instantiateProfileTemplate({
       || inventory.files.length !== manifest.file_count) {
     throw new Error("Profile template payload does not match its recorded digest.");
   }
-  const target = isolatedProfilePaths(localRoot, profileId);
+  const target = isolatedProfilePaths(localRoot, profileId, currentGameIdentity.platform);
   rmSync(target.profile_root, { recursive: true, force: true });
-  const profile = prepareIsolatedProfile(localRoot, profileId);
+  const profile = prepareIsolatedProfile(localRoot, profileId, currentGameIdentity.platform);
   mkdirSync(profile.expected_user_data_root, { recursive: true });
   cpSync(template.user_data, profile.expected_user_data_root, { recursive: true, force: true });
   return {
