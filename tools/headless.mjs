@@ -216,6 +216,7 @@ async function main() {
       actionTimeoutMs: Number(option(args, "--action-timeout-ms", "20000")),
       maxActions: Number(option(args, "--max-actions", "40")),
       tutorialPreference: option(args, "--tutorials", "disable"),
+      runSeed: option(args, "--seed", null),
       evidenceRoot: path.join(ROOT, ".local", "evidence"),
       sharedProfileAcknowledged: args.includes("--shared-profile"),
       isolatedProfileId: option(args, "--isolated-profile", null),
@@ -281,7 +282,7 @@ async function main() {
   node tools/headless.mjs instantiate-profile-template --template ID --isolated-profile ID
   node tools/headless.mjs probe-shipped (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
   node tools/headless.mjs probe-menu-control (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
-  node tools/headless.mjs probe-journey (--isolated-profile ID | --shared-profile) [--experimental-build] [--max-actions 40] [--tutorials disable|enable] [--timeout-ms 90000]
+  node tools/headless.mjs probe-journey (--isolated-profile ID | --shared-profile) [--experimental-build] [--max-actions 40] [--seed SEED] [--tutorials disable|enable] [--timeout-ms 90000]
   node tools/headless.mjs bench-capacity [--template vanilla-clean] [--workers 1,2,4] [--base-port 15600] [--max-actions 12]
   node tools/headless.mjs probe-recovery [--template vanilla-clean] [--isolated-profile recovery-worker] [--cycles 3] [--fault-after 1] [--recovery-actions 3] [--experimental-build]`);
 }

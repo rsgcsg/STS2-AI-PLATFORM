@@ -174,11 +174,34 @@ export async function requestHostShutdown({
   expectedRuntimeInstanceId,
   timeoutMs = 5_000
 }) {
+  const result = await requestHostControl({
+    endpoint,
+    hostControlToken,
+    expectedRuntimeInstanceId,
+    route: "/api/host-control/shutdown",
+    timeoutMs
+  });
+  if (result.status === "response") {
+    return {
+      ...result,
+      status: result.response?.status === "shutdown_requested" ? "requested" : "rejected"
+    };
+  }
+  return result;
+}
+
+async function requestHostControl({
+  endpoint,
+  hostControlToken,
+  expectedRuntimeInstanceId,
+  route,
+  timeoutMs
+}) {
   if (!endpoint || !hostControlToken || !expectedRuntimeInstanceId) {
     return { status: "unavailable", response: null, error: "host_control_not_configured" };
   }
   try {
-    const response = await fetch(`${endpoint.replace(/\/$/u, "")}/api/host-control/shutdown`, {
+    const response = await fetch(`${endpoint.replace(/\/$/u, "")}${route}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -189,7 +212,7 @@ export async function requestHostShutdown({
     });
     const body = await response.json();
     return {
-      status: response.ok && body?.status === "shutdown_requested" ? "requested" : "rejected",
+      status: response.ok ? "response" : "rejected",
       http_status: response.status,
       response: body,
       error: response.ok ? null : body?.error?.code ?? `HTTP ${response.status}`
@@ -201,6 +224,23 @@ export async function requestHostShutdown({
       error: error instanceof Error ? error.message : String(error)
     };
   }
+}
+
+export async function requestHostProvenance({
+  endpoint,
+  hostControlToken,
+  expectedRuntimeInstanceId,
+  timeoutMs = 5_000
+}) {
+  const result = await requestHostControl({
+    endpoint,
+    hostControlToken,
+    expectedRuntimeInstanceId,
+    route: "/api/host-control/provenance",
+    timeoutMs
+  });
+  if (result.status === "response") return { ...result, status: "observed" };
+  return result;
 }
 
 export async function stopChild(child, {
@@ -237,7 +277,8 @@ export function shippedRuntimeLaunch(installation, {
   stderr = "pipe",
   extraEnvironment = {},
   launchProfile = null,
-  connectorEndpoint = null
+  connectorEndpoint = null,
+  runSeed = null
 } = {}) {
   const connector = connectorEndpoint == null
     ? null
@@ -253,6 +294,7 @@ export function shippedRuntimeLaunch(installation, {
     ...(hostControlToken == null
       ? {}
       : { [HOST_CONTROL_TOKEN_ENVIRONMENT_VARIABLE]: hostControlToken }),
+    ...(runSeed == null ? {} : { STS2_CONNECTOR_RUN_SEED: runSeed }),
     ...extraEnvironment
   };
   if (launchProfile?.steam === "disabled_before_platform_initialization") {

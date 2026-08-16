@@ -10,6 +10,7 @@ import { evaluateHeadlessCapabilities } from "./headless-host.mjs";
 import {
   listGameProcesses,
   readJson,
+  requestHostProvenance,
   shippedRuntimeLaunch,
   stopChild,
   waitForExit,
@@ -32,6 +33,10 @@ import {
   summarizeHostPerformance
 } from "./process-resource-sampler.mjs";
 import { analyzeRuntimeDiagnostics } from "./runtime-diagnostics.mjs";
+import {
+  canonicalizeEpisodeSeed,
+  evaluateEpisodeProvenance
+} from "./episode-provenance.mjs";
 
 function safeTimestamp() {
   return new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
@@ -131,11 +136,18 @@ export const DEFAULT_JOURNEY_COVERAGE = Object.freeze({
   minimum_combat_deliveries: 3
 });
 
-export function evaluateJourneyIntegrity({ terminal, unknownCount, readFailures, successorFailures = 0 }) {
+export function evaluateJourneyIntegrity({
+  terminal,
+  unknownCount,
+  readFailures,
+  successorFailures = 0,
+  provenanceFailures = 0
+}) {
   const errors = [];
   if (unknownCount > 0) errors.push("unknown_delivery_observed");
   if (readFailures > 0) errors.push("advertised_read_failed");
   if (successorFailures > 0) errors.push("stable_successor_missing");
+  if (provenanceFailures > 0) errors.push("episode_provenance_unverified");
   if (!["coverage_reached", "game_over", "action_limit"].includes(terminal)) {
     errors.push(`terminal:${terminal}`);
   }
@@ -145,6 +157,7 @@ export function evaluateJourneyIntegrity({ terminal, unknownCount, readFailures,
     unknown_deliveries: unknownCount,
     read_failures: readFailures,
     successor_failures: successorFailures,
+    provenance_failures: provenanceFailures,
     terminal
   };
 }
@@ -264,8 +277,10 @@ export async function runBoundedJourney({
   allowConcurrentProcesses = false,
   evidenceLabel = null,
   faultAfterDeliveredActions = null,
-  shutdownDrainMs = 2_000
+  shutdownDrainMs = 2_000,
+  runSeed = null
 }) {
+  const canonicalRunSeed = canonicalizeEpisodeSeed(runSeed);
   const launchProfile = resolveLaunchProfile({
     localRoot,
     isolatedProfileId,
@@ -322,7 +337,8 @@ export async function runBoundedJourney({
   const processStartedMs = performance.now();
   const { child, args, connector, hostControlToken } = shippedRuntimeLaunch(installation, {
     launchProfile,
-    connectorEndpoint: endpoint
+    connectorEndpoint: endpoint,
+    runSeed: canonicalRunSeed
   });
   const resourceSampler = new ProcessResourceSampler(child.pid, {
     onSample: (sample) => resourceRecorder.append({ type: "process_resource", ...sample })
@@ -344,6 +360,11 @@ export async function runBoundedJourney({
   let unknownCount = 0;
   let readFailures = 0;
   let successorFailures = 0;
+  let episodeProvenance = evaluateEpisodeProvenance({
+    requestedSeed: canonicalRunSeed,
+    expectedRuntimeInstanceId: null,
+    response: null
+  });
   let deliveredActions = 0;
   let combatDeliveries = 0;
   const surfaces = new Set();
@@ -517,6 +538,20 @@ export async function runBoundedJourney({
     }
     if (terminal === "not_started") terminal = "action_limit";
 
+    if (canonicalRunSeed != null) {
+      const provenanceResponse = await requestHostProvenance({
+        endpoint,
+        hostControlToken,
+        expectedRuntimeInstanceId: capabilities.host.runtime_instance_id
+      });
+      episodeProvenance = evaluateEpisodeProvenance({
+        requestedSeed: canonicalRunSeed,
+        expectedRuntimeInstanceId: capabilities.host.runtime_instance_id,
+        response: provenanceResponse
+      });
+      record({ type: "episode_provenance", at: new Date().toISOString(), ...episodeProvenance });
+    }
+
     const verdict = evaluateBoundedJourney({
       surfaces: [...surfaces],
       deliveredActions,
@@ -524,7 +559,8 @@ export async function runBoundedJourney({
       terminal,
       unknownCount,
       readFailures,
-      successorFailures
+      successorFailures,
+      provenanceFailures: episodeProvenance.verdict === "provenance_incomplete" ? 1 : 0
     });
     const resources = await stopResourceSampling();
     const performanceSummary = summarizeHostPerformance({
@@ -548,7 +584,8 @@ export async function runBoundedJourney({
       probe_policy: {
         kind: "deterministic_test_consumer",
         tutorial_preference: tutorialPreference,
-        fault_after_delivered_actions: faultAfterDeliveredActions
+        fault_after_delivered_actions: faultAfterDeliveredActions,
+        requested_seed: canonicalRunSeed
       },
       loaded_identity: {
         protocol: capabilities.protocol_version,
@@ -567,6 +604,7 @@ export async function runBoundedJourney({
         },
         semantic_decision_ms: summarizeDurations(semanticDecisionDurations)
       },
+      episode_provenance: episodeProvenance,
       performance: performanceSummary,
       verdict,
       non_claims: [
@@ -616,11 +654,13 @@ export async function runBoundedJourney({
       probe_policy: {
         kind: "deterministic_test_consumer",
         tutorial_preference: tutorialPreference,
-        fault_after_delivered_actions: faultAfterDeliveredActions
+        fault_after_delivered_actions: faultAfterDeliveredActions,
+        requested_seed: canonicalRunSeed
       },
       loaded_identity: capabilities
         ? { protocol: capabilities.protocol_version, host: capabilities.host, game: capabilities.game }
         : null,
+      episode_provenance: episodeProvenance,
       read_kinds_exercised: [...readKinds].sort(),
       event_count: eventCount,
       events_files: recorder.files.map((file) => path.basename(file)),
@@ -642,7 +682,8 @@ export async function runBoundedJourney({
         terminal,
         unknownCount,
         readFailures,
-        successorFailures
+        successorFailures,
+        provenanceFailures: episodeProvenance.verdict === "provenance_incomplete" ? 1 : 0
       })
     };
     completedReport = report;

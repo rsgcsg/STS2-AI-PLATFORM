@@ -109,3 +109,15 @@ test("journey integrity does not fail merely because a coverage target was not v
     combatDeliveries: 0
   }).verdict, "coverage_incomplete");
 });
+
+test("journey integrity fails when requested episode provenance is not verified", () => {
+  const result = evaluateJourneyIntegrity({
+    terminal: "action_limit",
+    unknownCount: 0,
+    readFailures: 0,
+    successorFailures: 0,
+    provenanceFailures: 1
+  });
+  assert.equal(result.verdict, "integrity_incomplete");
+  assert.deepEqual(result.errors, ["episode_provenance_unverified"]);
+});
