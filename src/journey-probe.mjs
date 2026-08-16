@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { createWriteStream, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { createWriteStream, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { finished } from "node:stream/promises";
 import {
@@ -18,6 +18,13 @@ import {
 import { readDiskIdentity } from "./game-installation.mjs";
 import { evaluateRuntimeCompatibility } from "./compatibility.mjs";
 import { readProjectIdentity } from "./project-identity.mjs";
+import { normalizedDecisionTiming, summarizeDurations } from "./decision-timing.mjs";
+import { JsonlRecorder } from "./jsonl-recorder.mjs";
+import {
+  canonicalDecisionDigest,
+  canonicalizeSelectedAction,
+  canonicalizeSnapshot
+} from "./semantic-decision.mjs";
 
 function safeTimestamp() {
   return new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
@@ -84,27 +91,76 @@ export function chooseBoundAction(snapshot) {
     ?? null;
 }
 
-export function evaluateBoundedJourney({ steps, terminal, unknownCount, readFailures }) {
-  const surfaces = [...new Set(steps.map((step) => step.interaction_kind))];
-  const combatDeliveries = steps.filter((step) =>
-    step.interaction_kind === "combat_turn" && step.delivery === "delivered").length;
-  const required = ["main_menu", "singleplayer_menu", "event_option", "map_navigation", "combat_turn"];
-  const missing = required.filter((kind) => !surfaces.includes(kind));
+export const DEFAULT_JOURNEY_COVERAGE = Object.freeze({
+  required_surfaces: Object.freeze([
+    "main_menu",
+    "singleplayer_menu",
+    "event_option",
+    "map_navigation",
+    "combat_turn"
+  ]),
+  minimum_combat_deliveries: 3
+});
+
+export function evaluateJourneyIntegrity({ terminal, unknownCount, readFailures, successorFailures = 0 }) {
   const errors = [];
-  if (missing.length > 0) errors.push(`missing_surfaces:${missing.join(",")}`);
-  if (combatDeliveries < 3) errors.push("insufficient_combat_deliveries");
   if (unknownCount > 0) errors.push("unknown_delivery_observed");
   if (readFailures > 0) errors.push("advertised_read_failed");
-  if (!["coverage_reached", "game_over"].includes(terminal)) errors.push(`terminal:${terminal}`);
+  if (successorFailures > 0) errors.push("stable_successor_missing");
+  if (!["coverage_reached", "game_over", "action_limit"].includes(terminal)) {
+    errors.push(`terminal:${terminal}`);
+  }
   return {
-    verdict: errors.length === 0 ? "h2_pass" : "h2_incomplete",
+    verdict: errors.length === 0 ? "integrity_pass" : "integrity_incomplete",
     errors,
-    surfaces,
-    delivered_actions: steps.filter((step) => step.delivery === "delivered").length,
-    combat_deliveries: combatDeliveries,
     unknown_deliveries: unknownCount,
     read_failures: readFailures,
+    successor_failures: successorFailures,
     terminal
+  };
+}
+
+export function evaluateSurfaceCoverage({
+  surfaces,
+  combatDeliveries,
+  target = DEFAULT_JOURNEY_COVERAGE
+}) {
+  const observed = [...new Set(surfaces)].sort();
+  const missing = target.required_surfaces.filter((kind) => !observed.includes(kind));
+  const errors = [];
+  if (missing.length > 0) errors.push(`missing_surfaces:${missing.join(",")}`);
+  if (combatDeliveries < target.minimum_combat_deliveries) {
+    errors.push("insufficient_combat_deliveries");
+  }
+  return {
+    verdict: errors.length === 0 ? "coverage_reached" : "coverage_incomplete",
+    errors,
+    target,
+    observed_surfaces: observed,
+    missing_surfaces: missing,
+    combat_deliveries: combatDeliveries
+  };
+}
+
+export function evaluateBoundedJourney(input) {
+  const steps = input.steps ?? [];
+  const surfaces = input.surfaces ?? steps.map((step) => step.interaction_kind);
+  const deliveredActions = input.deliveredActions
+    ?? steps.filter((step) => step.delivery === "delivered").length;
+  const combatDeliveries = input.combatDeliveries
+    ?? steps.filter((step) => step.interaction_kind === "combat_turn"
+      && step.delivery === "delivered").length;
+  const integrity = evaluateJourneyIntegrity(input);
+  const coverage = evaluateSurfaceCoverage({ surfaces, combatDeliveries, target: input.target });
+  return {
+    verdict: integrity.verdict !== "integrity_pass"
+      ? "h2_incomplete"
+      : coverage.verdict === "coverage_reached"
+        ? "h2_pass"
+        : "h2_integrity_pass_coverage_incomplete",
+    integrity,
+    coverage,
+    delivered_actions: deliveredActions
   };
 }
 
@@ -123,7 +179,7 @@ async function waitForSuccessor(client, previousSnapshotId, child, timeoutMs) {
   return latest;
 }
 
-function compactStep(snapshot, action, receipt) {
+function compactStep(snapshot, action, receipt, timing) {
   return {
     at: new Date().toISOString(),
     snapshot_id: snapshot.snapshot_id,
@@ -135,11 +191,15 @@ function compactStep(snapshot, action, receipt) {
       verb: action.verb,
       label: action.label
     },
+    canonical_decision_digest: canonicalDecisionDigest(snapshot),
+    canonical_decision: canonicalizeSnapshot(snapshot),
+    canonical_selected_action: canonicalizeSelectedAction(snapshot, action.bound_action_id),
     request_id: receipt.request_id,
     delivery: receipt.delivery,
     reason_code: receipt.reason_code ?? null,
     successor_snapshot_id: receipt.successor?.snapshot_id ?? null,
-    successor_status: receipt.successor?.status ?? null
+    successor_status: receipt.successor?.status ?? null,
+    timing
   };
 }
 
@@ -177,7 +237,12 @@ export async function runBoundedJourney({
   const reportFile = path.join(evidenceDirectory, "report.json");
   const stdoutFile = path.join(evidenceDirectory, "stdout.log");
   const stderrFile = path.join(evidenceDirectory, "stderr.log");
-  const events = [];
+  const recorder = new JsonlRecorder(eventsFile, { flushEvery: 1 });
+  let eventCount = 0;
+  const record = (event) => {
+    recorder.append(event);
+    eventCount += 1;
+  };
   const { child, args } = shippedRuntimeLaunch(installation);
   const stdoutStream = createWriteStream(stdoutFile);
   const stderrStream = createWriteStream(stderrFile);
@@ -188,6 +253,11 @@ export async function runBoundedJourney({
   let terminal = "not_started";
   let unknownCount = 0;
   let readFailures = 0;
+  let successorFailures = 0;
+  let deliveredActions = 0;
+  let combatDeliveries = 0;
+  const surfaces = new Set();
+  const semanticDecisionDurations = [];
   const readKinds = new Set();
 
   try {
@@ -209,6 +279,7 @@ export async function runBoundedJourney({
     await session.register(capabilities.host, capabilities.control);
 
     for (let index = 0; index < maxActions; index += 1) {
+      const snapshotReadyMs = performance.now();
       if (snapshot.status === "visible_unsupported") {
         terminal = "visible_unsupported";
         break;
@@ -222,7 +293,7 @@ export async function runBoundedJourney({
         try {
           const result = (await client.read(read.read_id, snapshot.snapshot_id)).data;
           readKinds.add(read.kind);
-          events.push({
+          record({
             at: new Date().toISOString(),
             type: "read",
             snapshot_id: snapshot.snapshot_id,
@@ -232,7 +303,7 @@ export async function runBoundedJourney({
           });
         } catch (error) {
           readFailures += 1;
-          events.push({
+          record({
             at: new Date().toISOString(),
             type: "read_failure",
             snapshot_id: snapshot.snapshot_id,
@@ -243,11 +314,13 @@ export async function runBoundedJourney({
       }
 
       const action = chooseBoundAction(snapshot);
+      const policySelectedMs = performance.now();
       if (!action) {
         terminal = snapshot.status === "interactive" ? "no_safe_probe_action" : snapshot.status;
         break;
       }
       const credentials = await session.credentials();
+      const submitStartedMs = performance.now();
       const receipt = (await client.submit({
         requestId: `headless-journey-${randomUUID()}`,
         expectedSnapshotId: snapshot.snapshot_id,
@@ -256,9 +329,13 @@ export async function runBoundedJourney({
         controllerLeaseId: credentials.controllerLeaseId,
         controllerGeneration: credentials.controllerGeneration
       })).data;
-      events.push({ type: "action", ...compactStep(snapshot, action, receipt) });
+      const receiptMs = performance.now();
       if (receipt.delivery === "unknown") {
         unknownCount += 1;
+        record({
+          type: "action",
+          ...compactStep(snapshot, action, receipt, null)
+        });
         terminal = "unknown_delivery";
         break;
       }
@@ -267,17 +344,31 @@ export async function runBoundedJourney({
         successor = await waitForSuccessor(client, snapshot.snapshot_id, child, actionTimeoutMs);
       }
       if (!successor) {
+        successorFailures += 1;
+        record({
+          type: "action",
+          ...compactStep(snapshot, action, receipt, null)
+        });
         terminal = "successor_timeout";
         break;
       }
+      const successorReadyMs = performance.now();
+      const timing = normalizedDecisionTiming({
+        snapshotReadyMs,
+        policySelectedMs,
+        submitStartedMs,
+        receiptMs,
+        successorReadyMs
+      });
+      semanticDecisionDurations.push(timing.semantic_decision_ms);
+      record({ type: "action", ...compactStep(snapshot, action, receipt, timing) });
+      surfaces.add(snapshot.interaction.kind);
+      if (receipt.delivery === "delivered") {
+        deliveredActions += 1;
+        if (snapshot.interaction.kind === "combat_turn") combatDeliveries += 1;
+      }
       snapshot = successor;
 
-      const combatDeliveries = events.filter((event) =>
-        event.type === "action"
-        && event.interaction_kind === "combat_turn"
-        && event.delivery === "delivered").length;
-      const surfaces = new Set(events.filter((event) => event.type === "action")
-        .map((event) => event.interaction_kind));
       if (combatDeliveries >= 3
           && ["main_menu", "singleplayer_menu", "event_option", "map_navigation", "combat_turn"]
             .every((kind) => surfaces.has(kind))) {
@@ -287,8 +378,15 @@ export async function runBoundedJourney({
     }
     if (terminal === "not_started") terminal = "action_limit";
 
-    const steps = events.filter((event) => event.type === "action");
-    const verdict = evaluateBoundedJourney({ steps, terminal, unknownCount, readFailures });
+    const verdict = evaluateBoundedJourney({
+      surfaces: [...surfaces],
+      deliveredActions,
+      combatDeliveries,
+      terminal,
+      unknownCount,
+      readFailures,
+      successorFailures
+    });
     const report = {
       schema_version: 1,
       generated_at: new Date().toISOString(),
@@ -305,7 +403,9 @@ export async function runBoundedJourney({
         game: capabilities.game
       },
       read_kinds_exercised: [...readKinds].sort(),
-      event_count: events.length,
+      event_count: eventCount,
+      events_files: recorder.files.map((file) => path.basename(file)),
+      timing: { semantic_decision_ms: summarizeDurations(semanticDecisionDurations) },
       verdict,
       non_claims: [
         "The deterministic policy is a test consumer, not a gameplay agent.",
@@ -313,13 +413,12 @@ export async function runBoundedJourney({
         "The active Steam profile was explicitly used; profile isolation remains unproven."
       ]
     };
-    writeFileSync(eventsFile, events.map((event) => JSON.stringify(event)).join("\n") + "\n");
+    recorder.close();
     writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`);
     return { report, reportFile, eventsFile, evidenceDirectory };
   } catch (error) {
     terminal = terminal === "not_started" ? "probe_error" : terminal;
     const message = error instanceof Error ? error.message : String(error);
-    const steps = events.filter((event) => event.type === "action");
     const report = {
       schema_version: 1,
       generated_at: new Date().toISOString(),
@@ -334,14 +433,24 @@ export async function runBoundedJourney({
         ? { protocol: capabilities.protocol_version, host: capabilities.host, game: capabilities.game }
         : null,
       read_kinds_exercised: [...readKinds].sort(),
-      event_count: events.length,
+      event_count: eventCount,
+      events_files: recorder.files.map((file) => path.basename(file)),
       error: message,
-      verdict: evaluateBoundedJourney({ steps, terminal, unknownCount, readFailures })
+      verdict: evaluateBoundedJourney({
+        surfaces: [...surfaces],
+        deliveredActions,
+        combatDeliveries,
+        terminal,
+        unknownCount,
+        readFailures,
+        successorFailures
+      })
     };
-    writeFileSync(eventsFile, events.map((event) => JSON.stringify(event)).join("\n") + "\n");
+    recorder.close();
     writeFileSync(reportFile, `${JSON.stringify(report, null, 2)}\n`);
     throw new Error(`${message}; evidence: ${reportFile}`);
   } finally {
+    recorder.close();
     try {
       await session?.close();
     } catch {
@@ -349,8 +458,5 @@ export async function runBoundedJourney({
     }
     await stopChild(child);
     await Promise.allSettled([finished(stdoutStream), finished(stderrStream)]);
-    if (!existsSync(reportFile) && events.length > 0) {
-      writeFileSync(eventsFile, events.map((event) => JSON.stringify(event)).join("\n") + "\n");
-    }
   }
 }

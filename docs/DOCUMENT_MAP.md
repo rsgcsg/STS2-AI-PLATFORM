@@ -8,6 +8,8 @@
 6. [Evidence](EVIDENCE.md): proof levels, current gates, non-claims.
 7. [Development](DEVELOPMENT.md): code ownership and contribution flow.
 8. [Releasing](RELEASING.md): independent versions and release gates.
+9. [Measurement](MEASUREMENT.md): semantic-decision timing, durable traces,
+   canonical comparison, and integrity/coverage separation.
 
 `README.md`, Status, Architecture, and Compatibility are current truth. Local
 raw evidence under `.local/` is not documentation and must not be committed.

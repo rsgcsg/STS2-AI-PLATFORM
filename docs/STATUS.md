@@ -15,6 +15,9 @@ Completed:
 - foreground lifecycle supervision, status, safe PID ownership check, stop,
   local logs and identity record;
 - H0/H1/H2 probes with structured local evidence;
+- durable rotating trajectory records, canonical fair-player decision
+  comparison, and normalized semantic-decision timing;
+- separate journey integrity and named-surface coverage verdicts;
 - public game-independent tests and repository boundary checks.
 
 Blocking unattended/server support:

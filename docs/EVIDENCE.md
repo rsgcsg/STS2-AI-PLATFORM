@@ -18,6 +18,10 @@ count in addition to game and Connector identity.
 | differential | parity for named cases | universal equivalence |
 | performance | measured workload | semantic correctness |
 
+Journey reports keep execution integrity separate from named-surface coverage.
+Canonical decision digests support first-divergence analysis but do not replace
+the exact raw Snapshot, action, Receipt, or Host identity.
+
 ## Current Exact Runtime Evidence
 
 The current source independently reproduced these gates on macOS arm64, STS2

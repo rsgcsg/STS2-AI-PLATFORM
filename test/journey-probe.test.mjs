@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { chooseBoundAction, evaluateBoundedJourney } from "../src/journey-probe.mjs";
+import {
+  chooseBoundAction,
+  evaluateBoundedJourney,
+  evaluateJourneyIntegrity,
+  evaluateSurfaceCoverage
+} from "../src/journey-probe.mjs";
 
 function snapshot(kind, actions, stage = "ready") {
   return {
@@ -44,5 +49,18 @@ test("bounded journey gate requires representative surfaces and three combat del
     terminal: "action_limit",
     unknownCount: 0,
     readFailures: 0
-  }).verdict, "h2_incomplete");
+  }).verdict, "h2_integrity_pass_coverage_incomplete");
+});
+
+test("journey integrity does not fail merely because a coverage target was not visited", () => {
+  assert.equal(evaluateJourneyIntegrity({
+    terminal: "action_limit",
+    unknownCount: 0,
+    readFailures: 0,
+    successorFailures: 0
+  }).verdict, "integrity_pass");
+  assert.equal(evaluateSurfaceCoverage({
+    surfaces: ["main_menu"],
+    combatDeliveries: 0
+  }).verdict, "coverage_incomplete");
 });

@@ -111,6 +111,7 @@ observations, masks, and rewards, but those do not become STS2 truth.
 - [Evidence](docs/EVIDENCE.md)
 - [Development](docs/DEVELOPMENT.md)
 - [Release policy](docs/RELEASING.md)
+- [Measurement contract](docs/MEASUREMENT.md)
 - [Security](SECURITY.md)
 
 For an unknown game build, normal `start` fails closed. Maintainers may run an
