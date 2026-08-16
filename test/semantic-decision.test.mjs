@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  canonicalizeReadResponse,
   canonicalDecisionDigest,
   canonicalizeSnapshot,
   compareCanonicalDecisions
@@ -62,4 +63,51 @@ test("canonical decisions ignore runtime-local identities while preserving bindi
 
 test("canonical decisions detect a visible semantic change", () => {
   assert.equal(compareCanonicalDecisions(snapshot("left"), snapshot("right", 7)).equal, false);
+});
+
+test("canonical reads remove runtime handles but retain player-visible semantics", () => {
+  const read = (prefix, damage = 6, reverse = false) => ({
+    protocol_version: "1.0-rc.2",
+    schema: "sts2.player-environment/read-1",
+    read_id: `${prefix}-read`,
+    expected_snapshot_id: `${prefix}-expected`,
+    observed_snapshot_id: `${prefix}-observed`,
+    observed_at: "2026-08-16T00:00:00Z",
+    kind: "run_deck",
+    target_referent_id: `${prefix}-target`,
+    visibility_basis: "player_openable_run_deck_view",
+    ordering_semantics: "unordered_multiset",
+    content_schema: "sts2.player-environment/read/run_deck-1",
+    content: {
+      kind: "run_deck",
+      card_count: 2,
+      cards: (reverse ? ["DEFEND", "STRIKE"] : ["STRIKE", "DEFEND"]).map(
+        (definitionId, index) => ({
+          entity_id: `${prefix}-card-${index}`,
+          definition_id: definitionId,
+          damage: definitionId === "STRIKE" ? damage : 0
+        })
+      )
+    },
+    completeness: { status: "complete", missing: [], hidden_by_policy: [] },
+    session: { runtime_instance_id: `${prefix}-runtime`, environment_fingerprint: prefix },
+    information_policy: {
+      id: "player_visible_v1",
+      scope: "visible",
+      includes_hidden_information: false,
+      unknown_field_behavior: "omit_and_mark_incomplete"
+    }
+  });
+  assert.deepEqual(canonicalizeReadResponse(read("left")), canonicalizeReadResponse(read("right")));
+  assert.deepEqual(
+    canonicalizeReadResponse(read("left")),
+    canonicalizeReadResponse(read("right", 6, true))
+  );
+  assert.notDeepEqual(
+    canonicalizeReadResponse(read("left")),
+    canonicalizeReadResponse(read("right", 7))
+  );
+  const cards = canonicalizeReadResponse(read("left")).content.cards;
+  assert.ok(cards.every((card) => card.entity_id === "runtime-local-entity"));
+  assert.ok(cards.some((card) => card.definition_id === "STRIKE"));
 });

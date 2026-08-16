@@ -27,6 +27,7 @@ import {
 } from "../src/profile-template.mjs";
 import { parseWorkerCounts, runCapacityBenchmark } from "../src/capacity-benchmark.mjs";
 import { runRecoveryDrill } from "../src/recovery-drill.mjs";
+import { runReferenceRepeatability } from "../src/semantic-differential.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -246,6 +247,24 @@ async function main() {
     process.exitCode = result.report.status === "measured" ? 0 : 5;
     return;
   }
+  if (command === "probe-reference-differential") {
+    const result = await runReferenceRepeatability({
+      installation: resolveCurrentInstallation(),
+      localRoot: path.join(ROOT, ".local"),
+      evidenceRoot: path.join(ROOT, ".local", "evidence"),
+      templateId: option(args, "--template", "vanilla-clean"),
+      profilePrefix: option(args, "--profile-prefix", "reference-differential"),
+      endpoint: option(args, "--endpoint", "http://127.0.0.1:15710"),
+      runSeed: option(args, "--seed", null),
+      maxActions: Number(option(args, "--max-actions", "12")),
+      timeoutMs: Number(option(args, "--timeout-ms", "90000")),
+      actionTimeoutMs: Number(option(args, "--action-timeout-ms", "20000")),
+      experimentalBuildAcknowledged: args.includes("--experimental-build")
+    });
+    console.log(JSON.stringify({ report_file: result.reportFile, status: result.report.status }, null, 2));
+    process.exitCode = result.report.status === "semantic_match" ? 0 : 7;
+    return;
+  }
   if (command === "probe-recovery") {
     const result = await runRecoveryDrill({
       installation: resolveCurrentInstallation(),
@@ -284,6 +303,7 @@ async function main() {
   node tools/headless.mjs probe-menu-control (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
   node tools/headless.mjs probe-journey (--isolated-profile ID | --shared-profile) [--experimental-build] [--max-actions 40] [--seed SEED] [--tutorials disable|enable] [--timeout-ms 90000]
   node tools/headless.mjs bench-capacity [--template vanilla-clean] [--workers 1,2,4] [--base-port 15600] [--max-actions 12]
+  node tools/headless.mjs probe-reference-differential --seed SEED [--template vanilla-clean] [--max-actions 12] [--endpoint URL] [--experimental-build]
   node tools/headless.mjs probe-recovery [--template vanilla-clean] [--isolated-profile recovery-worker] [--cycles 3] [--fault-after 1] [--recovery-actions 3] [--experimental-build]`);
 }
 

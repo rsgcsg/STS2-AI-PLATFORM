@@ -134,3 +134,52 @@ export function compareCanonicalDecisions(reference, candidate) {
     actual
   };
 }
+
+function canonicalReadValue(value, key = null) {
+  if (key != null && /(?:^|_)(?:entity|referent)_ids?$/u.test(key)) {
+    return Array.isArray(value)
+      ? value.map(() => "runtime-local-entity")
+      : value == null ? null : "runtime-local-entity";
+  }
+  if (Array.isArray(value)) return value.map((item) => canonicalReadValue(item));
+  if (value == null || typeof value !== "object") return value;
+  return Object.fromEntries(Object.keys(value).sort()
+    .map((childKey) => [childKey, canonicalReadValue(value[childKey], childKey)]));
+}
+
+function canonicalReadContent(read) {
+  const content = canonicalReadValue(read?.content ?? null);
+  if (content == null || typeof content !== "object") return content;
+  if (read?.kind === "run_deck"
+      && read?.ordering_semantics === "unordered_multiset"
+      && Array.isArray(content.cards)) {
+    return { ...content, cards: [...content.cards].sort(compareJson) };
+  }
+  if (read?.kind === "combat_piles" && Array.isArray(content.zones)) {
+    return {
+      ...content,
+      zones: content.zones.map((zone) => zone?.ordering_semantics === "unordered_multiset"
+        && Array.isArray(zone.cards)
+        ? { ...zone, cards: [...zone.cards].sort(compareJson) }
+        : zone)
+    };
+  }
+  return content;
+}
+
+export function canonicalizeReadResponse(read) {
+  return {
+    canonical_schema: "sts2.headless/canonical-player-read-1",
+    protocol_version: read?.protocol_version ?? null,
+    kind: read?.kind ?? null,
+    target_referent_id: read?.target_referent_id == null
+      ? null
+      : "runtime-local-entity",
+    visibility_basis: read?.visibility_basis ?? null,
+    ordering_semantics: read?.ordering_semantics ?? null,
+    content_schema: read?.content_schema ?? null,
+    content: canonicalReadContent(read),
+    completeness: canonicalReadValue(read?.completeness ?? null),
+    information_policy: canonicalReadValue(read?.information_policy ?? null)
+  };
+}

@@ -24,6 +24,7 @@ import { normalizedDecisionTiming, summarizeDurations } from "./decision-timing.
 import { JsonlRecorder } from "./jsonl-recorder.mjs";
 import {
   canonicalDecisionDigest,
+  canonicalizeReadResponse,
   canonicalizeSelectedAction,
   canonicalizeSnapshot
 } from "./semantic-decision.mjs";
@@ -432,7 +433,8 @@ export async function runBoundedJourney({
             snapshot_id: snapshot.snapshot_id,
             kind: read.kind,
             observed_snapshot_id: result.observed_snapshot_id,
-            completeness: result.completeness.status
+            completeness: result.completeness.status,
+            canonical_read: canonicalizeReadResponse(result)
           });
         } catch (error) {
           readFailures += 1;
