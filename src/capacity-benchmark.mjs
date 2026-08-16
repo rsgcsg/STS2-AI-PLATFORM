@@ -73,6 +73,12 @@ export function summarizeCapacityGroup(results) {
   const provenancePass = results.every(
     (result) => result.report.episode_provenance?.verdict === "provenance_pass"
   ) && new Set(seeds).size === 1 && seeds[0] != null;
+  const shutdownContainmentVerdicts = results.map(
+    (result) => result.report.shutdown_containment?.verdict ?? "not_evaluated"
+  );
+  const shutdownContainmentBounded = shutdownContainmentVerdicts.every(
+    (verdict) => verdict === "clean_shutdown" || verdict === "bounded_containment_candidate"
+  );
   return {
     status: integrityPass && provenancePass && sampleErrors.length === 0
       ? "measured"
@@ -93,6 +99,8 @@ export function summarizeCapacityGroup(results) {
     integrity_pass: integrityPass,
     episode_seed: seeds[0] ?? null,
     episode_provenance_pass: provenancePass,
+    shutdown_containment_bounded: shutdownContainmentBounded,
+    shutdown_containment_verdicts: shutdownContainmentVerdicts,
     sample_errors: sampleErrors,
     workers: results.map((result) => ({
       worker_id: result.report.worker.worker_id,
@@ -104,7 +112,9 @@ export function summarizeCapacityGroup(results) {
       decisions_per_second: result.report.performance.normalized_semantic_decisions_per_second,
       peak_rss_bytes: result.report.performance.peak_rss_bytes,
       report_file: result.reportFile,
-      verdict: result.report.verdict
+      verdict: result.report.verdict,
+      shutdown_containment: result.report.shutdown_containment ?? null,
+      runtime_diagnostics: result.report.runtime_diagnostics ?? null
     }))
   };
 }

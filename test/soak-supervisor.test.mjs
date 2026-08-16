@@ -9,6 +9,7 @@ function episode(index, runtime, generation) {
     generation_ids: [generation],
     remaining_processes: [],
     endpoint_release_pass: true,
+    shutdown_containment_bounded: true,
     delivered_normalized_semantic_decisions: 8,
     common_decision_window_seconds: 4,
     failures: []
@@ -52,4 +53,12 @@ test("soak summary fails closed when the normal player profile changes", () => {
   );
   assert.equal(result.verdict, "soak_incomplete");
   assert.ok(result.errors.includes("shared_profile_mutation_observed"));
+});
+
+test("soak summary rejects a missing or failed shutdown containment verdict", () => {
+  const input = episode(1, "runtime-a", "generation-a");
+  input.shutdown_containment_bounded = false;
+  const result = summarizeSoakEpisodes([input], 1, 1, { unchanged: true });
+  assert.equal(result.verdict, "soak_incomplete");
+  assert.ok(result.errors.includes("shutdown_containment_rejected_or_missing"));
 });

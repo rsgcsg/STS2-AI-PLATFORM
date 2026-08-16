@@ -46,6 +46,9 @@ export function summarizeSoakEpisodes(
   if (episodes.some((episode) => episode.endpoint_release_pass !== true)) {
     errors.push("endpoint_leak_observed");
   }
+  if (episodes.some((episode) => episode.shutdown_containment_bounded !== true)) {
+    errors.push("shutdown_containment_rejected_or_missing");
+  }
   if (sharedProfileSentinel?.unchanged === false) {
     errors.push("shared_profile_mutation_observed");
   }
