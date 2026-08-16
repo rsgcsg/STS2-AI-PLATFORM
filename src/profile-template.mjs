@@ -32,9 +32,23 @@ export function profileTemplatePaths(localRoot, templateId) {
   return {
     templates_root: templatesRoot,
     template_root: templateRoot,
-    home: path.join(templateRoot, "home"),
+    user_data: path.join(templateRoot, "user-data"),
     manifest: path.join(templateRoot, "template.json")
   };
+}
+
+function copyTemplatePayload(source, target) {
+  const excludedTopLevel = new Set(["logs", "sentry", "sentry.dat"]);
+  cpSync(source, target, {
+    recursive: true,
+    filter: (entry) => {
+      const relative = path.relative(source, entry);
+      if (relative === "") return true;
+      const first = relative.split(path.sep)[0];
+      if (excludedTopLevel.has(first)) return false;
+      return !entry.endsWith(".before-headless-mod-consent");
+    }
+  });
 }
 
 function inventoryFiles(root) {
@@ -87,8 +101,9 @@ export function captureProfileTemplate({
   const temporary = `${paths.template_root}.tmp-${randomUUID()}`;
   rmSync(temporary, { recursive: true, force: true });
   mkdirSync(temporary, { recursive: true });
-  cpSync(profile.home, path.join(temporary, "home"), { recursive: true });
-  const inventory = inventoryFiles(path.join(temporary, "home"));
+  const temporaryUserData = path.join(temporary, "user-data");
+  copyTemplatePayload(profile.expected_user_data_root, temporaryUserData);
+  const inventory = inventoryFiles(temporaryUserData);
   const manifest = {
     schema_version: 1,
     template_id: templateId,
@@ -113,14 +128,14 @@ export function captureProfileTemplate({
 
 export function instantiateProfileTemplate({ localRoot, templateId, profileId }) {
   const template = profileTemplatePaths(localRoot, templateId);
-  if (!existsSync(template.manifest) || !existsSync(template.home)) {
+  if (!existsSync(template.manifest) || !existsSync(template.user_data)) {
     throw new Error(`Profile template is incomplete: ${template.template_root}`);
   }
   const manifest = JSON.parse(readFileSync(template.manifest, "utf8"));
   if (manifest.schema_version !== 1 || manifest.template_id !== templateId) {
     throw new Error("Profile template manifest identity is invalid.");
   }
-  const inventory = inventoryFiles(template.home);
+  const inventory = inventoryFiles(template.user_data);
   if (inventory.digest !== manifest.payload_sha256
       || inventory.files.length !== manifest.file_count) {
     throw new Error("Profile template payload does not match its recorded digest.");
@@ -128,7 +143,8 @@ export function instantiateProfileTemplate({ localRoot, templateId, profileId })
   const target = isolatedProfilePaths(localRoot, profileId);
   rmSync(target.profile_root, { recursive: true, force: true });
   const profile = prepareIsolatedProfile(localRoot, profileId);
-  cpSync(template.home, profile.home, { recursive: true, force: true });
+  mkdirSync(profile.expected_user_data_root, { recursive: true });
+  cpSync(template.user_data, profile.expected_user_data_root, { recursive: true, force: true });
   return {
     status: "instantiated",
     template_id: templateId,

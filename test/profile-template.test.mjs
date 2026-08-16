@@ -20,6 +20,11 @@ test("captures one native profile and instantiates independent generations", () 
     const source = isolatedProfileLaunch(root, "source", "win32");
     mkdirSync(path.dirname(nativeSettings(source)), { recursive: true });
     writeFileSync(nativeSettings(source), JSON.stringify({ schema_version: 8, mods: true }));
+    mkdirSync(path.join(source.expected_user_data_root, "logs"), { recursive: true });
+    writeFileSync(path.join(source.expected_user_data_root, "logs", "godot.log"), "runtime");
+    mkdirSync(path.join(source.expected_user_data_root, "sentry"), { recursive: true });
+    writeFileSync(path.join(source.expected_user_data_root, "sentry", "installation_id"), "runtime");
+    writeFileSync(`${nativeSettings(source)}.before-headless-mod-consent`, "local backup");
     const captured = captureProfileTemplate({
       localRoot: root,
       profileId: "source",
@@ -41,6 +46,8 @@ test("captures one native profile and instantiates independent generations", () 
       root, "worker-a", "win32"
     )), "utf8")).schema_version, 8);
     assert.equal(captured.payload_sha256, first.template_payload_sha256);
+    assert.equal(captured.files.some((file) => /(?:logs|sentry)/u.test(file.path)), false);
+    assert.equal(captured.files.some((file) => file.path.endsWith("before-headless-mod-consent")), false);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -59,7 +66,7 @@ test("rejects a template changed after capture", () => {
       gameIdentity: {}
     });
     const template = profileTemplatePaths(root, "clean");
-    writeFileSync(path.join(template.home, "drift.txt"), "changed");
+    writeFileSync(path.join(template.user_data, "drift.txt"), "changed");
     assert.throws(() => instantiateProfileTemplate({
       localRoot: root,
       templateId: "clean",
