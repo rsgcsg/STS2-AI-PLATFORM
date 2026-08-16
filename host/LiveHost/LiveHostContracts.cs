@@ -36,6 +36,8 @@ public sealed record GameBuildIdentity(
     // release_info.json is useful provenance, but only the runtime-computed
     // main assembly hash participates in exact compatibility identity.
     public int? ReleaseDeclaredMainAssemblyHash { get; init; }
+    public string? MainAssemblySha256 { get; init; }
+    public string? MainAssemblyMvid { get; init; }
 }
 
 public sealed record LoadedModAssemblyIdentity(

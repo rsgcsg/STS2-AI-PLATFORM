@@ -228,6 +228,8 @@ internal static partial class PlayerEnvironmentService
                 game.Version,
                 game.Commit,
                 game.MainAssemblyHash,
+                game.MainAssemblySha256,
+                game.MainAssemblyMvid,
                 Modset = game.Modset?.Fingerprint
             }));
 

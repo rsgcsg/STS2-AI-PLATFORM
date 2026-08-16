@@ -38,7 +38,10 @@ launcher such as STS2-headless.
 ## Canonical Contract
 
 `contracts/player-environment-contract.json` is the machine-readable protocol
-inventory. C# records implement the wire. TypeScript schemas independently
+inventory. `contracts/host-compatibility.json` is the separate exact game and
+sealed-artifact authority inventory. C# records implement the wire and enforce
+the Host inventory; `npm run check:compatibility` rejects source/manifest drift.
+TypeScript schemas independently
 reject malformed responses. `npm run check:contract` keeps protocol version,
 routes, schemas, verbs and hard-shell invariants aligned. Neither the SDK nor a
 consumer may extend authority by accepting more than the Host publishes.
@@ -52,6 +55,13 @@ headless standard-run Embark after the same exact owner/control revalidation,
 through STS2's own `NGame.DebugSeedOverride` seam; provenance then compares it
 with the game-owned run RNG seed. The token and seed metadata are not published
 through capabilities, SDK, MCP, Snapshot, Read or BoundAction.
+
+Game and artifact admission precede UI actionability. A sealed tuple may enter
+normal authority; a known candidate needs exact game ID and source-revision
+process opt-ins. Empty, partial, mismatched and unknown identities fail closed.
+Build, install and a 40-character Git revision are identity facts, not
+qualification. Native owner, operand and control legality are still
+rediscovered for every delivery after admission.
 
 ## Observe, Read, Interact
 

@@ -16,7 +16,7 @@ public sealed class PlayerEnvironmentContractTests
     {
         var modset = ExactConnectorModset();
         var compatibility = new CompatibilityAssessment(
-            Status: "identified",
+            Status: "supported_exact",
             ActionExecutionAllowed: true,
             StateObservationAllowed: true,
             ReadAllowed: false,
@@ -27,7 +27,11 @@ public sealed class PlayerEnvironmentContractTests
             "v0.111.0",
             1010476334,
             compatibility,
-            modset);
+            modset)
+        {
+            MainAssemblySha256 = "game-sha",
+            MainAssemblyMvid = "00000000-0000-0000-0000-000000000002"
+        };
 
         const string sourceRevision = "0123456789abcdef0123456789abcdef01234567";
         Assert.True(EnvironmentIdentityRuntime.ExecutionAvailable(
@@ -36,6 +40,17 @@ public sealed class PlayerEnvironmentContractTests
             sourceRevision));
         Assert.False(EnvironmentIdentityRuntime.ExecutionAvailable(
             game with { MainAssemblyHash = null },
+            "loaded-sha",
+            sourceRevision));
+        Assert.False(EnvironmentIdentityRuntime.ExecutionAvailable(
+            game with { MainAssemblySha256 = null },
+            "loaded-sha",
+            sourceRevision));
+        Assert.False(EnvironmentIdentityRuntime.ExecutionAvailable(
+            game with
+            {
+                Compatibility = compatibility with { Status = "identified" }
+            },
             "loaded-sha",
             sourceRevision));
         Assert.False(EnvironmentIdentityRuntime.ExecutionAvailable(
@@ -64,6 +79,90 @@ public sealed class PlayerEnvironmentContractTests
             game with { Modset = null },
             "loaded-sha",
             sourceRevision));
+    }
+
+    [Fact]
+    public void ExactGamePermissionFailsClosedAndRequiresExplicitCandidateOptIn()
+    {
+        ExactGamePermission supported = ExactGameCompatibility.Evaluate(
+            "v0.111.0",
+            "41cef1ea",
+            1010476334,
+            "9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4",
+            "57785517-0b16-42b9-8b36-bad6fb28384b",
+            "darwin",
+            "arm64",
+            null);
+        ExactGamePermission closedCandidate = ExactGameCompatibility.Evaluate(
+            "v0.111.0",
+            "41cef1ea",
+            222455745,
+            "0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9",
+            "73b63ee0-6c0a-47bb-b0d1-b21f6d94222e",
+            "win32",
+            "x64",
+            null);
+        ExactGamePermission canary = ExactGameCompatibility.Evaluate(
+            "v0.111.0",
+            "41cef1ea",
+            222455745,
+            "0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9",
+            "73b63ee0-6c0a-47bb-b0d1-b21f6d94222e",
+            "win32",
+            "x64",
+            ExactGameCompatibility.WindowsCandidateId);
+        ExactGamePermission changed = ExactGameCompatibility.Evaluate(
+            "v0.111.1",
+            "changed",
+            222455745,
+            "0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9",
+            "73b63ee0-6c0a-47bb-b0d1-b21f6d94222e",
+            "win32",
+            "x64",
+            ExactGameCompatibility.WindowsCandidateId);
+
+        Assert.Equal("supported_exact", supported.Status);
+        Assert.True(supported.ActionExecutionAllowed);
+        Assert.Equal("known_unqualified", closedCandidate.Status);
+        Assert.False(closedCandidate.ActionExecutionAllowed);
+        Assert.Equal("canary_exact", canary.Status);
+        Assert.True(canary.ActionExecutionAllowed);
+        Assert.Equal("unsupported_exact_game", changed.Status);
+        Assert.False(changed.ActionExecutionAllowed);
+    }
+
+    [Fact]
+    public void ArtifactPermissionRequiresSealedTupleOrExactSourceCanary()
+    {
+        ExactArtifactPermission sealedArtifact = ExactArtifactCompatibility.Evaluate(
+            ExactArtifactCompatibility.SealedSourceRevision,
+            ExactArtifactCompatibility.SealedArtifactSha256,
+            ExactArtifactCompatibility.SealedArtifactMvid,
+            null);
+        const string candidateSource = "0123456789abcdef0123456789abcdef01234567";
+        ExactArtifactPermission closedCandidate = ExactArtifactCompatibility.Evaluate(
+            candidateSource,
+            "candidate-sha",
+            "candidate-mvid",
+            null);
+        ExactArtifactPermission canary = ExactArtifactCompatibility.Evaluate(
+            candidateSource,
+            "candidate-sha",
+            "candidate-mvid",
+            candidateSource);
+        ExactArtifactPermission wrongCanary = ExactArtifactCompatibility.Evaluate(
+            candidateSource,
+            "candidate-sha",
+            "candidate-mvid",
+            "fedcba9876543210fedcba9876543210fedcba98");
+
+        Assert.Equal("supported_exact", sealedArtifact.Status);
+        Assert.True(sealedArtifact.ActionExecutionAllowed);
+        Assert.Equal("artifact_unqualified", closedCandidate.Status);
+        Assert.False(closedCandidate.ActionExecutionAllowed);
+        Assert.Equal("canary_exact", canary.Status);
+        Assert.True(canary.ActionExecutionAllowed);
+        Assert.False(wrongCanary.ActionExecutionAllowed);
     }
 
     [Fact]

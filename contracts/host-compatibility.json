@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "canary_environment_variable": "STS2_CONNECTOR_EXPERIMENTAL_GAME_ID",
+  "artifact_canary_environment_variable": "STS2_CONNECTOR_EXPERIMENTAL_SOURCE_REVISION",
+  "sealed_artifacts": [
+    {
+      "release": "1.0.0",
+      "source_revision": "c38d4ad2e9d6eb029f8853ed852cce1152bc6d50",
+      "artifact_sha256": "5014224ce8a1f5a61455f21d6873a87052eac533acffce04ac3fb75195bff185",
+      "artifact_mvid": "68f7a9aa-c293-4897-94cd-1e59ab6dd180"
+    }
+  ],
+  "runtimes": [
+    {
+      "id": "darwin-arm64-v0.111.0-41cef1ea",
+      "status": "supported_exact",
+      "platform": "darwin",
+      "architecture": "arm64",
+      "game_version": "v0.111.0",
+      "game_commit": "41cef1ea",
+      "runtime_main_assembly_hash": 1010476334,
+      "main_assembly_sha256": "9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4",
+      "main_assembly_mvid": "57785517-0b16-42b9-8b36-bad6fb28384b"
+    },
+    {
+      "id": "win32-x64-v0.111.0-41cef1ea-candidate",
+      "status": "candidate_exact",
+      "platform": "win32",
+      "architecture": "x64",
+      "game_version": "v0.111.0",
+      "game_commit": "41cef1ea",
+      "runtime_main_assembly_hash": 222455745,
+      "main_assembly_sha256": "0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9",
+      "main_assembly_mvid": "73b63ee0-6c0a-47bb-b0d1-b21f6d94222e"
+    }
+  ]
+}

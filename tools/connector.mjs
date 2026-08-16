@@ -170,6 +170,7 @@ function paths(options = {}) {
     sourceManifest: path.join(WORKSPACE, "host/mod_manifest.json"),
     installedDll: path.join(modsDir, "STS2_MCP.dll"),
     installedManifest: path.join(modsDir, "STS2_MCP.json"),
+    installedIdentitySidecar: path.join(modsDir, "STS2_MCP.identity"),
     runtimeConfig: path.join(modsDir, "STS2_MCP.conf"),
     localRoot,
     buildIdentity: path.join(WORKSPACE, "host/out/STS2_MCP/build-identity.json"),
@@ -695,6 +696,7 @@ function install(options) {
     };
     mkdirSync(path.dirname(resolved.installedIdentity), { recursive: true });
     writeFileSync(resolved.installedIdentity, `${JSON.stringify(installedProvenance, null, 2)}\n`);
+    writeFileSync(resolved.installedIdentitySidecar, `${JSON.stringify(installedProvenance, null, 2)}\n`);
     return {
       status: "already_installed",
       sha256: builtSha,
@@ -715,6 +717,9 @@ function install(options) {
   if (existsSync(resolved.installedManifest)) copyFileSync(resolved.installedManifest, path.join(backupDir, "STS2_MCP.json"));
   if (existsSync(resolved.installedIdentity)) {
     copyFileSync(resolved.installedIdentity, path.join(backupDir, "installed-identity.json"));
+  }
+  if (existsSync(resolved.installedIdentitySidecar)) {
+    copyFileSync(resolved.installedIdentitySidecar, path.join(backupDir, "STS2_MCP.identity"));
   }
   const previousIdentity = artifactIdentity(resolved.installedDll);
   writeFileSync(path.join(backupDir, "deployment.json"), `${JSON.stringify({
@@ -742,6 +747,7 @@ function install(options) {
   };
   mkdirSync(path.dirname(resolved.installedIdentity), { recursive: true });
   writeFileSync(resolved.installedIdentity, `${JSON.stringify(installedProvenance, null, 2)}\n`);
+  writeFileSync(resolved.installedIdentitySidecar, `${JSON.stringify(installedProvenance, null, 2)}\n`);
   return {
     status: "installed_game_must_be_cold_started",
     sha256: copiedSha,
@@ -842,8 +848,14 @@ function restoreKnownEnvironment(options) {
   if (existsSync(installedIdentity)) {
     mkdirSync(path.dirname(resolved.installedIdentity), { recursive: true });
     copyFileSync(installedIdentity, resolved.installedIdentity);
+    const sidecar = path.join(backup, "STS2_MCP.identity");
+    copyFileSync(
+      existsSync(sidecar) ? sidecar : installedIdentity,
+      resolved.installedIdentitySidecar
+    );
   } else {
     rmSync(resolved.installedIdentity, { force: true });
+    rmSync(resolved.installedIdentitySidecar, { force: true });
   }
   return {
     status: "host_artifact_restored_game_must_be_cold_started",

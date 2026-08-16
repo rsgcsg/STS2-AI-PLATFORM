@@ -27,3 +27,6 @@ output.
 
 Only a published release and its explicitly listed exact environments are in
 support scope. A branch, build, install or old Live run is not a support claim.
+Known candidate binaries remain fail-closed unless both the exact game ID and
+the exact embedded source revision are explicitly enabled for that one process.
+Empty canary values never mean all candidates.

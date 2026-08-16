@@ -16,10 +16,11 @@ node tools/install-release.mjs
 ```
 
 Use `--game-dir "<path>"` only when Steam discovery cannot find the game. The
-installer copies only `payload/STS2_MCP.dll` and
-`payload/STS2_MCP.json`, records a timestamped backup outside the game, and
-prints its exact rollback path. It does not start the game or claim the Host is
-loaded.
+installer copies `payload/STS2_MCP.dll`, `payload/STS2_MCP.json` and the
+non-Mod `STS2_MCP.identity` provenance sidecar, records a timestamped backup
+outside the game, and prints its exact rollback path. A supervisor accepts the
+sidecar only when its artifact SHA matches the installed DLL. Installation does
+not start the game or claim the Host is loaded.
 
 Cold-start STS2 through Steam, then verify source revision, protocol, artifact
 SHA, MVID and runtime identity against the release payload:
@@ -85,6 +86,14 @@ revalidation and immediately before the native click. It does not become a
 BoundAction operand or fair-player observation. The protected provenance route
 is the only Connector endpoint that reports configured and game-observed seed
 agreement to the Host supervisor.
+
+Local candidate testing has two additional, process-only gates:
+`STS2_CONNECTOR_EXPERIMENTAL_GAME_ID` must name an exact candidate tuple from
+`contracts/host-compatibility.json`, and
+`STS2_CONNECTOR_EXPERIMENTAL_SOURCE_REVISION` must exactly equal the embedded
+40-character source revision. Empty values are never wildcards. These settings
+permit a scoped canary only; they do not qualify or support the game, artifact
+or Modset and must not be placed in shared configuration.
 
 ## Development Deployment
 
