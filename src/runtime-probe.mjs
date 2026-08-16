@@ -12,6 +12,7 @@ import { readDiskIdentity, STS2_APP_ID } from "./game-installation.mjs";
 import { evaluateRuntimeCompatibility } from "./compatibility.mjs";
 import { readProjectIdentity } from "./project-identity.mjs";
 import { publicProfileDescriptor, resolveLaunchProfile } from "./profile-isolation.mjs";
+import { resolveConnectorEndpoint } from "./connector-endpoint.mjs";
 
 export function listGameProcesses(platform = process.platform) {
   if (platform === "win32") {
@@ -185,14 +186,19 @@ export function shippedRuntimeLaunch(installation, {
   stdout = "pipe",
   stderr = "pipe",
   extraEnvironment = {},
-  launchProfile = null
+  launchProfile = null,
+  connectorEndpoint = null
 } = {}) {
+  const connector = connectorEndpoint == null
+    ? null
+    : resolveConnectorEndpoint(connectorEndpoint);
   const args = ["--headless", "--verbose", ...(launchProfile?.args ?? [])];
   const environment = {
     ...process.env,
     SteamAppId: process.env.SteamAppId ?? STS2_APP_ID,
     SteamGameId: process.env.SteamGameId ?? STS2_APP_ID,
     ...(launchProfile?.environment ?? {}),
+    ...(connector?.process_environment ?? {}),
     ...extraEnvironment
   };
   if (launchProfile?.steam === "disabled_before_platform_initialization") {
@@ -204,7 +210,7 @@ export function shippedRuntimeLaunch(installation, {
     env: environment,
     stdio: ["ignore", stdout, stderr]
   });
-  return { child, args, environment };
+  return { child, args, environment, connector };
 }
 
 export async function runShippedProbe({
@@ -252,7 +258,10 @@ export async function runShippedProbe({
   if (beforeLog != null) writeFileSync(path.join(evidenceDir, "godot.before.log"), beforeLog);
 
   const endpointBefore = await readJson(endpoint, "/api/player-environment/capabilities", 1000);
-  const { child, args } = shippedRuntimeLaunch(installation, { launchProfile });
+  const { child, args, connector } = shippedRuntimeLaunch(installation, {
+    launchProfile,
+    connectorEndpoint: endpoint
+  });
   const stdoutStream = createWriteStream(stdoutFile);
   const stderrStream = createWriteStream(stderrFile);
   child.stdout.pipe(stdoutStream);
@@ -291,6 +300,7 @@ export async function runShippedProbe({
     command: {
       executable: installation.executable,
       args,
+      connector,
       steam_app_environment: launchProfile.steam === "enabled"
         ? { SteamAppId: STS2_APP_ID, SteamGameId: STS2_APP_ID }
         : null

@@ -295,7 +295,10 @@ export async function runBoundedJourney({
     eventCount += 1;
   };
   const processStartedMs = performance.now();
-  const { child, args } = shippedRuntimeLaunch(installation, { launchProfile });
+  const { child, args, connector } = shippedRuntimeLaunch(installation, {
+    launchProfile,
+    connectorEndpoint: endpoint
+  });
   const resourceSampler = new ProcessResourceSampler(child.pid, {
     onSample: (sample) => resourceRecorder.append({ type: "process_resource", ...sample })
   });
@@ -493,7 +496,7 @@ export async function runBoundedJourney({
       generated_at: new Date().toISOString(),
       headless: headlessIdentity,
       route: "shipped_godot_headless",
-      command: { executable: installation.executable, args },
+      command: { executable: installation.executable, args, connector },
       profile: publicProfileDescriptor(launchProfile),
       disk_identity: diskIdentity,
       compatibility,
@@ -548,7 +551,7 @@ export async function runBoundedJourney({
       generated_at: new Date().toISOString(),
       headless: headlessIdentity,
       route: "shipped_godot_headless",
-      command: { executable: installation.executable, args },
+      command: { executable: installation.executable, args, connector },
       profile: publicProfileDescriptor(launchProfile),
       disk_identity: diskIdentity,
       compatibility,

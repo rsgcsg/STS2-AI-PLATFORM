@@ -183,7 +183,10 @@ export async function runHeadlessHost({
   mkdirSync(sessionDirectory, { recursive: true });
   const stdoutFile = path.join(sessionDirectory, "stdout.log");
   const stderrFile = path.join(sessionDirectory, "stderr.log");
-  const launch = shippedRuntimeLaunch(installation, { launchProfile });
+  const launch = shippedRuntimeLaunch(installation, {
+    launchProfile,
+    connectorEndpoint: endpoint
+  });
   const { child, args } = launch;
   const stdoutStream = createWriteStream(stdoutFile);
   const stderrStream = createWriteStream(stderrFile);
@@ -202,6 +205,7 @@ export async function runHeadlessHost({
     executable: installation.executable,
     args,
     endpoint,
+    connector: launch.connector,
     profile: publicProfileDescriptor(launchProfile),
     headless: readProjectIdentity(),
     session_directory: sessionDirectory,
