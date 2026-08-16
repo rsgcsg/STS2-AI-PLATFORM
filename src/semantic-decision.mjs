@@ -12,22 +12,25 @@ function canonicalValue(value, referentIds) {
     .map((key) => [key, canonicalValue(value[key], referentIds)]));
 }
 
-function semanticReferent(referent) {
+function semanticReferent(referent, referentIds = new Map()) {
   return {
     role: referent.role,
     kind: referent.kind,
     label: referent.label ?? null,
-    state: canonicalValue(referent.state, new Map()),
+    state: canonicalValue(referent.state, referentIds),
     properties_schema: referent.properties_schema ?? null,
-    properties: canonicalValue(referent.properties ?? null, new Map())
+    properties: canonicalValue(referent.properties ?? null, referentIds)
   };
 }
 
 function buildReferentMap(referents) {
+  const identityPlaceholders = new Map(referents.map(
+    (referent) => [referent.referent_id, "referent-placeholder"]
+  ));
   const indexed = referents.map((referent, sourceIndex) => ({
     referent,
     sourceIndex,
-    semantic: semanticReferent(referent)
+    semantic: semanticReferent(referent, identityPlaceholders)
   }));
   indexed.sort((left, right) => compareJson(left.semantic, right.semantic)
     || left.sourceIndex - right.sourceIndex);
@@ -41,7 +44,7 @@ function buildReferentMap(referents) {
 function canonicalReferents(referents, referentIds) {
   return referents.map((referent) => ({
     canonical_referent_id: referentIds.get(referent.referent_id),
-    ...semanticReferent(referent)
+    ...semanticReferent(referent, referentIds)
   })).sort(compareJson);
 }
 

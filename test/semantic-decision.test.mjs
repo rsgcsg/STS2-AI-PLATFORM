@@ -26,8 +26,8 @@ function snapshot(prefix, damage = 6) {
       capabilities: [{ verb: "play", arguments: [{ role: "target", required: true }] }]
     },
     referents: [
-      { referent_id: enemy, role: "target", kind: "entity", label: "Slime", state: { visible: true, observation_basis: "native_visible_fact" }, properties_schema: "enemy-1", properties: { hp: 10 } },
-      { referent_id: card, role: "card", kind: "entity", label: "Strike", state: { visible: true, enabled: true, observation_basis: "native_visible_fact" }, properties_schema: "card-1", properties: { damage } }
+      { referent_id: enemy, role: "target", kind: "entity", label: "Slime", state: { visible: true, observation_basis: "native_visible_fact" }, properties_schema: "enemy-1", properties: { entity_id: enemy, hp: 10 } },
+      { referent_id: card, role: "card", kind: "entity", label: "Strike", state: { visible: true, enabled: true, observation_basis: "native_visible_fact" }, properties_schema: "card-1", properties: { entity_id: card, damage } }
     ],
     bound_actions: {
       schema: "sts2.player-environment/bound-actions-1",
@@ -57,6 +57,7 @@ test("canonical decisions ignore runtime-local identities while preserving bindi
   );
   assert.equal(subject.role, "card");
   assert.equal(target.role, "target");
+  assert.equal(subject.properties.entity_id, subject.canonical_referent_id);
 });
 
 test("canonical decisions detect a visible semantic change", () => {

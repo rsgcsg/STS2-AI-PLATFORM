@@ -19,7 +19,7 @@ import {
 import { listGameProcesses, runShippedProbe } from "../src/runtime-probe.mjs";
 import { runBoundedJourney } from "../src/journey-probe.mjs";
 import { evaluateRuntimeCompatibility } from "../src/compatibility.mjs";
-import { resetIsolatedProfile } from "../src/profile-isolation.mjs";
+import { enableConnectorModLoading, resetIsolatedProfile } from "../src/profile-isolation.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -111,6 +111,20 @@ async function main() {
     console.log(JSON.stringify(resetIsolatedProfile(path.join(ROOT, ".local"), profileId), null, 2));
     return;
   }
+  if (command === "enable-profile-mods") {
+    const profileId = option(args, "--isolated-profile", null);
+    const expectedSettingsSchema = Number(option(args, "--settings-schema", ""));
+    if (!profileId) throw new Error("enable-profile-mods requires --isolated-profile <id>.");
+    const running = listGameProcesses();
+    if (running.length > 0) {
+      throw new Error(`Refusing to rewrite profile settings while STS2 is running:\n${running.join("\n")}`);
+    }
+    console.log(JSON.stringify(enableConnectorModLoading(path.join(ROOT, ".local"), profileId, {
+      expectedSettingsSchema,
+      acknowledgeEarlyAccessDisclaimer: args.includes("--accept-ea-disclaimer")
+    }), null, 2));
+    return;
+  }
   if (command === "probe-shipped" || command === "probe-menu-control") {
     const installation = resolveCurrentInstallation();
     const timeoutMs = Number(option(args, "--timeout-ms", "90000"));
@@ -167,6 +181,7 @@ async function main() {
   node tools/headless.mjs status [--endpoint URL]
   node tools/headless.mjs stop [--endpoint URL]
   node tools/headless.mjs reset-profile --isolated-profile ID
+  node tools/headless.mjs enable-profile-mods --isolated-profile ID --settings-schema VERSION [--accept-ea-disclaimer]
   node tools/headless.mjs probe-shipped (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
   node tools/headless.mjs probe-menu-control (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
   node tools/headless.mjs probe-journey (--isolated-profile ID | --shared-profile) [--experimental-build] [--max-actions 40] [--timeout-ms 90000]`);

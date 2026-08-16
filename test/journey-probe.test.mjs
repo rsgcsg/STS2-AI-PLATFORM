@@ -32,6 +32,15 @@ test("combat policy uses a native play binding then end turn", () => {
   assert.equal(chooseBoundAction(snapshot("combat_turn", [end])), end);
 });
 
+test("first-run tutorial preference stays inside the advertised action set", () => {
+  const disable = { bound_action_id: "disable", verb: "select", label: "Cancel" };
+  const enable = { bound_action_id: "enable", verb: "select", label: "Confirm" };
+  assert.equal(
+    chooseBoundAction(snapshot("tutorial_preference", [disable, enable])),
+    enable
+  );
+});
+
 test("bounded journey gate requires representative surfaces and three combat deliveries", () => {
   const kinds = ["main_menu", "singleplayer_menu", "event_option", "map_navigation"];
   const steps = [

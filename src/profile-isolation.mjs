@@ -1,5 +1,17 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import {
+  closeSync,
+  copyFileSync,
+  existsSync,
+  fsyncSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+  writeSync
+} from "node:fs";
 import path from "node:path";
 
 const PROFILE_ID = /^[a-z0-9][a-z0-9._-]{0,63}$/u;
@@ -150,5 +162,69 @@ export function publicProfileDescriptor(profile) {
     expected_user_data_root: profile.expected_user_data_root,
     steam: profile.steam,
     client_id: profile.client_id
+  };
+}
+
+export function enableConnectorModLoading(
+  localRoot,
+  profileId,
+  {
+    expectedSettingsSchema,
+    acknowledgeEarlyAccessDisclaimer = false,
+    platform = process.platform
+  } = {}
+) {
+  if (!Number.isSafeInteger(expectedSettingsSchema) || expectedSettingsSchema < 1) {
+    throw new Error("An exact expected settings schema is required.");
+  }
+  const paths = isolatedProfilePaths(localRoot, profileId, platform);
+  const settingsFile = path.join(paths.expected_user_data_root, "default", "1", "settings.save");
+  assertContained(paths.profile_root, settingsFile);
+  if (!existsSync(settingsFile)) {
+    throw new Error("The isolated profile has not completed one native bootstrap; settings.save is absent.");
+  }
+  const settings = JSON.parse(readFileSync(settingsFile, "utf8"));
+  if (settings.schema_version !== expectedSettingsSchema) {
+    throw new Error(
+      `Settings schema mismatch: expected ${expectedSettingsSchema}, observed ${settings.schema_version}.`
+    );
+  }
+  if (settings.mod_settings != null
+      && (typeof settings.mod_settings !== "object" || Array.isArray(settings.mod_settings))) {
+    throw new Error("Unexpected mod_settings shape; refusing to rewrite the native settings file.");
+  }
+  const modLoadingAlreadyEnabled = settings.mod_settings?.mods_enabled === true;
+  const disclaimerAlreadyAcknowledged = settings.seen_ea_disclaimer === true;
+  if (modLoadingAlreadyEnabled
+      && (!acknowledgeEarlyAccessDisclaimer || disclaimerAlreadyAcknowledged)) {
+    return { status: "already_enabled", profile_id: profileId, settings_file: settingsFile };
+  }
+  const updated = {
+    ...settings,
+    mod_settings: { ...(settings.mod_settings ?? {}), mods_enabled: true },
+    ...(acknowledgeEarlyAccessDisclaimer ? { seen_ea_disclaimer: true } : {})
+  };
+  const backup = `${settingsFile}.before-headless-mod-consent`;
+  const temporary = `${settingsFile}.headless-${randomUUID()}.tmp`;
+  copyFileSync(settingsFile, backup);
+  const fd = openSync(temporary, "wx");
+  try {
+    writeSync(fd, `${JSON.stringify(updated, null, 2)}\n`, null, "utf8");
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+  renameSync(temporary, settingsFile);
+  return {
+    status: "enabled_cold_start_required",
+    profile_id: profileId,
+    settings_schema: expectedSettingsSchema,
+    acknowledgements: {
+      connector_mod_loading: true,
+      early_access_disclaimer: acknowledgeEarlyAccessDisclaimer
+        || disclaimerAlreadyAcknowledged
+    },
+    settings_file: settingsFile,
+    backup_file: backup
   };
 }

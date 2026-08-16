@@ -60,6 +60,9 @@ export function chooseBoundAction(snapshot) {
       ?? actions.find((action) => action.verb === "select" && !/random/i.test(action.label))
       ?? null;
   }
+  if (kind === "tutorial_preference") {
+    return actionWithLabel(actions, /confirm|enable|yes/i) ?? actions[0];
+  }
   if (kind === "combat_turn") {
     return actionWithVerb(actions, "play")
       ?? actionWithVerb(actions, "end_turn")
@@ -170,8 +173,11 @@ async function waitForSuccessor(client, previousSnapshotId, child, timeoutMs) {
   let latest = null;
   while (Date.now() - started < timeoutMs) {
     latest = (await client.observe()).data;
+    const actionable = latest.status === "interactive"
+      && latest.bound_actions?.status === "complete"
+      && latest.bound_actions.actions.length > 0;
     if (latest.snapshot_id !== previousSnapshotId
-        && (latest.status === "interactive" || latest.status === "visible_unsupported")) {
+        && (actionable || latest.status === "visible_unsupported")) {
       return latest;
     }
     if (child.exitCode != null || child.signalCode != null) return latest;
@@ -286,10 +292,24 @@ export async function runBoundedJourney({
     for (let index = 0; index < maxActions; index += 1) {
       const snapshotReadyMs = performance.now();
       if (snapshot.status === "visible_unsupported") {
+        record({
+          type: "stop",
+          reason: "visible_unsupported",
+          at: new Date().toISOString(),
+          snapshot_id: snapshot.snapshot_id,
+          canonical_decision: canonicalizeSnapshot(snapshot)
+        });
         terminal = "visible_unsupported";
         break;
       }
       if (snapshot.interaction.kind === "game_over") {
+        record({
+          type: "terminal",
+          reason: "game_over",
+          at: new Date().toISOString(),
+          snapshot_id: snapshot.snapshot_id,
+          canonical_decision: canonicalizeSnapshot(snapshot)
+        });
         terminal = "game_over";
         break;
       }
@@ -321,6 +341,13 @@ export async function runBoundedJourney({
       const action = chooseBoundAction(snapshot);
       const policySelectedMs = performance.now();
       if (!action) {
+        record({
+          type: "stop",
+          reason: "no_safe_probe_action",
+          at: new Date().toISOString(),
+          snapshot_id: snapshot.snapshot_id,
+          canonical_decision: canonicalizeSnapshot(snapshot)
+        });
         terminal = snapshot.status === "interactive" ? "no_safe_probe_action" : snapshot.status;
         break;
       }
