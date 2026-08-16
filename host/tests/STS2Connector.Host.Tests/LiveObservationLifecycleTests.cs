@@ -5,6 +5,28 @@ namespace STS2Connector.Tests;
 public sealed class LiveObservationLifecycleTests
 {
     [Fact]
+    public void ExactOpenModalOwnsInputAheadOfMenuOverlayAndRoomLayers()
+    {
+        Assert.Equal(InputOwnerLayer.Modal, ActiveInputResolver.SelectLayer(
+            hasVisibleOverlay: true,
+            mapIsOpen: true,
+            hasMenuSubmenu: true,
+            hasOpenModal: true));
+        Assert.True(ActiveInputResolver.IsActiveLayer(
+            InputOwnerLayer.Modal,
+            hasVisibleOverlay: true,
+            mapIsOpen: true,
+            hasMenuSubmenu: true,
+            hasOpenModal: true));
+        Assert.False(ActiveInputResolver.IsActiveLayer(
+            InputOwnerLayer.Menu,
+            hasVisibleOverlay: false,
+            mapIsOpen: false,
+            hasMenuSubmenu: true,
+            hasOpenModal: true));
+    }
+
+    [Fact]
     public void PersistentStateMountFailureSettlesOnlyInsideABoundedWindow()
     {
         var window = new BoundedSettlingWindow(TimeSpan.FromSeconds(20));

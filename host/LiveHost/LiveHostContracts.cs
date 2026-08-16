@@ -684,6 +684,28 @@ public sealed record CharacterSelectSurface(
     bool CanEmbark,
     bool CanGoBack) : ILiveSurface;
 
+public sealed record VisibleTutorialOption(
+    string SemanticId,
+    string Label,
+    bool Enabled);
+
+/// <summary>
+/// A currently open, exact native tutorial modal. Only explicitly audited
+/// tutorial types may construct this Surface; an unknown modal remains
+/// unsupported and owns no mutation authority.
+/// </summary>
+public sealed record TutorialSurface(
+    string Kind,
+    string Stage,
+    string ScreenEntityId,
+    string TutorialId,
+    int? CurrentPage,
+    int? TotalPages,
+    string? Title,
+    string? Body,
+    string? PageLabel,
+    IReadOnlyList<VisibleTutorialOption> Options) : ILiveSurface;
+
 public sealed record VisibleMenuOption(
     string EntityId,
     string SemanticId,

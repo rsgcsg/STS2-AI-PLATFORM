@@ -13,12 +13,80 @@ using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Potions;
 using MegaCrit.Sts2.Core.Nodes.Cards;
 using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Nodes.Ftue;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 
 namespace STS2Connector.Tests;
 
 public sealed class NativeUiContractTests
 {
+    [Fact]
+    public void CurrentGameTutorialModalsHaveExactAuditedBindings()
+    {
+        const BindingFlags flags = BindingFlags.Instance
+                                   | BindingFlags.Public
+                                   | BindingFlags.NonPublic;
+
+        Assert.Equal(
+            typeof(int),
+            typeof(NCombatRulesFtue).GetField("_currentPage", flags)?.FieldType);
+        Assert.Equal(
+            typeof(NPopupYesNoButton),
+            typeof(NVerticalPopup).GetProperty("YesButton", flags)?.PropertyType);
+        Assert.Equal(
+            typeof(NPopupYesNoButton),
+            typeof(NVerticalPopup).GetProperty("NoButton", flags)?.PropertyType);
+    }
+
+    [Fact]
+    public void TutorialDiscoveryPublishesOnlyExplicitCurrentControls()
+    {
+        var preference = new TutorialSurface(
+            "tutorial",
+            "preference",
+            "tutorial-screen",
+            TutorialModalSurfaceReader.AcceptTutorialsId,
+            null,
+            null,
+            "Tutorials",
+            "Enable tutorials?",
+            null,
+            new[]
+            {
+                new VisibleTutorialOption("enable_tutorials", "Yes", true),
+                new VisibleTutorialOption("disable_tutorials", "No", true),
+                new VisibleTutorialOption("invented_option", "Unsafe", true)
+            });
+        NativeUiActionDescriptor[] preferenceCommands =
+            NativeUiActionRuntime.DescribeTutorialCommands(preference).ToArray();
+
+        Assert.Equal(2, preferenceCommands.Length);
+        Assert.Contains(preferenceCommands, command => command.Kind == "enable_tutorials");
+        Assert.Contains(preferenceCommands, command => command.Kind == "disable_tutorials");
+        Assert.DoesNotContain(preferenceCommands, command => command.Kind == "invented_option");
+        Assert.All(preferenceCommands, command => Assert.Contains(
+            command.EntityBindings!,
+            binding => binding.Role == "screen" && binding.EntityId == "tutorial-screen"));
+
+        var page = preference with
+        {
+            Stage = "page",
+            TutorialId = TutorialModalSurfaceReader.CombatRulesId,
+            CurrentPage = 2,
+            TotalPages = 3,
+            Options = new[]
+            {
+                new VisibleTutorialOption("previous_tutorial_page", "Previous page", true),
+                new VisibleTutorialOption("advance_tutorial", "Next page", true)
+            }
+        };
+        NativeUiActionDescriptor[] pageCommands =
+            NativeUiActionRuntime.DescribeTutorialCommands(page).ToArray();
+        Assert.Contains(pageCommands, command => command.Kind == "previous_tutorial_page");
+        Assert.Contains(pageCommands, command => command.Kind == "advance_tutorial");
+    }
+
     [Fact]
     public void CurrentGameDeckUpgradeSelectorHasAuditedNativeBindings()
     {

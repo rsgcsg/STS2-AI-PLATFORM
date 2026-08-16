@@ -17,6 +17,7 @@ namespace STS2Connector.LiveHost;
 
 internal enum InputOwnerLayer
 {
+    Modal,
     Overlay,
     Room,
     Menu
@@ -106,12 +107,14 @@ internal static class ActiveInputResolver
         NativeEntityRegistry entities,
         GameBuildIdentity game)
     {
-        if (ShouldSuppressProviders(snapshot.OpenModal != null))
-            return new ActiveSurfaceResolution(null, Array.Empty<string>(), null, null);
-
         var matches = new List<(string Kind, LiveObservation Draft)>();
         foreach (ILiveSurfaceReader provider in providers.Where(provider =>
-                     IsActiveLayer(provider.Layer, snapshot.TopOverlay != null, snapshot.MapIsOpen, snapshot.MenuSubmenu != null || snapshot.MenuRoot != null)))
+                     IsActiveLayer(
+                         provider.Layer,
+                         snapshot.TopOverlay != null,
+                         snapshot.MapIsOpen,
+                         snapshot.MenuSubmenu != null || snapshot.MenuRoot != null,
+                         snapshot.OpenModal != null)))
         {
             try
             {
@@ -136,8 +139,14 @@ internal static class ActiveInputResolver
             null);
     }
 
-    internal static InputOwnerLayer SelectLayer(bool hasVisibleOverlay, bool mapIsOpen, bool hasMenuSubmenu = false) =>
-        hasMenuSubmenu
+    internal static InputOwnerLayer SelectLayer(
+        bool hasVisibleOverlay,
+        bool mapIsOpen,
+        bool hasMenuSubmenu = false,
+        bool hasOpenModal = false) =>
+        hasOpenModal
+            ? InputOwnerLayer.Modal
+            : hasMenuSubmenu
             ? InputOwnerLayer.Menu
             : hasVisibleOverlay || mapIsOpen
                 ? InputOwnerLayer.Overlay
@@ -147,8 +156,7 @@ internal static class ActiveInputResolver
         InputOwnerLayer providerLayer,
         bool hasVisibleOverlay,
         bool mapIsOpen,
-        bool hasMenuSubmenu = false) =>
-        providerLayer == SelectLayer(hasVisibleOverlay, mapIsOpen, hasMenuSubmenu);
-
-    internal static bool ShouldSuppressProviders(bool hasHigherPriorityModal) => hasHigherPriorityModal;
+        bool hasMenuSubmenu = false,
+        bool hasOpenModal = false) =>
+        providerLayer == SelectLayer(hasVisibleOverlay, mapIsOpen, hasMenuSubmenu, hasOpenModal);
 }
