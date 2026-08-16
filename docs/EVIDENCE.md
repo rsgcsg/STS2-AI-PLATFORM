@@ -73,9 +73,13 @@ Connector-only Modset:
 - a separate bounded sentinel run left the normal user-data tree unchanged at
   1,051 files and tree digest `f9e58712...`.
 
-Native shutdown returned code zero without forced fallback, but bounded exits
-still emitted roughly 950-1000 Godot diagnostics. Recovery is operational, not
-clean-shutdown qualification. A predecessor artifact's 8-worker `2.9085`
+Native shutdown returned code zero without forced fallback. The current
+phase-aware policy rejects unknown, misplaced and over-limit diagnostics. A
+two-worker run first rejected one pre-shutdown `Invalid Task ID`; after an exact
+three-occurrence bound was justified from the local corpus, clean Headless
+source `63d03ee...` passed a new two-worker run with only known post-shutdown
+diagnostics. This is a bounded containment candidate, not clean-shutdown or
+long-soak qualification. A predecessor artifact's 8-worker `2.9085`
 decisions/s result remains historical and is not merged into current evidence.
 
 See the [capacity/recovery closeout](evidence/WINDOWS_REFERENCE_CAPACITY_RECOVERY_AND_MANAGED_ADMISSION_2026-08-16.md)
@@ -91,9 +95,10 @@ and [seed/differential/supervisor closeout](evidence/WINDOWS_REFERENCE_SEED_DIFF
 - Delivery Receipt does not assert business completion.
 - Old Connector, Live-UI, fixture, or external-project evidence is not evidence
   for the current exact Headless tuple.
-- Operational recovery does not imply clean shutdown; the shipped Windows
-  headless runtime emitted about 950-1090 Godot diagnostics after native quit
-  across recorded artifact windows.
+- Operational recovery does not imply clean shutdown. The shipped Windows
+  headless runtime emitted about 950-1090 diagnostics around native quit across
+  recorded artifact windows; the current policy exposes and bounds them rather
+  than declaring them harmless.
 - A manually replaced local SDK is not reproducible release evidence.
 - The local shared-profile sentinel does not inspect Steam Cloud server state.
 - The update planner and drift fixtures are not a real changed-build drill.

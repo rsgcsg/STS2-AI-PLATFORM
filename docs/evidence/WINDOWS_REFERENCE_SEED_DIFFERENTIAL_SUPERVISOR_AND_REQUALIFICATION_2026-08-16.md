@@ -7,8 +7,9 @@ Date: 2026-08-16
 The shipped Windows Godot route remains the highest-confidence Reference Host,
 but it is neither H1.0 nor Training Ready. This slice closes game-owned seed
 provenance, same-artifact repeatability measurement, bounded multi-worker
-supervision, a local shared-profile mutation sentinel, and fail-closed update
-planning. It does not close long soak, clean shutdown, cross-Host parity, Steam
+supervision, a local shared-profile mutation sentinel, fail-closed update
+planning, and a phase-aware shutdown containment candidate. It does not close
+long soak, clean shutdown, containment qualification, cross-Host parity, Steam
 Cloud isolation, real update qualification, reproducible RC dependencies, or a
 high-throughput trainer.
 
@@ -82,6 +83,43 @@ because it validated the sentinel before commit. The evidence is attributable,
 but it is not clean-source release evidence and says nothing about remote Steam
 Cloud state.
 
+### Shutdown Diagnostic Containment
+
+Headless now captures stderr separately before and after its runtime-bound
+native shutdown request. It accepts only exact signatures in the observed
+phase and under explicit count ceilings; every unknown, wrong-phase or
+over-limit line rejects the worker and therefore the soak. Native shutdown must
+also be requested, return code zero and avoid forced termination.
+
+`reference-soak-2026-08-16T06-43-34-353Z` demonstrated fail-closed behavior:
+both workers delivered six decisions and released their endpoints, but one
+worker emitted one pre-shutdown `Invalid Task ID`; the then-current policy did
+not admit it and the soak ended `soak_incomplete`.
+
+A local audit of 41 attributable journey reports found that exact line zero
+times in 17 reports, once in 18, twice in 3 and three times in 3; no report had
+more than three. The admitted ceiling is therefore exactly three, not an
+unbounded wildcard. The other admitted signatures remain lifecycle-specific:
+one null-texture parameter before shutdown, and at most 2,048 node-path, 16 RID
+leak and one resources-in-use diagnostics after shutdown. An unhandled managed
+exception is never admitted.
+
+Godot upstream fixed two bugs that could emit the same `Invalid Task ID` text:
+[PipelineHashMapRD task error spam](https://github.com/godotengine/godot/pull/104044)
+and [ResourceLoader invalidated task waits](https://github.com/godotengine/godot/pull/104060).
+Those primary sources support classifying the text as a plausible engine task
+diagnostic. They do not independently prove the root cause in the exact MegaDot
+fork, so the local exact-build bound and fail-closed behavior remain necessary.
+
+`reference-soak-2026-08-16T06-46-23-544Z` then ran clean Headless source
+`63d03ee1c4aab46672871f11c8b762bd953f3455`: two workers delivered 12
+decisions through distinct runtime/profile generations, released both
+endpoints and processes, and left the 1,051-file shared-profile sentinel
+unchanged. Both workers emitted 988 known post-shutdown diagnostics, no unknown
+or wrong-phase lines, exited zero without force, and received
+`bounded_containment_candidate`. This proves the current bounded gate operated
+as designed once. Its report explicitly remains `not_qualified`.
+
 ### Update Planning
 
 `requalification-2026-08-16T06-32-06-526Z` correctly returned
@@ -98,8 +136,9 @@ fixture evidence, not a real game-update drill.
 
 Exact decompilation confirms `NGame.Quit()` saves native settings/profile data,
 clears text/font caches and calls `SceneTree.Quit()`. Runtime exit zero and
-process/endpoint release therefore use the native path, but repeated Godot
-diagnostics prevent a clean-shutdown claim.
+process/endpoint release therefore use the native path. Phase-aware containment
+prevents those diagnostics from being hidden, but does not justify a clean-
+shutdown claim.
 
 The assembly also contains Mega Crit's broad `AutoSlayer`, including seed
 override, native commands, UI handlers and watchdog. The same assembly

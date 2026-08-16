@@ -29,10 +29,11 @@ source `3e5c5a8...`, DLL SHA `e9673497...`, and MVID `c5bcd426...`. It measured
 only `1.52` aggregate normalized semantic decisions/s at four workers. A
 predecessor artifact reached `2.91` at eight workers with about `5.70 GiB`
 summed peak RSS. Both are far below the current `>=1000` trainer hypothesis.
-Native exit returns code zero and releases processes/endpoints, but this exact
-Windows route still emits roughly 950-1000 Godot diagnostics per bounded exit.
-Clean shutdown therefore remains unresolved and is not hidden inside an
-operational verdict.
+Native exit returns code zero and releases processes/endpoints. A phase-aware
+classifier now rejects unknown, misplaced, or over-limit diagnostics and admits
+only a small exact signature set. The observed roughly 950-1000 Godot messages
+are therefore bounded as a containment candidate, not hidden; clean shutdown
+and containment qualification remain unresolved.
 
 The released macOS arm64 tuple remains the only declared supported tuple.
 Windows x64 is `known_experimental`; a matching hash does not grant support.

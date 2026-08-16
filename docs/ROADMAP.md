@@ -13,11 +13,14 @@ Completed or implemented:
 - game-owned seed and runtime-bound episode provenance;
 - same-artifact semantic repeatability with first-divergence diagnostics;
 - bounded supervisor, exact machine context and shared-profile tree sentinel;
-- fail-closed identity-drift requalification planning.
+- fail-closed identity-drift requalification planning;
+- phase-aware shutdown diagnostics and a bounded containment candidate that
+  rejects unknown, misplaced and over-limit messages.
 
 Open:
 
-- clean shutdown or a qualified containment policy for shipped teardown errors;
+- clean shutdown or long-soak qualification of the current bounded containment
+  policy for shipped teardown diagnostics;
 - randomized and high-risk cross-Host semantic differential corpus;
 - hang watchdog, fault matrix, 72-hour/10-million-decision soak and Steam Cloud
   server evidence;

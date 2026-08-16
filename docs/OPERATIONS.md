@@ -129,6 +129,13 @@ verify loaded identity before making a runtime claim.
 - `recovery_operational_pass_shutdown_diagnostics_observed`: reset/restart and
   cleanup gates passed, but native shipped-headless teardown was not clean. Do
   not relabel this as clean shutdown or broad soak qualification.
+- `shutdown_containment_rejected`: at least one native shutdown, exit-code,
+  forced-termination, diagnostic signature, lifecycle phase or count gate did
+  not match. Stop and inspect the exact report; do not broaden the signature or
+  count merely to make the run pass.
+- `bounded_containment_candidate`: the run used native shutdown, exited zero
+  without force and contained only exact phase/count-bounded diagnostics. It is
+  still `not_qualified` until the long-soak gate is satisfied.
 - `npm ls` reports an invalid local Connector SDK: the development RC SDK was
   linked over the public dependency. This is acceptable only for explicitly
   attributed local evidence; run no release from that tree.

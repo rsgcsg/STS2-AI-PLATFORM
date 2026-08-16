@@ -37,6 +37,9 @@ Completed:
   runtime requalification gates;
 - process-local, secret, runtime-bound native shutdown control outside the
   Player Environment contract;
+- exact phase/signature/count classification for shipped-runtime shutdown
+  diagnostics, with supervisor admission failing closed on any unknown,
+  misplaced or over-limit diagnostic;
 - public game-independent tests and repository boundary checks.
 
 Current isolation boundary:
@@ -58,8 +61,11 @@ Current isolation boundary:
 
 Current blockers:
 
-- clean shutdown: native `NGame.Quit()` exits with code 0 and no forced fallback,
-  but current bounded exits emit roughly 950-1000 Godot diagnostics;
+- shutdown containment qualification: native `NGame.Quit()` exits with code 0
+  and no forced fallback; one current-source soak rejected an unexpected
+  pre-shutdown diagnostic before its exact bounded policy was established, and
+  a later clean-source soak passed that bounded policy. This is not clean
+  shutdown or long-soak qualification;
 - long soak, hang watchdog/fault matrix and a real changed-build
   requalification drill;
 - reproducible RC Host/SDK publication: current local RC evidence cannot be

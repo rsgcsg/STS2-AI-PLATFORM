@@ -87,7 +87,11 @@ the Connector Host when native game access is required. They remain outside the
 Player Environment contract, require exact runtime binding, never enter the SDK
 or MCP, and create no gameplay authority. Current native shutdown follows
 `NGame.Quit()` and is operationally bounded, but shipped headless teardown is
-not diagnostically clean.
+not diagnostically clean. Headless partitions diagnostics at the native
+shutdown request and admits a run only when every error line matches an exact,
+phase-scoped and count-bounded signature. This containment policy is Host
+lifecycle evidence only; it cannot turn diagnostics into gameplay success or
+grant Host qualification.
 
 Seed is also Host lifecycle state, not a player action. The current development
 Host accepts it only before run creation, reports requested/canonical/actual
