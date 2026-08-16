@@ -30,6 +30,7 @@ import { runRecoveryDrill } from "../src/recovery-drill.mjs";
 import { runReferenceRepeatability } from "../src/semantic-differential.mjs";
 import { runReferenceSoak } from "../src/soak-supervisor.mjs";
 import { runRequalificationDrill } from "../src/requalification.mjs";
+import { runAutoSlayerUpperBound } from "../src/autoslayer-experiment.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -325,6 +326,22 @@ async function main() {
     process.exitCode = result.report.status === "soak_smoke_pass" ? 0 : 8;
     return;
   }
+  if (command === "experiment-autoslayer") {
+    const result = await runAutoSlayerUpperBound({
+      installation: resolveCurrentInstallation(),
+      projectRoot: ROOT,
+      localRoot: path.join(ROOT, ".local"),
+      evidenceRoot: path.join(ROOT, ".local", "evidence"),
+      templateId: option(args, "--template", "vanilla-clean"),
+      profileId: option(args, "--isolated-profile", "autoslayer-upper-bound"),
+      seed: option(args, "--seed", "H1AUTOSLAYER01"),
+      timeoutMs: Number(option(args, "--timeout-ms", String(30 * 60 * 1000))),
+      experimentalBuildAcknowledged: args.includes("--experimental-build")
+    });
+    console.log(JSON.stringify({ report_file: result.reportFile, status: result.report.status }, null, 2));
+    process.exitCode = result.report.status === "autoslayer_upper_bound_pass" ? 0 : 9;
+    return;
+  }
   console.log(`Usage:
   node tools/headless.mjs setup
   node tools/headless.mjs rollback --backup DIRECTORY
@@ -343,7 +360,8 @@ async function main() {
   node tools/headless.mjs bench-capacity [--template vanilla-clean] [--workers 1,2,4] [--base-port 15600] [--max-actions 12] [--seed SEED]
   node tools/headless.mjs probe-reference-differential --seed SEED [--template vanilla-clean] [--max-actions 12] [--endpoint URL] [--experimental-build]
   node tools/headless.mjs probe-recovery [--template vanilla-clean] [--isolated-profile recovery-worker] [--cycles 3] [--fault-after 5] [--recovery-actions 5] [--seed SEED] [--experimental-build]
-  node tools/headless.mjs soak-reference [--template vanilla-clean] [--workers 2] [--episodes 2] [--actions 8] [--base-seed H1SOAK] [--max-worker-failures 0] [--experimental-build]`);
+  node tools/headless.mjs soak-reference [--template vanilla-clean] [--workers 2] [--episodes 2] [--actions 8] [--base-seed H1SOAK] [--max-worker-failures 0] [--experimental-build]
+  node tools/headless.mjs experiment-autoslayer [--template vanilla-clean] [--isolated-profile autoslayer-upper-bound] [--seed H1AUTOSLAYER01] [--timeout-ms 1800000] [--experimental-build]`);
 }
 
 main().catch((error) => {
