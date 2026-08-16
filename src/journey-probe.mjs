@@ -81,6 +81,28 @@ function firstSemanticAction(actions) {
   return orderedActions(actions)[0] ?? null;
 }
 
+function combatPlayAction(snapshot, actions) {
+  const hand = snapshot.interaction?.content?.context?.player?.hand;
+  const enemies = snapshot.interaction?.content?.context?.enemies;
+  if (!Array.isArray(hand)) return actionWithVerb(actions, "play");
+
+  const enemyOrder = new Map((Array.isArray(enemies) ? enemies : [])
+    .map((enemy, index) => [enemy.entity_id, index]));
+  for (const card of hand) {
+    const matching = actions.filter((action) => action.verb === "play"
+      && action.subject_referent_id === card.entity_id);
+    if (matching.length === 0) continue;
+    return [...matching].sort((left, right) => {
+      const leftTarget = left.arguments?.find((argument) => argument.role === "target")?.referent_id;
+      const rightTarget = right.arguments?.find((argument) => argument.role === "target")?.referent_id;
+      return (enemyOrder.get(leftTarget) ?? Number.MAX_SAFE_INTEGER)
+        - (enemyOrder.get(rightTarget) ?? Number.MAX_SAFE_INTEGER)
+        || left.label.localeCompare(right.label);
+    })[0];
+  }
+  return null;
+}
+
 export function chooseBoundAction(snapshot, { tutorialPreference = "disable" } = {}) {
   if (snapshot?.status !== "interactive"
       || snapshot?.bound_actions?.status !== "complete"
@@ -118,7 +140,7 @@ export function chooseBoundAction(snapshot, { tutorialPreference = "disable" } =
       : actionWithLabel(actions, /confirm|enable|yes/i) ?? null;
   }
   if (kind === "combat_turn") {
-    return actionWithVerb(actions, "play")
+    return combatPlayAction(snapshot, actions)
       ?? actionWithVerb(actions, "end_turn")
       ?? actionWithVerb(actions, "use")
       ?? null;

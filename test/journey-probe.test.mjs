@@ -63,6 +63,65 @@ test("deterministic test policy does not depend on runtime action publication or
   assert.equal(chooseBoundAction(snapshot("combat_turn", [bash, strike])).label, "Play Bash");
 });
 
+test("combat policy binds the first visible playable card and target across runtimes", () => {
+  const firstDefend = {
+    bound_action_id: "runtime-defend-first",
+    verb: "play",
+    label: "Play Defend",
+    subject_referent_id: "card-first",
+    arguments: []
+  };
+  const secondDefend = {
+    bound_action_id: "runtime-defend-second",
+    verb: "play",
+    label: "Play Defend",
+    subject_referent_id: "card-second",
+    arguments: []
+  };
+  const strikeSecondEnemy = {
+    bound_action_id: "runtime-strike-enemy-2",
+    verb: "play",
+    label: "Play Strike -> second",
+    subject_referent_id: "card-strike",
+    arguments: [{ role: "target", referent_id: "enemy-second" }]
+  };
+  const strikeFirstEnemy = {
+    bound_action_id: "runtime-strike-enemy-1",
+    verb: "play",
+    label: "Play Strike -> first",
+    subject_referent_id: "card-strike",
+    arguments: [{ role: "target", referent_id: "enemy-first" }]
+  };
+  const combat = snapshot("combat_turn", [
+    secondDefend,
+    strikeSecondEnemy,
+    firstDefend,
+    strikeFirstEnemy
+  ]);
+  combat.interaction.content = {
+    context: {
+      player: {
+        hand: [
+          { entity_id: "card-strike" },
+          { entity_id: "card-first" },
+          { entity_id: "card-second" }
+        ]
+      },
+      enemies: [
+        { entity_id: "enemy-first" },
+        { entity_id: "enemy-second" }
+      ]
+    }
+  };
+
+  assert.equal(chooseBoundAction(combat), strikeFirstEnemy);
+  combat.interaction.content.context.player.hand = [
+    { entity_id: "card-first" },
+    { entity_id: "card-second" }
+  ];
+  assert.equal(chooseBoundAction(combat), firstDefend);
+});
+
 test("first-run tutorial preference stays inside the advertised action set", () => {
   const disable = { bound_action_id: "disable", verb: "select", label: "Cancel" };
   const enable = { bound_action_id: "enable", verb: "select", label: "Confirm" };
