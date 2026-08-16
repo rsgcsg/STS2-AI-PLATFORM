@@ -43,39 +43,40 @@ export function resolveInstallation(gameDirectory, {
   arch = process.arch
 } = {}) {
   if (!gameDirectory) return null;
-  const gameDir = path.resolve(gameDirectory);
+  const platformPath = platform === "win32" ? path.win32 : path.posix;
+  const gameDir = platformPath.resolve(gameDirectory);
   if (platform === "darwin") {
-    const app = path.join(gameDir, "SlayTheSpire2.app", "Contents");
+    const app = platformPath.join(gameDir, "SlayTheSpire2.app", "Contents");
     const runtimeArch = arch === "x64" ? "x86_64" : "arm64";
     return {
       game_dir: gameDir,
-      executable: path.join(app, "MacOS", "Slay the Spire 2"),
-      executable_cwd: path.join(app, "MacOS"),
-      data_dir: path.join(app, "Resources", `data_sts2_macos_${runtimeArch}`),
-      release_info: path.join(app, "Resources", "release_info.json"),
-      log_file: path.join(os.homedir(), "Library/Application Support/SlayTheSpire2/logs/godot.log")
+      executable: platformPath.join(app, "MacOS", "Slay the Spire 2"),
+      executable_cwd: platformPath.join(app, "MacOS"),
+      data_dir: platformPath.join(app, "Resources", `data_sts2_macos_${runtimeArch}`),
+      release_info: platformPath.join(app, "Resources", "release_info.json"),
+      log_file: platformPath.join(os.homedir(), "Library/Application Support/SlayTheSpire2/logs/godot.log")
     };
   }
   if (platform === "win32") {
     return {
       game_dir: gameDir,
-      executable: path.join(gameDir, "SlayTheSpire2.exe"),
+      executable: platformPath.join(gameDir, "SlayTheSpire2.exe"),
       executable_cwd: gameDir,
-      data_dir: path.join(gameDir, "data_sts2_windows_x86_64"),
-      release_info: path.join(gameDir, "release_info.json"),
+      data_dir: platformPath.join(gameDir, "data_sts2_windows_x86_64"),
+      release_info: platformPath.join(gameDir, "release_info.json"),
       log_file: null
     };
   }
   const executable = ["SlayTheSpire2", "Slay the Spire 2"]
-    .map((name) => path.join(gameDir, name))
-    .find(existsSync) ?? path.join(gameDir, "SlayTheSpire2");
+    .map((name) => platformPath.join(gameDir, name))
+    .find(existsSync) ?? platformPath.join(gameDir, "SlayTheSpire2");
   return {
     game_dir: gameDir,
     executable,
     executable_cwd: gameDir,
-    data_dir: path.join(gameDir, "data_sts2_linuxbsd_x86_64"),
-    release_info: path.join(gameDir, "release_info.json"),
-    log_file: path.join(os.homedir(), ".local/share/SlayTheSpire2/logs/godot.log")
+    data_dir: platformPath.join(gameDir, "data_sts2_linuxbsd_x86_64"),
+    release_info: platformPath.join(gameDir, "release_info.json"),
+    log_file: platformPath.join(os.homedir(), ".local/share/SlayTheSpire2/logs/godot.log")
   };
 }
 

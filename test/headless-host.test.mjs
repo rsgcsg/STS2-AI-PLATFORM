@@ -17,6 +17,10 @@ test("recognizes only the exact recorded executable with a headless argument", (
     "/other/Slay the Spire 2 --headless",
     executable
   ), false);
+  assert.equal(commandOwnsHeadlessRuntime(
+    '"E:\\SteamLibrary\\steamapps\\common\\Slay the Spire 2\\SlayTheSpire2.exe" --headless --verbose',
+    "e:/steamlibrary/steamapps/common/slay the spire 2/slaythespire2.exe"
+  ), true);
 });
 
 test("does not inspect invalid process identifiers", () => {

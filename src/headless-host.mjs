@@ -39,7 +39,18 @@ export function readHostRecord(file) {
 
 export function processCommand(pid, platform = process.platform) {
   if (!Number.isSafeInteger(pid) || pid <= 0) return null;
-  if (platform === "win32") return null;
+  if (platform === "win32") {
+    const script = [
+      `$p = Get-CimInstance Win32_Process -Filter \"ProcessId = ${pid}\" -ErrorAction SilentlyContinue`,
+      "if ($null -ne $p) { $p.CommandLine }"
+    ].join("; ");
+    const result = spawnSync(
+      "powershell.exe",
+      ["-NoProfile", "-NonInteractive", "-Command", script],
+      { encoding: "utf8", windowsHide: true }
+    );
+    return result.status === 0 ? result.stdout.trim() || null : null;
+  }
   const result = spawnSync("ps", ["-p", String(pid), "-o", "command="], {
     encoding: "utf8"
   });
@@ -47,9 +58,11 @@ export function processCommand(pid, platform = process.platform) {
 }
 
 export function commandOwnsHeadlessRuntime(command, executable) {
-  return typeof command === "string"
-    && command.includes(executable)
-    && /(?:^|\s)--headless(?:\s|$)/u.test(command);
+  if (typeof command !== "string" || typeof executable !== "string") return false;
+  const normalizedCommand = command.replaceAll("/", "\\").toLowerCase();
+  const normalizedExecutable = executable.replaceAll("/", "\\").toLowerCase();
+  return normalizedCommand.includes(normalizedExecutable)
+    && /(?:^|\s)--headless(?:\s|$)/iu.test(command);
 }
 
 export function evaluateHeadlessCapabilities(capabilities, expectedProtocol = "1.0.0") {
