@@ -52,7 +52,10 @@ npm run stop
 ```
 
 `stop` signals only the PID whose command still matches the recorded exact
-executable and `--headless`; it refuses an ambiguous/reused PID.
+executable and `--headless`; it refuses an ambiguous/reused PID. Current
+development Hosts first request the secret, runtime-bound native shutdown route
+and record whether a forced fallback was needed. The secret is process-local and
+must never be written to evidence.
 
 ## Probes
 
@@ -60,11 +63,29 @@ executable and `--headless`; it refuses an ambiguous/reused PID.
 npm run probe:shipped -- --shared-profile
 npm run probe:menu-control -- --shared-profile
 npm run probe:journey -- --shared-profile
+npm run bench:capacity -- --template vanilla-clean --workers 1,2,4,8
+npm run probe:recovery -- --template vanilla-clean --experimental-build
 ```
 
 - shipped: boot, loaded identity, headless display, interactive Snapshot;
 - menu-control: delivery, duplicate idempotency, stale refusal, successor;
 - journey: representative menu/non-combat/combat surfaces and advertised Reads.
+- capacity: concurrent isolated profiles, process-local endpoints, normalized
+  decisions, CPU/RSS and exact identity consistency;
+- recovery: injected process crash, new profile generation, distinct recovered
+  runtime, exact identity, process/endpoint release and shutdown diagnostics.
+
+Capture a template only from a reviewed native isolated profile, then instantiate
+workers from it:
+
+```bash
+node tools/headless.mjs capture-profile-template --isolated-profile h1-train --template vanilla-clean
+node tools/headless.mjs instantiate-profile-template --template vanilla-clean --isolated-profile worker-01
+```
+
+Template capture excludes runtime logs and telemetry. Instantiation re-hashes
+the payload and refuses a different exact game identity before deleting the
+selected worker namespace.
 
 For an unknown build, only maintainers collecting non-support evidence should
 append `--experimental-build`. Normal start still refuses that build.
@@ -93,3 +114,6 @@ verify loaded identity before making a runtime claim.
   route is experimental and the shared route requires `--shared-profile`.
 - `unknown` delivery: stop the consumer and inspect evidence. Never retry the
   mutation.
+- `recovery_operational_pass_shutdown_diagnostics_observed`: reset/restart and
+  cleanup gates passed, but native shipped-headless teardown was not clean. Do
+  not relabel this as clean shutdown or broad soak qualification.

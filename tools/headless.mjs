@@ -261,7 +261,10 @@ async function main() {
       experimentalBuildAcknowledged: args.includes("--experimental-build")
     });
     console.log(JSON.stringify({ report_file: result.reportFile, status: result.report.status }, null, 2));
-    process.exitCode = result.report.status === "recovery_pass" ? 0 : 6;
+    process.exitCode = result.report.status.startsWith("recovery_pass_")
+        || result.report.status.startsWith("recovery_operational_pass_")
+      ? 0
+      : 6;
     return;
   }
   console.log(`Usage:

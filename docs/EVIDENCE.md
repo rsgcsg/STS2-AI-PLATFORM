@@ -50,22 +50,38 @@ public GitHub Release asset.
 
 ## Windows Experimental Evidence
 
-On the installed Windows x64 STS2 `v0.111.0` / `41cef1ea` tuple, the real
-shipped runtime created native SettingsSave v8 plus initial prefs/progress under
-a fresh `h1-train` namespace. Its log recorded that Steam was not initialized.
-The bootstrap used `--headless --force-steam=off --clientId=1`; Connector loading
-was intentionally a non-claim. This proves the named native bootstrap event,
-not durable reset, Cloud isolation, support, or training readiness.
+On the exact Windows x64 STS2 `v0.111.0` / `41cef1ea` tuple, the shipped runtime
+created native SettingsSave v8 plus prefs/progress in isolated namespaces with
+Steam disabled before platform initialization. The current branch additionally
+has exact-template reset, process-local endpoint, capacity and fault/restart
+evidence.
+
+The latest recovery evidence belongs to Connector source `08a5990...`, protocol
+`1.0-rc.2`, DLL SHA `97727e...`, MVID `7a6992a7...`, and its exact Modset. One
+cycle changed profile generation and runtime instance, retained exact identity,
+delivered three recovery decisions, and released both process and endpoint.
+Its status is `recovery_operational_pass_shutdown_diagnostics_observed`, not
+clean shutdown qualification.
+
+Reference capacity belongs to the earlier Connector source `b9df6c1...` and
+cannot be transferred to `08a5990...`. Measured aggregate normalized decisions/s
+were `0.4966`, `0.9483`, `1.7388`, and `2.9085` for 1/2/4/8 workers. Eight
+workers averaged `2.710` CPU cores and `5.696 GiB` summed peak RSS.
+
+See the [dated Windows closeout](evidence/WINDOWS_REFERENCE_CAPACITY_RECOVERY_AND_MANAGED_ADMISSION_2026-08-16.md).
 
 ## Non-Claims
 
 - H2 is a bounded test consumer, not a full-run Agent or gameplay policy.
-- No full-run, deterministic replay, save isolation, crash recovery,
-  multi-instance, throughput, or broad cross-platform claim is made.
+- No deterministic replay, semantic differential, long soak, broad
+  cross-platform support or Training-Ready claim is made.
 - The game wrote the active Steam profile and cloud store during H2.
 - Delivery Receipt does not assert business completion.
 - Old Connector, Live-UI, fixture, or external-project evidence is not evidence
   for the current exact Headless tuple.
+- Operational recovery does not imply clean shutdown; the shipped Windows
+  headless runtime emitted about 1090 Godot teardown errors after native quit.
+- A manually replaced local SDK is not reproducible release evidence.
 
 ## Reproduce
 
@@ -76,6 +92,8 @@ npm run doctor
 npm run probe:shipped -- --shared-profile
 npm run probe:menu-control -- --shared-profile
 npm run probe:journey -- --shared-profile
+npm run bench:capacity -- --template vanilla-clean --workers 1,2,4,8
+npm run probe:recovery -- --template vanilla-clean --experimental-build
 ```
 
 Each probe creates a timestamped local directory with process logs, identity,

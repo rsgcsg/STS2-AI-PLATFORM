@@ -1,11 +1,14 @@
 # Status
 
-Release: `0.1.0` exact-build preview
+Release: `0.1.0` evidence preview
 
-Route verdict: **retain shipped Godot `--headless`**. It has real boot, native
-control, Read, settling, and bounded journey evidence on the exact supported
-macOS arm64 tuple. Managed stubs/patches and a rules simulator are not required
-for the current route.
+Verdict: **H1.0 Core incomplete; Training Ready false; H* unresolved.**
+
+The shipped Godot `--headless` route is retained as the highest-confidence
+Reference Host. It has real boot, native control, Read, settling, bounded
+journey, isolated reset, capacity and crash/restart evidence. Measured Windows
+capacity (`2.91` aggregate normalized decisions/s at 8 workers, about `5.70
+GiB` summed peak RSS) rejects it as the current primary trainer.
 
 Completed:
 
@@ -18,6 +21,13 @@ Completed:
 - durable rotating trajectory records, canonical fair-player decision
   comparison, and normalized semantic-decision timing;
 - separate journey integrity and named-surface coverage verdicts;
+- exact-runtime profile templates and destructive reset guarded by template
+  payload plus game identity;
+- 1/2/4/8 worker capacity and resource measurement;
+- fault injection, new-generation restart, distinct-runtime verification,
+  process cleanup and endpoint-release checks;
+- process-local, secret, runtime-bound native shutdown control outside the
+  Player Environment contract;
 - public game-independent tests and repository boundary checks.
 
 Current isolation boundary:
@@ -27,14 +37,28 @@ Current isolation boundary:
   before platform initialization;
 - a fresh real runtime created native SettingsSave v8, prefs, and progress only
   under that namespace while logging that Steam was not initialized;
-- this is not yet a release support claim: shared-profile sentinel checks,
-  repeated reset, crash recovery, and long-duration Cloud/write isolation still
-  need explicit evidence.
+- native clean template `vanilla-clean` has payload SHA
+  `c44a5bb775e650c88e4150dd0a73fe530b6a522df70c1508023505204677b863`;
+- one current-artifact fault/restart cycle replaced both profile generation and
+  runtime instance, preserved exact environment identity, released process and
+  endpoint, and returned no unknown delivery;
+- this is still not a release support claim: long soak, Cloud/write sentinels,
+  update drill and broader recovery corpus remain absent.
 
-Pending evidence, not current blockers for the exact preview:
+Current blockers:
 
-- full ordinary run and long-duration stability;
-- deterministic/replay and differential Live-vs-Headless cases;
-- performance and hang/crash recovery measurements;
-- Windows release qualification, Linux, macOS x86_64, additional game builds
-  and Modsets.
+- game-owned seed/provenance and replay admission;
+- semantic differential and first-divergence corpus;
+- clean shutdown: native `NGame.Quit()` exits with code 0 and no forced fallback,
+  but shipped headless teardown emits roughly 1090 Godot errors at main menu;
+- long soak, hang watchdog/fault matrix and game-update requalification drill;
+- reproducible RC Host/SDK publication: current local RC evidence cannot be
+  reproduced by the stable dependency lock alone;
+- a qualified high-throughput backend and real learning/policy-transfer smoke;
+- Windows release qualification, Linux, macOS x86_64, later builds and Modsets.
+
+The local exact-build adaptation of `wuhao21/sts2-cli` was rejected as the
+primary trainer candidate for now: it reached a decision state only after local
+API repairs and then reported profile/bootstrap, CoreCLR patch, localization
+and save failures. It remains a useful failure and source-audit corpus, not
+semantic parity evidence.

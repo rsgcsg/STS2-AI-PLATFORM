@@ -2,20 +2,21 @@
 
 ## Product Definition
 
-Headless means the official STS2 runtime advances its real SceneTree, tasks,
-commands, RNG, saves, and native input callbacks without a display. It does not
-mean “a library containing some STS2 classes” and it does not mean “a faster
-simulator with similar rules.”
+Headless means a qualified Host advances STS2 semantics without a normal
+display. The shipped Host uses the official SceneTree, tasks, commands, RNG,
+saves and native callbacks. A derived Host may qualify later, but loading some
+STS2 classes or approximating rules is not semantic equivalence.
 
-The admitted route is:
+The current Reference route is:
 
 ```text
 ShippedHost
   discover and fingerprint the user's installed game
   require an exact supported build for normal start
   launch the official executable with --headless
-  preserve Steam initialization and the official Mod loader
-  supervise readiness, logs, process identity, stop, and failure
+  preserve the official SceneTree and Mod loader
+  isolate profile roots before startup
+  supervise readiness, reset, resources, logs, stop and failure
 
 STS2 Connector
   observe only fair-player information
@@ -32,72 +33,98 @@ Consumer
 REST is transport, not gameplay authority. The Player Environment contract and
 TypeScript SDK are released by STS2 Connector, not copied here.
 
-## Why The Shipped Route Won
+## Current Route Verdict
 
-Exact macOS runtime experiments established that direct launch needs the public
-Steam app identity, after which the shipped process can initialize Steam, load
-the official Mod, mount the Player Environment, enter a run, cross events and
-map transitions, and execute native combat actions under `--headless`.
+Exact runtime experiments establish shipped Godot as the highest-confidence
+Reference Host. It can initialize the game, load the Connector, enter runs,
+cross events and map transitions, and execute combat decisions under
+`--headless` while retaining game-owned semantics.
 
-That evidence removed the immediate need for a managed assembly host. Existing
-managed projects demonstrate that selected game classes can be driven, but use
-Godot stubs, IL patches, reflection, test constructors, scheduler substitutions,
-or manual lifecycle repairs. Those changes may be useful research seams, but
-they are not semantically equivalent until differential evidence says so.
+It has not won the trainer route. The measured Windows Host scales from `0.50`
+normalized decision/s at one worker to only `2.91` at eight workers and consumes
+about `0.71 GiB` per worker. This is far below the current realistic trainer
+hypothesis.
 
-A rules simulator was also rejected as Headless truth: it creates another game
-implementation and cannot prove behavior of the shipped game.
+The pinned `wuhao21/sts2-cli` source is useful research, but its exact-build
+spike required local API/bootstrap adaptation and still failed profile setup,
+CoreCLR task patches, localization and saves. Its reflection, patch and manual
+simulation surface is not admitted as truth without differential evidence.
+This rejects that revision as the primary trainer, not every possible managed
+Host.
+
+A rules simulator is also not Headless truth by construction. It may become a
+candidate only through the same normalized decision, semantic differential,
+reset, recovery and resource gates.
 
 ## Authority And Lifecycle
 
-- STS2 owns rules, RNG, effects, saves, native legality, and Commit.
-- Headless owns executable discovery, exact-build admission, process lifecycle,
-  no-display boot, health records, logs, and shutdown.
+- STS2 owns rules, RNG, effects, saves, native legality and Commit.
+- Headless owns executable discovery, exact-build admission, profile lifecycle,
+  no-display boot, health, resources, reset, supervisor and evidence.
 - Connector owns fair-player Snapshot/Read/action binding and single-controller
   delivery authority.
-- Consumers own strategy, model projection, rewards, search, and recovery.
+- Consumers own strategy, projection, rewards, search and learning.
 
 Every mutation uses one current opaque BoundAction. Connector checks the
-snapshot, controller lease, target identity, current actionability, and native
+snapshot, controller lease, target identity, current actionability and native
 legality at execution. Duplicate request IDs return the same Receipt. An
 `unknown` delivery is never retried. Receipt proves input delivery, not an
 inferred business transaction.
 
-Process lifecycle is a separate host plane. Starting, stopping, profile
-selection, future reset/seed, branch, acceleration, and scenario controls are
-not player actions and must never enter the fair-player action set.
+Process lifecycle is a separate Host plane. Starting, stopping, profile
+selection, reset, seed, branch, acceleration and scenario controls are not
+player actions and never enter the fair-player action set.
+
+Host controls may use a default-disabled process-local transport implemented by
+the Connector Host when native game access is required. They remain outside the
+Player Environment contract, require exact runtime binding, never enter the SDK
+or MCP, and create no gameplay authority. Current native shutdown follows
+`NGame.Quit()` and is operationally bounded, but shipped headless teardown is
+not diagnostically clean.
 
 ## Profile Boundary
 
-The released route initializes Steam and uses STS2's normal save startup. A Mod
-cannot guarantee pre-save isolation because it loads after platform and save
-initialization.
+A Mod cannot guarantee pre-save isolation because it loads after platform and
+save initialization. The experimental Windows route therefore redirects the OS
+user-data roots before process creation, passes the native `--force-steam=off`
+option and gives each process a local client ID.
 
-The development route therefore establishes its boundary before process
-creation: it redirects the OS user-data roots, passes the game's native
-`--force-steam=off` option, and uses a process-local client ID. A separate
-bootstrap command lets the exact shipped runtime create its own settings,
-profile, prefs, and progress files. Headless may then atomically enable only the
-explicit Mod/disclaimer consent in the exact observed settings schema.
+The game creates its own profile schema. Headless may atomically enable only
+explicit Mod/disclaimer consent for the exact observed schema. Verified
+templates bind payload and exact game identity; hard reset creates a fresh
+generation; fault/restart evidence verifies a distinct runtime and released
+endpoint.
 
-This is a source-backed experimental seam, not yet a durable-reset or Cloud
-qualification. Promotion requires shared-profile sentinels, repeated clean
-startup/reset, crash recovery, and soak evidence. Every runtime command still
+This remains experimental. Promotion still requires Cloud/write sentinels, a
+broader recovery matrix, soak and an update drill. Every runtime command
 requires exactly one explicit profile mode.
+
+## Release Gates
+
+- **H1.0 Core Release**: reliable exact Host lifecycle, isolation/reset,
+  seed/provenance, supervisor/recovery, measurement, differential, update drill,
+  clean consumer interface and honest compatibility scope.
+- **Training Ready**: at least one semantically qualified backend with realistic
+  throughput, 1M+ reset/scale/recovery evidence, Python vector consumption,
+  learning smoke and policy evaluation on the Reference Host.
+- **H***: the measured Pareto route for fidelity, aggregate throughput,
+  CPU/RAM, reset, reliability and update maintenance. It is an experiment
+  outcome, not a preselected implementation.
 
 ## Project Boundaries
 
-- **STS2-headless**: process lifecycle, exact compatibility, setup integration,
-  evidence harnesses, future non-player Host controls.
-- **STS2-Connector**: fair-player gameplay contract, native bindings, SDK,
-  transport, artifact identity.
-- **SpireAgent**: LLM provider, policy, normalization, supervision, recording.
-- **Future RL/Search adapters**: tensors, masks, rewards, reset orchestration,
-  vectorization, branch/search policy. They consume gameplay truth; they do not
-  redefine it.
+- **STS2-headless**: Host lifecycle, exact compatibility, isolation/reset,
+  supervisor, benchmarks, traces, differential orchestration and qualification.
+- **STS2-Connector**: Host-neutral gameplay contract, native bindings, SDK,
+  transports and artifact identity.
+- **SpireAgent**: LLM provider, policy, normalization, supervision and product.
+- **Future RL/Search adapters**: tensors, masks, rewards, vectorization and
+  learning/search policy. They consume truth and never redefine it.
 
-The first two remain separately versioned. Headless pins a released Connector
-Host and a compatible released SDK; it never consumes a branch by default.
+These projects remain separately versioned. Headless must pin a reproducible
+Connector Host and compatible SDK for a release. A local branch or manually
+replaced `node_modules` can collect development evidence but cannot support a
+release claim.
 
 ## References Reviewed
 

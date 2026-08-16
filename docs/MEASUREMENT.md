@@ -53,3 +53,24 @@ This contract admits measurements; it does not define a performance winner.
 The current `>=1000` aggregate decisions/s trainer target is a route hypothesis,
 not a release fact. Promotion also requires semantic differential, reset and
 recovery evidence, resource efficiency, and representative training workload.
+
+## Current Reference Baseline
+
+On Windows x64 STS2 `v0.111.0` / `41cef1ea`, Connector source `b9df6c1...`,
+the isolated shipped Host measured:
+
+| Workers | Aggregate decisions/s | Average CPU cores | Summed peak RSS |
+|---:|---:|---:|---:|
+| 1 | 0.4966 | 0.378 | 0.711 GiB |
+| 2 | 0.9483 | 0.683 | 1.425 GiB |
+| 4 | 1.7388 | 1.411 | 2.838 GiB |
+| 8 | 2.9085 | 2.710 | 5.696 GiB |
+
+All measured workers passed journey integrity for their bounded action windows.
+These numbers are artifact-specific and do not transfer to later Connector
+builds. They are sufficient to reject shipped Godot as the current primary
+trainer; they do not measure a simulator or managed candidate.
+
+The current performance stop rule is workload-based: once the Host is at most
+about 20% of end-to-end training time and doubling Host speed improves total
+wall time by at most about 10%, further Host optimization stops being P0.

@@ -12,23 +12,30 @@ simulator or a wrapper around a reimplemented game.
 
 ## Current Status
 
-Version `0.1.0` is an **exact-build macOS arm64 preview**. Automated shipped
-runtime gates passed on STS2 `v0.111.0` (`41cef1ea`) with Connector Host `1.0.1`
-and protocol/SDK `1.0.0`:
+Version `0.1.0` is an evidence-first preview, not H1.0 and not Training Ready.
+The shipped Godot route is currently the highest-confidence **Reference Host**:
+it preserves the official runtime, SceneTree, Mod loader, legality, RNG and
+effects. It is not a practical primary trainer on the measured Windows tuple.
 
-- H0: no-display boot, official Mod load, interactive snapshot;
-- H1: real menu delivery, duplicate-request idempotency, stale refusal,
-  successor observation;
-- H2: menu, character select, event, reward, map, combat, `run_deck`, and
-  `combat_piles`, with 10 deliveries, 0 unknown deliveries, and 0 Read failures.
+Current exact Windows experimental evidence on STS2 `v0.111.0` (`41cef1ea`)
+includes native profile isolation, verified template reset, process-local
+Connector endpoints, 1/2/4/8-worker capacity, fault/restart recovery, and
+runtime-bound native shutdown. Eight workers delivered only `2.91` normalized
+semantic decisions/s while using about `5.70 GiB` summed peak RSS. This is far
+below the current `>=1000` aggregate decisions/s trainer hypothesis.
 
-This is not yet an unattended server product. The development branch now has a
-source-backed experimental Windows profile namespace that disables Steam before
-platform initialization. It has native first-run bootstrap evidence, but not
-yet reset/soak/Cloud-sentinel qualification. Shared-profile use remains an
-explicit opt-in. Full-run completion, deterministic replay, multi-instance
-operation, performance, and Windows/Linux release compatibility remain
-unproven.
+The latest loaded development artifact used protocol `1.0-rc.2`, Connector
+source `08a5990...`, DLL SHA `97727e...`, and MVID `7a6992a7...`. Its recovery
+cycle passed operational identity/reset/process/endpoint gates, but the shipped
+headless runtime emitted about 1090 Godot teardown errors even when stopped
+from the main menu through STS2's native quit path. Clean shutdown therefore
+remains unresolved and is not hidden inside the recovery verdict.
+
+The released macOS arm64 tuple remains the only declared supported tuple.
+Windows x64 is `known_experimental`; a matching hash does not grant support.
+Deterministic seed control, semantic differential, long soak, update drill, a
+reproducibly published RC Connector SDK/Host, and a high-throughput qualified
+backend remain open gates.
 
 See [Status](docs/STATUS.md), [Compatibility](docs/COMPATIBILITY.md), and
 [Evidence](docs/EVIDENCE.md) for exact scope.
@@ -38,7 +45,8 @@ See [Status](docs/STATUS.md), [Compatibility](docs/COMPATIBILITY.md), and
 - A legally installed Steam copy of Slay the Spire 2
 - Node.js 20 or newer
 - Git
-- macOS arm64 for the currently supported exact runtime
+- macOS arm64 for the currently supported exact runtime, or an explicitly
+  acknowledged experimental tuple for maintainer evidence collection
 
 No game binary, asset, save, or decompiled source is distributed by this
 repository.
@@ -78,15 +86,20 @@ npm run probe:shipped -- --isolated-profile h1-train --experimental-build
 The bootstrap command does not fabricate a save or claim that Connector was
 loaded. `--experimental-build` collects evidence; it does not grant support.
 
-The mutation and lifecycle gates are deliberately separate:
+The mutation, lifecycle and measurement gates are deliberately separate:
 
 ```bash
 npm run probe:menu-control -- --shared-profile
 npm run probe:journey -- --shared-profile
+npm run bench:capacity -- --workers 1,2,4,8
+npm run probe:recovery -- --template vanilla-clean --experimental-build
 ```
 
 `probe:journey` starts and mutates a standard run with a deterministic test
 consumer. It is evidence tooling, not a gameplay agent.
+
+See [Roadmap](docs/ROADMAP.md) for the separate H1.0 Core Release,
+Training-Ready, and H* route gates.
 
 ## Run As A Service
 

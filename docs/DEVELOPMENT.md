@@ -23,6 +23,10 @@ Modset, process, profile, and verdict identities separately.
 - `src/project-identity.mjs`: Headless revision and deterministic source digest;
 - `src/runtime-probe.mjs`: H0/H1 harness;
 - `src/journey-probe.mjs`: bounded H2 test consumer;
+- `src/profile-template.mjs`: exact-runtime template capture and generation reset;
+- `src/capacity-benchmark.mjs`: concurrent normalized-decision/resource runs;
+- `src/recovery-drill.mjs`: fault, restart, identity and cleanup verdicts;
+- `src/runtime-diagnostics.mjs`: diagnostics separate from semantic integrity;
 - `src/connector-release.mjs`: pinned release setup/rollback integration;
 - `tools/headless.mjs`: CLI transport only.
 
@@ -41,3 +45,6 @@ contract and execution authority.
   blocker, changed behavior, drift risk, differential test, and removal rule.
 - Never commit `.local`, saves, logs, game files, credentials, or decompiled
   sources.
+- A local Connector RC or replaced SDK must be recorded as development evidence.
+  Never release from a lock file that resolves to different protocol bytes than
+  the runtime-tested SDK.

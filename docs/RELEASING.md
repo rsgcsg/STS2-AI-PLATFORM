@@ -19,6 +19,15 @@ Connector binaries. Before tagging:
 6. update Status, Compatibility, and Evidence;
 7. tag only the reviewed commit.
 
+For H1.0, also require:
+
+8. seed/provenance and semantic differential gates;
+9. reset/recovery, soak, fault and update-drill evidence;
+10. a reproducibly published Connector Host plus matching SDK dependency;
+11. explicit Reference/primary-trainer and Training-Ready verdicts;
+12. clean shutdown, or a reviewed containment policy that does not hide runtime
+    diagnostics.
+
 Game updates do not automatically require a Headless version bump to collect
 experimental evidence, but admitting the new tuple is a source and release
 change. Runtime evidence never transfers across tags, game bytes, Connector

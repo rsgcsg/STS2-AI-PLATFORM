@@ -10,6 +10,9 @@
 8. [Releasing](RELEASING.md): independent versions and release gates.
 9. [Measurement](MEASUREMENT.md): semantic-decision timing, durable traces,
    canonical comparison, and integrity/coverage separation.
+10. [Roadmap](ROADMAP.md): H1.0 Core, Training-Ready and H* experiment gates.
+11. [Windows route evidence closeout](evidence/WINDOWS_REFERENCE_CAPACITY_RECOVERY_AND_MANAGED_ADMISSION_2026-08-16.md):
+    current capacity, recovery, shutdown and managed-candidate verdicts.
 
 `README.md`, Status, Architecture, and Compatibility are current truth. Local
 raw evidence under `.local/` is not documentation and must not be committed.
