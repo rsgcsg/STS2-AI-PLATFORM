@@ -289,6 +289,32 @@ public sealed class NativeUiContractTests
     }
 
     [Fact]
+    public void CombatInputRemainsSettlingUntilTheNativeEffectCompletes()
+    {
+        Assert.True(CombatTurnSurfaceReader.IsCombatInputReady(
+            combatInProgress: true,
+            playerActionsDisabled: false,
+            inPlayPhase: true,
+            isPartOfPlayerTurn: true,
+            isExecutingCardOrPotionEffect: false,
+            handAcceptsInput: true));
+        Assert.False(CombatTurnSurfaceReader.IsCombatInputReady(
+            combatInProgress: true,
+            playerActionsDisabled: false,
+            inPlayPhase: true,
+            isPartOfPlayerTurn: true,
+            isExecutingCardOrPotionEffect: true,
+            handAcceptsInput: true));
+        Assert.False(CombatTurnSurfaceReader.IsCombatInputReady(
+            combatInProgress: true,
+            playerActionsDisabled: false,
+            inPlayPhase: true,
+            isPartOfPlayerTurn: true,
+            isExecutingCardOrPotionEffect: false,
+            handAcceptsInput: false));
+    }
+
+    [Fact]
     public void RemainingSelectorDiscoveryUsesDirectTypedSurfaceFacts()
     {
         var card = new VisibleCard(
