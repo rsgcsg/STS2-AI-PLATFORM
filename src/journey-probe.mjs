@@ -33,7 +33,10 @@ import {
   ProcessResourceSampler,
   summarizeHostPerformance
 } from "./process-resource-sampler.mjs";
-import { analyzeRuntimeDiagnostics } from "./runtime-diagnostics.mjs";
+import {
+  analyzeRuntimeDiagnostics,
+  evaluateNativeShutdownContainment
+} from "./runtime-diagnostics.mjs";
 import {
   canonicalizeEpisodeSeed,
   evaluateEpisodeProvenance
@@ -365,6 +368,13 @@ export async function runBoundedJourney({
   const stderrStream = createWriteStream(stderrFile);
   child.stdout.pipe(stdoutStream);
   child.stderr.pipe(stderrStream);
+  const stderrBeforeNativeShutdown = [];
+  const stderrAfterNativeShutdown = [];
+  let nativeShutdownStarted = false;
+  child.stderr.on("data", (chunk) => {
+    (nativeShutdownStarted ? stderrAfterNativeShutdown : stderrBeforeNativeShutdown)
+      .push(Buffer.from(chunk));
+  });
   let session = null;
   let capabilities = null;
   let endpointReadyMs = null;
@@ -733,6 +743,7 @@ export async function runBoundedJourney({
         && shutdownDrainMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, shutdownDrainMs));
     }
+    nativeShutdownStarted = true;
     const processCleanup = await stopChild(child, {
       endpoint,
       hostControlToken,
@@ -743,7 +754,13 @@ export async function runBoundedJourney({
       completedReport.process_cleanup = processCleanup;
       completedReport.runtime_diagnostics = analyzeRuntimeDiagnostics({
         stdout: readFileSync(stdoutFile, "utf8"),
-        stderr: readFileSync(stderrFile, "utf8")
+        stderr: readFileSync(stderrFile, "utf8"),
+        beforeNativeShutdownStderr: Buffer.concat(stderrBeforeNativeShutdown).toString("utf8"),
+        afterNativeShutdownStderr: Buffer.concat(stderrAfterNativeShutdown).toString("utf8")
+      });
+      completedReport.shutdown_containment = evaluateNativeShutdownContainment({
+        diagnostics: completedReport.runtime_diagnostics,
+        processCleanup
       });
       writeFileSync(reportFile, `${JSON.stringify(completedReport, null, 2)}\n`);
     }
