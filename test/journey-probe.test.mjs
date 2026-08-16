@@ -85,6 +85,22 @@ test("first-run tutorial preference stays inside the advertised action set", () 
   );
 });
 
+test("typed tutorial policy advances exact combat pages and rejects unknown tutorial ids", () => {
+  const previous = { bound_action_id: "previous", verb: "activate", label: "Previous page" };
+  const next = { bound_action_id: "next", verb: "activate", label: "Next page" };
+  const combatTutorial = snapshot("tutorial", [previous, next]);
+  combatTutorial.interaction.content = {
+    surface: { tutorial_id: "combat_rules_ftue", current_page: 2, total_pages: 3 }
+  };
+  assert.equal(chooseBoundAction(combatTutorial), next);
+
+  const unknownTutorial = snapshot("tutorial", [next]);
+  unknownTutorial.interaction.content = {
+    surface: { tutorial_id: "unknown_mod_tutorial" }
+  };
+  assert.equal(chooseBoundAction(unknownTutorial), null);
+});
+
 test("bounded probes stop immediately after a non-delivery or unknown outcome", () => {
   assert.equal(
     terminalForReceipt({ delivery: "not_delivered", reason_code: "stale_snapshot" }),

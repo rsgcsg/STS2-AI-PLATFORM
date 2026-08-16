@@ -104,7 +104,12 @@ export function chooseBoundAction(snapshot, { tutorialPreference = "disable" } =
       ?? orderedActions(actions).find((action) => action.verb === "select" && !/random/i.test(action.label))
       ?? null;
   }
-  if (kind === "tutorial_preference") {
+  if (kind === "tutorial" || kind === "tutorial_preference") {
+    const tutorialId = snapshot.interaction?.content?.surface?.tutorial_id ?? null;
+    if (kind === "tutorial" && tutorialId === "combat_rules_ftue") {
+      return actionWithLabel(actions, /next|finish|continue|advance/i) ?? null;
+    }
+    if (kind === "tutorial" && tutorialId !== "accept_tutorials_ftue") return null;
     if (!new Set(["enable", "disable"]).has(tutorialPreference)) {
       throw new Error(`Unsupported tutorial preference: ${tutorialPreference}.`);
     }
