@@ -36,6 +36,7 @@ function result(id, start, end) {
         peak_rss_bytes: 1024 ** 3,
         sample_errors: []
       },
+      episode_provenance: { verdict: "provenance_pass", actual_seed: "H1CAPACITY01" },
       verdict: { integrity: { verdict: "integrity_pass" } }
     }
   };
@@ -56,6 +57,8 @@ test("summarizes one concurrent semantic decision window", () => {
   assert.equal(summary.common_decision_window_seconds, 11);
   assert.equal(summary.aggregate_normalized_semantic_decisions_per_second, 20 / 11);
   assert.equal(summary.summed_worker_peak_rss_bytes, 2 * (1024 ** 3));
+  assert.equal(summary.episode_provenance_pass, true);
+  assert.equal(summary.episode_seed, "H1CAPACITY01");
 });
 
 test("rejects duplicate runtimes and incomparable artifacts", () => {
@@ -66,4 +69,11 @@ test("rejects duplicate runtimes and incomparable artifacts", () => {
   const drift = result("b", 0, 1000);
   drift.report.loaded_identity.host.implementation.artifact_sha256 = "different";
   assert.throws(() => summarizeCapacityGroup([first, drift]), /comparable/u);
+});
+
+test("capacity measurement fails closed without comparable episode provenance", () => {
+  const first = result("a", 0, 1000);
+  const second = result("b", 0, 1000);
+  second.report.episode_provenance.actual_seed = "OTHERSEED";
+  assert.equal(summarizeCapacityGroup([first, second]).status, "measurement_incomplete");
 });

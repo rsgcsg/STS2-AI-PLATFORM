@@ -5,6 +5,7 @@ import { evaluateRecoveryCycle } from "../src/recovery-drill.mjs";
 function report(runtimeId, terminal, integrity, delivered = 1, diagnostics = "clean") {
   return {
     runtime_diagnostics: { status: diagnostics },
+    episode_provenance: { verdict: "provenance_pass", actual_seed: "H1RECOVERY01" },
     loaded_identity: {
       protocol: "1.0",
       host: {
@@ -85,4 +86,19 @@ test("rejects reused generations, runtimes, and incomplete recovery", () => {
   });
   assert.equal(result.verdict, "recovery_cycle_incomplete");
   assert.ok(result.errors.length >= 7);
+});
+
+test("recovery rejects an unproven or changed episode seed", () => {
+  const fault = report("fault", "injected_process_crash", "integrity_incomplete");
+  const recovery = report("recovery", "action_limit", "integrity_pass");
+  recovery.episode_provenance.actual_seed = "OTHERSEED";
+  const result = evaluateRecoveryCycle({
+    faultProfile: { generation_id: "old", template_payload_sha256: "template" },
+    recoveryProfile: { generation_id: "new", template_payload_sha256: "template" },
+    faultReport: fault,
+    recoveryReport: recovery,
+    remainingProcesses: [],
+    endpointReleased: true
+  });
+  assert.ok(result.errors.includes("recovery_episode_seed_not_comparable"));
 });

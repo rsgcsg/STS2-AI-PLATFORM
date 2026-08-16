@@ -5,6 +5,7 @@ import { runBoundedJourney } from "./journey-probe.mjs";
 import { instantiateProfileTemplate } from "./profile-template.mjs";
 import { readProjectIdentity } from "./project-identity.mjs";
 import { listGameProcesses, readJson } from "./runtime-probe.mjs";
+import { canonicalizeEpisodeSeed } from "./episode-provenance.mjs";
 
 function safeTimestamp() {
   return new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
@@ -46,6 +47,13 @@ export function evaluateRecoveryCycle({
   }
   if (recoveryReport?.verdict?.integrity?.verdict !== "integrity_pass") {
     errors.push("recovery_journey_integrity_failed");
+  }
+  const faultProvenance = faultReport?.episode_provenance;
+  const recoveryProvenance = recoveryReport?.episode_provenance;
+  if (faultProvenance?.verdict !== "provenance_pass"
+      || recoveryProvenance?.verdict !== "provenance_pass"
+      || faultProvenance?.actual_seed !== recoveryProvenance?.actual_seed) {
+    errors.push("recovery_episode_seed_not_comparable");
   }
   const diagnosticFindings = [];
   if (faultReport?.runtime_diagnostics?.status !== "clean") {
@@ -94,8 +102,10 @@ export async function runRecoveryDrill({
   recoveryActions = 3,
   timeoutMs = 90_000,
   actionTimeoutMs = 20_000,
-  experimentalBuildAcknowledged = false
+  experimentalBuildAcknowledged = false,
+  runSeed = "H1RECOVERY01"
 }) {
+  const canonicalRunSeed = canonicalizeEpisodeSeed(runSeed);
   if (!Number.isSafeInteger(cycles) || cycles < 1 || cycles > 20) {
     throw new Error("Recovery cycles must be an integer from 1 through 20.");
   }
@@ -123,6 +133,7 @@ export async function runRecoveryDrill({
     requested_cycles: cycles,
     fault_after_delivered_actions: faultAfterDeliveredActions,
     recovery_actions: recoveryActions,
+    requested_seed: canonicalRunSeed,
     cycles: [],
     non_claims: [
       "A bounded recovery drill is not long-duration soak evidence.",
@@ -152,7 +163,8 @@ export async function runRecoveryDrill({
       isolatedProfileId: profileId,
       experimentalBuildAcknowledged,
       evidenceLabel: `recovery-${cycleId}-fault`,
-      faultAfterDeliveredActions
+      faultAfterDeliveredActions,
+      runSeed: canonicalRunSeed
     });
     const recoveryProfile = instantiateProfileTemplate({
       localRoot,
@@ -171,7 +183,8 @@ export async function runRecoveryDrill({
       evidenceRoot,
       isolatedProfileId: profileId,
       experimentalBuildAcknowledged,
-      evidenceLabel: `recovery-${cycleId}-restart`
+      evidenceLabel: `recovery-${cycleId}-restart`,
+      runSeed: canonicalRunSeed
     });
     const remainingProcesses = listGameProcesses();
     const endpointReleased = !(await readJson(

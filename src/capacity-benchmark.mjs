@@ -5,6 +5,7 @@ import { listGameProcesses } from "./runtime-probe.mjs";
 import { instantiateProfileTemplate } from "./profile-template.mjs";
 import { readDiskIdentity } from "./game-installation.mjs";
 import { readProjectIdentity } from "./project-identity.mjs";
+import { canonicalizeEpisodeSeed } from "./episode-provenance.mjs";
 
 const GIB = 1024 ** 3;
 
@@ -67,8 +68,14 @@ export function summarizeCapacityGroup(results) {
     (result) => result.report.verdict.integrity.verdict === "integrity_pass"
   );
   const sampleErrors = results.flatMap((result) => result.report.performance.sample_errors);
+  const seeds = results.map((result) => result.report.episode_provenance?.actual_seed ?? null);
+  const provenancePass = results.every(
+    (result) => result.report.episode_provenance?.verdict === "provenance_pass"
+  ) && new Set(seeds).size === 1 && seeds[0] != null;
   return {
-    status: integrityPass && sampleErrors.length === 0 ? "measured" : "measurement_incomplete",
+    status: integrityPass && provenancePass && sampleErrors.length === 0
+      ? "measured"
+      : "measurement_incomplete",
     worker_count: results.length,
     exact_identity: identities[0],
     runtime_instance_ids: runtimeIds,
@@ -83,6 +90,8 @@ export function summarizeCapacityGroup(results) {
     normalized_semantic_decisions_per_second_per_gib:
       throughput != null && peakRssBytes > 0 ? throughput / (peakRssBytes / GIB) : null,
     integrity_pass: integrityPass,
+    episode_seed: seeds[0] ?? null,
+    episode_provenance_pass: provenancePass,
     sample_errors: sampleErrors,
     workers: results.map((result) => ({
       worker_id: result.report.worker.worker_id,
@@ -108,8 +117,10 @@ export async function runCapacityBenchmark({
   basePort = 15600,
   maxActions = 12,
   timeoutMs = 90_000,
-  actionTimeoutMs = 20_000
+  actionTimeoutMs = 20_000,
+  runSeed = "H1CAPACITY01"
 }) {
+  const canonicalRunSeed = canonicalizeEpisodeSeed(runSeed);
   const counts = parseWorkerCounts(workerCounts.join(","));
   if (!Number.isSafeInteger(basePort) || basePort < 1024 || basePort + Math.max(...counts) > 65535) {
     throw new Error("The capacity port range is invalid.");
@@ -132,6 +143,7 @@ export async function runCapacityBenchmark({
     worker_counts: counts,
     base_port: basePort,
     max_actions_per_worker: maxActions,
+    requested_seed: canonicalRunSeed,
     groups: [],
     non_claims: [
       "Capacity measurement is not semantic qualification or Training Ready evidence.",
@@ -171,7 +183,8 @@ export async function runCapacityBenchmark({
         isolatedProfileId: worker.profileId,
         experimentalBuildAcknowledged: true,
         allowConcurrentProcesses: true,
-        evidenceLabel: worker.workerId
+        evidenceLabel: worker.workerId,
+        runSeed: canonicalRunSeed
       })));
       const failures = settled
         .filter((entry) => entry.status === "rejected")

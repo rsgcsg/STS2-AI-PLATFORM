@@ -392,6 +392,30 @@ export async function runBoundedJourney({
     resourceRecorder.close();
     return resourceSamplingResult;
   };
+  let lastProvenanceEvent = null;
+  const refreshEpisodeProvenance = async () => {
+    if (canonicalRunSeed == null
+        || capabilities == null
+        || episodeProvenance.verdict === "provenance_pass") {
+      return episodeProvenance;
+    }
+    const provenanceResponse = await requestHostProvenance({
+      endpoint,
+      hostControlToken,
+      expectedRuntimeInstanceId: capabilities.host.runtime_instance_id
+    });
+    episodeProvenance = evaluateEpisodeProvenance({
+      requestedSeed: canonicalRunSeed,
+      expectedRuntimeInstanceId: capabilities.host.runtime_instance_id,
+      response: provenanceResponse
+    });
+    const fingerprint = JSON.stringify(episodeProvenance);
+    if (fingerprint !== lastProvenanceEvent) {
+      record({ type: "episode_provenance", at: new Date().toISOString(), ...episodeProvenance });
+      lastProvenanceEvent = fingerprint;
+    }
+    return episodeProvenance;
+  };
 
   try {
     const capabilitiesResult = await waitForEndpoint(endpoint, timeoutMs, child);
@@ -528,6 +552,7 @@ export async function runBoundedJourney({
         if (snapshot.interaction.kind === "combat_turn") combatDeliveries += 1;
       }
       snapshot = successor;
+      await refreshEpisodeProvenance();
 
       if (faultAfterDeliveredActions != null
           && deliveredActions >= faultAfterDeliveredActions) {
@@ -556,19 +581,7 @@ export async function runBoundedJourney({
     }
     if (terminal === "not_started") terminal = "action_limit";
 
-    if (canonicalRunSeed != null) {
-      const provenanceResponse = await requestHostProvenance({
-        endpoint,
-        hostControlToken,
-        expectedRuntimeInstanceId: capabilities.host.runtime_instance_id
-      });
-      episodeProvenance = evaluateEpisodeProvenance({
-        requestedSeed: canonicalRunSeed,
-        expectedRuntimeInstanceId: capabilities.host.runtime_instance_id,
-        response: provenanceResponse
-      });
-      record({ type: "episode_provenance", at: new Date().toISOString(), ...episodeProvenance });
-    }
+    await refreshEpisodeProvenance();
 
     const verdict = evaluateBoundedJourney({
       surfaces: [...surfaces],

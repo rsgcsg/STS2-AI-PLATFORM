@@ -240,6 +240,7 @@ async function main() {
       workerCounts: parseWorkerCounts(option(args, "--workers", "1,2,4")),
       basePort: Number(option(args, "--base-port", "15600")),
       maxActions: Number(option(args, "--max-actions", "12")),
+      runSeed: option(args, "--seed", "H1CAPACITY01"),
       timeoutMs: Number(option(args, "--timeout-ms", "90000")),
       actionTimeoutMs: Number(option(args, "--action-timeout-ms", "20000"))
     });
@@ -274,11 +275,12 @@ async function main() {
       profileId: option(args, "--isolated-profile", "recovery-worker"),
       endpoint: option(args, "--endpoint", "http://127.0.0.1:15700"),
       cycles: Number(option(args, "--cycles", "3")),
-      faultAfterDeliveredActions: Number(option(args, "--fault-after", "1")),
-      recoveryActions: Number(option(args, "--recovery-actions", "3")),
+      faultAfterDeliveredActions: Number(option(args, "--fault-after", "5")),
+      recoveryActions: Number(option(args, "--recovery-actions", "5")),
       timeoutMs: Number(option(args, "--timeout-ms", "90000")),
       actionTimeoutMs: Number(option(args, "--action-timeout-ms", "20000")),
-      experimentalBuildAcknowledged: args.includes("--experimental-build")
+      experimentalBuildAcknowledged: args.includes("--experimental-build"),
+      runSeed: option(args, "--seed", "H1RECOVERY01")
     });
     console.log(JSON.stringify({ report_file: result.reportFile, status: result.report.status }, null, 2));
     process.exitCode = result.report.status.startsWith("recovery_pass_")
@@ -302,9 +304,9 @@ async function main() {
   node tools/headless.mjs probe-shipped (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
   node tools/headless.mjs probe-menu-control (--isolated-profile ID | --shared-profile) [--experimental-build] [--timeout-ms 90000] [--endpoint URL]
   node tools/headless.mjs probe-journey (--isolated-profile ID | --shared-profile) [--experimental-build] [--max-actions 40] [--seed SEED] [--tutorials disable|enable] [--timeout-ms 90000]
-  node tools/headless.mjs bench-capacity [--template vanilla-clean] [--workers 1,2,4] [--base-port 15600] [--max-actions 12]
+  node tools/headless.mjs bench-capacity [--template vanilla-clean] [--workers 1,2,4] [--base-port 15600] [--max-actions 12] [--seed SEED]
   node tools/headless.mjs probe-reference-differential --seed SEED [--template vanilla-clean] [--max-actions 12] [--endpoint URL] [--experimental-build]
-  node tools/headless.mjs probe-recovery [--template vanilla-clean] [--isolated-profile recovery-worker] [--cycles 3] [--fault-after 1] [--recovery-actions 3] [--experimental-build]`);
+  node tools/headless.mjs probe-recovery [--template vanilla-clean] [--isolated-profile recovery-worker] [--cycles 3] [--fault-after 5] [--recovery-actions 5] [--seed SEED] [--experimental-build]`);
 }
 
 main().catch((error) => {
