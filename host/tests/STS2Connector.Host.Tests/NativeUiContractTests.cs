@@ -297,6 +297,7 @@ public sealed class NativeUiContractTests
             inPlayPhase: true,
             isPartOfPlayerTurn: true,
             isExecutingCardOrPotionEffect: false,
+            actionQueueEmpty: true,
             handAcceptsInput: true));
         Assert.False(CombatTurnSurfaceReader.IsCombatInputReady(
             combatInProgress: true,
@@ -304,6 +305,7 @@ public sealed class NativeUiContractTests
             inPlayPhase: true,
             isPartOfPlayerTurn: true,
             isExecutingCardOrPotionEffect: true,
+            actionQueueEmpty: true,
             handAcceptsInput: true));
         Assert.False(CombatTurnSurfaceReader.IsCombatInputReady(
             combatInProgress: true,
@@ -311,6 +313,15 @@ public sealed class NativeUiContractTests
             inPlayPhase: true,
             isPartOfPlayerTurn: true,
             isExecutingCardOrPotionEffect: false,
+            actionQueueEmpty: false,
+            handAcceptsInput: true));
+        Assert.False(CombatTurnSurfaceReader.IsCombatInputReady(
+            combatInProgress: true,
+            playerActionsDisabled: false,
+            inPlayPhase: true,
+            isPartOfPlayerTurn: true,
+            isExecutingCardOrPotionEffect: false,
+            actionQueueEmpty: true,
             handAcceptsInput: false));
     }
 

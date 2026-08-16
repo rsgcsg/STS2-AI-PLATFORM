@@ -61,6 +61,7 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
             playerCombat.Phase == PlayerTurnPhase.Play,
             CombatManager.Instance.IsPartOfPlayerTurn(player),
             CombatManager.Instance.IsExecutingCardOrPotionEffect(player),
+            RunManager.Instance.ActionQueueSet.IsEmpty,
             !hand.InCardPlay && hand.CurrentMode == NPlayerHand.Mode.Play);
         var playableCards = new List<VisibleCombatCommandOption>();
         var usablePotions = new List<VisibleCombatCommandOption>();
@@ -94,6 +95,7 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
                 "CardModel.CanPlay",
                 "CombatState.HittableEnemies",
                 "CombatManager.IsExecutingCardOrPotionEffect",
+                "RunManager.ActionQueueSet.IsEmpty",
                 "NPlayerHand play-phase guards"
             },
             Array.Empty<string>());
@@ -212,12 +214,14 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
         bool inPlayPhase,
         bool isPartOfPlayerTurn,
         bool isExecutingCardOrPotionEffect,
+        bool actionQueueEmpty,
         bool handAcceptsInput) =>
         combatInProgress
         && !playerActionsDisabled
         && inPlayPhase
         && isPartOfPlayerTurn
         && !isExecutingCardOrPotionEffect
+        && actionQueueEmpty
         && handAcceptsInput;
 
     internal static NativeInputResult StartDirectPlayCard(
@@ -378,6 +382,7 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
             player.PlayerCombatState?.Phase == PlayerTurnPhase.Play,
             CombatManager.Instance.IsPartOfPlayerTurn(player),
             CombatManager.Instance.IsExecutingCardOrPotionEffect(player),
+            RunManager.Instance.ActionQueueSet.IsEmpty,
             hand != null && !hand.InCardPlay && hand.CurrentMode == NPlayerHand.Mode.Play);
     }
 }
