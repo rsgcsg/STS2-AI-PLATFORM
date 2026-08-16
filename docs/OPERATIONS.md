@@ -65,6 +65,7 @@ npm run probe:menu-control -- --shared-profile
 npm run probe:journey -- --shared-profile
 npm run bench:capacity -- --template vanilla-clean --workers 1,2,4,8
 npm run probe:recovery -- --template vanilla-clean --experimental-build
+npm run probe:recovery -- --template vanilla-clean --fault-mode process_hang --experimental-build
 npm run probe:differential -- --template vanilla-clean --seed H1D1FF01 --experimental-build
 npm run soak:reference -- --template vanilla-clean --workers 2 --episodes 2 --actions 8 --experimental-build
 npm run drill:update
@@ -76,7 +77,11 @@ npm run drill:update
 - capacity: concurrent isolated profiles, process-local endpoints, normalized
   decisions, CPU/RSS and exact identity consistency;
 - recovery: injected process crash, new profile generation, distinct recovered
-  runtime, exact identity, process/endpoint release and shutdown diagnostics.
+  runtime, exact identity, process/endpoint release and shutdown diagnostics;
+- hang recovery: suspend the exact child PID only after a stable successor and
+  requested seed provenance, prove the process remains while its endpoint
+  times out, then replace the process and profile generation. This Windows
+  fault primitive is experimental and creates no gameplay authority.
 - differential: two independent same-seed runtime/profile generations,
   canonical Snapshot/Read/selected-action comparison and first divergence;
 - soak: repeated bounded workers, unique runtimes/generations, endpoint/process

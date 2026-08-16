@@ -57,6 +57,27 @@ the recovery delivered five decisions, preserved exact identity/provenance and
 released process and endpoint. Native recovered shutdown returned zero without
 force, but emitted 954 diagnostics.
 
+The first suspended-process recovery attempt
+`recovery-2026-08-16T07-10-44-887Z` correctly proved the PID remained alive
+while the endpoint timed out, but injected after two menu decisions before run
+seed provenance existed. Its recovery runtime was healthy, yet the cycle failed
+closed as `recovery_episode_seed_not_comparable`. The owning bug was in the
+fault scheduler: a caller-selected action count could precede provenance.
+
+Current code requires requested seed provenance before any fault injection and
+reserves up to twelve fault-window actions. Clean Headless source
+`6a7787e106a77cd5bdac1c2dff55433b930865d5` reran
+`recovery-2026-08-16T07-12-51-838Z` with canonical seed
+`H1HANGREC0VERY01`. It suspended the exact child after three delivered
+decisions, observed endpoint timeout while the process remained alive, killed
+that instance, hard-reset the profile, and recovered five decisions in runtime
+`9eae...` after replacing runtime `a5cb...`. Profile generations also differed,
+seed provenance passed on both sides, no process remained, and the endpoint was
+released. The recovered native shutdown was a bounded containment candidate.
+
+This is one operational hang-recovery cycle, not a general watchdog, fault
+matrix, long soak or support qualification.
+
 `capacity-2026-08-16T06-15-44-285Z` used seed `H1CAPAC1TY01`:
 
 | Workers | Decisions/s | Average cores | Peak RSS |

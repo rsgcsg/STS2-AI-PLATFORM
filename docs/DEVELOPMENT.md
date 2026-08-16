@@ -32,6 +32,8 @@ Modset, process, profile, and verdict identities separately.
 - `src/soak-supervisor.mjs`: repeated bounded worker supervision;
 - `src/requalification.mjs`: exact identity drift and required-gate planning;
 - `src/runtime-diagnostics.mjs`: diagnostics separate from semantic integrity;
+- `src/process-faults.mjs`: bounded OS process suspend/resume primitives used
+  only by Host lifecycle fault injection;
 - `src/connector-release.mjs`: pinned release setup/rollback integration;
 - `tools/headless.mjs`: CLI transport only.
 

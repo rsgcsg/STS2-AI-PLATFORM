@@ -66,6 +66,9 @@ Connector-only Modset:
 - one crash/restart cycle preserved seed `H1REC0VERY01`, replaced runtime and
   profile generation, returned five stable decisions, and released the process
   and endpoint;
+- one suspended-process hang cycle preserved seed `H1HANGREC0VERY01`: the
+  process remained alive while its endpoint timed out, then a hard reset
+  replaced runtime/profile generation and delivered five recovery decisions;
 - current-artifact 1/2/4-worker capacity measured `0.4981`, `0.8975`, and
   `1.5246` aggregate normalized decisions/s;
 - a 2-worker x 2-episode smoke delivered 32 decisions through four unique

@@ -21,8 +21,8 @@ Current exact Windows experimental evidence on STS2 `v0.111.0` (`41cef1ea`)
 includes native profile isolation, verified template reset, game-owned seed
 provenance, process-local Connector endpoints, same-artifact semantic
 repeatability, capacity, crash/restart recovery, bounded multi-worker
-supervision, a shared-profile write sentinel, and runtime-bound native
-shutdown.
+supervision, crash and suspended-process hang recovery, a shared-profile write
+sentinel, and runtime-bound native shutdown.
 
 The current measured development artifact uses protocol `1.0-rc.2`, Connector
 source `3e5c5a8...`, DLL SHA `e9673497...`, and MVID `c5bcd426...`. It measured

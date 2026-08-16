@@ -15,14 +15,16 @@ Completed or implemented:
 - bounded supervisor, exact machine context and shared-profile tree sentinel;
 - fail-closed identity-drift requalification planning;
 - phase-aware shutdown diagnostics and a bounded containment candidate that
-  rejects unknown, misplaced and over-limit messages.
+  rejects unknown, misplaced and over-limit messages;
+- one exact suspended-process hang detection/replacement/recovery cycle bound
+  to stable decisions and verified episode seed provenance.
 
 Open:
 
 - clean shutdown or long-soak qualification of the current bounded containment
   policy for shipped teardown diagnostics;
 - randomized and high-risk cross-Host semantic differential corpus;
-- hang watchdog, fault matrix, 72-hour/10-million-decision soak and Steam Cloud
+- broader hang/fault matrix, 72-hour/10-million-decision soak and Steam Cloud
   server evidence;
 - a real changed-build invalidation and targeted requalification drill;
 - reproducible release of the RC Connector Host and compatible SDK;

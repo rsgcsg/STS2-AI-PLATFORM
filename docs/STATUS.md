@@ -26,6 +26,8 @@ Completed:
 - 1/2/4/8 worker capacity and resource measurement;
 - fault injection, new-generation restart, distinct-runtime verification,
   process cleanup and endpoint-release checks;
+- suspended-process hang detection after a stable, seed-proven successor,
+  followed by exact-generation/runtime replacement and recovery;
 - game-owned seed application plus runtime-bound episode provenance;
 - canonical Snapshot/Read/action comparison with first-divergence reporting;
 - same-seed, same-artifact repeatability across independent runtime/profile
@@ -66,7 +68,7 @@ Current blockers:
   pre-shutdown diagnostic before its exact bounded policy was established, and
   a later clean-source soak passed that bounded policy. This is not clean
   shutdown or long-soak qualification;
-- long soak, hang watchdog/fault matrix and a real changed-build
+- long soak, broader hang/fault matrix and a real changed-build
   requalification drill;
 - reproducible RC Host/SDK publication: current local RC evidence cannot be
   reproduced by the stable dependency lock, and `npm ls` correctly reports the
