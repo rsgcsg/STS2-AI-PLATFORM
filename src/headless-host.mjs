@@ -9,6 +9,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { finished } from "node:stream/promises";
+import { SUPPORTED_PLAYER_ENVIRONMENT_PROTOCOL } from "@rsgcsg/sts2-connector-client";
 import {
   readJson,
   shippedRuntimeLaunch,
@@ -66,7 +67,10 @@ export function commandOwnsHeadlessRuntime(command, executable) {
     && /(?:^|\s)--headless(?:\s|$)/iu.test(command);
 }
 
-export function evaluateHeadlessCapabilities(capabilities, expectedProtocol = "1.0.0") {
+export function evaluateHeadlessCapabilities(
+  capabilities,
+  expectedProtocol = SUPPORTED_PLAYER_ENVIRONMENT_PROTOCOL
+) {
   const errors = [];
   if (capabilities?.protocol_version !== expectedProtocol) errors.push("protocol_mismatch");
   if (capabilities?.host?.host_kind !== "headless") errors.push("host_kind_not_headless");

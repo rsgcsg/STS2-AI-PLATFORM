@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { SUPPORTED_PLAYER_ENVIRONMENT_PROTOCOL } from "@rsgcsg/sts2-connector-client";
 import {
   commandOwnsHeadlessRuntime,
   evaluateHeadlessCapabilities,
@@ -31,7 +32,7 @@ test("does not inspect invalid process identifiers", () => {
 
 test("admits only the exact executable Headless Player Environment", () => {
   const capabilities = {
-    protocol_version: "1.0.0",
+    protocol_version: SUPPORTED_PLAYER_ENVIRONMENT_PROTOCOL,
     execution_available: true,
     host: { host_kind: "headless" },
     game: { modset: { status: "exact_player_environment_only" } }
