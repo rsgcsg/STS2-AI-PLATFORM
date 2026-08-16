@@ -2,32 +2,38 @@ const SIGNATURES = Object.freeze([
   Object.freeze({
     id: "godot_invalid_task_id",
     pattern: /Invalid Task ID/iu,
-    admitted_phases: Object.freeze([])
+    admitted_phases: Object.freeze(["before_native_shutdown"]),
+    max_count: 3
   }),
   Object.freeze({
     id: "godot_null_texture_parameter",
     pattern: /^ERROR: Parameter "t" is null\.$/iu,
-    admitted_phases: Object.freeze(["before_native_shutdown"])
+    admitted_phases: Object.freeze(["before_native_shutdown"]),
+    max_count: 1
   }),
   Object.freeze({
     id: "godot_node_path_after_tree_exit",
     pattern: /^ERROR: Cannot get path of node as it is not in a scene tree\.$/iu,
-    admitted_phases: Object.freeze(["after_native_shutdown"])
+    admitted_phases: Object.freeze(["after_native_shutdown"]),
+    max_count: 2048
   }),
   Object.freeze({
     id: "godot_rid_leak_at_exit",
     pattern: /^ERROR: \d+ RID allocations? of type '.+' (?:was|were) leaked at exit\.$/iu,
-    admitted_phases: Object.freeze(["after_native_shutdown"])
+    admitted_phases: Object.freeze(["after_native_shutdown"]),
+    max_count: 16
   }),
   Object.freeze({
     id: "godot_resources_in_use_at_exit",
     pattern: /^ERROR: \d+ resources? still in use at exit\.$/iu,
-    admitted_phases: Object.freeze(["after_native_shutdown"])
+    admitted_phases: Object.freeze(["after_native_shutdown"]),
+    max_count: 1
   }),
   Object.freeze({
     id: "managed_unhandled_exception",
     pattern: /Unhandled exception/iu,
-    admitted_phases: Object.freeze([])
+    admitted_phases: Object.freeze([]),
+    max_count: 0
   })
 ]);
 
@@ -51,6 +57,10 @@ function analyzeSegment(text, phase) {
     counts.set(signature.id, (counts.get(signature.id) ?? 0) + 1);
     if (!signature.admitted_phases.includes(phase)) wrongPhase.push(line);
   }
+  const exceededLimits = [...counts.entries()].flatMap(([id, count]) => {
+    const signature = SIGNATURES.find((entry) => entry.id === id);
+    return count > signature.max_count ? [{ id, count, max_count: signature.max_count }] : [];
+  });
   return {
     phase,
     status: lines.length === 0 ? "clean" : "runtime_errors_observed",
@@ -58,6 +68,7 @@ function analyzeSegment(text, phase) {
     signatures: [...counts.entries()].map(([id, count]) => ({ id, count })),
     unclassified_error_line_count: unclassified.length,
     wrong_phase_error_line_count: wrongPhase.length,
+    exceeded_signature_limits: exceededLimits,
     sample_error_lines: lines.slice(0, 20),
     sample_unclassified_error_lines: unclassified.slice(0, 10),
     sample_wrong_phase_error_lines: wrongPhase.slice(0, 10)
@@ -88,8 +99,10 @@ export function analyzeRuntimeDiagnostics({
     ? "not_partitioned"
     : phases.before_native_shutdown.unclassified_error_line_count === 0
       && phases.before_native_shutdown.wrong_phase_error_line_count === 0
+      && phases.before_native_shutdown.exceeded_signature_limits.length === 0
       && phases.after_native_shutdown.unclassified_error_line_count === 0
       && phases.after_native_shutdown.wrong_phase_error_line_count === 0
+      && phases.after_native_shutdown.exceeded_signature_limits.length === 0
       ? "known_phase_scoped_diagnostics_only"
       : "unclassified_or_wrong_phase_diagnostics";
   return {

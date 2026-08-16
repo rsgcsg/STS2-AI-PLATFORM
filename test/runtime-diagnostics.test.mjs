@@ -57,3 +57,22 @@ test("rejects unknown diagnostics and forced process termination", () => {
   assert.equal(containment.verdict, "shutdown_containment_rejected");
   assert.ok(containment.errors.includes("forced_shutdown_used"));
 });
+
+test("bounds the known pre-shutdown Godot task diagnostic", () => {
+  const admitted = analyzeRuntimeDiagnostics({
+    stderr: "ERROR: Invalid Task ID\n".repeat(3),
+    beforeNativeShutdownStderr: "ERROR: Invalid Task ID\n".repeat(3),
+    afterNativeShutdownStderr: ""
+  });
+  assert.equal(admitted.phase_classification, "known_phase_scoped_diagnostics_only");
+  const rejected = analyzeRuntimeDiagnostics({
+    stderr: "ERROR: Invalid Task ID\n".repeat(4),
+    beforeNativeShutdownStderr: "ERROR: Invalid Task ID\n".repeat(4),
+    afterNativeShutdownStderr: ""
+  });
+  assert.equal(rejected.phase_classification, "unclassified_or_wrong_phase_diagnostics");
+  assert.deepEqual(
+    rejected.phases.before_native_shutdown.exceeded_signature_limits,
+    [{ id: "godot_invalid_task_id", count: 4, max_count: 3 }]
+  );
+});
