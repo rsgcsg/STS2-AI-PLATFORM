@@ -16,6 +16,9 @@
 12. [Windows seed, differential and supervisor closeout](evidence/WINDOWS_REFERENCE_SEED_DIFFERENTIAL_SUPERVISOR_AND_REQUALIFICATION_2026-08-16.md):
     current-artifact provenance, repeatability, bounded soak, profile sentinel
     and update-planning evidence.
+13. [Windows 8-worker and scene-thread experiment closeout](evidence/WINDOWS_REFERENCE_EIGHT_WORKER_AND_SCENE_THREAD_EXPERIMENT_2026-08-16.md):
+    current-artifact capacity admission failures, measurement correction, and
+    the rejected `--single-threaded-scene` route.
 
 `README.md`, Status, Architecture, and Compatibility are current truth. Local
 raw evidence under `.local/` is not documentation and must not be committed.

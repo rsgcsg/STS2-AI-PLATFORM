@@ -26,9 +26,11 @@ sentinel, and runtime-bound native shutdown.
 
 The current measured development artifact uses protocol `1.0-rc.2`, Connector
 source `3e5c5a8...`, DLL SHA `e9673497...`, and MVID `c5bcd426...`. It measured
-only `1.52` aggregate normalized semantic decisions/s at four workers. A
-predecessor artifact reached `2.91` at eight workers with about `5.70 GiB`
-summed peak RSS. Both are far below the current `>=1000` trainer hypothesis.
+only `1.52` aggregate normalized semantic decisions/s at four workers. Current
+eight-worker windows delivered all 64 decisions at about `2.30` decisions/s
+and `5.6-5.7 GiB` summed peak RSS, but failed lifecycle admission on intermittent
+pre-shutdown Godot diagnostics. A predecessor artifact reached `2.91` at eight
+workers. All are far below the current `>=1000` trainer hypothesis.
 Native exit returns code zero and releases processes/endpoints. A phase-aware
 classifier now rejects unknown, misplaced, or over-limit diagnostics and admits
 only a small exact signature set. The observed roughly 950-1000 Godot messages
@@ -47,6 +49,11 @@ An exact-build research Mod also completed one full official AutoSlayer run in
 CPU cores and peaked at `0.865 GiB` RSS. This proves that route can drive the
 native game end to end; its 616 log actions are not normalized semantic
 decisions and do not qualify it as a Connector Host or trainer.
+
+Godot's official `--single-threaded-scene` option was tested as a bounded Host
+configuration candidate. It produced one admitted and one rejected
+eight-worker window, no material throughput gain, and no reliable diagnostic
+improvement. The option was therefore removed from the production CLI.
 
 See [Status](docs/STATUS.md), [Compatibility](docs/COMPATIBILITY.md), and
 [Evidence](docs/EVIDENCE.md) for exact scope.

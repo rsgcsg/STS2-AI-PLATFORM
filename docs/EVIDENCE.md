@@ -71,6 +71,14 @@ Connector-only Modset:
   replaced runtime/profile generation and delivered five recovery decisions;
 - current-artifact 1/2/4-worker capacity measured `0.4981`, `0.8975`, and
   `1.5246` aggregate normalized decisions/s;
+- two default current-route 8-worker windows delivered 64 decisions each at
+  `2.3207` and `2.2989` decisions/s, but both failed lifecycle admission: one
+  had an unclassified RID/shader diagnostic chain and the other had two
+  workers exceed the null-texture count bound;
+- `--single-threaded-scene` measured `2.3038` decisions/s with bounded
+  containment once, then `2.3660` decisions/s with one worker exceeding the
+  `Invalid Task ID` bound. With no material throughput or repeatable
+  reliability gain, the candidate was rejected and removed from the CLI;
 - a 2-worker x 2-episode smoke delivered 32 decisions through four unique
   runtime/profile generations, with no worker, endpoint or process leak;
 - a separate bounded sentinel run left the normal user-data tree unchanged at
@@ -89,7 +97,8 @@ diagnostics. This is a bounded containment candidate, not clean-shutdown or
 long-soak qualification. A predecessor artifact's 8-worker `2.9085`
 decisions/s result remains historical and is not merged into current evidence.
 
-See the [capacity/recovery closeout](evidence/WINDOWS_REFERENCE_CAPACITY_RECOVERY_AND_MANAGED_ADMISSION_2026-08-16.md)
+See the [capacity/recovery closeout](evidence/WINDOWS_REFERENCE_CAPACITY_RECOVERY_AND_MANAGED_ADMISSION_2026-08-16.md),
+[8-worker/scene-thread experiment closeout](evidence/WINDOWS_REFERENCE_EIGHT_WORKER_AND_SCENE_THREAD_EXPERIMENT_2026-08-16.md),
 and [seed/differential/supervisor closeout](evidence/WINDOWS_REFERENCE_SEED_DIFFERENTIAL_SUPERVISOR_AND_REQUALIFICATION_2026-08-16.md).
 
 ## Non-Claims

@@ -41,9 +41,11 @@ cross events and map transitions, and execute combat decisions under
 `--headless` while retaining game-owned semantics.
 
 It has not won the trainer route. The measured Windows Host scales from `0.50`
-normalized decision/s at one worker to only `2.91` at eight workers and consumes
-about `0.71 GiB` per worker. This is far below the current realistic trainer
-hypothesis.
+normalized decision/s at one worker to about `2.30` at eight workers and
+consumes about `0.71 GiB` per worker. The current eight-worker windows are not
+admitted capacity baselines because intermittent runtime diagnostics failed
+shutdown containment. This is far below the current realistic trainer
+hypothesis even before that reliability gate.
 
 The pinned `wuhao21/sts2-cli` source is useful research, but its exact-build
 spike required local API/bootstrap adaptation and still failed profile setup,
@@ -62,6 +64,12 @@ Host-neutral decision contract and cannot replace Connector conformance.
 A rules simulator is also not Headless truth by construction. It may become a
 candidate only through the same normalized decision, semantic differential,
 reset, recovery and resource gates.
+
+The official Godot `--single-threaded-scene` switch was tested rather than
+promoted by intuition. One eight-worker window passed containment and one
+failed; throughput and density were materially unchanged. It is not part of
+the production route. This also demonstrates that launch configuration is part
+of Host evidence identity even when game and Connector bytes are unchanged.
 
 ## Authority And Lifecycle
 

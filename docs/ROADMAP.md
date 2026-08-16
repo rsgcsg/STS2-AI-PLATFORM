@@ -23,6 +23,9 @@ Open:
 
 - clean shutdown or long-soak qualification of the current bounded containment
   policy for shipped teardown diagnostics;
+- a repeatably admitted 8-worker-or-higher capacity window; current default
+  and `--single-threaded-scene` experiments expose intermittent pre-shutdown
+  Godot diagnostics and the latter route is rejected;
 - randomized and high-risk cross-Host semantic differential corpus;
 - broader hang/fault matrix, 72-hour/10-million-decision soak and Steam Cloud
   server evidence;

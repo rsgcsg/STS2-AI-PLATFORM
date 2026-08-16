@@ -23,7 +23,7 @@ Completed:
 - separate journey integrity and named-surface coverage verdicts;
 - exact-runtime profile templates and destructive reset guarded by template
   payload plus game identity;
-- 1/2/4/8 worker capacity and resource measurement;
+- admitted 1/2/4-worker capacity plus fail-closed 8-worker capacity evidence;
 - fault injection, new-generation restart, distinct-runtime verification,
   process cleanup and endpoint-release checks;
 - suspended-process hang detection after a stable, seed-proven successor,
@@ -66,8 +66,11 @@ Current blockers:
 - shutdown containment qualification: native `NGame.Quit()` exits with code 0
   and no forced fallback; one current-source soak rejected an unexpected
   pre-shutdown diagnostic before its exact bounded policy was established, and
-  a later clean-source soak passed that bounded policy. This is not clean
-  shutdown or long-soak qualification;
+  a later clean-source soak passed that bounded policy. Two current-artifact
+  eight-worker runs then failed admission on intermittent RID/shader or
+  over-limit null-texture diagnostics. A `--single-threaded-scene` candidate
+  passed once and failed once on four `Invalid Task ID` diagnostics, so it was
+  rejected. This is not clean shutdown or long-soak qualification;
 - long soak, broader hang/fault matrix and a real changed-build
   requalification drill;
 - reproducible RC Host/SDK publication: current local RC evidence cannot be

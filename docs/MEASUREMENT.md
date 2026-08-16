@@ -18,6 +18,12 @@ is not a semantic decision. Host throughput claims must count the unit above.
 Each recorded decision separates policy selection, submit-to-Receipt,
 Receipt-to-stable-successor, and total stable-Snapshot-to-successor time.
 Reports summarize observed samples without inventing interpolated samples.
+Resource sampler errors are retained with monotonic timestamps. Only errors
+inside the semantic decision window invalidate its resource measurement;
+startup/teardown sampler races remain visible but do not erase sufficient
+in-window samples. Capacity admission separately requires measured worker
+windows, exact identity/provenance, journey integrity, and bounded shutdown
+containment.
 
 ## Durable Trace
 
@@ -69,11 +75,15 @@ source `3e5c5a8...`, DLL SHA `e9673497...`, MVID `c5bcd426...`, and seed
 | 2 | 0.8975 | 0.519 | 1.423 GiB |
 | 4 | 1.5246 | 0.943 | 2.857 GiB |
 
-All workers passed seed provenance and journey integrity for their bounded
-windows. A predecessor Connector artifact reached `2.9085` decisions/s at
-eight workers with `5.696 GiB` summed peak RSS. The two artifact-specific runs
-cannot be merged, but both independently reject shipped Godot as the current
-primary trainer.
+All 1/2/4 workers passed seed provenance, journey integrity and lifecycle
+admission for their bounded windows. Two current-artifact default 8-worker
+windows delivered all semantic decisions at `2.3207` and `2.2989` decisions/s,
+but failed lifecycle admission on intermittent Godot diagnostics. An official
+`--single-threaded-scene` candidate measured `2.3038` and `2.3660` decisions/s,
+passing containment once and failing once; it was rejected. A predecessor
+Connector artifact reached `2.9085` decisions/s at eight workers with `5.696
+GiB` summed peak RSS. Artifact/configuration-specific windows cannot be merged,
+but all independently reject shipped Godot as the current primary trainer.
 
 A two-worker, two-episode supervisor smoke on the current artifact delivered 32
 decisions across four unique runtime instances and profile generations at

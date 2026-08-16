@@ -140,8 +140,7 @@ export async function runCapacityBenchmark({
   maxActions = 12,
   timeoutMs = 90_000,
   actionTimeoutMs = 20_000,
-  runSeed = "H1CAPACITY01",
-  sceneThreadMode = "default"
+  runSeed = "H1CAPACITY01"
 }) {
   const canonicalRunSeed = canonicalizeEpisodeSeed(runSeed);
   const counts = parseWorkerCounts(workerCounts.join(","));
@@ -168,7 +167,11 @@ export async function runCapacityBenchmark({
     base_port: basePort,
     max_actions_per_worker: maxActions,
     requested_seed: canonicalRunSeed,
-    host_configuration: { scene_thread_mode: sceneThreadMode },
+    host_configuration: {
+      display_driver: "headless",
+      audio_driver: "Dummy",
+      scene_thread_mode: "default"
+    },
     groups: [],
     non_claims: [
       "Capacity measurement is not semantic qualification or Training Ready evidence.",
@@ -209,8 +212,7 @@ export async function runCapacityBenchmark({
         experimentalBuildAcknowledged: true,
         allowConcurrentProcesses: true,
         evidenceLabel: worker.workerId,
-        runSeed: canonicalRunSeed,
-        sceneThreadMode
+        runSeed: canonicalRunSeed
       })));
       const failures = settled
         .filter((entry) => entry.status === "rejected")

@@ -311,8 +311,7 @@ export async function runBoundedJourney({
   faultAfterDeliveredActions = null,
   faultMode = "process_crash",
   shutdownDrainMs = 2_000,
-  runSeed = null,
-  sceneThreadMode = "default"
+  runSeed = null
 }) {
   const canonicalRunSeed = canonicalizeEpisodeSeed(runSeed);
   const launchProfile = resolveLaunchProfile({
@@ -375,8 +374,7 @@ export async function runBoundedJourney({
   const { child, args, connector, hostControlToken, hostConfiguration } = shippedRuntimeLaunch(installation, {
     launchProfile,
     connectorEndpoint: endpoint,
-    runSeed: canonicalRunSeed,
-    sceneThreadMode
+    runSeed: canonicalRunSeed
   });
   const resourceSampler = new ProcessResourceSampler(child.pid, {
     onSample: (sample) => resourceRecorder.append({ type: "process_resource", ...sample })
