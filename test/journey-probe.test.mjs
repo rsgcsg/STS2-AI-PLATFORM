@@ -146,6 +146,23 @@ test("first-run tutorial preference stays inside the advertised action set", () 
   );
 });
 
+test("tutorial preference resolves localized labels through the advertised semantic option", () => {
+  const disable = { bound_action_id: "disable", verb: "activate", label: "不了" };
+  const enable = { bound_action_id: "enable", verb: "activate", label: "好的" };
+  const tutorial = snapshot("tutorial", [enable, disable], "preference");
+  tutorial.interaction.content = {
+    surface: {
+      tutorial_id: "accept_tutorials_ftue",
+      options: [
+        { semantic_id: "enable_tutorials", label: "好的", enabled: true },
+        { semantic_id: "disable_tutorials", label: "不了", enabled: true }
+      ]
+    }
+  };
+  assert.equal(chooseBoundAction(tutorial), disable);
+  assert.equal(chooseBoundAction(tutorial, { tutorialPreference: "enable" }), enable);
+});
+
 test("typed tutorial policy advances exact combat pages and rejects unknown tutorial ids", () => {
   const previous = { bound_action_id: "previous", verb: "activate", label: "Previous page" };
   const next = { bound_action_id: "next", verb: "activate", label: "Next page" };

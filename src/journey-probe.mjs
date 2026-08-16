@@ -81,6 +81,15 @@ function firstSemanticAction(actions) {
   return orderedActions(actions)[0] ?? null;
 }
 
+function actionForSemanticOption(snapshot, actions, semanticId) {
+  const options = snapshot?.interaction?.content?.surface?.options;
+  const option = Array.isArray(options)
+    ? options.find((candidate) => candidate?.semantic_id === semanticId && candidate?.enabled !== false)
+    : null;
+  if (option == null || typeof option.label !== "string") return null;
+  return orderedActions(actions).find((action) => action.label === option.label) ?? null;
+}
+
 function combatPlayAction(snapshot, actions) {
   const hand = snapshot.interaction?.content?.context?.player?.hand;
   const enemies = snapshot.interaction?.content?.context?.enemies;
@@ -136,8 +145,12 @@ export function chooseBoundAction(snapshot, { tutorialPreference = "disable" } =
       throw new Error(`Unsupported tutorial preference: ${tutorialPreference}.`);
     }
     return tutorialPreference === "disable"
-      ? actionWithLabel(actions, /cancel|disable|no/i) ?? null
-      : actionWithLabel(actions, /confirm|enable|yes/i) ?? null;
+      ? actionForSemanticOption(snapshot, actions, "disable_tutorials")
+        ?? actionWithLabel(actions, /cancel|disable|no/i)
+        ?? null
+      : actionForSemanticOption(snapshot, actions, "enable_tutorials")
+        ?? actionWithLabel(actions, /confirm|enable|yes/i)
+        ?? null;
   }
   if (kind === "combat_turn") {
     return combatPlayAction(snapshot, actions)
