@@ -124,6 +124,14 @@ export function evaluateJourneyIntegrity({ terminal, unknownCount, readFailures,
   };
 }
 
+export function terminalForReceipt(receipt) {
+  if (receipt?.delivery === "unknown") return "unknown_delivery";
+  if (receipt?.delivery === "not_delivered") {
+    return `not_delivered:${receipt.reason_code ?? "unspecified"}`;
+  }
+  return null;
+}
+
 export function evaluateSurfaceCoverage({
   surfaces,
   combatDeliveries,
@@ -362,13 +370,14 @@ export async function runBoundedJourney({
         controllerGeneration: credentials.controllerGeneration
       })).data;
       const receiptMs = performance.now();
-      if (receipt.delivery === "unknown") {
-        unknownCount += 1;
+      const receiptTerminal = terminalForReceipt(receipt);
+      if (receiptTerminal) {
+        if (receipt.delivery === "unknown") unknownCount += 1;
         record({
           type: "action",
           ...compactStep(snapshot, action, receipt, null)
         });
-        terminal = "unknown_delivery";
+        terminal = receiptTerminal;
         break;
       }
       let successor = receipt.successor;

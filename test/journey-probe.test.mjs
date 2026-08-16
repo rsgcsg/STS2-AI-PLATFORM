@@ -4,7 +4,8 @@ import {
   chooseBoundAction,
   evaluateBoundedJourney,
   evaluateJourneyIntegrity,
-  evaluateSurfaceCoverage
+  evaluateSurfaceCoverage,
+  terminalForReceipt
 } from "../src/journey-probe.mjs";
 
 function snapshot(kind, actions, stage = "ready") {
@@ -39,6 +40,15 @@ test("first-run tutorial preference stays inside the advertised action set", () 
     chooseBoundAction(snapshot("tutorial_preference", [disable, enable])),
     enable
   );
+});
+
+test("bounded probes stop immediately after a non-delivery or unknown outcome", () => {
+  assert.equal(
+    terminalForReceipt({ delivery: "not_delivered", reason_code: "stale_snapshot" }),
+    "not_delivered:stale_snapshot"
+  );
+  assert.equal(terminalForReceipt({ delivery: "unknown" }), "unknown_delivery");
+  assert.equal(terminalForReceipt({ delivery: "delivered" }), null);
 });
 
 test("bounded journey gate requires representative surfaces and three combat deliveries", () => {
