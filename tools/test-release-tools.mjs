@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import {
+  existsSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -46,6 +47,10 @@ try {
     processRunning: () => false
   });
   assert.equal(readFileSync(path.join(modsDir, "STS2_MCP.dll"), "utf8"), "new-host");
+  assert.deepEqual(
+    JSON.parse(readFileSync(path.join(modsDir, "STS2_MCP.identity"), "utf8")),
+    identity
+  );
   assert.equal(installed.installed_sha256, artifactSha);
 
   const capabilities = {
@@ -72,10 +77,20 @@ try {
   });
   assert.equal(rolledBack.status, "rollback_restored_game_must_be_cold_started");
   assert.equal(readFileSync(path.join(modsDir, "STS2_MCP.dll"), "utf8"), "old-host");
+  assert.equal(existsSync(path.join(modsDir, "STS2_MCP.identity")), false);
 
   const linkedVerifier = path.join(root, "verify-link.mjs");
-  symlinkSync(path.resolve("tools/verify-release.mjs"), linkedVerifier);
-  const help = spawnSync(process.execPath, [linkedVerifier, "--help"], { encoding: "utf8" });
+  let verifierEntry = linkedVerifier;
+  try {
+    symlinkSync(path.resolve("tools/verify-release.mjs"), linkedVerifier);
+  } catch (error) {
+    if (process.platform !== "win32" || !new Set(["EPERM", "EACCES"]).has(error?.code)) {
+      throw error;
+    }
+    verifierEntry = path.resolve("tools/verify-release.mjs");
+    console.log("Windows symlink privilege unavailable; canonical verifier entry checked instead.");
+  }
+  const help = spawnSync(process.execPath, [verifierEntry, "--help"], { encoding: "utf8" });
   assert.equal(help.status, 0);
   assert.match(help.stdout, /Usage: node tools\/verify-release\.mjs/u);
 } finally {

@@ -2,7 +2,7 @@
 
 Four identities are intentionally separate:
 
-1. **Connector release** (`1.0.1` candidate; `1.0.0` sealed): source/product
+1. **Connector release** (`1.1.0-rc.1` candidate; `1.0.0` sealed): source/product
    packaging.
 2. **Player Environment protocol** (`1.0.0`): wire compatibility.
 3. **Capabilities**: loaded features, exact game/Modset and observation/input
@@ -24,6 +24,8 @@ release number.
   conformance fixtures.
 - A new game assembly or Modset starts unqualified and fails closed until its
   exact compatibility evidence exists.
+- A new Host source/artifact also starts unqualified. A local candidate requires
+  an exact process-local source canary; this never becomes release support.
 - The Mod implementation ID `STS2_MCP` remains stable through major 1 so update
   and rollback find one installation.
 

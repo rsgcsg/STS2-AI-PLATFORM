@@ -5,6 +5,28 @@ namespace STS2Connector.Tests;
 public sealed class LiveObservationLifecycleTests
 {
     [Fact]
+    public void ExactOpenModalOwnsInputAheadOfMenuOverlayAndRoomLayers()
+    {
+        Assert.Equal(InputOwnerLayer.Modal, ActiveInputResolver.SelectLayer(
+            hasVisibleOverlay: true,
+            mapIsOpen: true,
+            hasMenuSubmenu: true,
+            hasOpenModal: true));
+        Assert.True(ActiveInputResolver.IsActiveLayer(
+            InputOwnerLayer.Modal,
+            hasVisibleOverlay: true,
+            mapIsOpen: true,
+            hasMenuSubmenu: true,
+            hasOpenModal: true));
+        Assert.False(ActiveInputResolver.IsActiveLayer(
+            InputOwnerLayer.Menu,
+            hasVisibleOverlay: false,
+            mapIsOpen: false,
+            hasMenuSubmenu: true,
+            hasOpenModal: true));
+    }
+
+    [Fact]
     public void PersistentStateMountFailureSettlesOnlyInsideABoundedWindow()
     {
         var window = new BoundedSettlingWindow(TimeSpan.FromSeconds(20));
@@ -40,6 +62,39 @@ public sealed class LiveObservationLifecycleTests
             runInProgress,
             hasBlockingSurface,
             sourceType));
+    }
+
+    [Fact]
+    public void InProgressCombatWithoutMountedRoomOrHandIsBoundedSetupSettling()
+    {
+        Assert.Equal(CombatNoInputPhase.Setup, LiveObservationReader.ClassifyCombatNoInputTransition(
+            runInProgress: true,
+            currentRoomIsCombat: true,
+            combatIsStarting: false,
+            combatInProgress: true,
+            combatStatePresent: true,
+            hasBlockingSurface: false,
+            liveCombatRoomPresent: false,
+            liveCombatHandPresent: false));
+    }
+
+    [Theory]
+    [InlineData(true, true, true)]
+    [InlineData(false, false, false)]
+    public void MountedCombatOrBlockingOwnerIsNotReclassifiedAsNoInput(
+        bool liveCombatRoomPresent,
+        bool liveCombatHandPresent,
+        bool expectedMounted)
+    {
+        Assert.Equal(CombatNoInputPhase.None, LiveObservationReader.ClassifyCombatNoInputTransition(
+            runInProgress: true,
+            currentRoomIsCombat: true,
+            combatIsStarting: false,
+            combatInProgress: true,
+            combatStatePresent: true,
+            hasBlockingSurface: !expectedMounted,
+            liveCombatRoomPresent,
+            liveCombatHandPresent));
     }
 
     [Fact]

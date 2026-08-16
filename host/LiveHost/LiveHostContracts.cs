@@ -36,6 +36,8 @@ public sealed record GameBuildIdentity(
     // release_info.json is useful provenance, but only the runtime-computed
     // main assembly hash participates in exact compatibility identity.
     public int? ReleaseDeclaredMainAssemblyHash { get; init; }
+    public string? MainAssemblySha256 { get; init; }
+    public string? MainAssemblyMvid { get; init; }
 }
 
 public sealed record LoadedModAssemblyIdentity(
@@ -681,6 +683,28 @@ public sealed record CharacterSelectSurface(
     bool CanIncreaseAscension,
     bool CanEmbark,
     bool CanGoBack) : ILiveSurface;
+
+public sealed record VisibleTutorialOption(
+    string SemanticId,
+    string Label,
+    bool Enabled);
+
+/// <summary>
+/// A currently open, exact native tutorial modal. Only explicitly audited
+/// tutorial types may construct this Surface; an unknown modal remains
+/// unsupported and owns no mutation authority.
+/// </summary>
+public sealed record TutorialSurface(
+    string Kind,
+    string Stage,
+    string ScreenEntityId,
+    string TutorialId,
+    int? CurrentPage,
+    int? TotalPages,
+    string? Title,
+    string? Body,
+    string? PageLabel,
+    IReadOnlyList<VisibleTutorialOption> Options) : ILiveSurface;
 
 public sealed record VisibleMenuOption(
     string EntityId,

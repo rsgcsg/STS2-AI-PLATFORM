@@ -18,6 +18,8 @@ internal static class HostArtifactIdentity
 
     public static string? LoadedAssemblySha256 => LoadedDigest.Value;
     public static string? SourceRevision => EmbeddedSourceRevision.Value;
+    public static string LoadedAssemblyMvid =>
+        typeof(ConnectorMod).Assembly.ManifestModule.ModuleVersionId.ToString("D");
 
     internal static string? HashFile(string path)
     {

@@ -2,18 +2,32 @@
 
 Stable release: `v1.0.0`
 
-Host patch candidate: `1.0.1` (`loaded = non-claim` until its own seal)
+Host lifecycle/exact-authority candidate: `1.1.0-rc.1`
+(`freeze blocked`; latest combat-mount fix has source/test evidence only)
 
 Player Environment protocol: `1.0.0`
 
 Verdict: **Player Environment C1 `v1.0.0` is the runtime-sealed stable
 baseline for its exact artifact, game and Modset identity**
 
-The 1.0.1 source candidate fixes one Host-neutral identity defect: a process
-running the shipped game with Godot's headless display driver now reports
-`host_kind: headless` instead of the hard-coded `live_ui`. It changes neither
-the Player Environment wire nor action authority and admits no additional Mod.
-Tests/build/install do not prove that candidate loaded or ran.
+The candidate is based on public `v1.0.1` and keeps Player Environment protocol
+`1.0.0`. It adds process-local endpoint selection, runtime-bound native
+shutdown, exact seed provenance, and a fail-closed exact-game/artifact authority
+contract. The audit found that the prior implementation treated complete
+identity fields as qualified identity; an unknown but well-formed game build or
+an arbitrary clean-source rebuild could therefore reach mutation authority.
+`contracts/host-compatibility.json` now distinguishes sealed, candidate and
+unknown tuples. Candidate game and artifact identities require two exact,
+process-local opt-ins and remain non-support evidence.
+
+Current source evidence: 124 Host tests and 7 SDK tests pass, including empty,
+mismatched and explicit canary authority cases. The Windows symlink-dependent
+release check now remains runnable without Developer Mode while explicitly
+reporting that the symlink entry itself was not exercised. Pre-fix source
+`d32c0cb...` was built, installed and cold-loaded: exact canary admission and
+the H0/menu gate passed, but its seeded Journey stopped at a real combat UI
+mount gap. The current source bounds that known no-input window; old artifact
+evidence does not qualify the fix. See the dated H1 canary record.
 
 ## Implemented
 
@@ -65,8 +79,8 @@ release.
 - arbitrary game versions or Modsets;
 - hidden-state access;
 - coordinate/reflection mutation or visual computer use;
-- Headless process lifecycle, save isolation, training, search or strategy
-  implementation;
+- save isolation, training, search or strategy implementation (process-local
+  Host controls are present but remain candidate-only);
 - business completion inferred from a delivery Receipt;
 - native pages outside the fixed evidence profile;
 - transient VFX/SFX/history information closure;

@@ -45,6 +45,8 @@ internal static class NativeUiActionRuntime
             return BuildSingleplayerMenuBindings(draft, singleplayerMenu);
         if (draft.Surface is CharacterSelectSurface characterSelect)
             return BuildCharacterSelectBindings(draft, characterSelect);
+        if (draft.Surface is TutorialSurface tutorial)
+            return BuildTutorialBindings(draft, tutorial);
         if (draft.Surface is GameOverSurface gameOver)
             return BuildGameOverBindings(draft, gameOver);
         if (draft.Surface is CombatHandCardSelectionSurface combatHand)
@@ -802,6 +804,38 @@ internal static class NativeUiActionRuntime
             && option.Enabled
             && string.Equals(option.ActionSupport, "actionable", StringComparison.Ordinal));
 
+    private static IReadOnlyList<NativeUiBoundAction> BuildTutorialBindings(
+        LiveObservation draft,
+        TutorialSurface surface)
+        => DescribeTutorialCommands(surface)
+            .Select(action => BindActionToCurrentObservation(draft, action))
+            .Where(binding => binding != null)
+            .Cast<NativeUiBoundAction>()
+            .ToArray();
+
+    internal static IReadOnlyList<NativeUiActionDescriptor> DescribeTutorialCommands(
+        TutorialSurface surface)
+    {
+        ActionEntityBinding screen = new("screen", surface.ScreenEntityId);
+        return surface.Options
+            .Where(option => option.Enabled)
+            .Select(option => option.SemanticId switch
+            {
+                "enable_tutorials" or "disable_tutorials"
+                    or "previous_tutorial_page" or "advance_tutorial" => NativeDescriptor(
+                        $"tutorial:{surface.TutorialId}:{surface.CurrentPage}:{option.SemanticId}",
+                        option.SemanticId,
+                        option.SemanticId == "previous_tutorial_page" ? "navigation" : "configuration",
+                        option.Label,
+                        $"{surface.TutorialId}:exact-current-modal:{option.SemanticId}",
+                        new[] { screen }),
+                _ => null
+            })
+            .Where(action => action != null)
+            .Cast<NativeUiActionDescriptor>()
+            .ToArray();
+    }
+
     private static IReadOnlyList<NativeUiBoundAction> BuildCombatHandBindings(
         LiveObservation draft,
         CombatHandCardSelectionSurface surface)
@@ -1229,6 +1263,7 @@ internal static class NativeUiActionRuntime
                 "main_menu" => StartMainMenuCommand(draft, request, binding),
                 "singleplayer_menu" => StartSingleplayerMenuCommand(draft, request, binding),
                 "character_select" => StartCharacterSelectCommand(draft, request, binding),
+                "tutorial" => StartTutorialCommand(draft, request, binding),
                 "combat_hand_card_selection" => StartCombatHandCommand(draft, request, binding),
                 "card_bundle_selection" => StartCardBundleCommand(draft, request, binding),
                 "deck_transform_selection" => StartDeckTransformCommand(draft, request, binding),
@@ -1316,6 +1351,35 @@ internal static class NativeUiActionRuntime
             _ => NativeInputResult.Rejected(
                 "character_select_command_unsupported",
                 "The requested character-select command is not supported for this exact interaction.")
+        };
+    }
+
+    private static NativeInputResult StartTutorialCommand(
+        LiveObservation draft,
+        NativeUiInput request,
+        NativeUiBoundAction binding)
+    {
+        if (draft.Surface is not TutorialSurface surface
+            || !HasExactOperand(request, "screen_id", surface.ScreenEntityId))
+        {
+            return NativeInputResult.Rejected(
+                "tutorial_owner_changed",
+                "The exact tutorial modal is no longer current.");
+        }
+
+        return (surface.TutorialId, binding.Candidate.Operation) switch
+        {
+            (TutorialModalSurfaceReader.AcceptTutorialsId, "enable_tutorials") =>
+                TutorialModalSurfaceReader.StartPreference(Entities, surface.ScreenEntityId, enable: true),
+            (TutorialModalSurfaceReader.AcceptTutorialsId, "disable_tutorials") =>
+                TutorialModalSurfaceReader.StartPreference(Entities, surface.ScreenEntityId, enable: false),
+            (TutorialModalSurfaceReader.CombatRulesId, "previous_tutorial_page") when surface.CurrentPage is int page =>
+                TutorialModalSurfaceReader.StartCombatPage(Entities, surface.ScreenEntityId, page, advance: false),
+            (TutorialModalSurfaceReader.CombatRulesId, "advance_tutorial") when surface.CurrentPage is int page =>
+                TutorialModalSurfaceReader.StartCombatPage(Entities, surface.ScreenEntityId, page, advance: true),
+            _ => NativeInputResult.Rejected(
+                "tutorial_command_unsupported",
+                "The requested command is not supported for this exact tutorial modal.")
         };
     }
 

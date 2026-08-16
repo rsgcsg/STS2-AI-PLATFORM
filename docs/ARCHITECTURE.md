@@ -31,16 +31,37 @@ launcher such as STS2-headless.
 | `PlayerEnvironment` | Snapshot, Interaction, Referent, Read, BoundAction, Receipt, stale semantics | hidden state; second legality/effect model |
 | `Authority` | artifact/runtime/environment identity, one controller, request idempotency | UI legality or outcomes |
 | REST/MCP | bytes and endpoint translation | semantics or authority |
+| optional Host control | process-local, runtime-bound shutdown and episode seed/provenance requested by a supervisor | Player Environment actions, gameplay authority or remote lifecycle control |
 | TypeScript SDK | strict decoding, HTTP and controller session mechanics | strategy, normalization, legality or retries of unknown delivery |
 | consumer | strategy, prompts, search, memory and progress interpretation | native operands or mutation authority |
 
 ## Canonical Contract
 
 `contracts/player-environment-contract.json` is the machine-readable protocol
-inventory. C# records implement the wire. TypeScript schemas independently
+inventory. `contracts/host-compatibility.json` is the separate exact game and
+sealed-artifact authority inventory. C# records implement the wire and enforce
+the Host inventory; `npm run check:compatibility` rejects source/manifest drift.
+TypeScript schemas independently
 reject malformed responses. `npm run check:contract` keeps protocol version,
 routes, schemas, verbs and hard-shell invariants aligned. Neither the SDK nor a
 consumer may extend authority by accepting more than the Host publishes.
+
+The default-disabled `/api/host-control/shutdown` and
+`/api/host-control/provenance` routes are outside this canonical contract. A
+Host supervisor may enable them for one process with a 256-bit environment
+token. Every request is bound to the loaded runtime instance. Shutdown invokes
+STS2's native `NGame.Quit()` path. An optional process seed is applied only to a
+headless standard-run Embark after the same exact owner/control revalidation,
+through STS2's own `NGame.DebugSeedOverride` seam; provenance then compares it
+with the game-owned run RNG seed. The token and seed metadata are not published
+through capabilities, SDK, MCP, Snapshot, Read or BoundAction.
+
+Game and artifact admission precede UI actionability. A sealed tuple may enter
+normal authority; a known candidate needs exact game ID and source-revision
+process opt-ins. Empty, partial, mismatched and unknown identities fail closed.
+Build, install and a 40-character Git revision are identity facts, not
+qualification. Native owner, operand and control legality are still
+rediscovered for every delivery after admission.
 
 ## Observe, Read, Interact
 

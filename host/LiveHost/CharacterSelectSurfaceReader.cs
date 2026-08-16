@@ -94,8 +94,7 @@ internal sealed class CharacterSelectSurfaceReader : ILiveSurfaceReader
         bool ascensionVisible = ConnectorMod.IsNodeVisible(ascensionPanel);
         int? ascension = ascensionVisible ? ascensionPanel.Ascension : null;
         bool tutorialGateClear = SaveManager.Instance.SeenFtue("accept_tutorials_ftue");
-        bool canEmbark = tutorialGateClear
-                         && embark.IsEnabled
+        bool canEmbark = embark.IsEnabled
                          && ConnectorMod.IsNodeVisible(embark)
                          && !selected.IsLocked;
         bool canGoBack = back.IsEnabled && ConnectorMod.IsNodeVisible(back);
@@ -126,13 +125,8 @@ internal sealed class CharacterSelectSurfaceReader : ILiveSurfaceReader
             canIncreaseAscension,
             canEmbark,
             canGoBack);
-        string[] missing = tutorialGateClear
-            ? Array.Empty<string>()
-            : new[] { "accept_tutorials_ftue_child_surface" };
         var completeness = new StateCompleteness(
-            tutorialGateClear
-                ? "contract_complete_for_singleplayer_character_select"
-                : "contract_incomplete_for_first_run_tutorial_child",
+            "contract_complete_for_singleplayer_character_select_and_native_tutorial_handoff",
             hasActionableControl
                 ? "derived_from_exact_visible_character_and_menu_controls"
                 : "temporarily_empty_during_character_select_transition",
@@ -142,9 +136,12 @@ internal sealed class CharacterSelectSurfaceReader : ILiveSurfaceReader
                 "visible NCharacterSelectButton controls",
                 "selected character info-panel source fields",
                 "visible NAscensionPanel controls",
-                "ConfirmButton and BackButton"
+                "ConfirmButton and BackButton",
+                tutorialGateClear
+                    ? "SaveManager accept_tutorials_ftue complete"
+                    : "NCharacterSelectScreen.OnEmbarkPressed exact tutorial-modal handoff"
             },
-            missing);
+            Array.Empty<string>());
         string signature = StableIdentityHash.Object(new
         {
             game.Version,
@@ -157,9 +154,7 @@ internal sealed class CharacterSelectSurfaceReader : ILiveSurfaceReader
             surface,
             completeness,
             game,
-            missing.Length == 0
-                ? Array.Empty<string>()
-                : new[] { "first_run_tutorial_child_not_implemented" });
+            Array.Empty<string>());
     }
 
     private static VisibleSelectedCharacterDetails BuildSelectedDetails(NCharacterSelectButton selected)
@@ -291,7 +286,6 @@ internal sealed class CharacterSelectSurfaceReader : ILiveSurfaceReader
         NConfirmButton expectedEmbark)
     {
         if (!IsCurrentSingleplayerScreen(expectedScreen, expectedLobby)
-            || !SaveManager.Instance.SeenFtue("accept_tutorials_ftue")
             || !expectedSelected.IsSelected
             || expectedSelected.IsLocked
             || !expectedEmbark.IsEnabled
@@ -300,6 +294,14 @@ internal sealed class CharacterSelectSurfaceReader : ILiveSurfaceReader
             return NativeInputResult.Rejected(
                 "character_embark_changed",
                 "The advertised character-select commit is no longer current and enabled.");
+        }
+
+        HostControl.HostSeedApplication seed = HostControl.HostRunSeedControl.ApplyForEmbark();
+        if (!seed.Allowed)
+        {
+            return NativeInputResult.Rejected(
+                "host_seed_binding_failed",
+                $"The process-local Host seed could not be bound safely: {seed.Status}.");
         }
 
         expectedEmbark.ForceClick();

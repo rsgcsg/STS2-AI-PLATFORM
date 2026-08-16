@@ -289,6 +289,12 @@ internal static partial class PlayerEnvironmentService
                 value.CanDecreaseAscension, value.CanIncreaseAscension,
                 value.CanEmbark, value.CanGoBack
             }),
+            TutorialSurface value => ToNode(new
+            {
+                value.Kind, value.Stage, value.TutorialId,
+                value.CurrentPage, value.TotalPages,
+                value.Title, value.Body, value.PageLabel, value.Options
+            }),
             MainMenuSurface value => ToNode(new
             {
                 value.Kind, value.Stage, value.Options, value.ContinueRun

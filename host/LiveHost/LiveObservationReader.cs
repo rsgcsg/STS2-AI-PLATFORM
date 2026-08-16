@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Nodes;
+using MegaCrit.Sts2.Core.Nodes.Combat;
 using MegaCrit.Sts2.Core.Nodes.Rooms;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
@@ -33,10 +34,13 @@ internal static class LiveObservationReader
         new(TimeSpan.FromSeconds(20));
     private static readonly BoundedSettlingWindow MenuOrRunEntryNoInputWindow =
         new(TimeSpan.FromSeconds(20));
+    private static readonly BoundedSettlingWindow CombatNoInputWindow =
+        new(TimeSpan.FromSeconds(20));
     private sealed record ReaderRegistration(string Kind, Func<ILiveSurfaceReader> Create);
 
     private static readonly ReaderRegistration[] ReaderRegistrations =
     {
+        new(TutorialModalSurfaceReader.SurfaceKind, static () => new TutorialModalSurfaceReader()),
         new("deck_enchant_selection", static () => new DeckEnchantSurfaceReader()),
         new("combat_hand_card_selection", static () => new CombatHandCardSelectionSurfaceReader()),
         new("card_bundle_selection", static () => new CardBundleSelectionSurfaceReader()),
@@ -151,6 +155,7 @@ internal static class LiveObservationReader
         if (resolution.Draft != null)
         {
             MenuOrRunEntryNoInputWindow.Observe(condition: false, DateTimeOffset.UtcNow);
+            CombatNoInputWindow.Observe(condition: false, DateTimeOffset.UtcNow);
             return resolution.Draft;
         }
         if (resolution.MatchedKinds.Count > 1)
@@ -285,6 +290,7 @@ internal static class LiveObservationReader
         RunState? runState = RunManager.Instance.DebugOnlyGetState();
         CombatState? combatState = CombatManager.Instance.DebugOnlyGetState();
         NCombatRoom? room = NCombatRoom.Instance;
+        NPlayerHand? hand = NPlayerHand.Instance;
         CombatNoInputPhase phase = ClassifyCombatNoInputTransition(
             RunManager.Instance.IsInProgress,
             runState?.CurrentRoom is CombatRoom,
@@ -292,8 +298,14 @@ internal static class LiveObservationReader
             CombatManager.Instance.IsInProgress,
             combatState != null,
             snapshot.HasBlockingSurface,
-            room != null && ConnectorMod.IsLiveNode(room));
+            room != null && ConnectorMod.IsLiveNode(room),
+            hand != null && ConnectorMod.IsLiveNode(hand));
         if (phase == CombatNoInputPhase.None)
+        {
+            CombatNoInputWindow.Observe(condition: false, DateTimeOffset.UtcNow);
+            return null;
+        }
+        if (!CombatNoInputWindow.Observe(condition: true, DateTimeOffset.UtcNow))
             return null;
 
         bool isSetup = phase == CombatNoInputPhase.Setup;
@@ -720,10 +732,17 @@ internal static class LiveObservationReader
         bool combatInProgress,
         bool combatStatePresent,
         bool hasBlockingSurface,
-        bool liveCombatRoomPresent)
+        bool liveCombatRoomPresent,
+        bool liveCombatHandPresent)
     {
-        if (!runInProgress || !currentRoomIsCombat || combatInProgress || hasBlockingSurface)
+        if (!runInProgress || !currentRoomIsCombat || hasBlockingSurface)
             return CombatNoInputPhase.None;
+        if (combatInProgress)
+        {
+            return liveCombatRoomPresent && liveCombatHandPresent
+                ? CombatNoInputPhase.None
+                : CombatNoInputPhase.Setup;
+        }
         if (combatIsStarting || !combatStatePresent)
             return CombatNoInputPhase.Setup;
         return liveCombatRoomPresent

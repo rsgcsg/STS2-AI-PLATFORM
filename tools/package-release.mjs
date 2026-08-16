@@ -4,6 +4,17 @@ import fs from "node:fs";
 import path from "node:path";
 
 const root = process.cwd();
+function npmExecFileSync(args, options) {
+  const npmExecPath = process.env.npm_execpath;
+  if (typeof npmExecPath === "string" && npmExecPath.length > 0) {
+    return execFileSync(process.execPath, [npmExecPath, ...args], options);
+  }
+  return execFileSync(process.platform === "win32" ? "npm.cmd" : "npm", args, {
+    ...options,
+    shell: process.platform === "win32"
+  });
+}
+
 const workspace = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
 const release = JSON.parse(fs.readFileSync(path.join(root, "release-manifest.json"), "utf8"));
 const version = workspace.version;
@@ -70,8 +81,7 @@ for (const required of [
 
 const hostArchive = `STS2-Connector-${version}-host.tar.gz`;
 execFileSync("tar", ["-czf", path.join(releaseRoot, hostArchive), "-C", stageRoot, "."], { stdio: "inherit" });
-const packOutput = execFileSync(
-  "npm",
+const packOutput = npmExecFileSync(
   ["pack", "--pack-destination", releaseRoot, "--json"],
   { cwd: path.join(root, "sdk", "typescript"), encoding: "utf8" }
 );

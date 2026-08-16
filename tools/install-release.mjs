@@ -15,7 +15,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveGameDir, resolveModsDir } from "./steam-paths.mjs";
 
-const FILES = ["STS2_MCP.dll", "STS2_MCP.json"];
+const FILES = [
+  { payload: "STS2_MCP.dll", installed: "STS2_MCP.dll" },
+  { payload: "STS2_MCP.json", installed: "STS2_MCP.json" },
+  { payload: "build-identity.json", installed: "STS2_MCP.identity" }
+];
 
 function sha256(file) {
   return existsSync(file)
@@ -41,7 +45,7 @@ export function installRelease({
 }) {
   if (processRunning()) throw new Error("Close Slay the Spire 2 before installing the Connector.");
   const payload = path.join(releaseRoot, "payload");
-  for (const name of [...FILES, "build-identity.json"]) {
+  for (const { payload: name } of FILES) {
     if (!existsSync(path.join(payload, name))) throw new Error(`Release payload is missing ${name}.`);
   }
   const modsDir = resolveModsDir(gameDir, platform);
@@ -50,11 +54,13 @@ export function installRelease({
   const backup = path.join(backupRoot, stamp);
   mkdirSync(backup, { recursive: true });
   const previous = {};
-  for (const name of FILES) {
-    const destination = path.join(modsDir, name);
-    previous[name] = existsSync(destination);
-    if (previous[name]) copyFileSync(destination, path.join(backup, name));
-    copyFileSync(path.join(payload, name), destination);
+  for (const file of FILES) {
+    const destination = path.join(modsDir, file.installed);
+    previous[file.installed] = existsSync(destination);
+    if (previous[file.installed]) {
+      copyFileSync(destination, path.join(backup, file.installed));
+    }
+    copyFileSync(path.join(payload, file.payload), destination);
   }
   const identity = JSON.parse(readFileSync(path.join(payload, "build-identity.json"), "utf8"));
   const deployment = {
@@ -82,9 +88,11 @@ export function rollbackRelease({ backup, processRunning = () => gameProcessRunn
   const deploymentFile = path.join(backup, "deployment.json");
   if (!existsSync(deploymentFile)) throw new Error("Rollback backup is missing deployment.json.");
   const deployment = JSON.parse(readFileSync(deploymentFile, "utf8"));
-  for (const name of FILES) {
-    const destination = path.join(deployment.mods_dir, name);
-    if (deployment.previous?.[name]) copyFileSync(path.join(backup, name), destination);
+  for (const file of FILES) {
+    const destination = path.join(deployment.mods_dir, file.installed);
+    if (deployment.previous?.[file.installed]) {
+      copyFileSync(path.join(backup, file.installed), destination);
+    }
     else rmSync(destination, { force: true });
   }
   return {

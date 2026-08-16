@@ -18,16 +18,18 @@ second legality model. Reads are state-bound and non-authorizing. A complete
 finite BoundAction projection is required for input authority; delivery is
 revalidated against the current native UI. Unknown delivery is not retryable.
 
-Current runtime-sealed stable release: `1.0.0`. Current Host patch candidate:
-`1.0.1`. Player Environment protocol and TypeScript SDK remain `1.0.0`.
-Release `1.0.1` reports the real display driver as `live_ui` or `headless`;
-until its own exact runtime seal is published, `v1.0.0` remains the supported
-artifact. RC1/RC2 remain predecessor evidence only.
+Current runtime-sealed stable release: `1.0.0`. Current Host lifecycle and
+exact-authority candidate: `1.1.0-rc.1`. Player Environment protocol and
+TypeScript SDK remain `1.0.0`. The candidate adds process-local worker ports,
+runtime-bound native shutdown, seed provenance and exact game/artifact
+admission. It has no support or Live claim until its own exact runtime gates
+pass; `v1.0.0` remains the only sealed artifact. Earlier RC lines remain
+predecessor evidence only.
 
 ## Repository Map
 
 - `host/`: in-game Mod, exact Live binding, REST and Player Environment core.
-- `contracts/`: machine-readable protocol inventory and invariants.
+- `contracts/`: machine-readable protocol and exact Host compatibility authority.
 - `sdk/typescript/`: strategy-free strict decoder, REST client and controller session.
 - `transports/mcp/`: optional thin MCP-to-REST transport.
 - `tools/`: doctor, build, deploy, rollback, identity and conformance checks.
@@ -86,5 +88,5 @@ Source, tests, build, install, loaded identity, targeted Live gates, ordinary
 journey and release support are different evidence levels. Pre-extraction
 SpireAgent and RC evidence is predecessor evidence only. Stable release support
 must be tied to the exact release SHA-256, MVID, runtime, game and Modset.
-Source, build or install never transfers the `v1.0.0` seal to `1.0.1`.
+Source, build or install never transfers the `v1.0.0` seal to `1.1.0-rc.1`.
 See [Current status](docs/STATUS.md) for the precise non-claims.

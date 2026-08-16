@@ -55,17 +55,23 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
         if (playerCombat == null)
             return null;
 
+        bool inputReady = IsCombatInputReady(
+            CombatManager.Instance.IsInProgress,
+            CombatManager.Instance.PlayerActionsDisabled,
+            playerCombat.Phase == PlayerTurnPhase.Play,
+            CombatManager.Instance.IsPartOfPlayerTurn(player),
+            CombatManager.Instance.IsExecutingCardOrPotionEffect(player),
+            RunManager.Instance.ActionQueueSet.IsEmpty,
+            !hand.InCardPlay && hand.CurrentMode == NPlayerHand.Mode.Play);
         var playableCards = new List<VisibleCombatCommandOption>();
         var usablePotions = new List<VisibleCombatCommandOption>();
-        if (context.IsPlayPhase)
+        if (inputReady)
         {
             AddCardOptions(playableCards, player, playerCombat, entities);
             AddPotionOptions(usablePotions, player, entities);
         }
 
-        bool canEndTurn = context.IsPlayPhase
-                          && !hand.InCardPlay
-                          && hand.CurrentMode == NPlayerHand.Mode.Play;
+        bool canEndTurn = inputReady;
         var surface = new CombatTurnSurface(
             Kind,
             entities.GetId(room, "room"),
@@ -74,12 +80,12 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
             PlayableCards = playableCards,
             UsablePotions = usablePotions
         };
-        string readiness = context.IsPlayPhase ? "ready" : "settling";
+        string readiness = inputReady ? "ready" : "settling";
         var completeness = new StateCompleteness(
             "contract_complete_for_immediate_combat_turn_including_visible_companions; pile contents available through a separate read-only Player Environment Read",
-            context.IsPlayPhase
+            inputReady
                 ? "derived_from_same_validator_as_execution"
-                : "empty_during_non_player_phase",
+                : "empty_while_native_combat_input_is_not_settled",
             new[]
             {
                 "CombatManager.DebugOnlyGetState",
@@ -88,6 +94,8 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
                 "PlayerCombatState.Pets+MonsterModel.IsHealthBarVisible",
                 "CardModel.CanPlay",
                 "CombatState.HittableEnemies",
+                "CombatManager.IsExecutingCardOrPotionEffect",
+                "RunManager.ActionQueueSet.IsEmpty",
                 "NPlayerHand play-phase guards"
             },
             Array.Empty<string>());
@@ -199,6 +207,22 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
     internal static bool IsAdvertisablePotionTarget(
         PotionModel potion,
         Creature? target) => potion.IsValidTarget(target);
+
+    internal static bool IsCombatInputReady(
+        bool combatInProgress,
+        bool playerActionsDisabled,
+        bool inPlayPhase,
+        bool isPartOfPlayerTurn,
+        bool isExecutingCardOrPotionEffect,
+        bool actionQueueEmpty,
+        bool handAcceptsInput) =>
+        combatInProgress
+        && !playerActionsDisabled
+        && inPlayPhase
+        && isPartOfPlayerTurn
+        && !isExecutingCardOrPotionEffect
+        && actionQueueEmpty
+        && handAcceptsInput;
 
     internal static NativeInputResult StartDirectPlayCard(
         NativeEntityRegistry entities,
@@ -349,9 +373,16 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
         && !potion.Owner.Creature.IsDead
         && potion.PassesCustomUsabilityCheck;
 
-    internal static bool IsActionablePlayerTurn(Player player) =>
-        CombatManager.Instance.IsInProgress
-        && !CombatManager.Instance.PlayerActionsDisabled
-        && player.PlayerCombatState?.Phase == PlayerTurnPhase.Play
-        && CombatManager.Instance.IsPartOfPlayerTurn(player);
+    internal static bool IsActionablePlayerTurn(Player player)
+    {
+        NPlayerHand? hand = NPlayerHand.Instance;
+        return IsCombatInputReady(
+            CombatManager.Instance.IsInProgress,
+            CombatManager.Instance.PlayerActionsDisabled,
+            player.PlayerCombatState?.Phase == PlayerTurnPhase.Play,
+            CombatManager.Instance.IsPartOfPlayerTurn(player),
+            CombatManager.Instance.IsExecutingCardOrPotionEffect(player),
+            RunManager.Instance.ActionQueueSet.IsEmpty,
+            hand != null && !hand.InCardPlay && hand.CurrentMode == NPlayerHand.Mode.Play);
+    }
 }

@@ -12,15 +12,20 @@ using Godot;
 using MegaCrit.Sts2.Core.Modding;
 using MegaCrit.Sts2.Core.Multiplayer.Game;
 using STS2Connector.Authority;
+using STS2Connector.HostControl;
 
 namespace STS2Connector;
 
 [ModInitializer("Initialize")]
 public static partial class ConnectorMod
 {
-    public const string Version = "1.0.1";
+    public const string Version = "1.1.0-rc.1";
     public const int DefaultPort = 15526;
     internal const string ConfigFileName = "STS2_MCP.conf";
+    internal const string PortEnvironmentVariable = "STS2_CONNECTOR_PORT";
+    internal const string HostControlTokenEnvironmentVariable =
+        "STS2_CONNECTOR_HOST_CONTROL_TOKEN";
+    internal const string RunSeedEnvironmentVariable = "STS2_CONNECTOR_RUN_SEED";
 
     private static HttpListener? _listener;
     private static Thread? _serverThread;
@@ -36,9 +41,41 @@ public static partial class ConnectorMod
 
     private sealed record RuntimeConfig(
         int Port,
-        bool NativePageEvidenceEnabled);
+        bool NativePageEvidenceEnabled,
+        string? HostControlToken,
+        string? RunSeed);
 
     private static RuntimeConfig LoadRuntimeConfig()
+    {
+        RuntimeConfig fileConfig = LoadRuntimeConfigFile();
+        int processPort = ResolveProcessPort(
+            fileConfig.Port,
+            System.Environment.GetEnvironmentVariable(PortEnvironmentVariable));
+        string? hostControlToken = HostLifecycleControl.ResolveConfiguredToken(
+            System.Environment.GetEnvironmentVariable(HostControlTokenEnvironmentVariable));
+        string? runSeed = HostRunSeedControl.ResolveConfiguredSeed(
+            System.Environment.GetEnvironmentVariable(RunSeedEnvironmentVariable));
+        return fileConfig with
+        {
+            Port = processPort,
+            HostControlToken = hostControlToken,
+            RunSeed = runSeed
+        };
+    }
+
+    internal static int ResolveProcessPort(int configuredPort, string? processPort)
+    {
+        if (string.IsNullOrWhiteSpace(processPort))
+            return configuredPort;
+        if (!int.TryParse(processPort, out int port) || port is <= 0 or > 65535)
+        {
+            throw new InvalidOperationException(
+                $"{PortEnvironmentVariable} must be an integer from 1 through 65535.");
+        }
+        return port;
+    }
+
+    private static RuntimeConfig LoadRuntimeConfigFile()
     {
         try
         {
@@ -47,7 +84,9 @@ public static partial class ConnectorMod
             if (modDir == null)
                 return new RuntimeConfig(
                     DefaultPort,
-                    NativePageEvidenceEnabled: false);
+                    NativePageEvidenceEnabled: false,
+                    HostControlToken: null,
+                    RunSeed: null);
 
             string configPath = Path.Combine(modDir, ConfigFileName);
             if (!File.Exists(configPath))
@@ -69,7 +108,9 @@ public static partial class ConnectorMod
                 }
                 return new RuntimeConfig(
                     DefaultPort,
-                    NativePageEvidenceEnabled: false);
+                    NativePageEvidenceEnabled: false,
+                    HostControlToken: null,
+                    RunSeed: null);
             }
 
             string content = File.ReadAllText(configPath);
@@ -104,7 +145,9 @@ public static partial class ConnectorMod
             }
             return new RuntimeConfig(
                 configuredPort,
-                nativePageEvidenceEnabled);
+                nativePageEvidenceEnabled,
+                HostControlToken: null,
+                RunSeed: null);
         }
         catch (Exception ex)
         {
@@ -112,7 +155,9 @@ public static partial class ConnectorMod
                 $"[STS2 Connector] Failed to load config: {ex.Message}; using safe defaults");
             return new RuntimeConfig(
                 DefaultPort,
-                NativePageEvidenceEnabled: false);
+                NativePageEvidenceEnabled: false,
+                HostControlToken: null,
+                RunSeed: null);
         }
     }
 
@@ -127,6 +172,8 @@ public static partial class ConnectorMod
             RuntimeConfig config = LoadRuntimeConfig();
             PlayerEnvironment.PlayerEnvironmentService.ConfigureNativePageEvidence(
                 config.NativePageEvidenceEnabled);
+            HostLifecycleControl.Configure(config.HostControlToken);
+            HostRunSeedControl.Configure(config.RunSeed);
             int port = config.Port;
 
             _listener = new HttpListener();
@@ -142,8 +189,16 @@ public static partial class ConnectorMod
             _serverThread.Start();
 
             GD.Print($"[STS2 Connector] v{Version} server started on http://localhost:{port}/");
+            if (!string.IsNullOrWhiteSpace(System.Environment.GetEnvironmentVariable(PortEnvironmentVariable)))
+            {
+                GD.Print($"[STS2 Connector] Port selected by process-local {PortEnvironmentVariable}");
+            }
             GD.Print(
                 $"[STS2 Connector] Player Environment native-page evidence: {(config.NativePageEvidenceEnabled ? "enabled" : "disabled")}");
+            GD.Print(
+                $"[STS2 Connector] Host lifecycle control: {(HostLifecycleControl.Enabled ? "enabled for this process" : "disabled")}");
+            GD.Print(
+                $"[STS2 Connector] Host run seed: {(HostRunSeedControl.Enabled ? "configured for this process" : "not configured")}");
         }
         catch (Exception ex)
         {
@@ -331,6 +386,20 @@ public static partial class ConnectorMod
                 }
                 else if (request.HttpMethod is "GET" or "POST")
                     SendError(response, 404, "Unknown native-page evidence operation");
+                else
+                    SendError(response, 405, "Method not allowed");
+            }
+            else if (path == "/api/host-control/shutdown")
+            {
+                if (request.HttpMethod == "POST")
+                    HandlePostHostShutdown(request, response);
+                else
+                    SendError(response, 405, "Method not allowed");
+            }
+            else if (path == "/api/host-control/provenance")
+            {
+                if (request.HttpMethod == "POST")
+                    HandlePostHostProvenance(request, response);
                 else
                     SendError(response, 405, "Method not allowed");
             }
