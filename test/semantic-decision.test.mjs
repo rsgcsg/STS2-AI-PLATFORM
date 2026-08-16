@@ -73,6 +73,15 @@ test("canonical decisions detect a visible semantic change", () => {
   assert.equal(compareCanonicalDecisions(snapshot("left"), snapshot("right", 7)).equal, false);
 });
 
+test("canonical decisions treat capability inventory as an unordered declaration set", () => {
+  const left = snapshot("left");
+  const right = snapshot("right");
+  const endTurn = { verb: "end_turn", arguments: [] };
+  left.interaction.capabilities.push(endTurn);
+  right.interaction.capabilities.unshift(endTurn);
+  assert.equal(compareCanonicalDecisions(left, right).equal, true);
+});
+
 test("canonical reads remove runtime handles but retain player-visible semantics", () => {
   const read = (prefix, damage = 6, reverse = false) => ({
     protocol_version: "1.0-rc.2",

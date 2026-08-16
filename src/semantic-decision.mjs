@@ -83,7 +83,7 @@ export function canonicalizeSnapshot(snapshot) {
       prompt: snapshot.interaction.prompt ?? null,
       content_schema: snapshot.interaction.content_schema,
       content: canonicalValue(snapshot.interaction.content, referentIds),
-      capabilities: canonicalValue(snapshot.interaction.capabilities, referentIds)
+      capabilities: canonicalValue(snapshot.interaction.capabilities, referentIds).sort(compareJson)
     },
     referents: canonicalReferents(referents, referentIds),
     bound_actions: snapshot?.bound_actions == null ? null : {
