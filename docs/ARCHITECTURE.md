@@ -46,8 +46,9 @@ consumer may extend authority by accepting more than the Host publishes.
 The default-disabled `/api/host-control/shutdown` route is outside this
 canonical contract. A Host supervisor may enable it for one process with a
 256-bit environment token, then request shutdown bound to the loaded runtime
-instance. The Host schedules the native Godot `SceneTree` quit path. The token
-is not published through capabilities, SDK, MCP, Snapshot, Read or BoundAction.
+instance. The Host invokes STS2's native `NGame.Quit()` save/cache/exit path.
+The token is not published through capabilities, SDK, MCP, Snapshot, Read or
+BoundAction.
 
 ## Observe, Read, Interact
 

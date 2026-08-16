@@ -1,7 +1,7 @@
 using System;
 using System.Security.Cryptography;
 using System.Text;
-using Godot;
+using MegaCrit.Sts2.Core.Nodes;
 using STS2Connector.Authority;
 
 namespace STS2Connector.HostControl;
@@ -69,9 +69,10 @@ internal static class HostLifecycleControl
     {
         if (!authorization.Allowed)
             throw new InvalidOperationException("Host shutdown was not authorized.");
-        if (Engine.GetMainLoop() is not SceneTree tree)
-            throw new InvalidOperationException("The current Host has no SceneTree main loop.");
-        tree.CallDeferred("quit");
+        NGame? game = NGame.Instance;
+        if (game == null)
+            throw new InvalidOperationException("The current Host has no native NGame instance.");
+        game.Quit();
         return new HostShutdownResponse("shutdown_requested", authorization.RuntimeInstanceId);
     }
 
