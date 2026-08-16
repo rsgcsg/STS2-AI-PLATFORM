@@ -29,7 +29,7 @@
     "probe:journey": "node tools/headless.mjs probe-journey",
     "audit:source": "node tools/source-audit.mjs",
     "test": "node --test",
-    "check:syntax": "node --check tools/headless.mjs && node --check tools/source-audit.mjs && node --check src/compatibility.mjs && node --check src/connector-release.mjs && node --check src/decision-timing.mjs && node --check src/game-installation.mjs && node --check src/headless-host.mjs && node --check src/journey-probe.mjs && node --check src/jsonl-recorder.mjs && node --check src/probe-verdict.mjs && node --check src/profile-bootstrap.mjs && node --check src/profile-isolation.mjs && node --check src/project-identity.mjs && node --check src/runtime-probe.mjs && node --check src/semantic-decision.mjs",
+    "check:syntax": "node --check tools/headless.mjs && node --check tools/source-audit.mjs && node --check src/compatibility.mjs && node --check src/connector-release.mjs && node --check src/decision-timing.mjs && node --check src/game-installation.mjs && node --check src/headless-host.mjs && node --check src/journey-probe.mjs && node --check src/jsonl-recorder.mjs && node --check src/process-resource-sampler.mjs && node --check src/probe-verdict.mjs && node --check src/profile-bootstrap.mjs && node --check src/profile-isolation.mjs && node --check src/project-identity.mjs && node --check src/runtime-probe.mjs && node --check src/semantic-decision.mjs",
     "check:repository": "node tools/check-repository.mjs",
     "check:docs": "node tools/check-markdown-links.mjs",
     "check": "npm run check:syntax && npm test && npm run check:docs && npm run check:repository"

@@ -26,6 +26,10 @@ import {
   canonicalizeSnapshot
 } from "./semantic-decision.mjs";
 import { publicProfileDescriptor, resolveLaunchProfile } from "./profile-isolation.mjs";
+import {
+  ProcessResourceSampler,
+  summarizeHostPerformance
+} from "./process-resource-sampler.mjs";
 
 function safeTimestamp() {
   return new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
@@ -279,22 +283,34 @@ export async function runBoundedJourney({
   const evidenceDirectory = path.join(evidenceRoot, `bounded-journey-${safeTimestamp()}`);
   mkdirSync(evidenceDirectory, { recursive: true });
   const eventsFile = path.join(evidenceDirectory, "events.jsonl");
+  const resourcesFile = path.join(evidenceDirectory, "resources.jsonl");
   const reportFile = path.join(evidenceDirectory, "report.json");
   const stdoutFile = path.join(evidenceDirectory, "stdout.log");
   const stderrFile = path.join(evidenceDirectory, "stderr.log");
   const recorder = new JsonlRecorder(eventsFile, { flushEvery: 1 });
+  const resourceRecorder = new JsonlRecorder(resourcesFile, { flushEvery: 1 });
   let eventCount = 0;
   const record = (event) => {
     recorder.append(event);
     eventCount += 1;
   };
+  const processStartedMs = performance.now();
   const { child, args } = shippedRuntimeLaunch(installation, { launchProfile });
+  const resourceSampler = new ProcessResourceSampler(child.pid, {
+    onSample: (sample) => resourceRecorder.append({ type: "process_resource", ...sample })
+  });
+  await resourceSampler.start();
   const stdoutStream = createWriteStream(stdoutFile);
   const stderrStream = createWriteStream(stderrFile);
   child.stdout.pipe(stdoutStream);
   child.stderr.pipe(stderrStream);
   let session = null;
   let capabilities = null;
+  let endpointReadyMs = null;
+  let interactiveReadyMs = null;
+  let decisionWindowStartedMs = null;
+  let decisionWindowEndedMs = null;
+  let resourceSamplingResult = null;
   let terminal = "not_started";
   let unknownCount = 0;
   let readFailures = 0;
@@ -304,16 +320,23 @@ export async function runBoundedJourney({
   const surfaces = new Set();
   const semanticDecisionDurations = [];
   const readKinds = new Set();
+  const stopResourceSampling = async () => {
+    if (resourceSamplingResult == null) resourceSamplingResult = await resourceSampler.stop();
+    resourceRecorder.close();
+    return resourceSamplingResult;
+  };
 
   try {
     const capabilitiesResult = await waitForEndpoint(endpoint, timeoutMs, child);
     if (!capabilitiesResult.ok) throw new Error(`Connector endpoint did not become ready: ${capabilitiesResult.error}`);
+    endpointReadyMs = performance.now();
     capabilities = capabilitiesResult.value;
     const capabilityGate = evaluateHeadlessCapabilities(capabilities);
     if (!capabilityGate.ok) throw new Error(`Headless capability gate failed: ${capabilityGate.errors.join(", ")}`);
     const observed = await waitForInteractiveSnapshot(endpoint, timeoutMs, child);
     let snapshot = observed.at(-1)?.value;
     if (!snapshot) throw new Error("No interactive Player Environment snapshot mounted.");
+    interactiveReadyMs = performance.now();
 
     const client = new PlayerEnvironmentRestClient(endpoint, 30_000);
     session = new EnvironmentControllerSession(client, {
@@ -325,6 +348,7 @@ export async function runBoundedJourney({
 
     for (let index = 0; index < maxActions; index += 1) {
       const snapshotReadyMs = performance.now();
+      decisionWindowStartedMs ??= snapshotReadyMs;
       if (snapshot.status === "visible_unsupported") {
         record({
           type: "stop",
@@ -420,6 +444,7 @@ export async function runBoundedJourney({
         break;
       }
       const successorReadyMs = performance.now();
+      decisionWindowEndedMs = successorReadyMs;
       const timing = normalizedDecisionTiming({
         snapshotReadyMs,
         policySelectedMs,
@@ -436,9 +461,10 @@ export async function runBoundedJourney({
       }
       snapshot = successor;
 
-      if (combatDeliveries >= 3
-          && ["main_menu", "singleplayer_menu", "event_option", "map_navigation", "combat_turn"]
-            .every((kind) => surfaces.has(kind))) {
+      if (evaluateSurfaceCoverage({
+        surfaces: [...surfaces],
+        combatDeliveries
+      }).verdict === "coverage_reached") {
         terminal = "coverage_reached";
         break;
       }
@@ -453,6 +479,14 @@ export async function runBoundedJourney({
       unknownCount,
       readFailures,
       successorFailures
+    });
+    const resources = await stopResourceSampling();
+    const performanceSummary = summarizeHostPerformance({
+      samples: resources.samples,
+      sampleErrors: resources.errors,
+      decisionWindowStartedMs,
+      decisionWindowEndedMs,
+      deliveredDecisions: deliveredActions
     });
     const report = {
       schema_version: 1,
@@ -476,7 +510,16 @@ export async function runBoundedJourney({
       read_kinds_exercised: [...readKinds].sort(),
       event_count: eventCount,
       events_files: recorder.files.map((file) => path.basename(file)),
-      timing: { semantic_decision_ms: summarizeDurations(semanticDecisionDurations) },
+      resources_files: resourceRecorder.files.map((file) => path.basename(file)),
+      timing: {
+        boot: {
+          process_start_to_endpoint_ms: endpointReadyMs == null ? null : endpointReadyMs - processStartedMs,
+          process_start_to_interactive_ms:
+            interactiveReadyMs == null ? null : interactiveReadyMs - processStartedMs
+        },
+        semantic_decision_ms: summarizeDurations(semanticDecisionDurations)
+      },
+      performance: performanceSummary,
       verdict,
       non_claims: [
         "The deterministic policy is a test consumer, not a gameplay agent.",
@@ -492,6 +535,14 @@ export async function runBoundedJourney({
   } catch (error) {
     terminal = terminal === "not_started" ? "probe_error" : terminal;
     const message = error instanceof Error ? error.message : String(error);
+    const resources = await stopResourceSampling();
+    const performanceSummary = summarizeHostPerformance({
+      samples: resources.samples,
+      sampleErrors: resources.errors,
+      decisionWindowStartedMs,
+      decisionWindowEndedMs,
+      deliveredDecisions: deliveredActions
+    });
     const report = {
       schema_version: 1,
       generated_at: new Date().toISOString(),
@@ -512,6 +563,16 @@ export async function runBoundedJourney({
       read_kinds_exercised: [...readKinds].sort(),
       event_count: eventCount,
       events_files: recorder.files.map((file) => path.basename(file)),
+      resources_files: resourceRecorder.files.map((file) => path.basename(file)),
+      timing: {
+        boot: {
+          process_start_to_endpoint_ms: endpointReadyMs == null ? null : endpointReadyMs - processStartedMs,
+          process_start_to_interactive_ms:
+            interactiveReadyMs == null ? null : interactiveReadyMs - processStartedMs
+        },
+        semantic_decision_ms: summarizeDurations(semanticDecisionDurations)
+      },
+      performance: performanceSummary,
       error: message,
       verdict: evaluateBoundedJourney({
         surfaces: [...surfaces],
@@ -528,6 +589,7 @@ export async function runBoundedJourney({
     throw new Error(`${message}; evidence: ${reportFile}`);
   } finally {
     recorder.close();
+    await stopResourceSampling();
     try {
       await session?.close();
     } catch {
