@@ -98,21 +98,28 @@ internal sealed class CharacterSelectSurfaceReader : ILiveSurfaceReader
                          && embark.IsEnabled
                          && ConnectorMod.IsNodeVisible(embark)
                          && !selected.IsLocked;
-        bool canGoBack = back.IsEnabled && ConnectorMod.IsNodeVisible(back);
-        bool canDecreaseAscension = ascensionVisible
+        bool canGoBack = tutorialGateClear
+                         && back.IsEnabled
+                         && ConnectorMod.IsNodeVisible(back);
+        bool canDecreaseAscension = tutorialGateClear
+                                    && ascensionVisible
                                     && leftArrow.IsEnabled
                                     && ConnectorMod.IsNodeVisible(leftArrow);
-        bool canIncreaseAscension = ascensionVisible
+        bool canIncreaseAscension = tutorialGateClear
+                                    && ascensionVisible
                                     && rightArrow.IsEnabled
                                     && ConnectorMod.IsNodeVisible(rightArrow);
 
-        bool hasActionableControl = visibleCharacters.Any(character =>
-            character.IsEnabled && !character.IsLocked && !character.IsSelected)
+        bool hasActionableControl = tutorialGateClear
+            && (visibleCharacters.Any(character =>
+                character.IsEnabled && !character.IsLocked && !character.IsSelected)
             || canDecreaseAscension
             || canIncreaseAscension
             || canEmbark
-            || canGoBack;
-        string stage = hasActionableControl ? "choosing" : "transitioning";
+            || canGoBack);
+        string stage = !tutorialGateClear
+            ? "awaiting_tutorial_preference"
+            : hasActionableControl ? "choosing" : "transitioning";
         var surface = new CharacterSelectSurface(
             Kind,
             stage,
@@ -125,7 +132,10 @@ internal sealed class CharacterSelectSurfaceReader : ILiveSurfaceReader
             canDecreaseAscension,
             canIncreaseAscension,
             canEmbark,
-            canGoBack);
+            canGoBack)
+        {
+            ActionAuthorityEnabled = tutorialGateClear
+        };
         string[] missing = tutorialGateClear
             ? Array.Empty<string>()
             : new[] { "accept_tutorials_ftue_child_surface" };
@@ -159,7 +169,7 @@ internal sealed class CharacterSelectSurfaceReader : ILiveSurfaceReader
             game,
             missing.Length == 0
                 ? Array.Empty<string>()
-                : new[] { "first_run_tutorial_child_not_implemented" });
+                : new[] { "first_run_tutorial_child_mount_pending" });
     }
 
     private static VisibleSelectedCharacterDetails BuildSelectedDetails(NCharacterSelectButton selected)

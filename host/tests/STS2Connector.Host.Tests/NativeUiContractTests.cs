@@ -606,6 +606,13 @@ public sealed class NativeUiContractTests
         Assert.Equal("character-screen", operands["screen_id"]);
         Assert.Equal("choice-available", operands["character_choice_id"]);
         Assert.DoesNotContain("action_id", operands.Keys);
+
+        var awaitingChildModal = surface with
+        {
+            Stage = "awaiting_tutorial_preference",
+            ActionAuthorityEnabled = false
+        };
+        Assert.Empty(NativeUiActionRuntime.DescribeCharacterSelectCommands(awaitingChildModal));
     }
 
     [Fact]
