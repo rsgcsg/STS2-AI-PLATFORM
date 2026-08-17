@@ -94,19 +94,20 @@ lifecycle repetition, not a long-soak throughput result.
 
 The exact managed candidate patch `b6dc69a...` and Host artifact `2b8fa6c...`
 measured the same canonical decision unit through a partial strict Connector
-SDK projection:
+SDK projection on clean source `b573fed...`:
 
 | Workers | Reset-inclusive decisions/s | Lifecycle-inclusive decisions/s | Summed peak RSS |
 |---:|---:|---:|---:|
-| 1 | 236.12 | 136.40 | 131.7 MiB |
-| 2 | 428.22 | 255.08 | 263.4 MiB |
-| 4 | 750.25 | 457.60 | 531.6 MiB |
-| 8 | 1,017.39 | 664.75 | 1,092.6 MiB |
+| 1 | 239.69 | 158.75 | 132.2 MiB |
+| 2 | 398.12 | 265.66 | 271.3 MiB |
+| 4 | 720.96 | 500.70 | 540.8 MiB |
+| 8 | 956.33 | 694.51 | 1,063.2 MiB |
 
-Each worker completed three short episodes and exited zero. This crosses the
-provisional aggregate throughput hypothesis only under the reset-inclusive
-metric. The projection is incomplete and unqualified, so this table is a route
-priority signal, not semantic or release admission.
+Each worker completed three short episodes and exited zero. A predecessor
+same-artifact window measured `1,017.39`, but its adapter worktree was dirty.
+The clean-source result does not cross the provisional threshold, so `>=1000`
+is not repeatably established. The projection is incomplete and unqualified;
+both windows are route-priority signals, not semantic or release admission.
 
 The current performance stop rule is workload-based: once the Host is at most
 about 20% of end-to-end training time and doubling Host speed improves total

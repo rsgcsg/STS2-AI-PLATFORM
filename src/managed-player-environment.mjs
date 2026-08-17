@@ -40,10 +40,10 @@ function definitionId(value) {
   return entry.trim().replace(/[^a-z0-9]+/giu, "_").replace(/^_+|_+$/gu, "").toUpperCase() || "UNKNOWN";
 }
 
-function visibleState({ enabled = true, selected = null } = {}) {
+function visibleState({ enabled = null, selected = null } = {}) {
   return {
     visible: true,
-    enabled,
+    ...(enabled == null ? {} : { enabled }),
     ...(selected == null ? {} : { selected }),
     observation_basis: "native_visible_fact"
   };
@@ -57,8 +57,17 @@ function createProjectionContext({ state, runtimeInstanceId, sequence }) {
   const actions = [];
   const bindings = new Map();
 
-  function referent({ role, label, properties, enabled = true, selected = null, occurrence = 0 }) {
-    const referentId = stableId("ref", snapshotId, role, properties, occurrence);
+  function referent({
+    role,
+    label,
+    properties,
+    enabled = null,
+    selected = null,
+    occurrence = 0,
+    id = null,
+    includeEntityId = true
+  }) {
+    const referentId = id ?? stableId("ref", snapshotId, role, properties, occurrence);
     const value = {
       referent_id: referentId,
       role,
@@ -66,7 +75,7 @@ function createProjectionContext({ state, runtimeInstanceId, sequence }) {
       label: label == null ? null : String(label),
       state: visibleState({ enabled, selected }),
       properties_schema: `sts2.player-environment/referent/${role.replace(/[^a-z0-9_]+/giu, "_").toLowerCase()}-1`,
-      properties: { ...properties, entity_id: referentId }
+      properties: { ...properties, ...(includeEntityId ? { entity_id: referentId } : {}) }
     };
     referents.push(value);
     return value;
@@ -148,6 +157,293 @@ function cardProperties(card) {
   };
 }
 
+function mapPointType(value) {
+  return String(value ?? "unknown").toLowerCase();
+}
+
+function mapCoordinateKey(col, row) {
+  return `${col},${row}`;
+}
+
+function buildPersistentVisibleState(state, snapshotId) {
+  const run = state.context;
+  const player = state.player;
+  if (!plainObject(run) || !plainObject(player)) {
+    return { content: null, complete: false, missing: ["canonical_persistent_run_identity"] };
+  }
+  const bosses = Array.isArray(run.bosses) ? run.bosses : [];
+  const modifiers = Array.isArray(run.modifiers) ? run.modifiers : [];
+  const relics = Array.isArray(player.relics) ? player.relics : [];
+  const potions = Array.isArray(player.potions) ? player.potions : [];
+  const requiredScalars = [
+    run.act,
+    run.act_definition_id,
+    run.act_name,
+    run.total_floor,
+    run.ascension,
+    player.native_ref,
+    player.character_id,
+    player.name,
+    player.hp,
+    player.max_hp,
+    player.gold,
+    player.max_potion_slots
+  ];
+  const identitiesComplete = relics.every((relic) =>
+    typeof relic?.native_ref === "string" && typeof relic?.id === "string")
+    && potions.every((potion) =>
+      typeof potion?.native_ref === "string" && typeof potion?.id === "string");
+  const stableDetailsComplete = relics.every((relic) => relic?.hover_tip_count === 0)
+    && potions.every((potion) => potion?.hover_tip_count === 0)
+    && modifiers.length === 0;
+  const complete = requiredScalars.every((value) => value != null)
+    && bosses.every((boss) => typeof boss?.id === "string" && Number.isSafeInteger(boss?.order))
+    && identitiesComplete
+    && stableDetailsComplete;
+  if (!complete) {
+    return {
+      content: null,
+      complete: false,
+      missing: [
+        "canonical_persistent_run_identity",
+        ...(identitiesComplete ? [] : ["native_persistent_entity_identity"]),
+        ...(stableDetailsComplete ? [] : ["persistent_hover_or_modifier_facts"])
+      ]
+    };
+  }
+  const playerEntityId = stableId("player", snapshotId, player.native_ref);
+  return {
+    complete: true,
+    missing: [],
+    content: {
+      content_schema: "sts2.player-environment/persistent/run-player-1",
+      content: {
+        scope: "active_single_player_run",
+        run: {
+          act: run.act,
+          act_definition_id: definitionId(run.act_definition_id),
+          act_name: run.act_name,
+          floor: run.total_floor,
+          ascension: run.ascension,
+          bosses: bosses.map((boss) => ({
+            definition_id: definitionId(boss.id),
+            name: boss.name ?? null,
+            order: boss.order
+          })),
+          modifiers: []
+        },
+        player: {
+          entity_id: playerEntityId,
+          character_definition_id: definitionId(player.character_id),
+          character_name: player.name,
+          hp: player.hp,
+          max_hp: player.max_hp,
+          gold: player.gold,
+          relics: relics.map((relic, index) => ({
+            entity_id: stableId("relic", snapshotId, relic.native_ref, index),
+            definition_id: definitionId(relic.id),
+            name: relic.name ?? null,
+            description: relic.description ?? null,
+            ...(relic.counter == null ? {} : { counter: relic.counter }),
+            keywords: [],
+            card_previews: []
+          })),
+          potions: potions.map((potion, index) => ({
+            entity_id: stableId("potion", snapshotId, potion.native_ref, index),
+            definition_id: definitionId(potion.id),
+            name: potion.name ?? null,
+            description: potion.description ?? null,
+            slot: potion.slot,
+            keywords: [],
+            card_previews: []
+          })),
+          max_potion_slots: player.max_potion_slots
+        },
+        completeness: {
+          player_visible_semantics: "complete_for_strategy_relevant_persistent_single_player_hud",
+          sources: [
+            "RunState.CurrentActIndex+Act+TotalFloor+AscensionLevel+Modifiers",
+            "NTopBar+NTopBarBossIcon+NTopBarFloorIcon+NTopBarHp+NTopBarGold",
+            "NRelicInventory+NPotionContainer+LocalContext.GetMe"
+          ],
+          missing: []
+        }
+      }
+    }
+  };
+}
+
+function buildVisibleMap(state, ctx) {
+  const map = state.visible_map;
+  if (!plainObject(map) || map.type !== "map" || !Array.isArray(map.rows)) return null;
+  const choices = Array.isArray(state.choices) ? state.choices : [];
+  const choicesByCoord = new Map(choices.map((choice) => [
+    mapCoordinateKey(choice.col, choice.row),
+    choice
+  ]));
+  const rows = map.rows.flatMap((row) => Array.isArray(row) ? row : []);
+  const nodesByCoord = new Map(rows.map((node) => [
+    mapCoordinateKey(node.col, node.row),
+    node
+  ]));
+  for (const choice of choices) {
+    const key = mapCoordinateKey(choice.col, choice.row);
+    nodesByCoord.set(key, { ...(nodesByCoord.get(key) ?? {}), ...choice });
+  }
+  if (plainObject(map.boss)) {
+    const key = mapCoordinateKey(map.boss.col, map.boss.row);
+    nodesByCoord.set(key, { ...(nodesByCoord.get(key) ?? {}), ...map.boss, children: [] });
+  }
+  const rawNodes = [...nodesByCoord.values()];
+  const typeByCoord = new Map(rawNodes.map((node) => [
+    mapCoordinateKey(node.col, node.row),
+    mapPointType(node.type)
+  ]));
+  const nodes = [];
+  const nextOptions = [];
+  let nativeIdentityComplete = true;
+  let topologyComplete = true;
+  for (const node of rawNodes.sort((left, right) => left.row - right.row || left.col - right.col)) {
+    const key = mapCoordinateKey(node.col, node.row);
+    const choice = choicesByCoord.get(key);
+    const children = [...(node.children ?? [])]
+      .sort((left, right) => left.row - right.row || left.col - right.col)
+      .map((child) => {
+      const childKey = mapCoordinateKey(child.col, child.row);
+      const pointType = mapPointType(child.type ?? typeByCoord.get(childKey));
+      if (child.type == null && !typeByCoord.has(childKey)) topologyComplete = false;
+      return { col: child.col, row: child.row, point_type: pointType };
+      });
+    const pointType = mapPointType(node.type);
+    const nodeState = choice != null
+      ? "travelable"
+      : node.current === true ? "current"
+        : node.visited === true ? "visited" : "untravelable";
+    let referent;
+    if (choice != null) {
+      nativeIdentityComplete = nativeIdentityComplete
+        && typeof choice.native_ref === "string" && choice.native_ref.length > 0;
+      referent = ctx.referent({
+        role: "option",
+        label: null,
+        properties: { col: node.col, row: node.row, point_type: pointType }
+      });
+      nextOptions.push(referent.properties);
+      ctx.action({
+        verb: "activate",
+        subject: referent,
+        label: `Choose ${pointType} at (${node.col},${node.row})`,
+        raw: {
+          cmd: "action",
+          action: "select_map_node",
+          args: { col: node.col, row: node.row, map_point_ref: choice.native_ref }
+        }
+      });
+    } else {
+      referent = ctx.referent({
+        role: "node",
+        label: null,
+        properties: {
+          col: node.col,
+          row: node.row,
+          point_type: pointType,
+          state: nodeState,
+          children
+        }
+      });
+    }
+    nodes.push({
+      col: node.col,
+      row: node.row,
+      point_type: pointType,
+      state: nodeState,
+      children,
+      entity_id: referent.referent_id
+    });
+  }
+  const coordinate = (value) => value == null ? null : ({
+    col: value.col,
+    row: value.row,
+    point_type: typeByCoord.get(mapCoordinateKey(value.col, value.row)) ?? null
+  });
+  const current = coordinate(map.current_coord);
+  const visited = rawNodes.filter((node) => node.visited === true).map(coordinate);
+  return {
+    surface: {
+      kind: "map_navigation",
+      travel_enabled: true,
+      traveling: false,
+      drawing_mode: "none",
+      next_options: nextOptions,
+      can_exit_annotation: false
+    },
+    context: {
+      kind: "map",
+      act_index: state.context?.act_index,
+      ...(current == null ? {} : { current_position: current }),
+      visited,
+      nodes
+    },
+    complete: nativeIdentityComplete && topologyComplete && rawNodes.length > 1,
+    missing: [
+      ...(nativeIdentityComplete ? [] : ["native_map_point_identity"]),
+      ...(topologyComplete && rawNodes.length > 1 ? [] : ["full_visible_map_topology"])
+    ]
+  };
+}
+
+function visibleText(value) {
+  return value == null
+    ? null
+    : String(value).replace(/\[\/?[a-z_][a-z0-9_=]*\]/giu, "").replace(/\n/gu, " ");
+}
+
+function visibleCombatCard(card, entityId) {
+  return {
+    entity_id: entityId,
+    definition_id: definitionId(card?.id ?? card?.name),
+    name: card?.name ?? null,
+    type: card?.type ?? "Unknown",
+    cost: String(card?.cost ?? "?"),
+    ...(card?.star_cost == null ? {} : { star_cost: String(card.star_cost) }),
+    description: visibleText(card?.description),
+    rarity: card?.rarity ?? "Unknown",
+    is_upgraded: card?.is_upgraded === true || card?.upgraded === true,
+    is_selected: false,
+    ...(card?.enchantment == null ? {} : {
+      enchantment: {
+        definition_id: definitionId(card.enchantment_id ?? card.enchantment),
+        name: card.enchantment,
+        description: card.enchantment_description ?? null,
+        amount: card.enchantment_amount ?? 0,
+        visibility_basis: "card_hover_semantics"
+      }
+    }),
+    target_type: card?.target_type ?? null,
+    can_play: card?.can_play ?? null,
+    ...(card?.unplayable_reason == null ? {} : { unplayable_reason: card.unplayable_reason })
+  };
+}
+
+function visibleStatus(status) {
+  return {
+    definition_id: definitionId(status?.id ?? status?.name),
+    name: status?.name ?? null,
+    amount: status?.amount ?? 0,
+    type: status?.type ?? "Unknown",
+    description: visibleText(status?.description)
+  };
+}
+
+function visibleIntent(intent) {
+  return {
+    type: intent?.type ?? "Unknown",
+    label: visibleText(intent?.label),
+    title: visibleText(intent?.title),
+    description: visibleText(intent?.description)
+  };
+}
+
 function currentSurface(state, ctx) {
   const commonContext = {
     kind: "run",
@@ -158,43 +454,25 @@ function currentSurface(state, ctx) {
 
   switch (state.decision) {
     case "map_select": {
-      const nativeIdentityComplete = (state.choices ?? []).every((choice) =>
-        typeof choice.native_ref === "string" && choice.native_ref.length > 0);
-      const choices = (state.choices ?? []).map((choice, index) => {
-        const node = ctx.referent({
-          role: "map_node",
-          label: `${choice.type ?? "node"} (${choice.col},${choice.row})`,
-          occurrence: index,
-          properties: {
-            col: choice.col,
-            row: choice.row,
-            point_type: String(choice.type ?? "unknown").toLowerCase(),
-            state: "travelable"
-          }
-        });
-        ctx.action({
-          verb: "activate",
-          subject: node,
-          label: `Travel to ${choice.type ?? "node"} (${choice.col},${choice.row})`,
-          raw: {
-            cmd: "action",
-            action: "select_map_node",
-            args: { col: choice.col, row: choice.row, map_point_ref: choice.native_ref }
-          }
-        });
-        return node.properties;
-      });
+      const visibleMap = buildVisibleMap(state, ctx);
+      if (visibleMap == null) {
+        return {
+          kind: "map_navigation",
+          stage: "ready",
+          prompt: null,
+          surface: { kind: "map_navigation", stage: "ready", next_options: [] },
+          context: { kind: "map", nodes: [], visited: [] },
+          complete: false,
+          missing: ["full_visible_map_topology"]
+        };
+      }
       return {
         kind: "map_navigation",
         stage: "ready",
         prompt: null,
-        surface: { kind: "map_navigation", stage: "ready", choices },
-        context: { ...commonContext, kind: "map" },
-        complete: nativeIdentityComplete,
-        missing: [
-          "full_visible_map_topology",
-          ...(nativeIdentityComplete ? [] : ["native_map_point_identity"])
-        ]
+        ...visibleMap,
+        visibleInformation: "contract_complete_for_visible_singleplayer_map_navigation",
+        interactionDiscovery: "derived_from_exact_current_travelable_map_point_controls"
       };
     }
     case "event_choice": {
@@ -605,43 +883,85 @@ function currentSurface(state, ctx) {
         card.can_play === true && card.target_type === "AnyAlly");
       const unsupportedPotionTarget = rawPotions.some((potion) =>
         potion.can_use === true && potion.binding_supported !== true);
+      const semanticFactsComplete = typeof state.encounter_type === "string"
+        && typeof state.turn_owner === "string"
+        && typeof state.is_play_phase === "boolean"
+        && Number.isSafeInteger(state.exhaust_pile_count)
+        && Number.isSafeInteger(state.orb_slots)
+        && Array.isArray(state.orbs)
+        && Array.isArray(state.companions)
+        && Array.isArray(state.player_statuses)
+        && rawEnemies.every((enemy) => typeof enemy.id === "string"
+          && Number.isSafeInteger(enemy.combat_id)
+          && Array.isArray(enemy.statuses)
+          && (enemy.intents ?? []).every((intent) =>
+            typeof intent.label === "string"
+            && typeof intent.title === "string"
+            && typeof intent.description === "string"));
 
-      const handEntries = rawHand.map((card, index) => ({
-        raw: card,
-        referent: ctx.referent({
-          role: "card",
-          label: card.name ?? `Card ${index + 1}`,
-          enabled: card.can_play === true,
-          occurrence: index,
-          properties: { index: card.index ?? index, ...cardProperties(card) }
-        })
-      }));
       const enemyEntries = rawEnemies.map((enemy, index) => {
-        const { native_ref: _nativeRef, ...visibleEnemy } = enemy;
+        const properties = {
+          entity_id: stableId("enemy", ctx.snapshotId, enemy.native_ref),
+          combat_id: enemy.combat_id,
+          definition_id: definitionId(enemy.id),
+          name: enemy.name ?? null,
+          hp: enemy.hp,
+          max_hp: enemy.max_hp,
+          block: enemy.block,
+          statuses: (enemy.statuses ?? []).map(visibleStatus),
+          intents: (enemy.intents ?? []).map(visibleIntent)
+        };
         return {
           raw: enemy,
           referent: ctx.referent({
             role: "enemy",
             label: enemy.name ?? `Enemy ${index + 1}`,
-            enabled: (enemy.hp ?? 0) > 0,
+            id: properties.entity_id,
             occurrence: index,
-            properties: { ...visibleEnemy, index: enemy.index ?? index }
+            properties
+          })
+        };
+      });
+      const enemyReferentByNative = new Map(enemyEntries.map((entry) => [
+        entry.raw.native_ref,
+        entry.referent
+      ]));
+      const handEntries = rawHand.map((card, index) => {
+        const entityId = stableId("card", ctx.snapshotId, card.native_ref);
+        const validTargets = (card.valid_target_refs ?? [])
+          .map((nativeRef) => enemyReferentByNative.get(nativeRef)?.referent_id)
+          .filter(Boolean);
+        const option = {
+          entity_id: entityId,
+          name: card.name ?? null,
+          target_entity_ids: validTargets
+        };
+        return {
+          raw: card,
+          card: visibleCombatCard(card, entityId),
+          option,
+          referent: ctx.referent({
+            role: "playable_card",
+            label: card.name ?? `Card ${index + 1}`,
+            id: entityId,
+            occurrence: index,
+            properties: option
           })
         };
       });
 
-      for (const { raw: card, referent } of handEntries.filter(({ referent: item }) =>
-        item.state.enabled === true)) {
+      for (const { raw: card, referent } of handEntries.filter(({ raw: item }) =>
+        item.can_play === true)) {
         if (card.target_type === "AnyEnemy") {
           const validTargets = new Set(card.valid_target_refs ?? []);
-          for (const { raw: enemy, referent: target } of enemyEntries.filter(({ referent: item }) =>
-            item.state.enabled === true)) {
+          for (const { raw: enemy, referent: target } of enemyEntries.filter(({ raw: item }) =>
+            (item.hp ?? 0) > 0)) {
             if (!validTargets.has(enemy.native_ref)) continue;
             ctx.action({
               verb: "play",
               subject: referent,
               arguments: [{ role: "target", referent: target }],
-              label: `Play ${referent.label} on ${target.label}`,
+              label: `Play ${referent.label} -> ${target.label}`,
               raw: {
                 cmd: "action",
                 action: "play_card",
@@ -666,16 +986,18 @@ function currentSurface(state, ctx) {
       });
 
       for (const [index, potion] of rawPotions.entries()) {
-        const {
-          native_ref: _nativeRef,
-          valid_target_refs: _validTargetRefs,
-          binding_supported: _bindingSupported,
-          ...visiblePotion
-        } = potion;
+        const targetIds = (potion.valid_target_refs ?? [])
+          .map((nativeRef) => enemyReferentByNative.get(nativeRef)?.referent_id)
+          .filter(Boolean);
+        const visiblePotion = {
+          entity_id: stableId("potion", ctx.snapshotId, potion.native_ref),
+          name: potion.name ?? null,
+          target_entity_ids: targetIds
+        };
         const potionReferent = ctx.referent({
-          role: "potion",
+          role: "usable_potion",
           label: potion.name ?? `Potion ${index + 1}`,
-          enabled: potion.can_use === true || potion.can_discard === true,
+          id: visiblePotion.entity_id,
           occurrence: index,
           properties: visiblePotion
         });
@@ -727,29 +1049,84 @@ function currentSurface(state, ctx) {
         }
       }
 
-      const complete = identityComplete && !unsupportedCardTarget && !unsupportedPotionTarget;
+      const playerEntityId = stableId("player", ctx.snapshotId, state.player?.native_ref);
+      const playerContext = {
+        player_entity_id: playerEntityId,
+        block: state.player?.block ?? 0,
+        energy: state.energy ?? 0,
+        max_energy: state.max_energy ?? 0,
+        hand: handEntries.map((entry) => entry.card),
+        draw_pile_count: state.draw_pile_count ?? 0,
+        discard_pile_count: state.discard_pile_count ?? 0,
+        exhaust_pile_count: state.exhaust_pile_count ?? 0,
+        statuses: (state.player_statuses ?? []).map(visibleStatus),
+        companions: state.companions ?? [],
+        potion_states: rawPotions.map((potion) => ({
+          entity_id: stableId("potion", ctx.snapshotId, potion.native_ref),
+          target_type: potion.target_type,
+          can_use: potion.can_use === true,
+          automatic: potion.usage === "Automatic"
+        })),
+        orbs: state.orbs ?? [],
+        orb_slots: state.orb_slots ?? 0
+      };
+      ctx.referent({
+        role: "player",
+        label: null,
+        id: playerEntityId,
+        properties: playerContext,
+        includeEntityId: false
+      });
+      const complete = identityComplete
+        && semanticFactsComplete
+        && !unsupportedCardTarget
+        && !unsupportedPotionTarget;
+      const actionComplete = identityComplete
+        && !unsupportedCardTarget
+        && !unsupportedPotionTarget;
       return {
         kind: "combat_turn",
         stage: "ready",
         prompt: null,
-        surface: { kind: "combat_turn", stage: "ready" },
-        context: {
-          ...commonContext,
-          kind: "combat",
-          round: state.round ?? null,
-          energy: state.energy ?? null,
-          max_energy: state.max_energy ?? null,
-          hand: handEntries.map(({ referent }) => referent.properties),
-          enemies: enemyEntries.map(({ referent }) => referent.properties),
-          player_powers: state.player_powers ?? null,
-          draw_pile_count: state.draw_pile_count ?? null,
-          discard_pile_count: state.discard_pile_count ?? null
+        surface: {
+          kind: "combat_turn",
+          can_end_turn: true,
+          playable_cards: handEntries.filter((entry) => entry.raw.can_play === true)
+            .map((entry) => entry.option),
+          usable_potions: rawPotions.filter((potion) => potion.can_use === true)
+            .map((potion) => ({
+              entity_id: stableId("potion", ctx.snapshotId, potion.native_ref),
+              name: potion.name ?? null,
+              target_entity_ids: (potion.valid_target_refs ?? [])
+                .map((nativeRef) => enemyReferentByNative.get(nativeRef)?.referent_id)
+                .filter(Boolean)
+            }))
         },
+        context: {
+          kind: "combat",
+          encounter_type: state.encounter_type,
+          round: state.round,
+          turn_owner: state.turn_owner,
+          is_play_phase: state.is_play_phase,
+          player: playerContext,
+          enemies: enemyEntries.map(({ referent }) => referent.properties),
+        },
+        actionComplete,
         complete,
         missing: [
           ...(identityComplete ? [] : ["native_combat_operand_identity"]),
+          ...(semanticFactsComplete ? [] : ["complete_visible_combat_context"]),
           ...(unsupportedCardTarget ? ["native_any_ally_card_targeting"] : []),
           ...(unsupportedPotionTarget ? ["native_potion_target_binding"] : [])
+        ],
+        visibleInformation: "contract_complete_for_immediate_combat_turn_including_visible_companions; pile contents available through a separate read-only Player Environment Read",
+        interactionDiscovery: "derived_from_same_validator_as_execution",
+        hiddenByPolicy: [
+          "hidden_rng",
+          "draw_pile_true_order",
+          "future_enemy_moves",
+          "future_rewards",
+          "future_events"
         ]
       };
     }
@@ -977,9 +1354,51 @@ function runDeckRead(snapshotId, state) {
       card_count: state.player.deck.length,
       cards: state.player.deck.map((card, index) => ({
         entity_id: stableId("deck_card", snapshotId, index, card.id, card.upgraded),
-        ...cardProperties(card),
+        ...visibleCombatCard(card, stableId("deck_card", snapshotId, index, card.id, card.upgraded)),
         is_selected: false
       }))
+    },
+    completeness: {
+      status: "partial",
+      visible_information: "managed_candidate_run_deck_projection_not_cross_host_qualified",
+      interaction_discovery: "read_only",
+      missing: ["native_card_entity_identity", "fully_rendered_localized_dynamic_text"],
+      hidden_by_policy: []
+    }
+  };
+}
+
+function combatPilesRead(snapshotId, state) {
+  if (!Array.isArray(state.combat_piles)) return null;
+  return {
+    descriptor: {
+      read_id: stableId("read", snapshotId, "combat_piles"),
+      kind: "combat_piles",
+      target_referent_id: null,
+      content_schema: "sts2.player-environment/read/combat_piles-1",
+      visibility_basis: "player_openable_draw_discard_exhaust_pile_views",
+      snapshot_bound: true,
+      ordering_semantics: "unordered_multiset",
+      hidden_by_policy: ["draw_pile_true_order"]
+    },
+    content: {
+      kind: "combat_piles",
+      zones: state.combat_piles.map((zone) => ({
+        zone: zone.pile,
+        card_count: zone.cards?.length ?? 0,
+        ordering_semantics: "unordered_multiset",
+        cards: (zone.cards ?? []).map((card, index) => visibleCombatCard(
+          card,
+          stableId("pile_card", snapshotId, zone.pile, card.native_ref, index)
+        ))
+      }))
+    },
+    completeness: {
+      status: "complete",
+      visible_information: "complete_for_player_visible_combat_pile_contents_without_draw_order",
+      interaction_discovery: "read_only",
+      missing: [],
+      hidden_by_policy: ["draw_pile_true_order"]
     }
   };
 }
@@ -1000,18 +1419,25 @@ export function projectManagedCandidateDecision({ state, runtimeInstanceId, envi
 
   const ctx = createProjectionContext({ state, runtimeInstanceId, sequence });
   const surface = currentSurface(state, ctx);
+  const persistent = buildPersistentVisibleState(state, ctx.snapshotId);
   const terminal = state.decision === "game_over";
-  const actionProjectionComplete = surface.complete === true && ctx.actions.length <= ACTION_LIMIT;
+  const actionProjectionComplete = (surface.actionComplete ?? surface.complete) === true
+    && ctx.actions.length <= ACTION_LIMIT;
   if (!actionProjectionComplete) {
     ctx.actions.length = 0;
     ctx.bindings.clear();
   }
-  const read = runDeckRead(ctx.snapshotId, state);
+  const reads = [runDeckRead(ctx.snapshotId, state), combatPilesRead(ctx.snapshotId, state)]
+    .filter(Boolean);
   const missing = [...new Set([
-    "canonical_persistent_run_identity",
-    "native_entity_identity",
+    ...persistent.missing,
     ...(surface.missing ?? [])
   ])];
+  const contractComplete = persistent.complete
+    && surface.complete === true
+    && missing.length === 0
+    && typeof surface.visibleInformation === "string"
+    && typeof surface.interactionDiscovery === "string";
   const snapshot = {
     protocol_version: SUPPORTED_PLAYER_ENVIRONMENT_PROTOCOL,
     schema: "sts2.player-environment/snapshot-1",
@@ -1021,7 +1447,7 @@ export function projectManagedCandidateDecision({ state, runtimeInstanceId, envi
     status: actionProjectionComplete && ctx.actions.length > 0
       ? "interactive"
       : terminal ? "observed" : "visible_unsupported",
-    persistent: null,
+    persistent: persistent.content,
     interaction: {
       interaction_id: ctx.interactionId,
       kind: surface.kind,
@@ -1038,16 +1464,20 @@ export function projectManagedCandidateDecision({ state, runtimeInstanceId, envi
       materialized_count: actionProjectionComplete ? ctx.actions.length : 0,
       total_count: actionProjectionComplete ? ctx.actions.length : (surface.totalCount ?? 0),
       limit: ACTION_LIMIT,
-      ordering_semantics: "managed_native_order_then_operand_identity",
+      ordering_semantics: "candidate_id_then_operand_name_then_referent_id",
       actions: actionProjectionComplete ? ctx.actions : []
     },
-    reads: read == null ? [] : [read.descriptor],
+    reads: reads.map((read) => read.descriptor),
     completeness: {
-      status: "partial",
-      visible_information: "managed_candidate_projection_is_not_yet_cross_host_qualified",
-      interaction_discovery: "derived_from_exact_build_managed_decision_state",
+      status: contractComplete ? "complete" : "partial",
+      visible_information: contractComplete
+        ? surface.visibleInformation
+        : "managed_candidate_projection_is_not_yet_cross_host_qualified",
+      interaction_discovery: contractComplete
+        ? surface.interactionDiscovery
+        : "derived_from_exact_build_managed_decision_state",
       missing,
-      hidden_by_policy: ["hidden_rng", "future_rewards", "future_events"]
+      hidden_by_policy: surface.hiddenByPolicy ?? ["hidden_rng", "future_rewards", "future_events"]
     },
     session: { runtime_instance_id: runtimeInstanceId, environment_fingerprint: environmentFingerprint },
     information_policy: INFORMATION_POLICY
@@ -1057,7 +1487,7 @@ export function projectManagedCandidateDecision({ state, runtimeInstanceId, envi
     snapshot,
     bindings: ctx.bindings,
     raw_state_sha256: ctx.rawStateSha,
-    reads: read == null ? new Map() : new Map([[read.descriptor.read_id, read]])
+    reads: new Map(reads.map((read) => [read.descriptor.read_id, read]))
   });
 }
 
@@ -1091,12 +1521,19 @@ export class ManagedPlayerEnvironmentSession {
   #runtimeInstanceId;
   #environmentFingerprint;
   #character;
+  #language;
   #sequence = 0;
   #projection = null;
   #ledger = new Map();
   #tainted = false;
 
-  constructor({ process, runtimeInstanceId, environmentFingerprint, character = "Ironclad" }) {
+  constructor({
+    process,
+    runtimeInstanceId,
+    environmentFingerprint,
+    character = "Ironclad",
+    language = "en"
+  }) {
     if (process == null || typeof process.request !== "function") {
       throw new TypeError("ManagedPlayerEnvironmentSession requires a JSON-line process.");
     }
@@ -1104,6 +1541,7 @@ export class ManagedPlayerEnvironmentSession {
     this.#runtimeInstanceId = runtimeInstanceId;
     this.#environmentFingerprint = environmentFingerprint;
     this.#character = character;
+    this.#language = language;
   }
 
   get tainted() {
@@ -1116,10 +1554,11 @@ export class ManagedPlayerEnvironmentSession {
     const state = await this.#process.request({
       cmd: reset ? "reset_run" : "start_run",
       character: this.#character,
-      seed
+      seed,
+      lang: this.#language
     }, timeoutMs);
     this.#ledger.clear();
-    return this.#setState(state);
+    return this.#setState(state, timeoutMs);
   }
 
   async close() {
@@ -1151,13 +1590,7 @@ export class ManagedPlayerEnvironmentSession {
       ordering_semantics: read.descriptor.ordering_semantics,
       content_schema: read.descriptor.content_schema,
       content: read.content,
-      completeness: {
-        status: "partial",
-        visible_information: "managed_candidate_run_deck_projection_not_cross_host_qualified",
-        interaction_discovery: "read_only",
-        missing: ["native_card_entity_identity", "fully_rendered_localized_dynamic_text"],
-        hidden_by_policy: []
-      },
+      completeness: read.completeness,
       session: this.#projection.snapshot.session,
       information_policy: INFORMATION_POLICY
     };
@@ -1257,7 +1690,7 @@ export class ManagedPlayerEnvironmentSession {
       this.#ledger.set(requestId, { requestKey, receipt: value });
       return value;
     }
-    const next = this.#setState(successor);
+    const next = await this.#setState(successor, timeoutMs);
     const value = receipt({
       requestId,
       delivery: "delivered",
@@ -1271,10 +1704,21 @@ export class ManagedPlayerEnvironmentSession {
     return value;
   }
 
-  #setState(state) {
+  async #setState(state, timeoutMs) {
+    let enriched = state;
+    if (state?.decision === "map_select") {
+      try {
+        const visibleMap = await this.#process.request({ cmd: "get_map" }, timeoutMs);
+        if (plainObject(visibleMap) && visibleMap.type === "map") {
+          enriched = { ...state, visible_map: visibleMap };
+        }
+      } catch {
+        // A failed read-only enrichment never changes known mutation delivery.
+      }
+    }
     this.#sequence += 1;
     this.#projection = projectManagedCandidateDecision({
-      state,
+      state: enriched,
       runtimeInstanceId: this.#runtimeInstanceId,
       environmentFingerprint: this.#environmentFingerprint,
       sequence: this.#sequence
@@ -1288,6 +1732,7 @@ export async function startManagedPlayerEnvironmentSession({
   candidateDirectory,
   diskIdentity,
   character = "Ironclad",
+  language = "en",
   requestTimeoutMs = 10_000
 }) {
   const runtime = await startManagedCandidateRuntime({
@@ -1308,7 +1753,8 @@ export async function startManagedPlayerEnvironmentSession({
       process: runtime.process,
       runtimeInstanceId: runtime.adapterRuntimeInstanceId,
       environmentFingerprint,
-      character
+      character,
+      language
     }),
     runtime,
     environmentFingerprint

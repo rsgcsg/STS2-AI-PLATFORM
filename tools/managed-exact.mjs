@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseWorkerCounts } from "../src/capacity-benchmark.mjs";
@@ -15,6 +16,12 @@ import {
   runManagedPlayerEnvironmentProbe
 } from "../src/managed-player-environment-probe.mjs";
 import { runManagedNativeBindingGates } from "../src/managed-native-binding-gates.mjs";
+import { canonicalizeEpisodeSeed } from "../src/episode-provenance.mjs";
+import {
+  createManagedExactHostDriver,
+  createShippedReferenceHostDriver
+} from "../src/cross-host-driver.mjs";
+import { runCrossHostDifferential } from "../src/semantic-differential.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LOCAL = path.join(ROOT, ".local");
@@ -32,6 +39,10 @@ function diskIdentity() {
   const gameDirectory = discoverGameDirectory();
   if (!gameDirectory) throw new Error("Could not locate STS2; set STS2_GAME_DIR.");
   return readDiskIdentity(resolveInstallation(gameDirectory));
+}
+
+function safeTimestamp() {
+  return new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
 }
 
 async function main() {
@@ -52,7 +63,7 @@ async function main() {
     return;
   }
   const candidateDirectory = option(args, "--candidate");
-  if (["audit", "probe", "pe-probe", "pe-capacity", "native-gates", "capacity"].includes(command)
+  if (["audit", "probe", "pe-probe", "pe-capacity", "native-gates", "capacity", "cross-host"].includes(command)
       && !candidateDirectory) {
     throw new Error(`${command} requires --candidate <prepared-directory>.`);
   }
@@ -153,6 +164,71 @@ async function main() {
     process.exitCode = result.report.status === "pass" ? 0 : 3;
     return;
   }
+  if (command === "cross-host") {
+    const exactGame = diskIdentity();
+    const semanticTarget = {
+      schema: "sts2.headless/semantic-target-1",
+      target_id: "sts2-v0.111.0-player-visible-zhs-v1",
+      protocol_version: "1.0.0",
+      game_build: {
+        version: exactGame.release.version,
+        commit: exactGame.release.commit,
+        main_assembly_hash: exactGame.runtime_main_assembly_hash
+      },
+      content_policy_id: "vanilla_singleplayer_v1",
+      information_policy_id: "player_visible_v1",
+      presentation_language: option(args, "--language", "zhs")
+    };
+    const scenario = {
+      schema: "sts2.headless/scenario-1",
+      scenario_id: option(args, "--scenario-id", "first-map-prefix-v1"),
+      seed: canonicalizeEpisodeSeed(option(args, "--seed", "H1CROSSHOST01")),
+      policy_id: "deterministic-probe-1",
+      max_actions: Number(option(args, "--max-actions", "12")),
+      start_interaction_kind: "map_navigation",
+      read_policy: "none"
+    };
+    const referenceDriver = createShippedReferenceHostDriver({
+      installation: resolveInstallation(discoverGameDirectory()),
+      localRoot: LOCAL,
+      evidenceRoot: path.join(LOCAL, "evidence"),
+      semanticTarget,
+      templateId: option(args, "--template", "vanilla-clean"),
+      endpoint: option(args, "--endpoint", "http://127.0.0.1:15820"),
+      timeoutMs: Number(option(args, "--reference-timeout-ms", "90000")),
+      actionTimeoutMs: Number(option(args, "--action-timeout-ms", "20000")),
+      experimentalBuildAcknowledged: args.includes("--experimental-build")
+    });
+    const managedDriver = await createManagedExactHostDriver({
+      root: ROOT,
+      candidateDirectory,
+      diskIdentity: exactGame,
+      semanticTarget,
+      character: option(args, "--character", "Ironclad"),
+      requestTimeoutMs: Number(option(args, "--timeout-ms", "10000"))
+    });
+    const result = await runCrossHostDifferential({
+      referenceDriver,
+      candidateDriver: managedDriver,
+      scenario
+    });
+    const directory = path.join(LOCAL, "evidence", `managed-cross-host-${safeTimestamp()}`);
+    mkdirSync(directory, { recursive: true });
+    const reportFile = path.join(directory, "report.json");
+    writeFileSync(reportFile, `${JSON.stringify({
+      schema: "sts2.headless/managed-cross-host-run-1",
+      generated_at: new Date().toISOString(),
+      ...result
+    }, null, 2)}\n`);
+    console.log(JSON.stringify({
+      status: result.comparison.verdict,
+      report_file: reportFile,
+      errors: result.comparison.errors,
+      first_divergence: result.comparison.first_divergence
+    }, null, 2));
+    process.exitCode = result.comparison.verdict === "cross_host_semantic_match" ? 0 : 10;
+    return;
+  }
   if (command === "capacity") {
     const result = await runManagedCandidateCapacity({
       root: ROOT,
@@ -177,6 +253,7 @@ Commands:
   pe-probe --candidate DIR [--seed SEED] [--episodes N] [--max-actions N]
   pe-capacity --candidate DIR [--workers 1,2,4] [--episodes N] [--max-actions N]
   native-gates --candidate DIR [--seed SEED]
+  cross-host --candidate DIR [--seed SEED] [--max-actions N] [--template ID]
   capacity --candidate DIR [--workers 1,2,4] [--episodes N] [--max-actions N]
 
 The raw candidate protocol is not the canonical Player Environment. pe-probe

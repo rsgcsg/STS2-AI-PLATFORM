@@ -54,9 +54,10 @@ No backend currently qualifies. The claim requires all of:
 2. Use the completed seed/provenance and same-artifact canonicalizer to admit
    cross-Host candidates; do not confuse repeatability with parity.
 3. Continue the rebuilt exact `wuhao21/sts2-cli` candidate through cross-Host
-   semantic qualification. Its partial 8-worker window crossed 1,000
-   reset-inclusive canonical decisions/s, but speed, short losses and targeted
-   gates do not replace full-run parity or reliability.
+   semantic qualification. Its two partial 8-worker windows bracketed 1,000 at
+   956.33 and 1,017.39 reset-inclusive canonical decisions/s, but neither a
+   repeatable threshold result nor speed alone replaces full-run parity or
+   reliability.
 4. Admit managed, simulator or other candidates only through the same normalized
    decision, resource, reset, recovery and differential gates.
 5. Run end-to-end learning bottleneck and policy transfer only after one

@@ -250,7 +250,7 @@ index 800f139..272107b 100644
                  return sim.StartRun(
                      cmd.TryGetProperty("character", out var ch) ? ch.GetString() ?? "Ironclad" : "Ironclad",
 diff --git a/src/Sts2Headless/RunSimulator.cs b/src/Sts2Headless/RunSimulator.cs
-index 6b9de4a..e5032c5 100644
+index 6b9de4a..bc94734 100644
 --- a/src/Sts2Headless/RunSimulator.cs
 +++ b/src/Sts2Headless/RunSimulator.cs
 @@ -1,4 +1,5 @@
@@ -608,12 +608,12 @@ index 6b9de4a..e5032c5 100644
          var hand = pcs.Hand.Cards;
 -        if (cardIndex < 0 || cardIndex >= hand.Count)
 -            return Error($"Invalid card index {cardIndex}, hand has {hand.Count} cards");
+-
+-        var card = hand[cardIndex];
 +        var card = hand.FirstOrDefault(candidate => NativeObjectIdentity.Matches(candidate, args["card_ref"]));
 +        if (card == null)
 +            return Error("The observed card is no longer in the current hand");
  
--        var card = hand[cardIndex];
--
 -        // Determine target based on card's TargetType first
 -        // Self/None/All cards: target = null (game handles internally)
 -        // AnyEnemy cards: use target_index or auto-pick first alive enemy
@@ -1606,26 +1606,11 @@ index 6b9de4a..e5032c5 100644
 -    /// Adapted from PR #83 commit cf75bec by @tianyumyum.
 -    /// </summary>
 -    private void HealBetweenActs()
-+    private Dictionary<string, object?> DoProceed(Player player, Dictionary<string, object?>? args)
-     {
+-    {
 -        if (_runState == null) return;
 -        var player = _runState.Players[0];
 -        if (player.Creature == null) return;
-+        if (_runState?.CurrentRoom is not CombatRoom combatRoom)
-+            return Error("Proceed is only available after combat rewards");
-+        if (args == null || !args.TryGetValue("room_ref", out var expectedRoom)
-+            || !NativeObjectIdentity.Matches(combatRoom, expectedRoom))
-+            return Error("The observed combat room is no longer current");
-+        var activeRewardSet = _rewardsSelector.PendingSet;
-+        var hasCurrentCombatRewards = activeRewardSet != null
-+            && ReferenceEquals(activeRewardSet.Room, combatRoom);
-+        if (CombatManager.Instance.IsInProgress || (!hasCurrentCombatRewards && !_rewardsProcessed))
-+            return Error("Combat rewards are not ready to proceed");
-+        if (!Hook.ShouldProceedToNextMapPoint(_runState))
-+            return Error("Native hooks currently disallow proceeding from this reward screen");
-+
-+        Log("Proceeding from completed combat rewards");
- 
+-
 -        var currentHp = player.Creature.CurrentHp;
 -        var maxHp = player.Creature.MaxHp;
 -        var missingHp = maxHp - currentHp;
@@ -1642,9 +1627,24 @@ index 6b9de4a..e5032c5 100644
 -    }
 -
 -    private Dictionary<string, object?> DoProceed(Player player)
--    {
++    private Dictionary<string, object?> DoProceed(Player player, Dictionary<string, object?>? args)
+     {
 -        Log("Proceeding");
--
++        if (_runState?.CurrentRoom is not CombatRoom combatRoom)
++            return Error("Proceed is only available after combat rewards");
++        if (args == null || !args.TryGetValue("room_ref", out var expectedRoom)
++            || !NativeObjectIdentity.Matches(combatRoom, expectedRoom))
++            return Error("The observed combat room is no longer current");
++        var activeRewardSet = _rewardsSelector.PendingSet;
++        var hasCurrentCombatRewards = activeRewardSet != null
++            && ReferenceEquals(activeRewardSet.Room, combatRoom);
++        if (CombatManager.Instance.IsInProgress || (!hasCurrentCombatRewards && !_rewardsProcessed))
++            return Error("Combat rewards are not ready to proceed");
++        if (!Hook.ShouldProceedToNextMapPoint(_runState))
++            return Error("Native hooks currently disallow proceeding from this reward screen");
++
++        Log("Proceeding from completed combat rewards");
+ 
 -        // Check if we need to move to next act (boss defeated)
 -        var room = _runState?.CurrentRoom;
 -        if (room is CombatRoom combatRoom && combatRoom.RoomType == RoomType.Boss)
@@ -1747,7 +1747,7 @@ index 6b9de4a..e5032c5 100644
              _syncCtx.Pump();
              WaitForActionExecutor();
  
-@@ -1992,70 +2047,15 @@ public class RunSimulator
+@@ -1992,70 +2047,24 @@ public class RunSimulator
              if (map == null)
                  return Error("No map available");
          }
@@ -1781,11 +1781,18 @@ index 6b9de4a..e5032c5 100644
 -            else
 -            {
 -                choices = (currentPoint.Children ?? Enumerable.Empty<MapPoint>())
--                    .Select(child => new Dictionary<string, object?>
--                    {
--                        ["col"] = (int)child.coord.col,
--                        ["row"] = (int)child.coord.row,
--                        ["type"] = child.PointType.ToString(),
++                ["col"] = (int)point.coord.col,
++                ["row"] = (int)point.coord.row,
++                ["type"] = point.PointType.ToString(),
++                ["native_ref"] = NativeObjectIdentity.Get(point),
++                ["children"] = point.Children?
++                    .OrderBy(child => child.coord.row)
++                    .ThenBy(child => child.coord.col)
+                     .Select(child => new Dictionary<string, object?>
+                     {
+                         ["col"] = (int)child.coord.col,
+                         ["row"] = (int)child.coord.row,
+                         ["type"] = child.PointType.ToString(),
 -                    })
 -                    .ToList();
 -            }
@@ -1817,16 +1824,13 @@ index 6b9de4a..e5032c5 100644
 -                }
 -            }
 -        }
-+                ["col"] = (int)point.coord.col,
-+                ["row"] = (int)point.coord.row,
-+                ["type"] = point.PointType.ToString(),
-+                ["native_ref"] = NativeObjectIdentity.Get(point),
++                    }).ToList(),
 +            })
 +            .ToList();
  
          return new Dictionary<string, object?>
          {
-@@ -2079,11 +2079,6 @@ public class RunSimulator
+@@ -2079,11 +2088,6 @@ public class RunSimulator
          if (player.Creature != null && player.Creature.CurrentHp > 0)
              _lastKnownHp = player.Creature.CurrentHp;
  
@@ -1838,7 +1842,7 @@ index 6b9de4a..e5032c5 100644
          var hand = pcs?.Hand?.Cards?.Select((c, i) =>
          {
              // Export the *currently resolved* stat values, not the card base: refresh the
-@@ -2109,69 +2104,15 @@ public class RunSimulator
+@@ -2109,78 +2113,30 @@ public class RunSimulator
              }
              catch { }
  
@@ -1905,6 +1909,7 @@ index 6b9de4a..e5032c5 100644
 +            var validTargetRefs = (c.TargetType == TargetType.AnyEnemy || c.TargetType == TargetType.AnyAlly)
 +                ? combatState?.Creatures.Where(c.IsValidTarget).Select(NativeObjectIdentity.Get).ToList() ?? new()
 +                : null;
++            var canPlay = c.CanPlay(out var unplayableReason, out _);
              var cardInfo = new Dictionary<string, object?>
              {
                  ["index"] = i,
@@ -1912,15 +1917,23 @@ index 6b9de4a..e5032c5 100644
                  ["id"] = c.Id.ToString(),
                  ["name"] = _loc.Card(c.Id.Entry),
                  ["cost"] = c.EnergyCost?.GetResolved() ?? 0,
-@@ -2179,6 +2120,7 @@ public class RunSimulator
+                 ["type"] = c.Type.ToString(),
                  ["rarity"] = c.Rarity.ToString(),
-                 ["can_play"] = c.CanPlay(out _, out _),
+-                ["can_play"] = c.CanPlay(out _, out _),
++                ["can_play"] = canPlay,
++                ["unplayable_reason"] = canPlay ? null : unplayableReason.ToString(),
                  ["target_type"] = c.TargetType.ToString(),
 +                ["valid_target_refs"] = validTargetRefs,
                  ["stats"] = stats.Count > 0 ? stats : null,
-                 ["description"] = _loc.Bilingual("cards", c.Id.Entry + ".description"),
+-                ["description"] = _loc.Bilingual("cards", c.Id.Entry + ".description"),
++                ["description"] = ResolveVisibleVariables(
++                    _loc.Bilingual("cards", c.Id.Entry + ".description"),
++                    stats),
++                ["is_upgraded"] = c.IsUpgraded,
              };
-@@ -2201,8 +2143,6 @@ public class RunSimulator
+             if (starCost > 0)
+             {
+@@ -2201,8 +2157,6 @@ public class RunSimulator
                  cardInfo["affliction"] = _loc.Bilingual("afflictions", c.Affliction.Id.Entry + ".title");
                  try { if (c.Affliction.Amount != 0) cardInfo["affliction_amount"] = c.Affliction.Amount; } catch { }
              }
@@ -1929,26 +1942,97 @@ index 6b9de4a..e5032c5 100644
              return cardInfo;
          }).ToList() ?? new();
  
-@@ -2265,6 +2205,7 @@ public class RunSimulator
+@@ -2224,6 +2178,18 @@ public class RunSimulator
+                             {
+                                 ["type"] = intent.IntentType.ToString(),
+                             };
++                            try
++                            {
++                                var targets = combatState?.PlayerCreatures;
++                                if (targets != null)
++                                {
++                                    intentInfo["label"] = intent.GetIntentLabel(targets, e).GetFormattedText();
++                                    var tip = intent.GetHoverTip(targets, e);
++                                    intentInfo["title"] = tip.Title;
++                                    intentInfo["description"] = tip.Description;
++                                }
++                            }
++                            catch { }
+                             // Get damage for attack intents
+                             if (intent is MegaCrit.Sts2.Core.MonsterMoves.Intents.AttackIntent atk && playerCreatures != null)
+                             {
+@@ -2265,6 +2231,9 @@ public class RunSimulator
                  return new Dictionary<string, object?>
                  {
                      ["index"] = i,
 +                    ["native_ref"] = NativeObjectIdentity.Get(e),
++                    ["combat_id"] = e.CombatId,
++                    ["id"] = e.Monster?.Id.Entry ?? "UNKNOWN",
                      ["name"] = _loc.Monster(e.Monster?.Id.Entry ?? "UNKNOWN"),
                      ["hp"] = e.CurrentHp,
                      ["max_hp"] = e.MaxHp,
-@@ -2354,131 +2295,130 @@ public class RunSimulator
-         Log($"Post-combat: RoomType={combatRoom.RoomType}, IsPreFinished={combatRoom.IsPreFinished}");
-         _syncCtx.Pump();
+@@ -2272,6 +2241,7 @@ public class RunSimulator
+                     ["intents"] = intents.Count > 0 ? intents : null,
+                     ["intends_attack"] = e.Monster?.IntendsToAttack ?? false,
+                     ["powers"] = ePowers?.Count > 0 ? ePowers : null,
++                    ["statuses"] = ePowers ?? new List<Dictionary<string, object?>>(),
+                 };
+             }).ToList() ?? new();
  
+@@ -2295,8 +2265,32 @@ public class RunSimulator
+             ["enemies"] = enemies,
+             ["player"] = PlayerSummary(player),
+             ["player_powers"] = playerPowers?.Count > 0 ? playerPowers : null,
++            ["player_statuses"] = playerPowers ?? new List<Dictionary<string, object?>>(),
++            ["companions"] = new List<Dictionary<string, object?>>(),
+             ["draw_pile_count"] = pcs?.DrawPile?.Cards?.Count ?? 0,
+             ["discard_pile_count"] = pcs?.DiscardPile?.Cards?.Count ?? 0,
++            ["exhaust_pile_count"] = pcs?.ExhaustPile?.Cards?.Count ?? 0,
++            ["combat_piles"] = pcs == null
++                ? null
++                : new[]
++                {
++                    VisiblePile("draw", pcs.DrawPile.Cards),
++                    VisiblePile("discard", pcs.DiscardPile.Cards),
++                    VisiblePile("exhaust", pcs.ExhaustPile.Cards),
++                },
++            ["orb_slots"] = pcs?.OrbQueue?.Capacity ?? 0,
++            ["orbs"] = new List<Dictionary<string, object?>>(),
++            ["encounter_type"] = _runState?.CurrentRoom?.RoomType switch
++            {
++                RoomType.Monster => "normal",
++                RoomType.Elite => "elite",
++                RoomType.Boss => "boss",
++                _ => "unknown",
++            },
++            ["turn_owner"] = combatState?.CurrentSide.ToString().ToLowerInvariant(),
++            ["is_play_phase"] = pcs?.Phase == PlayerTurnPhase.Play
++                && CombatManager.Instance.IsPartOfPlayerTurn(player)
++                && !CombatManager.Instance.PlayerActionsDisabled,
+         };
+ 
+         // Character-specific mechanics
+@@ -2349,136 +2343,172 @@ public class RunSimulator
+         return result;
+     }
+ 
+-    private Dictionary<string, object?> DetectPostCombatState(Player player, CombatRoom combatRoom)
++    private Dictionary<string, object?> VisiblePile(
++        string pile,
++        IEnumerable<CardModel> cards)
+     {
+-        Log($"Post-combat: RoomType={combatRoom.RoomType}, IsPreFinished={combatRoom.IsPreFinished}");
+-        _syncCtx.Pump();
+-
 -        // Generate rewards manually instead of using TestMode auto-accept
 -        if (_pendingRewards == null && !_rewardsProcessed)
-+        if (!_combatRewardsStarted)
++        return new Dictionary<string, object?>
          {
 -            _goldBeforeCombat = player.Gold;
 -            try
-+            _combatRewardsStarted = true;
-+            var task = BeginHostOperation(async () =>
++            ["pile"] = pile,
++            ["ordering_semantics"] = "unordered_multiset",
++            ["cards"] = cards.Select((card, index) =>
              {
 -                var rewardsSet = new RewardsSet(player).WithRewardsFromRoom(combatRoom);
 -                // build 23372702: GenerateWithoutOffering() now returns Task (void);
@@ -1960,7 +2044,9 @@ index 6b9de4a..e5032c5 100644
 -                // Auto-collect gold and potions, but present card choices to agent
 -                var cardRewards = new List<CardReward>();
 -                foreach (var reward in rewards)
--                {
++                var stats = new Dictionary<string, object?>();
++                try
+                 {
 -                    if (reward is GoldReward || reward is MegaCrit.Sts2.Core.Rewards.RelicReward
 -                        || reward is MegaCrit.Sts2.Core.Rewards.PotionReward)
 -                    {
@@ -1971,10 +2057,14 @@ index 6b9de4a..e5032c5 100644
 -                    {
 -                        cardRewards.Add(cr);
 -                    }
--                }
++                    foreach (var variable in card.DynamicVars.Values)
++                        stats[variable.Name] = (int)variable.BaseValue;
+                 }
 -
 -                if (cardRewards.Count > 0)
--                {
++                catch { }
++                return new Dictionary<string, object?>
+                 {
 -                    _pendingCardReward = cardRewards[0];
 -                    _pendingRewards = rewards;
 -                    return CardRewardState(player, combatRoom);
@@ -1984,30 +2074,55 @@ index 6b9de4a..e5032c5 100644
 -            }
 -            catch (Exception ex) { Log($"Generate rewards: {ex.Message}"); }
 -        }
--
++                    ["native_ref"] = NativeObjectIdentity.Get(card),
++                    ["index"] = index,
++                    ["id"] = card.Id.Entry,
++                    ["name"] = _loc.Card(card.Id.Entry),
++                    ["type"] = card.Type.ToString(),
++                    ["cost"] = card.EnergyCost.CostsX
++                        ? "X"
++                        : card.EnergyCost.GetAmountToSpend().ToString(),
++                    ["description"] = ResolveVisibleVariables(
++                        _loc.Bilingual("cards", card.Id.Entry + ".description"),
++                        stats).Replace("\n", " "),
++                    ["rarity"] = card.Rarity.ToString(),
++                    ["is_upgraded"] = card.IsUpgraded,
++                };
++            }).ToList(),
++        };
++    }
+ 
 -        // No more pending rewards — proceed
 -        _pendingCardReward = null;
 -        _pendingRewards = null;
 -        _rewardsProcessed = true;
-+                var rewardsSet = await RewardsCmd.GenerateForRoomEnd(player, combatRoom);
-+                await Hook.BeforeCombatRewardOffered(rewardsSet, player.RunState, combatRoom);
-+                await rewardsSet.Offer();
-+                _rewardsProcessed = true;
-+            });
++    private Dictionary<string, object?> DetectPostCombatState(Player player, CombatRoom combatRoom)
++    {
++        Log($"Post-combat: RoomType={combatRoom.RoomType}, IsPreFinished={combatRoom.IsPreFinished}");
++        _syncCtx.Pump();
  
 -        // Boss → next act, OR final victory after the last act's boss (#81). Act index is
 -        // 0-based and STS2 has 3 acts (0/1/2); killing the Act-3 (index 2) boss has no next
 -        // act — EnterNextAct NREs and DetectDecisionPoint falls through to an empty
 -        // map_select. Report victory directly in that case.
 -        if (combatRoom.RoomType == RoomType.Boss)
--        {
++        if (!_combatRewardsStarted)
+         {
 -            if (_runState != null && _runState.CurrentActIndex >= 2)
--            {
++            _combatRewardsStarted = true;
++            var task = BeginHostOperation(async () =>
+             {
 -                Log($"Final boss defeated (Act {_runState.CurrentActIndex + 1}), reporting victory");
 -                return GameOverState(true);
 -            }
 -            Log("Boss defeated, entering next act");
 -            try
++                var rewardsSet = await RewardsCmd.GenerateForRoomEnd(player, combatRoom);
++                await Hook.BeforeCombatRewardOffered(rewardsSet, player.RunState, combatRoom);
++                await rewardsSet.Offer();
++                _rewardsProcessed = true;
++            });
++
 +            for (int i = 0; i < 1000; i++)
              {
 -                RunManager.Instance.EnterNextAct().GetAwaiter().GetResult();
@@ -2096,9 +2211,10 @@ index 6b9de4a..e5032c5 100644
 +            ["room_ref"] = terminalRoom == null ? null : NativeObjectIdentity.Get(terminalRoom),
 +            ["is_boss"] = terminalRoom?.RoomType == RoomType.Boss,
 +            ["player"] = PlayerSummary(player),
-+        };
-+    }
-+
+         };
+     }
+ 
+-    private void ForceToMap()
 +    private Dictionary<string, object?> RewardSummary(Reward reward, int index)
 +    {
 +        string kind;
@@ -2142,10 +2258,9 @@ index 6b9de4a..e5032c5 100644
 +            ["name"] = name,
 +            ["description"] = description,
 +            ["value"] = value,
-         };
-     }
- 
--    private void ForceToMap()
++        };
++    }
++
 +    private void OpenMapPresentation()
      {
          try
@@ -2166,7 +2281,7 @@ index 6b9de4a..e5032c5 100644
      }
  
      private Dictionary<string, object?> EventChoiceState(EventRoom eventRoom)
-@@ -2502,22 +2442,14 @@ public class RunSimulator
+@@ -2502,22 +2532,14 @@ public class RunSimulator
                  _syncCtx.Pump();
              }
              catch { }
@@ -2192,7 +2307,7 @@ index 6b9de4a..e5032c5 100644
          }
  
          var options = currentOptions
-@@ -2666,7 +2598,7 @@ public class RunSimulator
+@@ -2666,7 +2688,7 @@ public class RunSimulator
          {
              // Options empty = choice already made (synchronizer cleared them), go to map
              Log("Rest site: options empty, proceeding to map");
@@ -2201,7 +2316,7 @@ index 6b9de4a..e5032c5 100644
              return MapSelectState();
          }
  
-@@ -2691,7 +2623,7 @@ public class RunSimulator
+@@ -2691,7 +2713,7 @@ public class RunSimulator
      private Dictionary<string, object?> ShopState(MerchantRoom merchantRoom, Player player)
      {
          var inv = merchantRoom.GetLocalInventory();
@@ -2210,7 +2325,7 @@ index 6b9de4a..e5032c5 100644
  
          var cards = inv.CharacterCardEntries.Concat(inv.ColorlessCardEntries)
              .Select((e, i) =>
-@@ -2723,6 +2655,7 @@ public class RunSimulator
+@@ -2723,6 +2745,7 @@ public class RunSimulator
                  return new Dictionary<string, object?>
                  {
                      ["index"] = i,
@@ -2218,7 +2333,7 @@ index 6b9de4a..e5032c5 100644
                      ["name"] = _loc.Card(entry),
                      ["type"] = card?.Type.ToString() ?? "?",
                      ["rarity"] = card?.Rarity.ToString() ?? "?",
-@@ -2733,6 +2666,7 @@ public class RunSimulator
+@@ -2733,6 +2756,7 @@ public class RunSimulator
                      ["after_upgrade"] = card != null ? GetUpgradedInfo(card) : null,
                      ["cost"] = e.Cost,
                      ["is_stocked"] = e.IsStocked,
@@ -2226,7 +2341,7 @@ index 6b9de4a..e5032c5 100644
                      ["on_sale"] = e.IsOnSale,
                  };
              }).ToList();
-@@ -2740,19 +2674,23 @@ public class RunSimulator
+@@ -2740,19 +2764,23 @@ public class RunSimulator
          var relics = inv.RelicEntries.Select((e, i) => new Dictionary<string, object?>
          {
              ["index"] = i,
@@ -2250,7 +2365,7 @@ index 6b9de4a..e5032c5 100644
          }).ToList();
  
          var removal = merchantRoom.GetLocalInventory().CardRemovalEntry;
-@@ -2766,94 +2704,72 @@ public class RunSimulator
+@@ -2766,94 +2794,72 @@ public class RunSimulator
              ["relics"] = relics,
              ["potions"] = potions,
              ["card_removal_cost"] = removal?.Cost,
@@ -2396,7 +2511,7 @@ index 6b9de4a..e5032c5 100644
      }
  
      private Dictionary<string, object?> GameOverState(bool isVictory)
-@@ -2879,6 +2795,44 @@ public class RunSimulator
+@@ -2879,6 +2885,44 @@ public class RunSimulator
  
      #region Helpers
  
@@ -2441,7 +2556,7 @@ index 6b9de4a..e5032c5 100644
      private void WaitForActionExecutor()
      {
          try
-@@ -2891,7 +2845,7 @@ public class RunSimulator
+@@ -2891,7 +2935,7 @@ public class RunSimulator
  
              // Executor may stay "running" while the game awaits headless card selection / reward (e.g. Attack Potion).
              // Spinning here would time out and downstream code could mis-handle an in-flight potion use (BUG-026).
@@ -2450,7 +2565,7 @@ index 6b9de4a..e5032c5 100644
                  return;
  
              var executor = RunManager.Instance.ActionExecutor;
-@@ -2913,6 +2867,60 @@ public class RunSimulator
+@@ -2913,6 +2957,60 @@ public class RunSimulator
          }
      }
  
@@ -2511,15 +2626,33 @@ index 6b9de4a..e5032c5 100644
      private void SpinWaitForCombatStable()
      {
          int maxIterations = 200;
-@@ -2969,6 +2977,7 @@ public class RunSimulator
+@@ -2969,34 +3067,64 @@ public class RunSimulator
      {
          return new Dictionary<string, object?>
          {
 +            ["native_ref"] = NativeObjectIdentity.Get(player),
++            ["character_id"] = player.Character?.Id.Entry ?? "UNKNOWN",
              ["name"] = _loc.Bilingual("characters", (player.Character?.Id.Entry ?? "IRONCLAD") + ".title"),
              ["hp"] = player.Creature?.CurrentHp ?? 0,
              ["max_hp"] = player.Creature?.MaxHp ?? 0,
-@@ -2985,18 +2994,35 @@ public class RunSimulator
+             ["block"] = player.Creature?.Block ?? 0,
+             ["gold"] = player.Gold,
++            ["max_potion_slots"] = player.MaxPotionCount,
+             ["relics"] = player.Relics?.Select(r =>
+             {
+                 var vars = new Dictionary<string, object?>();
+                 try { foreach (var dv in r.DynamicVars.Values) vars[dv.Name] = (int)dv.BaseValue; } catch { }
+                 return new Dictionary<string, object?>
+                 {
++                    ["native_ref"] = NativeObjectIdentity.Get(r),
++                    ["id"] = r.Id.Entry,
+                     ["name"] = _loc.Relic(r.Id.Entry),
+-                    ["description"] = _loc.Bilingual("relics", r.Id.Entry + ".description"),
++                    ["description"] = ResolveVisibleVariables(
++                        _loc.Bilingual("relics", r.Id.Entry + ".description"),
++                        vars),
++                    ["counter"] = r.ShowCounter ? r.DisplayAmount : null,
++                    ["hover_tip_count"] = r.HoverTipsExcludingRelic?.Count() ?? 0,
                      ["vars"] = vars.Count > 0 ? vars : null,
                  };
              }).ToList(),
@@ -2544,8 +2677,13 @@ index 6b9de4a..e5032c5 100644
 -                    ["index"] = i,
 +                    ["slot"] = slot,
 +                    ["native_ref"] = NativeObjectIdentity.Get(p),
++                    ["id"] = p.Id.Entry,
                      ["name"] = _loc.Potion(p.Id.Entry),
-                     ["description"] = _loc.Bilingual("potions", p.Id.Entry + ".description"),
+-                    ["description"] = _loc.Bilingual("potions", p.Id.Entry + ".description"),
++                    ["description"] = ResolveVisibleVariables(
++                        _loc.Bilingual("potions", p.Id.Entry + ".description"),
++                        pvars),
++                    ["hover_tip_count"] = p.ExtraHoverTips?.Count() ?? 0,
                      ["vars"] = pvars.Count > 0 ? pvars : null,
                      ["target_type"] = p.TargetType.ToString(),
 +                    ["usage"] = p.Usage.ToString(),
@@ -2557,7 +2695,78 @@ index 6b9de4a..e5032c5 100644
                  };
              }).Where(x => x != null).ToList(),
              ["deck_size"] = player.Deck?.Cards?.Count(c => c != null) ?? 0,
-@@ -3074,6 +3100,11 @@ public class RunSimulator
+@@ -3034,6 +3162,22 @@ public class RunSimulator
+         };
+     }
+ 
++    private static string ResolveVisibleVariables(
++        string text,
++        IReadOnlyDictionary<string, object?> variables)
++    {
++        return System.Text.RegularExpressions.Regex.Replace(
++            text,
++            @"\{(?<name>[A-Za-z0-9_]+)(?::[^}]*)?\}",
++            match =>
++            {
++                string name = match.Groups["name"].Value;
++                KeyValuePair<string, object?> value = variables.FirstOrDefault(pair =>
++                    string.Equals(pair.Key, name, StringComparison.OrdinalIgnoreCase));
++                return value.Key == null ? match.Value : Convert.ToString(value.Value) ?? match.Value;
++            });
++    }
++
+     /// <summary>Common context added to every decision point.</summary>
+     private Dictionary<string, object?> RunContext()
+     {
+@@ -3041,9 +3185,19 @@ public class RunSimulator
+         var ctx = new Dictionary<string, object?>
+         {
+             ["act"] = _runState.CurrentActIndex + 1,
++            ["act_index"] = _runState.CurrentActIndex,
++            ["act_definition_id"] = _runState.Act?.Id.Entry ?? "UNKNOWN",
+             ["act_name"] = _loc.Act(_runState.Act?.Id.Entry ?? "OVERGROWTH"),
+             ["floor"] = _runState.ActFloor,
++            ["total_floor"] = _runState.TotalFloor,
++            ["ascension"] = _runState.AscensionLevel,
+             ["room_type"] = _runState.CurrentRoom?.RoomType.ToString(),
++            ["modifiers"] = _runState.Modifiers.Select(modifier => new Dictionary<string, object?>
++            {
++                ["id"] = modifier.Id.Entry,
++                ["name"] = _loc.Bilingual("modifiers", modifier.Id.Entry + ".title"),
++                ["description"] = _loc.Bilingual("modifiers", modifier.Id.Entry + ".description"),
++            }).ToList(),
+         };
+ 
+         // Boss encounter info — use BossEncounter?.Id?.Entry
+@@ -3064,6 +3218,27 @@ public class RunSimulator
+         }
+         catch { }
+ 
++        var bosses = new List<Dictionary<string, object?>>();
++        try
++        {
++            var encounters = new[] { _runState.Act?.BossEncounter, _runState.Act?.SecondBossEncounter };
++            foreach (var (boss, order) in encounters.Select((value, index) => (value, index)))
++            {
++                var bossIdEntry = boss?.Id.Entry;
++                if (string.IsNullOrEmpty(bossIdEntry)) continue;
++                var monsterKey = bossIdEntry.EndsWith("_BOSS") ? bossIdEntry[..^5] : bossIdEntry;
++                if (monsterKey == "THE_KIN") monsterKey = "KIN_PRIEST";
++                bosses.Add(new Dictionary<string, object?>
++                {
++                    ["id"] = bossIdEntry,
++                    ["name"] = _loc.Monster(monsterKey),
++                    ["order"] = order,
++                });
++            }
++        }
++        catch { }
++        ctx["bosses"] = bosses;
++
+         return ctx;
+     }
+ 
+@@ -3074,6 +3249,11 @@ public class RunSimulator
  
          TestMode.IsOn = true;
  
@@ -2569,7 +2778,7 @@ index 6b9de4a..e5032c5 100644
          // Install inline sync context on main thread
          SynchronizationContext.SetSynchronizationContext(_syncCtx);
  
-@@ -3099,14 +3130,6 @@ public class RunSimulator
+@@ -3099,14 +3279,6 @@ public class RunSimulator
          try { SaveManager.Instance.InitPrefsDataForTest(); }
          catch (Exception ex) { Console.Error.WriteLine($"[WARN] SaveManager.InitPrefsDataForTest: {ex.Message}"); }
  
@@ -2584,7 +2793,7 @@ index 6b9de4a..e5032c5 100644
          // Patch Cmd.Wait to be a no-op in headless mode.
          // Cmd.Wait(duration) is used for UI animations (e.g., PreviewCardPileAdd during
          // Vantom's Dismember move adding Wounds). In headless mode, these never complete
-@@ -3139,9 +3162,15 @@ public class RunSimulator
+@@ -3139,9 +3311,15 @@ public class RunSimulator
          }
          Console.Error.WriteLine($"[INFO] ModelDb: {registered} registered, {failed} failed out of {subtypes.Count}");
  
@@ -2600,7 +2809,7 @@ index 6b9de4a..e5032c5 100644
              ModelIdSerializationCache.Init();
              Console.Error.WriteLine("[INFO] ModelIdSerializationCache initialized");
          }
-@@ -3151,15 +3180,15 @@ public class RunSimulator
+@@ -3151,15 +3329,15 @@ public class RunSimulator
          }
      }
  
@@ -2622,7 +2831,7 @@ index 6b9de4a..e5032c5 100644
              _ => null
          };
      }
-@@ -3263,42 +3292,168 @@ public class RunSimulator
+@@ -3263,42 +3441,168 @@ public class RunSimulator
          }
      }
  
@@ -2813,7 +3022,7 @@ index 6b9de4a..e5032c5 100644
      /// <summary>
      /// Card selector that creates a pending selection decision point.
      /// When the game needs the player to choose cards (upgrade, remove, transform, bundle pick),
-@@ -3362,6 +3517,12 @@ public class RunSimulator
+@@ -3362,6 +3666,12 @@ public class RunSimulator
              _pendingTcs = null;
          }
  
@@ -2826,7 +3035,7 @@ index 6b9de4a..e5032c5 100644
          // Pending card reward from events (GetSelectedCardReward blocks until resolved)
          public List<MegaCrit.Sts2.Core.Entities.Cards.CardCreationResult>? PendingRewardCards { get; private set; }
          private ManualResetEventSlim? _rewardWait;
-@@ -3411,19 +3572,6 @@ public class RunSimulator
+@@ -3411,19 +3721,6 @@ public class RunSimulator
  
      internal static class YieldPatches
      {
@@ -2846,7 +3055,7 @@ index 6b9de4a..e5032c5 100644
          /// <summary>Harmony prefix: make Cmd.Wait() return completed task immediately (no-op in headless).</summary>
          public static bool CmdWaitPrefix(ref Task __result)
          {
-@@ -3635,25 +3783,6 @@ public class RunSimulator
+@@ -3635,25 +3932,6 @@ public class RunSimulator
              }
              catch (Exception ex) { Console.Error.WriteLine($"[WARN] Bundle patch: {ex.Message}"); }
  
@@ -2872,7 +3081,7 @@ index 6b9de4a..e5032c5 100644
              // Patch HasEntry to always return true
              PatchMethod(harmony, typeof(LocTable), "HasEntry", nameof(LocPatches.HasEntryPrefix));
  
-@@ -3719,28 +3848,6 @@ public class RunSimulator
+@@ -3719,28 +3997,6 @@ public class RunSimulator
              return false;
          }
  
@@ -2901,7 +3110,7 @@ index 6b9de4a..e5032c5 100644
          public static bool HasEntryPrefix(ref bool __result)
          {
              __result = true;
-@@ -3896,15 +4003,114 @@ public class RunSimulator
+@@ -3896,15 +4152,114 @@ public class RunSimulator
      {
          try
          {

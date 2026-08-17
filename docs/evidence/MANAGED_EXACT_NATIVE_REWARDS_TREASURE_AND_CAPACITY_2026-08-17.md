@@ -18,10 +18,11 @@ Ready.**
   `9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4`;
 - STS2 MVID: `57785517-0b16-42b9-8b36-bad6fb28384b`.
 
-The reports were generated from a dirty working tree rooted at predecessor
-HEAD `101e4838653f86a49349ffa17688dc555d445dd9`. The candidate patch and artifact
-identities above are exact; the reports are not evidence for a later changed
-adapter source without rerunning its gates.
+The original reports were generated from a dirty working tree rooted at
+predecessor HEAD `101e4838653f86a49349ffa17688dc555d445dd9`. The final seal was
+rerun from clean source `b573fed6d60977c0a87336353ffa8b7b515f0f1f`, source
+digest `df6f4dac4be3d060592436d790bcfe8458f722591ac382189b4592a282222061`,
+using the same exact patch and artifact identities above.
 
 ## Correctness Changes
 
@@ -49,32 +50,31 @@ treasure projection, Host-local room/relic operands, explicit chest open,
 native treasure vote, inventory effect, and map successor. Treasure setup in
 this gate is privileged scenario evidence, not an organic journey.
 
-One fair-player canonical run group completed three in-process episodes:
+The clean-source fair-player canonical run group completed three in-process
+episodes:
 
-- 441/441 canonical actions delivered;
-- 444 state-bound Reads completed;
+- 381/381 canonical actions delivered;
+- 384 state-bound Reads completed;
 - three game-owned seeds matched their requests;
 - all episodes terminated at `game_over` with zero unknown or failed delivery;
-- organic coverage included 372 combat turns, 23 reward selections, 10 card
-  reward selections, 10 reward completions, 17 map choices, three events,
-  three shops, and three card selectors;
-- maximum observed progress was Act 1, floor 7; treasure did not occur
-  organically.
+- treasure did not occur organically.
 
-The same artifact's 1/2/4/8-worker canonical capacity window measured:
+The clean-source 1/2/4/8-worker canonical capacity window measured:
 
 | Workers | Delivered actions | Reads | Reset-inclusive decisions/s | Lifecycle-inclusive decisions/s | Summed peak RSS |
 |---:|---:|---:|---:|---:|---:|
-| 1 | 400 | 403 | 236.12 | 136.40 | 131.7 MiB |
-| 2 | 815 | 821 | 428.22 | 255.08 | 263.4 MiB |
-| 4 | 1,626 | 1,638 | 750.25 | 457.60 | 531.6 MiB |
-| 8 | 3,317 | 3,341 | 1,017.39 | 664.75 | 1,092.6 MiB |
+| 1 | 506 | 509 | 239.69 | 158.75 | 132.2 MiB |
+| 2 | 867 | 873 | 398.12 | 265.66 | 271.3 MiB |
+| 4 | 1,896 | 1,908 | 720.96 | 500.70 | 540.8 MiB |
+| 8 | 3,543 | 3,567 | 956.33 | 694.51 | 1,063.2 MiB |
 
 Every worker used a distinct runtime instance, completed three reset episodes,
 reached `game_over` each time, reported no action/read failure, and exited
-zero. The 8-worker reset-inclusive result crosses the provisional 1,000
-decision/s hypothesis. It does not qualify the route because the projection is
-partial, the episodes are short losses, and semantic parity is unproved.
+zero. A predecessor same-artifact window reached `1,017.39`, while the clean
+source window reached `956.33`; this brackets but does not repeatably prove the
+provisional 1,000 decision/s hypothesis. Neither result qualifies the route
+because the projection is partial, the episodes are short losses, and semantic
+parity is unproved.
 
 ## Non-Claims And Next Gates
 

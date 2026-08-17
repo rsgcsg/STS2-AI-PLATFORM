@@ -58,7 +58,66 @@ test("projects a managed decision through the strict canonical SDK", () => {
   assert.equal(projection.snapshot.bound_actions.actions.length, 1);
   assert.equal(projection.bindings.size, 1);
   assert.equal(projection.snapshot.completeness.status, "partial");
-  assert.match(projection.snapshot.completeness.missing.join(","), /native_entity_identity/u);
+  assert.match(projection.snapshot.completeness.missing.join(","), /canonical_persistent_run_identity/u);
+});
+
+test("projects complete map topology and persistent visible state without exposing native operands", () => {
+  const projection = projectManagedCandidateDecision({
+    ...projectionIdentity,
+    state: {
+      type: "decision",
+      decision: "map_select",
+      context: {
+        act: 1,
+        act_index: 0,
+        act_definition_id: "OVERGROWTH",
+        act_name: "Overgrowth",
+        floor: 0,
+        total_floor: 0,
+        ascension: 0,
+        bosses: [{ id: "VANTOM_BOSS", name: "Vantom", order: 0 }],
+        modifiers: []
+      },
+      choices: [{
+        col: 3,
+        row: 0,
+        type: "Monster",
+        native_ref: "map-point-a",
+        children: [{ col: 2, row: 1, type: "Monster" }]
+      }],
+      visible_map: {
+        type: "map",
+        rows: [[{
+          col: 2,
+          row: 1,
+          type: "Monster",
+          children: [{ col: 3, row: 16 }],
+          visited: false,
+          current: false
+        }]],
+        boss: { col: 3, row: 16, type: "Boss" },
+        current_coord: null
+      },
+      player: {
+        ...player(),
+        native_ref: "player-a",
+        character_id: "IRONCLAD",
+        max_potion_slots: 3
+      }
+    }
+  });
+  assert.equal(decodePlayerSnapshot(projection.snapshot).data.status, "interactive");
+  assert.equal(projection.snapshot.completeness.status, "complete");
+  assert.equal(projection.snapshot.persistent.content.run.act_definition_id, "OVERGROWTH");
+  assert.equal(projection.snapshot.interaction.content.context.nodes.length, 3);
+  assert.deepEqual(projection.snapshot.referents.map((referent) => referent.role).sort(), [
+    "node",
+    "node",
+    "option"
+  ]);
+  assert.equal(projection.snapshot.bound_actions.actions[0].label, "Choose monster at (3,0)");
+  assert.equal(JSON.stringify(projection.snapshot).includes("map-point-a"), false);
+  assert.equal([...projection.bindings.values()][0].raw_request.args.map_point_ref, "map-point-a");
 });
 
 test("projects combat reward completion as a state-bound player proceed", () => {
@@ -283,13 +342,15 @@ test("state-bound run-deck reads pass the strict SDK and reject stale tokens", a
   const process = {
     async request(request) {
       assert.equal(request.cmd, "start_run");
+      assert.equal(request.lang, "zh");
       return eventState();
     }
   };
   const session = new ManagedPlayerEnvironmentSession({
     process,
     runtimeInstanceId: "managed-runtime-test",
-    environmentFingerprint: "managed-environment-test"
+    environmentFingerprint: "managed-environment-test",
+    language: "zh"
   });
   const snapshot = await session.mount({ seed: "TEST" });
   const read = session.read({ readId: snapshot.reads[0].read_id, expectedSnapshotId: snapshot.snapshot_id });

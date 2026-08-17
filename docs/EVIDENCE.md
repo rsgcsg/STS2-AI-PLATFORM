@@ -111,14 +111,13 @@ byte-identical exact `v0.111.0` game assembly `9cb4f1a...` / MVID
 - 24/24 targeted native binding gates passed, including exact negative
   identities, canonical treasure projection, native treasure vote/effect, and
   successor;
-- three fair-player episodes delivered 441/441 actions plus 444 Reads with
+- three clean-source fair-player episodes delivered 381/381 actions plus 384 Reads with
   three matched game-owned seeds, zero unknown, and three `game_over`
   boundaries;
-- organic native reward coverage included 23 reward selections, 10 card
-  choices and 10 reward completions;
-- 1/2/4/8-worker windows measured 236.12/428.22/750.25/1,017.39
-  reset-inclusive canonical decisions/s; the 8-worker group delivered 3,317
-  actions and 3,341 Reads using eight distinct runtime instances.
+- the clean-source 1/2/4/8-worker windows measured
+  239.69/398.12/720.96/956.33 reset-inclusive canonical decisions/s; a
+  predecessor same-artifact, dirty-worktree window measured 1,017.39 at eight
+  workers, so `>=1000` is not repeatably established.
 
 The projection remains explicitly partial, treasure was targeted rather than
 organic, and no run passed Act 1 floor 7. These results establish a fast

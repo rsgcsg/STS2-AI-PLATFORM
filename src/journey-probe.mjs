@@ -458,7 +458,8 @@ export async function runBoundedJourney({
   shutdownDrainMs = 2_000,
   runSeed = null,
   maxConsecutiveStale = 8,
-  hostExecutionProfile = null
+  hostExecutionProfile = null,
+  stopOnCoverage = true
 }) {
   const canonicalRunSeed = canonicalizeEpisodeSeed(runSeed);
   const launchProfile = resolveLaunchProfile({
@@ -868,7 +869,7 @@ export async function runBoundedJourney({
         break;
       }
 
-      if (evaluateSurfaceCoverage({
+      if (stopOnCoverage && evaluateSurfaceCoverage({
         surfaces: [...surfaces],
         combatDeliveries
       }).verdict === "coverage_reached") {
@@ -918,7 +919,8 @@ export async function runBoundedJourney({
         max_consecutive_stale: maxConsecutiveStale,
         fault_after_delivered_actions: faultAfterDeliveredActions,
         requested_seed: canonicalRunSeed,
-        requested_host_execution_profile: hostExecutionProfile
+        requested_host_execution_profile: hostExecutionProfile,
+        stop_on_coverage: stopOnCoverage
       },
       loaded_identity: {
         protocol: capabilities.protocol_version,
@@ -993,7 +995,8 @@ export async function runBoundedJourney({
         max_consecutive_stale: maxConsecutiveStale,
         fault_after_delivered_actions: faultAfterDeliveredActions,
         requested_seed: canonicalRunSeed,
-        requested_host_execution_profile: hostExecutionProfile
+        requested_host_execution_profile: hostExecutionProfile,
+        stop_on_coverage: stopOnCoverage
       },
       loaded_identity: capabilities
         ? { protocol: capabilities.protocol_version, host: capabilities.host, game: capabilities.game }

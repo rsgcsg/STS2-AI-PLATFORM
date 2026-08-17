@@ -55,9 +55,10 @@ Current managed exact candidate:
 - native combat rewards and treasure selection now retain game-owned
   generation, legality, vote/RNG and Commit rather than manually choosing or
   settling them;
-- one 3-episode window delivered 441/441 canonical actions and 444 Reads with
-  zero unknown, while an 8-worker window delivered 3,317 actions at 1,017.39
-  reset-inclusive decisions/s and about 1.07 GiB summed peak RSS;
+- a clean-source 3-episode window delivered 381/381 canonical actions and 384
+  Reads with zero unknown; two same-artifact 8-worker windows measured 956.33
+  and 1,017.39 reset-inclusive decisions/s, so `>=1000` is not yet a
+  repeatable capacity result;
 - this route is still partial and unqualified: full-run and cross-Host
   differential evidence are absent, and its TestMode/runtime projection seams
   remain critical risks.
