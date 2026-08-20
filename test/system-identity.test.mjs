@@ -8,6 +8,10 @@ test("records portable machine context without inventing unavailable hardware fa
   assert.equal(identity.architecture, process.arch);
   assert.ok(identity.logical_cpu_count >= 1);
   assert.ok(identity.total_memory_bytes > 0);
-  assert.equal(identity.physical_core_count, null);
+  if (process.platform === "darwin") {
+    assert.ok(identity.physical_core_count >= 1);
+  } else if (identity.physical_core_count == null) {
+    assert.ok(identity.unavailable_fields.includes("physical_core_count"));
+  }
   assert.ok(identity.unavailable_fields.includes("storage_kind"));
 });

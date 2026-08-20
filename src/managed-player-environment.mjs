@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { performance } from "node:perf_hooks";
 import {
   SUPPORTED_PLAYER_ENVIRONMENT_PROTOCOL,
   decodePlayerRead,
@@ -49,13 +50,27 @@ function visibleState({ enabled = null, selected = null } = {}) {
   };
 }
 
-function createProjectionContext({ state, runtimeInstanceId, sequence }) {
-  const rawStateSha = digest(state);
-  const snapshotId = `managed_${runtimeInstanceId}_${rawStateSha}`;
-  const interactionId = `interaction_${rawStateSha}`;
+function createProjectionContext({ state, runtimeInstanceId, sequence, identityMode = "crypto" }) {
+  if (!["crypto", "sequence"].includes(identityMode)) {
+    throw new TypeError("Managed projection identityMode must be crypto or sequence.");
+  }
+  const rawStateSha = identityMode === "crypto" ? digest(state) : null;
+  const snapshotId = identityMode === "crypto"
+    ? `managed_${runtimeInstanceId}_${rawStateSha}`
+    : `managed_${runtimeInstanceId}_s${sequence}`;
+  const interactionId = identityMode === "crypto"
+    ? `interaction_${rawStateSha}`
+    : `interaction_${runtimeInstanceId}_s${sequence}`;
   const referents = [];
   const actions = [];
   const bindings = new Map();
+  let localIdentity = 0;
+
+  function makeId(prefix, ...parts) {
+    if (identityMode === "crypto") return stableId(prefix, ...parts);
+    localIdentity += 1;
+    return `${prefix}_${runtimeInstanceId}_s${sequence}_${localIdentity}`;
+  }
 
   function referent({
     role,
@@ -67,7 +82,7 @@ function createProjectionContext({ state, runtimeInstanceId, sequence }) {
     id = null,
     includeEntityId = true
   }) {
-    const referentId = id ?? stableId("ref", snapshotId, role, properties, occurrence);
+    const referentId = id ?? makeId("ref", snapshotId, role, properties, occurrence);
     const value = {
       referent_id: referentId,
       role,
@@ -91,7 +106,7 @@ function createProjectionContext({ state, runtimeInstanceId, sequence }) {
       })),
       label
     };
-    const boundActionId = stableId("action", snapshotId, descriptor, raw);
+    const boundActionId = makeId("action", snapshotId, descriptor, raw);
     const value = {
       bound_action_id: boundActionId,
       verb,
@@ -118,6 +133,7 @@ function createProjectionContext({ state, runtimeInstanceId, sequence }) {
     referents,
     actions,
     bindings,
+    id: makeId,
     referent,
     action
   };
@@ -165,7 +181,7 @@ function mapCoordinateKey(col, row) {
   return `${col},${row}`;
 }
 
-function buildPersistentVisibleState(state, snapshotId) {
+function buildPersistentVisibleState(state, snapshotId, makeId = stableId) {
   const run = state.context;
   const player = state.player;
   if (!plainObject(run) || !plainObject(player)) {
@@ -211,7 +227,7 @@ function buildPersistentVisibleState(state, snapshotId) {
       ]
     };
   }
-  const playerEntityId = stableId("player", snapshotId, player.native_ref);
+  const playerEntityId = makeId("player", snapshotId, player.native_ref);
   return {
     complete: true,
     missing: [],
@@ -240,7 +256,7 @@ function buildPersistentVisibleState(state, snapshotId) {
           max_hp: player.max_hp,
           gold: player.gold,
           relics: relics.map((relic, index) => ({
-            entity_id: stableId("relic", snapshotId, relic.native_ref, index),
+            entity_id: makeId("relic", snapshotId, relic.native_ref, index),
             definition_id: definitionId(relic.id),
             name: relic.name ?? null,
             description: relic.description ?? null,
@@ -249,7 +265,7 @@ function buildPersistentVisibleState(state, snapshotId) {
             card_previews: []
           })),
           potions: potions.map((potion, index) => ({
-            entity_id: stableId("potion", snapshotId, potion.native_ref, index),
+            entity_id: makeId("potion", snapshotId, potion.native_ref, index),
             definition_id: definitionId(potion.id),
             name: potion.name ?? null,
             description: potion.description ?? null,
@@ -901,7 +917,7 @@ function currentSurface(state, ctx) {
 
       const enemyEntries = rawEnemies.map((enemy, index) => {
         const properties = {
-          entity_id: stableId("enemy", ctx.snapshotId, enemy.native_ref),
+          entity_id: ctx.id("enemy", ctx.snapshotId, enemy.native_ref),
           combat_id: enemy.combat_id,
           definition_id: definitionId(enemy.id),
           name: enemy.name ?? null,
@@ -927,7 +943,7 @@ function currentSurface(state, ctx) {
         entry.referent
       ]));
       const handEntries = rawHand.map((card, index) => {
-        const entityId = stableId("card", ctx.snapshotId, card.native_ref);
+        const entityId = ctx.id("card", ctx.snapshotId, card.native_ref);
         const validTargets = (card.valid_target_refs ?? [])
           .map((nativeRef) => enemyReferentByNative.get(nativeRef)?.referent_id)
           .filter(Boolean);
@@ -990,7 +1006,7 @@ function currentSurface(state, ctx) {
           .map((nativeRef) => enemyReferentByNative.get(nativeRef)?.referent_id)
           .filter(Boolean);
         const visiblePotion = {
-          entity_id: stableId("potion", ctx.snapshotId, potion.native_ref),
+          entity_id: ctx.id("potion", ctx.snapshotId, potion.native_ref),
           name: potion.name ?? null,
           target_entity_ids: targetIds
         };
@@ -1049,7 +1065,7 @@ function currentSurface(state, ctx) {
         }
       }
 
-      const playerEntityId = stableId("player", ctx.snapshotId, state.player?.native_ref);
+      const playerEntityId = ctx.id("player", ctx.snapshotId, state.player?.native_ref);
       const playerContext = {
         player_entity_id: playerEntityId,
         block: state.player?.block ?? 0,
@@ -1062,7 +1078,7 @@ function currentSurface(state, ctx) {
         statuses: (state.player_statuses ?? []).map(visibleStatus),
         companions: state.companions ?? [],
         potion_states: rawPotions.map((potion) => ({
-          entity_id: stableId("potion", ctx.snapshotId, potion.native_ref),
+          entity_id: ctx.id("potion", ctx.snapshotId, potion.native_ref),
           target_type: potion.target_type,
           can_use: potion.can_use === true,
           automatic: potion.usage === "Automatic"
@@ -1095,7 +1111,7 @@ function currentSurface(state, ctx) {
             .map((entry) => entry.option),
           usable_potions: rawPotions.filter((potion) => potion.can_use === true)
             .map((potion) => ({
-              entity_id: stableId("potion", ctx.snapshotId, potion.native_ref),
+              entity_id: ctx.id("potion", ctx.snapshotId, potion.native_ref),
               name: potion.name ?? null,
               target_entity_ids: (potion.valid_target_refs ?? [])
                 .map((nativeRef) => enemyReferentByNative.get(nativeRef)?.referent_id)
@@ -1336,11 +1352,11 @@ function capabilities(actions, referents) {
   return [...values.values()];
 }
 
-function runDeckRead(snapshotId, state) {
+function runDeckRead(snapshotId, state, makeId = stableId) {
   if (!Array.isArray(state.player?.deck)) return null;
   return {
     descriptor: {
-      read_id: stableId("read", snapshotId, "run_deck"),
+      read_id: makeId("read", snapshotId, "run_deck"),
       kind: "run_deck",
       target_referent_id: null,
       content_schema: "sts2.player-environment/read/run_deck-1",
@@ -1352,11 +1368,13 @@ function runDeckRead(snapshotId, state) {
     content: {
       kind: "run_deck",
       card_count: state.player.deck.length,
-      cards: state.player.deck.map((card, index) => ({
-        entity_id: stableId("deck_card", snapshotId, index, card.id, card.upgraded),
-        ...visibleCombatCard(card, stableId("deck_card", snapshotId, index, card.id, card.upgraded)),
-        is_selected: false
-      }))
+      cards: state.player.deck.map((card, index) => {
+        const entityId = makeId("deck_card", snapshotId, index, card.id, card.upgraded);
+        return {
+          ...visibleCombatCard(card, entityId),
+          is_selected: false
+        };
+      })
     },
     completeness: {
       status: "partial",
@@ -1368,11 +1386,11 @@ function runDeckRead(snapshotId, state) {
   };
 }
 
-function combatPilesRead(snapshotId, state) {
+function combatPilesRead(snapshotId, state, makeId = stableId) {
   if (!Array.isArray(state.combat_piles)) return null;
   return {
     descriptor: {
-      read_id: stableId("read", snapshotId, "combat_piles"),
+      read_id: makeId("read", snapshotId, "combat_piles"),
       kind: "combat_piles",
       target_referent_id: null,
       content_schema: "sts2.player-environment/read/combat_piles-1",
@@ -1389,7 +1407,7 @@ function combatPilesRead(snapshotId, state) {
         ordering_semantics: "unordered_multiset",
         cards: (zone.cards ?? []).map((card, index) => visibleCombatCard(
           card,
-          stableId("pile_card", snapshotId, zone.pile, card.native_ref, index)
+          makeId("pile_card", snapshotId, zone.pile, card.native_ref, index)
         ))
       }))
     },
@@ -1403,7 +1421,14 @@ function combatPilesRead(snapshotId, state) {
   };
 }
 
-export function projectManagedCandidateDecision({ state, runtimeInstanceId, environmentFingerprint, sequence }) {
+export function projectManagedCandidateDecision({
+  state,
+  runtimeInstanceId,
+  environmentFingerprint,
+  sequence,
+  identityMode = "crypto",
+  validateSdk = true
+}) {
   if (!plainObject(state) || state.type !== "decision") {
     throw new TypeError("Managed Player Environment projection requires a raw decision state.");
   }
@@ -1417,9 +1442,16 @@ export function projectManagedCandidateDecision({ state, runtimeInstanceId, envi
     throw new TypeError("Managed Player Environment projection requires a positive sequence.");
   }
 
-  const ctx = createProjectionContext({ state, runtimeInstanceId, sequence });
+  const totalStarted = performance.now();
+  let stageStarted = totalStarted;
+  const ctx = createProjectionContext({ state, runtimeInstanceId, sequence, identityMode });
+  const contextMs = performance.now() - stageStarted;
+  stageStarted = performance.now();
   const surface = currentSurface(state, ctx);
-  const persistent = buildPersistentVisibleState(state, ctx.snapshotId);
+  const surfaceMs = performance.now() - stageStarted;
+  stageStarted = performance.now();
+  const persistent = buildPersistentVisibleState(state, ctx.snapshotId, ctx.id);
+  const persistentMs = performance.now() - stageStarted;
   const terminal = state.decision === "game_over";
   const actionProjectionComplete = (surface.actionComplete ?? surface.complete) === true
     && ctx.actions.length <= ACTION_LIMIT;
@@ -1427,8 +1459,14 @@ export function projectManagedCandidateDecision({ state, runtimeInstanceId, envi
     ctx.actions.length = 0;
     ctx.bindings.clear();
   }
-  const reads = [runDeckRead(ctx.snapshotId, state), combatPilesRead(ctx.snapshotId, state)]
+  stageStarted = performance.now();
+  const reads = [
+    runDeckRead(ctx.snapshotId, state, ctx.id),
+    combatPilesRead(ctx.snapshotId, state, ctx.id)
+  ]
     .filter(Boolean);
+  const readsMs = performance.now() - stageStarted;
+  stageStarted = performance.now();
   const missing = [...new Set([
     ...persistent.missing,
     ...(surface.missing ?? [])
@@ -1482,12 +1520,24 @@ export function projectManagedCandidateDecision({ state, runtimeInstanceId, envi
     session: { runtime_instance_id: runtimeInstanceId, environment_fingerprint: environmentFingerprint },
     information_policy: INFORMATION_POLICY
   };
-  decodePlayerSnapshot(snapshot);
+  const assemblyMs = performance.now() - stageStarted;
+  stageStarted = performance.now();
+  if (validateSdk) decodePlayerSnapshot(snapshot);
+  const validationMs = performance.now() - stageStarted;
   return Object.freeze({
     snapshot,
     bindings: ctx.bindings,
     raw_state_sha256: ctx.rawStateSha,
-    reads: new Map(reads.map((read) => [read.descriptor.read_id, read]))
+    reads: new Map(reads.map((read) => [read.descriptor.read_id, read])),
+    performance: Object.freeze({
+      context_ms: contextMs,
+      surface_ms: surfaceMs,
+      persistent_ms: persistentMs,
+      reads_ms: readsMs,
+      assembly_ms: assemblyMs,
+      validation_ms: validationMs,
+      total_ms: performance.now() - totalStarted
+    })
   });
 }
 
@@ -1495,7 +1545,7 @@ function unknownAction(boundActionId) {
   return { bound_action_id: boundActionId, verb: "activate", subject_referent_id: null, arguments: [] };
 }
 
-function receipt({ requestId, delivery, action, reasonCode, detail, retry, successor }) {
+function receipt({ requestId, delivery, action, reasonCode, detail, retry, successor, validateSdk = true }) {
   const value = {
     protocol_version: SUPPORTED_PLAYER_ENVIRONMENT_PROTOCOL,
     schema: "sts2.player-environment/receipt-1",
@@ -1512,7 +1562,7 @@ function receipt({ requestId, delivery, action, reasonCode, detail, retry, succe
     retry,
     successor
   };
-  decodePlayerReceipt(value);
+  if (validateSdk) decodePlayerReceipt(value);
   return value;
 }
 
@@ -1526,13 +1576,18 @@ export class ManagedPlayerEnvironmentSession {
   #projection = null;
   #ledger = new Map();
   #tainted = false;
+  #identityMode;
+  #validateSdk;
+  #performance = new Map();
 
   constructor({
     process,
     runtimeInstanceId,
     environmentFingerprint,
     character = "Ironclad",
-    language = "en"
+    language = "en",
+    identityMode = "crypto",
+    validateSdk = true
   }) {
     if (process == null || typeof process.request !== "function") {
       throw new TypeError("ManagedPlayerEnvironmentSession requires a JSON-line process.");
@@ -1542,21 +1597,48 @@ export class ManagedPlayerEnvironmentSession {
     this.#environmentFingerprint = environmentFingerprint;
     this.#character = character;
     this.#language = language;
+    this.#identityMode = identityMode;
+    this.#validateSdk = validateSdk;
   }
 
   get tainted() {
     return this.#tainted;
   }
 
+  performance() {
+    return Object.fromEntries([...this.#performance.entries()].map(([name, value]) => [name, { ...value }]));
+  }
+
+  async processMetrics(timeoutMs = 10_000) {
+    return this.#process.request({ cmd: "process_metrics" }, timeoutMs);
+  }
+
+  #record(name, milliseconds) {
+    const value = this.#performance.get(name) ?? { count: 0, total_ms: 0, max_ms: 0 };
+    value.count += 1;
+    value.total_ms += milliseconds;
+    value.max_ms = Math.max(value.max_ms, milliseconds);
+    this.#performance.set(name, value);
+  }
+
+  #makeReceipt(options) {
+    const started = performance.now();
+    const value = receipt({ ...options, validateSdk: this.#validateSdk });
+    this.#record("receipt", performance.now() - started);
+    return value;
+  }
+
   async mount({ seed, reset = false, timeoutMs = 10_000 }) {
     if (typeof seed !== "string" || seed.length === 0) throw new TypeError("mount requires seed.");
     if (this.#tainted) throw new Error("A tainted Managed Player Environment session cannot mount another run.");
+    const mountStarted = performance.now();
     const state = await this.#process.request({
       cmd: reset ? "reset_run" : "start_run",
       character: this.#character,
       seed,
       lang: this.#language
     }, timeoutMs);
+    this.#record("mount_transport_and_native", performance.now() - mountStarted);
     this.#ledger.clear();
     return this.#setState(state, timeoutMs);
   }
@@ -1594,7 +1676,9 @@ export class ManagedPlayerEnvironmentSession {
       session: this.#projection.snapshot.session,
       information_policy: INFORMATION_POLICY
     };
-    decodePlayerRead(value);
+    const validationStarted = performance.now();
+    if (this.#validateSdk) decodePlayerRead(value);
+    this.#record("read_validation", performance.now() - validationStarted);
     return value;
   }
 
@@ -1607,7 +1691,7 @@ export class ManagedPlayerEnvironmentSession {
     const previous = this.#ledger.get(requestId);
     if (previous != null) {
       if (previous.requestKey === requestKey) return previous.receipt;
-      return receipt({
+      return this.#makeReceipt({
         requestId,
         delivery: "not_delivered",
         action: unknownAction(boundActionId),
@@ -1618,7 +1702,7 @@ export class ManagedPlayerEnvironmentSession {
       });
     }
     if (this.#tainted) {
-      const value = receipt({
+      const value = this.#makeReceipt({
         requestId,
         delivery: "not_delivered",
         action: unknownAction(boundActionId),
@@ -1631,7 +1715,7 @@ export class ManagedPlayerEnvironmentSession {
       return value;
     }
     if (expectedSnapshotId !== this.#projection.snapshot.snapshot_id) {
-      const value = receipt({
+      const value = this.#makeReceipt({
         requestId,
         delivery: "not_delivered",
         action: unknownAction(boundActionId),
@@ -1645,7 +1729,7 @@ export class ManagedPlayerEnvironmentSession {
     }
     const binding = this.#projection.bindings.get(boundActionId);
     if (binding == null) {
-      const value = receipt({
+      const value = this.#makeReceipt({
         requestId,
         delivery: "not_delivered",
         action: unknownAction(boundActionId),
@@ -1659,10 +1743,12 @@ export class ManagedPlayerEnvironmentSession {
     }
     let successor;
     try {
+      const transportStarted = performance.now();
       successor = await this.#process.request(binding.raw_request, timeoutMs);
+      this.#record("action_transport_native_and_raw_extraction", performance.now() - transportStarted);
     } catch (error) {
       this.#tainted = true;
-      const value = receipt({
+      const value = this.#makeReceipt({
         requestId,
         delivery: "unknown",
         action: binding.action,
@@ -1676,7 +1762,7 @@ export class ManagedPlayerEnvironmentSession {
     }
     if (!plainObject(successor) || successor.type !== "decision") {
       this.#tainted = true;
-      const value = receipt({
+      const value = this.#makeReceipt({
         requestId,
         delivery: "unknown",
         action: binding.action,
@@ -1691,7 +1777,7 @@ export class ManagedPlayerEnvironmentSession {
       return value;
     }
     const next = await this.#setState(successor, timeoutMs);
-    const value = receipt({
+    const value = this.#makeReceipt({
       requestId,
       delivery: "delivered",
       action: binding.action,
@@ -1707,6 +1793,7 @@ export class ManagedPlayerEnvironmentSession {
   async #setState(state, timeoutMs) {
     let enriched = state;
     if (state?.decision === "map_select") {
+      const mapReadStarted = performance.now();
       try {
         const visibleMap = await this.#process.request({ cmd: "get_map" }, timeoutMs);
         if (plainObject(visibleMap) && visibleMap.type === "map") {
@@ -1714,15 +1801,24 @@ export class ManagedPlayerEnvironmentSession {
         }
       } catch {
         // A failed read-only enrichment never changes known mutation delivery.
+      } finally {
+        this.#record("map_enrichment", performance.now() - mapReadStarted);
       }
     }
     this.#sequence += 1;
+    const projectionStarted = performance.now();
     this.#projection = projectManagedCandidateDecision({
       state: enriched,
       runtimeInstanceId: this.#runtimeInstanceId,
       environmentFingerprint: this.#environmentFingerprint,
-      sequence: this.#sequence
+      sequence: this.#sequence,
+      identityMode: this.#identityMode,
+      validateSdk: this.#validateSdk
     });
+    this.#record("projection_total", performance.now() - projectionStarted);
+    for (const [name, milliseconds] of Object.entries(this.#projection.performance)) {
+      this.#record(`projection_${name.replace(/_ms$/u, "")}`, milliseconds);
+    }
     return this.#projection.snapshot;
   }
 }
@@ -1733,13 +1829,17 @@ export async function startManagedPlayerEnvironmentSession({
   diskIdentity,
   character = "Ironclad",
   language = "en",
-  requestTimeoutMs = 10_000
+  requestTimeoutMs = 10_000,
+  identityMode = "crypto",
+  validateSdk = true,
+  quietDiagnostics = false
 }) {
   const runtime = await startManagedCandidateRuntime({
     root,
     candidateDirectory,
     diskIdentity,
-    requestTimeoutMs
+    requestTimeoutMs,
+    quietDiagnostics
   });
   const environmentFingerprint = digest({
     candidate_id: runtime.manifest.candidate_id,
@@ -1754,7 +1854,9 @@ export async function startManagedPlayerEnvironmentSession({
       runtimeInstanceId: runtime.adapterRuntimeInstanceId,
       environmentFingerprint,
       character,
-      language
+      language,
+      identityMode,
+      validateSdk
     }),
     runtime,
     environmentFingerprint

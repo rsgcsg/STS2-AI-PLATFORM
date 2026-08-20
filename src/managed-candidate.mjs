@@ -262,7 +262,8 @@ export async function startManagedCandidateRuntime({
   root,
   candidateDirectory,
   diskIdentity,
-  requestTimeoutMs = 10_000
+  requestTimeoutMs = 10_000,
+  quietDiagnostics = false
 }) {
   requirePositiveInteger(requestTimeoutMs, "requestTimeoutMs");
   const { manifest } = loadManagedCandidateManifest(root);
@@ -282,7 +283,8 @@ export async function startManagedCandidateRuntime({
     env: {
       ...process.env,
       STS2_LIB: path.join(resolvedCandidateDirectory, "lib"),
-      STS2_GAME_DIR: gameDataDirectory
+      STS2_GAME_DIR: gameDataDirectory,
+      ...(quietDiagnostics ? { STS2_HEADLESS_QUIET: "1" } : {})
     },
     readyTimeoutMs: requestTimeoutMs,
     diagnosticLimit: 500

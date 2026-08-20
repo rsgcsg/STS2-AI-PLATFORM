@@ -72,11 +72,24 @@ export async function runManagedPlayerEnvironmentProbe({
   maxActions = 200,
   episodeCount = 1,
   requestTimeoutMs = 10_000,
-  evidenceRoot = null
+  evidenceRoot = null,
+  profileName = "qualification",
+  identityMode = "crypto",
+  validateSdk = true,
+  eagerReads = true,
+  canonicalEvidence = true,
+  resourceSamplingIntervalMs = 250,
+  quietDiagnostics = false
 }) {
   requirePositiveInteger(maxActions, "maxActions");
   requirePositiveInteger(episodeCount, "episodeCount");
   requirePositiveInteger(requestTimeoutMs, "requestTimeoutMs");
+  if (resourceSamplingIntervalMs != null) {
+    requirePositiveInteger(resourceSamplingIntervalMs, "resourceSamplingIntervalMs");
+    if (resourceSamplingIntervalMs < 250) {
+      throw new TypeError("resourceSamplingIntervalMs must be null or at least 250.");
+    }
+  }
   if (typeof seed !== "string" || seed.length === 0) throw new TypeError("seed must be a non-empty string.");
 
   const processStarted = performance.now();
@@ -85,10 +98,16 @@ export async function runManagedPlayerEnvironmentProbe({
     candidateDirectory,
     diskIdentity,
     character,
-    requestTimeoutMs
+    requestTimeoutMs,
+    identityMode,
+    validateSdk,
+    quietDiagnostics
   });
-  const sampler = new ProcessResourceSampler(started.runtime.process.pid, { intervalMs: 250 });
-  await sampler.start();
+  const sampler = resourceSamplingIntervalMs == null
+    ? null
+    : new ProcessResourceSampler(started.runtime.process.pid, { intervalMs: resourceSamplingIntervalMs });
+  if (sampler != null) await sampler.start();
+  const childMetricsBefore = await started.session.processMetrics(requestTimeoutMs);
   const events = [];
   let snapshot = null;
   let runIdentity = null;
@@ -97,10 +116,13 @@ export async function runManagedPlayerEnvironmentProbe({
   let decisionStarted = null;
   let decisionEnded = null;
   const episodes = [];
+  let actionsAttempted = 0;
+  let actionsDelivered = 0;
+  let readsCompleted = 0;
+  let unknownObserved = false;
   try {
     for (let episodeIndex = 0; episodeIndex < episodeCount; episodeIndex += 1) {
       const requestedSeed = episodeSeed(seed, episodeIndex, episodeCount);
-      const eventStart = events.length;
       const mountStarted = performance.now();
       snapshot = await started.session.mount({
         seed: requestedSeed,
@@ -115,29 +137,38 @@ export async function runManagedPlayerEnvironmentProbe({
       }
       const mountedAt = performance.now();
       decisionStarted ??= mountedAt;
-      events.push({
-        type: "episode_provenance",
-        episode_index: episodeIndex,
-        requested_seed: requestedSeed,
-        actual_seed: runIdentity.seed,
-        verdict: "provenance_pass",
-        mount_wall_ms: mountedAt - mountStarted
-      });
+      if (canonicalEvidence) {
+        events.push({
+          type: "episode_provenance",
+          episode_index: episodeIndex,
+          requested_seed: requestedSeed,
+          actual_seed: runIdentity.seed,
+          verdict: "provenance_pass",
+          mount_wall_ms: mountedAt - mountStarted
+        });
+      }
 
       let episodeStopReason = null;
+      let episodeActionsAttempted = 0;
+      let episodeActionsDelivered = 0;
+      let episodeReadsCompleted = 0;
       for (let actionIndex = 0; actionIndex < maxActions; actionIndex += 1) {
-        for (const descriptor of snapshot.reads) {
+        for (const descriptor of eagerReads ? snapshot.reads : []) {
           try {
             const value = started.session.read({
               readId: descriptor.read_id,
               expectedSnapshotId: snapshot.snapshot_id
             });
-            events.push({
-              type: "read",
-              episode_index: episodeIndex,
-              action_index: actionIndex,
-              canonical_read: canonicalizeReadResponse(value)
-            });
+            readsCompleted += 1;
+            episodeReadsCompleted += 1;
+            if (canonicalEvidence) {
+              events.push({
+                type: "read",
+                episode_index: episodeIndex,
+                action_index: actionIndex,
+                canonical_read: canonicalizeReadResponse(value)
+              });
+            }
           } catch (error) {
             episodeStopReason = `read_failure:${descriptor.kind}:${error instanceof Error ? error.message : String(error)}`;
             break;
@@ -159,21 +190,30 @@ export async function runManagedPlayerEnvironmentProbe({
           timeoutMs: requestTimeoutMs
         });
         const after = performance.now();
-        events.push({
-          type: "action",
-          episode_index: episodeIndex,
-          action_index: actionIndex,
-          canonical_decision: canonicalizeSnapshot(snapshot),
-          canonical_action: canonicalizeSelectedAction(snapshot, selected.bound_action_id),
-          delivery: value.delivery,
-          reason_code: value.reason_code ?? null,
-          detail: value.detail ?? null,
-          retry: value.retry ?? null,
-          delivery_wall_ms: after - before,
-          successor_kind: value.successor?.interaction?.kind ?? null,
-          successor_status: value.successor?.status ?? null
-        });
+        actionsAttempted += 1;
+        episodeActionsAttempted += 1;
+        if (value.delivery === "delivered") {
+          actionsDelivered += 1;
+          episodeActionsDelivered += 1;
+        }
+        if (canonicalEvidence) {
+          events.push({
+            type: "action",
+            episode_index: episodeIndex,
+            action_index: actionIndex,
+            canonical_decision: canonicalizeSnapshot(snapshot),
+            canonical_action: canonicalizeSelectedAction(snapshot, selected.bound_action_id),
+            delivery: value.delivery,
+            reason_code: value.reason_code ?? null,
+            detail: value.detail ?? null,
+            retry: value.retry ?? null,
+            delivery_wall_ms: after - before,
+            successor_kind: value.successor?.interaction?.kind ?? null,
+            successor_status: value.successor?.status ?? null
+          });
+        }
         if (value.delivery === "unknown") {
+          unknownObserved = true;
           episodeStopReason = `unknown:${value.reason_code ?? "unspecified"}`;
           break;
         }
@@ -184,17 +224,15 @@ export async function runManagedPlayerEnvironmentProbe({
         snapshot = value.successor;
       }
       episodeStopReason ??= "action_limit";
-      const episodeEvents = events.slice(eventStart);
-      const episodeActions = episodeEvents.filter((event) => event.type === "action");
       episodes.push({
         episode_index: episodeIndex,
         requested_seed: requestedSeed,
         game_reported_seed: runIdentity.seed,
         seed_provenance: "game_reported_match",
         terminal: episodeStopReason,
-        canonical_actions_attempted: episodeActions.length,
-        canonical_actions_delivered: episodeActions.filter((event) => event.delivery === "delivered").length,
-        canonical_reads_completed: episodeEvents.filter((event) => event.type === "read").length
+        canonical_actions_attempted: episodeActionsAttempted,
+        canonical_actions_delivered: episodeActionsDelivered,
+        canonical_reads_completed: episodeReadsCompleted
       });
       if (episodeStopReason !== "game_over" && episodeStopReason !== "action_limit") {
         stopReason = episodeStopReason;
@@ -210,11 +248,10 @@ export async function runManagedPlayerEnvironmentProbe({
     stopReason ??= `exception:${failure}`;
     decisionEnded = performance.now();
   }
-  const resources = await sampler.stop();
+  const childMetricsAfter = await started.session.processMetrics(requestTimeoutMs);
+  const resources = sampler == null ? { samples: [], errors: [] } : await sampler.stop();
   const exit = await started.session.close();
-  const actions = events.filter((event) => event.type === "action");
-  const reads = events.filter((event) => event.type === "read");
-  const delivered = actions.filter((event) => event.delivery === "delivered").length;
+  const delivered = actionsDelivered;
   const windowSeconds = decisionStarted == null || decisionEnded == null
     ? null
     : (decisionEnded - decisionStarted) / 1000;
@@ -256,9 +293,9 @@ export async function runManagedPlayerEnvironmentProbe({
       episodes_completed: episodes.length,
       terminal: stopReason,
       failure,
-      canonical_actions_attempted: actions.length,
+      canonical_actions_attempted: actionsAttempted,
       canonical_actions_delivered: delivered,
-      canonical_reads_completed: reads.length,
+      canonical_reads_completed: readsCompleted,
       episodes,
       final_snapshot: snapshot == null ? null : {
         status: snapshot.status,
@@ -268,15 +305,39 @@ export async function runManagedPlayerEnvironmentProbe({
     },
     performance: {
       unit: "canonical_player_environment_decision_partial_unqualified",
+      profile: profileName,
       process_startup_seconds: decisionStarted == null ? null : (decisionStarted - processStarted) / 1000,
       decision_window_started_ms: decisionStarted,
       decision_window_ended_ms: decisionEnded,
+      decision_window_started_epoch_ms: decisionStarted == null ? null : performance.timeOrigin + decisionStarted,
+      decision_window_ended_epoch_ms: decisionEnded == null ? null : performance.timeOrigin + decisionEnded,
       decision_window_seconds: windowSeconds,
       reset_inclusive_decision_window_seconds: windowSeconds,
       delivered_decisions_per_second: windowSeconds > 0 ? delivered / windowSeconds : null,
       peak_rss_bytes: peakRssBytes,
       resource_samples: resources.samples,
-      resource_sample_errors: resources.errors
+      resource_sample_errors: resources.errors,
+      stage_totals: started.session.performance(),
+      child_process: {
+        cpu_ms: childMetricsAfter.cpu_total_ms - childMetricsBefore.cpu_total_ms,
+        allocated_bytes: childMetricsAfter.allocated_bytes_total - childMetricsBefore.allocated_bytes_total,
+        gc_collections: {
+          gen0: childMetricsAfter.gen0_collections - childMetricsBefore.gen0_collections,
+          gen1: childMetricsAfter.gen1_collections - childMetricsBefore.gen1_collections,
+          gen2: childMetricsAfter.gen2_collections - childMetricsBefore.gen2_collections
+        },
+        final_working_set_bytes: childMetricsAfter.working_set_bytes,
+        final_private_bytes: childMetricsAfter.private_bytes,
+        final_managed_heap_bytes: childMetricsAfter.managed_heap_bytes
+      },
+      ablations: {
+        identity_mode: identityMode,
+        sdk_validation: validateSdk ? "every_step" : "off",
+        eager_reads: eagerReads,
+        canonical_evidence: canonicalEvidence,
+        resource_sampling_interval_ms: resourceSamplingIntervalMs,
+        quiet_diagnostics: quietDiagnostics
+      }
     },
     process: {
       pid: started.runtime.process.pid,
@@ -285,7 +346,7 @@ export async function runManagedPlayerEnvironmentProbe({
     },
     events,
     verdict: {
-      hard_shell: actions.some((event) => event.delivery === "unknown")
+      hard_shell: unknownObserved
         ? "unknown_delivery_fail_closed"
         : failure == null ? "bounded_integrity_pass" : "integrity_incomplete",
       semantic_conformance: "not_evaluated",
@@ -319,7 +380,7 @@ function capacityIdentity(report) {
   };
 }
 
-export function summarizeManagedPlayerEnvironmentCapacityGroup(results, groupWallSeconds) {
+export function summarizeManagedPlayerEnvironmentCapacityGroup(results, groupWallSeconds, parentPerformance = null) {
   if (!Array.isArray(results) || results.length === 0) {
     throw new TypeError("At least one managed Player Environment worker result is required.");
   }
@@ -377,6 +438,7 @@ export function summarizeManagedPlayerEnvironmentCapacityGroup(results, groupWal
     aggregate_reset_inclusive_canonical_decisions_per_second:
       commonWindowSeconds > 0 ? decisions / commonWindowSeconds : null,
     summed_worker_peak_rss_bytes: peakRssBytes,
+    parent_process: parentPerformance,
     workers: reports.map((report) => ({
       status: report.status,
       runtime_instance_id: report.candidate.adapter_runtime_instance_id,
@@ -416,7 +478,14 @@ export async function runManagedPlayerEnvironmentCapacity({
   seedPrefix = "H1PECAPACITY",
   character = "Ironclad",
   requestTimeoutMs = 10_000,
-  evidenceRoot
+  evidenceRoot,
+  profileName = "qualification",
+  identityMode = "crypto",
+  validateSdk = true,
+  eagerReads = true,
+  canonicalEvidence = true,
+  resourceSamplingIntervalMs = 250,
+  quietDiagnostics = false
 }) {
   requirePositiveInteger(maxActions, "maxActions");
   requirePositiveInteger(episodesPerWorker, "episodesPerWorker");
@@ -437,6 +506,7 @@ export async function runManagedPlayerEnvironmentCapacity({
   const groups = [];
   for (const workerCount of workerCounts) {
     const groupStarted = performance.now();
+    const parentCpuStarted = process.cpuUsage();
     const workers = await Promise.all(Array.from({ length: workerCount }, () =>
       runManagedPlayerEnvironmentProbe({
         root,
@@ -447,11 +517,26 @@ export async function runManagedPlayerEnvironmentCapacity({
         maxActions,
         episodeCount: episodesPerWorker,
         requestTimeoutMs,
-        evidenceRoot: null
+        evidenceRoot: null,
+        profileName,
+        identityMode,
+        validateSdk,
+        eagerReads,
+        canonicalEvidence,
+        resourceSamplingIntervalMs,
+        quietDiagnostics
       })));
+    const groupWallSeconds = (performance.now() - groupStarted) / 1000;
+    const parentCpu = process.cpuUsage(parentCpuStarted);
     groups.push(summarizeManagedPlayerEnvironmentCapacityGroup(
       workers,
-      (performance.now() - groupStarted) / 1000
+      groupWallSeconds,
+      {
+        cpu_seconds: (parentCpu.user + parentCpu.system) / 1_000_000,
+        average_cpu_cores: groupWallSeconds > 0
+          ? (parentCpu.user + parentCpu.system) / 1_000_000 / groupWallSeconds
+          : null
+      }
     ));
   }
   const report = {
@@ -467,6 +552,15 @@ export async function runManagedPlayerEnvironmentCapacity({
     max_actions_per_episode: maxActions,
     seed_prefix: seedPrefix,
     character,
+    profile: {
+      name: profileName,
+      identity_mode: identityMode,
+      sdk_validation: validateSdk ? "every_step" : "off",
+      eager_reads: eagerReads,
+      canonical_evidence: canonicalEvidence,
+      resource_sampling_interval_ms: resourceSamplingIntervalMs,
+      quiet_diagnostics: quietDiagnostics
+    },
     groups,
     non_claims: [
       "Canonical adapter throughput is not cross-Host semantic conformance.",
