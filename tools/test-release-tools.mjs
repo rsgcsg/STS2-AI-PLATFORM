@@ -13,7 +13,11 @@ import {
 import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
-import { installRelease, rollbackRelease } from "./install-release.mjs";
+import {
+  installRelease,
+  processListContainsGame,
+  rollbackRelease
+} from "./install-release.mjs";
 import { evaluateReleaseIdentity } from "./verify-release.mjs";
 
 const root = mkdtempSync(path.join(os.tmpdir(), "sts2-connector-release-"));
@@ -37,6 +41,22 @@ try {
   writeFileSync(path.join(payload, "build-identity.json"), JSON.stringify(identity));
   writeFileSync(path.join(modsDir, "STS2_MCP.dll"), "old-host");
   writeFileSync(path.join(modsDir, "STS2_MCP.json"), "{\"id\":\"STS2_MCP\",\"version\":\"old\"}\n");
+
+  assert.equal(
+    processListContainsGame(
+      "node tools/install-release.mjs --game-dir '/games/Slay the Spire 2'\n",
+      "darwin"
+    ),
+    false
+  );
+  assert.equal(
+    processListContainsGame("/games/Slay the Spire 2\n", "darwin"),
+    true
+  );
+  assert.equal(
+    processListContainsGame('"SlayTheSpire2.exe","123","Console"\n', "win32"),
+    true
+  );
 
   const installed = installRelease({
     releaseRoot,

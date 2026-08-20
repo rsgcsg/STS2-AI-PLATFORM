@@ -30,9 +30,18 @@ function sha256(file) {
 export function gameProcessRunning(platform = process.platform) {
   const result = platform === "win32"
     ? spawnSync("tasklist", ["/FO", "CSV", "/NH"], { encoding: "utf8", stdio: "pipe" })
-    : spawnSync("ps", ["-Ao", "command="], { encoding: "utf8", stdio: "pipe" });
+    : spawnSync("ps", ["-Ao", "comm="], { encoding: "utf8", stdio: "pipe" });
   if (result.status !== 0) return true;
-  return /Slay(?:The| the )Spire2|Slay the Spire 2/iu.test(result.stdout);
+  return processListContainsGame(result.stdout, platform);
+}
+
+export function processListContainsGame(output, platform = process.platform) {
+  return output.split(/\r?\n/u).some((line) => {
+    const executable = platform === "win32"
+      ? line.split("\",")[0]?.replace(/^"|"$/gu, "").trim()
+      : path.basename(line.trim());
+    return /^(?:SlayTheSpire2|Slay the Spire 2)(?:\.exe)?$/iu.test(executable ?? "");
+  });
 }
 
 export function installRelease({
