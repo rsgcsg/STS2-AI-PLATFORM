@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from collections import deque
 from dataclasses import dataclass
 import json
+from queue import Empty, Queue
 import subprocess
+import threading
 from typing import Any, Iterable, Mapping, Sequence
 from uuid import uuid4
 
@@ -33,9 +36,12 @@ class FiniteActionView:
 
 
 class ManagedPlayerEnvironment:
-    def __init__(self, command: Sequence[str]):
+    def __init__(self, command: Sequence[str], *, response_timeout_seconds: float = 120.0):
         if not command:
             raise ValueError("A non-empty driver command is required.")
+        if response_timeout_seconds <= 0:
+            raise ValueError("response_timeout_seconds must be positive.")
+        self._response_timeout_seconds = response_timeout_seconds
         self._process = subprocess.Popen(
             list(command),
             stdin=subprocess.PIPE,
@@ -45,19 +51,44 @@ class ManagedPlayerEnvironment:
             bufsize=1,
         )
         self._closed = False
+        self._stdout_lines: Queue[str | None] = Queue()
+        self._stderr_tail: deque[str] = deque(maxlen=200)
+        self._stdout_thread = threading.Thread(target=self._drain_stdout, daemon=True)
+        self._stderr_thread = threading.Thread(target=self._drain_stderr, daemon=True)
+        self._stdout_thread.start()
+        self._stderr_thread.start()
         self.ready = self._read_message()
         if self.ready.get("type") != "ready":
             self.close(force=True)
             raise DriverError(f"Driver did not become ready: {self.ready!r}")
 
-    def _read_message(self) -> dict[str, Any]:
+    def _drain_stdout(self) -> None:
         assert self._process.stdout is not None
-        line = self._process.stdout.readline()
-        if not line:
-            stderr = ""
-            if self._process.stderr is not None:
-                stderr = self._process.stderr.read()
-            raise DriverError(f"Driver exited before replying: {stderr.strip()}")
+        for line in self._process.stdout:
+            self._stdout_lines.put(line)
+        self._stdout_lines.put(None)
+
+    def _drain_stderr(self) -> None:
+        assert self._process.stderr is not None
+        for line in self._process.stderr:
+            self._stderr_tail.append(line.rstrip())
+
+    def _stderr_detail(self) -> str:
+        return "\n".join(self._stderr_tail).strip()
+
+    def _read_message(self) -> dict[str, Any]:
+        try:
+            line = self._stdout_lines.get(timeout=self._response_timeout_seconds)
+        except Empty as error:
+            detail = self._stderr_detail()
+            self.close(force=True)
+            suffix = f": {detail}" if detail else ""
+            raise DriverError(
+                f"Driver response timed out after {self._response_timeout_seconds:g}s{suffix}"
+            ) from error
+        if line is None:
+            detail = self._stderr_detail()
+            raise DriverError(f"Driver exited before replying: {detail}")
         value = json.loads(line)
         if not isinstance(value, dict):
             raise DriverError("Driver response must be a JSON object.")
@@ -123,6 +154,8 @@ class ManagedPlayerEnvironment:
             for stream in (self._process.stdin, self._process.stdout, self._process.stderr):
                 if stream is not None and not stream.closed:
                     stream.close()
+            self._stdout_thread.join(timeout=1)
+            self._stderr_thread.join(timeout=1)
 
     def __enter__(self) -> "ManagedPlayerEnvironment":
         return self

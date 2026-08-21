@@ -34,6 +34,24 @@ for line in sys.stdin:
         break
 '''
 
+HANG_DRIVER = r'''
+import json, sys, time
+print(json.dumps({"type":"ready","protocol":"test"}), flush=True)
+for line in sys.stdin:
+    time.sleep(60)
+'''
+
+NOISY_DRIVER = r'''
+import json, sys
+for index in range(2000):
+    print("diagnostic-" + str(index) + "-" + ("x" * 100), file=sys.stderr)
+print(json.dumps({"type":"ready","protocol":"test"}), flush=True)
+for line in sys.stdin:
+    request = json.loads(line)
+    print(json.dumps({"request_id":request["request_id"],"type":"close_result","exit":{"code":0}}), flush=True)
+    break
+'''
+
 
 class ClientTest(unittest.TestCase):
     def test_round_trip_and_finite_projection(self):
@@ -49,6 +67,22 @@ class ClientTest(unittest.TestCase):
     def test_rejects_incomplete_action_projection(self):
         with self.assertRaises(DriverError):
             FiniteActionView.from_snapshot({"snapshot_id": "s", "bound_actions": {"status": "partial"}})
+
+    def test_driver_response_timeout_quarantines_process(self):
+        environment = ManagedPlayerEnvironment(
+            [sys.executable, "-u", "-c", HANG_DRIVER],
+            response_timeout_seconds=0.1,
+        )
+        with self.assertRaisesRegex(DriverError, "response timed out"):
+            environment.reset("SEED")
+        self.assertIsNotNone(environment._process.poll())
+
+    def test_stderr_is_drained_without_blocking_ready(self):
+        with ManagedPlayerEnvironment(
+            [sys.executable, "-u", "-c", NOISY_DRIVER],
+            response_timeout_seconds=5,
+        ) as environment:
+            self.assertEqual(environment.ready["type"], "ready")
 
     def test_threaded_vector_preserves_environment_order_and_exact_bindings(self):
         class RecordingEnvironment:
