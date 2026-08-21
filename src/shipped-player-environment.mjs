@@ -10,6 +10,7 @@ import { evaluateRuntimeCompatibility } from "./compatibility.mjs";
 import { canonicalizeEpisodeSeed, evaluateEpisodeProvenance } from "./episode-provenance.mjs";
 import { readDiskIdentity } from "./game-installation.mjs";
 import { evaluateHeadlessCapabilities } from "./headless-host.mjs";
+import { chooseBoundAction } from "./journey-probe.mjs";
 import { readProjectIdentity } from "./project-identity.mjs";
 import { resolveLaunchProfile } from "./profile-isolation.mjs";
 import { instantiateProfileTemplate } from "./profile-template.mjs";
@@ -160,7 +161,7 @@ export async function startShippedPlayerEnvironmentEpisode({
     const gate = evaluateHeadlessCapabilities(capabilities);
     if (!gate.ok) throw new Error(`Reference capability gate failed: ${gate.errors.join(", ")}`);
     const observations = await waitForInteractiveSnapshot(endpoint, timeoutMs, childReference(child));
-    const snapshot = observations.at(-1)?.value;
+    let snapshot = observations.at(-1)?.value;
     if (snapshot == null) throw new Error("Reference runtime did not mount an interactive snapshot.");
 
     const client = new PlayerEnvironmentRestClient(endpoint, requestTimeoutMs);
@@ -197,6 +198,65 @@ export async function startShippedPlayerEnvironmentEpisode({
       return provenance;
     };
 
+    const bootstrapTrace = [];
+    const runEntryKinds = new Set([
+      "main_menu",
+      "singleplayer_menu",
+      "character_select",
+      "tutorial",
+      "tutorial_preference"
+    ]);
+    for (let index = 0; runEntryKinds.has(snapshot.interaction.kind) && index < 16; index += 1) {
+      const action = chooseBoundAction(snapshot, { tutorialPreference: "disable" });
+      if (action == null) {
+        throw new Error(`Reference reset cannot safely advance ${snapshot.interaction.kind}.`);
+      }
+      const credentials = await controller.credentials();
+      const receipt = (await client.submit({
+        requestId: `reference-reset-${String(index + 1).padStart(2, "0")}-${randomUUID()}`,
+        expectedSnapshotId: snapshot.snapshot_id,
+        boundActionId: action.bound_action_id,
+        clientSessionId: credentials.clientSessionId,
+        controllerLeaseId: credentials.controllerLeaseId,
+        controllerGeneration: credentials.controllerGeneration
+      })).data;
+      const settled = await settleReferenceReceipt({
+        receipt,
+        expectedSnapshotId: snapshot.snapshot_id,
+        observe: async () => (await client.observe()).data,
+        child,
+        timeoutMs: requestTimeoutMs
+      });
+      bootstrapTrace.push({
+        interaction_kind: snapshot.interaction.kind,
+        verb: action.verb,
+        label: action.label,
+        delivery: settled.delivery,
+        reason_code: settled.reason_code ?? null,
+        successor_kind: settled.successor?.interaction?.kind ?? null
+      });
+      if (settled.delivery !== "delivered" || settled.successor == null) {
+        throw new Error(
+          `Reference reset input was not followed by a stable successor: `
+          + `${settled.delivery}:${settled.reason_code ?? settled.successor_observation ?? "unspecified"}.`
+        );
+      }
+      snapshot = settled.successor;
+      await refreshProvenance();
+    }
+    if (runEntryKinds.has(snapshot.interaction.kind)) {
+      throw new Error("Reference reset exceeded the bounded run-entry action budget.");
+    }
+    if (snapshot.status !== "interactive" || snapshot.interaction.kind !== "map_navigation") {
+      throw new Error(
+        `Reference reset expected the first map decision, observed ${snapshot.status}:${snapshot.interaction.kind}.`
+      );
+    }
+    await refreshProvenance();
+    if (provenance.verdict !== "provenance_pass") {
+      throw new Error(`Reference run seed was not proven after bootstrap: ${provenance.errors.join(", ")}`);
+    }
+
     return {
       snapshot,
       identity: {
@@ -208,6 +268,7 @@ export async function startShippedPlayerEnvironmentEpisode({
         get episode_provenance() {
           return provenance;
         },
+        bootstrap_trace: bootstrapTrace,
         evidence_directory: evidenceDirectory
       },
       observe: async () => (await client.observe()).data,
