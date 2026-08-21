@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   chooseManagedPlayerEnvironmentAction,
+  managedCapacityReportStatus,
   managedTerminalOutcome,
   summarizeManagedPlayerEnvironmentCapacityGroup
 } from "../src/managed-player-environment-probe.mjs";
@@ -135,4 +136,23 @@ test("canonical capacity aggregation requires one artifact and distinct runtimes
     capacityWorker("runtime-a", 1, 0, 1),
     capacityWorker("runtime-a", 1, 0, 1)
   ], 1), /distinct runtime instance IDs/u);
+});
+
+test("capacity report aggregation preserves complete, partial, and unrecorded evidence", () => {
+  assert.equal(managedCapacityReportStatus([
+    { status: "measured_canonical_unqualified" },
+    { status: "measured_canonical_unqualified" }
+  ]), "measured_canonical_unqualified");
+  assert.equal(managedCapacityReportStatus([
+    { status: "measured_canonical_unqualified" },
+    { status: "measured_canonical_partial_unqualified" }
+  ]), "measured_canonical_partial_unqualified");
+  assert.equal(managedCapacityReportStatus([
+    { status: "measured_training_profile_unqualified" },
+    { status: "measured_training_profile_unqualified" }
+  ]), "measured_training_profile_unqualified");
+  assert.equal(managedCapacityReportStatus([
+    { status: "measured_training_profile_unqualified" },
+    { status: "measured_canonical_unqualified" }
+  ]), "measurement_incomplete");
 });

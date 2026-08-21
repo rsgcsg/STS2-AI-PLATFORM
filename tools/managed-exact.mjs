@@ -227,7 +227,8 @@ async function main() {
     }, null, 2));
     process.exitCode = [
       "measured_canonical_unqualified",
-      "measured_canonical_partial_unqualified"
+      "measured_canonical_partial_unqualified",
+      "measured_training_profile_unqualified"
     ].includes(result.report.status) ? 0 : 3;
     return;
   }
@@ -258,7 +259,8 @@ async function main() {
     }, null, 2));
     process.exitCode = [
       "measured_canonical_unqualified",
-      "measured_canonical_partial_unqualified"
+      "measured_canonical_partial_unqualified",
+      "measured_training_profile_unqualified"
     ].includes(result.report.status) ? 0 : 3;
     return;
   }

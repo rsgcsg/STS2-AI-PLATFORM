@@ -724,6 +724,24 @@ export function summarizeManagedPlayerEnvironmentCapacityGroup(results, groupWal
   };
 }
 
+export function managedCapacityReportStatus(groups) {
+  if (!Array.isArray(groups) || groups.length === 0) return "measurement_incomplete";
+  const statuses = groups.map((group) => group.status);
+  if (statuses.every((status) => status === "measured_training_profile_unqualified")) {
+    return "measured_training_profile_unqualified";
+  }
+  const canonicalStatuses = new Set([
+    "measured_canonical_unqualified",
+    "measured_canonical_partial_unqualified"
+  ]);
+  if (statuses.every((status) => canonicalStatuses.has(status))) {
+    return statuses.every((status) => status === "measured_canonical_unqualified")
+      ? "measured_canonical_unqualified"
+      : "measured_canonical_partial_unqualified";
+  }
+  return "measurement_incomplete";
+}
+
 export async function runManagedPlayerEnvironmentCapacity({
   root,
   candidateDirectory,
@@ -800,9 +818,7 @@ export async function runManagedPlayerEnvironmentCapacity({
   const report = {
     schema: "sts2.headless/managed-player-environment-capacity-1",
     generated_at: new Date().toISOString(),
-    status: groups.every((group) => group.status === "measured_canonical_partial_unqualified")
-      ? "measured_canonical_partial_unqualified"
-      : "measurement_incomplete",
+    status: managedCapacityReportStatus(groups),
     headless: readProjectIdentity(root),
     system_identity: readSystemIdentity(),
     worker_counts: workerCounts,
@@ -823,7 +839,8 @@ export async function runManagedPlayerEnvironmentCapacity({
     non_claims: [
       "Canonical adapter throughput is not cross-Host semantic conformance.",
       "A short reset-and-capacity ladder is not long-run reset or million-step reliability evidence.",
-      "The managed projection remains partial and the candidate remains experimental_unqualified.",
+      "Information completeness is only evaluated when canonical evidence recording is enabled.",
+      "The managed candidate remains experimental_unqualified regardless of the selected measurement profile.",
       "This deterministic policy is not gameplay quality, training, or transfer evidence."
     ]
   };
