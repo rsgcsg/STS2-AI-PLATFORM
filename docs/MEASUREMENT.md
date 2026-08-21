@@ -117,10 +117,11 @@ and allocated about `0.71 MB/decision`. Raw JSON serialization cost about
 and GC, not SDK, JSON or one Node supervisor.
 
 These are clean-source performance and method-selection results for a partial,
-unqualified projection. A fresh CrossHost run delivered the same 12 action
-labels in both Hosts but failed canonical parity at a playable-card referent
-representation boundary. The results are not physical-core affinity, real
-learner throughput, H1.0 or Training Ready. See the
+unqualified projection. A later exact-artifact CrossHost run matched one fixed
+12-action map/combat/reward semantic prefix after correcting public card
+actionability, native localization and visible Power projection. That bounded
+match is not physical-core affinity, real learner throughput, broad semantic
+qualification, H1.0 or Training Ready. See the
 [performance route closeout](evidence/MANAGED_HOST_PERFORMANCE_ROUTE_SELECTION_2026-08-21.md).
 
 The current performance stop rule is workload-based: once the Host is at most

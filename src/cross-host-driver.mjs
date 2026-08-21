@@ -308,6 +308,7 @@ export function createShippedReferenceHostDriver({
         tutorialPreference: "disable",
         isolatedProfileId: profileId,
         experimentalBuildAcknowledged,
+        experimentalConnectorAcknowledged: true,
         evidenceLabel: "cross-host-reference",
         runSeed: scenario.seed,
         stopOnCoverage: false

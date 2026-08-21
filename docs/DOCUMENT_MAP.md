@@ -25,6 +25,9 @@
 15. [Managed Host performance route selection](evidence/MANAGED_HOST_PERFORMANCE_ROUTE_SELECTION_2026-08-21.md):
     stage profiler, reversible ablations, single-environment and machine
     ceilings, method boundaries, 5k/10k assessment, and H1.0 route verdict.
+16. [Managed Exact first Cross-Host match](evidence/MANAGED_EXACT_FIRST_CROSS_HOST_MATCH_2026-08-22.md):
+    exact fixed-prefix parity, closed projection/localization defects, native
+    gates, identities, and explicit remaining qualification boundary.
 
 `README.md`, Status, Architecture, and Compatibility are current truth. Local
 raw evidence under `.local/` is not documentation and must not be committed.

@@ -245,7 +245,52 @@ test("materializes every combat card-target pair and keeps raw operands Host-loc
   );
   assert.equal(JSON.stringify(projection.snapshot).includes("card_index"), false);
   assert.equal(JSON.stringify(projection.snapshot).includes("native_ref"), false);
+  const playableCards = projection.snapshot.interaction.content.surface.playable_cards;
+  assert.deepEqual(Object.keys(playableCards[0]).sort(), ["entity_id", "name", "target_entity_ids"]);
+  assert.equal(playableCards.some((card) => "hand_index" in card || "definition_id" in card), false);
+  const visibleHand = projection.snapshot.interaction.content.context.player.hand;
+  assert.deepEqual(visibleHand.map((card) => card.definition_id), ["STRIKE_IRONCLAD", "DEFEND_IRONCLAD"]);
   assert.equal([...projection.bindings.values()].some((binding) => binding.raw_request.args?.card_ref === "card-strike"), true);
+});
+
+test("keeps visible unplayable cards as hand facts without creating action authority", () => {
+  const projection = projectManagedCandidateDecision({
+    ...projectionIdentity,
+    state: {
+      type: "decision",
+      decision: "combat_play",
+      context: { act: 1, floor: 2, room_type: "Combat" },
+      round: 1,
+      energy: 0,
+      max_energy: 3,
+      hand: [{
+        index: 0,
+        native_ref: "card-strike",
+        valid_target_refs: ["enemy-a"],
+        id: "CARD.STRIKE_IRONCLAD",
+        name: "Strike",
+        can_play: false,
+        is_selected: false,
+        unplayable_reason: "EnergyCostTooHigh",
+        target_type: "AnyEnemy",
+        type: "Attack",
+        rarity: "Basic",
+        cost: 1
+      }],
+      enemies: [{ index: 0, native_ref: "enemy-a", name: "A", hp: 10, max_hp: 10 }],
+      player: { ...player(), native_ref: "player-a" }
+    }
+  });
+  assert.deepEqual(projection.snapshot.interaction.content.surface.playable_cards, []);
+  const cardReferent = projection.snapshot.referents.find((referent) =>
+    referent.referent_id === projection.snapshot.interaction.content.context.player.hand[0].entity_id);
+  assert.equal(cardReferent.role, "hand");
+  assert.equal(cardReferent.state.selected, false);
+  assert.equal(cardReferent.properties.definition_id, "STRIKE_IRONCLAD");
+  assert.equal(cardReferent.properties.unplayable_reason, "EnergyCostTooHigh");
+  assert.deepEqual(projection.snapshot.bound_actions.actions.map((action) => action.verb), ["end_turn"]);
+  assert.equal([...projection.bindings.values()].some((binding) =>
+    binding.raw_request.args?.card_ref === "card-strike"), false);
 });
 
 test("projects native potion bindings without exposing Host-local identity", () => {

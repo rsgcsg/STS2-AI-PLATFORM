@@ -52,7 +52,12 @@ export async function runManagedNativeBindingGates({
   let failure = null;
   let exit = null;
   try {
-    let state = await process.request({ cmd: "start_run", character: "Ironclad", seed }, requestTimeoutMs);
+    let state = await process.request({
+      cmd: "start_run",
+      character: "Ironclad",
+      seed,
+      lang: "zh"
+    }, requestTimeoutMs);
     const mapPoint = state?.choices?.[0];
     if (state?.decision !== "map_select" || mapPoint == null) {
       throw new Error("Managed gate did not start at a map decision.");
@@ -74,6 +79,12 @@ export async function runManagedNativeBindingGates({
       args: { col: mapPoint.col, row: mapPoint.row, map_point_ref: mapPoint.native_ref }
     }, requestTimeoutMs);
     gates.map_native_commit_reached_combat = state?.decision === "combat_play";
+    const visibleIntents = (state?.enemies ?? []).flatMap((enemy) => enemy.intents ?? []);
+    gates.native_intent_localization_observed = visibleIntents.length > 0;
+    gates.native_intent_localization_formatted = visibleIntents.every((intent) =>
+      !/^FORMAT_/u.test(String(intent.label ?? ""))
+      && !/\.(?:title|description)$/u.test(String(intent.title ?? ""))
+      && !/\.(?:title|description)$/u.test(String(intent.description ?? "")));
 
     const card = firstPlayableCard(state);
     if (card == null) throw new Error("Managed gate found no natively playable combat card.");
@@ -128,7 +139,8 @@ export async function runManagedNativeBindingGates({
     state = await process.request({
       cmd: "reset_run",
       character: "Ironclad",
-      seed: `${seed}TREASURE`
+      seed: `${seed}TREASURE`,
+      lang: "zh"
     }, requestTimeoutMs);
     gates.reset_for_treasure_mounted = state?.decision === "map_select";
     state = await process.request({ cmd: "enter_room", type: "treasure" }, requestTimeoutMs);
@@ -206,7 +218,7 @@ export async function runManagedNativeBindingGates({
   }
 
   const allPassed = failure == null
-    && Object.values(gates).length === 24
+    && Object.values(gates).length === 26
     && Object.values(gates).every((value) => value === true)
     && exit?.code === 0;
   const report = {

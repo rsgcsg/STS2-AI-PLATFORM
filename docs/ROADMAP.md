@@ -54,13 +54,14 @@ No backend currently qualifies. The claim requires all of:
 1. Retain shipped Godot as Reference and differential authority.
 2. Use the completed seed/provenance and same-artifact canonicalizer to admit
    cross-Host candidates; do not confuse repeatability with parity.
-3. Continue the rebuilt exact managed candidate through cross-Host semantic
-   qualification. Clean-source profiling measured a `2,461 d/s` exclusive
-   machine plateau and a realistic pre-learner planning range of about
-   `1,373-1,687 d/s` at six to eight workers. A current same-seed probe
-   delivered the same action sequence but failed canonical playable-card
-   referent parity. Speed no longer blocks an H1.0 attempt; projection parity,
-   breadth, reliability and transfer do.
+3. Continue the rebuilt exact managed candidate through broader cross-Host
+   semantic qualification. Clean-source profiling measured a `2,461 d/s`
+   exclusive machine plateau and a realistic pre-learner planning range of
+   about `1,373-1,687 d/s` at six to eight workers. One current same-seed
+   12-action map/combat/reward prefix now matches Reference after closing four
+   concrete projection/localization defects. Speed and that fixed prefix no
+   longer block an H1.0 attempt; breadth, lifecycle, reliability and transfer
+   do.
 4. Treat Managed Exact v2 only as narrow allocation, projection and lifecycle
    work while the exact game assembly continues to own rules, RNG, effects and
    Commit. Do not prioritize JSON rewrites or sharded Node supervisors.

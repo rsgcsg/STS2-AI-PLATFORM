@@ -45,6 +45,27 @@ export function resolveExperimentalConnectorCanary({
   };
 }
 
+export function withExplicitConnectorCanary(environment, connectorCanary) {
+  const resolved = { ...environment };
+  delete resolved[GAME_CANARY_ENVIRONMENT_VARIABLE];
+  delete resolved[SOURCE_CANARY_ENVIRONMENT_VARIABLE];
+  if (connectorCanary == null) return resolved;
+
+  if (connectorCanary.game_id != null) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u.test(connectorCanary.game_id)) {
+      throw new Error("Experimental Connector game canaries require one bounded support id.");
+    }
+    resolved[GAME_CANARY_ENVIRONMENT_VARIABLE] = connectorCanary.game_id;
+  }
+  if (connectorCanary.source_revision != null) {
+    if (!/^[0-9a-f]{40}$/u.test(connectorCanary.source_revision)) {
+      throw new Error("Experimental Connector source canaries require one exact Git revision.");
+    }
+    resolved[SOURCE_CANARY_ENVIRONMENT_VARIABLE] = connectorCanary.source_revision;
+  }
+  return resolved;
+}
+
 export function listGameProcesses(platform = process.platform) {
   if (platform === "win32") {
     const result = spawnSync("tasklist", ["/FO", "CSV", "/NH"], { encoding: "utf8" });
@@ -318,7 +339,7 @@ export function shippedRuntimeLaunch(installation, {
     : resolveConnectorEndpoint(connectorEndpoint);
   const hostControlToken = connector == null ? null : randomBytes(32).toString("hex");
   const args = ["--headless", "--verbose", ...(launchProfile?.args ?? [])];
-  const environment = {
+  const environment = withExplicitConnectorCanary({
     ...process.env,
     SteamAppId: process.env.SteamAppId ?? STS2_APP_ID,
     SteamGameId: process.env.SteamGameId ?? STS2_APP_ID,
@@ -328,17 +349,11 @@ export function shippedRuntimeLaunch(installation, {
       ? {}
       : { [HOST_CONTROL_TOKEN_ENVIRONMENT_VARIABLE]: hostControlToken }),
     ...(runSeed == null ? {} : { STS2_CONNECTOR_RUN_SEED: runSeed }),
-    ...(connectorCanary?.game_id == null
-      ? {}
-      : { [GAME_CANARY_ENVIRONMENT_VARIABLE]: connectorCanary.game_id }),
-    ...(connectorCanary?.source_revision == null
-      ? {}
-      : { [SOURCE_CANARY_ENVIRONMENT_VARIABLE]: connectorCanary.source_revision }),
     ...(requestedHostExecutionProfile == null
       ? {}
       : { STS2_CONNECTOR_HOST_EXECUTION_PROFILE: requestedHostExecutionProfile }),
     ...extraEnvironment
-  };
+  }, connectorCanary);
   if (launchProfile?.steam === "disabled_before_platform_initialization") {
     delete environment.SteamAppId;
     delete environment.SteamGameId;

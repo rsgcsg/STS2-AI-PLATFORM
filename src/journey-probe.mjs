@@ -451,6 +451,7 @@ export async function runBoundedJourney({
   sharedProfileAcknowledged = false,
   isolatedProfileId = null,
   experimentalBuildAcknowledged = false,
+  experimentalConnectorAcknowledged = false,
   allowConcurrentProcesses = false,
   evidenceLabel = null,
   faultAfterDeliveredActions = null,
@@ -508,7 +509,7 @@ export async function runBoundedJourney({
   const connectorCanary = resolveExperimentalConnectorCanary({
     installation,
     compatibility,
-    acknowledged: experimentalBuildAcknowledged
+    acknowledged: experimentalBuildAcknowledged || experimentalConnectorAcknowledged
   });
 
   const evidenceDirectory = path.join(

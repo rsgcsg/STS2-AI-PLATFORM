@@ -944,26 +944,27 @@ function currentSurface(state, ctx) {
       ]));
       const handEntries = rawHand.map((card, index) => {
         const entityId = ctx.id("card", ctx.snapshotId, card.native_ref);
+        const visibleCard = visibleCombatCard(card, entityId);
+        const playable = card.can_play === true;
         const validTargets = (card.valid_target_refs ?? [])
           .map((nativeRef) => enemyReferentByNative.get(nativeRef)?.referent_id)
           .filter(Boolean);
         const option = {
           entity_id: entityId,
-          definition_id: definitionId(card.id ?? card.name),
-          hand_index: index,
           name: card.name ?? null,
           target_entity_ids: validTargets
         };
         return {
           raw: card,
-          card: visibleCombatCard(card, entityId),
+          card: visibleCard,
           option,
           referent: ctx.referent({
-            role: "playable_card",
+            role: playable ? "playable_card" : "hand",
             label: card.name ?? `Card ${index + 1}`,
             id: entityId,
             occurrence: index,
-            properties: option
+            selected: playable ? null : visibleCard.is_selected,
+            properties: playable ? option : visibleCard
           })
         };
       });

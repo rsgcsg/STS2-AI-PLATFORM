@@ -55,8 +55,8 @@ Current managed exact candidate:
 - native combat rewards and treasure selection now retain game-owned
   generation, legality, vote/RNG and Commit rather than manually choosing or
   settling them;
-- the current clean-source performance artifact is patch `708c51c...`, Host
-  `34aa29f...` / MVID `ff6c7349...`, with the exact byte-identical STS2
+- the current semantic artifact is patch `5d1cfab...`, Host `37fe6b9...` /
+  MVID `e7cd6aa9...`, with the exact byte-identical STS2
   assembly `9cb4f1a...` / MVID `57785517...`;
 - fresh current-source windows measured `D_engine` at `345.88 d/s` hot-loop,
   `D_train` at `208.87 d/s`, and strict `D_qual` at `183.25 d/s` mean; these
@@ -70,10 +70,12 @@ Current managed exact candidate:
   part of the ceiling. Native lifecycle plus about `0.71 MB/decision` allocation
   dominate. Managed Exact v2 is the preferred route for narrow lifecycle and
   allocation work, not a semantic rewrite;
-- this route is still partial and unqualified: a current same-seed CrossHost
-  run selected and delivered the same 12 actions but failed canonical parity
-  because managed playable-card referents added `definition_id` and
-  `hand_index`; full-run differential evidence is absent, and its
+- exact Candidate SHA `37fe6b9...` passed 26/26 native identity/Commit/
+  localization/treasure gates and matched shipped Reference Connector source
+  `99f09a7...`, artifact `99d5df9...`, MVID `e7b2be84...` for one fixed
+  same-seed 12-action map/combat/reward semantic prefix;
+- this route is still partial and unqualified: randomized/high-risk and
+  full-run differential evidence is absent, and its
   TestMode/runtime projection seams remain critical risks.
 
 Current isolation boundary:

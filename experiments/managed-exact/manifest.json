@@ -65,9 +65,9 @@
     },
     {
       "id": "localization_substitution",
-      "kind": "runtime_patch",
+      "kind": "host_bootstrap_seam",
       "risk": "medium",
-      "effect": "uses external localization tables and patched lookup paths"
+      "effect": "loads setup-extracted exact-build localization tables into the game LocManager while retaining native lookup, English fallback, and SmartFormat behavior"
     },
     {
       "id": "test_mode_managed_runtime",

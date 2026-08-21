@@ -7,8 +7,13 @@ import path from "node:path";
 import {
   requestHostProvenance,
   requestHostShutdown,
-  resolveExperimentalConnectorCanary
+  resolveExperimentalConnectorCanary,
+  withExplicitConnectorCanary
 } from "../src/runtime-probe.mjs";
+import {
+  GAME_CANARY_ENVIRONMENT_VARIABLE,
+  SOURCE_CANARY_ENVIRONMENT_VARIABLE
+} from "../src/connector-endpoint.mjs";
 
 test("experimental authority binds a verified artifact and known game candidate", () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "sts2-headless-canary-"));
@@ -36,6 +41,27 @@ test("experimental authority binds a verified artifact and known game candidate"
     artifact_sha256: artifactSha
   });
   rmSync(directory, { recursive: true, force: true });
+});
+
+test("launch authority ignores ambient canaries and admits only explicit exact values", () => {
+  const ambient = {
+    KEEP_ME: "yes",
+    [GAME_CANARY_ENVIRONMENT_VARIABLE]: "ambient-game",
+    [SOURCE_CANARY_ENVIRONMENT_VARIABLE]: "b".repeat(40)
+  };
+  assert.deepEqual(withExplicitConnectorCanary(ambient, null), { KEEP_ME: "yes" });
+  assert.deepEqual(withExplicitConnectorCanary(ambient, {
+    game_id: "darwin-arm64-v0.111.0-41cef1ea",
+    source_revision: "a".repeat(40)
+  }), {
+    KEEP_ME: "yes",
+    [GAME_CANARY_ENVIRONMENT_VARIABLE]: "darwin-arm64-v0.111.0-41cef1ea",
+    [SOURCE_CANARY_ENVIRONMENT_VARIABLE]: "a".repeat(40)
+  });
+  assert.throws(() => withExplicitConnectorCanary({}, {
+    game_id: null,
+    source_revision: "not-a-revision"
+  }), /exact Git revision/u);
 });
 
 test("Host control routes share authentication without sharing response semantics", async (context) => {
