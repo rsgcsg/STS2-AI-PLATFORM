@@ -625,7 +625,7 @@ index 800f139..d950eec 100644
                  return sim.StartRun(
                      cmd.TryGetProperty("character", out var ch) ? ch.GetString() ?? "Ironclad" : "Ironclad",
 diff --git a/src/Sts2Headless/RunSimulator.cs b/src/Sts2Headless/RunSimulator.cs
-index 6b9de4a..81cedb2 100644
+index 6b9de4a..c4264e1 100644
 --- a/src/Sts2Headless/RunSimulator.cs
 +++ b/src/Sts2Headless/RunSimulator.cs
 @@ -1,4 +1,6 @@
@@ -1294,25 +1294,10 @@ index 6b9de4a..81cedb2 100644
          if (_cardSelector.HasPendingReward)
          {
              if (args == null || !args.ContainsKey("card_index"))
-@@ -1215,81 +1150,212 @@ public class RunSimulator
+@@ -1215,81 +1150,218 @@ public class RunSimulator
              _cardSelector.ResolveReward(idx);
              Thread.Sleep(50);
              _syncCtx.Pump();
-+            AdvancePendingHostOperation();
-+            WaitForActionExecutor();
-+            return DetectDecisionPoint();
-+        }
-+        return Error("No native card reward selection is pending");
-+    }
-+
-+    private Dictionary<string, object?> DoSkipCardReward(Player player)
-+    {
-+        if (_cardSelector.HasPendingReward)
-+        {
-+            Log("Skipping event card reward");
-+            _cardSelector.SkipReward();
-+            Thread.Sleep(50);
-+            _syncCtx.Pump();
 +            AdvancePendingHostOperation();
              WaitForActionExecutor();
              return DetectDecisionPoint();
@@ -1324,17 +1309,38 @@ index 6b9de4a..81cedb2 100644
 -            return Error("No pending card reward");
 -        if (args == null || !args.ContainsKey("card_index"))
 -            return Error("select_card_reward requires 'card_index'");
-+    private Dictionary<string, object?> DoSelectReward(Player player, Dictionary<string, object?>? args)
++    private Dictionary<string, object?> DoSkipCardReward(Player player)
 +    {
-+        if (args == null || !args.TryGetValue("reward_ref", out var expectedReward))
-+            return Error("select_reward requires 'reward_ref'");
-+        if (!_rewardsSelector.ResolveReward(expectedReward, out var error))
-+            return Error(error ?? "The observed reward is no longer selectable");
++        if (_cardSelector.HasPendingReward)
++        {
++            Log("Skipping event card reward");
++            _cardSelector.SkipReward();
++            Thread.Sleep(50);
++            _syncCtx.Pump();
++            AdvancePendingHostOperation();
++            WaitForActionExecutor();
++            return DetectDecisionPoint();
++        }
++        return Error("No native card reward selection is pending");
++    }
  
 -        var cardIndex = Convert.ToInt32(args["card_index"]);
 -        var cards = _pendingCardReward.Cards.ToList();
 -        if (cardIndex < 0 || cardIndex >= cards.Count)
 -            return Error($"Invalid card index {cardIndex}, {cards.Count} cards available");
++    private Dictionary<string, object?> DoSelectReward(Player player, Dictionary<string, object?>? args)
++    {
++        if (args == null || !args.TryGetValue("reward_ref", out var expectedReward))
++            return Error("select_reward requires 'reward_ref'");
++        var reward = _rewardsSelector.PendingSet?.Rewards.SingleOrDefault(candidate =>
++            !candidate.SuccessfullySelected && NativeObjectIdentity.Matches(candidate, expectedReward));
++        if (reward == null)
++            return Error("The observed native reward is no longer selectable");
++        if (reward is MegaCrit.Sts2.Core.Rewards.PotionReward && PotionSlotsFull(player))
++            return Error("The observed potion reward is blocked while the native potion belt is full");
++        if (!_rewardsSelector.ResolveReward(expectedReward, out var error))
++            return Error(error ?? "The observed reward is no longer selectable");
++
 +        WaitForRewardSelectionProgress();
 +        AdvancePendingHostOperation();
 +        WaitForActionExecutor();
@@ -1548,7 +1554,7 @@ index 6b9de4a..81cedb2 100644
          }
          catch (Exception ex) { return Error($"Buy card failed: {ex.Message}"); }
  
-@@ -1300,16 +1366,18 @@ public class RunSimulator
+@@ -1300,16 +1372,18 @@ public class RunSimulator
      {
          if (_runState?.CurrentRoom is not MerchantRoom merchantRoom)
              return Error("Not in a shop");
@@ -1574,7 +1580,7 @@ index 6b9de4a..81cedb2 100644
  
          try
          {
-@@ -1318,7 +1386,7 @@ public class RunSimulator
+@@ -1318,7 +1392,7 @@ public class RunSimulator
              // pending selection appears so the caller can resolve it; the background task
              // continues once the selector's TCS is fed by select_cards.
              var inv = merchantRoom.GetLocalInventory();
@@ -1583,7 +1589,7 @@ index 6b9de4a..81cedb2 100644
              for (int i = 0; i < 100; i++)
              {
                  _syncCtx.Pump();
-@@ -1329,12 +1397,11 @@ public class RunSimulator
+@@ -1329,12 +1403,11 @@ public class RunSimulator
              }
              if (_cardSelector.HasPending || _cardSelector.HasPendingReward || _pendingBundles != null)
              {
@@ -1599,7 +1605,7 @@ index 6b9de4a..81cedb2 100644
          }
          catch (Exception ex) { return Error($"Buy relic failed: {ex.Message}"); }
  
-@@ -1345,45 +1412,50 @@ public class RunSimulator
+@@ -1345,45 +1418,50 @@ public class RunSimulator
      {
          if (_runState?.CurrentRoom is not MerchantRoom merchantRoom)
              return Error("Not in a shop");
@@ -1667,7 +1673,7 @@ index 6b9de4a..81cedb2 100644
              for (int i = 0; i < 100; i++)
              {
                  _syncCtx.Pump();
-@@ -1396,8 +1468,7 @@ public class RunSimulator
+@@ -1396,8 +1474,7 @@ public class RunSimulator
                  WaitForActionExecutor();
                  return DetectDecisionPoint();
              }
@@ -1677,7 +1683,7 @@ index 6b9de4a..81cedb2 100644
              Log($"Removed card for {removal.Cost}g");
          }
          catch (Exception ex) { return Error($"Remove card failed: {ex.Message}"); }
-@@ -1405,6 +1476,23 @@ public class RunSimulator
+@@ -1405,6 +1482,23 @@ public class RunSimulator
          return DetectDecisionPoint();
      }
  
@@ -1701,7 +1707,7 @@ index 6b9de4a..81cedb2 100644
      private Dictionary<string, object?> DoSelectBundle(Player player, Dictionary<string, object?>? args)
      {
          if (_pendingBundleTcs == null || _pendingBundles == null)
-@@ -1424,6 +1512,7 @@ public class RunSimulator
+@@ -1424,6 +1518,7 @@ public class RunSimulator
          tcs.TrySetResult(selected);
  
          _syncCtx.Pump();
@@ -1709,7 +1715,7 @@ index 6b9de4a..81cedb2 100644
          WaitForActionExecutor();
          return DetectDecisionPoint();
      }
-@@ -1444,6 +1533,7 @@ public class RunSimulator
+@@ -1444,6 +1539,7 @@ public class RunSimulator
          Log($"Card selection: indices [{string.Join(",", indices)}]");
          _cardSelector.ResolvePendingByIndices(indices);
          _syncCtx.Pump();
@@ -1717,7 +1723,7 @@ index 6b9de4a..81cedb2 100644
          WaitForActionExecutor();
  
          // Extra wait for rest-site SMITH: the background ChooseLocalOption task
-@@ -1455,7 +1545,7 @@ public class RunSimulator
+@@ -1455,7 +1551,7 @@ public class RunSimulator
              WaitForActionExecutor();
              // Force to map after SMITH completes (same pattern as HEAL)
              Log("Card selection in rest site (SMITH), forcing to map");
@@ -1726,7 +1732,7 @@ index 6b9de4a..81cedb2 100644
              return MapSelectState();
          }
  
-@@ -1478,125 +1568,123 @@ public class RunSimulator
+@@ -1478,125 +1574,123 @@ public class RunSimulator
              Log("Skipping card selection");
              _cardSelector.CancelPending();
              _syncCtx.Pump();
@@ -1957,7 +1963,7 @@ index 6b9de4a..81cedb2 100644
                  {
                      _syncCtx.Pump();
                      if (_cardSelector.HasPending) break;
-@@ -1608,8 +1696,7 @@ public class RunSimulator
+@@ -1608,8 +1702,7 @@ public class RunSimulator
                      WaitForActionExecutor();
                      return DetectDecisionPoint();
                  }
@@ -1967,7 +1973,7 @@ index 6b9de4a..81cedb2 100644
              }
              catch (Exception ex)
              {
-@@ -1627,7 +1714,7 @@ public class RunSimulator
+@@ -1627,7 +1720,7 @@ public class RunSimulator
                  Thread.Sleep(200);
                  _syncCtx.Pump();
                  WaitForActionExecutor();
@@ -1976,7 +1982,7 @@ index 6b9de4a..81cedb2 100644
                  return MapSelectState();
              }
          }
-@@ -1648,7 +1735,7 @@ public class RunSimulator
+@@ -1648,7 +1741,7 @@ public class RunSimulator
                          _eventOptionChosen = true;
                          _lastEventOptionCount = options.Count;
                          // Run on thread pool so GetSelectedCards/GetSelectedCardReward can block
@@ -1985,7 +1991,7 @@ index 6b9de4a..81cedb2 100644
                          for (int i = 0; i < 100; i++)
                          {
                              _syncCtx.Pump();
-@@ -1662,8 +1749,7 @@ public class RunSimulator
+@@ -1662,8 +1755,7 @@ public class RunSimulator
                              WaitForActionExecutor();
                              return DetectDecisionPoint();
                          }
@@ -1995,7 +2001,7 @@ index 6b9de4a..81cedb2 100644
                      }
                      catch (Exception ex) { Log($"Event choose: {ex.Message}"); }
                  }
-@@ -1679,86 +1765,69 @@ public class RunSimulator
+@@ -1679,86 +1771,69 @@ public class RunSimulator
          return DetectDecisionPoint();
      }
  
@@ -2125,7 +2131,7 @@ index 6b9de4a..81cedb2 100644
      }
  
      #endregion
-@@ -1767,16 +1836,21 @@ public class RunSimulator
+@@ -1767,16 +1842,21 @@ public class RunSimulator
  
      private Dictionary<string, object?> DetectDecisionPoint()
      {
@@ -2152,7 +2158,7 @@ index 6b9de4a..81cedb2 100644
  
          // Check if there's a pending bundle selection (Scroll Boxes: pick 1 of N packs)
          if (_pendingBundles != null && _pendingBundleTcs != null && !_pendingBundleTcs.Task.IsCompleted)
-@@ -1885,20 +1959,23 @@ public class RunSimulator
+@@ -1885,20 +1965,23 @@ public class RunSimulator
              };
          }
  
@@ -2184,7 +2190,7 @@ index 6b9de4a..81cedb2 100644
          // Map room — need to select a node
          if (room is MapRoom || room == null)
          {
-@@ -1908,7 +1985,7 @@ public class RunSimulator
+@@ -1908,7 +1991,7 @@ public class RunSimulator
          // Combat room
          if (room is CombatRoom combatRoom)
          {
@@ -2193,7 +2199,7 @@ index 6b9de4a..81cedb2 100644
              _syncCtx.Pump();
              WaitForActionExecutor();
  
-@@ -1963,14 +2040,20 @@ public class RunSimulator
+@@ -1963,14 +2046,20 @@ public class RunSimulator
          }
  
          // Fallback
@@ -2221,7 +2227,7 @@ index 6b9de4a..81cedb2 100644
      }
  
      private Dictionary<string, object?> MapSelectState()
-@@ -1992,70 +2075,24 @@ public class RunSimulator
+@@ -1992,70 +2081,24 @@ public class RunSimulator
              if (map == null)
                  return Error("No map available");
          }
@@ -2304,7 +2310,7 @@ index 6b9de4a..81cedb2 100644
  
          return new Dictionary<string, object?>
          {
-@@ -2070,6 +2107,38 @@ public class RunSimulator
+@@ -2070,6 +2113,38 @@ public class RunSimulator
          };
      }
  
@@ -2343,7 +2349,7 @@ index 6b9de4a..81cedb2 100644
      private Dictionary<string, object?> CombatPlayState(Player player)
      {
          var pcs = player.PlayerCombatState;
-@@ -2079,11 +2148,6 @@ public class RunSimulator
+@@ -2079,11 +2154,6 @@ public class RunSimulator
          if (player.Creature != null && player.Creature.CurrentHp > 0)
              _lastKnownHp = player.Creature.CurrentHp;
  
@@ -2355,7 +2361,7 @@ index 6b9de4a..81cedb2 100644
          var hand = pcs?.Hand?.Cards?.Select((c, i) =>
          {
              // Export the *currently resolved* stat values, not the card base: refresh the
-@@ -2109,78 +2173,30 @@ public class RunSimulator
+@@ -2109,78 +2179,30 @@ public class RunSimulator
              }
              catch { }
  
@@ -2446,7 +2452,7 @@ index 6b9de4a..81cedb2 100644
              };
              if (starCost > 0)
              {
-@@ -2201,8 +2217,6 @@ public class RunSimulator
+@@ -2201,8 +2223,6 @@ public class RunSimulator
                  cardInfo["affliction"] = _loc.Bilingual("afflictions", c.Affliction.Id.Entry + ".title");
                  try { if (c.Affliction.Amount != 0) cardInfo["affliction_amount"] = c.Affliction.Amount; } catch { }
              }
@@ -2455,7 +2461,7 @@ index 6b9de4a..81cedb2 100644
              return cardInfo;
          }).ToList() ?? new();
  
-@@ -2224,6 +2238,18 @@ public class RunSimulator
+@@ -2224,6 +2244,18 @@ public class RunSimulator
                              {
                                  ["type"] = intent.IntentType.ToString(),
                              };
@@ -2474,7 +2480,7 @@ index 6b9de4a..81cedb2 100644
                              // Get damage for attack intents
                              if (intent is MegaCrit.Sts2.Core.MonsterMoves.Intents.AttackIntent atk && playerCreatures != null)
                              {
-@@ -2255,33 +2281,27 @@ public class RunSimulator
+@@ -2255,33 +2287,27 @@ public class RunSimulator
                  catch { }
  
                  // Enemy powers
@@ -2515,7 +2521,7 @@ index 6b9de4a..81cedb2 100644
  
          var result = new Dictionary<string, object?>
          {
-@@ -2294,9 +2314,33 @@ public class RunSimulator
+@@ -2294,9 +2320,33 @@ public class RunSimulator
              ["hand"] = hand,
              ["enemies"] = enemies,
              ["player"] = PlayerSummary(player),
@@ -2550,7 +2556,7 @@ index 6b9de4a..81cedb2 100644
          };
  
          // Character-specific mechanics
-@@ -2349,136 +2393,172 @@ public class RunSimulator
+@@ -2349,136 +2399,184 @@ public class RunSimulator
          return result;
      }
  
@@ -2677,40 +2683,17 @@ index 6b9de4a..81cedb2 100644
 -        // Normal → go to map
 -        ForceToMap();
 -        return MapSelectState();
--    }
 +        if (_rewardsSelector.IsAwaitingAction)
 +            return RewardSetState(player);
- 
--    private Dictionary<string, object?> CardRewardState(Player player, CombatRoom? combatRoom)
--    {
--        if (_pendingCardReward == null)
--            return DetectPostCombatState(player, combatRoom ?? (_runState?.CurrentRoom as CombatRoom)!);
++
 +        AdvancePendingHostOperation();
 +        if (!_rewardsProcessed)
 +            return Error("The native combat rewards operation did not reach an interactive or completed state");
- 
--        var cards = _pendingCardReward.Cards.Select((c, i) =>
++
 +        // The shipped rewards screen exposes a Proceed button. Observation must
 +        // not consume that player decision or bypass the act-change synchronizer.
 +        return new Dictionary<string, object?>
-         {
--            var stats = new Dictionary<string, object?>();
--            try { foreach (var dv in c.DynamicVars.Values) stats[dv.Name.ToLowerInvariant()] = (int)dv.BaseValue; } catch { }
--            var crkws = c.Keywords?.Where(k => k != CardKeyword.None).Select(k => k.ToString()).ToList();
--            return new Dictionary<string, object?>
--            {
--                ["index"] = i,
--                ["id"] = c.Id.ToString(),
--                ["name"] = _loc.Card(c.Id.Entry),
--                ["cost"] = c.EnergyCost?.GetResolved() ?? 0,
--                ["type"] = c.Type.ToString(),
--                ["rarity"] = c.Rarity.ToString(),
--                ["description"] = _loc.Bilingual("cards", c.Id.Entry + ".description"),
--                ["stats"] = stats.Count > 0 ? stats : null,
--                ["keywords"] = crkws?.Count > 0 ? crkws : null,
--                ["after_upgrade"] = GetUpgradedInfo(c),
--            };
--        }).ToList();
++        {
 +            ["type"] = "decision",
 +            ["decision"] = "combat_rewards_complete",
 +            ["context"] = RunContext(),
@@ -2718,10 +2701,13 @@ index 6b9de4a..81cedb2 100644
 +            ["is_boss"] = combatRoom.RoomType == RoomType.Boss,
 +            ["player"] = PlayerSummary(player),
 +        };
-+    }
+     }
  
+-    private Dictionary<string, object?> CardRewardState(Player player, CombatRoom? combatRoom)
 +    private Dictionary<string, object?> RewardSetState(Player player)
-+    {
+     {
+-        if (_pendingCardReward == null)
+-            return DetectPostCombatState(player, combatRoom ?? (_runState?.CurrentRoom as CombatRoom)!);
 +        var rewardsSet = _rewardsSelector.PendingSet;
 +        if (rewardsSet == null)
 +            return Error("No native rewards set is awaiting player input");
@@ -2732,17 +2718,13 @@ index 6b9de4a..81cedb2 100644
 +            .ToList();
 +        var terminalRoom = rewardsSet.Room as CombatRoom;
 +        var canProceed = terminalRoom != null && Hook.ShouldProceedToNextMapPoint(_runState!);
-         return new Dictionary<string, object?>
-         {
-             ["type"] = "decision",
--            ["decision"] = "card_reward",
++        return new Dictionary<string, object?>
++        {
++            ["type"] = "decision",
 +            ["decision"] = "reward_set",
-             ["context"] = RunContext(),
--            ["cards"] = cards,
--            ["can_skip"] = _pendingCardReward.CanSkip,
--            ["gold_earned"] = _runState!.Players[0].Gold - _goldBeforeCombat,
--            ["player"] = PlayerSummary(_runState!.Players[0]),
++            ["context"] = RunContext(),
 +            ["rewards"] = rewards,
++            ["potion_slots_full"] = PotionSlotsFull(player),
 +            ["can_skip"] = !rewardsSet.DisallowSkipping,
 +            ["is_terminal"] = terminalRoom != null,
 +            ["can_proceed"] = canProceed,
@@ -2752,47 +2734,82 @@ index 6b9de4a..81cedb2 100644
 +        };
 +    }
 +
++    private static bool PotionSlotsFull(Player player) =>
++        player.PotionSlots.Count(potion => potion != null) >= player.PotionSlots.Count;
+ 
+-        var cards = _pendingCardReward.Cards.Select((c, i) =>
 +    private Dictionary<string, object?> RewardSummary(Reward reward, int index)
 +    {
 +        string kind;
-+        string? name = null;
 +        object? value = null;
 +        switch (reward)
 +        {
 +            case GoldReward gold:
 +                kind = "gold";
-+                name = $"{gold.Amount} gold";
 +                value = gold.Amount;
 +                break;
 +            case MegaCrit.Sts2.Core.Rewards.PotionReward potion:
 +                kind = "potion";
-+                name = potion.Potion == null ? null : _loc.Potion(potion.Potion.Id.Entry);
 +                value = potion.Potion?.Id.ToString();
 +                break;
 +            case MegaCrit.Sts2.Core.Rewards.RelicReward relic:
 +                kind = "relic";
-+                name = relic.Relic == null ? null : _loc.Relic(relic.Relic.Id.Entry);
 +                value = relic.Relic?.Id.ToString();
 +                break;
 +            case CardReward:
 +                kind = "card_choice";
-+                name = "Add a card to the deck";
 +                break;
 +            default:
 +                kind = reward.GetType().Name;
-+                name = reward.GetType().Name;
 +                break;
 +        }
 +
-+        string? description = null;
-+        try { description = reward.Description.GetFormattedText(); }
++        string? label = null;
++        try { label = reward.Description.GetFormattedText(); }
 +        catch { }
-+        return new Dictionary<string, object?>
-+        {
++        label ??= reward.GetType().Name;
++        string? description = label;
++        try
+         {
+-            var stats = new Dictionary<string, object?>();
+-            try { foreach (var dv in c.DynamicVars.Values) stats[dv.Name.ToLowerInvariant()] = (int)dv.BaseValue; } catch { }
+-            var crkws = c.Keywords?.Where(k => k != CardKeyword.None).Select(k => k.ToString()).ToList();
+-            return new Dictionary<string, object?>
++            description = reward switch
+             {
+-                ["index"] = i,
+-                ["id"] = c.Id.ToString(),
+-                ["name"] = _loc.Card(c.Id.Entry),
+-                ["cost"] = c.EnergyCost?.GetResolved() ?? 0,
+-                ["type"] = c.Type.ToString(),
+-                ["rarity"] = c.Rarity.ToString(),
+-                ["description"] = _loc.Bilingual("cards", c.Id.Entry + ".description"),
+-                ["stats"] = stats.Count > 0 ? stats : null,
+-                ["keywords"] = crkws?.Count > 0 ? crkws : null,
+-                ["after_upgrade"] = GetUpgradedInfo(c),
++                MegaCrit.Sts2.Core.Rewards.PotionReward { Potion: { } potion } =>
++                    potion.DynamicDescription.GetFormattedText(),
++                MegaCrit.Sts2.Core.Rewards.RelicReward { Relic: { } relic } =>
++                    relic.DynamicDescription.GetFormattedText(),
++                _ => label
+             };
+-        }).ToList();
+-
++        }
++        catch { }
+         return new Dictionary<string, object?>
+         {
+-            ["type"] = "decision",
+-            ["decision"] = "card_reward",
+-            ["context"] = RunContext(),
+-            ["cards"] = cards,
+-            ["can_skip"] = _pendingCardReward.CanSkip,
+-            ["gold_earned"] = _runState!.Players[0].Gold - _goldBeforeCombat,
+-            ["player"] = PlayerSummary(_runState!.Players[0]),
 +            ["index"] = index,
 +            ["native_ref"] = NativeObjectIdentity.Get(reward),
 +            ["kind"] = kind,
-+            ["name"] = name,
++            ["name"] = label,
 +            ["description"] = description,
 +            ["value"] = value,
          };
@@ -2819,7 +2836,7 @@ index 6b9de4a..81cedb2 100644
      }
  
      private Dictionary<string, object?> EventChoiceState(EventRoom eventRoom)
-@@ -2502,22 +2582,14 @@ public class RunSimulator
+@@ -2502,22 +2600,14 @@ public class RunSimulator
                  _syncCtx.Pump();
              }
              catch { }
@@ -2845,7 +2862,7 @@ index 6b9de4a..81cedb2 100644
          }
  
          var options = currentOptions
-@@ -2666,7 +2738,7 @@ public class RunSimulator
+@@ -2666,7 +2756,7 @@ public class RunSimulator
          {
              // Options empty = choice already made (synchronizer cleared them), go to map
              Log("Rest site: options empty, proceeding to map");
@@ -2854,7 +2871,7 @@ index 6b9de4a..81cedb2 100644
              return MapSelectState();
          }
  
-@@ -2691,7 +2763,7 @@ public class RunSimulator
+@@ -2691,7 +2781,7 @@ public class RunSimulator
      private Dictionary<string, object?> ShopState(MerchantRoom merchantRoom, Player player)
      {
          var inv = merchantRoom.GetLocalInventory();
@@ -2863,7 +2880,7 @@ index 6b9de4a..81cedb2 100644
  
          var cards = inv.CharacterCardEntries.Concat(inv.ColorlessCardEntries)
              .Select((e, i) =>
-@@ -2723,6 +2795,7 @@ public class RunSimulator
+@@ -2723,6 +2813,7 @@ public class RunSimulator
                  return new Dictionary<string, object?>
                  {
                      ["index"] = i,
@@ -2871,7 +2888,7 @@ index 6b9de4a..81cedb2 100644
                      ["name"] = _loc.Card(entry),
                      ["type"] = card?.Type.ToString() ?? "?",
                      ["rarity"] = card?.Rarity.ToString() ?? "?",
-@@ -2733,6 +2806,7 @@ public class RunSimulator
+@@ -2733,6 +2824,7 @@ public class RunSimulator
                      ["after_upgrade"] = card != null ? GetUpgradedInfo(card) : null,
                      ["cost"] = e.Cost,
                      ["is_stocked"] = e.IsStocked,
@@ -2879,7 +2896,7 @@ index 6b9de4a..81cedb2 100644
                      ["on_sale"] = e.IsOnSale,
                  };
              }).ToList();
-@@ -2740,19 +2814,23 @@ public class RunSimulator
+@@ -2740,19 +2832,23 @@ public class RunSimulator
          var relics = inv.RelicEntries.Select((e, i) => new Dictionary<string, object?>
          {
              ["index"] = i,
@@ -2903,7 +2920,7 @@ index 6b9de4a..81cedb2 100644
          }).ToList();
  
          var removal = merchantRoom.GetLocalInventory().CardRemovalEntry;
-@@ -2766,94 +2844,72 @@ public class RunSimulator
+@@ -2766,94 +2862,72 @@ public class RunSimulator
              ["relics"] = relics,
              ["potions"] = potions,
              ["card_removal_cost"] = removal?.Cost,
@@ -2923,13 +2940,13 @@ index 6b9de4a..81cedb2 100644
      {
 -        // Treasure rooms give relics via TreasureRoomRelicSynchronizer
 -        Log("Treasure room — collecting rewards");
--
--        WaitForActionExecutor();
--        _syncCtx.Pump();
 +        EnsureTreasurePresentation(treasureRoom);
 +        var player = _runState!.Players[0];
 +        var roomRef = NativeObjectIdentity.Get(treasureRoom);
  
+-        WaitForActionExecutor();
+-        _syncCtx.Pump();
+-
 -        // TreasureRoom.EnterInternal opens a relic-picking session (BeginRelicPicking) that the
 -        // headless must drive, otherwise (a) no relic is ever awarded and (b) the session stays
 -        // open so the NEXT treasure room's BeginRelicPicking throws "relic picking session while
@@ -3049,7 +3066,7 @@ index 6b9de4a..81cedb2 100644
      }
  
      private Dictionary<string, object?> GameOverState(bool isVictory)
-@@ -2879,6 +2935,44 @@ public class RunSimulator
+@@ -2879,6 +2953,44 @@ public class RunSimulator
  
      #region Helpers
  
@@ -3094,7 +3111,7 @@ index 6b9de4a..81cedb2 100644
      private void WaitForActionExecutor()
      {
          try
-@@ -2891,7 +2985,7 @@ public class RunSimulator
+@@ -2891,7 +3003,7 @@ public class RunSimulator
  
              // Executor may stay "running" while the game awaits headless card selection / reward (e.g. Attack Potion).
              // Spinning here would time out and downstream code could mis-handle an in-flight potion use (BUG-026).
@@ -3103,7 +3120,7 @@ index 6b9de4a..81cedb2 100644
                  return;
  
              var executor = RunManager.Instance.ActionExecutor;
-@@ -2913,6 +3007,60 @@ public class RunSimulator
+@@ -2913,6 +3025,60 @@ public class RunSimulator
          }
      }
  
@@ -3164,7 +3181,7 @@ index 6b9de4a..81cedb2 100644
      private void SpinWaitForCombatStable()
      {
          int maxIterations = 200;
-@@ -2969,34 +3117,64 @@ public class RunSimulator
+@@ -2969,34 +3135,64 @@ public class RunSimulator
      {
          return new Dictionary<string, object?>
          {
@@ -3233,7 +3250,7 @@ index 6b9de4a..81cedb2 100644
                  };
              }).Where(x => x != null).ToList(),
              ["deck_size"] = player.Deck?.Cards?.Count(c => c != null) ?? 0,
-@@ -3034,6 +3212,22 @@ public class RunSimulator
+@@ -3034,6 +3230,22 @@ public class RunSimulator
          };
      }
  
@@ -3256,7 +3273,7 @@ index 6b9de4a..81cedb2 100644
      /// <summary>Common context added to every decision point.</summary>
      private Dictionary<string, object?> RunContext()
      {
-@@ -3041,9 +3235,19 @@ public class RunSimulator
+@@ -3041,9 +3253,19 @@ public class RunSimulator
          var ctx = new Dictionary<string, object?>
          {
              ["act"] = _runState.CurrentActIndex + 1,
@@ -3276,7 +3293,7 @@ index 6b9de4a..81cedb2 100644
          };
  
          // Boss encounter info — use BossEncounter?.Id?.Entry
-@@ -3064,6 +3268,27 @@ public class RunSimulator
+@@ -3064,6 +3286,27 @@ public class RunSimulator
          }
          catch { }
  
@@ -3304,7 +3321,7 @@ index 6b9de4a..81cedb2 100644
          return ctx;
      }
  
-@@ -3074,6 +3299,11 @@ public class RunSimulator
+@@ -3074,6 +3317,11 @@ public class RunSimulator
  
          TestMode.IsOn = true;
  
@@ -3316,7 +3333,7 @@ index 6b9de4a..81cedb2 100644
          // Install inline sync context on main thread
          SynchronizationContext.SetSynchronizationContext(_syncCtx);
  
-@@ -3099,14 +3329,6 @@ public class RunSimulator
+@@ -3099,14 +3347,6 @@ public class RunSimulator
          try { SaveManager.Instance.InitPrefsDataForTest(); }
          catch (Exception ex) { Console.Error.WriteLine($"[WARN] SaveManager.InitPrefsDataForTest: {ex.Message}"); }
  
@@ -3331,7 +3348,7 @@ index 6b9de4a..81cedb2 100644
          // Patch Cmd.Wait to be a no-op in headless mode.
          // Cmd.Wait(duration) is used for UI animations (e.g., PreviewCardPileAdd during
          // Vantom's Dismember move adding Wounds). In headless mode, these never complete
-@@ -3139,9 +3361,15 @@ public class RunSimulator
+@@ -3139,9 +3379,15 @@ public class RunSimulator
          }
          Console.Error.WriteLine($"[INFO] ModelDb: {registered} registered, {failed} failed out of {subtypes.Count}");
  
@@ -3347,7 +3364,7 @@ index 6b9de4a..81cedb2 100644
              ModelIdSerializationCache.Init();
              Console.Error.WriteLine("[INFO] ModelIdSerializationCache initialized");
          }
-@@ -3151,15 +3379,15 @@ public class RunSimulator
+@@ -3151,15 +3397,15 @@ public class RunSimulator
          }
      }
  
@@ -3369,7 +3386,7 @@ index 6b9de4a..81cedb2 100644
              _ => null
          };
      }
-@@ -3263,42 +3491,168 @@ public class RunSimulator
+@@ -3263,42 +3509,168 @@ public class RunSimulator
          }
      }
  
@@ -3417,23 +3434,23 @@ index 6b9de4a..81cedb2 100644
 -            var harmony = new Harmony("sts2headless.yieldpatch");
 +            var synchronizer = RunManager.Instance.RewardsSetSynchronizer;
 +            if (synchronizer.IsRewardsSetCompleted(set)) return;
++
++            foreach (var reward in set.Rewards)
++            {
++                reward.MarkContentAsSeen();
++            }
  
 -            // Patch YieldAwaitable.YieldAwaiter.IsCompleted to return true
 -            // This makes `await Task.Yield()` execute synchronously (continuation runs inline)
 -            var yieldAwaiterType = typeof(System.Runtime.CompilerServices.YieldAwaitable)
 -                .GetNestedType("YieldAwaiter");
 -            if (yieldAwaiterType != null)
-+            foreach (var reward in set.Rewards)
-             {
--                var isCompletedProp = yieldAwaiterType.GetProperty("IsCompleted");
--                if (isCompletedProp != null)
-+                reward.MarkContentAsSeen();
-+            }
-+
 +            var context = new SelectionContext { Set = set };
 +            lock (_gate) _stack.Add(context);
 +            try
-+            {
+             {
+-                var isCompletedProp = yieldAwaiterType.GetProperty("IsCompleted");
+-                if (isCompletedProp != null)
 +                while (!synchronizer.IsRewardsSetCompleted(set))
                  {
 -                    var getter = isCompletedProp.GetGetMethod();
@@ -3448,7 +3465,7 @@ index 6b9de4a..81cedb2 100644
 +                        context.Request ??= new TaskCompletionSource<RewardRequest>(
 +                            TaskCreationOptions.RunContinuationsAsynchronously);
 +                        requestTask = context.Request.Task;
-+                    }
+                     }
 +
 +                    var request = await requestTask.ConfigureAwait(false);
 +                    if (request.Kind == RequestKind.Cancel)
@@ -3461,7 +3478,7 @@ index 6b9de4a..81cedb2 100644
 +                            throw new InvalidOperationException("The native rewards set disallows skipping.");
 +                        synchronizer.SkipLocalRewardsSet();
 +                        continue;
-                     }
++                    }
 +
 +                    var reward = request.Reward
 +                        ?? throw new InvalidOperationException("A native reward selection had no reward binding.");
@@ -3528,8 +3545,7 @@ index 6b9de4a..81cedb2 100644
 +        }
 +
 +        public void NotifyStateChanged()
-         {
--            Console.Error.WriteLine($"[WARN] Failed to patch Task.Yield: {ex.Message}");
++        {
 +            lock (_gate)
 +            {
 +                if (_stack.Count == 0 || _stack[^1].Request == null) return;
@@ -3541,7 +3557,8 @@ index 6b9de4a..81cedb2 100644
 +        }
 +
 +        public void CancelAllPending()
-+        {
+         {
+-            Console.Error.WriteLine($"[WARN] Failed to patch Task.Yield: {ex.Message}");
 +            lock (_gate)
 +            {
 +                foreach (var context in _stack)
@@ -3560,7 +3577,7 @@ index 6b9de4a..81cedb2 100644
      /// <summary>
      /// Card selector that creates a pending selection decision point.
      /// When the game needs the player to choose cards (upgrade, remove, transform, bundle pick),
-@@ -3362,6 +3716,12 @@ public class RunSimulator
+@@ -3362,6 +3734,12 @@ public class RunSimulator
              _pendingTcs = null;
          }
  
@@ -3573,7 +3590,7 @@ index 6b9de4a..81cedb2 100644
          // Pending card reward from events (GetSelectedCardReward blocks until resolved)
          public List<MegaCrit.Sts2.Core.Entities.Cards.CardCreationResult>? PendingRewardCards { get; private set; }
          private ManualResetEventSlim? _rewardWait;
-@@ -3411,19 +3771,6 @@ public class RunSimulator
+@@ -3411,19 +3789,6 @@ public class RunSimulator
  
      internal static class YieldPatches
      {
@@ -3593,7 +3610,7 @@ index 6b9de4a..81cedb2 100644
          /// <summary>Harmony prefix: make Cmd.Wait() return completed task immediately (no-op in headless).</summary>
          public static bool CmdWaitPrefix(ref Task __result)
          {
-@@ -3447,178 +3794,22 @@ public class RunSimulator
+@@ -3447,178 +3812,22 @@ public class RunSimulator
  
      private static void InitLocManager()
      {
@@ -3781,7 +3798,7 @@ index 6b9de4a..81cedb2 100644
  
              // Patch FromChooseABundleScreen to use our card selector
              try
-@@ -3634,42 +3825,6 @@ public class RunSimulator
+@@ -3634,42 +3843,6 @@ public class RunSimulator
                  }
              }
              catch (Exception ex) { Console.Error.WriteLine($"[WARN] Bundle patch: {ex.Message}"); }
@@ -3824,7 +3841,7 @@ index 6b9de4a..81cedb2 100644
          }
          catch (Exception ex)
          {
-@@ -3677,85 +3832,79 @@ public class RunSimulator
+@@ -3677,85 +3850,79 @@ public class RunSimulator
          }
      }
  
@@ -3973,7 +3990,7 @@ index 6b9de4a..81cedb2 100644
          /// <summary>
          /// Intercept bundle selection — store bundles and wait for player to pick a pack index.
          /// </summary>
-@@ -3789,16 +3938,12 @@ public class RunSimulator
+@@ -3789,16 +3956,12 @@ public class RunSimulator
          // Static reference so Harmony patch can access the simulator instance
          internal static RunSimulator? _bundleSimRef;
  
@@ -3992,7 +4009,81 @@ index 6b9de4a..81cedb2 100644
      }
  
      private static Dictionary<string, object?> Error(string message) =>
-@@ -3896,15 +4041,114 @@ public class RunSimulator
+@@ -3826,36 +3989,54 @@ public class RunSimulator
+         var currentCoord = _runState.CurrentMapCoord;
+         var visited = _runState.VisitedMapCoords;
+ 
++        Dictionary<string, object?> MapPointSummary(MapPoint point)
++        {
++            var children = point.Children?.Select(ch => new Dictionary<string, object?>
++            {
++                ["col"] = (int)ch.coord.col,
++                ["row"] = (int)ch.coord.row,
++            }).ToList();
++            var isVisited = visited?.Any(v => v.col == point.coord.col && v.row == point.coord.row) ?? false;
++            var isCurrent = currentCoord.HasValue
++                && currentCoord.Value.col == point.coord.col
++                && currentCoord.Value.row == point.coord.row;
++            return new Dictionary<string, object?>
++            {
++                ["col"] = (int)point.coord.col,
++                ["row"] = (int)point.coord.row,
++                ["type"] = point.PointType.ToString(),
++                ["children"] = children,
++                ["visited"] = isVisited,
++                ["current"] = isCurrent,
++            };
++        }
++
+         for (int row = 0; row < map.GetRowCount(); row++)
+         {
+             var rowNodes = new List<Dictionary<string, object?>>();
+             foreach (var point in map.GetPointsInRow(row))
+             {
+                 if (point == null) continue;
+-                var children = point.Children?.Select(ch => new Dictionary<string, object?>
+-                {
+-                    ["col"] = (int)ch.coord.col,
+-                    ["row"] = (int)ch.coord.row,
+-                }).ToList();
+-
+-                var isVisited = visited?.Any(v => v.col == point.coord.col && v.row == point.coord.row) ?? false;
+-                var isCurrent = currentCoord.HasValue &&
+-                    currentCoord.Value.col == point.coord.col && currentCoord.Value.row == point.coord.row;
+-
+-                rowNodes.Add(new Dictionary<string, object?>
+-                {
+-                    ["col"] = (int)point.coord.col,
+-                    ["row"] = (int)point.coord.row,
+-                    ["type"] = point.PointType.ToString(),
+-                    ["children"] = children,
+-                    ["visited"] = isVisited,
+-                    ["current"] = isCurrent,
+-                });
++                rowNodes.Add(MapPointSummary(point));
+             }
+             if (rowNodes.Count > 0)
+                 rows.Add(rowNodes);
+         }
+ 
++        // StartingMapPoint is rendered by the native map UI but is not part of
++        // GetPointsInRow after the first room has been entered.
++        if (map.StartingMapPoint is { } startingPoint
++            && !rows.SelectMany(row => row).Any(node =>
++                Convert.ToInt32(node["col"]) == startingPoint.coord.col
++                && Convert.ToInt32(node["row"]) == startingPoint.coord.row))
++        {
++            rows.Add(new List<Dictionary<string, object?>> { MapPointSummary(startingPoint) });
++        }
++
++        rows = rows
++            .OrderBy(row => Convert.ToInt32(row[0]["row"]))
++            .ToList();
++
+         // Boss node
+         var bossNode = new Dictionary<string, object?>
+         {
+@@ -3896,15 +4077,114 @@ public class RunSimulator
      {
          try
          {
@@ -4024,9 +4115,9 @@ index 6b9de4a..81cedb2 100644
          {
              Log($"CleanUp exception: {ex.Message}");
 +            throw;
-+        }
-+    }
-+
+         }
+     }
+ 
 +    public Dictionary<string, object?> GetRunIdentity()
 +    {
 +        var state = RunManager.Instance.DebugOnlyGetState();
@@ -4059,7 +4150,7 @@ index 6b9de4a..81cedb2 100644
 +            _pendingBundles = null;
 +            _syncCtx.Pump();
 +            Thread.Sleep(1);
-         }
++        }
 +        _cardSelector.CancelAllPending();
 +        _rewardsSelector.CancelAllPending();
 +        _pendingBundleTcs?.TrySetCanceled();
@@ -4071,8 +4162,8 @@ index 6b9de4a..81cedb2 100644
 +            Log($"Abandoned Host operation ended with: {operation.Exception?.GetBaseException().Message}");
 +        _pendingHostOperation = null;
 +        _syncCtx.Pump();
-     }
- 
++    }
++
 +    private void WaitForExecutorToStop(MegaCrit.Sts2.Core.GameActions.ActionExecutor? executor)
 +    {
 +        if (executor == null) return;

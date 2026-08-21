@@ -272,7 +272,8 @@ async function main() {
       seed: canonicalizeEpisodeSeed(option(args, "--seed", "H1CROSSHOST01")),
       policy_id: "deterministic-probe-1",
       max_actions: Number(option(args, "--max-actions", "12")),
-      start_interaction_kind: "map_navigation",
+      discovery_max_actions: Number(option(args, "--discovery-actions", "64")),
+      start_interaction_kind: option(args, "--start-kind", "map_navigation"),
       read_policy: "none"
     };
     const referenceDriver = createShippedReferenceHostDriver({
@@ -343,7 +344,7 @@ Commands:
   pe-capacity --candidate DIR [--profile NAME] [--workers 1,2,4] [--episodes N] [--max-actions N]
   pe-sharded-capacity --candidate DIR [--profile NAME] [--workers 1,2,4] [--episodes N]
   native-gates --candidate DIR [--seed SEED]
-  cross-host --candidate DIR [--seed SEED] [--max-actions N] [--template ID]
+  cross-host --candidate DIR [--seed SEED] [--start-kind KIND] [--discovery-actions N] [--max-actions N] [--template ID]
   capacity --candidate DIR [--workers 1,2,4] [--episodes N] [--max-actions N]
 
 The raw candidate protocol is not the canonical Player Environment. pe-probe

@@ -35,6 +35,14 @@ function scenarioStartKind(scenario) {
   return scenario.start_interaction_kind;
 }
 
+function scenarioDiscoveryLimit(scenario) {
+  const limit = scenario.discovery_max_actions ?? 0;
+  if (!Number.isSafeInteger(limit) || limit < 0) {
+    throw new Error("Cross-Host scenario discovery_max_actions must be a non-negative integer.");
+  }
+  return limit;
+}
+
 export function sliceScenarioEvents(events, scenario) {
   const startKind = scenarioStartKind(scenario);
   const start = events.findIndex((event) => event?.type === "action"
@@ -123,8 +131,29 @@ async function runManagedScenario({
         || runIdentity.seed !== scenario.seed) {
       throw new Error(`Managed Host did not prove scenario seed ${scenario.seed}.`);
     }
+    for (let index = 0;
+      snapshot.interaction.kind !== startKind && index < scenarioDiscoveryLimit(scenario);
+      index += 1) {
+      if (snapshot.interaction.kind === "game_over") break;
+      const action = chooseBoundAction(snapshot, { tutorialPreference: "disable" });
+      if (action == null) break;
+      const receipt = await started.session.submit({
+        requestId: `cross-host-managed-discovery-${String(index + 1).padStart(6, "0")}-${randomUUID()}`,
+        expectedSnapshotId: snapshot.snapshot_id,
+        boundActionId: action.bound_action_id,
+        timeoutMs: requestTimeoutMs
+      });
+      if (receipt.delivery === "unknown") {
+        unknownCount += 1;
+        throw new Error("Managed Host returned unknown delivery before the scenario boundary.");
+      }
+      if (receipt.delivery !== "delivered" || receipt.successor == null) {
+        throw new Error(`Managed Host did not deliver discovery action: ${receipt.reason_code ?? "unspecified"}.`);
+      }
+      snapshot = receipt.successor;
+    }
     if (snapshot.interaction.kind !== startKind) {
-      throw new Error(`Managed Host mounted ${snapshot.interaction.kind}, expected ${startKind}.`);
+      throw new Error(`Managed Host did not reach scenario boundary ${startKind}.`);
     }
     const readKinds = new Set();
     for (let index = 0; index < scenario.max_actions; index += 1) {
@@ -304,7 +333,7 @@ export function createShippedReferenceHostDriver({
         endpoint,
         timeoutMs,
         actionTimeoutMs,
-        maxActions: scenario.max_actions + 8,
+        maxActions: scenario.max_actions + (scenario.discovery_max_actions ?? 8),
         tutorialPreference: "disable",
         isolatedProfileId: profileId,
         experimentalBuildAcknowledged,

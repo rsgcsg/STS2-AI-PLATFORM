@@ -8,6 +8,7 @@ const scenario = {
   seed: "H1CROSSHOST01",
   policy_id: "deterministic-probe-1",
   max_actions: 2,
+  discovery_max_actions: 8,
   start_interaction_kind: "map_navigation",
   read_policy: "none"
 };

@@ -57,10 +57,11 @@ qualification-profile single-environment means of `345.88`, `208.87` and
 `183.25 d/s` in the current confirmation windows. Rates are workload-specific;
 a shared supervisor reached `1,686.88 d/s` at eight workers and plateaued at
 `2,460.62 d/s` with 24 environments on the 10-core M4. A current CrossHost
-probe matched the Reference Host for one fixed 12-action map/combat/reward
-prefix after correcting public card actionability, native localization and
-visible Power projection. The candidate has not passed broad or full-run
-semantic qualification, 1M
+probe matched the Reference Host for a fixed map/combat/reward prefix. The
+current exact artifact also matched a reward-to-map-to-combat window and
+completed ten fixed-seed ordinary lifecycles after closing full-potion reward
+publication and starting-map topology defects. The candidate has not passed
+broad semantic qualification, persistent information closure, 1M
 reliability, real learner or Reference-transfer gates. It is fast, not the
 default route or Training Ready.
 See [Managed Exact Candidate](experiments/managed-exact/README.md).

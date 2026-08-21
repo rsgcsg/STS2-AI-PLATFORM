@@ -21,9 +21,14 @@ test("managed Player Environment probe policy consumes only canonical actions", 
     { bound_action_id: "b", verb: "activate", label: "B" },
     { bound_action_id: "a", verb: "activate", label: "A" }
   ])).bound_action_id, "a");
-  assert.equal(chooseManagedPlayerEnvironmentAction(snapshot("reward_collection", [
-    { bound_action_id: "proceed", verb: "activate", label: "Proceed and skip remaining rewards" },
-    { bound_action_id: "take", verb: "activate", label: "Take 17 gold" }
+  assert.equal(chooseManagedPlayerEnvironmentAction(snapshot("reward_claim", [
+    { bound_action_id: "proceed", verb: "activate", label: "Skip remaining rewards and continue" },
+    {
+      bound_action_id: "take",
+      verb: "activate",
+      label: "Claim 17 gold",
+      subject: { kind: "gold", label: "17 gold" }
+    }
   ])).bound_action_id, "take");
   assert.equal(chooseManagedPlayerEnvironmentAction(snapshot("card_reward_selection", [
     { bound_action_id: "skip", verb: "skip", label: "Skip card reward" },

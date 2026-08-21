@@ -31,8 +31,9 @@ Open:
   server evidence;
 - a real changed-build invalidation and targeted requalification drill;
 - reproducible release of the RC Connector Host and compatible SDK;
-- managed-to-Reference canonical differential, complete-run lifecycle and
-  randomized/high-risk interaction coverage;
+- broader managed-to-Reference canonical differential and randomized/high-risk
+  interaction coverage; the current ten-seed managed corpus reaches ten
+  ordinary `game_over` boundaries but does not establish broad parity;
 - managed reset/recovery/1M+ reliability plus an external consumer and minimal
   learning/Reference-transfer smoke;
 - public release packaging and final exact-artifact gates.
@@ -55,13 +56,13 @@ No backend currently qualifies. The claim requires all of:
 2. Use the completed seed/provenance and same-artifact canonicalizer to admit
    cross-Host candidates; do not confuse repeatability with parity.
 3. Continue the rebuilt exact managed candidate through broader cross-Host
-   semantic qualification. Clean-source profiling measured a `2,461 d/s`
+   semantic qualification and Training-Grade gates. Clean-source profiling measured a `2,461 d/s`
    exclusive machine plateau and a realistic pre-learner planning range of
    about `1,373-1,687 d/s` at six to eight workers. One current same-seed
-   12-action map/combat/reward prefix now matches Reference after closing four
-   concrete projection/localization defects. Speed and that fixed prefix no
-   longer block an H1.0 attempt; breadth, lifecycle, reliability and transfer
-   do.
+   map/combat/reward prefix and one later reward-to-map-to-combat window now
+   match Reference. Ten fixed managed seeds reach `game_over`, so ordinary
+   lifecycle is no longer the immediate blocker; breadth, information closure,
+   reliability, an external consumer, learning and transfer are.
 4. Treat Managed Exact v2 only as narrow allocation, projection and lifecycle
    work while the exact game assembly continues to own rules, RNG, effects and
    Commit. Do not prioritize JSON rewrites or sharded Node supervisors.

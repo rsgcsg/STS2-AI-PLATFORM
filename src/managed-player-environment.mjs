@@ -333,8 +333,7 @@ function buildVisibleMap(state, ctx) {
     const pointType = mapPointType(node.type);
     const nodeState = choice != null
       ? "travelable"
-      : node.current === true ? "current"
-        : node.visited === true ? "visited" : "untravelable";
+      : node.current === true || node.visited === true ? "traveled" : "untravelable";
     let referent;
     if (choice != null) {
       nativeIdentityComplete = nativeIdentityComplete
@@ -681,46 +680,80 @@ function currentSurface(state, ctx) {
       };
     }
     case "reward_set": {
+      const potionSlotsFull = state.potion_slots_full === true;
+      const hasPotionReward = (state.rewards ?? []).some((reward) => reward.kind === "potion");
       const nativeIdentityComplete = (state.rewards ?? []).every((reward) =>
         typeof reward.native_ref === "string" && reward.native_ref.length > 0);
       const rewards = (state.rewards ?? []).map((reward, index) => {
+        const enabled = !(reward.kind === "potion" && potionSlotsFull);
+        const kind = reward.kind === "card_choice" ? "card" : reward.kind ?? "unknown";
+        const label = reward.name ?? kind ?? `Reward ${index + 1}`;
         const item = ctx.referent({
           role: "reward",
-          label: reward.name ?? reward.kind ?? `Reward ${index + 1}`,
+          label,
+          enabled,
           occurrence: index,
           properties: {
-            index: reward.index ?? index,
-            reward_kind: reward.kind ?? "unknown",
-            name: reward.name ?? null,
+            kind,
+            label,
             description: reward.description ?? null,
-            value: reward.value ?? null
+            enabled
           }
         });
-        ctx.action({
-          verb: "activate",
-          subject: item,
-          label: `Take ${reward.name ?? reward.kind ?? `reward ${index + 1}`}`,
-          raw: {
-            cmd: "action",
-            action: "select_reward",
-            args: { reward_ref: reward.native_ref }
-          }
-        });
+        if (enabled) {
+          ctx.action({
+            verb: "activate",
+            subject: item,
+            label: `Claim ${label}`,
+            raw: {
+              cmd: "action",
+              action: "select_reward",
+              args: { reward_ref: reward.native_ref }
+            }
+          });
+        }
         return item.properties;
       });
+      const rawPotions = Array.isArray(state.player?.potions)
+        ? state.player.potions.filter((potion) => potion != null)
+        : [];
+      const discardablePotions = hasPotionReward && potionSlotsFull
+        ? rawPotions.map((potion, index) => {
+          const entityId = ctx.id("potion", ctx.snapshotId, potion.native_ref, potion.slot ?? index);
+          const visiblePotion = {
+            entity_id: entityId,
+            definition_id: definitionId(potion.id ?? potion.name),
+            name: potion.name ?? null,
+            description: potion.description ?? null,
+            slot: potion.slot ?? index,
+            target_type: potion.target_type ?? "Unknown",
+            can_use: false,
+            automatic: potion.usage === "Automatic"
+          };
+          const item = ctx.referent({
+            role: "potion",
+            label: potion.name ?? `Potion ${index + 1}`,
+            id: entityId,
+            occurrence: index,
+            properties: visiblePotion
+          });
+          ctx.action({
+            verb: "activate",
+            subject: item,
+            label: `Discard ${item.label} from slot ${visiblePotion.slot + 1} to make room`,
+            raw: {
+              cmd: "action",
+              action: "discard_potion",
+              args: { potion_slot: visiblePotion.slot, potion_ref: potion.native_ref }
+            }
+          });
+          return visiblePotion;
+        })
+        : [];
       if (state.is_terminal === true && state.can_proceed === true) {
-        const room = ctx.referent({
-          role: "combat_room",
-          label: state.is_boss === true ? "Completed boss combat" : "Completed combat",
-          properties: {
-            room_type: state.is_boss === true ? "boss" : "combat",
-            rewards_complete: rewards.length === 0
-          }
-        });
         ctx.action({
           verb: "activate",
-          subject: room,
-          label: rewards.length === 0 ? "Proceed" : "Proceed and skip remaining rewards",
+          label: rewards.length === 0 ? "Continue from rewards" : "Skip remaining rewards and continue",
           raw: { cmd: "action", action: "proceed", args: { room_ref: state.room_ref } }
         });
       } else if (state.is_terminal !== true && state.can_skip === true) {
@@ -732,23 +765,28 @@ function currentSurface(state, ctx) {
       }
       const terminalIdentityComplete = state.is_terminal !== true
         || (typeof state.room_ref === "string" && state.room_ref.length > 0);
+      const potionIdentityComplete = discardablePotions.length === 0
+        || rawPotions.every((potion) => typeof potion.native_ref === "string" && potion.native_ref.length > 0);
       return {
-        kind: "reward_collection",
-        stage: "choosing",
+        kind: "reward_claim",
+        stage: "ready",
         prompt: null,
         surface: {
-          kind: "reward_collection",
-          stage: "choosing",
+          kind: "reward_claim",
           rewards,
-          can_skip: state.can_skip === true,
-          is_terminal: state.is_terminal === true,
-          can_proceed: state.can_proceed === true
+          potion_slots_full: potionSlotsFull,
+          discardable_potions: discardablePotions,
+          can_proceed: state.is_terminal === true && state.can_proceed === true,
+          proceed_skips_remaining_rewards: rewards.length > 0
         },
-        context: { ...commonContext, kind: "reward" },
-        complete: nativeIdentityComplete && terminalIdentityComplete,
+        context: { kind: "reward_flow", reward_kind: "room_rewards" },
+        complete: nativeIdentityComplete && terminalIdentityComplete && potionIdentityComplete,
+        visibleInformation: "contract_complete_for_reward_claim",
+        interactionDiscovery: "derived_from_same_current_ui_controls_as_execution",
         missing: [
           ...(nativeIdentityComplete ? [] : ["native_reward_identity"]),
-          ...(terminalIdentityComplete ? [] : ["terminal_reward_room_identity"])
+          ...(terminalIdentityComplete ? [] : ["terminal_reward_room_identity"]),
+          ...(potionIdentityComplete ? [] : ["native_potion_identity"])
         ]
       };
     }

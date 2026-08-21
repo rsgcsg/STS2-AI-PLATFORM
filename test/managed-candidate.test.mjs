@@ -53,6 +53,11 @@ test("managed candidate patch keeps normal actions on native identity and commit
   assert.match(additions, /NativeObjectIdentity\.Get/u);
 });
 
+test("fresh candidate preparation admits added source files into the audited diff", () => {
+  const source = readFileSync(path.join(ROOT, "src", "managed-candidate.mjs"), "utf8");
+  assert.equal(source.includes('["apply", "--intent-to-add"'), true);
+});
+
 test("managed probe policy uses advertised semantic operands and fails closed on unknown decisions", () => {
   assert.deepEqual(chooseManagedCandidateAction({
     decision: "map_select",

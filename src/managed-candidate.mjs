@@ -210,7 +210,10 @@ export async function prepareManagedCandidate({
   await run("git", ["clone", "--no-checkout", manifest.upstream.url, destination]);
   await run("git", ["checkout", "--detach", manifest.upstream.revision], { cwd: destination });
   const patchFile = path.join(root, "experiments", "managed-exact", manifest.source_patch);
-  await run("git", ["apply", "--whitespace=error-all", patchFile], { cwd: destination });
+  // Preserve newly added files in the same `git diff` view used by source
+  // admission. Without intent-to-add, a fresh clone silently omits new source
+  // files from the post-build audit even though `git apply` created them.
+  await run("git", ["apply", "--intent-to-add", "--whitespace=error-all", patchFile], { cwd: destination });
 
   const gameDataDirectory = path.dirname(diskIdentity.sts2_assembly.path);
   mkdirSync(path.join(destination, "lib"), { recursive: true });

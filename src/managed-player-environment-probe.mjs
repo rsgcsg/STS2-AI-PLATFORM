@@ -110,11 +110,15 @@ export function chooseManagedPlayerEnvironmentAction(snapshot) {
       numeric(subject(action).row), numeric(subject(action).col)
     ])[0] ?? null;
   }
-  if (kind === "reward_collection") {
-    return byProperties(actions.filter((action) => /^Take /u.test(action.label)), (action) => [
-      numeric(subject(action).index)
+  if (kind === "reward_claim") {
+    return byProperties(actions.filter((action) => /^Claim /u.test(action.label)), (action) => [
+      subject(action).kind,
+      subject(action).label
     ])[0]
-      ?? actions.find((action) => action.label === "Proceed")
+      ?? byProperties(actions.filter((action) => /^Discard /u.test(action.label)), (action) => [
+        numeric(subject(action).slot)
+      ])[0]
+      ?? actions.find((action) => /rewards|continue/u.test(action.label))
       ?? ordered(snapshot, actions)[0]
       ?? null;
   }

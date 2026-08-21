@@ -9,6 +9,7 @@ import {
   ManagedPlayerEnvironmentSession,
   projectManagedCandidateDecision
 } from "../src/managed-player-environment.mjs";
+import { chooseManagedPlayerEnvironmentAction } from "../src/managed-player-environment-probe.mjs";
 
 const projectionIdentity = {
   runtimeInstanceId: "managed-runtime-test",
@@ -164,13 +165,80 @@ test("projects native reward sets without exposing exact reward or room operands
     }
   });
   assert.equal(decodePlayerSnapshot(projection.snapshot).data.status, "interactive");
-  assert.equal(projection.snapshot.interaction.kind, "reward_collection");
+  assert.equal(projection.snapshot.interaction.kind, "reward_claim");
   assert.equal(projection.snapshot.bound_actions.actions.length, 3);
+  assert.deepEqual({
+    ...projection.snapshot.interaction.content.surface,
+    rewards: projection.snapshot.interaction.content.surface.rewards.map(({ entity_id: _entityId, ...reward }) => reward)
+  }, {
+    kind: "reward_claim",
+    rewards: [
+      { kind: "gold", label: "17 gold", description: null, enabled: true },
+      { kind: "card", label: "Add a card", description: null, enabled: true }
+    ],
+    potion_slots_full: false,
+    discardable_potions: [],
+    can_proceed: true,
+    proceed_skips_remaining_rewards: true
+  });
   assert.equal(JSON.stringify(projection.snapshot).includes("reward-gold-a"), false);
   assert.equal(JSON.stringify(projection.snapshot).includes("combat-room-a"), false);
   const requests = [...projection.bindings.values()].map((binding) => binding.raw_request);
   assert.equal(requests.some((request) => request.args?.reward_ref === "reward-gold-a"), true);
   assert.equal(requests.some((request) => request.args?.room_ref === "combat-room-a"), true);
+});
+
+test("blocks a full-belt potion reward and publishes exact native potion discards", () => {
+  const projection = projectManagedCandidateDecision({
+    ...projectionIdentity,
+    state: {
+      type: "decision",
+      decision: "reward_set",
+      context: { act: 1, floor: 14, room_type: "Monster" },
+      rewards: [{
+        index: 0,
+        native_ref: "reward-potion-a",
+        kind: "potion",
+        name: "Energy Potion",
+        description: "Gain 2 Energy."
+      }],
+      potion_slots_full: true,
+      can_skip: true,
+      is_terminal: true,
+      can_proceed: true,
+      room_ref: "combat-room-a",
+      is_boss: false,
+      player: {
+        ...player(),
+        potions: [{
+          slot: 0,
+          native_ref: "owned-potion-a",
+          id: "FIRE_POTION",
+          name: "Fire Potion",
+          description: "Deal 20 damage.",
+          target_type: "AnyEnemy",
+          usage: "CombatOnly"
+        }]
+      }
+    }
+  });
+  assert.equal(decodePlayerSnapshot(projection.snapshot).data.status, "interactive");
+  const surface = projection.snapshot.interaction.content.surface;
+  assert.equal(surface.rewards[0].enabled, false);
+  assert.equal(surface.potion_slots_full, true);
+  assert.equal(surface.discardable_potions.length, 1);
+  assert.equal(JSON.stringify(projection.snapshot).includes("reward-potion-a"), false);
+  assert.equal(JSON.stringify(projection.snapshot).includes("owned-potion-a"), false);
+  assert.deepEqual(projection.snapshot.bound_actions.actions.map((action) => action.label), [
+    "Discard Fire Potion from slot 1 to make room",
+    "Skip remaining rewards and continue"
+  ]);
+  const selected = chooseManagedPlayerEnvironmentAction(projection.snapshot);
+  assert.equal(selected.label, "Discard Fire Potion from slot 1 to make room");
+  const requests = [...projection.bindings.values()].map((binding) => binding.raw_request);
+  assert.equal(requests.some((request) => request.action === "select_reward"), false);
+  assert.equal(requests.some((request) => request.action === "discard_potion"
+    && request.args.potion_ref === "owned-potion-a"), true);
 });
 
 test("projects treasure stages with explicit native choice and Host-local operands", () => {
