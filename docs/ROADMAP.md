@@ -41,8 +41,9 @@ Open:
 
 No backend currently qualifies. The claim requires all of:
 
-- realistic aggregate throughput, currently hypothesized at `>=1000`
-  normalized semantic decisions/s;
+- realistic usable samples/s under a measured learner resource envelope; the
+  partial Host-only candidate now exceeds the old `>=1000` route hypothesis,
+  but no learner has measured contention or sample utility;
 - 1M+ reset/scale/recovery/qualification evidence;
 - a clean Python/Gym/VectorEnv adapter outside Headless and Connector;
 - real learning smoke;
@@ -53,16 +54,22 @@ No backend currently qualifies. The claim requires all of:
 1. Retain shipped Godot as Reference and differential authority.
 2. Use the completed seed/provenance and same-artifact canonicalizer to admit
    cross-Host candidates; do not confuse repeatability with parity.
-3. Continue the rebuilt exact `wuhao21/sts2-cli` candidate through cross-Host
-   semantic qualification. Its two partial 8-worker windows bracketed 1,000 at
-   956.33 and 1,017.39 reset-inclusive canonical decisions/s, but neither a
-   repeatable threshold result nor speed alone replaces full-run parity or
-   reliability.
-4. Admit managed, simulator or other candidates only through the same normalized
+3. Continue the rebuilt exact managed candidate through cross-Host semantic
+   qualification. Clean-source profiling measured a `2,451 d/s` exclusive
+   machine plateau and a realistic pre-learner planning range of about
+   `1,390-1,677 d/s` at six to eight workers. Speed no longer blocks an H1.0
+   attempt; parity, breadth, reliability and transfer do.
+4. Treat Managed Exact v2 only as narrow allocation, projection and lifecycle
+   work while the exact game assembly continues to own rules, RNG, effects and
+   Commit. Do not prioritize JSON rewrites or sharded Node supervisors.
+5. Rename a route Hybrid as soon as it persistently reconstructs or
+   short-circuits game lifecycle semantics. Rename it Simulator when it owns
+   gameplay rules, RNG or rewards.
+6. Admit managed, Hybrid, snapshotable or simulator candidates only through the same normalized
    decision, resource, reset, recovery and differential gates.
-5. Run end-to-end learning bottleneck and policy transfer only after one
+7. Run end-to-end learning bottleneck and policy transfer only after one
    candidate clears semantic admission.
-6. Retain the completed exact-build official `AutoSlayer` experiment as a
+8. Retain the completed exact-build official `AutoSlayer` experiment as a
    native automation upper bound and coverage generator. Its `394.5s` full run
    was CPU-light but UI/wait-bound; its fixed policy/UI handlers cannot become
    the training contract or inherit Connector qualification.
@@ -70,3 +77,6 @@ No backend currently qualifies. The claim requires all of:
 The route is deliberately open. H* is whichever measured Host or combination
 best satisfies fidelity, throughput, density, reset, reliability and update
 maintenance. Architecture symmetry is not a promotion criterion.
+
+The current recommendation and explicit route estimates are recorded in the
+[performance route closeout](evidence/MANAGED_HOST_PERFORMANCE_ROUTE_SELECTION_2026-08-21.md).

@@ -55,10 +55,19 @@ Current managed exact candidate:
 - native combat rewards and treasure selection now retain game-owned
   generation, legality, vote/RNG and Commit rather than manually choosing or
   settling them;
-- a clean-source 3-episode window delivered 381/381 canonical actions and 384
-  Reads with zero unknown; two same-artifact 8-worker windows measured 956.33
-  and 1,017.39 reset-inclusive decisions/s, so `>=1000` is not yet a
-  repeatable capacity result;
+- the current clean-source performance artifact is patch `708c51c...`, Host
+  `34aa29f...` / MVID `ff6c7349...`, with the exact byte-identical STS2
+  assembly `9cb4f1a...` / MVID `57785517...`;
+- three serial windows measured `D_engine` at `297.66 d/s` hot-loop,
+  `D_train` at `234.25 d/s`, and strict `D_qual` at `213.25 d/s` mean;
+- a shared supervisor scaled the training profile to `1,676.64 d/s` at eight
+  workers and a `2,451.00 d/s` Host-exclusive plateau at 24 environments on
+  this 10-core M4; a supervisor per worker was rejected as slower or equal and
+  substantially more memory-intensive;
+- JSON, SDK validation, IDs, Reads and evidence together explain only a small
+  part of the ceiling. Native lifecycle plus about `1 MB/decision` allocation
+  dominate. Managed Exact v2 is the preferred route for narrow lifecycle and
+  allocation work, not a semantic rewrite;
 - this route is still partial and unqualified: full-run and cross-Host
   differential evidence are absent, and its TestMode/runtime projection seams
   remain critical risks.
@@ -97,6 +106,8 @@ Current blockers:
   local `1.0.0-rc.1` SDK as invalid against the pinned public `1.0.0` spec;
 - semantic qualification, full-run lifecycle, 1M+ reliability and real
   learning/policy-transfer evidence for the now-fast managed candidate;
+- physical P/E-core affinity, real learner contention, high-core and cluster
+  capacity; `5k`/`10k` remain route estimates rather than measured facts;
 - Windows release qualification, Linux, macOS x86_64, later builds and Modsets.
 
 The first local `wuhao21/sts2-cli` spike was correctly rejected after

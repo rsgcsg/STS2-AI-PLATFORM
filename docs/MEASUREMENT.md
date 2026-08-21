@@ -59,9 +59,10 @@ or missing successor.
 ## Promotion Use
 
 This contract admits measurements; it does not define a performance winner.
-The current `>=1000` aggregate decisions/s trainer target is a route hypothesis,
-not a release fact. Promotion also requires semantic differential, reset and
-recovery evidence, resource efficiency, and representative training workload.
+The partial managed candidate now exceeds the old `>=1000` aggregate route
+hypothesis, but that result is neither semantic admission nor real learner
+throughput. Promotion also requires semantic differential, reset and recovery
+evidence, resource efficiency, and a representative training workload.
 
 ## Current Reference Baselines
 
@@ -92,22 +93,32 @@ lifecycle repetition, not a long-soak throughput result.
 
 ## Current Managed Candidate Baseline
 
-The exact managed candidate patch `b6dc69a...` and Host artifact `2b8fa6c...`
-measured the same canonical decision unit through a partial strict Connector
-SDK projection on clean source `b573fed...`:
+The exact managed candidate patch `708c51c...`, Host artifact `34aa29f...` / MVID
+`ff6c7349...`, and clean Headless source `9f7ffdd...` measured three distinct
+planes on Apple M4:
 
-| Workers | Reset-inclusive decisions/s | Lifecycle-inclusive decisions/s | Summed peak RSS |
-|---:|---:|---:|---:|
-| 1 | 239.69 | 158.75 | 132.2 MiB |
-| 2 | 398.12 | 265.66 | 271.3 MiB |
-| 4 | 720.96 | 500.70 | 540.8 MiB |
-| 8 | 956.33 | 694.51 | 1,063.2 MiB |
+| Plane | Meaning | Mean result |
+|---|---|---:|
+| `D_engine` | exact game-owned loop, no Player Environment/SDK/JSON/Node/Reads/evidence | `297.66 d/s` hot; `241.77 d/s` reset-inclusive |
+| `D_train` | partial fair-player projection with training-cost settings | `234.25 d/s` single environment |
+| `D_qual` | strict IDs, Reads, SDK validation, evidence and sampling | `213.25 d/s` single environment |
 
-Each worker completed three short episodes and exited zero. A predecessor
-same-artifact window measured `1,017.39`, but its adapter worktree was dirty.
-The clean-source result does not cross the provisional threshold, so `>=1000`
-is not repeatably established. The projection is incomplete and unqualified;
-both windows are route-priority signals, not semantic or release admission.
+The shared-supervisor `D_train` profile scaled from `256.32 d/s` at one worker
+to `1,676.64` at eight, `1,865.33` at ten, and a machine plateau of `2,451.00`
+at 24 environments. The 24-worker window measured `10.28` aggregate CPU cores
+and increased p95 latency to `16.56 ms`. A supervisor per worker did not improve
+throughput and materially increased Node RSS.
+
+The single-environment engine loop spent `3.10 ms/decision` in native Commit,
+settling and Host lifecycle, `0.31 ms` in decision detection/raw projection,
+and allocated about `1.00 MB/decision`. Raw JSON serialization added only
+`0.069 ms/decision`. The current bottleneck is native lifecycle plus allocation
+and GC, not SDK, JSON or one Node supervisor.
+
+These are clean-source performance and method-selection results for a partial,
+unqualified projection. They are not cross-Host parity, physical-core affinity,
+real learner throughput, H1.0 or Training Ready. See the
+[performance route closeout](evidence/MANAGED_HOST_PERFORMANCE_ROUTE_SELECTION_2026-08-21.md).
 
 The current performance stop rule is workload-based: once the Host is at most
 about 20% of end-to-end training time and doubling Host speed improves total

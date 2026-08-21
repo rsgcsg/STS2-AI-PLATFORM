@@ -23,6 +23,9 @@ npm run experiment:managed -- prepare
 npm run experiment:managed -- audit --candidate .local/candidates/<candidate>
 npm run experiment:managed -- native-gates --candidate .local/candidates/<candidate>
 npm run experiment:managed -- pe-probe --candidate .local/candidates/<candidate> --episodes 3 --max-actions 600
+npm run experiment:managed -- engine-lab --candidate .local/candidates/<candidate> --episodes 5
+npm run experiment:managed -- pe-profile --candidate .local/candidates/<candidate> --profile qualification --episodes 5
+npm run experiment:managed -- pe-profile --candidate .local/candidates/<candidate> --profile training --episodes 5
 npm run experiment:managed -- pe-capacity --candidate .local/candidates/<candidate> --workers 1,2,4,8 --episodes 3 --max-actions 600
 ```
 
@@ -31,6 +34,14 @@ support Player Environment claims. `pe-probe` and `pe-capacity` use the strict
 Connector SDK contract, snapshot-bound finite actions, Host-local operands,
 idempotent request ledger, stale refusal, and unknown-no-retry behavior. They
 remain partial until cross-Host differential and coverage gates pass.
+
+`engine-lab` measures the exact in-process game-owned semantic loop without a
+Player Environment or consumer. `pe-profile` separates training overhead from
+strict qualification overhead. `pe-sharded-capacity` is retained as an
+experimental topology command, but current evidence rejects one Node
+supervisor per runtime as the default because it does not improve aggregate
+throughput and materially increases memory. None of these performance commands
+promotes semantic evidence.
 
 Privileged commands such as `enter_room` are scenario controls. They are used
 only by named targeted gates and never enter Player Environment actions.

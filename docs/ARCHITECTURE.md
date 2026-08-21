@@ -68,6 +68,21 @@ Raw commands and privileged scenario controls are never a consumer API. Native
 object references remain inside the candidate and projection binding map.
 Throughput cannot promote this route ahead of semantic parity.
 
+Current profiling adds a strict method boundary. Projection, allocation,
+transport and supervisor changes remain Managed Exact while the byte-identical
+game assembly owns rules, RNG, effects and Commit. Persistent reconstruction or
+short-circuiting of task/UI lifecycle is Hybrid even if most gameplay classes
+still come from STS2. Implementing card, relic, power, monster, reward or RNG
+rules outside the game is Simulator. These names describe semantic ownership,
+not speed or amount of code changed.
+
+On the current 10-core M4, the managed training profile plateaued at `2,451
+d/s` with 24 environments. One shared Node supervisor was not a bottleneck;
+per-worker supervisors increased memory without improving aggregate capacity.
+Native lifecycle and allocation dominate the single-environment ceiling. The
+preferred next route is therefore narrow Managed Exact v2 followed by semantic
+qualification, not an immediate Hybrid or simulator pivot.
+
 The exact shipped source also contains Mega Crit's `AutoSlayer`: a broad smoke
 runner with game-owned seed override, watchdog, native commands and UI
 handlers. The Steam assembly makes its command-line entry unreachable through

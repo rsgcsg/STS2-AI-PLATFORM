@@ -104,7 +104,7 @@ and [seed/differential/supervisor closeout](evidence/WINDOWS_REFERENCE_SEED_DIFF
 ## Managed Exact Candidate Evidence
 
 The rebuilt macOS arm64 candidate uses upstream `d11aa883...`, patch
-`b6dc69a...`, Host artifact `2b8fa6c...` / MVID `9ef2d858...`, and the
+`708c51c...`, Host artifact `34aa29f...` / MVID `ff6c7349...`, and the
 byte-identical exact `v0.111.0` game assembly `9cb4f1a...` / MVID
 `57785517...`.
 
@@ -114,15 +114,20 @@ byte-identical exact `v0.111.0` game assembly `9cb4f1a...` / MVID
 - three clean-source fair-player episodes delivered 381/381 actions plus 384 Reads with
   three matched game-owned seeds, zero unknown, and three `game_over`
   boundaries;
-- the clean-source 1/2/4/8-worker windows measured
-  239.69/398.12/720.96/956.33 reset-inclusive canonical decisions/s; a
-  predecessor same-artifact, dirty-worktree window measured 1,017.39 at eight
-  workers, so `>=1000` is not repeatably established.
+- clean-source serial profiling measured `D_engine`, `D_train`, and `D_qual` at
+  `297.66`, `234.25`, and `213.25 d/s` mean respectively;
+- the shared-supervisor training profile measured `256.32/506.93/992.41/
+  1,390.72/1,676.64/1,865.33 d/s` at 1/2/4/6/8/10 workers and plateaued at
+  `2,451.00 d/s` with 24 environments on the 10-core M4;
+- per-worker Node supervisors did not improve throughput and materially
+  increased memory; raw JSON serialization added only `0.069 ms/decision`.
 
 The projection remains explicitly partial, treasure was targeted rather than
 organic, and no run passed Act 1 floor 7. These results establish a fast
 candidate and working bounded lifecycle, not semantic equivalence, complete
 gameplay, H1.0, or Training Ready. See the [managed exact closeout](evidence/MANAGED_EXACT_NATIVE_REWARDS_TREASURE_AND_CAPACITY_2026-08-17.md).
+The performance and Host-route interpretation is in the
+[performance route closeout](evidence/MANAGED_HOST_PERFORMANCE_ROUTE_SELECTION_2026-08-21.md).
 
 ## Non-Claims
 
@@ -145,6 +150,9 @@ gameplay, H1.0, or Training Ready. See the [managed exact closeout](evidence/MAN
   throughput, cross-Host parity, Connector conformance or policy evidence.
 - Managed capacity is partial-canonical performance evidence. It is not
   cross-Host parity, full-run coverage, 1M reliability, or learning transfer.
+- `D_engine` is an internal semantic-floor measurement, not a canonical Player
+  Environment decision. High-core, cluster, Hybrid, snapshotable and simulator
+  ceilings remain estimates until measured.
 
 ## Reproduce
 

@@ -22,6 +22,9 @@
 14. [Managed exact native rewards, treasure, and capacity](evidence/MANAGED_EXACT_NATIVE_REWARDS_TREASURE_AND_CAPACITY_2026-08-17.md):
     rebuilt exact candidate identity, targeted native gates, partial canonical
     journeys, measured capacity, and explicit non-claims.
+15. [Managed Host performance route selection](evidence/MANAGED_HOST_PERFORMANCE_ROUTE_SELECTION_2026-08-21.md):
+    stage profiler, reversible ablations, single-environment and machine
+    ceilings, method boundaries, 5k/10k assessment, and H1.0 route verdict.
 
 `README.md`, Status, Architecture, and Compatibility are current truth. Local
 raw evidence under `.local/` is not documentation and must not be committed.
