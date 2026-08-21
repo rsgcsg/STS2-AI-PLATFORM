@@ -21,40 +21,118 @@ function requirePositiveInteger(value, name) {
   }
 }
 
-function ordered(actions) {
-  return [...actions].sort((left, right) => left.label.localeCompare(right.label)
-    || left.bound_action_id.localeCompare(right.bound_action_id));
+function latencySummary(values) {
+  if (values.length === 0) return null;
+  const sorted = [...values].sort((left, right) => left - right);
+  const percentile = (fraction) => sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * fraction) - 1)];
+  return {
+    count: sorted.length,
+    mean: sorted.reduce((sum, value) => sum + value, 0) / sorted.length,
+    p50: percentile(0.50),
+    p95: percentile(0.95),
+    p99: percentile(0.99),
+    max: sorted.at(-1)
+  };
+}
+
+function actionSemanticKey(snapshot, action) {
+  const referents = new Map((snapshot.referents ?? []).map((referent) => [referent.referent_id, referent]));
+  const withoutOpaqueIdentity = (value) => {
+    if (Array.isArray(value)) return value.map(withoutOpaqueIdentity);
+    if (value == null || typeof value !== "object") return value;
+    return Object.fromEntries(Object.entries(value)
+      .filter(([key]) => !["entity_id", "entity_ids", "target_entity_ids", "referent_id", "snapshot_id", "interaction_id", "bound_action_id", "read_id"].includes(key))
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([key, nested]) => [key, withoutOpaqueIdentity(nested)]));
+  };
+  const publicReferent = (id) => {
+    const referent = referents.get(id);
+    return referent == null ? null : {
+      role: referent.role,
+      label: referent.label,
+      properties: withoutOpaqueIdentity(referent.properties)
+    };
+  };
+  return JSON.stringify({
+    verb: action.verb,
+    label: action.label,
+    subject: publicReferent(action.subject_referent_id),
+    arguments: (action.arguments ?? []).map((argument) => ({
+      role: argument.role,
+      referent: publicReferent(argument.referent_id)
+    }))
+  });
+}
+
+function ordered(snapshot, actions) {
+  return [...actions].sort((left, right) =>
+    actionSemanticKey(snapshot, left).localeCompare(actionSemanticKey(snapshot, right)));
 }
 
 export function chooseManagedPlayerEnvironmentAction(snapshot) {
   if (snapshot?.status !== "interactive" || snapshot?.bound_actions?.status !== "complete") return null;
   const actions = snapshot.bound_actions.actions;
   const kind = snapshot.interaction.kind;
+  const referents = new Map((snapshot.referents ?? []).map((referent) => [referent.referent_id, referent]));
+  const subject = (action) => referents.get(action.subject_referent_id)?.properties ?? {};
+  const numeric = (value) => Number.isFinite(Number(value)) ? Number(value) : Number.MAX_SAFE_INTEGER;
+  const byProperties = (items, selector) => [...items].sort((left, right) => {
+    const leftValues = selector(left);
+    const rightValues = selector(right);
+    for (let index = 0; index < Math.max(leftValues.length, rightValues.length); index += 1) {
+      const compared = String(leftValues[index] ?? "").localeCompare(String(rightValues[index] ?? ""), "en", {
+        numeric: true
+      });
+      if (compared !== 0) return compared;
+    }
+    return actionSemanticKey(snapshot, left).localeCompare(actionSemanticKey(snapshot, right));
+  });
   if (kind === "combat_turn") {
-    return ordered(actions.filter((action) => action.verb === "play"))[0]
+    return byProperties(actions.filter((action) => action.verb === "play"), (action) => {
+      const card = subject(action);
+      const targetId = action.arguments?.find((argument) => argument.role === "target")?.referent_id;
+      const target = referents.get(targetId)?.properties ?? {};
+      return [card.definition_id, numeric(card.hand_index), target.definition_id, numeric(target.combat_id)];
+    })[0]
       ?? actions.find((action) => action.verb === "end_turn")
       ?? null;
   }
   if (kind === "rest_site") {
-    return actions.find((action) => /heal|rest/i.test(action.label)) ?? ordered(actions)[0] ?? null;
+    return actions.find((action) => subject(action).option_id === "HEAL")
+      ?? byProperties(actions, (action) => [subject(action).option_id])[0]
+      ?? null;
+  }
+  if (kind === "event_option") {
+    return byProperties(actions, (action) => [numeric(subject(action).index)])[0] ?? null;
+  }
+  if (kind === "map_navigation") {
+    return byProperties(actions, (action) => [
+      numeric(subject(action).row), numeric(subject(action).col)
+    ])[0] ?? null;
   }
   if (kind === "reward_collection") {
-    return ordered(actions.filter((action) => /^Take /u.test(action.label)))[0]
+    return byProperties(actions.filter((action) => /^Take /u.test(action.label)), (action) => [
+      numeric(subject(action).index)
+    ])[0]
       ?? actions.find((action) => action.label === "Proceed")
-      ?? ordered(actions)[0]
+      ?? ordered(snapshot, actions)[0]
       ?? null;
   }
   if (kind === "card_reward_selection") {
-    return ordered(actions.filter((action) => action.verb === "select"))[0]
+    return byProperties(actions.filter((action) => action.verb === "select"), (action) => [
+      numeric(subject(action).index)
+    ])[0]
       ?? actions.find((action) => action.verb === "skip")
       ?? null;
   }
   if (kind === "treasure_relic_selection") {
-    return ordered(actions.filter((action) => action.verb === "select"))[0]
+    return byProperties(actions.filter((action) => action.verb === "select"), (action) => [
+      numeric(subject(action).index)
+    ])[0]
       ?? actions.find((action) => action.verb === "skip")
       ?? null;
   }
-  return ordered(actions)[0] ?? null;
+  return ordered(snapshot, actions)[0] ?? null;
 }
 
 function episodeSeed(baseSeed, episodeIndex, episodeCount) {
@@ -108,6 +186,7 @@ export async function runManagedPlayerEnvironmentProbe({
     : new ProcessResourceSampler(started.runtime.process.pid, { intervalMs: resourceSamplingIntervalMs });
   if (sampler != null) await sampler.start();
   const childMetricsBefore = await started.session.processMetrics(requestTimeoutMs);
+  const nodeCpuBefore = process.cpuUsage();
   const events = [];
   let snapshot = null;
   let runIdentity = null;
@@ -120,6 +199,8 @@ export async function runManagedPlayerEnvironmentProbe({
   let actionsDelivered = 0;
   let readsCompleted = 0;
   let unknownObserved = false;
+  const actionLatenciesMs = [];
+  const mountLatenciesMs = [];
   try {
     for (let episodeIndex = 0; episodeIndex < episodeCount; episodeIndex += 1) {
       const requestedSeed = episodeSeed(seed, episodeIndex, episodeCount);
@@ -136,6 +217,7 @@ export async function runManagedPlayerEnvironmentProbe({
         throw new Error(`Managed Player Environment did not prove requested game seed ${requestedSeed}.`);
       }
       const mountedAt = performance.now();
+      mountLatenciesMs.push(mountedAt - mountStarted);
       decisionStarted ??= mountedAt;
       if (canonicalEvidence) {
         events.push({
@@ -190,6 +272,7 @@ export async function runManagedPlayerEnvironmentProbe({
           timeoutMs: requestTimeoutMs
         });
         const after = performance.now();
+        actionLatenciesMs.push(after - before);
         actionsAttempted += 1;
         episodeActionsAttempted += 1;
         if (value.delivery === "delivered") {
@@ -249,6 +332,7 @@ export async function runManagedPlayerEnvironmentProbe({
     decisionEnded = performance.now();
   }
   const childMetricsAfter = await started.session.processMetrics(requestTimeoutMs);
+  const nodeCpu = process.cpuUsage(nodeCpuBefore);
   const resources = sampler == null ? { samples: [], errors: [] } : await sampler.stop();
   const exit = await started.session.close();
   const delivered = actionsDelivered;
@@ -318,6 +402,8 @@ export async function runManagedPlayerEnvironmentProbe({
       resource_samples: resources.samples,
       resource_sample_errors: resources.errors,
       stage_totals: started.session.performance(),
+      action_latency_ms: latencySummary(actionLatenciesMs),
+      mount_latency_ms: latencySummary(mountLatenciesMs),
       child_process: {
         cpu_ms: childMetricsAfter.cpu_total_ms - childMetricsBefore.cpu_total_ms,
         allocated_bytes: childMetricsAfter.allocated_bytes_total - childMetricsBefore.allocated_bytes_total,
@@ -329,6 +415,12 @@ export async function runManagedPlayerEnvironmentProbe({
         final_working_set_bytes: childMetricsAfter.working_set_bytes,
         final_private_bytes: childMetricsAfter.private_bytes,
         final_managed_heap_bytes: childMetricsAfter.managed_heap_bytes
+      },
+      node_process: {
+        cpu_ms: (nodeCpu.user + nodeCpu.system) / 1000,
+        average_cpu_cores: windowSeconds > 0
+          ? (nodeCpu.user + nodeCpu.system) / 1000 / (windowSeconds * 1000)
+          : null
       },
       ablations: {
         identity_mode: identityMode,
@@ -397,8 +489,11 @@ export function summarizeManagedPlayerEnvironmentCapacityGroup(results, groupWal
   if (new Set(runtimeIds).size !== runtimeIds.length) {
     throw new Error("Canonical capacity workers did not report distinct runtime instance IDs.");
   }
-  const starts = reports.map((report) => report.performance.decision_window_started_ms);
-  const ends = reports.map((report) => report.performance.decision_window_ended_ms);
+  // Epoch timestamps stay comparable when each worker has an independent Node clock.
+  const starts = reports.map((report) => report.performance.decision_window_started_epoch_ms
+    ?? report.performance.decision_window_started_ms);
+  const ends = reports.map((report) => report.performance.decision_window_ended_epoch_ms
+    ?? report.performance.decision_window_ended_ms);
   const comparableWindow = [...starts, ...ends].every(Number.isFinite);
   const commonWindowSeconds = comparableWindow
     ? (Math.max(...ends) - Math.min(...starts)) / 1000
@@ -415,6 +510,18 @@ export function summarizeManagedPlayerEnvironmentCapacityGroup(results, groupWal
     (sum, report) => sum + (report.performance.peak_rss_bytes ?? 0),
     0
   );
+  const finalWorkingSetBytes = reports.reduce(
+    (sum, report) => sum + (report.performance.child_process?.final_working_set_bytes ?? 0),
+    0
+  );
+  const childCpuSeconds = reports.reduce(
+    (sum, report) => sum + (report.performance.child_process?.cpu_ms ?? 0) / 1000,
+    0
+  );
+  const nodeCpuSeconds = parentPerformance?.total_node_cpu_seconds
+    ?? parentPerformance?.cpu_seconds
+    ?? 0;
+  const totalMeasuredCpuSeconds = childCpuSeconds + nodeCpuSeconds;
   const workersMeasured = reports.every((report) =>
     report.status === "bounded_partial_player_environment_measured"
     && report.episode.failure == null
@@ -438,6 +545,14 @@ export function summarizeManagedPlayerEnvironmentCapacityGroup(results, groupWal
     aggregate_reset_inclusive_canonical_decisions_per_second:
       commonWindowSeconds > 0 ? decisions / commonWindowSeconds : null,
     summed_worker_peak_rss_bytes: peakRssBytes,
+    summed_worker_final_working_set_bytes: finalWorkingSetBytes,
+    child_cpu_seconds: childCpuSeconds,
+    node_cpu_seconds: nodeCpuSeconds,
+    total_measured_cpu_seconds: totalMeasuredCpuSeconds,
+    decisions_per_cpu_second: totalMeasuredCpuSeconds > 0 ? decisions / totalMeasuredCpuSeconds : null,
+    average_measured_cpu_cores: commonWindowSeconds > 0
+      ? totalMeasuredCpuSeconds / commonWindowSeconds
+      : null,
     parent_process: parentPerformance,
     workers: reports.map((report) => ({
       status: report.status,
@@ -449,7 +564,11 @@ export function summarizeManagedPlayerEnvironmentCapacityGroup(results, groupWal
           report.performance.reset_inclusive_decision_window_seconds,
         delivered_decisions_per_second: report.performance.delivered_decisions_per_second,
         peak_rss_bytes: report.performance.peak_rss_bytes,
-        resource_sample_errors: report.performance.resource_sample_errors
+        resource_sample_errors: report.performance.resource_sample_errors,
+        stage_totals: report.performance.stage_totals,
+        child_process: report.performance.child_process,
+        action_latency_ms: report.performance.action_latency_ms,
+        mount_latency_ms: report.performance.mount_latency_ms
       },
       process_exit: report.process.exit,
       diagnostic_count: report.process.diagnostics.length,
@@ -533,6 +652,8 @@ export async function runManagedPlayerEnvironmentCapacity({
       groupWallSeconds,
       {
         cpu_seconds: (parentCpu.user + parentCpu.system) / 1_000_000,
+        total_node_cpu_seconds: (parentCpu.user + parentCpu.system) / 1_000_000,
+        final_rss_bytes: process.memoryUsage().rss,
         average_cpu_cores: groupWallSeconds > 0
           ? (parentCpu.user + parentCpu.system) / 1_000_000 / groupWallSeconds
           : null

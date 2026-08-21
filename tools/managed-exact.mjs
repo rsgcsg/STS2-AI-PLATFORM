@@ -15,6 +15,11 @@ import {
   runManagedPlayerEnvironmentCapacity,
   runManagedPlayerEnvironmentProbe
 } from "../src/managed-player-environment-probe.mjs";
+import {
+  managedPerformanceProfile,
+  runManagedEngineBenchmark
+} from "../src/managed-performance-lab.mjs";
+import { runManagedPlayerEnvironmentShardedCapacity } from "../src/managed-sharded-capacity.mjs";
 import { runManagedNativeBindingGates } from "../src/managed-native-binding-gates.mjs";
 import { canonicalizeEpisodeSeed } from "../src/episode-provenance.mjs";
 import {
@@ -63,7 +68,7 @@ async function main() {
     return;
   }
   const candidateDirectory = option(args, "--candidate");
-  if (["audit", "probe", "pe-probe", "pe-capacity", "native-gates", "capacity", "cross-host"].includes(command)
+  if (["audit", "probe", "pe-probe", "pe-profile", "pe-capacity", "pe-sharded-capacity", "engine-lab", "native-gates", "capacity", "cross-host"].includes(command)
       && !candidateDirectory) {
     throw new Error(`${command} requires --candidate <prepared-directory>.`);
   }
@@ -119,7 +124,60 @@ async function main() {
     process.exitCode = result.report.status === "candidate_failure" ? 3 : 0;
     return;
   }
+  if (command === "pe-profile") {
+    const profile = managedPerformanceProfile(option(args, "--profile", "training"));
+    const result = await runManagedPlayerEnvironmentProbe({
+      root: ROOT,
+      candidateDirectory,
+      diskIdentity: diskIdentity(),
+      seed: option(args, "--seed", "H1MANAGEDPROFILE01"),
+      character: option(args, "--character", "Ironclad"),
+      maxActions: Number(option(args, "--max-actions", "600")),
+      episodeCount: Number(option(args, "--episodes", "5")),
+      requestTimeoutMs: Number(option(args, "--timeout-ms", "10000")),
+      evidenceRoot: path.join(LOCAL, "evidence"),
+      ...profile
+    });
+    console.log(JSON.stringify({
+      status: result.report.status,
+      report_file: result.reportFile,
+      profile: result.report.performance.profile,
+      decisions_per_second: result.report.performance.delivered_decisions_per_second,
+      decisions_per_cpu_second: result.report.performance.child_process.cpu_ms
+        + result.report.performance.node_process.cpu_ms > 0
+        ? result.report.episode.canonical_actions_delivered
+          / ((result.report.performance.child_process.cpu_ms
+            + result.report.performance.node_process.cpu_ms) / 1000)
+        : null,
+      stage_totals: result.report.performance.stage_totals
+    }, null, 2));
+    process.exitCode = result.report.status === "candidate_failure" ? 3 : 0;
+    return;
+  }
+  if (command === "engine-lab") {
+    const result = await runManagedEngineBenchmark({
+      root: ROOT,
+      candidateDirectory,
+      diskIdentity: diskIdentity(),
+      episodes: Number(option(args, "--episodes", "5")),
+      warmupEpisodes: Number(option(args, "--warmup-episodes", "1")),
+      maxActions: Number(option(args, "--max-actions", "600")),
+      seedPrefix: option(args, "--seed-prefix", "H1ENGINE"),
+      character: option(args, "--character", "Ironclad"),
+      serializeEachDecision: args.includes("--serialize-each-decision"),
+      requestTimeoutMs: Number(option(args, "--timeout-ms", "120000")),
+      evidenceRoot: path.join(LOCAL, "evidence")
+    });
+    console.log(JSON.stringify({
+      status: result.report.status,
+      report_file: result.reportFile,
+      benchmark: result.report.benchmark
+    }, null, 2));
+    process.exitCode = result.report.status === "measured" ? 0 : 3;
+    return;
+  }
   if (command === "pe-capacity") {
+    const profile = managedPerformanceProfile(option(args, "--profile", "qualification"));
     const result = await runManagedPlayerEnvironmentCapacity({
       root: ROOT,
       candidateDirectory,
@@ -130,7 +188,8 @@ async function main() {
       seedPrefix: option(args, "--seed-prefix", "H1PECAPACITY"),
       character: option(args, "--character", "Ironclad"),
       requestTimeoutMs: Number(option(args, "--timeout-ms", "10000")),
-      evidenceRoot: path.join(LOCAL, "evidence")
+      evidenceRoot: path.join(LOCAL, "evidence"),
+      ...profile
     });
     console.log(JSON.stringify({
       status: result.report.status,
@@ -141,6 +200,34 @@ async function main() {
         canonical_decisions_per_second:
           group.aggregate_reset_inclusive_canonical_decisions_per_second,
         summed_worker_peak_rss_bytes: group.summed_worker_peak_rss_bytes
+      }))
+    }, null, 2));
+    process.exitCode = result.report.status === "measured_canonical_partial_unqualified" ? 0 : 3;
+    return;
+  }
+  if (command === "pe-sharded-capacity") {
+    const profile = managedPerformanceProfile(option(args, "--profile", "training"));
+    const result = await runManagedPlayerEnvironmentShardedCapacity({
+      root: ROOT,
+      candidateDirectory,
+      gameDirectory: discoverGameDirectory(),
+      workerCounts: parseWorkerCounts(option(args, "--workers", "1,2,4")),
+      maxActions: Number(option(args, "--max-actions", "600")),
+      episodesPerWorker: Number(option(args, "--episodes", "5")),
+      seedPrefix: option(args, "--seed-prefix", "H1PESHARDED"),
+      character: option(args, "--character", "Ironclad"),
+      requestTimeoutMs: Number(option(args, "--timeout-ms", "10000")),
+      evidenceRoot: path.join(LOCAL, "evidence"),
+      profile
+    });
+    console.log(JSON.stringify({
+      status: result.report.status,
+      report_file: result.reportFile,
+      groups: result.report.groups.map((group) => ({
+        worker_count: group.worker_count,
+        decisions_per_second: group.aggregate_reset_inclusive_canonical_decisions_per_second,
+        decisions_per_cpu_second: group.decisions_per_cpu_second,
+        average_measured_cpu_cores: group.average_measured_cpu_cores
       }))
     }, null, 2));
     process.exitCode = result.report.status === "measured_canonical_partial_unqualified" ? 0 : 3;
@@ -251,7 +338,10 @@ Commands:
   audit --candidate DIR
   probe --candidate DIR [--seed SEED] [--episodes N] [--max-actions N] [--reset-at card_select,card_reward]
   pe-probe --candidate DIR [--seed SEED] [--episodes N] [--max-actions N]
-  pe-capacity --candidate DIR [--workers 1,2,4] [--episodes N] [--max-actions N]
+  pe-profile --candidate DIR [--profile training|training-validated|qualification]
+  engine-lab --candidate DIR [--episodes N] [--serialize-each-decision]
+  pe-capacity --candidate DIR [--profile NAME] [--workers 1,2,4] [--episodes N] [--max-actions N]
+  pe-sharded-capacity --candidate DIR [--profile NAME] [--workers 1,2,4] [--episodes N]
   native-gates --candidate DIR [--seed SEED]
   cross-host --candidate DIR [--seed SEED] [--max-actions N] [--template ID]
   capacity --candidate DIR [--workers 1,2,4] [--episodes N] [--max-actions N]

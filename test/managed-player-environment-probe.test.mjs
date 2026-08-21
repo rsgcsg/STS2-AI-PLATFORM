@@ -65,11 +65,15 @@ function capacityWorker(runtimeId, decisions, start, end) {
       performance: {
         decision_window_started_ms: start,
         decision_window_ended_ms: end,
+        decision_window_started_epoch_ms: 10_000 + start,
+        decision_window_ended_epoch_ms: 10_000 + end,
         process_startup_seconds: 1,
         reset_inclusive_decision_window_seconds: (end - start) / 1000,
         delivered_decisions_per_second: decisions / ((end - start) / 1000),
         peak_rss_bytes: 100,
-        resource_sample_errors: []
+        resource_sample_errors: [],
+        stage_totals: {},
+        child_process: { cpu_ms: decisions }
       },
       process: { exit: { code: 0 }, diagnostics: [] },
       events: [{
@@ -94,6 +98,7 @@ test("canonical capacity aggregation requires one artifact and distinct runtimes
   assert.equal(summary.delivered_canonical_decisions, 300);
   assert.equal(summary.completed_canonical_reads, 302);
   assert.equal(summary.aggregate_reset_inclusive_canonical_decisions_per_second, 300 / 2.01);
+  assert.ok(Math.abs(summary.child_cpu_seconds - 0.3) < 1e-12);
   assert.equal(summary.workers[0].last_action.canonical_action.label, "last-runtime-a");
   assert.equal(summary.workers[0].last_action.detail, "settled");
   assert.throws(() => summarizeManagedPlayerEnvironmentCapacityGroup([

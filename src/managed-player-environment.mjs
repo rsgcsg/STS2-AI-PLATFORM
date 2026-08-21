@@ -949,6 +949,8 @@ function currentSurface(state, ctx) {
           .filter(Boolean);
         const option = {
           entity_id: entityId,
+          definition_id: definitionId(card.id ?? card.name),
+          hand_index: index,
           name: card.name ?? null,
           target_entity_ids: validTargets
         };
@@ -1817,6 +1819,7 @@ export class ManagedPlayerEnvironmentSession {
     });
     this.#record("projection_total", performance.now() - projectionStarted);
     for (const [name, milliseconds] of Object.entries(this.#projection.performance)) {
+      if (name === "total_ms") continue;
       this.#record(`projection_${name.replace(/_ms$/u, "")}`, milliseconds);
     }
     return this.#projection.snapshot;
