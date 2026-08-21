@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  allocateReferenceEndpoint,
   settleReferenceReceipt,
   ShippedPlayerEnvironmentSession
 } from "../src/shipped-player-environment.mjs";
@@ -100,4 +101,13 @@ test("Reference delivery observes settling without retrying the mutation", async
   assert.equal(receipt.successor.snapshot_id, "after");
   assert.equal(receipt.successor_observation, "driver_observed_after_delivery");
   assert.equal(polls, 2);
+});
+
+test("Reference runtimes receive an isolated loopback endpoint", async () => {
+  const first = new URL(await allocateReferenceEndpoint());
+  const second = new URL(await allocateReferenceEndpoint());
+  assert.equal(first.hostname, "127.0.0.1");
+  assert.equal(second.hostname, "127.0.0.1");
+  assert.notEqual(first.port, "0");
+  assert.notEqual(second.port, "0");
 });

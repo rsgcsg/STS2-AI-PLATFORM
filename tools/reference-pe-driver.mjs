@@ -73,7 +73,7 @@ async function main() {
     localRoot: LOCAL,
     evidenceRoot: path.join(LOCAL, "evidence"),
     templateId: option(args, "--template", "vanilla-clean"),
-    endpoint: option(args, "--endpoint", "http://127.0.0.1:15830"),
+    endpoint: option(args, "--endpoint"),
     timeoutMs: Number(option(args, "--timeout-ms", "90000")),
     requestTimeoutMs: Number(option(args, "--request-timeout-ms", "30000")),
     experimentalBuildAcknowledged: args.includes("--experimental-build"),

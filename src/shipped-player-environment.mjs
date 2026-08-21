@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createWriteStream, mkdirSync } from "node:fs";
 import path from "node:path";
+import { createServer } from "node:net";
 import { finished } from "node:stream/promises";
 import {
   EnvironmentControllerSession,
@@ -26,6 +27,20 @@ import {
 
 function safeTimestamp() {
   return new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
+}
+
+export async function allocateReferenceEndpoint() {
+  const server = createServer();
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+  await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+  if (address == null || typeof address === "string") {
+    throw new Error("Could not allocate an isolated Reference loopback endpoint.");
+  }
+  return `http://127.0.0.1:${address.port}`;
 }
 
 function childReference(child) {
@@ -88,7 +103,7 @@ export async function startShippedPlayerEnvironmentEpisode({
   evidenceRoot,
   seed,
   templateId = "vanilla-clean",
-  endpoint = "http://127.0.0.1:15830",
+  endpoint = null,
   timeoutMs = 90_000,
   requestTimeoutMs = 30_000,
   experimentalBuildAcknowledged = false,
@@ -102,6 +117,7 @@ export async function startShippedPlayerEnvironmentEpisode({
   }
 
   const diskIdentity = readDiskIdentity(installation);
+  const runtimeEndpoint = endpoint ?? await allocateReferenceEndpoint();
   const compatibility = evaluateRuntimeCompatibility(diskIdentity);
   if (compatibility.status !== "supported_exact" && !experimentalBuildAcknowledged) {
     throw new Error(
@@ -128,7 +144,7 @@ export async function startShippedPlayerEnvironmentEpisode({
   const stderrStream = createWriteStream(path.join(evidenceDirectory, "stderr.log"));
   const launch = shippedRuntimeLaunch(installation, {
     launchProfile,
-    connectorEndpoint: endpoint,
+    connectorEndpoint: runtimeEndpoint,
     runSeed: canonicalSeed,
     connectorCanary
   });
@@ -144,7 +160,7 @@ export async function startShippedPlayerEnvironmentEpisode({
     closed = true;
     await controller?.close().catch(() => null);
     const exit = await stopChild(child, {
-      endpoint,
+      endpoint: runtimeEndpoint,
       hostControlToken: launch.hostControlToken,
       expectedRuntimeInstanceId: capabilities?.host?.runtime_instance_id ?? null
     });
@@ -153,18 +169,18 @@ export async function startShippedPlayerEnvironmentEpisode({
   };
 
   try {
-    const endpointResult = await waitForEndpoint(endpoint, timeoutMs, childReference(child));
+    const endpointResult = await waitForEndpoint(runtimeEndpoint, timeoutMs, childReference(child));
     if (!endpointResult.ok) {
       throw new Error(`Reference Connector endpoint did not become ready: ${endpointResult.error}`);
     }
     capabilities = endpointResult.value;
     const gate = evaluateHeadlessCapabilities(capabilities);
     if (!gate.ok) throw new Error(`Reference capability gate failed: ${gate.errors.join(", ")}`);
-    const observations = await waitForInteractiveSnapshot(endpoint, timeoutMs, childReference(child));
+    const observations = await waitForInteractiveSnapshot(runtimeEndpoint, timeoutMs, childReference(child));
     let snapshot = observations.at(-1)?.value;
     if (snapshot == null) throw new Error("Reference runtime did not mount an interactive snapshot.");
 
-    const client = new PlayerEnvironmentRestClient(endpoint, requestTimeoutMs);
+    const client = new PlayerEnvironmentRestClient(runtimeEndpoint, requestTimeoutMs);
     controller = new EnvironmentControllerSession(client, {
       productId: "sts2-headless-reference-driver",
       productName: "STS2 Headless Reference Driver",
@@ -172,7 +188,7 @@ export async function startShippedPlayerEnvironmentEpisode({
     });
     await controller.register(capabilities.host, capabilities.control);
     const provenanceResponse = await requestHostProvenance({
-      endpoint,
+      endpoint: runtimeEndpoint,
       hostControlToken: launch.hostControlToken,
       expectedRuntimeInstanceId: capabilities.host.runtime_instance_id,
       timeoutMs: requestTimeoutMs
@@ -185,7 +201,7 @@ export async function startShippedPlayerEnvironmentEpisode({
 
     const refreshProvenance = async () => {
       const response = await requestHostProvenance({
-        endpoint,
+        endpoint: runtimeEndpoint,
         hostControlToken: launch.hostControlToken,
         expectedRuntimeInstanceId: capabilities.host.runtime_instance_id,
         timeoutMs: requestTimeoutMs
@@ -269,7 +285,8 @@ export async function startShippedPlayerEnvironmentEpisode({
           return provenance;
         },
         bootstrap_trace: bootstrapTrace,
-        evidence_directory: evidenceDirectory
+        evidence_directory: evidenceDirectory,
+        endpoint: runtimeEndpoint
       },
       observe: async () => (await client.observe()).data,
       read: async ({ readId, expectedSnapshotId }) =>
