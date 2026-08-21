@@ -3,6 +3,7 @@ import readline from "node:readline";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { discoverGameDirectory, readDiskIdentity, resolveInstallation } from "../src/game-installation.mjs";
+import { canonicalizeEpisodeSeed } from "../src/episode-provenance.mjs";
 import { startManagedPlayerEnvironmentSession } from "../src/managed-player-environment.mjs";
 import { readProjectIdentity } from "../src/project-identity.mjs";
 
@@ -33,6 +34,7 @@ const started = await startManagedPlayerEnvironmentSession({
 });
 let mounted = false;
 let closed = false;
+let requestedEpisodeSeed = null;
 
 write({
   type: "ready",
@@ -48,6 +50,7 @@ async function handle(request) {
   const requestId = request?.request_id ?? null;
   switch (request?.command) {
     case "reset": {
+      requestedEpisodeSeed = canonicalizeEpisodeSeed(request.seed);
       const snapshot = await started.session.mount({
         seed: request.seed,
         reset: mounted,
@@ -91,10 +94,10 @@ async function handle(request) {
           episode_provenance: {
             verdict: runIdentity?.type === "run_identity"
               && runIdentity.active === true
-              && typeof runIdentity.seed === "string"
+              && runIdentity.seed === requestedEpisodeSeed
               ? "provenance_pass"
               : "provenance_incomplete",
-            requested_seed: runIdentity?.seed ?? null,
+            requested_seed: requestedEpisodeSeed,
             actual_seed: runIdentity?.seed ?? null,
             runtime_instance_id: started.runtime.adapterRuntimeInstanceId
           }
