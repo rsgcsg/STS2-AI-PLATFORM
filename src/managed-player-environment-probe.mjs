@@ -423,9 +423,10 @@ export async function runManagedPlayerEnvironmentProbe({
     event.canonical_decision?.completeness?.status === "complete").length;
   const partialCanonicalDecisions = canonicalActionEvents.length - completeCanonicalDecisions;
   const boundedCanonicalInformationComplete = canonicalEvidence
-    && canonicalActionEvents.length === actionsAttempted
-    && partialCanonicalDecisions === 0
-    && snapshot?.completeness?.status === "complete";
+    ? canonicalActionEvents.length === actionsAttempted
+      && partialCanonicalDecisions === 0
+      && snapshot?.completeness?.status === "complete"
+    : null;
   const windowSeconds = decisionStarted == null || decisionEnded == null
     ? null
     : (decisionEnded - decisionStarted) / 1000;
@@ -438,9 +439,11 @@ export async function runManagedPlayerEnvironmentProbe({
     status: failure != null
       ? "candidate_failure"
       : stopReason === "action_limit" || stopReason === "game_over" || stopReason === "episodes_complete"
-        ? boundedCanonicalInformationComplete
-          ? "bounded_player_environment_measured"
-          : "bounded_partial_player_environment_measured"
+        ? !canonicalEvidence
+          ? "bounded_training_profile_measured"
+          : boundedCanonicalInformationComplete
+            ? "bounded_player_environment_measured"
+            : "bounded_partial_player_environment_measured"
         : "fail_closed",
     headless: readProjectIdentity(root),
     system_identity: readSystemIdentity(),
@@ -473,6 +476,7 @@ export async function runManagedPlayerEnvironmentProbe({
       canonical_actions_delivered: delivered,
       canonical_reads_completed: readsCompleted,
       canonical_information: {
+        evidence_recorded: canonicalEvidence,
         action_decisions_observed: canonicalActionEvents.length,
         complete_action_decisions: completeCanonicalDecisions,
         partial_action_decisions: partialCanonicalDecisions,
@@ -500,9 +504,11 @@ export async function runManagedPlayerEnvironmentProbe({
       }
     },
     performance: {
-      unit: boundedCanonicalInformationComplete
-        ? "canonical_player_environment_decision_unqualified"
-        : "canonical_player_environment_decision_partial_unqualified",
+      unit: !canonicalEvidence
+        ? "canonical_player_environment_decision_training_profile_unqualified"
+        : boundedCanonicalInformationComplete
+          ? "canonical_player_environment_decision_unqualified"
+          : "canonical_player_environment_decision_partial_unqualified",
       profile: profileName,
       process_startup_seconds: decisionStarted == null ? null : (decisionStarted - processStarted) / 1000,
       decision_window_started_ms: decisionStarted,
@@ -623,10 +629,10 @@ export function summarizeManagedPlayerEnvironmentCapacityGroup(results, groupWal
     (sum, report) => sum + report.episode.canonical_reads_completed,
     0
   );
-  const peakRssBytes = reports.reduce(
-    (sum, report) => sum + (report.performance.peak_rss_bytes ?? 0),
-    0
-  );
+  const sampledPeakRss = reports.map((report) => report.performance.peak_rss_bytes);
+  const peakRssBytes = sampledPeakRss.every((value) => value == null)
+    ? null
+    : sampledPeakRss.reduce((sum, value) => sum + (value ?? 0), 0);
   const finalWorkingSetBytes = reports.reduce(
     (sum, report) => sum + (report.performance.child_process?.final_working_set_bytes ?? 0),
     0
@@ -641,7 +647,8 @@ export function summarizeManagedPlayerEnvironmentCapacityGroup(results, groupWal
   const totalMeasuredCpuSeconds = childCpuSeconds + nodeCpuSeconds;
   const measuredWorkerStatuses = new Set([
     "bounded_player_environment_measured",
-    "bounded_partial_player_environment_measured"
+    "bounded_partial_player_environment_measured",
+    "bounded_training_profile_measured"
   ]);
   const workersMeasured = reports.every((report) =>
     measuredWorkerStatuses.has(report.status)
@@ -653,9 +660,13 @@ export function summarizeManagedPlayerEnvironmentCapacityGroup(results, groupWal
       episode.terminal === "game_over" || episode.terminal === "action_limit"));
   const allWorkersInformationComplete = reports.every((report) =>
     report.status === "bounded_player_environment_measured");
+  const allWorkersInformationUnrecorded = reports.every((report) =>
+    report.status === "bounded_training_profile_measured");
   return {
     status: workersMeasured && commonWindowSeconds > 0
-      ? allWorkersInformationComplete
+      ? allWorkersInformationUnrecorded
+        ? "measured_training_profile_unqualified"
+        : allWorkersInformationComplete
         ? "measured_canonical_unqualified"
         : "measured_canonical_partial_unqualified"
       : "measurement_incomplete",
@@ -670,6 +681,7 @@ export function summarizeManagedPlayerEnvironmentCapacityGroup(results, groupWal
     aggregate_reset_inclusive_canonical_decisions_per_second:
       commonWindowSeconds > 0 ? decisions / commonWindowSeconds : null,
     summed_worker_peak_rss_bytes: peakRssBytes,
+    resource_sampling: peakRssBytes == null ? "not_recorded" : "recorded",
     summed_worker_final_working_set_bytes: finalWorkingSetBytes,
     child_cpu_seconds: childCpuSeconds,
     node_cpu_seconds: nodeCpuSeconds,

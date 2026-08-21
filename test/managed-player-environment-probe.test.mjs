@@ -126,6 +126,11 @@ test("canonical capacity aggregation requires one artifact and distinct runtimes
     capacityWorker("runtime-d", 200, 110, 2_110, "bounded_player_environment_measured")
   ], 3);
   assert.equal(completeSummary.status, "measured_canonical_unqualified");
+  const trainingSummary = summarizeManagedPlayerEnvironmentCapacityGroup([
+    capacityWorker("runtime-e", 100, 100, 2_100, "bounded_training_profile_measured"),
+    capacityWorker("runtime-f", 200, 110, 2_110, "bounded_training_profile_measured")
+  ], 3);
+  assert.equal(trainingSummary.status, "measured_training_profile_unqualified");
   assert.throws(() => summarizeManagedPlayerEnvironmentCapacityGroup([
     capacityWorker("runtime-a", 1, 0, 1),
     capacityWorker("runtime-a", 1, 0, 1)
