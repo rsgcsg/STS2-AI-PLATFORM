@@ -645,6 +645,17 @@ export function summarizeManagedPlayerEnvironmentCapacityGroup(results, groupWal
     ?? parentPerformance?.cpu_seconds
     ?? 0;
   const totalMeasuredCpuSeconds = childCpuSeconds + nodeCpuSeconds;
+  const episodeSignatures = reports.map((report) => report.episode.episodes.map((episode) => ({
+    requested_seed: episode.requested_seed,
+    game_reported_seed: episode.game_reported_seed,
+    terminal: episode.terminal,
+    terminal_outcome: episode.terminal_outcome ?? null,
+    canonical_actions_attempted: episode.canonical_actions_attempted,
+    canonical_actions_delivered: episode.canonical_actions_delivered
+  })));
+  const expectedEpisodeSignatures = JSON.stringify(episodeSignatures[0]);
+  const crossWorkerEpisodeConsistency = episodeSignatures.every((signatures) =>
+    JSON.stringify(signatures) === expectedEpisodeSignatures);
   const measuredWorkerStatuses = new Set([
     "bounded_player_environment_measured",
     "bounded_partial_player_environment_measured",
@@ -657,7 +668,8 @@ export function summarizeManagedPlayerEnvironmentCapacityGroup(results, groupWal
     && report.episode.episodes_completed === report.episode.episodes_requested
     && report.episode.canonical_actions_attempted === report.episode.canonical_actions_delivered
     && report.episode.episodes.every((episode) =>
-      episode.terminal === "game_over" || episode.terminal === "action_limit"));
+      episode.terminal === "game_over" || episode.terminal === "action_limit"))
+    && crossWorkerEpisodeConsistency;
   const allWorkersInformationComplete = reports.every((report) =>
     report.status === "bounded_player_environment_measured");
   const allWorkersInformationUnrecorded = reports.every((report) =>
@@ -683,6 +695,28 @@ export function summarizeManagedPlayerEnvironmentCapacityGroup(results, groupWal
     summed_worker_peak_rss_bytes: peakRssBytes,
     resource_sampling: peakRssBytes == null ? "not_recorded" : "recorded",
     summed_worker_final_working_set_bytes: finalWorkingSetBytes,
+    summed_worker_observed_rss_growth_bytes: reports.reduce((sum, report) => {
+      const samples = report.performance.resource_samples ?? [];
+      return sum + (samples.length > 1
+        ? samples.at(-1).rss_bytes - samples[0].rss_bytes
+        : 0);
+    }, 0),
+    reliability: {
+      episodes_completed: reports.reduce(
+        (sum, report) => sum + report.episode.episodes_completed,
+        0
+      ),
+      reset_count: reports.reduce(
+        (sum, report) => sum + Math.max(0, report.episode.episodes_completed - 1),
+        0
+      ),
+      unknown_deliveries: reports.reduce(
+        (sum, report) => sum + (report.verdict?.hard_shell === "unknown_delivery_fail_closed" ? 1 : 0),
+        0
+      ),
+      process_failures: reports.filter((report) => report.process.exit?.code !== 0).length,
+      cross_worker_episode_consistency: crossWorkerEpisodeConsistency ? "pass" : "fail"
+    },
     child_cpu_seconds: childCpuSeconds,
     node_cpu_seconds: nodeCpuSeconds,
     total_measured_cpu_seconds: totalMeasuredCpuSeconds,

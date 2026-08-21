@@ -33,6 +33,15 @@ const PROFILES = Object.freeze({
     resourceSamplingIntervalMs: null,
     quietDiagnostics: true
   }),
+  reliability: Object.freeze({
+    profileName: "reliability",
+    identityMode: "sequence",
+    validateSdk: true,
+    eagerReads: false,
+    canonicalEvidence: false,
+    resourceSamplingIntervalMs: 1000,
+    quietDiagnostics: true
+  }),
   "qualification-no-sampler": Object.freeze({
     profileName: "qualification-no-sampler",
     identityMode: "crypto",

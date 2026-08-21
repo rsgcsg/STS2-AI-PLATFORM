@@ -81,7 +81,14 @@ function capacityWorker(runtimeId, decisions, start, end, status = "bounded_part
         canonical_actions_attempted: decisions,
         canonical_actions_delivered: decisions,
         canonical_reads_completed: decisions + 1,
-        episodes: [{ terminal: "game_over" }]
+        episodes: [{
+          requested_seed: "seed-a",
+          game_reported_seed: "seed-a",
+          terminal: "game_over",
+          terminal_outcome: { victory: false, act: 1, floor: 2 },
+          canonical_actions_attempted: decisions,
+          canonical_actions_delivered: decisions
+        }]
       },
       performance: {
         decision_window_started_ms: start,
@@ -113,25 +120,32 @@ function capacityWorker(runtimeId, decisions, start, end, status = "bounded_part
 test("canonical capacity aggregation requires one artifact and distinct runtimes", () => {
   const summary = summarizeManagedPlayerEnvironmentCapacityGroup([
     capacityWorker("runtime-a", 100, 100, 2_100),
-    capacityWorker("runtime-b", 200, 110, 2_110)
+    capacityWorker("runtime-b", 100, 110, 2_110)
   ], 3);
   assert.equal(summary.status, "measured_canonical_partial_unqualified");
-  assert.equal(summary.delivered_canonical_decisions, 300);
-  assert.equal(summary.completed_canonical_reads, 302);
-  assert.equal(summary.aggregate_reset_inclusive_canonical_decisions_per_second, 300 / 2.01);
-  assert.ok(Math.abs(summary.child_cpu_seconds - 0.3) < 1e-12);
+  assert.equal(summary.delivered_canonical_decisions, 200);
+  assert.equal(summary.completed_canonical_reads, 202);
+  assert.equal(summary.aggregate_reset_inclusive_canonical_decisions_per_second, 200 / 2.01);
+  assert.ok(Math.abs(summary.child_cpu_seconds - 0.2) < 1e-12);
+  assert.equal(summary.reliability.cross_worker_episode_consistency, "pass");
   assert.equal(summary.workers[0].last_action.canonical_action.label, "last-runtime-a");
   assert.equal(summary.workers[0].last_action.detail, "settled");
   const completeSummary = summarizeManagedPlayerEnvironmentCapacityGroup([
     capacityWorker("runtime-c", 100, 100, 2_100, "bounded_player_environment_measured"),
-    capacityWorker("runtime-d", 200, 110, 2_110, "bounded_player_environment_measured")
+    capacityWorker("runtime-d", 100, 110, 2_110, "bounded_player_environment_measured")
   ], 3);
   assert.equal(completeSummary.status, "measured_canonical_unqualified");
   const trainingSummary = summarizeManagedPlayerEnvironmentCapacityGroup([
     capacityWorker("runtime-e", 100, 100, 2_100, "bounded_training_profile_measured"),
-    capacityWorker("runtime-f", 200, 110, 2_110, "bounded_training_profile_measured")
+    capacityWorker("runtime-f", 100, 110, 2_110, "bounded_training_profile_measured")
   ], 3);
   assert.equal(trainingSummary.status, "measured_training_profile_unqualified");
+  const divergentSummary = summarizeManagedPlayerEnvironmentCapacityGroup([
+    capacityWorker("runtime-g", 100, 100, 2_100),
+    capacityWorker("runtime-h", 101, 110, 2_110)
+  ], 3);
+  assert.equal(divergentSummary.status, "measurement_incomplete");
+  assert.equal(divergentSummary.reliability.cross_worker_episode_consistency, "fail");
   assert.throws(() => summarizeManagedPlayerEnvironmentCapacityGroup([
     capacityWorker("runtime-a", 1, 0, 1),
     capacityWorker("runtime-a", 1, 0, 1)

@@ -371,7 +371,7 @@ Commands:
   probe --candidate DIR [--seed SEED] [--episodes N] [--max-actions N] [--reset-at card_select,card_reward]
   pe-probe --candidate DIR [--seed SEED] [--episodes N] [--max-actions N]
            [--repeat-seed] [--verify-reset-authority] [--verify-idempotency]
-  pe-profile --candidate DIR [--profile training|training-validated|qualification]
+  pe-profile --candidate DIR [--profile training|training-validated|reliability|qualification]
   engine-lab --candidate DIR [--episodes N] [--serialize-each-decision]
   pe-capacity --candidate DIR [--profile NAME] [--workers 1,2,4] [--episodes N] [--max-actions N]
   pe-sharded-capacity --candidate DIR [--profile NAME] [--workers 1,2,4] [--episodes N]
