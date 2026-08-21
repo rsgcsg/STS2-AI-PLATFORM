@@ -53,12 +53,14 @@ decisions and do not qualify it as a Connector Host or trainer.
 A rebuilt exact managed candidate now keeps the installed game assembly
 byte-identical and uses a strict partial Player Environment projection. Current
 clean-source profiling measured `D_engine`, training-profile and strict
-qualification-profile single-environment means of `297.66`, `234.25` and
-`213.25 d/s`. A shared supervisor reached `1,676.64 d/s` at eight workers and
-plateaued at `2,451.00 d/s` with 24 environments on the 10-core M4. It has not
-passed full-run or cross-Host semantic qualification, 1M reliability, real
-learner or Reference-transfer gates. It is a fast candidate, not the default
-route or Training Ready.
+qualification-profile single-environment means of `345.88`, `208.87` and
+`183.25 d/s` in the current confirmation windows. Rates are workload-specific;
+a shared supervisor reached `1,686.88 d/s` at eight workers and plateaued at
+`2,460.62 d/s` with 24 environments on the 10-core M4. A current CrossHost
+probe delivered the same bounded action sequence but failed canonical referent
+parity. The candidate has not passed full-run semantic qualification, 1M
+reliability, real learner or Reference-transfer gates. It is fast, not the
+default route or Training Ready.
 See [Managed Exact Candidate](experiments/managed-exact/README.md).
 
 Godot's official `--single-threaded-scene` option was tested as a bounded Host

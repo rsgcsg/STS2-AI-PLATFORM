@@ -9,9 +9,11 @@ alone does not admit it.** The shipped runtime remains the Reference Host.
 ## Exact Scope
 
 All final benchmark jobs were run serially from clean Headless source; only
-the workers inside a named capacity job ran concurrently. The source was
-`9f7ffddb4d4450089378b14a097c7086077addc6` on an Apple M4 with 4 performance
-and 6 efficiency cores and 16 GiB RAM. macOS did not provide a supported
+the workers inside a named capacity job ran concurrently. The current
+confirmation source was `2e03445c79c094990e2fb38ab735a74e363ec0fa` on an
+Apple M4 with 4 performance and 6 efficiency cores and 16 GiB RAM. Its parent
+`9f7ffddb4d4450089378b14a097c7086077addc6` contains the benchmark code; the
+delta is documentation only. macOS did not provide a supported
 physical-core affinity control, so this report distinguishes one environment,
 CPU-normalized work, and machine aggregate; it does not claim a pinned P-core
 or E-core result.
@@ -32,6 +34,13 @@ Raw reports remain local under `.local/evidence/`. They are ignored because
 they contain machine paths and runtime logs. This closeout records only
 reviewed aggregates and non-claims.
 
+The confirmation window also used shipped Reference Connector source
+`99f09a771a66436eb47a27cf351570185a4641a1`, artifact SHA-256
+`99d5df96b000dca362dea751664fa5f175839acd352678bf3eb606b6c078aef0`, MVID
+`e7b2be84-f9a2-4906-b24f-30a28d25d80d`, and protocol `1.0.0`. That exact
+artifact was loaded by each Reference process; installed or built identity was
+not substituted for runtime identity.
+
 ## Measurement Planes
 
 - `D_engine`: exact STS2 rules, RNG, effects and Commit plus managed decision
@@ -50,32 +59,33 @@ same-harness ablations are the supported comparisons.
 
 ## Single Environment And Stage Cost
 
-Three five-episode windows used independent seed prefixes. The un-serialized
-`D_engine` loop delivered 841, 760 and 757 decisions:
+Three fresh five-episode windows used independent seed prefixes. The
+un-serialized `D_engine` loop delivered 775, 1,257 and 809 decisions:
 
 | Metric | Result |
 |---|---:|
-| hot-loop `D_engine` | `297.66 d/s` mean (`250.56`-`330.87`) |
-| reset-inclusive `D_engine` | `241.77 d/s` mean |
-| CPU-normalized `D_engine` | `394.45 d/CPU-s` mean |
-| native Commit, settling and Host lifecycle | `3.10 ms/decision` |
-| decision detection and raw projection | `0.31 ms/decision` |
-| managed allocation | `1,004,588 bytes/decision` |
-| reset | `120.49 ms/episode` mean |
-| GC per 1,000 decisions | `120.69` gen0, `3.82` gen1, `0.44` gen2 |
+| hot-loop `D_engine` | `345.88 d/s` mean (`334.22`-`356.51`) |
+| reset-inclusive `D_engine` | `295.76 d/s` mean |
+| CPU-normalized `D_engine` | `485.01 d/CPU-s` mean |
+| native Commit, settling and Host lifecycle | `2.53 ms/decision` |
+| decision detection and raw projection | `0.36 ms/decision` |
+| managed allocation | `710,159 bytes/decision` mean |
+| reset | `92.83 ms/episode` mean |
 
-Serializing the raw decision to JSON added only `0.069 ms/decision`; the same
-three trajectories retained `297.78 d/s` hot-loop throughput. JSON is not the
-single-environment ceiling.
+Serializing one same-seed raw-decision window cost `0.085 ms/decision` and
+about `8.5 KiB/decision`. Its hot-loop rate was lower, but the native stage
+also moved, so the whole throughput delta cannot be assigned to JSON. JSON is
+not the single-environment ceiling.
 
-The three `D_qual` windows delivered 1,215, 734 and 1,148 decisions at `213.25
-d/s` mean (`178.44`-`261.40`) and `218.42 d/CPU-s`. The paired `D_train`
-profile delivered the same trajectories at `234.25 d/s` mean
-(`187.49`-`295.25`) and `279.29 d/CPU-s`. `D_train` was `9.8%` faster than
-`D_qual`, but its native/transport stage remained `3.87 ms/action` and its
-child allocation remained `972,536 bytes/decision`.
+The three fresh `D_qual` windows measured `183.25 d/s` mean
+(`155.41`-`210.31`). The paired `D_train` profile measured `208.87 d/s` mean
+(`179.24`-`243.27`), a `14.0%` uplift. Its native/transport stage remained
+`3.88 ms/action`; training projection cost only `0.062 ms/snapshot`, versus
+`0.257 ms/snapshot` under qualification. Absolute rates differ from the
+earlier windows because trajectories differ; neither set supersedes the other
+as a workload-independent constant.
 
-`D_train` action latency was `1.44 ms` p50, `7.25 ms` p95 and `55.54 ms` p99.
+`D_train` action latency averaged `1.10 ms` p50, `9.11 ms` p95 and `55.51 ms` p99.
 The source contains bounded one-millisecond pumps around native
 `ActionExecutor`, reward, operation, cleanup and run-location transitions.
 The stable p99 is consistent with those lifecycle seams and allocation/GC, but
@@ -83,17 +93,18 @@ this experiment did not isolate one exact cause for every 55 ms sample.
 
 ## Reversible Ablations
 
-Each percentage is a paired mean over the same three seed trajectories:
+The current same-seed ablation used `H1ABLATECURR`; small differences remain
+noise-sensitive:
 
 | Change | Throughput effect | Decision |
 |---|---:|---|
-| resource sampler off | `-0.1%` | keep sampler for qualification; noise-level cost |
-| crypto IDs to sequence IDs | `+1.1%` | keep sequence IDs in training profile only |
-| eager Reads off | `+2.7%` | keep lazy Reads in training; do not remove Read capability |
-| canonical evidence off | `+3.9%` | keep off in training, on in qualification |
+| resource sampler off | `+0.1%` | keep sampler for qualification; noise-level cost |
+| crypto IDs to sequence IDs | about `+1.7%` | keep sequence IDs in training profile only |
+| eager Reads off | about `+3.2%` | keep lazy Reads in training; do not remove Read capability |
+| canonical evidence off | about `+3.8%` | keep off in training, on in qualification |
 | quiet diagnostics | `-0.3%` | no performance claim; keep only to bound logs |
-| every-step SDK validation off | `+1.7%` | validate at boundaries in training, every step in qualification |
-| raw JSON serialization shadow | about `0%` hot loop | no transport rewrite justified by speed alone |
+| every-step SDK validation off | about `+1.7%` | validate at boundaries in training, every step in qualification |
+| raw JSON serialization shadow | `0.085 ms/decision` serialization cost | no transport rewrite justified by speed alone |
 | independent Node supervisor per worker | slower or equal, much more RSS | reject as default topology |
 
 No wrapper ablation produced a large speedup. The highest-value remaining
@@ -107,37 +118,59 @@ the same exact artifact:
 
 | Workers | Aggregate d/s | d/CPU-s | Measured CPU cores | .NET final RSS | Node final RSS |
 |---:|---:|---:|---:|---:|---:|
-| 1 | 256.32 | 377.22 | 0.68 | 145 MiB | 131 MiB |
-| 2 | 506.93 | 404.74 | 1.25 | 296 MiB | 145 MiB |
-| 4 | 992.41 | 391.96 | 2.53 | 581 MiB | 145 MiB |
-| 6 | 1,390.72 | 350.27 | 3.97 | 887 MiB | 143 MiB |
-| 8 | 1,676.64 | 302.24 | 5.55 | 1,193 MiB | 194 MiB |
-| 10 | 1,865.33 | 270.51 | 6.90 | 1,083 MiB | 157 MiB |
-| 12 | 2,249.88 | 283.78 | 7.93 | 1,795 MiB | 313 MiB |
-| 16 | 2,353.70 | 251.88 | 9.34 | 2,404 MiB | 259 MiB |
-| 20 | 2,401.21 | 243.69 | 9.85 | 2,531 MiB | 500 MiB |
-| 24 | 2,451.00 | 238.40 | 10.28 | 2,722 MiB | 360 MiB |
+| 1 | 248.54 | 341.74 | 0.73 | 147 MiB | 128 MiB |
+| 2 | 510.13 | 393.57 | 1.30 | 295 MiB | 150 MiB |
+| 4 | 982.92 | 379.42 | 2.59 | 589 MiB | 156 MiB |
+| 6 | 1,372.98 | 340.07 | 4.04 | 885 MiB | 184 MiB |
+| 8 | 1,686.88 | 289.54 | 5.83 | 1,190 MiB | 192 MiB |
+| 10 | 1,920.06 | 263.95 | 7.27 | 1,485 MiB | 208 MiB |
+| 12 | 2,220.06 | 282.42 | 7.86 | 1,788 MiB | 392 MiB |
+| 16 | 2,360.57 | 250.74 | 9.41 | 2,409 MiB | 468 MiB |
+| 20 | 2,429.97 | 243.18 | 9.99 | 2,389 MiB | 418 MiB |
+| 24 | 2,460.62 | 240.36 | 10.24 | 3,013 MiB | 524 MiB |
 
 RSS columns are summed final samples, not comparable peak-memory claims; their
 non-monotonic values must not be read as improved density.
 
-At 24 workers p50/p95/p99 action latency rose to `3.72/16.56/62.11 ms`.
+At 24 workers p50/p95/p99 action latency rose to `3.67/15.68/62.74 ms`.
 The machine is saturated near 20-24 environments. One shared Node supervisor
 is not a serialization bottleneck: a supervisor per worker reached only
-`1,842.51 d/s` at 10 workers and consumed about `1.21 GiB` of Node RSS versus
-`157 MiB` for the shared topology.
+`1,835.42 d/s` at 10 workers, `4.4%` below the same-seed shared result, while
+also multiplying Node memory.
 
-`2,451 d/s` is Host-exclusive capacity, not a training envelope. Reserving
+`2,461 d/s` is Host-exclusive capacity, not a training envelope. Reserving
 cores and memory for a learner makes the measured 6-8 worker range, about
-`1,390-1,677 d/s`, the honest planning envelope until a real learner benchmark
+`1,373-1,687 d/s`, the honest planning envelope until a real learner benchmark
 exists.
+
+A second seed family peaked materially lower even with the same artifact and
+profile. Throughput is policy/trajectory/workload dependent; capacity curves
+must not be joined across seed families or presented as a universal Host rate.
+
+## Reference And Differential Check
+
+The shipped Reference Host measured `0.482`, `0.976`, and `1.868 d/s` at one,
+two, and four workers. All three bounded groups passed identity, provenance,
+delivery, successor and process-containment integrity. One worker used about
+`0.36` CPU core and `1.04 GiB` summed peak RSS; four workers used about one CPU
+core and `2.32 GiB` summed peak RSS. The low CPU utilization confirms that
+frame/lifecycle waiting, not compute saturation, defines this route.
+
+A fresh same-seed CrossHost run selected and delivered the same 12 action
+labels in both Hosts, with no unknown delivery. The comparator still rejected
+semantic parity at event 1: the managed playable-card referent exposed
+`definition_id` and `hand_index`, while Reference canonicalization retained
+only player-visible identity/name/targets. This is a projection/conformance
+contract mismatch, not measured gameplay divergence, and parity remains
+unproven. Removing fields merely to make the comparator green is not an
+acceptable fix without first deciding the canonical duplicate-card semantics.
 
 ## 5k And 10k
 
 - This M4 cannot reach `5k` or `10k d/s` with the measured current method.
-  They require `2.04x` and `4.08x` the observed machine plateau.
-- The measured `394 d/CPU-s` engine result gives an ideal ten-core arithmetic
-  ceiling near `3.9k d/s`; lifecycle waits, mixed P/E cores and contention make
+  They require `2.03x` and `4.06x` the observed machine plateau.
+- The measured `485 d/CPU-s` engine result gives an ideal ten-core arithmetic
+  ceiling near `4.85k d/s`; lifecycle waits, mixed P/E cores and contention make
   that an upper bound, not a Managed v2 forecast.
 - A narrow Managed Exact v2 may plausibly reach roughly `2.8k-3.5k d/s` on
   this machine if allocation and lifecycle overhead are reduced. This is an
@@ -153,8 +186,8 @@ exists.
 
 | Route | Native ownership | Evidence-backed speed | Engineering to credible prototype | H1.0 assessment |
 |---|---|---|---|---|
-| Shipped Reference | complete shipped game, SceneTree and Connector | `0.50 d/s` at 1 worker; about `2.3 d/s` at 8 | existing | truth and transfer authority; not bulk trainer |
-| Managed Exact current | exact assembly owns rules/RNG/effects/Commit; narrow absent-UI seams | `298 d/s` hot single env; `2.45k d/s` machine plateau | existing experimental candidate | preferred semantic base, but partial and unqualified |
+| Shipped Reference | complete shipped game, SceneTree and Connector | `0.48 d/s` at 1 worker; `1.87 d/s` at 4 | existing | truth and transfer authority; not bulk trainer |
+| Managed Exact current | exact assembly owns rules/RNG/effects/Commit; narrow absent-UI seams | `346 d/s` hot single env; `2.46k d/s` machine plateau | existing experimental candidate | preferred semantic base, but partial and unqualified |
 | Managed Exact v2 | same game ownership; in-runtime projection, allocation and lifecycle improvements | estimated `2.8k-3.5k d/s` on this M4 | about 1-2 weeks implementation, then 4-8+ weeks qualification | best route to H1.0 if changes remain narrow and differential-tested |
 | Hybrid | exact game still owns gameplay, but Host persistently reconstructs or short-circuits lifecycle | no measured prototype; `2x-10x` is only a hypothesis | several weeks to months | higher parity/update risk; use only after a measured Managed bottleneck justifies it |
 | Snapshotable/virtualized Host | native state is captured or virtualized for reset/branch; ownership depends on design | unmeasured; 5k/10k may be plausible | roughly 2-6 months | valuable for search/reset, but isolation and state completeness reopen major gates |
@@ -172,14 +205,15 @@ Managed Exact current has the speed and process isolation shape needed for an
 STPD v0 collector: stable combat state, finite actions, exact execution,
 successor, seed provenance, reset and multi-worker collection are implemented
 in the experimental path. It is not yet an admitted training backend because
-cross-Host semantic parity, broad interaction coverage, 1M+ reliability, a
-Python consumer, real learning, Reference evaluation and changed-build
-requalification are absent.
+cross-Host semantic parity currently fails at a representation boundary;
+broad interaction coverage, 1M+ reliability, a Python consumer, real learning,
+Reference evaluation and changed-build requalification are absent.
 
 No Q values, rewards, tensors, masks or STPD-specific commands belong in
 Headless or Connector. A Python training adapter should derive those from the
-Player Environment. No generic Connector defect was established by this
-performance work, so Connector source was not changed.
+Player Environment. The CrossHost mismatch opens one generic canonical
+projection question, but it does not establish a wire, legality, execution or
+gameplay defect; Connector source was therefore not changed in this study.
 
 ## Keep, Reject, And Reopen
 

@@ -94,30 +94,33 @@ lifecycle repetition, not a long-soak throughput result.
 ## Current Managed Candidate Baseline
 
 The exact managed candidate patch `708c51c...`, Host artifact `34aa29f...` / MVID
-`ff6c7349...`, and clean Headless source `9f7ffdd...` measured three distinct
-planes on Apple M4:
+`ff6c7349...`, and clean Headless source `2e03445...` measured three distinct
+planes on Apple M4. The benchmark implementation is its parent `9f7ffdd...`;
+the source delta is documentation only:
 
 | Plane | Meaning | Mean result |
 |---|---|---:|
-| `D_engine` | exact game-owned loop, no Player Environment/SDK/JSON/Node/Reads/evidence | `297.66 d/s` hot; `241.77 d/s` reset-inclusive |
-| `D_train` | partial fair-player projection with training-cost settings | `234.25 d/s` single environment |
-| `D_qual` | strict IDs, Reads, SDK validation, evidence and sampling | `213.25 d/s` single environment |
+| `D_engine` | exact game-owned loop, no Player Environment/SDK/JSON/Node/Reads/evidence | `345.88 d/s` hot; `295.76 d/s` reset-inclusive |
+| `D_train` | partial fair-player projection with training-cost settings | `208.87 d/s` single environment |
+| `D_qual` | strict IDs, Reads, SDK validation, evidence and sampling | `183.25 d/s` single environment |
 
-The shared-supervisor `D_train` profile scaled from `256.32 d/s` at one worker
-to `1,676.64` at eight, `1,865.33` at ten, and a machine plateau of `2,451.00`
-at 24 environments. The 24-worker window measured `10.28` aggregate CPU cores
-and increased p95 latency to `16.56 ms`. A supervisor per worker did not improve
+The shared-supervisor `D_train` profile scaled from `248.54 d/s` at one worker
+to `1,686.88` at eight, `1,920.06` at ten, and a machine plateau of `2,460.62`
+at 24 environments. The 24-worker window measured `10.24` aggregate CPU cores
+and increased p95 latency to `15.68 ms`. A supervisor per worker did not improve
 throughput and materially increased Node RSS.
 
-The single-environment engine loop spent `3.10 ms/decision` in native Commit,
-settling and Host lifecycle, `0.31 ms` in decision detection/raw projection,
-and allocated about `1.00 MB/decision`. Raw JSON serialization added only
-`0.069 ms/decision`. The current bottleneck is native lifecycle plus allocation
+The single-environment engine loop spent `2.53 ms/decision` in native Commit,
+settling and Host lifecycle, `0.36 ms` in decision detection/raw projection,
+and allocated about `0.71 MB/decision`. Raw JSON serialization cost about
+`0.085 ms/decision`. The current bottleneck is native lifecycle plus allocation
 and GC, not SDK, JSON or one Node supervisor.
 
 These are clean-source performance and method-selection results for a partial,
-unqualified projection. They are not cross-Host parity, physical-core affinity,
-real learner throughput, H1.0 or Training Ready. See the
+unqualified projection. A fresh CrossHost run delivered the same 12 action
+labels in both Hosts but failed canonical parity at a playable-card referent
+representation boundary. The results are not physical-core affinity, real
+learner throughput, H1.0 or Training Ready. See the
 [performance route closeout](evidence/MANAGED_HOST_PERFORMANCE_ROUTE_SELECTION_2026-08-21.md).
 
 The current performance stop rule is workload-based: once the Host is at most

@@ -58,19 +58,23 @@ Current managed exact candidate:
 - the current clean-source performance artifact is patch `708c51c...`, Host
   `34aa29f...` / MVID `ff6c7349...`, with the exact byte-identical STS2
   assembly `9cb4f1a...` / MVID `57785517...`;
-- three serial windows measured `D_engine` at `297.66 d/s` hot-loop,
-  `D_train` at `234.25 d/s`, and strict `D_qual` at `213.25 d/s` mean;
-- a shared supervisor scaled the training profile to `1,676.64 d/s` at eight
-  workers and a `2,451.00 d/s` Host-exclusive plateau at 24 environments on
+- fresh current-source windows measured `D_engine` at `345.88 d/s` hot-loop,
+  `D_train` at `208.87 d/s`, and strict `D_qual` at `183.25 d/s` mean; these
+  workload-specific values complement rather than invalidate the prior seed
+  windows;
+- a shared supervisor scaled the training profile to `1,686.88 d/s` at eight
+  workers and a `2,460.62 d/s` Host-exclusive plateau at 24 environments on
   this 10-core M4; a supervisor per worker was rejected as slower or equal and
   substantially more memory-intensive;
 - JSON, SDK validation, IDs, Reads and evidence together explain only a small
-  part of the ceiling. Native lifecycle plus about `1 MB/decision` allocation
+  part of the ceiling. Native lifecycle plus about `0.71 MB/decision` allocation
   dominate. Managed Exact v2 is the preferred route for narrow lifecycle and
   allocation work, not a semantic rewrite;
-- this route is still partial and unqualified: full-run and cross-Host
-  differential evidence are absent, and its TestMode/runtime projection seams
-  remain critical risks.
+- this route is still partial and unqualified: a current same-seed CrossHost
+  run selected and delivered the same 12 actions but failed canonical parity
+  because managed playable-card referents added `definition_id` and
+  `hand_index`; full-run differential evidence is absent, and its
+  TestMode/runtime projection seams remain critical risks.
 
 Current isolation boundary:
 
