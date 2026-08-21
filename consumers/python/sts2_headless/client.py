@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 import json
 import subprocess
@@ -151,3 +152,23 @@ class SyncVectorPlayerEnvironment:
     def close(self) -> None:
         for environment in self.environments:
             environment.close()
+
+
+class ThreadedVectorPlayerEnvironment(SyncVectorPlayerEnvironment):
+    def reset(self, seeds: Sequence[str]) -> tuple[Mapping[str, Any], ...]:
+        if len(seeds) != len(self.environments):
+            raise ValueError("One seed per environment is required.")
+        pairs = tuple(zip(self.environments, seeds))
+        with ThreadPoolExecutor(max_workers=len(pairs)) as executor:
+            return tuple(executor.map(lambda pair: pair[0].reset(pair[1]), pairs))
+
+    def step(
+        self, actions: Sequence[tuple[str, str]]
+    ) -> tuple[Mapping[str, Any], ...]:
+        if len(actions) != len(self.environments):
+            raise ValueError("One action per environment is required.")
+        pairs = tuple(zip(self.environments, actions))
+        with ThreadPoolExecutor(max_workers=len(pairs)) as executor:
+            return tuple(executor.map(
+                lambda pair: pair[0].step(pair[1][0], pair[1][1]), pairs
+            ))

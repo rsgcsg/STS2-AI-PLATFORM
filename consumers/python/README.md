@@ -11,7 +11,7 @@ sts2-headless-smoke --candidate .local/candidates/<exact-candidate>
 
 `ManagedPlayerEnvironment` exposes `reset`, `observe`, state-bound `read`, and
 exact BoundAction `step`. `FiniteActionView` is a consumer projection over the
-complete action catalog. `SyncVectorPlayerEnvironment` only coordinates
+complete action catalog. The sync and threaded vector coordinators only manage
 independent environments; each still has one Host-local binding/executor.
 
 The current JSONL driver is a development transport for the managed candidate,

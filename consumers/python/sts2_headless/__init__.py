@@ -1,3 +1,13 @@
-from .client import FiniteActionView, ManagedPlayerEnvironment, SyncVectorPlayerEnvironment
+from .client import (
+    FiniteActionView,
+    ManagedPlayerEnvironment,
+    SyncVectorPlayerEnvironment,
+    ThreadedVectorPlayerEnvironment,
+)
 
-__all__ = ["FiniteActionView", "ManagedPlayerEnvironment", "SyncVectorPlayerEnvironment"]
+__all__ = [
+    "FiniteActionView",
+    "ManagedPlayerEnvironment",
+    "SyncVectorPlayerEnvironment",
+    "ThreadedVectorPlayerEnvironment",
+]

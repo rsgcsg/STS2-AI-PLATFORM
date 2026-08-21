@@ -625,7 +625,7 @@ index 800f139..d950eec 100644
                  return sim.StartRun(
                      cmd.TryGetProperty("character", out var ch) ? ch.GetString() ?? "Ironclad" : "Ironclad",
 diff --git a/src/Sts2Headless/RunSimulator.cs b/src/Sts2Headless/RunSimulator.cs
-index 6b9de4a..33a9cad 100644
+index 6b9de4a..b33203e 100644
 --- a/src/Sts2Headless/RunSimulator.cs
 +++ b/src/Sts2Headless/RunSimulator.cs
 @@ -1,4 +1,6 @@
@@ -2146,10 +2146,10 @@ index 6b9de4a..33a9cad 100644
          var player = _runState.Players[0];
  
 -        // Check game over (death)
-+        // WinRun intentionally kills all players after setting the run outcome.
-+        // The game-owned terminal state must therefore win over creature death.
++        // IsGameOver is generic; only WinRun reaches it while the native current
++        // room is a victory room. Ordinary player death must remain a loss.
 +        if (RunManager.Instance.IsGameOver)
-+            return GameOverState(true);
++            return GameOverState(_runState.CurrentRoom?.IsVictoryRoom == true);
 +
          if (player.Creature != null && player.Creature.IsDead)
 -        {
@@ -3017,16 +3017,16 @@ index 6b9de4a..33a9cad 100644
 -        catch (Exception ex) { Log($"Treasure relic pick: {ex.Message}"); }
  
 -        try
-+        var currentRelics = RunManager.Instance.TreasureRoomRelicSynchronizer.CurrentRelics;
-+        if (!_treasureRelicResolved && currentRelics is { Count: > 0 })
-         {
+-        {
 -            treasureRoom.DoNormalRewards().GetAwaiter().GetResult();
 -            _syncCtx.Pump();
 -            treasureRoom.DoExtraRewardsIfNeeded().GetAwaiter().GetResult();
 -            _syncCtx.Pump();
 -        }
 -        catch (InvalidOperationException ex) when (ex.Message.Contains("relic picking session"))
--        {
++        var currentRelics = RunManager.Instance.TreasureRoomRelicSynchronizer.CurrentRelics;
++        if (!_treasureRelicResolved && currentRelics is { Count: > 0 })
+         {
 -            // BUG-013: Relic session conflict — wait for pending session then retry
 -            Log($"Relic session conflict, waiting and retrying: {ex.Message}");
 -            WaitForActionExecutor();
@@ -3496,12 +3496,20 @@ index 6b9de4a..33a9cad 100644
      {
 -        try
 +        private enum RequestKind
-         {
--            var harmony = new Harmony("sts2headless.yieldpatch");
++        {
 +            Select,
 +            Skip,
 +            StateChanged,
 +            Cancel,
++        }
++
++        private sealed record RewardRequest(RequestKind Kind, Reward? Reward = null);
++
++        private sealed class SelectionContext
+         {
+-            var harmony = new Harmony("sts2headless.yieldpatch");
++            public required RewardsSet Set { get; init; }
++            public TaskCompletionSource<RewardRequest>? Request { get; set; }
 +        }
  
 -            // Patch YieldAwaitable.YieldAwaiter.IsCompleted to return true
@@ -3509,14 +3517,6 @@ index 6b9de4a..33a9cad 100644
 -            var yieldAwaiterType = typeof(System.Runtime.CompilerServices.YieldAwaitable)
 -                .GetNestedType("YieldAwaiter");
 -            if (yieldAwaiterType != null)
-+        private sealed record RewardRequest(RequestKind Kind, Reward? Reward = null);
-+
-+        private sealed class SelectionContext
-+        {
-+            public required RewardsSet Set { get; init; }
-+            public TaskCompletionSource<RewardRequest>? Request { get; set; }
-+        }
-+
 +        private readonly object _gate = new();
 +        private readonly List<SelectionContext> _stack = new();
 +
@@ -3560,11 +3560,13 @@ index 6b9de4a..33a9cad 100644
 -                    if (getter != null && prefix != null)
 +                    Task<RewardRequest> requestTask;
 +                    lock (_gate)
-+                    {
+                     {
+-                        harmony.Patch(getter, new HarmonyMethod(prefix));
+-                        Console.Error.WriteLine("[INFO] Patched Task.Yield() to be synchronous");
 +                        context.Request ??= new TaskCompletionSource<RewardRequest>(
 +                            TaskCreationOptions.RunContinuationsAsynchronously);
 +                        requestTask = context.Request.Task;
-+                    }
+                     }
 +
 +                    var request = await requestTask.ConfigureAwait(false);
 +                    if (request.Kind == RequestKind.Cancel)
@@ -3572,14 +3574,12 @@ index 6b9de4a..33a9cad 100644
 +                    if (request.Kind == RequestKind.StateChanged)
 +                        continue;
 +                    if (request.Kind == RequestKind.Skip)
-                     {
--                        harmony.Patch(getter, new HarmonyMethod(prefix));
--                        Console.Error.WriteLine("[INFO] Patched Task.Yield() to be synchronous");
++                    {
 +                        if (set.DisallowSkipping)
 +                            throw new InvalidOperationException("The native rewards set disallows skipping.");
 +                        synchronizer.SkipLocalRewardsSet();
 +                        continue;
-                     }
++                    }
 +
 +                    var reward = request.Reward
 +                        ?? throw new InvalidOperationException("A native reward selection had no reward binding.");
@@ -4216,9 +4216,9 @@ index 6b9de4a..33a9cad 100644
          {
              Log($"CleanUp exception: {ex.Message}");
 +            throw;
-         }
-     }
- 
++        }
++    }
++
 +    public Dictionary<string, object?> GetRunIdentity()
 +    {
 +        var state = RunManager.Instance.DebugOnlyGetState();
@@ -4272,7 +4272,7 @@ index 6b9de4a..33a9cad 100644
 +        {
 +            _syncCtx.Pump();
 +            Thread.Sleep(1);
-+        }
+         }
 +        if (executor.IsRunning)
 +            throw new TimeoutException("The previous run ActionExecutor did not stop during cleanup.");
 +    }
@@ -4291,8 +4291,8 @@ index 6b9de4a..33a9cad 100644
 +        CombatManager.Instance.TurnStarted -= OnTurnStarted;
 +        CombatManager.Instance.CombatEnded -= OnCombatEnded;
 +        _combatHandlersAttached = false;
-+    }
-+
+     }
+ 
 +    private void OnTurnStarted(CombatState _) => _turnStarted.Set();
 +
 +    private void OnCombatEnded(CombatRoom _) => _combatEnded.Set();

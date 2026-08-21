@@ -51,6 +51,8 @@ test("managed candidate patch keeps normal actions on native identity and commit
   assert.match(additions, /EnqueueManualUse\(target\)/u);
   assert.match(additions, /ActionQueueSynchronizer\.RequestEnqueue/u);
   assert.match(additions, /NativeObjectIdentity\.Get/u);
+  assert.match(additions, /GameOverState\(_runState\.CurrentRoom\?\.IsVictoryRoom == true\)/u);
+  assert.doesNotMatch(additions, /if \(RunManager\.Instance\.IsGameOver\)\s+return GameOverState\(true\)/u);
 });
 
 test("fresh candidate preparation admits added source files into the audited diff", () => {
