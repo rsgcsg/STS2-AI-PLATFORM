@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   chooseManagedPlayerEnvironmentAction,
+  managedTerminalOutcome,
   summarizeManagedPlayerEnvironmentCapacityGroup
 } from "../src/managed-player-environment-probe.mjs";
 
@@ -40,6 +41,20 @@ test("managed Player Environment probe policy consumes only canonical actions", 
     { bound_action_id: "take-relic", verb: "select", label: "Take Bag" }
   ])).bound_action_id, "take-relic");
   assert.equal(chooseManagedPlayerEnvironmentAction(snapshot("shop_inventory", [], "visible_unsupported")), null);
+});
+
+test("managed probe records native terminal outcome without treating generic terminal as victory", () => {
+  assert.deepEqual(managedTerminalOutcome({
+    interaction: {
+      kind: "game_over",
+      content: { surface: { victory: false } }
+    },
+    persistent: { content: { run: { act: 1, floor: 11 } } }
+  }), { victory: false, act: 1, floor: 11 });
+  assert.deepEqual(managedTerminalOutcome({
+    interaction: { kind: "game_over", content: { surface: {} } }
+  }), { victory: null, act: null, floor: null });
+  assert.equal(managedTerminalOutcome(snapshot("combat_turn", [])), null);
 });
 
 function capacityWorker(runtimeId, decisions, start, end, status = "bounded_partial_player_environment_measured") {

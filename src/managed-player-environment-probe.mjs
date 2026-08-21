@@ -69,6 +69,16 @@ function ordered(snapshot, actions) {
     actionSemanticKey(snapshot, left).localeCompare(actionSemanticKey(snapshot, right)));
 }
 
+export function managedTerminalOutcome(snapshot) {
+  if (snapshot?.interaction?.kind !== "game_over") return null;
+  const victory = snapshot.interaction.content?.surface?.victory;
+  return {
+    victory: typeof victory === "boolean" ? victory : null,
+    act: snapshot.persistent?.content?.run?.act ?? null,
+    floor: snapshot.persistent?.content?.run?.floor ?? null
+  };
+}
+
 export function chooseManagedPlayerEnvironmentAction(snapshot) {
   if (snapshot?.status !== "interactive" || snapshot?.bound_actions?.status !== "complete") return null;
   const actions = snapshot.bound_actions.actions;
@@ -383,6 +393,7 @@ export async function runManagedPlayerEnvironmentProbe({
         game_reported_seed: runIdentity.seed,
         seed_provenance: "game_reported_match",
         terminal: episodeStopReason,
+        terminal_outcome: managedTerminalOutcome(snapshot),
         canonical_actions_attempted: episodeActionsAttempted,
         canonical_actions_delivered: episodeActionsDelivered,
         canonical_reads_completed: episodeReadsCompleted
@@ -484,6 +495,7 @@ export async function runManagedPlayerEnvironmentProbe({
       final_snapshot: snapshot == null ? null : {
         status: snapshot.status,
         interaction_kind: snapshot.interaction.kind,
+        terminal_outcome: managedTerminalOutcome(snapshot),
         completeness: snapshot.completeness
       }
     },
