@@ -21,6 +21,7 @@ import {
 } from "../src/managed-performance-lab.mjs";
 import { runManagedPlayerEnvironmentShardedCapacity } from "../src/managed-sharded-capacity.mjs";
 import { runManagedNativeBindingGates } from "../src/managed-native-binding-gates.mjs";
+import { runManagedRecoveryProbe } from "../src/managed-recovery-probe.mjs";
 import { canonicalizeEpisodeSeed } from "../src/episode-provenance.mjs";
 import {
   createManagedExactHostDriver,
@@ -68,7 +69,7 @@ async function main() {
     return;
   }
   const candidateDirectory = option(args, "--candidate");
-  if (["audit", "probe", "pe-probe", "pe-profile", "pe-capacity", "pe-sharded-capacity", "engine-lab", "native-gates", "capacity", "cross-host"].includes(command)
+  if (["audit", "probe", "pe-probe", "pe-profile", "pe-capacity", "pe-sharded-capacity", "engine-lab", "native-gates", "recovery", "capacity", "cross-host"].includes(command)
       && !candidateDirectory) {
     throw new Error(`${command} requires --candidate <prepared-directory>.`);
   }
@@ -113,7 +114,10 @@ async function main() {
       maxActions: Number(option(args, "--max-actions", "200")),
       episodeCount: Number(option(args, "--episodes", "1")),
       requestTimeoutMs: Number(option(args, "--timeout-ms", "10000")),
-      evidenceRoot: path.join(LOCAL, "evidence")
+      evidenceRoot: path.join(LOCAL, "evidence"),
+      repeatSeed: args.includes("--repeat-seed"),
+      verifyResetAuthority: args.includes("--verify-reset-authority"),
+      verifyIdempotency: args.includes("--verify-idempotency")
     });
     console.log(JSON.stringify({
       status: result.report.status,
@@ -152,6 +156,25 @@ async function main() {
       stage_totals: result.report.performance.stage_totals
     }, null, 2));
     process.exitCode = result.report.status === "candidate_failure" ? 3 : 0;
+    return;
+  }
+  if (command === "recovery") {
+    const result = await runManagedRecoveryProbe({
+      root: ROOT,
+      candidateDirectory,
+      diskIdentity: diskIdentity(),
+      seed: option(args, "--seed", "H1MANAGEDRECOVERY01"),
+      character: option(args, "--character", "Ironclad"),
+      requestTimeoutMs: Number(option(args, "--timeout-ms", "10000")),
+      evidenceRoot: path.join(LOCAL, "evidence")
+    });
+    console.log(JSON.stringify({
+      status: result.report.status,
+      report_file: result.reportFile,
+      gates: result.report.gates,
+      failure: result.report.failure
+    }, null, 2));
+    process.exitCode = result.report.status === "managed_recovery_pass" ? 0 : 3;
     return;
   }
   if (command === "engine-lab") {
@@ -202,7 +225,10 @@ async function main() {
         summed_worker_peak_rss_bytes: group.summed_worker_peak_rss_bytes
       }))
     }, null, 2));
-    process.exitCode = result.report.status === "measured_canonical_partial_unqualified" ? 0 : 3;
+    process.exitCode = [
+      "measured_canonical_unqualified",
+      "measured_canonical_partial_unqualified"
+    ].includes(result.report.status) ? 0 : 3;
     return;
   }
   if (command === "pe-sharded-capacity") {
@@ -230,7 +256,10 @@ async function main() {
         average_measured_cpu_cores: group.average_measured_cpu_cores
       }))
     }, null, 2));
-    process.exitCode = result.report.status === "measured_canonical_partial_unqualified" ? 0 : 3;
+    process.exitCode = [
+      "measured_canonical_unqualified",
+      "measured_canonical_partial_unqualified"
+    ].includes(result.report.status) ? 0 : 3;
     return;
   }
   if (command === "native-gates") {
@@ -339,11 +368,13 @@ Commands:
   audit --candidate DIR
   probe --candidate DIR [--seed SEED] [--episodes N] [--max-actions N] [--reset-at card_select,card_reward]
   pe-probe --candidate DIR [--seed SEED] [--episodes N] [--max-actions N]
+           [--repeat-seed] [--verify-reset-authority] [--verify-idempotency]
   pe-profile --candidate DIR [--profile training|training-validated|qualification]
   engine-lab --candidate DIR [--episodes N] [--serialize-each-decision]
   pe-capacity --candidate DIR [--profile NAME] [--workers 1,2,4] [--episodes N] [--max-actions N]
   pe-sharded-capacity --candidate DIR [--profile NAME] [--workers 1,2,4] [--episodes N]
   native-gates --candidate DIR [--seed SEED]
+  recovery --candidate DIR [--seed SEED]
   cross-host --candidate DIR [--seed SEED] [--start-kind KIND] [--discovery-actions N] [--max-actions N] [--template ID]
   capacity --candidate DIR [--workers 1,2,4] [--episodes N] [--max-actions N]
 

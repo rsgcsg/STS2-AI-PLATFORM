@@ -161,7 +161,10 @@ export async function runManagedPlayerEnvironmentProbe({
   eagerReads = true,
   canonicalEvidence = true,
   resourceSamplingIntervalMs = 250,
-  quietDiagnostics = false
+  quietDiagnostics = false,
+  repeatSeed = false,
+  verifyResetAuthority = false,
+  verifyIdempotency = false
 }) {
   requirePositiveInteger(maxActions, "maxActions");
   requirePositiveInteger(episodeCount, "episodeCount");
@@ -173,6 +176,9 @@ export async function runManagedPlayerEnvironmentProbe({
     }
   }
   if (typeof seed !== "string" || seed.length === 0) throw new TypeError("seed must be a non-empty string.");
+  if (verifyResetAuthority && episodeCount < 2) {
+    throw new TypeError("verifyResetAuthority requires at least two episodes.");
+  }
 
   const processStarted = performance.now();
   const started = await startManagedPlayerEnvironmentSession({
@@ -205,9 +211,12 @@ export async function runManagedPlayerEnvironmentProbe({
   let unknownObserved = false;
   const actionLatenciesMs = [];
   const mountLatenciesMs = [];
+  const resetAuthorityGates = [];
+  const idempotencyGates = [];
+  let previousEpisodeAuthority = null;
   try {
     for (let episodeIndex = 0; episodeIndex < episodeCount; episodeIndex += 1) {
-      const requestedSeed = episodeSeed(seed, episodeIndex, episodeCount);
+      const requestedSeed = repeatSeed ? seed : episodeSeed(seed, episodeIndex, episodeCount);
       const mountStarted = performance.now();
       snapshot = await started.session.mount({
         seed: requestedSeed,
@@ -217,7 +226,13 @@ export async function runManagedPlayerEnvironmentProbe({
       runIdentity = await started.runtime.process.request({ cmd: "run_identity" }, requestTimeoutMs);
       if (runIdentity?.type !== "run_identity"
           || runIdentity.active !== true
-          || runIdentity.seed !== requestedSeed) {
+          || runIdentity.seed !== requestedSeed
+          || runIdentity.action_executor_running !== false
+          || runIdentity.pending_host_operation !== false
+          || runIdentity.pending_card_selection !== false
+          || runIdentity.pending_card_reward !== false
+          || runIdentity.pending_reward_set !== false
+          || runIdentity.pending_bundle !== false) {
         throw new Error(`Managed Player Environment did not prove requested game seed ${requestedSeed}.`);
       }
       const mountedAt = performance.now();
@@ -234,10 +249,40 @@ export async function runManagedPlayerEnvironmentProbe({
         });
       }
 
+      if (verifyResetAuthority && previousEpisodeAuthority != null) {
+        if (snapshot.snapshot_id === previousEpisodeAuthority.snapshotId
+            || snapshot.interaction.interaction_id === previousEpisodeAuthority.interactionId) {
+          throw new Error(`Episode ${episodeIndex} reused prior snapshot or interaction authority.`);
+        }
+        const staleReceipt = await started.session.submit({
+          requestId: `managed-pe-reset-stale-${String(episodeIndex + 1).padStart(4, "0")}`,
+          expectedSnapshotId: previousEpisodeAuthority.snapshotId,
+          boundActionId: previousEpisodeAuthority.boundActionId,
+          timeoutMs: requestTimeoutMs
+        });
+        if (staleReceipt.delivery !== "not_delivered"
+            || staleReceipt.reason_code !== "stale_snapshot"
+            || staleReceipt.successor?.snapshot_id !== snapshot.snapshot_id) {
+          throw new Error(`Episode ${episodeIndex} did not reject prior episode authority as stale.`);
+        }
+        const gate = {
+          type: "reset_authority",
+          episode_index: episodeIndex,
+          prior_snapshot_id: previousEpisodeAuthority.snapshotId,
+          current_snapshot_id: snapshot.snapshot_id,
+          delivery: staleReceipt.delivery,
+          reason_code: staleReceipt.reason_code,
+          verdict: "reset_authority_pass"
+        };
+        resetAuthorityGates.push(gate);
+        events.push(gate);
+      }
+
       let episodeStopReason = null;
       let episodeActionsAttempted = 0;
       let episodeActionsDelivered = 0;
       let episodeReadsCompleted = 0;
+      let episodeAuthority = null;
       for (let actionIndex = 0; actionIndex < maxActions; actionIndex += 1) {
         for (const descriptor of eagerReads ? snapshot.reads : []) {
           try {
@@ -268,13 +313,19 @@ export async function runManagedPlayerEnvironmentProbe({
             : `visible_unsupported:${snapshot.interaction.kind}:${snapshot.completeness.missing.join(",")}`;
           break;
         }
-        const before = performance.now();
-        const value = await started.session.submit({
+        episodeAuthority ??= {
+          snapshotId: snapshot.snapshot_id,
+          interactionId: snapshot.interaction.interaction_id,
+          boundActionId: selected.bound_action_id
+        };
+        const request = {
           requestId: `managed-pe-${String(episodeIndex + 1).padStart(4, "0")}-${String(actionIndex + 1).padStart(8, "0")}`,
           expectedSnapshotId: snapshot.snapshot_id,
           boundActionId: selected.bound_action_id,
           timeoutMs: requestTimeoutMs
-        });
+        };
+        const before = performance.now();
+        const value = await started.session.submit(request);
         const after = performance.now();
         actionLatenciesMs.push(after - before);
         actionsAttempted += 1;
@@ -299,6 +350,21 @@ export async function runManagedPlayerEnvironmentProbe({
             successor_status: value.successor?.status ?? null
           });
         }
+        if (verifyIdempotency && actionIndex === 0) {
+          const replay = await started.session.submit(request);
+          if (JSON.stringify(replay) !== JSON.stringify(value)) {
+            throw new Error(`Episode ${episodeIndex} did not replay the exact original receipt.`);
+          }
+          const gate = {
+            type: "request_idempotency",
+            episode_index: episodeIndex,
+            request_id: request.requestId,
+            delivery: replay.delivery,
+            verdict: "exact_receipt_replay_pass"
+          };
+          idempotencyGates.push(gate);
+          events.push(gate);
+        }
         if (value.delivery === "unknown") {
           unknownObserved = true;
           episodeStopReason = `unknown:${value.reason_code ?? "unspecified"}`;
@@ -321,6 +387,7 @@ export async function runManagedPlayerEnvironmentProbe({
         canonical_actions_delivered: episodeActionsDelivered,
         canonical_reads_completed: episodeReadsCompleted
       });
+      previousEpisodeAuthority = episodeAuthority;
       if (episodeStopReason !== "game_over" && episodeStopReason !== "action_limit") {
         stopReason = episodeStopReason;
         break;
@@ -401,6 +468,18 @@ export async function runManagedPlayerEnvironmentProbe({
         final_snapshot_complete: snapshot?.completeness?.status === "complete",
         bounded_complete: boundedCanonicalInformationComplete
       },
+      reset_authority: {
+        requested: verifyResetAuthority,
+        repeat_seed: repeatSeed,
+        reset_count: Math.max(0, episodes.length - 1),
+        stale_rejections: resetAuthorityGates.length,
+        all_passed: !verifyResetAuthority || resetAuthorityGates.length === Math.max(0, episodeCount - 1)
+      },
+      idempotency: {
+        requested: verifyIdempotency,
+        exact_receipt_replays: idempotencyGates.length,
+        all_passed: !verifyIdempotency || idempotencyGates.length === episodes.length
+      },
       episodes,
       final_snapshot: snapshot == null ? null : {
         status: snapshot.status,
@@ -451,7 +530,10 @@ export async function runManagedPlayerEnvironmentProbe({
         eager_reads: eagerReads,
         canonical_evidence: canonicalEvidence,
         resource_sampling_interval_ms: resourceSamplingIntervalMs,
-        quiet_diagnostics: quietDiagnostics
+        quiet_diagnostics: quietDiagnostics,
+        repeat_seed: repeatSeed,
+        verify_reset_authority: verifyResetAuthority,
+        verify_idempotency: verifyIdempotency
       }
     },
     process: {
@@ -468,7 +550,7 @@ export async function runManagedPlayerEnvironmentProbe({
       h1_admission: "not_evaluated"
     },
     non_claims: [
-      "A strict SDK-valid partial projection is not Player Environment semantic conformance.",
+      "A strict SDK-valid projection is not Player Environment semantic conformance.",
       "The managed decision source still contains manual projection and semantic shims.",
       "This bounded deterministic policy is not gameplay, training, or transfer evidence.",
       "Raw managed speed is not H1.0 speed until cross-Host semantic qualification succeeds."

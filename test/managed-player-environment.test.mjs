@@ -616,6 +616,46 @@ test("enforces stale rejection and request idempotency before raw execution", as
   assert.equal(actionCalls, 1);
 });
 
+test("same-state reset rotates snapshot authority and rejects the prior episode", async () => {
+  let actionCalls = 0;
+  const process = {
+    async request(request) {
+      if (request.cmd === "start_run" || request.cmd === "reset_run") return eventState();
+      actionCalls += 1;
+      return { ...eventState(), event_name: "Successor" };
+    }
+  };
+  const session = new ManagedPlayerEnvironmentSession({
+    process,
+    runtimeInstanceId: "managed-runtime-test",
+    environmentFingerprint: "managed-environment-test"
+  });
+  const first = await session.mount({ seed: "SAME" });
+  const firstAction = first.bound_actions.actions[0];
+  const second = await session.mount({ seed: "SAME", reset: true });
+  const secondAction = second.bound_actions.actions[0];
+  assert.notEqual(second.snapshot_id, first.snapshot_id);
+  assert.notEqual(second.interaction.interaction_id, first.interaction.interaction_id);
+  assert.notEqual(secondAction.bound_action_id, firstAction.bound_action_id);
+
+  const stale = await session.submit({
+    requestId: "old-episode",
+    expectedSnapshotId: first.snapshot_id,
+    boundActionId: firstAction.bound_action_id
+  });
+  assert.equal(stale.delivery, "not_delivered");
+  assert.equal(stale.reason_code, "stale_snapshot");
+  assert.equal(actionCalls, 0);
+
+  const delivered = await session.submit({
+    requestId: "current-episode",
+    expectedSnapshotId: second.snapshot_id,
+    boundActionId: secondAction.bound_action_id
+  });
+  assert.equal(delivered.delivery, "delivered");
+  assert.equal(actionCalls, 1);
+});
+
 test("taints the process after unknown delivery and never retries", async () => {
   let actionCalls = 0;
   const process = {

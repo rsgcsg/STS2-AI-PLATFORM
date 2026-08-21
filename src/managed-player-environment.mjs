@@ -56,10 +56,10 @@ function createProjectionContext({ state, runtimeInstanceId, sequence, identityM
   }
   const rawStateSha = identityMode === "crypto" ? digest(state) : null;
   const snapshotId = identityMode === "crypto"
-    ? `managed_${runtimeInstanceId}_${rawStateSha}`
+    ? `managed_${runtimeInstanceId}_s${sequence}_${rawStateSha}`
     : `managed_${runtimeInstanceId}_s${sequence}`;
   const interactionId = identityMode === "crypto"
-    ? `interaction_${rawStateSha}`
+    ? `interaction_${runtimeInstanceId}_s${sequence}_${rawStateSha}`
     : `interaction_${runtimeInstanceId}_s${sequence}`;
   const referents = [];
   const actions = [];

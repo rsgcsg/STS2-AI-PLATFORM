@@ -85,6 +85,14 @@ export class JsonLineProcess {
     return this.#closed.promise;
   }
 
+  sendSignal(signal) {
+    if (typeof signal !== "string" || signal.length === 0) {
+      throw new TypeError("JSON-line process signal must be a non-empty string.");
+    }
+    if (this.#closed.settled) return false;
+    return this.#child.kill(signal);
+  }
+
   #recordDiagnostic(stream, line) {
     boundedPush(this.#diagnostics, {
       at: new Date().toISOString(),
