@@ -12,6 +12,14 @@ namespace STS2Connector.Tests;
 public sealed class PlayerEnvironmentContractTests
 {
     [Fact]
+    public void SettlingSnapshotsCannotPublishMutationAuthority()
+    {
+        Assert.False(PlayerEnvironmentService.CanPublishMutationAuthority("settling"));
+        Assert.False(PlayerEnvironmentService.CanPublishMutationAuthority("degraded"));
+        Assert.True(PlayerEnvironmentService.CanPublishMutationAuthority("ready"));
+    }
+
+    [Fact]
     public void ExecutionReadinessRequiresExactPlayerEnvironmentOnlyModset()
     {
         var modset = ExactConnectorModset();

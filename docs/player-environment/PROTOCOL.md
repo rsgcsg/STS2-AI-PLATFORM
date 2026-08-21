@@ -54,7 +54,10 @@ run-state mounting, and the short `menu_or_no_run` gap while a standard run or
 the main menu mounts. The last case is capped at ten seconds and cannot hide a
 real modal, menu, run owner, or unknown source. The current exact-runtime bound
 is twenty seconds; after it expires the state fails
-closed as visible unsupported.
+closed as visible unsupported. A settling Snapshot never publishes mutation
+authority: its BoundAction catalog and interaction capabilities are empty even
+if one control becomes enabled before the complete current UI finishes
+mounting. The next ready Snapshot derives a fresh complete catalog.
 
 `reads[]` advertises all bounded, non-authorizing information reads. Consumers
 send the opaque `read_id`; C rejects stale snapshots and arbitrary fields.

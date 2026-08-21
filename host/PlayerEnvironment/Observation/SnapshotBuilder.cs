@@ -73,7 +73,9 @@ internal static partial class PlayerEnvironmentService
         PlayerEnvironmentInteractionContent surfaceContent =
             ProjectVisibleFacts(draft.Surface, draft.Context);
         IReadOnlyList<NativeUiBoundAction> nativeBindings =
-            BuildPlayerEnvironmentBindings(draft);
+            CanPublishMutationAuthority(draft.Readiness)
+                ? BuildPlayerEnvironmentBindings(draft)
+                : Array.Empty<NativeUiBoundAction>();
         string interactionId = ReadFirstString(
             rawSurface,
             "screen_entity_id",
@@ -178,6 +180,9 @@ internal static partial class PlayerEnvironmentService
             draft,
             projected.Bindings);
     }
+
+    internal static bool CanPublishMutationAuthority(string readiness) =>
+        string.Equals(readiness, "ready", StringComparison.Ordinal);
 
     internal static PlayerEnvironmentHostIdentity ToHostIdentity(LiveHostIdentity identity) => new(
         PlayerEnvironmentContract.EnvironmentId,

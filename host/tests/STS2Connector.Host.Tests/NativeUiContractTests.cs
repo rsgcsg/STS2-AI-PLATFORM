@@ -1105,6 +1105,15 @@ public sealed class NativeUiContractTests
     }
 
     [Fact]
+    public void CardRewardWaitsForVisibleCardsToBecomeClickableBeforeReady()
+    {
+        Assert.Equal("settling", CardRewardSurfaceReader.ClassifyReadiness(3, 0, 1, 1));
+        Assert.Equal("ready", CardRewardSurfaceReader.ClassifyReadiness(3, 3, 1, 1));
+        Assert.Equal("ready", CardRewardSurfaceReader.ClassifyReadiness(0, 0, 1, 1));
+        Assert.Equal("degraded", CardRewardSurfaceReader.ClassifyReadiness(0, 0, 0, 0));
+    }
+
+    [Fact]
     public void ShopInventoryNativeDiscoveryUsesTypedOffersAndExactOwnerOperands()
     {
         static VisibleCard Card(string entityId, string definitionId, string name) =>

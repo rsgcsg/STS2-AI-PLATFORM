@@ -16,7 +16,9 @@ The no-owner frame between a delivered standard-run entry and the mounted run
 is a bounded `settling` lifecycle, not a transient unsupported Surface. A real
 unknown owner remains fail-closed. The exact event-room model also settles while
 its native room node mounts; this does not authorize an event option before the
-real visible controls exist.
+real visible controls exist. Card rewards likewise remain settling while their
+visible card holders are mounting but not yet clickable; an already-enabled
+Skip control cannot prematurely turn that partial action set into authority.
 
 ## Information
 
@@ -42,7 +44,7 @@ See the repository [Player Environment Information Closure](../INFORMATION_CLOSU
 
 ## Evidence
 
-The repaired public source has exact-game Host tests and portable SDK, package,
+The repaired public source has 130 exact-game Host tests and portable SDK, package,
 contract, boundary, CLI, Python and documentation checks. It has no current
 loaded or Live evidence until a clean commit is built, installed and cold-loaded.
 

@@ -87,13 +87,21 @@ internal sealed class CardRewardSurfaceReader : ILiveSurfaceReader
         bool hasVisibleOptions = cards.Length > 0 || alternatives.Length > 0;
         bool hasActionableOption = surface.SelectableCardEntityIds.Count > 0
                                    || alternatives.Any(option => option.Enabled);
-        string readiness = hasActionableOption ? "ready" : hasVisibleOptions ? "settling" : "degraded";
+        bool visibleCardsStillMounting = cards.Length > 0
+                                         && surface.SelectableCardEntityIds.Count == 0;
+        string readiness = ClassifyReadiness(
+            cards.Length,
+            surface.SelectableCardEntityIds.Count,
+            alternatives.Length,
+            alternatives.Count(option => option.Enabled));
         var missing = hasVisibleOptions
             ? Array.Empty<string>()
             : new[] { "surface.cards_or_alternatives" };
         var completeness = new StateCompleteness(
             hasVisibleOptions ? "contract_complete_for_card_reward_selection" : "partial",
-            hasActionableOption
+            visibleCardsStillMounting
+                ? "visible_cards_waiting_for_current_clickability"
+                : hasActionableOption
                 ? "derived_from_current_clickability_and_enabled_buttons"
                 : "temporarily_empty_while_ui_settles",
             new[]
@@ -119,6 +127,23 @@ internal sealed class CardRewardSurfaceReader : ILiveSurfaceReader
             completeness,
             game,
             Array.Empty<string>());
+    }
+
+    internal static string ClassifyReadiness(
+        int visibleCards,
+        int selectableCards,
+        int visibleAlternatives,
+        int enabledAlternatives)
+    {
+        if (visibleCards == 0 && visibleAlternatives == 0)
+            return "degraded";
+        // Card holders become visible before their mount animation enables
+        // input. An enabled Skip button cannot make that partial catalog stable.
+        if (visibleCards > 0 && selectableCards == 0)
+            return "settling";
+        return selectableCards > 0 || enabledAlternatives > 0
+            ? "ready"
+            : "settling";
     }
 
     private static LiveObservation BindingUnavailable(
