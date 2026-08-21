@@ -625,7 +625,7 @@ index 800f139..d950eec 100644
                  return sim.StartRun(
                      cmd.TryGetProperty("character", out var ch) ? ch.GetString() ?? "Ironclad" : "Ironclad",
 diff --git a/src/Sts2Headless/RunSimulator.cs b/src/Sts2Headless/RunSimulator.cs
-index 6b9de4a..c4264e1 100644
+index 6b9de4a..33a9cad 100644
 --- a/src/Sts2Headless/RunSimulator.cs
 +++ b/src/Sts2Headless/RunSimulator.cs
 @@ -1,4 +1,6 @@
@@ -2733,11 +2733,11 @@ index 6b9de4a..c4264e1 100644
 +            ["player"] = PlayerSummary(player),
 +        };
 +    }
-+
-+    private static bool PotionSlotsFull(Player player) =>
-+        player.PotionSlots.Count(potion => potion != null) >= player.PotionSlots.Count;
  
 -        var cards = _pendingCardReward.Cards.Select((c, i) =>
++    private static bool PotionSlotsFull(Player player) =>
++        player.PotionSlots.Count(potion => potion != null) >= player.PotionSlots.Count;
++
 +    private Dictionary<string, object?> RewardSummary(Reward reward, int index)
 +    {
 +        string kind;
@@ -2871,7 +2871,17 @@ index 6b9de4a..c4264e1 100644
              return MapSelectState();
          }
  
-@@ -2691,7 +2781,7 @@ public class RunSimulator
+@@ -2674,7 +2764,8 @@ public class RunSimulator
+         {
+             ["index"] = i,
+             ["option_id"] = opt.OptionId,
+-            ["name"] = opt.GetType().Name,
++            ["name"] = StripVisibleText(opt.Title.GetFormattedText()),
++            ["description"] = StripVisibleText(opt.Description.GetFormattedText()),
+             ["is_enabled"] = opt.IsEnabled,
+         }).ToList();
+ 
+@@ -2691,7 +2782,7 @@ public class RunSimulator
      private Dictionary<string, object?> ShopState(MerchantRoom merchantRoom, Player player)
      {
          var inv = merchantRoom.GetLocalInventory();
@@ -2880,7 +2890,7 @@ index 6b9de4a..c4264e1 100644
  
          var cards = inv.CharacterCardEntries.Concat(inv.ColorlessCardEntries)
              .Select((e, i) =>
-@@ -2723,6 +2813,7 @@ public class RunSimulator
+@@ -2723,6 +2814,7 @@ public class RunSimulator
                  return new Dictionary<string, object?>
                  {
                      ["index"] = i,
@@ -2888,7 +2898,7 @@ index 6b9de4a..c4264e1 100644
                      ["name"] = _loc.Card(entry),
                      ["type"] = card?.Type.ToString() ?? "?",
                      ["rarity"] = card?.Rarity.ToString() ?? "?",
-@@ -2733,6 +2824,7 @@ public class RunSimulator
+@@ -2733,6 +2825,7 @@ public class RunSimulator
                      ["after_upgrade"] = card != null ? GetUpgradedInfo(card) : null,
                      ["cost"] = e.Cost,
                      ["is_stocked"] = e.IsStocked,
@@ -2896,7 +2906,7 @@ index 6b9de4a..c4264e1 100644
                      ["on_sale"] = e.IsOnSale,
                  };
              }).ToList();
-@@ -2740,19 +2832,23 @@ public class RunSimulator
+@@ -2740,19 +2833,23 @@ public class RunSimulator
          var relics = inv.RelicEntries.Select((e, i) => new Dictionary<string, object?>
          {
              ["index"] = i,
@@ -2920,7 +2930,7 @@ index 6b9de4a..c4264e1 100644
          }).ToList();
  
          var removal = merchantRoom.GetLocalInventory().CardRemovalEntry;
-@@ -2766,94 +2862,72 @@ public class RunSimulator
+@@ -2766,94 +2863,72 @@ public class RunSimulator
              ["relics"] = relics,
              ["potions"] = potions,
              ["card_removal_cost"] = removal?.Cost,
@@ -3066,7 +3076,7 @@ index 6b9de4a..c4264e1 100644
      }
  
      private Dictionary<string, object?> GameOverState(bool isVictory)
-@@ -2879,6 +2953,44 @@ public class RunSimulator
+@@ -2879,6 +2954,44 @@ public class RunSimulator
  
      #region Helpers
  
@@ -3111,7 +3121,7 @@ index 6b9de4a..c4264e1 100644
      private void WaitForActionExecutor()
      {
          try
-@@ -2891,7 +3003,7 @@ public class RunSimulator
+@@ -2891,7 +3004,7 @@ public class RunSimulator
  
              // Executor may stay "running" while the game awaits headless card selection / reward (e.g. Attack Potion).
              // Spinning here would time out and downstream code could mis-handle an in-flight potion use (BUG-026).
@@ -3120,7 +3130,7 @@ index 6b9de4a..c4264e1 100644
                  return;
  
              var executor = RunManager.Instance.ActionExecutor;
-@@ -2913,6 +3025,60 @@ public class RunSimulator
+@@ -2913,6 +3026,60 @@ public class RunSimulator
          }
      }
  
@@ -3181,7 +3191,7 @@ index 6b9de4a..c4264e1 100644
      private void SpinWaitForCombatStable()
      {
          int maxIterations = 200;
-@@ -2969,34 +3135,64 @@ public class RunSimulator
+@@ -2969,34 +3136,70 @@ public class RunSimulator
      {
          return new Dictionary<string, object?>
          {
@@ -3197,6 +3207,7 @@ index 6b9de4a..c4264e1 100644
              {
                  var vars = new Dictionary<string, object?>();
                  try { foreach (var dv in r.DynamicVars.Values) vars[dv.Name] = (int)dv.BaseValue; } catch { }
++                var hover = VisibleHoverFacts(r.HoverTipsExcludingRelic);
                  return new Dictionary<string, object?>
                  {
 +                    ["native_ref"] = NativeObjectIdentity.Get(r),
@@ -3207,7 +3218,9 @@ index 6b9de4a..c4264e1 100644
 +                        _loc.Bilingual("relics", r.Id.Entry + ".description"),
 +                        vars),
 +                    ["counter"] = r.ShowCounter ? r.DisplayAmount : null,
-+                    ["hover_tip_count"] = r.HoverTipsExcludingRelic?.Count() ?? 0,
++                    ["keywords"] = hover.Keywords,
++                    ["card_previews"] = hover.CardPreviews,
++                    ["hover_facts_complete"] = hover.Complete,
                      ["vars"] = vars.Count > 0 ? vars : null,
                  };
              }).ToList(),
@@ -3227,6 +3240,7 @@ index 6b9de4a..c4264e1 100644
 +                    ? CombatManager.Instance.DebugOnlyGetState()?.Enemies
 +                        .Where(p.IsValidTarget).Select(NativeObjectIdentity.Get).ToList() ?? new()
 +                    : null;
++                var hover = VisibleHoverFacts(p.ExtraHoverTips);
                  return new Dictionary<string, object?>
                  {
 -                    ["index"] = i,
@@ -3238,7 +3252,9 @@ index 6b9de4a..c4264e1 100644
 +                    ["description"] = ResolveVisibleVariables(
 +                        _loc.Bilingual("potions", p.Id.Entry + ".description"),
 +                        pvars),
-+                    ["hover_tip_count"] = p.ExtraHoverTips?.Count() ?? 0,
++                    ["keywords"] = hover.Keywords,
++                    ["card_previews"] = hover.CardPreviews,
++                    ["hover_facts_complete"] = hover.Complete,
                      ["vars"] = pvars.Count > 0 ? pvars : null,
                      ["target_type"] = p.TargetType.ToString(),
 +                    ["usage"] = p.Usage.ToString(),
@@ -3250,10 +3266,88 @@ index 6b9de4a..c4264e1 100644
                  };
              }).Where(x => x != null).ToList(),
              ["deck_size"] = player.Deck?.Cards?.Count(c => c != null) ?? 0,
-@@ -3034,6 +3230,22 @@ public class RunSimulator
+@@ -3034,6 +3237,100 @@ public class RunSimulator
          };
      }
  
++    private sealed record VisibleHoverFactsResult(
++        List<Dictionary<string, object?>> Keywords,
++        List<Dictionary<string, object?>> CardPreviews,
++        bool Complete);
++
++    private VisibleHoverFactsResult VisibleHoverFacts(IEnumerable<IHoverTip>? tips)
++    {
++        var keywords = new List<Dictionary<string, object?>>();
++        var cardPreviews = new List<Dictionary<string, object?>>();
++        var seen = new HashSet<string>(StringComparer.Ordinal);
++        var complete = true;
++        foreach (var tip in IHoverTip.RemoveDupes(tips ?? Array.Empty<IHoverTip>()))
++        {
++            switch (tip)
++            {
++                case HoverTip text:
++                {
++                    var name = StripVisibleText(text.Title);
++                    var description = StripVisibleText(text.Description);
++                    var key = name ?? description;
++                    if (key != null && seen.Add($"text:{key}"))
++                    {
++                        keywords.Add(new Dictionary<string, object?>
++                        {
++                            ["name"] = name ?? "Unnamed",
++                            ["description"] = description,
++                        });
++                    }
++                    break;
++                }
++                case CardHoverTip cardTip when seen.Add($"card:{cardTip.Id}"):
++                    cardPreviews.Add(VisibleHoverCard(cardTip.Card));
++                    break;
++                case CardHoverTip:
++                    break;
++                default:
++                    complete = false;
++                    break;
++            }
++        }
++        return new VisibleHoverFactsResult(keywords, cardPreviews, complete);
++    }
++
++    private Dictionary<string, object?> VisibleHoverCard(CardModel card)
++    {
++        string? description;
++        try { description = StripVisibleText(card.GetDescriptionForPile(PileType.None)); }
++        catch { description = StripVisibleText(card.Description.GetFormattedText()); }
++        var result = new Dictionary<string, object?>
++        {
++            ["id"] = card.Id.Entry,
++            ["name"] = StripVisibleText(card.Title),
++            ["type"] = card.Type.ToString(),
++            ["cost"] = card.EnergyCost.CostsX ? "X" : card.EnergyCost.GetAmountToSpend().ToString(),
++            ["star_cost"] = card.HasStarCostX
++                ? "X"
++                : card.CurrentStarCost >= 0 ? card.GetStarCostWithModifiers().ToString() : null,
++            ["description"] = description,
++            ["rarity"] = card.Rarity.ToString(),
++            ["is_upgraded"] = card.IsUpgraded,
++        };
++        if (card.Enchantment != null)
++        {
++            result["enchantment_id"] = card.Enchantment.Id.Entry;
++            result["enchantment"] = StripVisibleText(card.Enchantment.Title.GetFormattedText());
++            result["enchantment_description"] = StripVisibleText(card.Enchantment.DynamicDescription.GetFormattedText());
++            result["enchantment_amount"] = card.Enchantment.Amount;
++        }
++        return result;
++    }
++
++    private static string? StripVisibleText(string? value) => value == null
++        ? null
++        : System.Text.RegularExpressions.Regex.Replace(
++            value,
++            @"\[/?[a-zA-Z_][a-zA-Z0-9_=]*\]",
++            string.Empty).Replace("\n", " ");
++
 +    private static string ResolveVisibleVariables(
 +        string text,
 +        IReadOnlyDictionary<string, object?> variables)
@@ -3273,7 +3367,7 @@ index 6b9de4a..c4264e1 100644
      /// <summary>Common context added to every decision point.</summary>
      private Dictionary<string, object?> RunContext()
      {
-@@ -3041,9 +3253,19 @@ public class RunSimulator
+@@ -3041,9 +3338,26 @@ public class RunSimulator
          var ctx = new Dictionary<string, object?>
          {
              ["act"] = _runState.CurrentActIndex + 1,
@@ -3284,16 +3378,23 @@ index 6b9de4a..c4264e1 100644
 +            ["total_floor"] = _runState.TotalFloor,
 +            ["ascension"] = _runState.AscensionLevel,
              ["room_type"] = _runState.CurrentRoom?.RoomType.ToString(),
-+            ["modifiers"] = _runState.Modifiers.Select(modifier => new Dictionary<string, object?>
++            ["modifiers"] = _runState.Modifiers.Select(modifier =>
 +            {
-+                ["id"] = modifier.Id.Entry,
-+                ["name"] = _loc.Bilingual("modifiers", modifier.Id.Entry + ".title"),
-+                ["description"] = _loc.Bilingual("modifiers", modifier.Id.Entry + ".description"),
++                var hover = VisibleHoverFacts(modifier.HoverTips);
++                return new Dictionary<string, object?>
++                {
++                    ["id"] = modifier.Id.Entry,
++                    ["name"] = _loc.Bilingual("modifiers", modifier.Id.Entry + ".title"),
++                    ["description"] = _loc.Bilingual("modifiers", modifier.Id.Entry + ".description"),
++                    ["keywords"] = hover.Keywords,
++                    ["card_previews"] = hover.CardPreviews,
++                    ["hover_facts_complete"] = hover.Complete,
++                };
 +            }).ToList(),
          };
  
          // Boss encounter info — use BossEncounter?.Id?.Entry
-@@ -3064,6 +3286,27 @@ public class RunSimulator
+@@ -3064,6 +3378,27 @@ public class RunSimulator
          }
          catch { }
  
@@ -3321,7 +3422,7 @@ index 6b9de4a..c4264e1 100644
          return ctx;
      }
  
-@@ -3074,6 +3317,11 @@ public class RunSimulator
+@@ -3074,6 +3409,11 @@ public class RunSimulator
  
          TestMode.IsOn = true;
  
@@ -3333,7 +3434,7 @@ index 6b9de4a..c4264e1 100644
          // Install inline sync context on main thread
          SynchronizationContext.SetSynchronizationContext(_syncCtx);
  
-@@ -3099,14 +3347,6 @@ public class RunSimulator
+@@ -3099,14 +3439,6 @@ public class RunSimulator
          try { SaveManager.Instance.InitPrefsDataForTest(); }
          catch (Exception ex) { Console.Error.WriteLine($"[WARN] SaveManager.InitPrefsDataForTest: {ex.Message}"); }
  
@@ -3348,7 +3449,7 @@ index 6b9de4a..c4264e1 100644
          // Patch Cmd.Wait to be a no-op in headless mode.
          // Cmd.Wait(duration) is used for UI animations (e.g., PreviewCardPileAdd during
          // Vantom's Dismember move adding Wounds). In headless mode, these never complete
-@@ -3139,9 +3379,15 @@ public class RunSimulator
+@@ -3139,9 +3471,15 @@ public class RunSimulator
          }
          Console.Error.WriteLine($"[INFO] ModelDb: {registered} registered, {failed} failed out of {subtypes.Count}");
  
@@ -3364,7 +3465,7 @@ index 6b9de4a..c4264e1 100644
              ModelIdSerializationCache.Init();
              Console.Error.WriteLine("[INFO] ModelIdSerializationCache initialized");
          }
-@@ -3151,15 +3397,15 @@ public class RunSimulator
+@@ -3151,15 +3489,15 @@ public class RunSimulator
          }
      }
  
@@ -3386,7 +3487,7 @@ index 6b9de4a..c4264e1 100644
              _ => null
          };
      }
-@@ -3263,42 +3509,168 @@ public class RunSimulator
+@@ -3263,42 +3601,168 @@ public class RunSimulator
          }
      }
  
@@ -3395,13 +3496,19 @@ index 6b9de4a..c4264e1 100644
      {
 -        try
 +        private enum RequestKind
-+        {
+         {
+-            var harmony = new Harmony("sts2headless.yieldpatch");
 +            Select,
 +            Skip,
 +            StateChanged,
 +            Cancel,
 +        }
-+
+ 
+-            // Patch YieldAwaitable.YieldAwaiter.IsCompleted to return true
+-            // This makes `await Task.Yield()` execute synchronously (continuation runs inline)
+-            var yieldAwaiterType = typeof(System.Runtime.CompilerServices.YieldAwaitable)
+-                .GetNestedType("YieldAwaiter");
+-            if (yieldAwaiterType != null)
 +        private sealed record RewardRequest(RequestKind Kind, Reward? Reward = null);
 +
 +        private sealed class SelectionContext
@@ -3424,14 +3531,15 @@ index 6b9de4a..c4264e1 100644
 +        public bool IsAwaitingAction
 +        {
 +            get
-+            {
+             {
+-                var isCompletedProp = yieldAwaiterType.GetProperty("IsCompleted");
+-                if (isCompletedProp != null)
 +                lock (_gate) return _stack.Count > 0 && _stack[^1].Request != null;
 +            }
 +        }
 +
 +        public async Task SelectAsync(RewardsSet set)
-         {
--            var harmony = new Harmony("sts2headless.yieldpatch");
++        {
 +            var synchronizer = RunManager.Instance.RewardsSetSynchronizer;
 +            if (synchronizer.IsRewardsSetCompleted(set)) return;
 +
@@ -3439,18 +3547,11 @@ index 6b9de4a..c4264e1 100644
 +            {
 +                reward.MarkContentAsSeen();
 +            }
- 
--            // Patch YieldAwaitable.YieldAwaiter.IsCompleted to return true
--            // This makes `await Task.Yield()` execute synchronously (continuation runs inline)
--            var yieldAwaiterType = typeof(System.Runtime.CompilerServices.YieldAwaitable)
--                .GetNestedType("YieldAwaiter");
--            if (yieldAwaiterType != null)
++
 +            var context = new SelectionContext { Set = set };
 +            lock (_gate) _stack.Add(context);
 +            try
-             {
--                var isCompletedProp = yieldAwaiterType.GetProperty("IsCompleted");
--                if (isCompletedProp != null)
++            {
 +                while (!synchronizer.IsRewardsSetCompleted(set))
                  {
 -                    var getter = isCompletedProp.GetGetMethod();
@@ -3459,13 +3560,11 @@ index 6b9de4a..c4264e1 100644
 -                    if (getter != null && prefix != null)
 +                    Task<RewardRequest> requestTask;
 +                    lock (_gate)
-                     {
--                        harmony.Patch(getter, new HarmonyMethod(prefix));
--                        Console.Error.WriteLine("[INFO] Patched Task.Yield() to be synchronous");
++                    {
 +                        context.Request ??= new TaskCompletionSource<RewardRequest>(
 +                            TaskCreationOptions.RunContinuationsAsynchronously);
 +                        requestTask = context.Request.Task;
-                     }
++                    }
 +
 +                    var request = await requestTask.ConfigureAwait(false);
 +                    if (request.Kind == RequestKind.Cancel)
@@ -3473,12 +3572,14 @@ index 6b9de4a..c4264e1 100644
 +                    if (request.Kind == RequestKind.StateChanged)
 +                        continue;
 +                    if (request.Kind == RequestKind.Skip)
-+                    {
+                     {
+-                        harmony.Patch(getter, new HarmonyMethod(prefix));
+-                        Console.Error.WriteLine("[INFO] Patched Task.Yield() to be synchronous");
 +                        if (set.DisallowSkipping)
 +                            throw new InvalidOperationException("The native rewards set disallows skipping.");
 +                        synchronizer.SkipLocalRewardsSet();
 +                        continue;
-+                    }
+                     }
 +
 +                    var reward = request.Reward
 +                        ?? throw new InvalidOperationException("A native reward selection had no reward binding.");
@@ -3499,7 +3600,8 @@ index 6b9de4a..c4264e1 100644
 -        catch (Exception ex)
 +
 +        public bool ResolveReward(object? expectedIdentity, out string? error)
-+        {
+         {
+-            Console.Error.WriteLine($"[WARN] Failed to patch Task.Yield: {ex.Message}");
 +            lock (_gate)
 +            {
 +                if (_stack.Count == 0 || _stack[^1].Request == null)
@@ -3557,8 +3659,7 @@ index 6b9de4a..c4264e1 100644
 +        }
 +
 +        public void CancelAllPending()
-         {
--            Console.Error.WriteLine($"[WARN] Failed to patch Task.Yield: {ex.Message}");
++        {
 +            lock (_gate)
 +            {
 +                foreach (var context in _stack)
@@ -3577,7 +3678,7 @@ index 6b9de4a..c4264e1 100644
      /// <summary>
      /// Card selector that creates a pending selection decision point.
      /// When the game needs the player to choose cards (upgrade, remove, transform, bundle pick),
-@@ -3362,6 +3734,12 @@ public class RunSimulator
+@@ -3362,6 +3826,12 @@ public class RunSimulator
              _pendingTcs = null;
          }
  
@@ -3590,7 +3691,7 @@ index 6b9de4a..c4264e1 100644
          // Pending card reward from events (GetSelectedCardReward blocks until resolved)
          public List<MegaCrit.Sts2.Core.Entities.Cards.CardCreationResult>? PendingRewardCards { get; private set; }
          private ManualResetEventSlim? _rewardWait;
-@@ -3411,19 +3789,6 @@ public class RunSimulator
+@@ -3411,19 +3881,6 @@ public class RunSimulator
  
      internal static class YieldPatches
      {
@@ -3610,7 +3711,7 @@ index 6b9de4a..c4264e1 100644
          /// <summary>Harmony prefix: make Cmd.Wait() return completed task immediately (no-op in headless).</summary>
          public static bool CmdWaitPrefix(ref Task __result)
          {
-@@ -3447,178 +3812,22 @@ public class RunSimulator
+@@ -3447,178 +3904,22 @@ public class RunSimulator
  
      private static void InitLocManager()
      {
@@ -3798,7 +3899,7 @@ index 6b9de4a..c4264e1 100644
  
              // Patch FromChooseABundleScreen to use our card selector
              try
-@@ -3634,42 +3843,6 @@ public class RunSimulator
+@@ -3634,42 +3935,6 @@ public class RunSimulator
                  }
              }
              catch (Exception ex) { Console.Error.WriteLine($"[WARN] Bundle patch: {ex.Message}"); }
@@ -3841,7 +3942,7 @@ index 6b9de4a..c4264e1 100644
          }
          catch (Exception ex)
          {
-@@ -3677,85 +3850,79 @@ public class RunSimulator
+@@ -3677,85 +3942,79 @@ public class RunSimulator
          }
      }
  
@@ -3990,7 +4091,7 @@ index 6b9de4a..c4264e1 100644
          /// <summary>
          /// Intercept bundle selection — store bundles and wait for player to pick a pack index.
          /// </summary>
-@@ -3789,16 +3956,12 @@ public class RunSimulator
+@@ -3789,16 +4048,12 @@ public class RunSimulator
          // Static reference so Harmony patch can access the simulator instance
          internal static RunSimulator? _bundleSimRef;
  
@@ -4009,7 +4110,7 @@ index 6b9de4a..c4264e1 100644
      }
  
      private static Dictionary<string, object?> Error(string message) =>
-@@ -3826,36 +3989,54 @@ public class RunSimulator
+@@ -3826,36 +4081,54 @@ public class RunSimulator
          var currentCoord = _runState.CurrentMapCoord;
          var visited = _runState.VisitedMapCoords;
  
@@ -4083,7 +4184,7 @@ index 6b9de4a..c4264e1 100644
          // Boss node
          var bossNode = new Dictionary<string, object?>
          {
-@@ -3896,15 +4077,114 @@ public class RunSimulator
+@@ -3896,15 +4169,114 @@ public class RunSimulator
      {
          try
          {

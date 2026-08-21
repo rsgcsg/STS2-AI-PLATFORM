@@ -51,7 +51,7 @@ native game end to end; its 616 log actions are not normalized semantic
 decisions and do not qualify it as a Connector Host or trainer.
 
 A rebuilt exact managed candidate now keeps the installed game assembly
-byte-identical and uses a strict partial Player Environment projection. Current
+byte-identical and uses the canonical Player Environment contract. Current
 clean-source profiling measured `D_engine`, training-profile and strict
 qualification-profile single-environment means of `345.88`, `208.87` and
 `183.25 d/s` in the current confirmation windows. Rates are workload-specific;
@@ -60,10 +60,12 @@ a shared supervisor reached `1,686.88 d/s` at eight workers and plateaued at
 probe matched the Reference Host for a fixed map/combat/reward prefix. The
 current exact artifact also matched a reward-to-map-to-combat window and
 completed ten fixed-seed ordinary lifecycles after closing full-potion reward
-publication and starting-map topology defects. The candidate has not passed
-broad semantic qualification, persistent information closure, 1M
-reliability, real learner or Reference-transfer gates. It is fast, not the
-default route or Training Ready.
+publication and starting-map topology defects. Its current artifact also
+projected complete information for every action decision in that corpus after
+closing stable hover and rest-option text gaps. The candidate has not passed
+broad semantic qualification, 1M reliability, real learner or
+Reference-transfer gates. It is fast and bounded-complete, not the default
+route or Training Ready.
 See [Managed Exact Candidate](experiments/managed-exact/README.md).
 
 Godot's official `--single-threaded-scene` option was tested as a bounded Host

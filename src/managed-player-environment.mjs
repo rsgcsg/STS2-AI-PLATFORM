@@ -141,18 +141,28 @@ function createProjectionContext({ state, runtimeInstanceId, sequence, identityM
 
 function withoutDeck(player) {
   if (!plainObject(player)) return null;
-  const { deck: _deck, native_ref: _nativeRef, potions = [], ...visible } = player;
+  const {
+    deck: _deck,
+    native_ref: _nativeRef,
+    relics = [],
+    potions = [],
+    ...visible
+  } = player;
+  const publicPersistentItem = (item) => {
+    const {
+      native_ref: _nativeItemRef,
+      valid_target_refs: _validTargetRefs,
+      binding_supported: _bindingSupported,
+      hover_facts_complete: _hoverFactsComplete,
+      vars: _dynamicVariables,
+      ...publicItem
+    } = item;
+    return publicItem;
+  };
   return {
     ...visible,
-    potions: potions.map((potion) => {
-      const {
-        native_ref: _potionNativeRef,
-        valid_target_refs: _validTargetRefs,
-        binding_supported: _bindingSupported,
-        ...publicPotion
-      } = potion;
-      return publicPotion;
-    })
+    relics: relics.map(publicPersistentItem),
+    potions: potions.map(publicPersistentItem)
   };
 }
 
@@ -205,24 +215,24 @@ function buildPersistentVisibleState(state, snapshotId, makeId = stableId) {
     player.gold,
     player.max_potion_slots
   ];
-  const identitiesComplete = relics.every((relic) =>
+  const scalarIdentityComplete = requiredScalars.every((value) => value != null)
+    && bosses.every((boss) => typeof boss?.id === "string" && Number.isSafeInteger(boss?.order));
+  const entityIdentityComplete = relics.every((relic) =>
     typeof relic?.native_ref === "string" && typeof relic?.id === "string")
     && potions.every((potion) =>
       typeof potion?.native_ref === "string" && typeof potion?.id === "string");
-  const stableDetailsComplete = relics.every((relic) => relic?.hover_tip_count === 0)
-    && potions.every((potion) => potion?.hover_tip_count === 0)
-    && modifiers.length === 0;
-  const complete = requiredScalars.every((value) => value != null)
-    && bosses.every((boss) => typeof boss?.id === "string" && Number.isSafeInteger(boss?.order))
-    && identitiesComplete
-    && stableDetailsComplete;
+  const hasCompleteHoverFacts = (item) => item?.hover_facts_complete === true
+    && Array.isArray(item?.keywords)
+    && Array.isArray(item?.card_previews);
+  const stableDetailsComplete = [...relics, ...potions, ...modifiers].every(hasCompleteHoverFacts);
+  const complete = scalarIdentityComplete && entityIdentityComplete && stableDetailsComplete;
   if (!complete) {
     return {
       content: null,
       complete: false,
       missing: [
-        "canonical_persistent_run_identity",
-        ...(identitiesComplete ? [] : ["native_persistent_entity_identity"]),
+        ...(scalarIdentityComplete ? [] : ["canonical_persistent_run_identity"]),
+        ...(entityIdentityComplete ? [] : ["native_persistent_entity_identity"]),
         ...(stableDetailsComplete ? [] : ["persistent_hover_or_modifier_facts"])
       ]
     };
@@ -246,7 +256,13 @@ function buildPersistentVisibleState(state, snapshotId, makeId = stableId) {
             name: boss.name ?? null,
             order: boss.order
           })),
-          modifiers: []
+          modifiers: modifiers.map((modifier, index) => ({
+            definition_id: definitionId(modifier.id ?? modifier.name),
+            name: modifier.name ?? null,
+            description: visibleText(modifier.description),
+            keywords: visibleHoverKeywords(modifier.keywords),
+            card_previews: visibleHoverCards(modifier.card_previews, snapshotId, `modifier_${index}`, makeId)
+          }))
         },
         player: {
           entity_id: playerEntityId,
@@ -261,8 +277,8 @@ function buildPersistentVisibleState(state, snapshotId, makeId = stableId) {
             name: relic.name ?? null,
             description: relic.description ?? null,
             ...(relic.counter == null ? {} : { counter: relic.counter }),
-            keywords: [],
-            card_previews: []
+            keywords: visibleHoverKeywords(relic.keywords),
+            card_previews: visibleHoverCards(relic.card_previews, snapshotId, `relic_${index}`, makeId)
           })),
           potions: potions.map((potion, index) => ({
             entity_id: makeId("potion", snapshotId, potion.native_ref, index),
@@ -270,8 +286,8 @@ function buildPersistentVisibleState(state, snapshotId, makeId = stableId) {
             name: potion.name ?? null,
             description: potion.description ?? null,
             slot: potion.slot,
-            keywords: [],
-            card_previews: []
+            keywords: visibleHoverKeywords(potion.keywords),
+            card_previews: visibleHoverCards(potion.card_previews, snapshotId, `potion_${index}`, makeId)
           })),
           max_potion_slots: player.max_potion_slots
         },
@@ -413,6 +429,20 @@ function visibleText(value) {
     : String(value).replace(/\[\/?[a-z_][a-z0-9_=]*\]/giu, "").replace(/\n/gu, " ");
 }
 
+function visibleHoverKeywords(keywords) {
+  return keywords.map((keyword) => ({
+    name: visibleText(keyword?.name),
+    description: visibleText(keyword?.description)
+  }));
+}
+
+function visibleHoverCards(cards, snapshotId, ownerKey, makeId) {
+  return cards.map((card, index) => visibleCombatCard(
+    card,
+    makeId("hover_card", snapshotId, ownerKey, index, card?.id, card?.is_upgraded)
+  ));
+}
+
 function visibleCombatCard(card, entityId) {
   return {
     entity_id: entityId,
@@ -465,7 +495,12 @@ function currentSurface(state, ctx) {
     run: state.context ?? null,
     player: withoutDeck(state.player)
   };
-  const supported = { complete: true, missing: [] };
+  const supported = {
+    complete: true,
+    missing: [],
+    visibleInformation: "contract_complete_for_current_native_interaction",
+    interactionDiscovery: "derived_from_same_current_native_interaction_as_execution"
+  };
 
   switch (state.decision) {
     case "map_select": {
@@ -544,6 +579,7 @@ function currentSurface(state, ctx) {
             index: option.index,
             option_id: option.option_id ?? null,
             name: option.name ?? null,
+            description: visibleText(option.description),
             is_enabled: enabled
           }
         });
@@ -563,8 +599,7 @@ function currentSurface(state, ctx) {
         prompt: null,
         surface: { kind: "rest_site", stage: "choosing", options },
         context: { ...commonContext, kind: "rest" },
-        ...supported,
-        missing: ["localized_rest_option_descriptions"]
+        ...supported
       };
     }
     case "treasure_chest": {
@@ -587,6 +622,8 @@ function currentSurface(state, ctx) {
         surface: { kind: "treasure_chest", stage: "closed" },
         context: { ...commonContext, kind: "treasure" },
         complete,
+        visibleInformation: "contract_complete_for_current_native_treasure_interaction",
+        interactionDiscovery: "derived_from_same_current_native_treasure_interaction_as_execution",
         missing: complete ? [] : ["native_treasure_room_identity"]
       };
     }
@@ -649,6 +686,8 @@ function currentSurface(state, ctx) {
         },
         context: { ...commonContext, kind: "treasure" },
         complete,
+        visibleInformation: "contract_complete_for_current_native_treasure_interaction",
+        interactionDiscovery: "derived_from_same_current_native_treasure_interaction_as_execution",
         missing: [
           ...(roomIdentityComplete ? [] : ["native_treasure_room_identity"]),
           ...(nativeIdentityComplete ? [] : ["native_treasure_relic_identity"]),
@@ -676,6 +715,8 @@ function currentSurface(state, ctx) {
         surface: { kind: "treasure_completion", stage: "ready" },
         context: { ...commonContext, kind: "treasure" },
         complete,
+        visibleInformation: "contract_complete_for_current_native_treasure_interaction",
+        interactionDiscovery: "derived_from_same_current_native_treasure_interaction_as_execution",
         missing: complete ? [] : ["native_treasure_room_identity"]
       };
     }
@@ -848,6 +889,8 @@ function currentSurface(state, ctx) {
         },
         context: { ...commonContext, kind: "reward" },
         complete: typeof state.room_ref === "string",
+        visibleInformation: "contract_complete_for_current_native_reward_completion",
+        interactionDiscovery: "derived_from_same_current_native_reward_interaction_as_execution",
         missing: typeof state.room_ref === "string" ? [] : ["native_combat_room_identity"]
       };
     }
@@ -1335,6 +1378,8 @@ function currentSurface(state, ctx) {
         },
         context: { ...commonContext, kind: "shop" },
         complete,
+        visibleInformation: "contract_complete_for_current_native_shop_interaction",
+        interactionDiscovery: "derived_from_same_current_native_shop_interaction_as_execution",
         missing: [
           ...(roomIdentityComplete ? [] : ["native_shop_owner_identity"]),
           ...(entryIdentityComplete ? [] : ["stable_shop_operand_identity"]),

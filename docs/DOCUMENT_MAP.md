@@ -28,6 +28,9 @@
 16. [Managed Exact first Cross-Host match](evidence/MANAGED_EXACT_FIRST_CROSS_HOST_MATCH_2026-08-22.md):
     exact fixed-prefix parity, closed projection/localization defects, native
     gates, identities, and explicit remaining qualification boundary.
+17. [Managed Exact stable information closure](evidence/MANAGED_EXACT_STABLE_INFORMATION_CLOSURE_2026-08-22.md):
+    exact persistent hover/rest facts, Host-local operand boundary, complete
+    ten-seed supported-scope projection, and explicit non-claims.
 
 `README.md`, Status, Architecture, and Compatibility are current truth. Local
 raw evidence under `.local/` is not documentation and must not be committed.

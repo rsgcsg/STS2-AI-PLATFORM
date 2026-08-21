@@ -42,10 +42,10 @@ test("managed Player Environment probe policy consumes only canonical actions", 
   assert.equal(chooseManagedPlayerEnvironmentAction(snapshot("shop_inventory", [], "visible_unsupported")), null);
 });
 
-function capacityWorker(runtimeId, decisions, start, end) {
+function capacityWorker(runtimeId, decisions, start, end, status = "bounded_partial_player_environment_measured") {
   return {
     report: {
-      status: "bounded_partial_player_environment_measured",
+      status,
       candidate: {
         manifest: { candidate_id: "candidate" },
         build: {
@@ -106,6 +106,11 @@ test("canonical capacity aggregation requires one artifact and distinct runtimes
   assert.ok(Math.abs(summary.child_cpu_seconds - 0.3) < 1e-12);
   assert.equal(summary.workers[0].last_action.canonical_action.label, "last-runtime-a");
   assert.equal(summary.workers[0].last_action.detail, "settled");
+  const completeSummary = summarizeManagedPlayerEnvironmentCapacityGroup([
+    capacityWorker("runtime-c", 100, 100, 2_100, "bounded_player_environment_measured"),
+    capacityWorker("runtime-d", 200, 110, 2_110, "bounded_player_environment_measured")
+  ], 3);
+  assert.equal(completeSummary.status, "measured_canonical_unqualified");
   assert.throws(() => summarizeManagedPlayerEnvironmentCapacityGroup([
     capacityWorker("runtime-a", 1, 0, 1),
     capacityWorker("runtime-a", 1, 0, 1)

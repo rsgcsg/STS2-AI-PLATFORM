@@ -104,7 +104,7 @@ and [seed/differential/supervisor closeout](evidence/WINDOWS_REFERENCE_SEED_DIFF
 ## Managed Exact Candidate Evidence
 
 The rebuilt macOS arm64 candidate uses upstream `d11aa883...`, current semantic
-patch `d136d4b...`, Host artifact `126ae0c...` / MVID `3fbeec1b...`, and the
+patch `53cf5872...`, Host artifact `b0794fe7...` / MVID `badc4c67...`, and the
 byte-identical exact `v0.111.0` game assembly `9cb4f1a...` / MVID
 `57785517...`.
 
@@ -117,7 +117,8 @@ byte-identical exact `v0.111.0` game assembly `9cb4f1a...` / MVID
   a 12-action first-map prefix;
 - ten current-artifact fair-player episodes delivered 2,129/2,129 actions plus
   3,944 Reads with ten matched game-owned seeds, zero unknown, and ten
-  `game_over` boundaries;
+  `game_over` boundaries; all 2,129 action decisions and final successors had
+  complete stable Player Environment information;
 - clean-source serial profiling measured `D_engine`, `D_train`, and `D_qual` at
   `297.66`, `234.25`, and `213.25 d/s` mean respectively;
 - the shared-supervisor training profile measured `256.32/506.93/992.41/
@@ -126,11 +127,13 @@ byte-identical exact `v0.111.0` game assembly `9cb4f1a...` / MVID
 - per-worker Node supervisors did not improve throughput and materially
   increased memory; raw JSON serialization added only `0.069 ms/decision`.
 
-The projection remains explicitly partial for persistent run identity and
-stable hover/modifier facts. The fixed windows do not prove randomized or
-high-risk semantic equivalence. These results establish a fast candidate and
-ordinary terminal lifecycle, not complete gameplay, H1.0, or Training Ready.
+The bounded corpus now includes game-owned persistent hover facts and localized
+rest option descriptions. It does not prove unexercised content or randomized
+and high-risk semantic equivalence. These results establish a fast candidate,
+ordinary terminal lifecycle, and bounded stable information closure, not
+complete gameplay, H1.0, or Training Ready.
 See the [reward/lifecycle closeout](evidence/MANAGED_EXACT_REWARD_LIFECYCLE_AND_CROSS_HOST_2026-08-22.md)
+and [stable information closeout](evidence/MANAGED_EXACT_STABLE_INFORMATION_CLOSURE_2026-08-22.md)
 and [managed exact closeout](evidence/MANAGED_EXACT_NATIVE_REWARDS_TREASURE_AND_CAPACITY_2026-08-17.md).
 The performance and Host-route interpretation is in the
 [performance route closeout](evidence/MANAGED_HOST_PERFORMANCE_ROUTE_SELECTION_2026-08-21.md).

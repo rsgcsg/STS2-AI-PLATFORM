@@ -31,7 +31,7 @@ Modset, process, profile, and verdict identities separately.
 - `src/semantic-differential.mjs`: same-artifact canonical comparison and first divergence;
 - `src/json-line-process.mjs`: single-flight managed candidate transport and diagnostics;
 - `src/managed-candidate.mjs`: exact upstream preparation, audit and raw experimental probes;
-- `src/managed-player-environment.mjs`: strict partial canonical projection,
+- `src/managed-player-environment.mjs`: canonical Player Environment projection,
   Host-local bindings, stale/idempotency ledger and unknown-no-retry shell;
 - `src/managed-player-environment-probe.mjs`: strategy-free measurement harness
   plus a small deterministic test consumer;

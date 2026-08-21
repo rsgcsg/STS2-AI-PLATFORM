@@ -61,8 +61,9 @@ No backend currently qualifies. The claim requires all of:
    about `1,373-1,687 d/s` at six to eight workers. One current same-seed
    map/combat/reward prefix and one later reward-to-map-to-combat window now
    match Reference. Ten fixed managed seeds reach `game_over`, so ordinary
-   lifecycle is no longer the immediate blocker; breadth, information closure,
-   reliability, an external consumer, learning and transfer are.
+   lifecycle is no longer the immediate blocker, and all 2,129 decisions in
+   that bounded corpus now report complete stable information. Breadth,
+   reliability, an external consumer, learning and transfer remain open.
 4. Treat Managed Exact v2 only as narrow allocation, projection and lifecycle
    work while the exact game assembly continues to own rules, RNG, effects and
    Commit. Do not prioritize JSON rewrites or sharded Node supervisors.

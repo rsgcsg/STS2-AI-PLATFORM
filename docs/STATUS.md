@@ -49,14 +49,14 @@ Current managed exact candidate:
 - a reproducible patch ledger now rebuilds the pinned upstream against the
   unmodified exact macOS `v0.111.0` assembly instead of applying a global IL
   rewrite;
-- its partial canonical Player Environment path preserves snapshot binding,
+- its canonical Player Environment path preserves snapshot binding,
   Host-local native operands, finite actions, idempotency and
   unknown-no-retry;
 - native combat rewards and treasure selection now retain game-owned
   generation, legality, vote/RNG and Commit rather than manually choosing or
   settling them;
-- the current semantic artifact is patch `d136d4b...`, Host `126ae0c...` /
-  MVID `3fbeec1b...`, with the exact byte-identical STS2
+- the current semantic artifact is patch `53cf5872...`, Host `b0794fe7...` /
+  MVID `badc4c67...`, with the exact byte-identical STS2
   assembly `9cb4f1a...` / MVID `57785517...`;
 - fresh current-source windows measured `D_engine` at `345.88 d/s` hot-loop,
   `D_train` at `208.87 d/s`, and strict `D_qual` at `183.25 d/s` mean; these
@@ -70,15 +70,18 @@ Current managed exact candidate:
   part of the ceiling. Native lifecycle plus about `0.71 MB/decision` allocation
   dominate. Managed Exact v2 is the preferred route for narrow lifecycle and
   allocation work, not a semantic rewrite;
-- exact Candidate SHA `126ae0c...` passed 26/26 native identity/Commit/
+- exact Candidate SHA `b0794fe7...` passed 26/26 native identity/Commit/
   localization/treasure gates, completed ten fixed-seed ordinary lifecycles
   with 2,129/2,129 actions and 3,944 Reads, and matched shipped Reference
   Connector source `99f09a7...`, artifact `99d5df9...`, MVID `e7b2be84...`
   for one fixed same-seed reward/map/combat semantic window;
-- this route is still partial and unqualified: randomized/high-risk and broad
-  CrossHost evidence, persistent information closure, 1M+ reliability,
-  external consumption, learning and Reference transfer are absent, and its
-  TestMode/runtime projection seams remain critical risks.
+- all 2,129 action decisions in that ten-seed corpus now have complete stable
+  Player Environment information, including game-owned relic/potion/modifier
+  hover facts and localized rest option text;
+- this route remains unqualified: randomized/high-risk and broad CrossHost
+  evidence, 1M+ reliability, external consumption, learning and Reference
+  transfer are absent, and its TestMode/runtime projection seams remain
+  critical risks.
 
 Current isolation boundary:
 
@@ -112,7 +115,7 @@ Current blockers:
 - reproducible RC Host/SDK publication: current local RC evidence cannot be
   reproduced by the stable dependency lock, and `npm ls` correctly reports the
   local `1.0.0-rc.1` SDK as invalid against the pinned public `1.0.0` spec;
-- broad semantic qualification, persistent information closure, 1M+
+- broad semantic qualification, 1M+
   reliability and real learning/policy-transfer evidence for the now-fast
   managed candidate;
 - physical P/E-core affinity, real learner contention, high-core and cluster

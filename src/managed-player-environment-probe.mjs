@@ -340,6 +340,14 @@ export async function runManagedPlayerEnvironmentProbe({
   const resources = sampler == null ? { samples: [], errors: [] } : await sampler.stop();
   const exit = await started.session.close();
   const delivered = actionsDelivered;
+  const canonicalActionEvents = events.filter((event) => event.type === "action");
+  const completeCanonicalDecisions = canonicalActionEvents.filter((event) =>
+    event.canonical_decision?.completeness?.status === "complete").length;
+  const partialCanonicalDecisions = canonicalActionEvents.length - completeCanonicalDecisions;
+  const boundedCanonicalInformationComplete = canonicalEvidence
+    && canonicalActionEvents.length === actionsAttempted
+    && partialCanonicalDecisions === 0
+    && snapshot?.completeness?.status === "complete";
   const windowSeconds = decisionStarted == null || decisionEnded == null
     ? null
     : (decisionEnded - decisionStarted) / 1000;
@@ -352,7 +360,9 @@ export async function runManagedPlayerEnvironmentProbe({
     status: failure != null
       ? "candidate_failure"
       : stopReason === "action_limit" || stopReason === "game_over" || stopReason === "episodes_complete"
-        ? "bounded_partial_player_environment_measured"
+        ? boundedCanonicalInformationComplete
+          ? "bounded_player_environment_measured"
+          : "bounded_partial_player_environment_measured"
         : "fail_closed",
     headless: readProjectIdentity(root),
     system_identity: readSystemIdentity(),
@@ -384,6 +394,13 @@ export async function runManagedPlayerEnvironmentProbe({
       canonical_actions_attempted: actionsAttempted,
       canonical_actions_delivered: delivered,
       canonical_reads_completed: readsCompleted,
+      canonical_information: {
+        action_decisions_observed: canonicalActionEvents.length,
+        complete_action_decisions: completeCanonicalDecisions,
+        partial_action_decisions: partialCanonicalDecisions,
+        final_snapshot_complete: snapshot?.completeness?.status === "complete",
+        bounded_complete: boundedCanonicalInformationComplete
+      },
       episodes,
       final_snapshot: snapshot == null ? null : {
         status: snapshot.status,
@@ -392,7 +409,9 @@ export async function runManagedPlayerEnvironmentProbe({
       }
     },
     performance: {
-      unit: "canonical_player_environment_decision_partial_unqualified",
+      unit: boundedCanonicalInformationComplete
+        ? "canonical_player_environment_decision_unqualified"
+        : "canonical_player_environment_decision_partial_unqualified",
       profile: profileName,
       process_startup_seconds: decisionStarted == null ? null : (decisionStarted - processStarted) / 1000,
       decision_window_started_ms: decisionStarted,
@@ -526,17 +545,25 @@ export function summarizeManagedPlayerEnvironmentCapacityGroup(results, groupWal
     ?? parentPerformance?.cpu_seconds
     ?? 0;
   const totalMeasuredCpuSeconds = childCpuSeconds + nodeCpuSeconds;
+  const measuredWorkerStatuses = new Set([
+    "bounded_player_environment_measured",
+    "bounded_partial_player_environment_measured"
+  ]);
   const workersMeasured = reports.every((report) =>
-    report.status === "bounded_partial_player_environment_measured"
+    measuredWorkerStatuses.has(report.status)
     && report.episode.failure == null
     && report.episode.seed_provenance === "game_reported_match"
     && report.episode.episodes_completed === report.episode.episodes_requested
     && report.episode.canonical_actions_attempted === report.episode.canonical_actions_delivered
     && report.episode.episodes.every((episode) =>
       episode.terminal === "game_over" || episode.terminal === "action_limit"));
+  const allWorkersInformationComplete = reports.every((report) =>
+    report.status === "bounded_player_environment_measured");
   return {
     status: workersMeasured && commonWindowSeconds > 0
-      ? "measured_canonical_partial_unqualified"
+      ? allWorkersInformationComplete
+        ? "measured_canonical_unqualified"
+        : "measured_canonical_partial_unqualified"
       : "measurement_incomplete",
     worker_count: reports.length,
     exact_identity: identities[0],

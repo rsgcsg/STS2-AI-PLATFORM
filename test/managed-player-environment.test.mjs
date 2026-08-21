@@ -121,6 +121,89 @@ test("projects complete map topology and persistent visible state without exposi
   assert.equal([...projection.bindings.values()][0].raw_request.args.map_point_ref, "map-point-a");
 });
 
+test("projects stable player-visible hover facts without leaking native operands", () => {
+  const baseState = {
+    type: "decision",
+    decision: "game_over",
+    victory: false,
+    context: {
+      act: 1,
+      act_index: 0,
+      act_definition_id: "OVERGROWTH",
+      act_name: "Overgrowth",
+      floor: 2,
+      total_floor: 2,
+      ascension: 0,
+      bosses: [{ id: "VANTOM_BOSS", name: "Vantom", order: 0 }],
+      modifiers: [{
+        id: "CUSTOM_MODIFIER",
+        name: "Custom Modifier",
+        description: "A visible modifier.",
+        keywords: [{ name: "Strength", description: "Increases attack damage." }],
+        card_previews: [],
+        hover_facts_complete: true
+      }]
+    },
+    player: {
+      ...player(),
+      native_ref: "player-a",
+      character_id: "IRONCLAD",
+      max_potion_slots: 3,
+      relics: [{
+        native_ref: "relic-a",
+        id: "BAG_OF_PREPARATION",
+        name: "Bag of Preparation",
+        description: "Draw 2 additional cards.",
+        keywords: [],
+        card_previews: [{
+          id: "CARD.STRIKE_IRONCLAD",
+          name: "Strike",
+          type: "Attack",
+          cost: "1",
+          description: "Deal 6 damage.",
+          rarity: "Basic",
+          is_upgraded: false
+        }],
+        hover_facts_complete: true
+      }],
+      potions: [{
+        native_ref: "potion-a",
+        id: "STRENGTH_POTION",
+        name: "Strength Potion",
+        description: "Gain 2 Strength.",
+        slot: 0,
+        keywords: [{ name: "Strength", description: "Increases attack damage." }],
+        card_previews: [],
+        hover_facts_complete: true
+      }]
+    }
+  };
+  const projection = projectManagedCandidateDecision({
+    ...projectionIdentity,
+    state: baseState
+  });
+  assert.equal(decodePlayerSnapshot(projection.snapshot).data.completeness.status, "complete");
+  assert.equal(projection.snapshot.persistent.content.run.modifiers[0].keywords[0].name, "Strength");
+  assert.equal(projection.snapshot.persistent.content.player.relics[0].card_previews[0].name, "Strike");
+  assert.equal(projection.snapshot.persistent.content.player.potions[0].keywords[0].description,
+    "Increases attack damage.");
+  assert.equal(JSON.stringify(projection.snapshot).includes("relic-a"), false);
+  assert.equal(JSON.stringify(projection.snapshot).includes("potion-a"), false);
+
+  const incomplete = projectManagedCandidateDecision({
+    ...projectionIdentity,
+    state: {
+      ...baseState,
+      player: {
+        ...baseState.player,
+        potions: [{ ...baseState.player.potions[0], hover_facts_complete: false }]
+      }
+    }
+  });
+  assert.equal(incomplete.snapshot.persistent, null);
+  assert.deepEqual(incomplete.snapshot.completeness.missing, ["persistent_hover_or_modifier_facts"]);
+});
+
 test("projects combat reward completion as a state-bound player proceed", () => {
   const projection = projectManagedCandidateDecision({
     ...projectionIdentity,
@@ -143,6 +226,32 @@ test("projects combat reward completion as a state-bound player proceed", () => 
     args: { room_ref: "boss-room-a" },
     cmd: "action"
   });
+});
+
+test("projects game-owned rest option text and native actionability", () => {
+  const projection = projectManagedCandidateDecision({
+    ...projectionIdentity,
+    state: {
+      type: "decision",
+      decision: "rest_site",
+      context: { act: 1, floor: 5, room_type: "RestSite" },
+      options: [
+        { index: 0, option_id: "REST", name: "Rest", description: "Heal 24 HP.", is_enabled: true },
+        { index: 1, option_id: "SMITH", name: "Smith", description: "Upgrade a card.", is_enabled: false }
+      ],
+      player: player()
+    }
+  });
+  assert.equal(projection.snapshot.interaction.kind, "rest_site");
+  assert.deepEqual(projection.snapshot.interaction.content.surface.options.map((option) => ({
+    name: option.name,
+    description: option.description,
+    is_enabled: option.is_enabled
+  })), [
+    { name: "Rest", description: "Heal 24 HP.", is_enabled: true },
+    { name: "Smith", description: "Upgrade a card.", is_enabled: false }
+  ]);
+  assert.deepEqual(projection.snapshot.bound_actions.actions.map((action) => action.label), ["Rest"]);
 });
 
 test("projects native reward sets without exposing exact reward or room operands", () => {
