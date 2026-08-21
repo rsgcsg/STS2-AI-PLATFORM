@@ -45,6 +45,10 @@ test("Reference JSONL requests preserve exact action and snapshot bindings", asy
       calls.push(input);
       return { delivery: "delivered" };
     },
+    provenance: async () => ({
+      runtime_instance_id: "runtime-1",
+      episode_provenance: { verdict: "provenance_pass", actual_seed: "EXACTSEED" }
+    }),
     close: async () => ({ code: 0, signal: null })
   };
   const reset = await handleReferenceDriverRequest(session, {
@@ -64,4 +68,8 @@ test("Reference JSONL requests preserve exact action and snapshot bindings", asy
     expectedSnapshotId: "snapshot-current",
     boundActionId: "bound-action-1"
   }]);
+  const identity = await handleReferenceDriverRequest(session, {
+    command: "episode_identity", request_id: "transport-3"
+  });
+  assert.equal(identity.identity.episode_provenance.verdict, "provenance_pass");
 });

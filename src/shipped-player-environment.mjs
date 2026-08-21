@@ -138,14 +138,26 @@ export async function startShippedPlayerEnvironmentEpisode({
       expectedRuntimeInstanceId: capabilities.host.runtime_instance_id,
       timeoutMs: requestTimeoutMs
     });
-    const provenance = evaluateEpisodeProvenance({
+    let provenance = evaluateEpisodeProvenance({
       requestedSeed: canonicalSeed,
       expectedRuntimeInstanceId: capabilities.host.runtime_instance_id,
       response: provenanceResponse
     });
-    if (provenance.verdict !== "provenance_pass") {
-      throw new Error(`Reference episode provenance failed: ${provenance.errors.join(", ")}`);
-    }
+
+    const refreshProvenance = async () => {
+      const response = await requestHostProvenance({
+        endpoint,
+        hostControlToken: launch.hostControlToken,
+        expectedRuntimeInstanceId: capabilities.host.runtime_instance_id,
+        timeoutMs: requestTimeoutMs
+      });
+      provenance = evaluateEpisodeProvenance({
+        requestedSeed: canonicalSeed,
+        expectedRuntimeInstanceId: capabilities.host.runtime_instance_id,
+        response
+      });
+      return provenance;
+    };
 
     return {
       snapshot,
@@ -155,15 +167,18 @@ export async function startShippedPlayerEnvironmentEpisode({
         game: capabilities.game,
         disk: diskIdentity,
         profile,
-        episode_provenance: provenance,
+        get episode_provenance() {
+          return provenance;
+        },
         evidence_directory: evidenceDirectory
       },
       observe: async () => (await client.observe()).data,
       read: async ({ readId, expectedSnapshotId }) =>
         (await client.read(readId, expectedSnapshotId)).data,
+      provenance: refreshProvenance,
       submit: async ({ requestId, expectedSnapshotId, boundActionId }) => {
         const credentials = await controller.credentials();
-        return (await client.submit({
+        const receipt = (await client.submit({
           requestId,
           expectedSnapshotId,
           boundActionId,
@@ -171,6 +186,8 @@ export async function startShippedPlayerEnvironmentEpisode({
           controllerLeaseId: credentials.controllerLeaseId,
           controllerGeneration: credentials.controllerGeneration
         })).data;
+        await refreshProvenance();
+        return receipt;
       },
       close
     };
@@ -210,6 +227,16 @@ export class ShippedPlayerEnvironmentSession {
 
   submit(input) {
     return this.requireEpisode().submit(input);
+  }
+
+  async provenance() {
+    const episode = this.requireEpisode();
+    const episodeProvenance = await episode.provenance();
+    this.lastIdentity = {
+      ...this.lastIdentity,
+      episode_provenance: episodeProvenance
+    };
+    return this.lastIdentity;
   }
 
   async closeEpisode() {

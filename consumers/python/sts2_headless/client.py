@@ -102,6 +102,9 @@ class ManagedPlayerEnvironment:
             mutation_request_id=request_id or uuid4().hex,
         )["receipt"]
 
+    def episode_identity(self) -> Mapping[str, Any]:
+        return self._exchange("episode_identity")["identity"]
+
     def close(self, force: bool = False) -> None:
         if self._closed:
             return

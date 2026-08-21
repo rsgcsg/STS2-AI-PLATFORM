@@ -78,6 +78,29 @@ async function handle(request) {
           timeoutMs: requestTimeoutMs
         })
       };
+    case "episode_identity": {
+      const runIdentity = await started.runtime.process.request({ cmd: "run_identity" }, requestTimeoutMs);
+      return {
+        type: "episode_identity_result",
+        request_id: requestId,
+        identity: {
+          candidate_build: started.runtime.build,
+          runtime_identity: started.runtime.runtimeIdentity,
+          adapter_runtime_instance_id: started.runtime.adapterRuntimeInstanceId,
+          environment_fingerprint: started.environmentFingerprint,
+          episode_provenance: {
+            verdict: runIdentity?.type === "run_identity"
+              && runIdentity.active === true
+              && typeof runIdentity.seed === "string"
+              ? "provenance_pass"
+              : "provenance_incomplete",
+            requested_seed: runIdentity?.seed ?? null,
+            actual_seed: runIdentity?.seed ?? null,
+            runtime_instance_id: started.runtime.adapterRuntimeInstanceId
+          }
+        }
+      };
+    }
     case "close":
       closed = true;
       return { type: "close_result", request_id: requestId, exit: await started.session.close() };

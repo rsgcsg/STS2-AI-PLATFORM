@@ -51,6 +51,12 @@ export async function handleReferenceDriverRequest(session, request) {
           boundActionId: request.bound_action_id
         })
       };
+    case "episode_identity":
+      return {
+        type: "episode_identity_result",
+        request_id: requestId,
+        identity: await session.provenance()
+      };
     case "close":
       return { type: "close_result", request_id: requestId, exit: await session.close() };
     default:

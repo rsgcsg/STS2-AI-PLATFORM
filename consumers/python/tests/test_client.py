@@ -27,6 +27,8 @@ for line in sys.stdin:
         print(json.dumps({**base,"type":"read_result","read":{"kind":"detail"}}), flush=True)
     elif request["command"] == "step":
         print(json.dumps({**base,"type":"step_result","receipt":{"delivery":"delivered","successor":snapshot}}), flush=True)
+    elif request["command"] == "episode_identity":
+        print(json.dumps({**base,"type":"episode_identity_result","identity":{"episode_provenance":{"verdict":"provenance_pass","actual_seed":"SEED"}}}), flush=True)
     elif request["command"] == "close":
         print(json.dumps({**base,"type":"close_result","exit":{"code":0}}), flush=True)
         break
@@ -42,6 +44,7 @@ class ClientTest(unittest.TestCase):
             receipt = environment.step(view.action_ids[0], view.snapshot_id)
             self.assertEqual(receipt["delivery"], "delivered")
             self.assertEqual(environment.observe()["snapshot_id"], "s1")
+            self.assertEqual(environment.episode_identity()["episode_provenance"]["actual_seed"], "SEED")
 
     def test_rejects_incomplete_action_projection(self):
         with self.assertRaises(DriverError):
