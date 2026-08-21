@@ -78,6 +78,10 @@ Current managed exact candidate:
 - all 2,129 action decisions in that ten-seed corpus now have complete stable
   Player Environment information, including game-owned relic/potion/modifier
   hover facts and localized rest option text;
+- clean source `9e282de` completed ten same-seed reset episodes with 1,670
+  deliveries, 3,110 Reads, 9/9 prior-episode stale refusals and 10/10 exact
+  duplicate Receipt replays; an injected ambiguous transport loss then closed
+  authority and recovered only through a distinct exact process/runtime;
 - this route remains unqualified: randomized/high-risk and broad CrossHost
   evidence, 1M+ reliability, external consumption, learning and Reference
   transfer are absent, and its TestMode/runtime projection seams remain
@@ -115,7 +119,7 @@ Current blockers:
 - reproducible RC Host/SDK publication: current local RC evidence cannot be
   reproduced by the stable dependency lock, and `npm ls` correctly reports the
   local `1.0.0-rc.1` SDK as invalid against the pinned public `1.0.0` spec;
-- broad semantic qualification, 1M+
+- broad semantic qualification, post-Commit Outcome-loss injection, 1M+
   reliability and real learning/policy-transfer evidence for the now-fast
   managed candidate;
 - physical P/E-core affinity, real learner contention, high-core and cluster

@@ -64,6 +64,9 @@ No backend currently qualifies. The claim requires all of:
    lifecycle is no longer the immediate blocker, and all 2,129 decisions in
    that bounded corpus now report complete stable information. Breadth,
    reliability, an external consumer, learning and transfer remain open.
+   Same-state authority rotation, exact duplicate Receipt replay, ambiguous
+   transport unknown-no-retry and exact process replacement now pass bounded
+   current-source gates; long reliability remains open.
 4. Treat Managed Exact v2 only as narrow allocation, projection and lifecycle
    work while the exact game assembly continues to own rules, RNG, effects and
    Commit. Do not prioritize JSON rewrites or sharded Node supervisors.

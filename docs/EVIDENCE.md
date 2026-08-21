@@ -119,6 +119,11 @@ byte-identical exact `v0.111.0` game assembly `9cb4f1a...` / MVID
   3,944 Reads with ten matched game-owned seeds, zero unknown, and ten
   `game_over` boundaries; all 2,129 action decisions and final successors had
   complete stable Player Environment information;
+- clean source `9e282de` additionally completed ten identical-seed resets with
+  1,670/1,670 deliveries, 3,110 Reads, 9/9 old-authority stale refusals and
+  10/10 exact duplicate Receipt replays; a separate process-loss drill returned
+  terminal `unknown`, closed that runtime's authority and recovered through a
+  distinct exact process/runtime;
 - clean-source serial profiling measured `D_engine`, `D_train`, and `D_qual` at
   `297.66`, `234.25`, and `213.25 d/s` mean respectively;
 - the shared-supervisor training profile measured `256.32/506.93/992.41/

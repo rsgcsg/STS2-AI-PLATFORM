@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sts2-headless-client"
+version = "0.1.0"
+description = "Strategy-free Python consumer for the STS2 Headless Player Environment"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+
+[project.scripts]
+sts2-headless-smoke = "sts2_headless.smoke:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["sts2_headless*"]

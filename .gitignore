@@ -8,3 +8,5 @@ obj/
 lib/
 game/
 artifacts/
+__pycache__/
+*.pyc
