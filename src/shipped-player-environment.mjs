@@ -38,6 +38,44 @@ function childReference(child) {
   };
 }
 
+function stableSuccessor(snapshot, expectedSnapshotId) {
+  return snapshot != null
+    && snapshot.snapshot_id !== expectedSnapshotId
+    && snapshot.status !== "settling";
+}
+
+export async function settleReferenceReceipt({
+  receipt,
+  expectedSnapshotId,
+  observe,
+  child,
+  timeoutMs,
+  pollIntervalMs = 100
+}) {
+  if (receipt?.delivery !== "delivered") return receipt;
+  if (stableSuccessor(receipt.successor, expectedSnapshotId)) return receipt;
+  const started = Date.now();
+  let latest = receipt.successor ?? null;
+  while (Date.now() - started < timeoutMs) {
+    if (child.exitCode != null || child.signalCode != null) break;
+    latest = await observe();
+    if (stableSuccessor(latest, expectedSnapshotId)) {
+      return {
+        ...receipt,
+        successor: latest,
+        successor_observation: "driver_observed_after_delivery"
+      };
+    }
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
+  }
+  return {
+    ...receipt,
+    successor: null,
+    successor_observation: "timeout_after_delivered_input",
+    last_observed_successor: latest
+  };
+}
+
 async function closeStreams(streams) {
   for (const stream of streams) stream.end();
   await Promise.allSettled(streams.map((stream) => finished(stream)));
@@ -186,8 +224,15 @@ export async function startShippedPlayerEnvironmentEpisode({
           controllerLeaseId: credentials.controllerLeaseId,
           controllerGeneration: credentials.controllerGeneration
         })).data;
+        const settled = await settleReferenceReceipt({
+          receipt,
+          expectedSnapshotId,
+          observe: async () => (await client.observe()).data,
+          child,
+          timeoutMs: requestTimeoutMs
+        });
         await refreshProvenance();
-        return receipt;
+        return settled;
       },
       close
     };

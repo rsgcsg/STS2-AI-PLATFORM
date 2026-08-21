@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ShippedPlayerEnvironmentSession } from "../src/shipped-player-environment.mjs";
+import {
+  settleReferenceReceipt,
+  ShippedPlayerEnvironmentSession
+} from "../src/shipped-player-environment.mjs";
 import { handleReferenceDriverRequest } from "../tools/reference-pe-driver.mjs";
 
 function fakeEpisode(seed, events) {
@@ -72,4 +75,29 @@ test("Reference JSONL requests preserve exact action and snapshot bindings", asy
     command: "episode_identity", request_id: "transport-3"
   });
   assert.equal(identity.identity.episode_provenance.verdict, "provenance_pass");
+});
+
+test("Reference delivery observes settling without retrying the mutation", async () => {
+  const observed = [
+    { snapshot_id: "before", status: "settling" },
+    { snapshot_id: "after", status: "interactive" }
+  ];
+  let polls = 0;
+  const receipt = await settleReferenceReceipt({
+    receipt: {
+      request_id: "mutation-1",
+      delivery: "delivered",
+      successor: { snapshot_id: "before", status: "settling" }
+    },
+    expectedSnapshotId: "before",
+    observe: async () => observed[polls++],
+    child: { exitCode: null, signalCode: null },
+    timeoutMs: 50,
+    pollIntervalMs: 0
+  });
+  assert.equal(receipt.delivery, "delivered");
+  assert.equal(receipt.request_id, "mutation-1");
+  assert.equal(receipt.successor.snapshot_id, "after");
+  assert.equal(receipt.successor_observation, "driver_observed_after_delivery");
+  assert.equal(polls, 2);
 });
