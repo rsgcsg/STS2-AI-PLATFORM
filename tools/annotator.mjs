@@ -25,6 +25,7 @@ const runtimeStatus = path.join(local, "runtime-status.json");
 const canaryPath = path.join(local, "exact-modset-canary.json");
 const provenancePath = path.join(local, "build-provenance.json");
 const manifestSource = path.join(root, "src", "STS2HumanAnnotator.Mod", "mod_manifest.json");
+const steamAppId = "2868840";
 
 const command = process.argv[2] || "doctor";
 const args = process.argv.slice(3);
@@ -251,6 +252,8 @@ function launch() {
   if (!fs.existsSync(executable))
     throw new Error(`The macOS game executable is absent: ${executable}`);
   const env = { ...process.env };
+  env.SteamAppId ??= steamAppId;
+  env.SteamGameId ??= steamAppId;
   if (fs.existsSync(canaryPath)) {
     const canary = readJson(canaryPath);
     env.STS2_CONNECTOR_EXPERIMENTAL_SOURCE_REVISION = canary.connector_source_revision;
