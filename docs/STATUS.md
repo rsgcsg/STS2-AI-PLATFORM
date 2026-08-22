@@ -33,18 +33,21 @@ different complete interactive successor.
 That run reduced the prior 22 queue-driven pre-frame misses to four clicks made
 without any stable complete S. It also exposed four `mapping_zero` plays:
 `TryPlayCard` ran after the selected holder had already left the active hand.
-Current source stages the exact frame at `NPlayerHand.StartCardPlay` and accepts
-it later only for the same card/runtime/environment/interaction and an
-exact-unique final target. The 64 predecessor records prove the queue-aware
-Connector, witness, root filtering and downstream data path; they do not
-validate this new Recorder source artifact.
+Source `6d474ce...` staged the exact frame at `NPlayerHand.StartCardPlay` and a
+second owner-operated run admitted 106 records: 35 targeted plays, 48
+untargeted plays and 23 end turns. Audit/export and strict STPD B0 passed with
+zero rejected records. Five actions had no complete S and failed closed; one
+following action exposed that the old generic latest-frame fallback could cross
+a turn boundary. Current source removes that fallback. The 106 records prove
+same-card staging and the downstream path, but do not validate the final
+fallback-deletion source artifact.
 
 ## Pending Exact Runtime Evidence
 
-- current Annotator source build/install/cold-load identity with Connector
-  source `2a14504...`;
+- current fallback-deletion Annotator source build/install/cold-load identity
+  with Connector source `2a14504...`;
 - an untargeted card, targeted card and end-turn accepted through the native UI
-  with zero systematic `mapping_zero` invalidations;
+  without a generic latest-frame authority path;
 - exact one-to-one mapping, stable successor, audit/export, and STPD import from
   those real records;
 - no observable gameplay interference during a bounded ordinary run.

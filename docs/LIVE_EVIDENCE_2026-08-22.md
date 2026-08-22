@@ -1,5 +1,38 @@
 # Live Evidence: 2026-08-22
 
+## Staged-Card Artifact
+
+- session: `session-20260822T165516Z-acdf97684d244f1e97b6088c342b64ce`;
+- Connector source: `2a14504fffe2cf6fc21298dcb5e4084b9ac27ef1`;
+- Connector artifact SHA-256:
+  `f991eab77f846416468fcaaa014565912d7ee547ee7848cc46d24735c4ac2040`;
+- Connector MVID: `5b35e8ad-4f52-4dae-a551-17efc06547fb`;
+- Annotator source: `6d474ce93116bc0e2c3c6236c170da574b8f5d51`;
+- Annotator artifact SHA-256:
+  `5a61ebb2baab34f0b2eaa41a9aa4106fd070a541fba1aa0e7abdd20c007d8b9b`;
+- Annotator MVID: `2234467d-fee7-4d83-9c24-db8f7e5ca658`;
+- runtime instance: `3b6b160356d84310b860a2073dd4d1f3`;
+- Modset fingerprint:
+  `043689451b721fdda3791d8b6f519f03bcbe444a27119b4e81af73ef831852e8`.
+
+The owner-operated run admitted 106 ordinary-combat transitions: 83 plays,
+split into 35 targeted and 48 untargeted plays, plus 23 end turns. Every record
+had a complete interactive pre-frame, an exact-unique process-local mapping, a
+catalog of 1 through 18 BoundActions and a different complete interactive
+successor. Successors covered combat turns, combat-hand card selection and
+reward claim. Independent audit accepted 106 and rejected zero. Deterministic
+export SHA-256 is
+`05c52ad223b6e8e19f1fe300de63edb9c9090503ff255747a8537fefa64c5f10`;
+strict STPD import accepted all 106, rejected zero and passed B0 as manifest
+`dataset-8af38f14ec1a7611` with one exact environment.
+
+Five native card starts had no complete interactive S and failed closed. A
+sixth action followed one of those unstable starts and reached `mapping_zero`:
+same-card staging was unavailable, but the intermediate generic latest-frame
+fallback still admitted an older same-interaction catalog. The current
+successor source deletes that fallback. This run proves staged-card timing and
+the downstream path, but is predecessor evidence for the fallback deletion.
+
 ## Queue-Aware Combat Artifact
 
 - session: `session-20260822T164124Z-abefd960a8144166b5d890cb4dfd7c61`;
@@ -68,10 +101,11 @@ correction reduced the earlier systematic queue misses.
 - four end-turn attempts also failed closed before an authoritative frame was
   available.
 
-The two systematic Recorder defects are fixed in the successor source by using
-the latest same-interaction authoritative frame and admitting one expected root
-action per native UI scope. This evidence belongs only to the exact predecessor
-artifact above.
+The intermediate successor used a latest same-interaction frame and admitted
+one expected root action per native UI scope. Later exact-runtime evidence
+showed that a generic latest-frame fallback could cross a turn boundary, so the
+current source replaces it with same-card staging and otherwise fails closed.
+This evidence belongs only to the exact predecessor artifact above.
 
 ## Non-Claims
 

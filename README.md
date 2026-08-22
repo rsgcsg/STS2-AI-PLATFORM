@@ -15,13 +15,14 @@ or expose native references on a wire.
   exact target when present), `end_turn`, append-only recording, independent
   audit/export, exact artifact identity, and fail-closed STPD import.
 - Built from the exact local STS2 `v0.111.0` assembly on macOS arm64.
-- Current exact-runtime evidence validates 64 ordinary-combat records through
-  audit, export and strict STPD B0. It also proved that freezing only at final
-  `TryPlayCard` is too late for four native plays whose holders had already
-  left the active hand. Current source stages the exact frame at native card
-  selection start and consumes it only for the same card/runtime/interaction.
-  Pending for that successor source: its own cold-load and Live validation;
-  predecessor evidence is not transferred across artifacts.
+- Current exact-runtime evidence validates 106 ordinary-combat records through
+  audit, export and strict STPD B0: 35 targeted plays, 48 untargeted plays and
+  23 end turns. Exact staging removed the earlier systematic holder-removal
+  misses. One action attempted without a complete S exposed that the remaining
+  generic latest-frame fallback could cross a turn boundary; current source
+  deletes that fallback. Pending for this final successor source: its own
+  cold-load and short Live validation; predecessor evidence is not transferred
+  across artifacts.
 - Unsupported by this first slice: potions and non-Combat UI actions.
 
 Implementation or build evidence is not human-origin evidence. See
@@ -40,8 +41,9 @@ shipped STS2 UI
   -> STPD fail-closed import and B0
 ```
 
-Zero or multiple matches, no stable pre-frame, runtime drift, overlapping
-actions, or a missing stable successor are quarantined rather than guessed.
+Zero or multiple matches, no current or same-card staged stable pre-frame,
+runtime drift, overlapping actions, or a missing stable successor are
+quarantined rather than guessed.
 
 ## Prerequisites
 

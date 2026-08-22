@@ -16,12 +16,12 @@ namespace STS2HumanAnnotator.Mod;
 
 internal static class RecorderRuntime
 {
-    private sealed record CachedDecisionFrame(
+    private sealed record ExactDecisionFrame(
         ProcessLocalNativeWitnessFrame Frame,
         RecorderEnvironmentIdentity Environment);
 
     private sealed record StagedCardFrame(
-        CachedDecisionFrame Decision,
+        ExactDecisionFrame Decision,
         CardModel Card,
         DateTimeOffset StagedAt);
 
@@ -41,7 +41,6 @@ internal static class RecorderRuntime
     private static AnnotatorConfiguration? _configuration;
     private static RecordingStore? _store;
     private static PendingDecision? _pending;
-    private static CachedDecisionFrame? _latestAuthoritativeFrame;
     private static StagedCardFrame? _stagedCardFrame;
     private static long _sequence;
     private static DateTimeOffset _lastIdleStatusAt;
@@ -89,7 +88,7 @@ internal static class RecorderRuntime
             RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
             var staged = EligibilityBlockers(frame, environment).Count == 0
                 ? new StagedCardFrame(
-                    new CachedDecisionFrame(frame, environment),
+                    new ExactDecisionFrame(frame, environment),
                     card,
                     DateTimeOffset.UtcNow)
                 : null;
@@ -132,8 +131,6 @@ internal static class RecorderRuntime
                 && (expectedAction == null || IsExact(current.Resolve(expectedAction))))
             {
                 selected = current;
-                lock (Gate)
-                    _latestAuthoritativeFrame = new CachedDecisionFrame(current, currentEnvironment);
             }
 
             if (selected == null && expectedAction != null && stagedCard != null)
@@ -151,24 +148,6 @@ internal static class RecorderRuntime
                     && IsExact(staged.Decision.Frame.Resolve(expectedAction)))
                 {
                     selected = staged.Decision.Frame;
-                }
-            }
-
-            if (selected == null && currentBlockers.All(blocker =>
-                         string.Equals(
-                             blocker,
-                             "pre_frame_not_complete_interactive",
-                             StringComparison.Ordinal)))
-            {
-                lock (Gate)
-                {
-                    if (_pending == null
-                        && _latestAuthoritativeFrame is { } cached
-                        && SameDecisionContext(cached, current, currentEnvironment)
-                        && (expectedAction == null || IsExact(cached.Frame.Resolve(expectedAction))))
-                    {
-                        selected = cached.Frame;
-                    }
                 }
             }
 
@@ -251,21 +230,13 @@ internal static class RecorderRuntime
             ProcessLocalNativeWitnessFrame frame = PlayerEnvironmentNativeWitness.Capture();
             RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
             List<string> blockers = EligibilityBlockers(frame, environment);
-            if (blockers.Count == 0)
-            {
-                lock (Gate)
-                    _latestAuthoritativeFrame = new CachedDecisionFrame(frame, environment);
-            }
-            else if (blockers.Any(blocker => !string.Equals(
+            if (blockers.Any(blocker => !string.Equals(
                          blocker,
                          "pre_frame_not_complete_interactive",
                          StringComparison.Ordinal)))
             {
                 lock (Gate)
-                {
-                    _latestAuthoritativeFrame = null;
                     _stagedCardFrame = null;
-                }
             }
 
             if (now - _lastIdleStatusAt < TimeSpan.FromSeconds(1))
@@ -387,8 +358,6 @@ internal static class RecorderRuntime
                 return;
             }
 
-            _latestAuthoritativeFrame = null;
-
             PlayerEnvironmentBoundAction bound = match.BoundAction!;
             long sequence = Interlocked.Increment(ref _sequence);
             string recordId = $"record-{sequence:D8}-{Guid.NewGuid():N}";
@@ -496,14 +465,7 @@ internal static class RecorderRuntime
         _store!.AppendDecision(record);
         RecorderEnvironmentIdentity successorEnvironment = BuildEnvironment(successorFrame);
         lock (Gate)
-        {
             _pending = null;
-            _latestAuthoritativeFrame = EligibilityBlockers(
-                    successorFrame,
-                    successorEnvironment).Count == 0
-                ? new CachedDecisionFrame(successorFrame, successorEnvironment)
-                : null;
-        }
         _runtimeState = "record_appended";
         _detail = record.RecordId;
         WriteStatus(pending.Environment, successor.SnapshotId, Array.Empty<string>());
@@ -575,7 +537,7 @@ internal static class RecorderRuntime
     }
 
     private static bool SameDecisionContext(
-        CachedDecisionFrame cached,
+        ExactDecisionFrame cached,
         ProcessLocalNativeWitnessFrame current,
         RecorderEnvironmentIdentity currentEnvironment) =>
         string.Equals(

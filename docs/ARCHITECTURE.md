@@ -29,10 +29,11 @@ Starting a native card play moves its holder out of the active hand before
 `TryPlayCard(target)` commits. The recorder stages S at `StartCardPlay`, then
 uses it only when the exact same card reference, runtime, environment,
 interaction and target resolve to one frozen BoundAction within 30 seconds.
-The general latest-frame fallback remains restricted to the same interaction
-and a current settling frame. Each scope admits exactly one expected root
-action; game-owned actions caused by that root are ignored rather than
-mislabeled as additional human decisions.
+There is no latest-frame fallback: card play uses only the current exact frame
+or that same-card staged frame, while end turn requires the current exact
+frame. Each scope admits exactly one expected root action; game-owned actions
+caused by that root are ignored rather than mislabeled as additional human
+decisions.
 
 ## Exact Mapping
 
