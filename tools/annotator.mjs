@@ -247,7 +247,9 @@ function admitCurrentModset() {
 function launch() {
   if (gameRunning()) throw new Error("Slay the Spire 2 is already running; cold-load requires a fully closed process.");
   if (process.platform !== "darwin") throw new Error("Automated launch is currently implemented only for macOS.");
-  const executable = path.join(gameDir, "SlayTheSpire2.app", "Contents", "MacOS", "SlayTheSpire2");
+  const executable = path.join(gameDir, "SlayTheSpire2.app", "Contents", "MacOS", "Slay the Spire 2");
+  if (!fs.existsSync(executable))
+    throw new Error(`The macOS game executable is absent: ${executable}`);
   const env = { ...process.env };
   if (fs.existsSync(canaryPath)) {
     const canary = readJson(canaryPath);
