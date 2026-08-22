@@ -41,6 +41,12 @@ tuples. A finite bound action has one optional `subject_referent_id` plus role-l
 `arguments[]`; each reference must exist in the current snapshot. Exact native
 operands stay inside the Host.
 
+The in-process C# assembly additionally offers a non-wire witness API for
+conformance tools. It freezes the public Snapshot plus exact references from
+that observation and can compare an already accepted native action to the
+catalog by reference equality. It is read-only, process-local, not transported,
+and cannot create or deliver a BoundAction.
+
 `bound_actions.status=complete` proves every current finite binding was
 materialized. `truncated` preserves the Snapshot but grants no consumer input
 authority or interaction capability. Every public operand must already name a

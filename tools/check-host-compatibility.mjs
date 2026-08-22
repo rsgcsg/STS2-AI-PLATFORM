@@ -6,6 +6,7 @@ const root = process.cwd();
 const contract = JSON.parse(readFileSync(path.join(root, "contracts", "host-compatibility.json"), "utf8"));
 const source = readFileSync(path.join(root, "host", "Authority", "ExactGameCompatibility.cs"), "utf8");
 const artifactSource = readFileSync(path.join(root, "host", "Authority", "ExactArtifactCompatibility.cs"), "utf8");
+const modsetSource = readFileSync(path.join(root, "host", "LiveHost", "LiveModsetIdentity.cs"), "utf8");
 const failures = [];
 
 if (contract.schema_version !== 1) failures.push("unsupported compatibility schema");
@@ -14,6 +15,9 @@ if (!source.includes(`"${contract.canary_environment_variable}"`)) {
 }
 if (!artifactSource.includes(`"${contract.artifact_canary_environment_variable}"`)) {
   failures.push("C# artifact canary environment variable differs from the compatibility contract");
+}
+if (!modsetSource.includes(`"${contract.observer_modset_canary_environment_variable}"`)) {
+  failures.push("C# observer Modset canary variable differs from the compatibility contract");
 }
 for (const artifact of contract.sealed_artifacts ?? []) {
   for (const value of [artifact.source_revision, artifact.artifact_sha256, artifact.artifact_mvid]) {

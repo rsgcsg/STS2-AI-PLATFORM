@@ -35,6 +35,12 @@ launcher such as STS2-headless.
 | TypeScript SDK | strict decoding, HTTP and controller session mechanics | strategy, normalization, legality or retries of unknown delivery |
 | consumer | strategy, prompts, search, memory and progress interpretation | native operands or mutation authority |
 
+An optional process-local witness seam may freeze one public Snapshot/catalog
+and correlate an already accepted native UI action against the same Host-local
+object bindings. It returns only zero, ambiguous, or exact-unique correlation;
+it cannot execute an action and is absent from REST, MCP, and the SDK. This is
+conformance/recording infrastructure, not a second authority path.
+
 ## Canonical Contract
 
 `contracts/player-environment-contract.json` is the machine-readable protocol
@@ -113,6 +119,12 @@ Capabilities expose exact Host artifact SHA-256/MVID/source revision, runtime
 instance, game identity, main assembly identity and Modset. Observation and
 mutation compatibility are explicit. A new game binary, Modset or Host artifact
 does not inherit old Live evidence automatically.
+
+The normal mutation envelope remains Connector-only. An exact process may
+identify one complete Modset fingerprint containing this Connector plus only
+Mods declared `affects_gameplay=false`. That observer canary requires the full
+fingerprint, remains observation-only, and never becomes mutation authority or
+durable support by declaration.
 
 The installed Mod implementation ID and DLL remain `STS2_MCP` for upgrade and
 rollback compatibility. Current source naming is `STS2Connector`; MCP is only

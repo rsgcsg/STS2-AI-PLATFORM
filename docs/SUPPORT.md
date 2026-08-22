@@ -17,6 +17,14 @@ one Player Environment Host. Other Mods may be observed and reported, but they
 do not automatically inherit mutation support. Support is granted only to an
 explicit exact environment with matching Live evidence.
 
+For bounded observer experiments, one process-local canary may identify an exact
+full Modset fingerprint when every extra loaded Mod declares
+`affects_gameplay=false`. The fingerprint must be discovered from the loaded
+runtime and explicitly replayed on a later cold start. This permits provenance-
+bound observation for that process only. It does not enable Connector mutation,
+grant generic Mod compatibility, qualify the environment, or admit a gameplay-
+affecting Mod.
+
 The HTTP listener is loopback-only. Local controller leases coordinate one
 writer but do not defend against a hostile process on the same OS account.
 

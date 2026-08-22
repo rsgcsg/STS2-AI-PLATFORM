@@ -12,6 +12,8 @@ namespace STS2Connector.LiveHost;
 internal static class LiveModsetIdentity
 {
     internal const string ConnectorModId = "STS2_MCP";
+    internal const string ExperimentalFingerprintEnvironmentVariable =
+        "STS2_CONNECTOR_EXPERIMENTAL_MODSET_FINGERPRINT";
     private const string FingerprintScope =
         "manager_state+ordered_manifest_identity+load_state+source+workshop_id+loaded_assembly_name_version_mvid";
 
@@ -27,7 +29,9 @@ internal static class LiveModsetIdentity
                 managerState,
                 mods,
                 typeof(ConnectorMod).Assembly.ManifestModule.ModuleVersionId.ToString("D"),
-                ConnectorMod.Version);
+                ConnectorMod.Version,
+                System.Environment.GetEnvironmentVariable(
+                    ExperimentalFingerprintEnvironmentVariable));
         }
         catch (Exception ex)
         {
@@ -44,7 +48,8 @@ internal static class LiveModsetIdentity
         string managerState,
         IReadOnlyList<LoadedModIdentity> mods,
         string connectorModuleVersionId,
-        string connectorVersion)
+        string connectorVersion,
+        string? experimentalFingerprint = null)
     {
         string fingerprint = StableIdentityHash.Object(new
         {
@@ -76,6 +81,31 @@ internal static class LiveModsetIdentity
                 FingerprintScope,
                 mods,
                 "ModManager is initialized and the only loaded Mod is this exact STS2Connector assembly.");
+        }
+        bool observerCanary = string.Equals(managerState, "Initialized", StringComparison.Ordinal)
+                              && connector != null
+                              && exactConnectorAssembly
+                              && exactConnectorVersion
+                              && !hazardousDetectedState
+                              && loaded.Length > 1
+                              && loaded.Where(mod => !string.Equals(
+                                      mod.Id,
+                                      ConnectorModId,
+                                      StringComparison.Ordinal))
+                                  .All(mod => !mod.AffectsGameplay)
+                              && !string.IsNullOrWhiteSpace(experimentalFingerprint)
+                              && string.Equals(
+                                  fingerprint,
+                                  experimentalFingerprint,
+                                  StringComparison.Ordinal);
+        if (observerCanary)
+        {
+            return new ModsetIdentity(
+                "canary_exact_observer_modset",
+                fingerprint,
+                FingerprintScope,
+                mods,
+                $"The exact loaded non-gameplay observer Modset matches process-local {ExperimentalFingerprintEnvironmentVariable}.");
         }
         string status = !string.Equals(managerState, "Initialized", StringComparison.Ordinal)
             ? "manager_not_initialized"

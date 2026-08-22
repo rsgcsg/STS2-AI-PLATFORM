@@ -605,6 +605,7 @@ function build(options) {
     "--no-incremental",
     `-p:STS2GameDir=${resolved.gameDir}`,
     `-p:SourceRevision=${source.revision}`,
+    `-p:PlayerEnvironmentSourceDigest=${source.sourceDigest}`,
     "-p:UseSharedCompilation=false",
     "-p:Deterministic=true",
     "-p:ContinuousIntegrationBuild=true",

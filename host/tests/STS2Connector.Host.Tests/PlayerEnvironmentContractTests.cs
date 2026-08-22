@@ -84,6 +84,13 @@ public sealed class PlayerEnvironmentContractTests
             "loaded-sha",
             sourceRevision));
         Assert.False(EnvironmentIdentityRuntime.ExecutionAvailable(
+            game with
+            {
+                Modset = modset with { Status = "canary_exact_observer_modset" }
+            },
+            "loaded-sha",
+            sourceRevision));
+        Assert.False(EnvironmentIdentityRuntime.ExecutionAvailable(
             game with { Modset = null },
             "loaded-sha",
             sourceRevision));
@@ -193,6 +200,48 @@ public sealed class PlayerEnvironmentContractTests
         Assert.Equal("STS2_MCP", LiveModsetIdentity.ConnectorModId);
         Assert.Equal("exact_player_environment_only", exact.Status);
         Assert.Equal("connector_identity_missing", renamedId.Status);
+    }
+
+    [Fact]
+    public void ExactObserverModsetRequiresItsFullFingerprintCanary()
+    {
+        LoadedModIdentity connector = ExactConnectorModset().Mods[0];
+        var observer = new LoadedModIdentity(
+            "STS2_HUMAN_ANNOTATOR",
+            "0.1.0",
+            "Local",
+            "Loaded",
+            false,
+            null,
+            new[]
+            {
+                new LoadedModAssemblyIdentity(
+                    "STS2_HUMAN_ANNOTATOR",
+                    "0.1.0.0",
+                    "00000000-0000-0000-0000-000000000002")
+            });
+        LoadedModIdentity[] mods = { connector, observer };
+        ModsetIdentity closed = LiveModsetIdentity.Evaluate(
+            "Initialized",
+            mods,
+            "00000000-0000-0000-0000-000000000001",
+            ConnectorMod.Version);
+        ModsetIdentity admitted = LiveModsetIdentity.Evaluate(
+            "Initialized",
+            mods,
+            "00000000-0000-0000-0000-000000000001",
+            ConnectorMod.Version,
+            closed.Fingerprint);
+        ModsetIdentity gameplayMod = LiveModsetIdentity.Evaluate(
+            "Initialized",
+            new[] { connector, observer with { AffectsGameplay = true } },
+            "00000000-0000-0000-0000-000000000001",
+            ConnectorMod.Version,
+            closed.Fingerprint);
+
+        Assert.Equal("additional_loaded_mods", closed.Status);
+        Assert.Equal("canary_exact_observer_modset", admitted.Status);
+        Assert.Equal("additional_loaded_mods", gameplayMod.Status);
     }
 
     [Theory]

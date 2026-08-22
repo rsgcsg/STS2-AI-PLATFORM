@@ -75,6 +75,16 @@ process-local canary opt-ins.
 - business completion inferred from a delivery Receipt;
 - transient VFX/SFX/history information closure.
 
+## Unreleased Observer Candidate
+
+Current source includes a generic process-local exact-binding witness and an
+exact non-gameplay-observer Modset canary. Automated tests prove zero/ambiguous
+matching fails closed, only a full fingerprint can identify the observer
+envelope, and that envelope does not enable external Connector mutation. This
+source is not covered by the older runtime seals: build,
+install, cold-load, native-human action mapping, stable successor, and
+non-interference remain separate pending evidence.
+
 See [Coverage](player-environment/COVERAGE.md),
 [Support](SUPPORT.md), and the
 [STPD operational runtime seal](evidence/STPD_OPERATIONAL_RUNTIME_SEAL_2026-08-22.md),

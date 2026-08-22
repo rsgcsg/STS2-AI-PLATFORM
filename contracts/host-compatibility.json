@@ -2,6 +2,7 @@
   "schema_version": 1,
   "canary_environment_variable": "STS2_CONNECTOR_EXPERIMENTAL_GAME_ID",
   "artifact_canary_environment_variable": "STS2_CONNECTOR_EXPERIMENTAL_SOURCE_REVISION",
+  "observer_modset_canary_environment_variable": "STS2_CONNECTOR_EXPERIMENTAL_MODSET_FINGERPRINT",
   "sealed_artifacts": [
     {
       "release": "1.0.0",

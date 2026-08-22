@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
@@ -40,5 +42,26 @@ internal sealed class NativeEntityRegistry
 
         entity = typed;
         return true;
+    }
+
+    public IReadOnlyDictionary<string, object> CaptureExactReferences(
+        IEnumerable<string> entityIds)
+    {
+        return entityIds
+            .Distinct(StringComparer.Ordinal)
+            .Select(entityId =>
+            {
+                object? target = null;
+                bool found = _entities.TryGetValue(
+                                 entityId,
+                                 out WeakReference<object>? reference)
+                             && reference.TryGetTarget(out target);
+                return (entityId, found, target);
+            })
+            .Where(entry => entry.found && entry.target != null)
+            .ToDictionary(
+                entry => entry.entityId,
+                entry => entry.target!,
+                StringComparer.Ordinal);
     }
 }

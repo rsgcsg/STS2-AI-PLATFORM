@@ -120,6 +120,19 @@ for (const relative of ["host/ConnectorMod.cs", "tools/connector.mjs", "docs/INS
 }
 forbidText("host/ConnectorMod.cs", "STS2Connector.conf", "renamed runtime config seam");
 
+const processWitness = "host/PlayerEnvironment/Witness/ProcessLocalNativeWitness.cs";
+for (const required of [
+  "ProcessLocalNativeWitnessFrame", "reference_equality_to_frozen_host_binding",
+  "CaptureExactReferences", "SourceDigest"
+]) requireText(processWitness, required, `process-local witness boundary ${required}`);
+for (const forbidden of [
+  "SubmitAction", "RunOnMainThread", "NativeUiActionRuntime.Execute", "HttpListener",
+  "JsonSerializer"
+]) forbidText(processWitness, forbidden, `authorizing or serialized witness seam ${forbidden}`);
+const playerEnvironmentTransport = read("host/PlayerEnvironment/Transport/ConnectorMod.PlayerEnvironment.cs");
+for (const forbidden of ["ProcessLocalNativeWitness", "native-witness", "native_witness"])
+  if (playerEnvironmentTransport.includes(forbidden)) failures.push(`transport exposes process-local witness: ${forbidden}`);
+
 const python = "transports/mcp/server.py";
 requireText(python, "observe_sts2_player_environment", "current MCP observe tool");
 requireText(python, '_environment_get("snapshot")', "current MCP snapshot route");
