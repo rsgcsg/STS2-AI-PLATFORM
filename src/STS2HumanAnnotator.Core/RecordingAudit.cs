@@ -117,6 +117,27 @@ public static class RecordingAuditor
         return audit.ValidRecords;
     }
 
+    public static IReadOnlyList<HumanDecisionRecord> ReadAdmitted(string recordingDirectory)
+    {
+        RecordingAuditResult audit = Audit(recordingDirectory);
+        if (!string.Equals(audit.Status, "pass", StringComparison.Ordinal))
+            throw new InvalidDataException("Recording audit must pass before records are read.");
+        string directory = Path.GetFullPath(recordingDirectory);
+        var records = new List<HumanDecisionRecord>();
+        foreach (string path in Directory.GetFiles(directory, "run-*.jsonl")
+                     .Order(StringComparer.Ordinal))
+        {
+            foreach ((string line, _) in Lines(path))
+            {
+                HumanDecisionRecord? record = JsonSerializer.Deserialize<HumanDecisionRecord>(
+                    line,
+                    EvidenceJson.Options);
+                records.Add(record ?? throw new InvalidDataException("Decision record is null."));
+            }
+        }
+        return records;
+    }
+
     private static IEnumerable<(string Line, int Number)> Lines(string path)
     {
         int number = 0;

@@ -1,5 +1,28 @@
 # Live Evidence: 2026-08-22
 
+## Latest Same-Artifact Owner Run
+
+- session: `session-20260822T175331Z-509754657baa4d3c8536a9215b6d7b97`;
+- Connector source/artifact/MVID: the exact values in the seal below;
+- Annotator source/artifact/MVID: the exact values in the seal below;
+- runtime instance: `bae6afb1a48549499abc3ae861de28d4`;
+- environment fingerprint:
+  `85734e5cfd0b08bdcd1de8beab0b7630bfdf307443a71aa915518857c27da3dd`;
+- Modset fingerprint:
+  `948be0e660fe3bb8220b80b574056f6a7c0bdb7583c50b314bf55f248a6dc48d`.
+
+The owner completed another native-UI combat session under the same exact
+artifacts. It admitted 28 records: 14 targeted plays, 9 untargeted plays and 5
+end turns. Sequence was contiguous from 1 through 28; every mapping was
+`exact_unique` and every successor was a different stable interactive Snapshot.
+One overlapping action before the pending successor was invalidated rather than
+misattributed. Independent audit passed 28 valid, zero invalid.
+
+An earlier session under the same source was started without the exact observer
+Modset canary and produced 72 `exact_observer_modset_canary_missing`
+invalidations with zero admitted records. This is expected environment
+fail-closed evidence, not successful collection and not a mapping defect.
+
 ## Exact-Before-Claim Seal
 
 - session: `session-20260822T172319Z-35064ba4aeb34a029828e5953b00903b`;

@@ -10,6 +10,9 @@
 - exact card/target reference mapping with zero/ambiguous fail closed;
 - different complete interactive successor settlement;
 - append-only per-run JSONL, invalidations, coverage, audit, and export;
+- deterministic immutable session bundles with exact collection profile,
+  pseudonymous worker/campaign fields, explicit human attestation,
+  raw/audit/export provenance and complete checksums;
 - exact game/Connector/Annotator SHA, MVID, source revision, source digest,
   runtime, environment, protocol, and Modset provenance;
 - STPD strict import through its existing Player Environment projection and B0.
@@ -18,7 +21,9 @@
 
 Core validation covers exact records, zero/ambiguous mapping rejection, same
 snapshot rejection, nested runtime drift, catalog tampering, multi-run append,
-audit, and export. Connector tests cover duplicate-looking native objects,
+audit, export, deterministic bundle packing, retry reuse, immutable-destination
+rejection, collection-profile drift and missing-attestation rejection. Connector
+tests cover duplicate-looking native objects,
 target disambiguation, incomplete frames, and exact observer fingerprinting.
 
 ## Exact Runtime Findings
@@ -48,17 +53,29 @@ not validate this final ordering source artifact.
 ## Current Exact Runtime Seal
 
 Source `9459d22...` was built, installed, cold-loaded and owner-operated with
-Connector source `2a14504...`. The final session admitted 20 records: 8 targeted
-plays, 8 untargeted plays and 4 end turns. Every record had exact one-to-one
-mapping and a different complete interactive successor; audit/export and strict
-STPD B0 accepted all 20 with zero rejection and no `mapping_zero`. Three starts
-without a complete S failed closed.
+Connector source `2a14504...`. Session
+`session-20260822T172319Z-35064ba4aeb34a029828e5953b00903b` admitted 20
+records: 8 targeted plays, 8 untargeted plays and 4 end turns. Every record had
+exact one-to-one mapping and a different complete interactive successor;
+audit/export and strict STPD B0 accepted all 20 with zero rejection and no
+`mapping_zero`.
+
+The latest owner-completed same-artifact session,
+`session-20260822T175331Z-509754657baa4d3c8536a9215b6d7b97`, admitted 28
+records: 14 targeted plays, 9 untargeted plays and 5 end turns. All 28 mapped
+exact-unique and reached a different stable interactive successor. Independent
+audit passed 28/0; one overlapping action was invalidated before admission. The
+preceding empty bootstrap session admitted nothing. An earlier 72-action session
+was launched without the exact observer Modset canary, so every action failed
+closed as `exact_observer_modset_canary_missing`; that is environment evidence,
+not a mapping regression.
 
 The manifest's `not human validated` non-claim applies until owner review; the
 owner has now confirmed manual native UI operation for this exact session.
 Machine audit still cannot independently prove operator identity or controlled
-non-interference. This seals the declared ordinary-combat slice, not a broader
-qualification or release.
+non-interference. These runs validate the declared ordinary-combat recorder
+slice. They do not validate the new offline bundle/corpus tooling against
+multiple real workers, qualify a broader action family, or authorize training.
 
 ## Declared Unsupported
 

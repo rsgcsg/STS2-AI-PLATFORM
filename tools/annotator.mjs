@@ -299,6 +299,43 @@ function exportRecords() {
   run("dotnet", [toolDll, "export", directory, output]);
 }
 
+function option(name) {
+  const index = args.indexOf(name);
+  if (index < 0 || index + 1 >= args.length) throw new Error(`Missing required option: ${name}`);
+  return args[index + 1];
+}
+
+function packSession() {
+  if (git("status", "--porcelain").trim())
+    throw new Error("Commit or remove Annotator worktree changes before evidence packing.");
+  const directory = path.resolve(args[0] || readJson(runtimeStatus).recording_directory);
+  const profile = path.resolve(option("--profile"));
+  const worker = option("--worker");
+  const campaign = option("--campaign");
+  if (!args.includes("--attest-human-origin"))
+    throw new Error("Packing requires explicit --attest-human-origin.");
+  const outputIndex = args.indexOf("--output");
+  const output = outputIndex >= 0
+    ? path.resolve(args[outputIndex + 1])
+    : path.join(local, "bundles", path.basename(directory));
+  if (gameRunning() && fs.existsSync(runtimeStatus)) {
+    const status = readJson(runtimeStatus);
+    if (path.resolve(status.recording_directory) === directory && processAlive(status.process_id))
+      throw new Error("The active recording session must be closed before packing.");
+  }
+  run("dotnet", [
+    toolDll,
+    "pack-session",
+    directory,
+    profile,
+    worker,
+    campaign,
+    output,
+    git("rev-parse", "HEAD"),
+    "human_origin_attested"
+  ]);
+}
+
 function rollback() {
   if (gameRunning()) throw new Error("Fully close Slay the Spire 2 before rollback.");
   const installation = readJson(path.join(local, "installed-provenance.json"));
@@ -329,6 +366,7 @@ try {
   else if (command === "verify-loaded") verifyLoaded();
   else if (command === "audit") audit();
   else if (command === "export") exportRecords();
+  else if (command === "pack-session") packSession();
   else if (command === "rollback") rollback();
   else throw new Error(`Unknown command: ${command}`);
 } catch (error) {

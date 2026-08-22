@@ -7,9 +7,32 @@ return args switch
 {
     ["audit", string directory] => Audit(directory),
     ["export", string directory, string output] => Export(directory, output),
+    ["pack-session", string directory, string profile, string worker, string campaign,
+        string output, string sourceRevision, "human_origin_attested"] =>
+        PackSession(directory, profile, worker, campaign, output, sourceRevision),
     ["identity", string assembly] => Identity(assembly),
     _ => Usage()
 };
+
+static int PackSession(
+    string directory,
+    string profile,
+    string worker,
+    string campaign,
+    string output,
+    string sourceRevision)
+{
+    SessionBundleResult result = SessionBundlePacker.Pack(
+        directory,
+        profile,
+        worker,
+        campaign,
+        output,
+        sourceRevision,
+        humanOriginAttested: true);
+    Console.WriteLine(JsonSerializer.Serialize(result, EvidenceJson.IndentedOptions));
+    return 0;
+}
 
 static int Audit(string directory)
 {
@@ -47,6 +70,6 @@ static int Identity(string assembly)
 
 static int Usage()
 {
-    Console.Error.WriteLine("usage: sts2-human-annotator audit <recording-dir> | export <recording-dir> <output.jsonl> | identity <assembly>");
+    Console.Error.WriteLine("usage: sts2-human-annotator audit <recording-dir> | export <recording-dir> <output.jsonl> | pack-session <recording-dir> <profile.json> <worker-id> <campaign-id> <output-dir> <source-revision> human_origin_attested | identity <assembly>");
     return 2;
 }

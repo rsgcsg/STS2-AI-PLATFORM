@@ -15,10 +15,12 @@ or expose native references on a wire.
   exact target when present), `end_turn`, append-only recording, independent
   audit/export, exact artifact identity, and fail-closed STPD import.
 - Built from the exact local STS2 `v0.111.0` assembly on macOS arm64.
-- Current exact-root artifact is owner-validated with 20 ordinary-combat
-  records: 8 targeted plays, 8 untargeted plays and 4 end turns. Independent
-  audit/export and strict STPD B0 accepted all 20 with zero rejected records;
-  no `mapping_zero` remained. Three clicks without a complete S failed closed.
+- Current exact-root artifact is owner-validated with a latest 28-record
+  ordinary-combat session: 14 targeted plays, 9 untargeted plays and 5 end
+  turns. Independent audit accepted all 28 with zero rejected records; one
+  overlapping action failed closed before it could become a record. An earlier
+  same-artifact 20-record run independently passed audit/export and strict STPD
+  B0 with zero rejected records and no `mapping_zero`.
   Earlier exact artifacts contribute 170 predecessor records but do not lend
   identity or authority to the current artifact. Pending scope remains explicit:
   potions and non-Combat UI actions are unsupported by this recorder slice.
@@ -37,7 +39,8 @@ shipped STS2 UI
   -> Connector observes a different stable S'
   -> append-only HumanDecisionRecord
   -> audit/export
-  -> STPD fail-closed import and B0
+  -> immutable HumanSessionBundle
+  -> STPD registry, deterministic corpus, split, B0 and profiling
 ```
 
 Zero or multiple matches, no current or same-card staged stable pre-frame,
@@ -116,14 +119,22 @@ invalidations.jsonl
 coverage.json
 ```
 
-Then audit and export a session:
+Then audit and pack a session. Packing requires an explicit human-origin
+attestation and an exact collection profile; it never infers operator identity:
 
 ```bash
 npm run audit -- .local/recordings/<session>
 npm run export -- .local/recordings/<session> .local/exports/<session>.jsonl
+npm run pack-session -- .local/recordings/<session> \
+  --profile ../STPD/collection-profiles/human-mac-combat-v1.json \
+  --worker human-001 \
+  --campaign human-combat-smoke-2026-08 \
+  --attest-human-origin
 ```
 
-Import the audited export from the sibling STPD repository:
+The single-session importer remains useful for diagnosis. Multi-worker
+collection uses the versioned bundle/registry/corpus workflow documented in
+[Session bundles](docs/SESSION_BUNDLES.md).
 
 ```bash
 cd ../STPD

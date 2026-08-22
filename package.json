@@ -21,6 +21,7 @@
     "verify:loaded": "node tools/annotator.mjs verify-loaded",
     "audit": "node tools/annotator.mjs audit",
     "export": "node tools/annotator.mjs export",
+    "pack-session": "node tools/annotator.mjs pack-session",
     "rollback": "node tools/annotator.mjs rollback"
   }
 }

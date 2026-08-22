@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using System.Text.Json;
 using STS2HumanAnnotator.Core;
 using Xunit;
 
@@ -150,6 +151,154 @@ public sealed class RecordValidationTests
                 Directory.Delete(root, recursive: true);
         }
     }
+
+    [Fact]
+    public void SessionBundleIsDeterministicAndRefusesChangedExistingOutput()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"sts2-bundle-test-{Guid.NewGuid():N}");
+        try
+        {
+            string session = CreateSession(root);
+            string profile = WriteProfile(root);
+            string output = Path.Combine(root, "bundle");
+            SessionBundleResult first = SessionBundlePacker.Pack(
+                session,
+                profile,
+                "human-001",
+                "human-combat-smoke-2026-08",
+                output,
+                new string('c', 40),
+                humanOriginAttested: true);
+            string checksums = File.ReadAllText(Path.Combine(output, "checksums.sha256"));
+
+            SessionBundleResult retry = SessionBundlePacker.Pack(
+                session,
+                profile,
+                "human-001",
+                "human-combat-smoke-2026-08",
+                output,
+                new string('c', 40),
+                humanOriginAttested: true);
+
+            Assert.Equal(first.BundleContentId, retry.BundleContentId);
+            Assert.Equal(checksums, File.ReadAllText(Path.Combine(output, "checksums.sha256")));
+            Assert.Equal(1, first.RecordCount);
+            Assert.True(File.Exists(Path.Combine(output, "raw", "run-0001.jsonl")));
+            Assert.True(File.Exists(Path.Combine(output, "export", "decisions.jsonl")));
+            Assert.True(File.Exists(Path.Combine(output, "profile", "collection-profile.json")));
+
+            File.AppendAllText(Path.Combine(output, "export", "decisions.jsonl"), "tampered\n");
+            Assert.Throws<IOException>(() => SessionBundlePacker.Pack(
+                session,
+                profile,
+                "human-001",
+                "human-combat-smoke-2026-08",
+                output,
+                new string('c', 40),
+                humanOriginAttested: true));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void SessionBundleRejectsProfileDriftAndMissingAttestation()
+    {
+        string root = Path.Combine(Path.GetTempPath(), $"sts2-bundle-drift-{Guid.NewGuid():N}");
+        try
+        {
+            string session = CreateSession(root);
+            string profile = WriteProfile(root);
+            Assert.Throws<InvalidDataException>(() => SessionBundlePacker.Pack(
+                session,
+                profile,
+                "human-001",
+                "human-combat-smoke-2026-08",
+                Path.Combine(root, "not-attested"),
+                new string('c', 40),
+                humanOriginAttested: false));
+
+            JsonObject drifted = JsonNode.Parse(File.ReadAllText(profile))!.AsObject();
+            drifted["connector"]!["artifact_sha256"] = new string('d', 64);
+            File.WriteAllText(profile, drifted.ToJsonString());
+            Assert.Throws<InvalidDataException>(() => SessionBundlePacker.Pack(
+                session,
+                profile,
+                "human-001",
+                "human-combat-smoke-2026-08",
+                Path.Combine(root, "drifted"),
+                new string('c', 40),
+                humanOriginAttested: true));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    private static string CreateSession(string root)
+    {
+        var manifest = new RecordingManifest(
+            1,
+            HumanRecorderContract.ManifestSchema,
+            "session-test",
+            DateTimeOffset.UnixEpoch,
+            "0.1.0",
+            new string('b', 40),
+            "osx-arm64",
+            new[] { "ordinary_combat.play_card", "ordinary_combat.end_turn" },
+            Array.Empty<string>());
+        using (RecordingStore store = RecordingStore.Create(root, manifest))
+            store.AppendDecision(ValidRecord());
+        return Path.Combine(root, "session-test");
+    }
+
+    private static string WriteProfile(string root)
+    {
+        HumanDecisionRecord record = ValidRecord();
+        var profile = new
+        {
+            schema = "stpd/human-collection-profile-v1",
+            profile_id = "human-mac-combat-v1",
+            platform = "osx-arm64",
+            game = new
+            {
+                version = record.Environment.Game.Version,
+                commit = record.Environment.Game.Commit,
+                main_assembly_sha256 = record.Environment.Game.MainAssemblySha256,
+                main_assembly_mvid = record.Environment.Game.MainAssemblyModuleVersionId
+            },
+            connector = ProfileArtifact(record.Environment.Connector),
+            annotator = ProfileArtifact(record.Environment.Annotator),
+            player_environment_protocol = record.Environment.PlayerEnvironmentProtocol,
+            modset = new
+            {
+                status = record.Environment.ModsetStatus,
+                fingerprint = record.Environment.ModsetFingerprint
+            },
+            record_schema = HumanRecorderContract.RecordSchema,
+            allowed_action_families = new[]
+            {
+                "ordinary_combat.play_card",
+                "ordinary_combat.end_turn"
+            }
+        };
+        string path = Path.Combine(root, "profile.json");
+        File.WriteAllText(path, JsonSerializer.Serialize(profile, EvidenceJson.IndentedOptions));
+        return path;
+    }
+
+    private static object ProfileArtifact(ExactArtifactIdentity artifact) => new
+    {
+        source_revision = artifact.SourceRevision,
+        source_digest_sha256 = artifact.SourceDigestSha256,
+        artifact_sha256 = artifact.Sha256,
+        mvid = artifact.ModuleVersionId
+    };
 
     internal static HumanDecisionRecord ValidRecord()
     {

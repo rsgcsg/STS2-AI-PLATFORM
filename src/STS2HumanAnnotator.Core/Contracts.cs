@@ -9,6 +9,8 @@ public static class HumanRecorderContract
     public const string InvalidationSchema = "sts2.human-annotator/invalidation-1";
     public const string ManifestSchema = "sts2.human-annotator/recording-manifest-1";
     public const string RuntimeStatusSchema = "sts2.human-annotator/runtime-status-1";
+    public const string SessionBundleSchema = "sts2.human-annotator/session-bundle-1";
+    public const string SessionBundleAuditSchema = "sts2.human-annotator/session-bundle-audit-1";
 }
 
 public sealed record ExactArtifactIdentity(
