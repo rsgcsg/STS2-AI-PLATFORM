@@ -14,7 +14,9 @@ internal static class NativeCardPlayPatch
         ?? throw new MissingMethodException(typeof(NCardPlay).FullName, "TryPlayCard");
 
     internal static void Prefix(out bool __state) =>
-        __state = RecorderRuntime.TryEnterScope("native_card_play_ui");
+        __state = RecorderRuntime.TryEnterScope(
+            "native_card_play_ui",
+            nameof(PlayCardAction));
 
     internal static Exception? Finalizer(bool __state, Exception? __exception)
     {
@@ -28,7 +30,9 @@ internal static class NativeCardPlayPatch
 internal static class NativeEndTurnPatch
 {
     internal static void Prefix(out bool __state) =>
-        __state = RecorderRuntime.TryEnterScope("native_end_turn_ui");
+        __state = RecorderRuntime.TryEnterScope(
+            "native_end_turn_ui",
+            nameof(EndPlayerTurnAction));
 
     internal static Exception? Finalizer(bool __state, Exception? __exception)
     {
@@ -42,7 +46,9 @@ internal static class NativeEndTurnPatch
 internal static class NativeFtueEndTurnPatch
 {
     internal static void Prefix(out bool __state) =>
-        __state = RecorderRuntime.TryEnterScope("native_ftue_end_turn_ui");
+        __state = RecorderRuntime.TryEnterScope(
+            "native_ftue_end_turn_ui",
+            nameof(EndPlayerTurnAction));
 
     internal static Exception? Finalizer(bool __state, Exception? __exception)
     {

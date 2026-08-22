@@ -21,6 +21,17 @@ snapshot rejection, nested runtime drift, catalog tampering, multi-run append,
 audit, and export. Connector tests cover duplicate-looking native objects,
 target disambiguation, incomplete frames, and exact observer fingerprinting.
 
+## Predecessor Live Finding
+
+The 2026-08-22 exact observer artifact produced 25 independently auditable
+`end_turn` records that exported and passed STPD import/B0. It also exposed two
+Recorder defects: card release captured a settling frame too late, and the
+end-turn scope treated `ReadyToBeginEnemyTurnAction` as another human root.
+Current source keeps the latest same-interaction authoritative frame and admits
+only one expected root action per UI scope. The predecessor records prove the
+native end-turn seam and downstream data path only; they do not validate this
+new source artifact.
+
 ## Pending Exact Runtime Evidence
 
 - current Connector and Annotator source build/install/cold-load identity;

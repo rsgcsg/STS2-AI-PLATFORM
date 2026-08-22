@@ -15,8 +15,10 @@ or expose native references on a wire.
   exact target when present), `end_turn`, append-only recording, independent
   audit/export, exact artifact identity, and fail-closed STPD import.
 - Built from the exact local STS2 `v0.111.0` assembly on macOS arm64.
-- Pending: cold-loaded runtime identity, native-human action mapping,
-  non-interference, and owner review for the current source artifact.
+- Predecessor Live evidence validates 25 native `end_turn` records through
+  audit/export and STPD B0, while exposing and motivating the current card-frame
+  timing fix. Pending for the current source: a new cold-load and native `play`
+  validation; predecessor evidence is not transferred across artifacts.
 - Unsupported by this first slice: potions and non-Combat UI actions.
 
 Implementation or build evidence is not human-origin evidence. See
@@ -128,6 +130,9 @@ uv run python tools/import_human_recording.py \
 ```
 
 Raw recordings are local/private by default and are ignored by Git.
+The reviewed predecessor summary is
+[documented separately](docs/LIVE_EVIDENCE_2026-08-22.md); it contains no raw
+gameplay records.
 
 ## Documentation
 

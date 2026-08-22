@@ -7,6 +7,16 @@ namespace STS2HumanAnnotator.Core.Tests;
 public sealed class RecordValidationTests
 {
     [Fact]
+    public void NativeRootActionGateAcceptsOnlyOneExpectedRoot()
+    {
+        var gate = new AcceptedRootActionGate("PlayCardAction");
+
+        Assert.False(gate.TryClaim("ReadyToBeginEnemyTurnAction"));
+        Assert.True(gate.TryClaim("PlayCardAction"));
+        Assert.False(gate.TryClaim("PlayCardAction"));
+    }
+
+    [Fact]
     public void ExactRecordPasses()
     {
         RecordValidationResult result = HumanDecisionRecordValidator.Validate(ValidRecord());

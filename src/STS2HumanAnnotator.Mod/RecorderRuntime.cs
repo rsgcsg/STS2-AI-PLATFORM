@@ -14,6 +14,10 @@ namespace STS2HumanAnnotator.Mod;
 
 internal static class RecorderRuntime
 {
+    private sealed record CachedDecisionFrame(
+        ProcessLocalNativeWitnessFrame Frame,
+        RecorderEnvironmentIdentity Environment);
+
     private sealed record PendingDecision(
         string RecordId,
         string RunId,
@@ -30,8 +34,10 @@ internal static class RecorderRuntime
     private static AnnotatorConfiguration? _configuration;
     private static RecordingStore? _store;
     private static PendingDecision? _pending;
+    private static CachedDecisionFrame? _latestAuthoritativeFrame;
     private static long _sequence;
     private static DateTimeOffset _lastIdleStatusAt;
+    private static DateTimeOffset _lastFrameProbeAt;
     private static string _runtimeState = "initializing";
     private static string? _detail;
     private static int _runSequence;
@@ -67,11 +73,54 @@ internal static class RecorderRuntime
         WriteStatus(null, null, new[] { "no_current_exact_frame" });
     }
 
-    internal static bool TryEnterScope(string origin)
+    internal static bool TryEnterScope(
+        string origin,
+        string expectedNativeActionType)
     {
         try
         {
-            HumanActionScope.Enter(origin);
+            ProcessLocalNativeWitnessFrame current = PlayerEnvironmentNativeWitness.Capture();
+            RecorderEnvironmentIdentity currentEnvironment = BuildEnvironment(current);
+            List<string> currentBlockers = EligibilityBlockers(current, currentEnvironment);
+            ProcessLocalNativeWitnessFrame? selected = null;
+
+            if (currentBlockers.Count == 0)
+            {
+                selected = current;
+                lock (Gate)
+                    _latestAuthoritativeFrame = new CachedDecisionFrame(current, currentEnvironment);
+            }
+            else if (currentBlockers.All(blocker =>
+                         string.Equals(
+                             blocker,
+                             "pre_frame_not_complete_interactive",
+                             StringComparison.Ordinal)))
+            {
+                lock (Gate)
+                {
+                    if (_pending == null
+                        && _latestAuthoritativeFrame is { } cached
+                        && SameDecisionContext(cached, current, currentEnvironment))
+                    {
+                        selected = cached.Frame;
+                    }
+                }
+            }
+
+            if (selected == null)
+            {
+                Quarantine(
+                    "pre_frame_capture_failed",
+                    string.Join(",", currentBlockers.Count == 0
+                        ? new[] { "no_same_context_authoritative_frame" }
+                        : currentBlockers.Append("no_same_context_authoritative_frame")),
+                    current.Snapshot.SnapshotId,
+                    expectedNativeActionType,
+                    "fail_closed");
+                return false;
+            }
+
+            HumanActionScope.Enter(origin, expectedNativeActionType, selected);
             return true;
         }
         catch (Exception exception)
@@ -90,6 +139,9 @@ internal static class RecorderRuntime
     {
         HumanActionContext? context = HumanActionScope.Current;
         if (context == null)
+            return;
+        string nativeActionType = action.GetType().Name;
+        if (!context.TryClaimRootAction(nativeActionType))
             return;
         try
         {
@@ -122,16 +174,36 @@ internal static class RecorderRuntime
                 return;
             }
 
-            if (DateTimeOffset.UtcNow - _lastIdleStatusAt < TimeSpan.FromSeconds(1))
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            if (now - _lastFrameProbeAt < TimeSpan.FromMilliseconds(50))
                 return;
-            _lastIdleStatusAt = DateTimeOffset.UtcNow;
+            _lastFrameProbeAt = now;
             ProcessLocalNativeWitnessFrame frame = PlayerEnvironmentNativeWitness.Capture();
             RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
-            string status = EligibilityBlockers(frame, environment).Count == 0
+            List<string> blockers = EligibilityBlockers(frame, environment);
+            if (blockers.Count == 0)
+            {
+                lock (Gate)
+                    _latestAuthoritativeFrame = new CachedDecisionFrame(frame, environment);
+            }
+            else if (blockers.Any(blocker => !string.Equals(
+                         blocker,
+                         "pre_frame_not_complete_interactive",
+                         StringComparison.Ordinal)))
+            {
+                lock (Gate)
+                    _latestAuthoritativeFrame = null;
+            }
+
+            if (now - _lastIdleStatusAt < TimeSpan.FromSeconds(1))
+                return;
+            _lastIdleStatusAt = now;
+            string status = blockers.Count == 0
                 ? "ready_for_human_action"
                 : "fail_closed";
             _runtimeState = status;
-            WriteStatus(environment, frame.Snapshot.SnapshotId, EligibilityBlockers(frame, environment));
+            _detail = null;
+            WriteStatus(environment, frame.Snapshot.SnapshotId, blockers);
         }
         catch (Exception exception)
         {
@@ -196,11 +268,11 @@ internal static class RecorderRuntime
 
         string type = action.GetType().FullName ?? action.GetType().Name;
         Quarantine(
-            "unsupported_native_action_type",
-            $"The current recorder scope does not admit {type}.",
+            "native_scope_contract_error",
+            $"The configured root action {type} has no recorder mapping.",
             context.Frame.Snapshot.SnapshotId,
             type,
-            "declared_unsupported");
+            "implemented_runtime_error");
         return false;
     }
 
@@ -241,6 +313,8 @@ internal static class RecorderRuntime
                     "lifecycle_ambiguous");
                 return;
             }
+
+            _latestAuthoritativeFrame = null;
 
             PlayerEnvironmentBoundAction bound = match.BoundAction!;
             long sequence = Interlocked.Increment(ref _sequence);
@@ -347,8 +421,16 @@ internal static class RecorderRuntime
                     "ordinary_combat_only"
                 }));
         _store!.AppendDecision(record);
+        RecorderEnvironmentIdentity successorEnvironment = BuildEnvironment(successorFrame);
         lock (Gate)
+        {
             _pending = null;
+            _latestAuthoritativeFrame = EligibilityBlockers(
+                    successorFrame,
+                    successorEnvironment).Count == 0
+                ? new CachedDecisionFrame(successorFrame, successorEnvironment)
+                : null;
+        }
         _runtimeState = "record_appended";
         _detail = record.RecordId;
         WriteStatus(pending.Environment, successor.SnapshotId, Array.Empty<string>());
@@ -418,6 +500,24 @@ internal static class RecorderRuntime
             blockers.Add("source_revision_not_exact");
         return blockers;
     }
+
+    private static bool SameDecisionContext(
+        CachedDecisionFrame cached,
+        ProcessLocalNativeWitnessFrame current,
+        RecorderEnvironmentIdentity currentEnvironment) =>
+        string.Equals(
+            cached.Environment.RuntimeInstanceId,
+            currentEnvironment.RuntimeInstanceId,
+            StringComparison.Ordinal)
+        && string.Equals(
+            cached.Environment.EnvironmentFingerprint,
+            currentEnvironment.EnvironmentFingerprint,
+            StringComparison.Ordinal)
+        && string.Equals(
+            cached.Frame.Snapshot.Interaction.InteractionId,
+            current.Snapshot.Interaction.InteractionId,
+            StringComparison.Ordinal)
+        && !current.ExternalControllerActive;
 
     private static string DecisionFamily(string interactionKind) =>
         interactionKind.StartsWith("combat", StringComparison.Ordinal)

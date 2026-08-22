@@ -1,11 +1,33 @@
 using STS2Connector.PlayerEnvironment.Witness;
+using STS2HumanAnnotator.Core;
 
 namespace STS2HumanAnnotator.Mod;
 
-internal sealed record HumanActionContext(
-    string Origin,
-    ProcessLocalNativeWitnessFrame Frame,
-    DateTimeOffset EnteredAt);
+internal sealed class HumanActionContext
+{
+    private readonly AcceptedRootActionGate _rootActionGate;
+
+    internal HumanActionContext(
+        string origin,
+        string expectedNativeActionType,
+        ProcessLocalNativeWitnessFrame frame,
+        DateTimeOffset enteredAt)
+    {
+        Origin = origin;
+        Frame = frame;
+        EnteredAt = enteredAt;
+        _rootActionGate = new AcceptedRootActionGate(expectedNativeActionType);
+    }
+
+    internal string Origin { get; }
+
+    internal ProcessLocalNativeWitnessFrame Frame { get; }
+
+    internal DateTimeOffset EnteredAt { get; }
+
+    internal bool TryClaimRootAction(string nativeActionType) =>
+        _rootActionGate.TryClaim(nativeActionType);
+}
 
 internal static class HumanActionScope
 {
@@ -15,12 +37,16 @@ internal static class HumanActionScope
     internal static HumanActionContext? Current =>
         _stack is { Count: > 0 } ? _stack.Peek() : null;
 
-    internal static void Enter(string origin)
+    internal static void Enter(
+        string origin,
+        string expectedNativeActionType,
+        ProcessLocalNativeWitnessFrame frame)
     {
         _stack ??= new Stack<HumanActionContext>();
         _stack.Push(new HumanActionContext(
             origin,
-            PlayerEnvironmentNativeWitness.Capture(),
+            expectedNativeActionType,
+            frame,
             DateTimeOffset.UtcNow));
     }
 
