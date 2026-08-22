@@ -77,13 +77,21 @@ process-local canary opt-ins.
 
 ## Unreleased Observer Candidate
 
-Current source includes a generic process-local exact-binding witness and an
-exact non-gameplay-observer Modset canary. Automated tests prove zero/ambiguous
-matching fails closed, only a full fingerprint can identify the observer
-envelope, and that envelope does not enable external Connector mutation. This
-source is not covered by the older runtime seals: build,
-install, cold-load, native-human action mapping, stable successor, and
-non-interference remain separate pending evidence.
+Source `9a929cc...` and observer source `bc9c568...` were built, installed and
+cold-loaded together. One native-human ordinary-combat run produced 60 complete
+records: 51 card plays, including 30 targeted plays, and 9 end turns. Every
+record mapped exact-unique, reached an interactive successor, exported, and
+passed strict STPD import/B0. The same run exposed 22 accepted native inputs
+that the old Host missed because it treated any non-empty action queue as
+settling. That is a Connector completeness defect, not authority refusal or
+Recorder rejection.
+
+Current source aligns combat publication with the shipped hand/control gates,
+excludes card holders already moved to the native play queue, and keeps exact
+execute-time revalidation. Automated tests pass, but this changed source is not
+covered by the predecessor run: build, install, cold-load and a new rapid-input
+native-human run remain pending exact-runtime evidence. See the
+[queue-authority audit](evidence/NATIVE_HUMAN_RECORDER_QUEUE_AUTHORITY_AUDIT_2026-08-23.md).
 
 See [Coverage](player-environment/COVERAGE.md),
 [Support](SUPPORT.md), and the

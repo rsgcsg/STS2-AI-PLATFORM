@@ -65,6 +65,13 @@ authority: its BoundAction catalog and interaction capabilities are empty even
 if one control becomes enabled before the complete current UI finishes
 mounting. The next ready Snapshot derives a fresh complete catalog.
 
+Internal action-queue activity is not itself a settling condition. During the
+local player's play phase, the shipped hand can accept another card, potion or
+enabled End Turn input while an earlier action is queued or executing. The Host
+therefore derives combat actionability from the current native hand/control
+state, excludes cards already moved to the native play queue, and binds every
+remaining action to that exact visible UI state.
+
 `reads[]` advertises all bounded, non-authorizing information reads. Consumers
 send the opaque `read_id`; C rejects stale snapshots and arbitrary fields.
 Interactive consumers may read lazily. Memoryless consumers may prefetch and

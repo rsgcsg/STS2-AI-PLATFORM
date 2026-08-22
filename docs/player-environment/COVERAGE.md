@@ -12,6 +12,12 @@ only from those facts. A complete bound-action
 catalog expresses exact public subject/argument combinations while native
 objects remain Host-local. Unknown owner or target fails closed. Unknown
 business provenance alone does not suppress an exact visible native control.
+In combat, queue occupancy and a currently executing card or potion effect do
+not suppress the Surface when the shipped hand still accepts input. Cards
+already moved from `NPlayerHand.ActiveHolders` to the native play queue are
+excluded, and End Turn is published only while its real native button remains
+enabled. This preserves the game's own queueing behavior without creating a
+second legality model.
 The no-owner frame between a delivered standard-run entry and the mounted run
 is a bounded `settling` lifecycle, not a transient unsupported Surface. A real
 unknown owner remains fail-closed. The exact event-room model also settles while
@@ -51,6 +57,14 @@ Exact runtime evidence proves card-reward incomplete-catalog settling with no
 authority and the subsequent complete four-action catalog. Two shipped
 Reference terminal journeys exercised the same artifact with zero unknown.
 This is named operational coverage, not exhaustive interaction qualification.
+
+The later native-human recorder audit on source `9a929cc...` proved exact
+process-local mapping for 60 accepted combat inputs and exposed that 22
+additional accepted inputs occurred while the old Host incorrectly reported
+queue-driven settling. Current source removes that non-native gate and filters
+the visible hand by real active holders. See the
+[queue-authority audit](../evidence/NATIVE_HUMAN_RECORDER_QUEUE_AUTHORITY_AUDIT_2026-08-23.md).
+The correction remains pending exact-runtime evidence on its own artifact.
 
 ## Unsupported
 

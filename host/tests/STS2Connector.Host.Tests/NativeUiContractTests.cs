@@ -289,40 +289,43 @@ public sealed class NativeUiContractTests
     }
 
     [Fact]
-    public void CombatInputRemainsSettlingUntilTheNativeEffectCompletes()
+    public void CombatInputMatchesTheShippedHandDuringQueuedEffects()
     {
         Assert.True(CombatTurnSurfaceReader.IsCombatInputReady(
             combatInProgress: true,
             playerActionsDisabled: false,
             inPlayPhase: true,
             isPartOfPlayerTurn: true,
-            isExecutingCardOrPotionEffect: false,
-            actionQueueEmpty: true,
-            handAcceptsInput: true));
+            handAcceptsInput: true,
+            handIsPeeking: false));
+        Assert.False(CombatTurnSurfaceReader.IsCombatInputReady(
+            combatInProgress: true,
+            playerActionsDisabled: true,
+            inPlayPhase: true,
+            isPartOfPlayerTurn: true,
+            handAcceptsInput: true,
+            handIsPeeking: false));
         Assert.False(CombatTurnSurfaceReader.IsCombatInputReady(
             combatInProgress: true,
             playerActionsDisabled: false,
             inPlayPhase: true,
             isPartOfPlayerTurn: true,
-            isExecutingCardOrPotionEffect: true,
-            actionQueueEmpty: true,
-            handAcceptsInput: true));
+            handAcceptsInput: false,
+            handIsPeeking: false));
+        Assert.False(CombatTurnSurfaceReader.IsCombatInputReady(
+            combatInProgress: true,
+            playerActionsDisabled: false,
+            inPlayPhase: false,
+            isPartOfPlayerTurn: true,
+            handAcceptsInput: true,
+            handIsPeeking: false));
         Assert.False(CombatTurnSurfaceReader.IsCombatInputReady(
             combatInProgress: true,
             playerActionsDisabled: false,
             inPlayPhase: true,
             isPartOfPlayerTurn: true,
-            isExecutingCardOrPotionEffect: false,
-            actionQueueEmpty: false,
-            handAcceptsInput: true));
-        Assert.False(CombatTurnSurfaceReader.IsCombatInputReady(
-            combatInProgress: true,
-            playerActionsDisabled: false,
-            inPlayPhase: true,
-            isPartOfPlayerTurn: true,
-            isExecutingCardOrPotionEffect: false,
-            actionQueueEmpty: true,
-            handAcceptsInput: false));
+            handAcceptsInput: true,
+            handIsPeeking: true));
     }
 
     [Fact]

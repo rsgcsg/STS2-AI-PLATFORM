@@ -54,24 +54,40 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
         PlayerCombatState? playerCombat = player.PlayerCombatState;
         if (playerCombat == null)
             return null;
+        CardModel[] visibleHandCards = hand.ActiveHolders
+            .Select(holder => holder.CardModel)
+            .Where(card => card != null)
+            .Cast<CardModel>()
+            .ToArray();
+        context = context with
+        {
+            Player = context.Player with
+            {
+                Hand = visibleHandCards
+                    .Select(card => LiveContextReader.BuildCard(
+                        card,
+                        entities.GetId(card, "card"),
+                        includeCombatLegality: true))
+                    .ToArray()
+            }
+        };
 
         bool inputReady = IsCombatInputReady(
             CombatManager.Instance.IsInProgress,
             CombatManager.Instance.PlayerActionsDisabled,
             playerCombat.Phase == PlayerTurnPhase.Play,
             CombatManager.Instance.IsPartOfPlayerTurn(player),
-            CombatManager.Instance.IsExecutingCardOrPotionEffect(player),
-            RunManager.Instance.ActionQueueSet.IsEmpty,
-            !hand.InCardPlay && hand.CurrentMode == NPlayerHand.Mode.Play);
+            !hand.InCardPlay && hand.CurrentMode == NPlayerHand.Mode.Play,
+            hand.PeekButton?.IsPeeking == true);
         var playableCards = new List<VisibleCombatCommandOption>();
         var usablePotions = new List<VisibleCombatCommandOption>();
         if (inputReady)
         {
-            AddCardOptions(playableCards, player, playerCombat, entities);
+            AddCardOptions(playableCards, player, visibleHandCards, entities);
             AddPotionOptions(usablePotions, player, entities);
         }
 
-        bool canEndTurn = inputReady;
+        bool canEndTurn = inputReady && room.Ui.EndTurnButton.IsEnabled;
         var surface = new CombatTurnSurface(
             Kind,
             entities.GetId(room, "room"),
@@ -85,7 +101,7 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
             "contract_complete_for_immediate_combat_turn_including_visible_companions; pile contents available through a separate read-only Player Environment Read",
             inputReady
                 ? "derived_from_same_validator_as_execution"
-                : "empty_while_native_combat_input_is_not_settled",
+                : "empty_while_native_hand_rejects_input",
             new[]
             {
                 "CombatManager.DebugOnlyGetState",
@@ -94,9 +110,8 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
                 "PlayerCombatState.Pets+MonsterModel.IsHealthBarVisible",
                 "CardModel.CanPlay",
                 "CombatState.HittableEnemies",
-                "CombatManager.IsExecutingCardOrPotionEffect",
-                "RunManager.ActionQueueSet.IsEmpty",
-                "NPlayerHand play-phase guards"
+                "NPlayerHand.ActiveHolders+AreCardActionsAllowed-equivalent guards",
+                "NCardPlayQueue exclusion"
             },
             Array.Empty<string>());
         string signature = StableIdentityHash.Object(new
@@ -134,10 +149,10 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
     private static void AddCardOptions(
         ICollection<VisibleCombatCommandOption> commandOptions,
         Player player,
-        PlayerCombatState playerCombat,
+        IReadOnlyList<CardModel> visibleHandCards,
         NativeEntityRegistry entities)
     {
-        foreach (CardModel card in playerCombat.Hand.Cards)
+        foreach (CardModel card in visibleHandCards)
         {
             if (!card.CanPlay(out UnplayableReason reason, out _) || reason != UnplayableReason.None)
                 continue;
@@ -213,16 +228,14 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
         bool playerActionsDisabled,
         bool inPlayPhase,
         bool isPartOfPlayerTurn,
-        bool isExecutingCardOrPotionEffect,
-        bool actionQueueEmpty,
-        bool handAcceptsInput) =>
+        bool handAcceptsInput,
+        bool handIsPeeking) =>
         combatInProgress
         && !playerActionsDisabled
         && inPlayPhase
         && isPartOfPlayerTurn
-        && !isExecutingCardOrPotionEffect
-        && actionQueueEmpty
-        && handAcceptsInput;
+        && handAcceptsInput
+        && !handIsPeeking;
 
     internal static NativeInputResult StartDirectPlayCard(
         NativeEntityRegistry entities,
@@ -316,6 +329,13 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
         PlayerCombatState combat = expectedPlayer.PlayerCombatState!;
         if (!combat.Hand.Cards.Contains(expectedCard))
             return NativeInputResult.Rejected("card_left_hand", "The advertised card is no longer in hand.");
+        if (NPlayerHand.Instance?.ActiveHolders.Any(holder =>
+                ReferenceEquals(holder.CardModel, expectedCard)) != true)
+        {
+            return NativeInputResult.Rejected(
+                "card_left_visible_hand",
+                "The advertised card is no longer an actionable holder in the native hand UI.");
+        }
         if (!expectedCard.CanPlay(out UnplayableReason reason, out _) || reason != UnplayableReason.None)
             return NativeInputResult.Rejected("card_no_longer_playable", $"The card is no longer playable: {reason}.");
         if (expectedCard.TargetType == TargetType.AnyEnemy)
@@ -358,8 +378,15 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
         if (!IsActionablePlayerTurn(expectedPlayer))
             return NativeInputResult.Rejected("combat_phase_changed", "Combat is no longer in the local player's play phase.");
         NPlayerHand? hand = NPlayerHand.Instance;
-        if (hand == null || hand.InCardPlay || hand.CurrentMode != NPlayerHand.Mode.Play)
+        NEndTurnButton? endTurnButton = NCombatRoom.Instance?.Ui.EndTurnButton;
+        if (hand == null
+            || hand.InCardPlay
+            || hand.CurrentMode != NPlayerHand.Mode.Play
+            || hand.PeekButton?.IsPeeking == true
+            || endTurnButton?.IsEnabled != true)
+        {
             return NativeInputResult.Rejected("end_turn_not_available", "The hand UI no longer permits ending the turn.");
+        }
 
         PlayerCmd.EndTurn(expectedPlayer, canBackOut: false);
         return NativeInputResult.Delivered(EndTurnDeliveryEvidence);
@@ -381,8 +408,7 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
             CombatManager.Instance.PlayerActionsDisabled,
             player.PlayerCombatState?.Phase == PlayerTurnPhase.Play,
             CombatManager.Instance.IsPartOfPlayerTurn(player),
-            CombatManager.Instance.IsExecutingCardOrPotionEffect(player),
-            RunManager.Instance.ActionQueueSet.IsEmpty,
-            hand != null && !hand.InCardPlay && hand.CurrentMode == NPlayerHand.Mode.Play);
+            hand != null && !hand.InCardPlay && hand.CurrentMode == NPlayerHand.Mode.Play,
+            hand?.PeekButton?.IsPeeking == true);
     }
 }
