@@ -5,6 +5,7 @@ namespace STS2HumanAnnotator.Core;
 
 public sealed class RecordingStore : IDisposable
 {
+    private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
     private readonly object _gate = new();
     private readonly Dictionary<string, FileStream> _decisionFiles = new(StringComparer.Ordinal);
     private readonly FileStream _invalidations;
@@ -124,7 +125,7 @@ public sealed class RecordingStore : IDisposable
     private static void WriteCreateNew(string path, string content)
     {
         using var stream = new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
-        byte[] bytes = Encoding.UTF8.GetBytes(content + "\n");
+        byte[] bytes = Utf8NoBom.GetBytes(content + "\n");
         stream.Write(bytes);
         stream.Flush(flushToDisk: true);
     }
@@ -133,7 +134,7 @@ public sealed class RecordingStore : IDisposable
     {
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         string temporary = path + $".tmp-{Guid.NewGuid():N}";
-        File.WriteAllText(temporary, content + "\n", Encoding.UTF8);
+        File.WriteAllText(temporary, content + "\n", Utf8NoBom);
         File.Move(temporary, path, overwrite: true);
     }
 }

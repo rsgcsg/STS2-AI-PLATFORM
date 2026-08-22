@@ -65,7 +65,7 @@ function sourceDigest() {
 }
 
 function readJson(file) {
-  return JSON.parse(fs.readFileSync(file, "utf8"));
+  return JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/u, ""));
 }
 
 function writeJson(file, value) {

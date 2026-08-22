@@ -119,6 +119,9 @@ public sealed class RecordValidationTests
             }
 
             string session = Path.Combine(root, "session-test");
+            Assert.False(File.ReadAllBytes(Path.Combine(session, "recording-manifest.json"))
+                .Take(3)
+                .SequenceEqual(new byte[] { 0xEF, 0xBB, 0xBF }));
             RecordingAuditResult audit = RecordingAuditor.Audit(session);
             Assert.Equal("pass", audit.Status);
             Assert.Equal(2, audit.ValidRecords);
