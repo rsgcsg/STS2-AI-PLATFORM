@@ -16,7 +16,10 @@ public sealed class AcceptedRootActionGate
         _expectedNativeActionType = expectedNativeActionType;
     }
 
+    public bool Accepts(string nativeActionType) =>
+        string.Equals(nativeActionType, _expectedNativeActionType, StringComparison.Ordinal);
+
     public bool TryClaim(string nativeActionType) =>
-        string.Equals(nativeActionType, _expectedNativeActionType, StringComparison.Ordinal)
+        Accepts(nativeActionType)
         && Interlocked.CompareExchange(ref _claimed, 1, 0) == 0;
 }

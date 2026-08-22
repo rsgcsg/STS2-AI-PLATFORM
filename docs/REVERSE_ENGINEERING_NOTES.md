@@ -18,6 +18,10 @@ MVID `57785517-0b16-42b9-8b36-bad6fb28384b`.
 - `NCardPlayQueue.OnLocalCardPlayed` removes the accepted holder from
   `NPlayerHand.ActiveHolders`; a Snapshot captured only at `TryPlayCard` can
   therefore be complete yet correctly omit the card being committed.
+- `ActionQueueSynchronizer.RequestEnqueue` is process-global. Runtime evidence
+  shows that a same-type game-owned `PlayCardAction` can be observed during the
+  short native UI scope, so native type cannot claim the human root; exact
+  frozen card/target matching must happen first.
 
 These are implementation evidence, not current Live evidence. Decompiled source
 and proprietary assemblies are not committed.

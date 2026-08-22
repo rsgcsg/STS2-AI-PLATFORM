@@ -190,13 +190,16 @@ internal static class RecorderRuntime
         if (context == null)
             return;
         string nativeActionType = action.GetType().Name;
-        if (!context.TryClaimRootAction(nativeActionType))
+        if (!context.AcceptsRootAction(nativeActionType))
             return;
         try
         {
             if (!TryDescribeAction(action, context, out ProcessLocalObservedAction? observed, out NativeWitnessEvidence? witness))
                 return;
-            StartPending(context, observed!, witness!);
+            ProcessLocalNativeMatch match = context.Frame.Resolve(observed!);
+            if (!IsExact(match) || !context.TryClaimRootAction(nativeActionType))
+                return;
+            StartPending(context, witness!, match);
         }
         catch (Exception exception)
         {
@@ -322,18 +325,11 @@ internal static class RecorderRuntime
 
     private static void StartPending(
         HumanActionContext context,
-        ProcessLocalObservedAction observed,
-        NativeWitnessEvidence witness)
+        NativeWitnessEvidence witness,
+        ProcessLocalNativeMatch match)
     {
         RecorderEnvironmentIdentity environment = BuildEnvironment(context.Frame);
         List<string> blockers = EligibilityBlockers(context.Frame, environment);
-        ProcessLocalNativeMatch match = context.Frame.Resolve(observed);
-        if (!string.Equals(match.Status, "exact_unique", StringComparison.Ordinal)
-            || match.MatchCount != 1
-            || match.BoundAction == null)
-        {
-            blockers.Add($"mapping_{match.Status}");
-        }
         if (blockers.Count > 0)
         {
             Quarantine(

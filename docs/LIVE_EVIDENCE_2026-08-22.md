@@ -1,5 +1,36 @@
 # Live Evidence: 2026-08-22
 
+## No-Latest-Frame Artifact
+
+- session: `session-20260822T170504Z-87ce123a7c0f4c53af0caf0162152d7f`;
+- Annotator source: `625496797983483bee0aa1156659749d02218ba6`;
+- Annotator artifact SHA-256:
+  `2f6a6b8aebe90d4977cecdbd2e656473eb02aa746c951bc21e6d49666de4e8c6`;
+- Annotator MVID: `fd077c74-c97f-4d4a-8bc7-233f1a96953b`;
+- Connector artifact SHA-256:
+  `f991eab77f846416468fcaaa014565912d7ee547ee7848cc46d24735c4ac2040`;
+- runtime instance: `3d2d2b8199f74574965da93e9bfacbcd`;
+- Modset fingerprint:
+  `beaf47949dae23716ea19fd70081c9ac5f383332c78ebef9b1cfe2665d161439`.
+
+The owner-operated run admitted 64 transitions: 23 targeted plays, 26
+untargeted plays and 15 end turns. Every admitted record had a complete
+interactive pre-frame, exact-unique mapping, a catalog of 2 through 15
+BoundActions and a different complete interactive successor. Independent audit
+accepted all 64 and rejected zero. Deterministic export SHA-256 is
+`145ba024c0d51699a66083f7a34f6ddd94f78749df08f0867800f654c4487647`;
+strict STPD import accepted all 64, rejected zero and passed B0 as manifest
+`dataset-1f0af8459a0c6e1a` with one exact environment.
+
+Three starts with no complete S failed closed. Five observed `PlayCardAction`
+instances reached `mapping_zero`. Runtime ordering disproved a stale-catalog
+cause: one occurred immediately after an admitted end turn whose successor had
+no playable card action, while the game log showed `SOVEREIGN_BLADE`. The
+Recorder had claimed the first same-type action inside the short UI scope before
+checking its frozen native card and target. Current source exact-matches first
+and only then claims the human root; nonmatching game-owned actions remain
+outside the dataset. This run is predecessor evidence for that ordering fix.
+
 ## Staged-Card Artifact
 
 - session: `session-20260822T165516Z-acdf97684d244f1e97b6088c342b64ce`;

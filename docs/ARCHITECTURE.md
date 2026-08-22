@@ -33,7 +33,8 @@ There is no latest-frame fallback: card play uses only the current exact frame
 or that same-card staged frame, while end turn requires the current exact
 frame. Each scope admits exactly one expected root action; game-owned actions
 caused by that root are ignored rather than mislabeled as additional human
-decisions.
+decisions. A same-type action cannot claim the root until its exact native card
+and target resolve uniquely against the frozen catalog.
 
 ## Exact Mapping
 

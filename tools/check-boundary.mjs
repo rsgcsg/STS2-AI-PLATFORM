@@ -35,6 +35,10 @@ if (!sources.includes("StageCardPlay(CardModel card)"))
   errors.push("card play must stage its exact pre-action frame before native hand removal");
 if (!sources.includes("ReferenceEquals(staged.Card, stagedCard)"))
   errors.push("staged card frames must remain bound to the exact native card reference");
+if (!sources.includes("context.AcceptsRootAction(nativeActionType)"))
+  errors.push("same-type game actions must not claim the human root before exact mapping");
+if (!sources.includes("if (!IsExact(match) || !context.TryClaimRootAction(nativeActionType))"))
+  errors.push("the recorder must exact-match before claiming the human root action");
 
 console.log(JSON.stringify({ status: errors.length === 0 ? "pass" : "fail", errors }, null, 2));
 if (errors.length) process.exit(1);

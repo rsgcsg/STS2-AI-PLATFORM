@@ -11,6 +11,8 @@ public sealed class RecordValidationTests
     {
         var gate = new AcceptedRootActionGate("PlayCardAction");
 
+        Assert.False(gate.Accepts("ReadyToBeginEnemyTurnAction"));
+        Assert.True(gate.Accepts("PlayCardAction"));
         Assert.False(gate.TryClaim("ReadyToBeginEnemyTurnAction"));
         Assert.True(gate.TryClaim("PlayCardAction"));
         Assert.False(gate.TryClaim("PlayCardAction"));

@@ -38,13 +38,16 @@ second owner-operated run admitted 106 records: 35 targeted plays, 48
 untargeted plays and 23 end turns. Audit/export and strict STPD B0 passed with
 zero rejected records. Five actions had no complete S and failed closed; one
 following action exposed that the old generic latest-frame fallback could cross
-a turn boundary. Current source removes that fallback. The 106 records prove
-same-card staging and the downstream path, but do not validate the final
-fallback-deletion source artifact.
+a turn boundary. Source `6254967...` removed that fallback and admitted another
+64 exact records, but five nonmatching game-owned `PlayCardAction` instances
+claimed the human root before exact mapping. Current source exact-matches the
+frozen native operands before claiming the root. The 170 predecessor records
+prove same-card staging, no-fallback operation and the downstream path, but do
+not validate this final ordering source artifact.
 
 ## Pending Exact Runtime Evidence
 
-- current fallback-deletion Annotator source build/install/cold-load identity
+- current exact-before-claim Annotator source build/install/cold-load identity
   with Connector source `2a14504...`;
 - an untargeted card, targeted card and end-turn accepted through the native UI
   without a generic latest-frame authority path;

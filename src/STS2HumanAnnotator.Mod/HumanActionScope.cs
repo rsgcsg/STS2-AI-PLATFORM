@@ -25,6 +25,9 @@ internal sealed class HumanActionContext
 
     internal DateTimeOffset EnteredAt { get; }
 
+    internal bool AcceptsRootAction(string nativeActionType) =>
+        _rootActionGate.Accepts(nativeActionType);
+
     internal bool TryClaimRootAction(string nativeActionType) =>
         _rootActionGate.TryClaim(nativeActionType);
 }
