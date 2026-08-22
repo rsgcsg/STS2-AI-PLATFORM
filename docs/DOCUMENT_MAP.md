@@ -30,3 +30,4 @@ authority.
 - [C1 v1.0.0 stable runtime seal](evidence/STANDALONE_C1_V1_RUNTIME_SEAL_2026-08-15.md)
 - [STPD operational runtime seal](evidence/STPD_OPERATIONAL_RUNTIME_SEAL_2026-08-22.md)
 - [H1 exact authority and combat-mount canary](evidence/H1_EXACT_AUTHORITY_AND_COMBAT_MOUNT_CANARY_2026-08-16.md)
+- [Windows current-source runtime admission](evidence/WINDOWS_CURRENT_SOURCE_RUNTIME_ADMISSION_2026-08-22.md)

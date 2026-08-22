@@ -32,6 +32,21 @@ Candidate-trained-policy shipped-Reference episodes reached terminal with 390
 deliveries, exact seed provenance and zero unknown; one exact terminal outcome
 matched. This is named operational evidence, not broad parity.
 
+## Windows Current-Source Candidate
+
+The exact clean `main` source
+`c9d7af518a7c84b81ab0db9e2eea5cf0cce13cbe` also has a separate named Windows
+x64 candidate admission. Two primary-checkout builds reproduced Host DLL
+`2050ae23610fd2c719efa319eefea4837e5c4aebcfdc6c2502bebe0a6f6aeaa3`
+and MVID `64066c98-c97d-4c82-a01f-6c9a902ec974`. The exact artifact cold-loaded,
+passed H0 and H1 control checks, and reached a fresh-profile bounded H2 coverage
+verdict with 18 deliveries and zero unknown, read, successor, or provenance
+failures. A prior reused-profile `h2_incomplete` result is retained as a real
+precondition failure.
+
+This evidence is candidate-only. The prior installed Host DLL was restored
+after collection; no loaded-runtime claim is made for that restored disk state.
+
 ## Implemented Contract
 
 - one fair-player Observe/Read/Interact path;
@@ -62,4 +77,6 @@ process-local canary opt-ins.
 
 See [Coverage](player-environment/COVERAGE.md),
 [Support](SUPPORT.md), and the
-[STPD operational runtime seal](evidence/STPD_OPERATIONAL_RUNTIME_SEAL_2026-08-22.md).
+[STPD operational runtime seal](evidence/STPD_OPERATIONAL_RUNTIME_SEAL_2026-08-22.md),
+plus the
+[Windows current-source runtime admission](evidence/WINDOWS_CURRENT_SOURCE_RUNTIME_ADMISSION_2026-08-22.md).

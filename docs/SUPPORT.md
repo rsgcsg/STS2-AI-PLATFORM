@@ -25,3 +25,11 @@ Those opt-ins authorize only that process for canary evidence. The exact
 `v1.1.0-rc.1/e065102` macOS artifact has an STPD operational runtime seal,
 but remains canary authority rather than general support. No other candidate
 artifact or Windows run inherits either the stable or STPD baseline seal.
+
+The clean `main/c9d7af5` Windows artifact `2050ae23...` has a separate named
+current-source candidate admission: reproducible primary-checkout build, exact
+cold-load, H0, H1 control, and fresh-profile bounded H2 evidence. That evidence
+is specific to the recorded Windows x64 game, Host, Modset, profile, and
+process-local canary identities. It grants neither formal H1.0 nor general
+Windows support. See the
+[dated admission](evidence/WINDOWS_CURRENT_SOURCE_RUNTIME_ADMISSION_2026-08-22.md).
