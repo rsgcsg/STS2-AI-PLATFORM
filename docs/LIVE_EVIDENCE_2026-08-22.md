@@ -1,5 +1,35 @@
 # Live Evidence: 2026-08-22
 
+## Exact-Before-Claim Seal
+
+- session: `session-20260822T172319Z-35064ba4aeb34a029828e5953b00903b`;
+- Connector source: `2a14504fffe2cf6fc21298dcb5e4084b9ac27ef1`;
+- Connector artifact SHA-256:
+  `f991eab77f846416468fcaaa014565912d7ee547ee7848cc46d24735c4ac2040`;
+- Connector MVID: `5b35e8ad-4f52-4dae-a551-17efc06547fb`;
+- Annotator source: `9459d22a3693c87c272b84d0c56c15b1551d54ae`;
+- Annotator source digest:
+  `9e5e1f8568df663b6695073a31d3dd7c5e40d1bcf0a87c11a61522c57e419281`;
+- Annotator artifact SHA-256:
+  `910c5bfeea02d3fb3539f73e3e9b0bdaca1e7acbe5b418dce16878d9099268b6`;
+- Annotator MVID: `635bf321-1871-45b0-ad9f-ce06b9502c51`;
+- runtime instance: `c5b3deff3f5540fdaac611aa2aaabbde`;
+- Modset fingerprint:
+  `948be0e660fe3bb8220b80b574056f6a7c0bdb7583c50b314bf55f248a6dc48d`.
+
+The owner confirmed native manual UI operation. The run admitted 20 ordinary
+combat transitions: 8 targeted plays, 8 untargeted plays and 4 end turns. All
+20 had a complete interactive S, catalogs of 3 through 20 BoundActions,
+exact-unique process-local mapping and a different complete interactive S'.
+There were no `mapping_zero` invalidations. Three starts without a complete S
+failed closed and were not recorded.
+
+Independent audit accepted 20 and rejected zero. Deterministic export SHA-256
+is `e59321b9df87afa3cbcddb3a87e76a443f1d607a828a5600ee2b3ccc4831ed6c`;
+strict STPD import accepted all 20, rejected zero and passed B0 as manifest
+`dataset-e96da7bd2e30b71e` with one exact environment. Owner confirmation is
+required for human origin; audit alone cannot prove who operated the UI.
+
 ## No-Latest-Frame Artifact
 
 - session: `session-20260822T170504Z-87ce123a7c0f4c53af0caf0162152d7f`;

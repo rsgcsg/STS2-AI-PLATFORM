@@ -45,18 +45,20 @@ frozen native operands before claiming the root. The 170 predecessor records
 prove same-card staging, no-fallback operation and the downstream path, but do
 not validate this final ordering source artifact.
 
-## Pending Exact Runtime Evidence
+## Current Exact Runtime Seal
 
-- current exact-before-claim Annotator source build/install/cold-load identity
-  with Connector source `2a14504...`;
-- an untargeted card, targeted card and end-turn accepted through the native UI
-  without a generic latest-frame authority path;
-- exact one-to-one mapping, stable successor, audit/export, and STPD import from
-  those real records;
-- no observable gameplay interference during a bounded ordinary run.
+Source `9459d22...` was built, installed, cold-loaded and owner-operated with
+Connector source `2a14504...`. The final session admitted 20 records: 8 targeted
+plays, 8 untargeted plays and 4 end turns. Every record had exact one-to-one
+mapping and a different complete interactive successor; audit/export and strict
+STPD B0 accepted all 20 with zero rejection and no `mapping_zero`. Three starts
+without a complete S failed closed.
 
-Until those gates pass, status is **implemented candidate**, not human validated,
-qualified, or released.
+The manifest's `not human validated` non-claim applies until owner review; the
+owner has now confirmed manual native UI operation for this exact session.
+Machine audit still cannot independently prove operator identity or controlled
+non-interference. This seals the declared ordinary-combat slice, not a broader
+qualification or release.
 
 ## Declared Unsupported
 

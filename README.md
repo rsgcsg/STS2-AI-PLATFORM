@@ -15,14 +15,13 @@ or expose native references on a wire.
   exact target when present), `end_turn`, append-only recording, independent
   audit/export, exact artifact identity, and fail-closed STPD import.
 - Built from the exact local STS2 `v0.111.0` assembly on macOS arm64.
-- Current predecessor exact-runtime evidence validates 170 ordinary-combat
-  records through independent audit/export and strict STPD B0. Exact staging
-  removed the systematic holder-removal misses, and deleting the generic
-  latest-frame fallback preserved 64 more exact records. That last run exposed
-  five same-type game actions claiming the human root before exact matching;
-  current source reverses that order. Pending for the successor source: its own
-  cold-load and short Live validation; evidence is not transferred across
-  artifacts.
+- Current exact-root artifact is owner-validated with 20 ordinary-combat
+  records: 8 targeted plays, 8 untargeted plays and 4 end turns. Independent
+  audit/export and strict STPD B0 accepted all 20 with zero rejected records;
+  no `mapping_zero` remained. Three clicks without a complete S failed closed.
+  Earlier exact artifacts contribute 170 predecessor records but do not lend
+  identity or authority to the current artifact. Pending scope remains explicit:
+  potions and non-Combat UI actions are unsupported by this recorder slice.
 - Unsupported by this first slice: potions and non-Combat UI actions.
 
 Implementation or build evidence is not human-origin evidence. See
