@@ -115,7 +115,7 @@ exact prepared Managed Host:
 
 ```bash
 npm run experiment:managed -- audit --candidate .local/candidates/<exact-candidate>
-PYTHONPATH=consumers/python python3 -m sts2_headless.smoke \
+npm run smoke:python -- \
   --candidate .local/candidates/<exact-candidate> \
   --max-actions 64 \
   --evidence-file .local/evidence/stpd-environment-smoke/report.json

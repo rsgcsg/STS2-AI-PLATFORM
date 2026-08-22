@@ -33,7 +33,7 @@ event, not a reason to edit the expected hash.
 Before STPD training, run the cheap external-consumer smoke:
 
 ```bash
-PYTHONPATH=consumers/python python3 -m sts2_headless.smoke \
+npm run smoke:python -- \
   --candidate .local/candidates/<exact-candidate> \
   --max-actions 64 \
   --evidence-file .local/evidence/stpd-environment-smoke/report.json
