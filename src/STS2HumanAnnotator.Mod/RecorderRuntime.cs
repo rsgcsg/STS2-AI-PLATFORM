@@ -2,8 +2,10 @@ using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using Godot;
+using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Multiplayer;
 using MegaCrit.Sts2.Core.GameActions;
+using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Multiplayer.Game;
 using MegaCrit.Sts2.Core.Runs;
 using STS2Connector.PlayerEnvironment.Protocol;
@@ -17,6 +19,11 @@ internal static class RecorderRuntime
     private sealed record CachedDecisionFrame(
         ProcessLocalNativeWitnessFrame Frame,
         RecorderEnvironmentIdentity Environment);
+
+    private sealed record StagedCardFrame(
+        CachedDecisionFrame Decision,
+        CardModel Card,
+        DateTimeOffset StagedAt);
 
     private sealed record PendingDecision(
         string RecordId,
@@ -35,6 +42,7 @@ internal static class RecorderRuntime
     private static RecordingStore? _store;
     private static PendingDecision? _pending;
     private static CachedDecisionFrame? _latestAuthoritativeFrame;
+    private static StagedCardFrame? _stagedCardFrame;
     private static long _sequence;
     private static DateTimeOffset _lastIdleStatusAt;
     private static DateTimeOffset _lastFrameProbeAt;
@@ -73,9 +81,45 @@ internal static class RecorderRuntime
         WriteStatus(null, null, new[] { "no_current_exact_frame" });
     }
 
+    internal static void StageCardPlay(CardModel card)
+    {
+        try
+        {
+            ProcessLocalNativeWitnessFrame frame = PlayerEnvironmentNativeWitness.Capture();
+            RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
+            var staged = EligibilityBlockers(frame, environment).Count == 0
+                ? new StagedCardFrame(
+                    new CachedDecisionFrame(frame, environment),
+                    card,
+                    DateTimeOffset.UtcNow)
+                : null;
+            lock (Gate)
+                _stagedCardFrame = staged;
+        }
+        catch
+        {
+            lock (Gate)
+                _stagedCardFrame = null;
+        }
+    }
+
+    internal static bool TryEnterCardScope(CardModel card, Creature? target)
+    {
+        var arguments = new Dictionary<string, object>(StringComparer.Ordinal);
+        if (target != null)
+            arguments["target"] = target;
+        return TryEnterScope(
+            "native_card_play_ui",
+            nameof(PlayCardAction),
+            new ProcessLocalObservedAction("play", card, arguments),
+            card);
+    }
+
     internal static bool TryEnterScope(
         string origin,
-        string expectedNativeActionType)
+        string expectedNativeActionType,
+        ProcessLocalObservedAction? expectedAction = null,
+        CardModel? stagedCard = null)
     {
         try
         {
@@ -84,13 +128,33 @@ internal static class RecorderRuntime
             List<string> currentBlockers = EligibilityBlockers(current, currentEnvironment);
             ProcessLocalNativeWitnessFrame? selected = null;
 
-            if (currentBlockers.Count == 0)
+            if (currentBlockers.Count == 0
+                && (expectedAction == null || IsExact(current.Resolve(expectedAction))))
             {
                 selected = current;
                 lock (Gate)
                     _latestAuthoritativeFrame = new CachedDecisionFrame(current, currentEnvironment);
             }
-            else if (currentBlockers.All(blocker =>
+
+            if (selected == null && expectedAction != null && stagedCard != null)
+            {
+                StagedCardFrame? staged;
+                lock (Gate)
+                {
+                    staged = _stagedCardFrame;
+                    _stagedCardFrame = null;
+                }
+                if (staged != null
+                    && ReferenceEquals(staged.Card, stagedCard)
+                    && DateTimeOffset.UtcNow - staged.StagedAt <= TimeSpan.FromSeconds(30)
+                    && SameDecisionContext(staged.Decision, current, currentEnvironment)
+                    && IsExact(staged.Decision.Frame.Resolve(expectedAction)))
+                {
+                    selected = staged.Decision.Frame;
+                }
+            }
+
+            if (selected == null && currentBlockers.All(blocker =>
                          string.Equals(
                              blocker,
                              "pre_frame_not_complete_interactive",
@@ -100,7 +164,8 @@ internal static class RecorderRuntime
                 {
                     if (_pending == null
                         && _latestAuthoritativeFrame is { } cached
-                        && SameDecisionContext(cached, current, currentEnvironment))
+                        && SameDecisionContext(cached, current, currentEnvironment)
+                        && (expectedAction == null || IsExact(cached.Frame.Resolve(expectedAction))))
                     {
                         selected = cached.Frame;
                     }
@@ -134,6 +199,11 @@ internal static class RecorderRuntime
             return false;
         }
     }
+
+    private static bool IsExact(ProcessLocalNativeMatch match) =>
+        string.Equals(match.Status, "exact_unique", StringComparison.Ordinal)
+        && match.MatchCount == 1
+        && match.BoundAction != null;
 
     internal static void ObserveAcceptedAction(GameAction action)
     {
@@ -192,7 +262,10 @@ internal static class RecorderRuntime
                          StringComparison.Ordinal)))
             {
                 lock (Gate)
+                {
                     _latestAuthoritativeFrame = null;
+                    _stagedCardFrame = null;
+                }
             }
 
             if (now - _lastIdleStatusAt < TimeSpan.FromSeconds(1))

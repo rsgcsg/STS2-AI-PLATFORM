@@ -12,8 +12,9 @@ STPD                            research projection and dataset admission
 The only production correlation path is:
 
 ```text
-latest complete authoritative Connector frame -> UI Prefix selects the current
-or same-interaction frozen frame -> game native validation/Commit
+native `StartCardPlay` stages the exact complete Connector frame while the card
+is still in the hand -> final UI Prefix selects current or same-card staged frame
+-> game native validation/Commit
 -> RequestEnqueue Postfix -> exact reference match -> wait for stable S'
 -> append record
 ```
@@ -24,11 +25,14 @@ skip a method, alter an argument/result, transpile game code, or enqueue an
 action. Connector-origin actions call a different native entry path and do not
 enter the human UI scope.
 
-Card targeting can make the UI temporarily settling before `TryPlayCard` runs.
-The recorder therefore retains the latest complete frame and may reuse it only
-when runtime, environment, and interaction identity still match. Each scope
-admits exactly one expected root action; game-owned actions caused by that root
-are ignored rather than mislabeled as additional human decisions.
+Starting a native card play moves its holder out of the active hand before
+`TryPlayCard(target)` commits. The recorder stages S at `StartCardPlay`, then
+uses it only when the exact same card reference, runtime, environment,
+interaction and target resolve to one frozen BoundAction within 30 seconds.
+The general latest-frame fallback remains restricted to the same interaction
+and a current settling frame. Each scope admits exactly one expected root
+action; game-owned actions caused by that root are ignored rather than
+mislabeled as additional human decisions.
 
 ## Exact Mapping
 

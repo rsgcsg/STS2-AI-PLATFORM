@@ -7,7 +7,7 @@ Read current truth in this order:
 3. [Data contract](DATA_CONTRACT.md)
 4. [Operations](OPERATIONS.md)
 5. [Evidence](EVIDENCE.md)
-6. [Reviewed predecessor Live evidence](LIVE_EVIDENCE_2026-08-22.md)
+6. [Reviewed Live and predecessor evidence](LIVE_EVIDENCE_2026-08-22.md)
 7. [Development](DEVELOPMENT.md)
 8. [Exact native seam notes](REVERSE_ENGINEERING_NOTES.md)
 

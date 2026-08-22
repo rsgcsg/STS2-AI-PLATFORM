@@ -21,22 +21,30 @@ snapshot rejection, nested runtime drift, catalog tampering, multi-run append,
 audit, and export. Connector tests cover duplicate-looking native objects,
 target disambiguation, incomplete frames, and exact observer fingerprinting.
 
-## Predecessor Live Finding
+## Exact Runtime Findings
 
-The 2026-08-22 exact observer artifact produced 25 independently auditable
-`end_turn` records that exported and passed STPD import/B0. It also exposed two
-Recorder defects: card release captured a settling frame too late, and the
-end-turn scope treated `ReadyToBeginEnemyTurnAction` as another human root.
-Current source keeps the latest same-interaction authoritative frame and admits
-only one expected root action per UI scope. The predecessor records prove the
-native end-turn seam and downstream data path only; they do not validate this
-new source artifact.
+The first 2026-08-22 observer artifact produced 25 independently auditable
+`end_turn` records and exposed late card capture plus nested root
+misclassification. Source `bc9c568...`, cold-loaded with queue-aware Connector
+source `2a14504...`, then produced 64 admitted records: 51 card plays, including
+27 targeted plays, and 13 end turns. All 64 mapped exact-unique and reached a
+different complete interactive successor.
+
+That run reduced the prior 22 queue-driven pre-frame misses to four clicks made
+without any stable complete S. It also exposed four `mapping_zero` plays:
+`TryPlayCard` ran after the selected holder had already left the active hand.
+Current source stages the exact frame at `NPlayerHand.StartCardPlay` and accepts
+it later only for the same card/runtime/environment/interaction and an
+exact-unique final target. The 64 predecessor records prove the queue-aware
+Connector, witness, root filtering and downstream data path; they do not
+validate this new Recorder source artifact.
 
 ## Pending Exact Runtime Evidence
 
-- current Connector and Annotator source build/install/cold-load identity;
-- an untargeted card, targeted card, duplicate-looking-card distinction, and
-  end-turn accepted through the native UI;
+- current Annotator source build/install/cold-load identity with Connector
+  source `2a14504...`;
+- an untargeted card, targeted card and end-turn accepted through the native UI
+  with zero systematic `mapping_zero` invalidations;
 - exact one-to-one mapping, stable successor, audit/export, and STPD import from
   those real records;
 - no observable gameplay interference during a bounded ordinary run.

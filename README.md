@@ -15,10 +15,13 @@ or expose native references on a wire.
   exact target when present), `end_turn`, append-only recording, independent
   audit/export, exact artifact identity, and fail-closed STPD import.
 - Built from the exact local STS2 `v0.111.0` assembly on macOS arm64.
-- Predecessor Live evidence validates 25 native `end_turn` records through
-  audit/export and STPD B0, while exposing and motivating the current card-frame
-  timing fix. Pending for the current source: a new cold-load and native `play`
-  validation; predecessor evidence is not transferred across artifacts.
+- Current exact-runtime evidence validates 64 ordinary-combat records through
+  audit, export and strict STPD B0. It also proved that freezing only at final
+  `TryPlayCard` is too late for four native plays whose holders had already
+  left the active hand. Current source stages the exact frame at native card
+  selection start and consumes it only for the same card/runtime/interaction.
+  Pending for that successor source: its own cold-load and Live validation;
+  predecessor evidence is not transferred across artifacts.
 - Unsupported by this first slice: potions and non-Combat UI actions.
 
 Implementation or build evidence is not human-origin evidence. See
@@ -28,8 +31,8 @@ Implementation or build evidence is not human-origin evidence. See
 
 ```text
 shipped STS2 UI
+  -> observer freezes Connector S + complete A(S) at native selection start
   -> game accepts a semantic action
-  -> observer freezes/uses Connector S + complete A(S)
   -> exact native references match exactly one frozen BoundAction
   -> Connector observes a different stable S'
   -> append-only HumanDecisionRecord
@@ -37,7 +40,7 @@ shipped STS2 UI
   -> STPD fail-closed import and B0
 ```
 
-Zero or multiple matches, an incomplete frame, runtime drift, overlapping
+Zero or multiple matches, no stable pre-frame, runtime drift, overlapping
 actions, or a missing stable successor are quarantined rather than guessed.
 
 ## Prerequisites

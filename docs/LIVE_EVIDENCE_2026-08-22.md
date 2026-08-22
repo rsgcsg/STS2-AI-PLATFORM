@@ -1,4 +1,41 @@
-# Predecessor Live Evidence: 2026-08-22
+# Live Evidence: 2026-08-22
+
+## Queue-Aware Combat Artifact
+
+- session: `session-20260822T164124Z-abefd960a8144166b5d890cb4dfd7c61`;
+- Connector source: `2a14504fffe2cf6fc21298dcb5e4084b9ac27ef1`;
+- Connector source digest:
+  `d6faf7f01844786896a9db75d80b97caf35b0cf99049d4c200a3ab59e85ac6df`;
+- Connector artifact SHA-256:
+  `f991eab77f846416468fcaaa014565912d7ee547ee7848cc46d24735c4ac2040`;
+- Connector MVID: `5b35e8ad-4f52-4dae-a551-17efc06547fb`;
+- Annotator source: `bc9c568a088897bce0413ac4197fbda988e8d960`;
+- Annotator artifact SHA-256:
+  `4ad0c4323258535b27218ffe1d0d61fb9ae553be936f5363d734451fbd765b90`;
+- Annotator MVID: `58bbbbea-9b21-4392-9920-2bc99a62f9cb`;
+- runtime instance: `52c21f811ebe43eeb990332c6eea8604`;
+- Modset fingerprint:
+  `dbd916a2445996bee127418d44d98b6cad60b4b9ea0e095b504825ca4c67fa1d`.
+
+The owner-operated run produced 64 admitted ordinary-combat transitions: 51
+plays, including 27 targeted plays, and 13 end turns. Every record had a
+complete interactive pre-frame, exact-unique mapping and a different complete
+interactive successor. Catalogs contained 2 through 16 BoundActions.
+Independent audit accepted 64 and rejected zero. The deterministic export
+SHA-256 is
+`b9b1fda00a71d7839c67eae5a045ae9fe278de917950a0a5e6c6b507b07ce787`;
+strict STPD import accepted all 64, rejected zero and passed B0 with one exact
+environment.
+
+Eight observations failed closed. Four occurred while no stable complete S was
+available during a turn/selection handoff. Four were accepted card plays whose
+holder had left the active hand before the old `TryPlayCard` freeze point,
+causing `mapping_zero`. The successor source stages the exact frame at
+`StartCardPlay`; the 64 records and eight invalidations remain predecessor
+evidence for that Recorder change. They do prove the queue-aware Connector
+correction reduced the earlier systematic queue misses.
+
+## Earlier Predecessor Envelope
 
 ## Exact Envelope
 
