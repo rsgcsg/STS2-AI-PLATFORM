@@ -46,10 +46,34 @@ out a materialized tree, applies normally, and marks only patch-declared new
 files as intent-to-add. Source diff, unmodified game assembly, artifact SHA,
 and MVID remain mandatory.
 
+## Bounded Windows runtime measurement
+
+After commit `ca598364ce9eb638d1fdd75a16e1817621635cfe` made the Windows
+bootstrap source-clean, the exact generated candidate was exercised through
+the Managed Player Environment probe. The raw report remains local at:
+
+`.local/evidence/managed-player-environment-2026-08-22T08-19-39-382Z/report.json`
+
+For requested seed `STPDWINPE00001`, the game reported the exact same seed.
+The bounded run delivered all 64 of 64 attempted canonical actions, completed
+122 canonical Reads, recorded 64 of 64 complete action decisions and zero
+partial decisions, and ended at the configured action limit with a complete
+combat successor. The process exited zero and reported no episode failure.
+
+Measured qualification-profile performance was 145.64 delivered canonical
+decisions per second over the bounded decision window, with 118,476,800 bytes
+peak RSS. This result is reported only for its exact machine, process, probe,
+and candidate tuple. The raw-speed unit remains
+`canonical_player_environment_decision_unqualified`.
+
+The hard-shell verdict was `bounded_integrity_pass`; semantic conformance and
+H1 admission were both `not_evaluated`. Runtime diagnostics also retained the
+CoreCLR 10 patch warnings and other candidate diagnostics rather than treating
+them as qualified away.
+
 ## Evidence boundary
 
 The generated candidates and raw reports stay under ignored `.local/`. Build
-admission proves reproducible exact construction only. It does not prove H1.0,
-cross-platform parity, Player Environment semantics, recovery, soak, policy
-quality, or training readiness. Those checks must be run and reported under
-this Windows tuple after the Headless source carrying these fixes is clean.
+and one bounded runtime admission do not prove H1.0, cross-platform parity,
+Player Environment semantic conformance, recovery, soak, policy quality, or
+training readiness. Those qualifications remain open under this Windows tuple.

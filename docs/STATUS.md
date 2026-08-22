@@ -36,6 +36,14 @@ candidate build. It does not inherit the macOS operational freeze or formal
 H1.0 authority; runtime and consumer evidence is recorded under the Windows
 identity only.
 
+One source-clean bounded Managed probe under this exact tuple delivered 64 of
+64 canonical actions, completed 122 Reads, retained complete canonical
+information, matched requested and game-reported seed `STPDWINPE00001`, and
+exited zero. Its hard-shell verdict is `bounded_integrity_pass`; semantic
+conformance and H1 admission remain `not_evaluated`. The measured 145.64
+decisions/s and 118,476,800-byte peak RSS are candidate-local measurements,
+not qualification or capacity claims.
+
 ## Operationally Verified
 
 - exact identity admission and wrong-identity fail closed;
