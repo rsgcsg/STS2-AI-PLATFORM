@@ -6,7 +6,12 @@ from pathlib import Path
 import sys
 from uuid import uuid4
 
-from .client import DriverError, FiniteActionView, ManagedPlayerEnvironment
+from .client import (
+    DriverError,
+    FiniteActionView,
+    ManagedPlayerEnvironment,
+    canonicalize_episode_seed,
+)
 
 
 def _same_session(before: dict, after: dict) -> bool:
@@ -28,14 +33,15 @@ def main() -> None:
     reads = 0
     delivered = 0
     terminal = "action_limit"
+    expected_seed = canonicalize_episode_seed(args.seed)
     with ManagedPlayerEnvironment(command) as environment:
         snapshot = environment.reset(args.seed)
         identity = environment.episode_identity()
         provenance = identity.get("episode_provenance", {})
         if (
             provenance.get("verdict") != "provenance_pass"
-            or provenance.get("requested_seed") != args.seed
-            or provenance.get("actual_seed") != args.seed
+            or provenance.get("requested_seed") != expected_seed
+            or provenance.get("actual_seed") != expected_seed
         ):
             raise DriverError("Reset did not prove the requested episode seed.")
         for _ in range(args.max_actions):
@@ -67,7 +73,7 @@ def main() -> None:
             snapshot = receipt["successor"]
         report = {
             "status": "environment_smoke_pass",
-            "seed": args.seed,
+            "seed": expected_seed,
             "terminal": terminal,
             "actions_delivered": delivered,
             "reads_completed": reads,

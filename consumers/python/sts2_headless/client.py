@@ -15,6 +15,15 @@ class DriverError(RuntimeError):
     pass
 
 
+def canonicalize_episode_seed(seed: str) -> str:
+    if not isinstance(seed, str):
+        raise TypeError("Episode seed must be a string.")
+    canonical = seed.strip().upper().replace("O", "0").replace("I", "1")
+    if not canonical or len(canonical) > 64 or not canonical.isascii() or not canonical.isalnum():
+        raise ValueError("Episode seed must canonicalize to 1-64 ASCII letters or digits.")
+    return canonical
+
+
 @dataclass(frozen=True)
 class FiniteActionView:
     snapshot_id: str
@@ -114,7 +123,7 @@ class ManagedPlayerEnvironment:
         return response
 
     def reset(self, seed: str) -> Mapping[str, Any]:
-        return self._exchange("reset", seed=seed)["snapshot"]
+        return self._exchange("reset", seed=canonicalize_episode_seed(seed))["snapshot"]
 
     def observe(self) -> Mapping[str, Any]:
         return self._exchange("observe")["snapshot"]

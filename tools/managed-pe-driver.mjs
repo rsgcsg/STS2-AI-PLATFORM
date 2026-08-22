@@ -52,7 +52,7 @@ async function handle(request) {
     case "reset": {
       requestedEpisodeSeed = canonicalizeEpisodeSeed(request.seed);
       const snapshot = await started.session.mount({
-        seed: request.seed,
+        seed: requestedEpisodeSeed,
         reset: mounted,
         timeoutMs: requestTimeoutMs
       });

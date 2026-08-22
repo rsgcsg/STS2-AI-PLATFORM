@@ -6,6 +6,7 @@ from sts2_headless.client import (
     FiniteActionView,
     ManagedPlayerEnvironment,
     ThreadedVectorPlayerEnvironment,
+    canonicalize_episode_seed,
 )
 
 
@@ -54,6 +55,11 @@ for line in sys.stdin:
 
 
 class ClientTest(unittest.TestCase):
+    def test_episode_seed_uses_the_game_canonical_form(self):
+        self.assertEqual(canonicalize_episode_seed(" oiAbc123 "), "01ABC123")
+        with self.assertRaises(ValueError):
+            canonicalize_episode_seed("bad-seed")
+
     def test_round_trip_and_finite_projection(self):
         with ManagedPlayerEnvironment([sys.executable, "-u", "-c", FAKE_DRIVER]) as environment:
             snapshot = environment.reset("SEED")
