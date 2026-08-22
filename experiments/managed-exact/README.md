@@ -1,12 +1,14 @@
 # Managed Exact Candidate
 
-This directory admits one reproducible, exact-build experiment derived from
+This directory admits one reproducible, exact-build experiment with separately
+pinned platform baselines, derived from
 [`wuhao21/sts2-cli`](https://github.com/wuhao21/sts2-cli). It is a candidate
 Host, not the Reference Host and not a qualified trainer.
 
 The committed authority is:
 
-- `manifest.json`: upstream revision, exact game tuple, required local files,
+- `manifest.json`: upstream revision, primary macOS tuple, separately identified
+  platform candidate tuples, required local files,
   semantic shims, and allowed/non-allowed claims;
 - `patches/sts2-cli-d11aa88-v01110.patch`: the complete reviewable source
   delta from that immutable MIT-licensed upstream revision;
@@ -57,5 +59,5 @@ When changing the candidate:
 5. verify the prepared source patch, unmodified game SHA, artifact SHA/MVID,
    and runtime identity before collecting evidence.
 
-Never transfer evidence across a changed patch, artifact, game assembly,
+Never transfer evidence across a platform baseline, changed patch, artifact, game assembly,
 runtime instance, or canonical adapter source.

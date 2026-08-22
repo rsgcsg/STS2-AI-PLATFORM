@@ -40,6 +40,30 @@
     "artifact_sha256": "8dc622b0c003dc632a753e0bb524a82690290930dfe9573a4c71cb8234a6d8a6",
     "artifact_mvid": "7228541c-d4f4-4033-9ff5-30f4c9997e98"
   },
+  "platform_baselines": [
+    {
+      "baseline_id": "win32-x64-v0.111.0-41cef1ea-managed-candidate",
+      "status": "windows_candidate_separate_provenance",
+      "exact_game": {
+        "platform": "win32",
+        "architecture": "x64",
+        "version": "v0.111.0",
+        "commit": "41cef1ea",
+        "runtime_main_assembly_hash": 222455745,
+        "sts2_dll_sha256": "0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9",
+        "godotsharp_dll_sha256": "0e4897ecdfb31456a97c7d8028dfb8d7dbdc632e2f73fc9b438d7b266a139289"
+      },
+      "expected_build": {
+        "source_patch_sha256": "8ced088bffbfeaa378d4580ca2c254c41cd89ae58b5b1e9b6ee1a764f8eef87e",
+        "artifact_sha256": "0d8c916365f0a64a0ed5cfc706186811e33708c841fef82e1f73c6a33dcfcc4d",
+        "artifact_mvid": "387bc1a3-5a3f-4f76-babb-698a770cdb8b"
+      },
+      "non_claims": [
+        "This Windows build has separate provenance and does not inherit macOS qualification.",
+        "Admission is candidate-local and does not establish formal H1.0 support."
+      ]
+    }
+  ],
   "privileged_commands": [
     "load_save",
     "set_player",

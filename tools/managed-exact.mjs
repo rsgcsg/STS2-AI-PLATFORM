@@ -7,6 +7,7 @@ import { discoverGameDirectory, readDiskIdentity, resolveInstallation } from "..
 import {
   inspectManagedCandidateBuild,
   loadManagedCandidateManifest,
+  selectManagedCandidateManifest,
   prepareManagedCandidate,
   runManagedCandidateCapacity,
   runManagedCandidateProbe
@@ -74,7 +75,8 @@ async function main() {
     throw new Error(`${command} requires --candidate <prepared-directory>.`);
   }
   if (command === "audit") {
-    const { manifest } = loadManagedCandidateManifest(ROOT);
+    const { manifest: loadedManifest } = loadManagedCandidateManifest(ROOT);
+    const manifest = selectManagedCandidateManifest(loadedManifest, diskIdentity());
     console.log(JSON.stringify(await inspectManagedCandidateBuild({
       root: ROOT,
       candidateDirectory,

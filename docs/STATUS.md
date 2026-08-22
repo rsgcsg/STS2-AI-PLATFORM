@@ -24,6 +24,18 @@ Managed patch and Host artifact.
 Generated candidates, game files, saves and raw reports remain local and are
 not release assets.
 
+## Separate Windows Candidate
+
+Windows x64 now has its own fail-closed Managed build baseline for STS2
+`v0.111.0/41cef1ea`. It binds runtime assembly hash `222455745`, `sts2.dll`
+SHA-256 `0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9`,
+Managed Host SHA-256
+`0d8c916365f0a64a0ed5cfc706186811e33708c841fef82e1f73c6a33dcfcc4d`,
+and MVID `387bc1a3-5a3f-4f76-babb-698a770cdb8b`. This is a separately identified
+candidate build. It does not inherit the macOS operational freeze or formal
+H1.0 authority; runtime and consumer evidence is recorded under the Windows
+identity only.
+
 ## Operationally Verified
 
 - exact identity admission and wrong-identity fail closed;

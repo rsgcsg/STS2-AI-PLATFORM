@@ -34,6 +34,9 @@
 18. [Managed Exact STPD v0 operational freeze](evidence/MANAGED_EXACT_STPD_V0_OPERATIONAL_FREEZE_2026-08-22.md):
     frozen exact tuple, admitted operational evidence, consumer-invalid rules,
     deferred qualification and requalification triggers.
+19. [Windows Managed Exact build admission](evidence/WINDOWS_MANAGED_EXACT_BUILD_ADMISSION_2026-08-22.md):
+    separate Windows tuple, reproducible Host identity, bootstrap portability
+    corrections, and explicit non-inheritance boundary.
 
 `README.md`, Status, Architecture, and Compatibility are current truth. Local
 raw evidence under `.local/` is not documentation and must not be committed.

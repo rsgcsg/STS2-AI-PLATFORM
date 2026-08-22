@@ -6,7 +6,8 @@ import { readDiskIdentity, readInstalledConnectorIdentity } from "./game-install
 import { chooseBoundAction, runBoundedJourney } from "./journey-probe.mjs";
 import {
   inspectManagedCandidateBuild,
-  loadManagedCandidateManifest
+  loadManagedCandidateManifest,
+  selectManagedCandidateManifest
 } from "./managed-candidate.mjs";
 import { startManagedPlayerEnvironmentSession } from "./managed-player-environment.mjs";
 import { instantiateProfileTemplate } from "./profile-template.mjs";
@@ -277,7 +278,8 @@ export async function createManagedExactHostDriver({
   character = "Ironclad",
   requestTimeoutMs = 10_000
 }) {
-  const { manifest } = loadManagedCandidateManifest(root);
+  const { manifest: loadedManifest } = loadManagedCandidateManifest(root);
+  const manifest = selectManagedCandidateManifest(loadedManifest, diskIdentity);
   const build = await inspectManagedCandidateBuild({ root, candidateDirectory, manifest });
   return createHostDriver({
     driverId: manifest.candidate_id,

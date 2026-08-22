@@ -52,6 +52,31 @@ function canonicalPatch(value) {
     .join("\n");
 }
 
+export function addedPatchPaths(value) {
+  const normalized = normalizeText(value);
+  const paths = [];
+  const pattern = /^diff --git a\/(\S+) b\/(\S+)\nnew file mode [0-7]{6}$/gmu;
+  for (const match of normalized.matchAll(pattern)) {
+    if (match[1] !== match[2]
+        || path.posix.isAbsolute(match[2])
+        || match[2].split("/").includes("..")) {
+      throw new Error(`Managed candidate patch has an unsafe added path: ${match[2]}`);
+    }
+    paths.push(match[2]);
+  }
+  return paths;
+}
+
+export function toBashPath(value, platform = process.platform) {
+  if (platform !== "win32") return value;
+  const resolved = path.win32.resolve(value);
+  const drive = path.win32.parse(resolved).root.match(/^([A-Za-z]):\\$/u)?.[1];
+  if (drive == null) {
+    throw new Error(`Managed candidate requires a drive-qualified Windows game path: ${value}`);
+  }
+  return `/${drive.toLowerCase()}${resolved.slice(2).replaceAll("\\", "/")}`;
+}
+
 async function run(command, args, options = {}) {
   return execFileAsync(command, args, {
     encoding: "utf8",
@@ -88,12 +113,21 @@ export function loadManagedCandidateManifest(root) {
   if (!Array.isArray(manifest.required_game_files) || manifest.required_game_files.length === 0) {
     errors.push("required_game_files_missing");
   }
+  if (manifest.platform_baselines != null
+      && (!Array.isArray(manifest.platform_baselines)
+        || manifest.platform_baselines.some((baseline) =>
+          !plainObject(baseline)
+          || typeof baseline.baseline_id !== "string"
+          || !plainObject(baseline.exact_game)
+          || !plainObject(baseline.expected_build)))) {
+    errors.push("platform_baselines_invalid");
+  }
   if (errors.length > 0) throw new Error(`Managed candidate manifest invalid: ${errors.join(", ")}`);
   return { manifest, file };
 }
 
-export function assertManagedCandidateGame(manifest, diskIdentity) {
-  const actual = {
+function diskGameIdentity(diskIdentity) {
+  return {
     platform: diskIdentity.platform,
     architecture: diskIdentity.architecture,
     version: diskIdentity.release?.version,
@@ -102,13 +136,55 @@ export function assertManagedCandidateGame(manifest, diskIdentity) {
     sts2_dll_sha256: diskIdentity.sts2_assembly?.sha256,
     godotsharp_dll_sha256: diskIdentity.godotsharp_assembly?.sha256
   };
-  const mismatches = Object.entries(manifest.exact_game)
+}
+
+function identityMismatches(exactGame, actual) {
+  return Object.entries(exactGame)
     .filter(([key, expected]) => actual[key] !== expected)
     .map(([key, expected]) => ({ key, expected, actual: actual[key] ?? null }));
-  if (mismatches.length > 0) {
-    throw new Error(`Managed candidate refuses this game identity: ${JSON.stringify(mismatches)}`);
+}
+
+export function selectManagedCandidateManifest(manifest, diskIdentity) {
+  const actual = diskGameIdentity(diskIdentity);
+  const baselines = manifest.selected_baseline == null
+    ? [
+        {
+          baseline_id: "primary-darwin-arm64",
+          status: manifest.status,
+          exact_game: manifest.exact_game,
+          expected_build: manifest.expected_build,
+          non_claims: []
+        },
+        ...(manifest.platform_baselines ?? [])
+      ]
+    : [{ ...manifest.selected_baseline, exact_game: manifest.exact_game, expected_build: manifest.expected_build }];
+  const matches = baselines.filter((baseline) =>
+    identityMismatches(baseline.exact_game, actual).length === 0);
+  if (matches.length !== 1) {
+    const mismatchReport = baselines.map((baseline) => ({
+      baseline_id: baseline.baseline_id,
+      mismatches: identityMismatches(baseline.exact_game, actual)
+    }));
+    throw new Error(
+      `Managed candidate refuses this game identity: ${JSON.stringify(mismatchReport)}`
+    );
   }
-  return actual;
+  const selected = matches[0];
+  return {
+    ...manifest,
+    selected_baseline: {
+      baseline_id: selected.baseline_id,
+      status: selected.status,
+      non_claims: selected.non_claims ?? []
+    },
+    exact_game: selected.exact_game,
+    expected_build: selected.expected_build
+  };
+}
+
+export function assertManagedCandidateGame(manifest, diskIdentity) {
+  selectManagedCandidateManifest(manifest, diskIdentity);
+  return diskGameIdentity(diskIdentity);
 }
 
 export async function resolveDotnet() {
@@ -225,7 +301,8 @@ export async function prepareManagedCandidate({
   diskIdentity,
   candidateDirectory = null
 }) {
-  const { manifest, file: manifestFile } = loadManagedCandidateManifest(root);
+  const { manifest: loadedManifest, file: manifestFile } = loadManagedCandidateManifest(root);
+  const manifest = selectManagedCandidateManifest(loadedManifest, diskIdentity);
   const exactGame = assertManagedCandidateGame(manifest, diskIdentity);
   const dotnet = await resolveDotnet();
   const major = Number(dotnet.version.split(".")[0]);
@@ -239,13 +316,30 @@ export async function prepareManagedCandidate({
   ));
   if (existsSync(destination)) throw new Error(`Refusing to overwrite candidate directory: ${destination}`);
   mkdirSync(path.dirname(destination), { recursive: true });
-  await run("git", ["clone", "--no-checkout", manifest.upstream.url, destination]);
+  // The pinned upstream contains Bash entry points. A Windows global
+  // core.autocrlf setting must not rewrite those files before setup.
+  await run("git", [
+    "clone",
+    "--config",
+    "core.autocrlf=false",
+    manifest.upstream.url,
+    destination
+  ]);
   await run("git", ["checkout", "--detach", manifest.upstream.revision], { cwd: destination });
   const patchFile = path.join(root, "experiments", "managed-exact", manifest.source_patch);
+  const normalizedPatchFile = path.join(destination, ".git", "stpd-managed-candidate.patch");
+  const normalizedPatch = normalizeText(readFileSync(patchFile, "utf8"));
+  writeFileSync(normalizedPatchFile, normalizedPatch);
   // Preserve newly added files in the same `git diff` view used by source
-  // admission. Without intent-to-add, a fresh clone silently omits new source
-  // files from the post-build audit even though `git apply` created them.
-  await run("git", ["apply", "--intent-to-add", "--whitespace=error-all", patchFile], { cwd: destination });
+  // admission. Applying with git's broad --intent-to-add mode can rewrite the
+  // index on Windows, so add only paths declared `new file mode` by the patch.
+  await run("git", ["apply", "--whitespace=error-all", normalizedPatchFile], {
+    cwd: destination
+  });
+  const addedPaths = addedPatchPaths(normalizedPatch);
+  if (addedPaths.length > 0) {
+    await run("git", ["add", "--intent-to-add", "--", ...addedPaths], { cwd: destination });
+  }
 
   const gameDataDirectory = path.dirname(diskIdentity.sts2_assembly.path);
   mkdirSync(path.join(destination, "lib"), { recursive: true });
@@ -255,15 +349,25 @@ export async function prepareManagedCandidate({
     copyFileSync(source, path.join(destination, "lib", name));
   }
 
-  let setup;
-  try {
-    setup = await run("bash", ["setup.sh", gameDataDirectory], {
-      cwd: destination,
-      timeout: 600_000,
-      env: { ...process.env, DOTNET: dotnet.command }
-    });
-  } catch (error) {
-    throw new Error(`Managed upstream setup failed: ${error instanceof Error ? error.message : String(error)}`);
+  if (process.platform === "win32") {
+    // The admitted patch keeps sts2.dll byte-for-byte exact. All setup.sh does
+    // before its build is copy the already enumerated DLLs and create this
+    // audit backup, so perform those filesystem steps natively when `bash` is
+    // WSL and cannot consume Windows process paths.
+    copyFileSync(
+      path.join(destination, "lib", "sts2.dll"),
+      path.join(destination, "lib", "sts2.dll.original")
+    );
+  } else {
+    try {
+      await run("bash", ["setup.sh", toBashPath(gameDataDirectory)], {
+        cwd: destination,
+        timeout: 600_000,
+        env: { ...process.env, DOTNET: dotnet.command }
+      });
+    } catch (error) {
+      throw new Error(`Managed upstream setup failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
   const project = path.join(destination, manifest.setup_contract.managed_project);
   await run(dotnet.command, ["build", project, "-c", "Release", "--nologo"], {
@@ -301,7 +405,8 @@ export async function startManagedCandidateRuntime({
   quietDiagnostics = false
 }) {
   requirePositiveInteger(requestTimeoutMs, "requestTimeoutMs");
-  const { manifest } = loadManagedCandidateManifest(root);
+  const { manifest: loadedManifest } = loadManagedCandidateManifest(root);
+  const manifest = selectManagedCandidateManifest(loadedManifest, diskIdentity);
   const exactGame = assertManagedCandidateGame(manifest, diskIdentity);
   const resolvedCandidateDirectory = path.resolve(candidateDirectory);
   const build = await inspectManagedCandidateBuild({

@@ -4,12 +4,20 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 import {
+  discoverGameDirectory,
+  readDiskIdentity,
+  resolveInstallation
+} from "../src/game-installation.mjs";
+import {
+  addedPatchPaths,
   inspectManagedCandidateBuild,
   assertManagedCandidateGame,
   chooseManagedCandidateAction,
   loadManagedCandidateManifest,
   runManagedCandidateCapacity,
-  runManagedCandidateProbe
+  runManagedCandidateProbe,
+  selectManagedCandidateManifest,
+  toBashPath
 } from "../src/managed-candidate.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -21,6 +29,7 @@ test("managed candidate manifest freezes one exact operational baseline", () => 
   assert.match(manifest.expected_build.artifact_mvid, /^[0-9a-f-]{36}$/u);
   assert.equal(manifest.admission.forbidden_claims.includes("formal H1.0 qualification"), true);
   assert.ok(manifest.semantic_shims.some((entry) => entry.risk === "critical"));
+  assert.equal(manifest.platform_baselines.length, 1);
   assert.throws(() => assertManagedCandidateGame(manifest, {
     platform: "darwin",
     architecture: "arm64",
@@ -60,7 +69,49 @@ test("managed candidate patch keeps normal actions on native identity and commit
 
 test("fresh candidate preparation admits added source files into the audited diff", () => {
   const source = readFileSync(path.join(ROOT, "src", "managed-candidate.mjs"), "utf8");
-  assert.equal(source.includes('["apply", "--intent-to-add"'), true);
+  const { manifest } = loadManagedCandidateManifest(ROOT);
+  const patch = readFileSync(
+    path.join(ROOT, "experiments", "managed-exact", manifest.source_patch),
+    "utf8"
+  );
+  assert.deepEqual(addedPatchPaths(patch), ["src/Sts2Headless/PerformanceLab.cs"]);
+  assert.equal(source.includes('["add", "--intent-to-add"'), true);
+  assert.equal(source.includes("stpd-managed-candidate.patch"), true);
+  assert.equal(source.includes("normalizeText(readFileSync(patchFile"), true);
+  assert.equal(source.includes('"core.autocrlf=false"'), true);
+  assert.equal(source.includes('"--no-checkout"'), false);
+});
+
+test("managed candidate selects Windows as separate provenance without changing macOS", () => {
+  const { manifest } = loadManagedCandidateManifest(ROOT);
+  const selected = selectManagedCandidateManifest(manifest, {
+    platform: "win32",
+    architecture: "x64",
+    release: { version: "v0.111.0", commit: "41cef1ea" },
+    runtime_main_assembly_hash: 222455745,
+    sts2_assembly: {
+      sha256: "0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9"
+    },
+    godotsharp_assembly: {
+      sha256: "0e4897ecdfb31456a97c7d8028dfb8d7dbdc632e2f73fc9b438d7b266a139289"
+    }
+  });
+  assert.equal(selected.selected_baseline.status, "windows_candidate_separate_provenance");
+  assert.equal(
+    selected.expected_build.artifact_sha256,
+    "0d8c916365f0a64a0ed5cfc706186811e33708c841fef82e1f73c6a33dcfcc4d"
+  );
+  assert.equal(manifest.exact_game.platform, "darwin");
+  assert.equal(manifest.expected_build.artifact_mvid, "7228541c-d4f4-4033-9ff5-30f4c9997e98");
+});
+
+test("managed setup converts drive-qualified Windows paths for Git Bash", () => {
+  assert.equal(
+    toBashPath("E:\\SteamLibrary\\steamapps\\common\\Slay the Spire 2\\data", "win32"),
+    "/e/SteamLibrary/steamapps/common/Slay the Spire 2/data"
+  );
+  assert.equal(toBashPath("/Applications/Game/data", "darwin"), "/Applications/Game/data");
+  assert.throws(() => toBashPath("\\\\server\\share\\game", "win32"), /drive-qualified/u);
 });
 
 test("managed probe policy uses advertised semantic operands and fails closed on unknown decisions", () => {
@@ -131,7 +182,13 @@ test("managed build inspection resolves a relative candidate path before returni
     context.skip("set STS2_MANAGED_TEST_CANDIDATE for the proprietary exact-build integration gate");
     return;
   }
-  const { manifest } = loadManagedCandidateManifest(ROOT);
+  const { manifest: loadedManifest } = loadManagedCandidateManifest(ROOT);
+  const gameDirectory = discoverGameDirectory();
+  assert.ok(gameDirectory, "integration candidate requires the installed exact game");
+  const manifest = selectManagedCandidateManifest(
+    loadedManifest,
+    readDiskIdentity(resolveInstallation(gameDirectory))
+  );
   const result = await inspectManagedCandidateBuild({ root: ROOT, candidateDirectory: candidate, manifest });
   assert.equal(path.isAbsolute(result.candidate_directory), true);
   assert.equal(path.isAbsolute(result.artifact), true);
