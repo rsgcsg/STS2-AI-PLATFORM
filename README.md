@@ -12,66 +12,31 @@ simulator or a wrapper around a reimplemented game.
 
 ## Current Status
 
-Version `0.1.0` is an evidence-first preview, not H1.0 and not Training Ready.
-The shipped Godot route is currently the highest-confidence **Reference Host**:
-it preserves the official runtime, SceneTree, Mod loader, legality, RNG and
-effects. It is not a practical primary trainer on the measured Windows tuple.
+Version `1.0.0` freezes one **STPD v0 operational baseline**. It does not claim
+formal H1.0 qualification or universal STS2 compatibility.
 
-Current exact Windows experimental evidence on STS2 `v0.111.0` (`41cef1ea`)
-includes native profile isolation, verified template reset, game-owned seed
-provenance, process-local Connector endpoints, same-artifact semantic
-repeatability, capacity, crash/restart recovery, bounded multi-worker
-supervision, crash and suspended-process hang recovery, a shared-profile write
-sentinel, and runtime-bound native shutdown.
+The baseline is exact and fail-closed:
 
-The current measured development artifact uses protocol `1.0-rc.2`, Connector
-source `3e5c5a8...`, DLL SHA `e9673497...`, and MVID `c5bcd426...`. It measured
-only `1.52` aggregate normalized semantic decisions/s at four workers. Current
-eight-worker windows delivered all 64 decisions at about `2.30` decisions/s
-and `5.6-5.7 GiB` summed peak RSS, but failed lifecycle admission on intermittent
-pre-shutdown Godot diagnostics. A predecessor artifact reached `2.91` at eight
-workers. All are far below the current `>=1000` trainer hypothesis.
-Native exit returns code zero and releases processes/endpoints. A phase-aware
-classifier now rejects unknown, misplaced, or over-limit diagnostics and admits
-only a small exact signature set. The observed roughly 950-1000 Godot messages
-are therefore bounded as a containment candidate, not hidden; clean shutdown
-and containment qualification remain unresolved.
+- Headless source/tag: `v1.0.0`;
+- game: macOS arm64 STS2 `v0.111.0` / `41cef1ea`, `sts2.dll`
+  `9cb4f1ad...`, MVID `57785517...`;
+- Managed Exact upstream `d11aa883...`, patch `ed9248b...`, Host artifact
+  `a884b104...`, MVID `5b6adbd6...`;
+- Connector `v1.1.0-rc.1`, source `e065102...`, artifact `c1877f1a...`, MVID
+  `64765ea1...`, protocol/SDK `1.0.0`.
 
-The released macOS arm64 tuple remains the only declared supported tuple.
-Windows x64 is `known_experimental`; a matching hash does not grant support.
-Long soak, broad fault/hang recovery, a real changed-build update drill, a
-reproducibly published RC Connector SDK/Host, and a high-throughput qualified
-backend remain open gates. The current same-artifact differential is a
-repeatability baseline, not cross-Host equivalence.
+The real game still owns rules, RNG, effects and Commit. The managed route is
+the primary STPD environment; shipped Godot remains the Reference Host. Exact
+evidence covers complete finite actions, state-bound Reads, stable successors,
+terminal episodes, reset authority rotation, duplicate request replay,
+unknown-no-retry recovery, an independent Python consumer, two-worker learner
+contention and two Candidate-to-Reference terminal runs. One of those two runs
+matched the exact terminal outcome; this is not broad semantic equivalence.
 
-An exact-build research Mod also completed one full official AutoSlayer run in
-`394.5s`, covering 50 room entries across three acts. It averaged only `0.151`
-CPU cores and peaked at `0.865 GiB` RSS. This proves that route can drive the
-native game end to end; its 616 log actions are not normalized semantic
-decisions and do not qualify it as a Connector Host or trainer.
-
-A rebuilt exact managed candidate now keeps the installed game assembly
-byte-identical and uses the canonical Player Environment contract. Current
-clean-source profiling measured `D_engine`, training-profile and strict
-qualification-profile single-environment means of `345.88`, `208.87` and
-`183.25 d/s` in the current confirmation windows. Rates are workload-specific;
-a shared supervisor reached `1,686.88 d/s` at eight workers and plateaued at
-`2,460.62 d/s` with 24 environments on the 10-core M4. A current CrossHost
-probe matched the Reference Host for a fixed map/combat/reward prefix. The
-current exact artifact also matched a reward-to-map-to-combat window and
-completed ten fixed-seed ordinary lifecycles after closing full-potion reward
-publication and starting-map topology defects. Its current artifact also
-projected complete information for every action decision in that corpus after
-closing stable hover and rest-option text gaps. The candidate has not passed
-broad semantic qualification, 1M reliability, real learner or
-Reference-transfer gates. It is fast and bounded-complete, not the default
-route or Training Ready.
-See [Managed Exact Candidate](experiments/managed-exact/README.md).
-
-Godot's official `--single-threaded-scene` option was tested as a bounded Host
-configuration candidate. It produced one admitted and one rejected
-eight-worker window, no material throughput gain, and no reliable diagnostic
-improvement. The option was therefore removed from the production CLI.
+Long soak, exhaustive/randomized CrossHost coverage, arbitrary cards/relics/
+events, a real changed-build campaign, cluster/high-core qualification and
+cross-platform support are deliberately deferred. See [Status](docs/STATUS.md)
+and the release runtime seal for the exact evidence boundary.
 
 See [Status](docs/STATUS.md), [Compatibility](docs/COMPATIBILITY.md), and
 [Evidence](docs/EVIDENCE.md) for exact scope.
@@ -98,7 +63,7 @@ npm run doctor
 npm run setup
 ```
 
-`setup` downloads the pinned Connector `1.0.1` GitHub Release, verifies its
+`setup` downloads the pinned Connector `1.1.0-rc.1` GitHub Release, verifies its
 SHA-256, delegates to the release installer, and records a rollback snapshot.
 It does not build or install a branch.
 
@@ -142,6 +107,24 @@ It generates required gates; it never promotes compatibility.
 
 See [Roadmap](docs/ROADMAP.md) for the separate H1.0 Core Release,
 Training-Ready, and H* route gates.
+
+## STPD Baseline Smoke
+
+The cheap pre-training regression uses the independent Python consumer and the
+exact prepared Managed Host:
+
+```bash
+npm run experiment:managed -- audit --candidate .local/candidates/<exact-candidate>
+PYTHONPATH=consumers/python python3 -m sts2_headless.smoke \
+  --candidate .local/candidates/<exact-candidate> \
+  --max-actions 64 \
+  --evidence-file .local/evidence/stpd-environment-smoke/report.json
+```
+
+Any incomplete action catalog, unknown/non-delivery, missing successor,
+request/action identity mismatch, seed mismatch, or mid-episode environment
+identity change fails the command. It is a cheap regression gate, not full
+qualification.
 
 ## Run As A Service
 

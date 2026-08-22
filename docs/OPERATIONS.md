@@ -8,13 +8,39 @@ npm run doctor
 npm run setup
 ```
 
-`setup` installs only Connector Host `1.0.1` from its tagged GitHub Release and
-verifies archive SHA-256 `cdb33f2e...`. If an older/different Mod is installed,
+`setup` installs only Connector Host `1.1.0-rc.1` from its tagged GitHub
+prerelease and verifies archive SHA-256 `b2f7321d...`. If an older/different Mod is installed,
 the Connector release installer creates a timestamped rollback directory. The
 result is also stored locally in `.local/last-connector-install.json`.
 
 Installation is not loading. Fully exit and restart the game process before
 using a newly installed artifact.
+
+## Prepare The Managed STPD Baseline
+
+The Managed runtime is built locally from the immutable upstream plus the
+committed patch. No proprietary game files enter Git:
+
+```bash
+npm run experiment:managed -- prepare
+npm run experiment:managed -- audit --candidate .local/candidates/<exact-candidate>
+```
+
+Audit must report patch `ed9248b...`, Host `a884b104...`, and the exact
+unmodified game assembly `9cb4f1ad...`. Any mismatch is a requalification
+event, not a reason to edit the expected hash.
+
+Before STPD training, run the cheap external-consumer smoke:
+
+```bash
+PYTHONPATH=consumers/python python3 -m sts2_headless.smoke \
+  --candidate .local/candidates/<exact-candidate> \
+  --max-actions 64 \
+  --evidence-file .local/evidence/stpd-environment-smoke/report.json
+```
+
+A zero exit and `environment_smoke_pass` prove only the named operational
+path. The report is under `.local/evidence`; do not commit it.
 
 ## Start And Stop
 
@@ -131,6 +157,10 @@ verify loaded identity before making a runtime claim.
   route is experimental and the shared route requires `--shared-profile`.
 - `unknown` delivery: stop the consumer and inspect evidence. Never retry the
   mutation.
+- `incomplete BoundAction projection`, missing successor, request/action
+  identity mismatch, settling timeout or mid-episode environment identity
+  change: invalidate the episode/data and stop that worker. Do not train on
+  the transition.
 - `recovery_operational_pass_shutdown_diagnostics_observed`: reset/restart and
   cleanup gates passed, but native shipped-headless teardown was not clean. Do
   not relabel this as clean shutdown or broad soak qualification.
@@ -141,6 +171,6 @@ verify loaded identity before making a runtime claim.
 - `bounded_containment_candidate`: the run used native shutdown, exited zero
   without force and contained only exact phase/count-bounded diagnostics. It is
   still `not_qualified` until the long-soak gate is satisfied.
-- `npm ls` reports an invalid local Connector SDK: the development RC SDK was
-  linked over the public dependency. This is acceptable only for explicitly
-  attributed local evidence; run no release from that tree.
+- Connector release download fails: verify that tag `v1.1.0-rc.1` has the
+  archive named in `src/connector-release.mjs`; never fall back to a branch or
+  locally unverified DLL.

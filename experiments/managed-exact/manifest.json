@@ -1,7 +1,7 @@
 {
   "schema": "sts2.headless/managed-candidate-manifest-1",
   "candidate_id": "wuhao21-sts2-cli-d11aa88-v01110",
-  "status": "experimental_unqualified",
+  "status": "stpd_v0_operational_baseline",
   "upstream": {
     "url": "https://github.com/wuhao21/sts2-cli.git",
     "revision": "d11aa883b582dd68bd39b331f3370746b30d447e",
@@ -34,6 +34,11 @@
     "requires_unmodified_game_assembly": true,
     "managed_project": "src/Sts2Headless/Sts2Headless.csproj",
     "managed_artifact": "src/Sts2Headless/bin/Release/net9.0/Sts2Headless.dll"
+  },
+  "expected_build": {
+    "source_patch_sha256": "ed9248b76d3e7b7b793250d0e5fe16753c654faf5d267756df50b5d1890341c2",
+    "artifact_sha256": "a884b1048b5334f6b008dbfc543789cf7662f35fd7f33e01acb1b83f313b3d66",
+    "artifact_mvid": "5b6adbd6-1e21-4148-a6f1-a6510a534838"
   },
   "privileged_commands": [
     "load_save",
@@ -125,12 +130,13 @@
     }
   ],
   "admission": {
-    "allowed_claim": "managed route candidate",
+    "allowed_claim": "exact-tuple STPD v0 operational Player Environment baseline",
     "forbidden_claims": [
-      "Player Environment conformance",
-      "cross-host semantic equivalence",
-      "normalized semantic throughput",
-      "H1.0 admission",
+      "formal H1.0 qualification",
+      "broad cross-host semantic equivalence",
+      "arbitrary interaction coverage",
+      "changed-build compatibility",
+      "long-soak qualification",
       "redistributable game runtime"
     ]
   }

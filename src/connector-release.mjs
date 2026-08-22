@@ -9,11 +9,11 @@ import path from "node:path";
 import { sha256File } from "./game-installation.mjs";
 
 export const CONNECTOR_RELEASE = Object.freeze({
-  version: "1.0.1",
+  version: "1.1.0-rc.1",
   protocol: "1.0.0",
-  archive: "STS2-Connector-1.0.1-host.tar.gz",
-  archiveSha256: "cdb33f2e8fef8c58f92f49377e7582cc3446d6bd7369440681f3b9246c9a4045",
-  baseUrl: "https://github.com/rsgcsg/STS2-Connector/releases/download/v1.0.1"
+  archive: "STS2-Connector-1.1.0-rc.1-host.tar.gz",
+  archiveSha256: "b2f7321dab36689c26133eb198955321722d5ca928f2b6a0b5a125c6df861de2",
+  baseUrl: "https://github.com/rsgcsg/STS2-Connector/releases/download/v1.1.0-rc.1"
 });
 
 function connectorModsDirectory(installation, platform = process.platform) {

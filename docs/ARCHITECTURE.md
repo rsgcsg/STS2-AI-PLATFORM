@@ -7,7 +7,7 @@ display. The shipped Host uses the official SceneTree, tasks, commands, RNG,
 saves and native callbacks. A derived Host may qualify later, but loading some
 STS2 classes or approximating rules is not semantic equivalence.
 
-The current Reference route is:
+The shipped Reference route is:
 
 ```text
 ShippedHost
@@ -49,14 +49,14 @@ hypothesis even before that reliability gate.
 
 The first pinned `wuhao21/sts2-cli` spike failed bootstrap, profile,
 localization, save and global game-assembly patch boundaries and was rejected.
-The current rebuild keeps the exact installed `sts2.dll` byte-identical,
-follows native single-player bootstrap, and projects a strict but partial
-Player Environment. Its game-owned reward and treasure paths plus measured
-canonical throughput make it a serious candidate. Its TestMode runtime,
-managed observation extraction and presentation adapters remain Host-specific
-qualification risks; only cross-Host differential can admit their semantics.
+The frozen rebuild keeps the exact installed `sts2.dll` byte-identical,
+follows native single-player bootstrap, and projects the Connector-owned Player
+Environment. Its game-owned reward and treasure paths, stable information,
+reset/recovery, external-consumer and named Reference-transfer gates admit the
+exact STPD v0 operational baseline. TestMode, managed observation extraction
+and presentation adapters remain explicit Host-specific risks.
 
-The managed route therefore has three explicit layers:
+The Managed route has three explicit layers:
 
 ```text
 exact STS2 managed runtime + narrow absent-UI presentation adapters
@@ -66,7 +66,8 @@ exact STS2 managed runtime + narrow absent-UI presentation adapters
 
 Raw commands and privileged scenario controls are never a consumer API. Native
 object references remain inside the candidate and projection binding map.
-Throughput cannot promote this route ahead of semantic parity.
+Throughput did not grant universal parity. Only the exact named operational
+gates authorize this baseline.
 
 Current profiling adds a strict method boundary. Projection, allocation,
 transport and supervisor changes remain Managed Exact while the byte-identical
@@ -79,9 +80,9 @@ not speed or amount of code changed.
 On the current 10-core M4, the managed training profile plateaued at `2,451
 d/s` with 24 environments. One shared Node supervisor was not a bottleneck;
 per-worker supervisors increased memory without improving aggregate capacity.
-Native lifecycle and allocation dominate the single-environment ceiling. The
-preferred next route is therefore narrow Managed Exact v2 followed by semantic
-qualification, not an immediate Hybrid or simulator pivot.
+Native lifecycle and allocation dominate the single-environment ceiling.
+Managed Exact v2, Hybrid and simulator work are inactive for v1.0 and require a
+concrete STPD regression or bottleneck before reopening.
 
 The exact shipped source also contains Mega Crit's `AutoSlayer`: a broad smoke
 runner with game-owned seed override, watchdog, native commands and UI
@@ -158,17 +159,14 @@ starts and after every worker exits. A changed tree fails the supervisor even
 when gameplay integrity passed. This protects local profile files; it does not
 observe or prove Steam Cloud server state.
 
-## Release Gates
+## Release Boundary
 
-- **H1.0 Core Release**: reliable exact Host lifecycle, isolation/reset,
-  seed/provenance, supervisor/recovery, measurement, differential, update drill,
-  clean consumer interface and honest compatibility scope.
-- **Training Ready**: at least one semantically qualified backend with realistic
-  throughput, 1M+ reset/scale/recovery evidence, Python vector consumption,
-  learning smoke and policy evaluation on the Reference Host.
-- **H***: the measured Pareto route for fidelity, aggregate throughput,
-  CPU/RAM, reset, reliability and update maintenance. It is an experiment
-  outcome, not a preselected implementation.
+`v1.0.0` is an operational STPD baseline, not formal H1.0. It requires exact
+identity, complete action authority, stable successor/terminal, reset,
+idempotency, unknown-no-retry, recovery, external Python consumption, planned
+worker operation and named Reference comparison. Long soak, exhaustive
+semantics, changed-build campaigns and cross-platform qualification remain
+separate future evidence.
 
 ## Project Boundaries
 

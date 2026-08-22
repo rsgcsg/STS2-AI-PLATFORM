@@ -29,7 +29,11 @@ class FiniteActionView:
         actions = catalog.get("actions")
         if not isinstance(actions, list):
             raise DriverError("Snapshot BoundActions must be a list.")
-        ids = tuple(str(action["bound_action_id"]) for action in actions)
+        if any(not isinstance(action, Mapping) for action in actions):
+            raise DriverError("Every Snapshot BoundAction must be an object.")
+        ids = tuple(action.get("bound_action_id") for action in actions)
+        if any(not isinstance(identifier, str) or not identifier for identifier in ids):
+            raise DriverError("Snapshot contains an empty BoundAction identity.")
         if len(ids) != len(set(ids)):
             raise DriverError("Snapshot contains duplicate BoundAction identities.")
         return cls(str(snapshot["snapshot_id"]), ids, tuple(actions))

@@ -67,6 +67,16 @@ class ClientTest(unittest.TestCase):
     def test_rejects_incomplete_action_projection(self):
         with self.assertRaises(DriverError):
             FiniteActionView.from_snapshot({"snapshot_id": "s", "bound_actions": {"status": "partial"}})
+        with self.assertRaises(DriverError):
+            FiniteActionView.from_snapshot({
+                "snapshot_id": "s",
+                "bound_actions": {"status": "complete", "actions": [{"bound_action_id": ""}]},
+            })
+        with self.assertRaises(DriverError):
+            FiniteActionView.from_snapshot({
+                "snapshot_id": "s",
+                "bound_actions": {"status": "complete", "actions": [{}]},
+            })
 
     def test_driver_response_timeout_quarantines_process(self):
         environment = ManagedPlayerEnvironment(

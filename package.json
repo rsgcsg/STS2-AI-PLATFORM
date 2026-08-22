@@ -1,6 +1,6 @@
 {
   "name": "sts2-headless-workspace",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Evidence-first tooling for running the real Slay the Spire 2 runtime without a display",
   "license": "MIT",
@@ -46,6 +46,6 @@
     "check": "npm run check:syntax && npm test && npm run check:python && npm run check:docs && npm run check:repository"
   },
   "dependencies": {
-    "@rsgcsg/sts2-connector-client": "https://github.com/rsgcsg/STS2-Connector/releases/download/v1.0.0/rsgcsg-sts2-connector-client-1.0.0.tgz"
+    "@rsgcsg/sts2-connector-client": "https://github.com/rsgcsg/STS2-Connector/releases/download/v1.1.0-rc.1/rsgcsg-sts2-connector-client-1.0.0.tgz"
   }
 }

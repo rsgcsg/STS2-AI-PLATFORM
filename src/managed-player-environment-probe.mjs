@@ -874,7 +874,7 @@ export async function runManagedPlayerEnvironmentCapacity({
       "Canonical adapter throughput is not cross-Host semantic conformance.",
       "A short reset-and-capacity ladder is not long-run reset or million-step reliability evidence.",
       "Information completeness is only evaluated when canonical evidence recording is enabled.",
-      "The managed candidate remains experimental_unqualified regardless of the selected measurement profile.",
+      "The exact Host is an STPD operational baseline; this measurement does not grant formal H1.0 qualification.",
       "This deterministic policy is not gameplay quality, training, or transfer evidence."
     ]
   };

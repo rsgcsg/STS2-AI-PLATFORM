@@ -31,6 +31,9 @@
 17. [Managed Exact stable information closure](evidence/MANAGED_EXACT_STABLE_INFORMATION_CLOSURE_2026-08-22.md):
     exact persistent hover/rest facts, Host-local operand boundary, complete
     ten-seed supported-scope projection, and explicit non-claims.
+18. [Managed Exact STPD v0 operational freeze](evidence/MANAGED_EXACT_STPD_V0_OPERATIONAL_FREEZE_2026-08-22.md):
+    frozen exact tuple, admitted operational evidence, consumer-invalid rules,
+    deferred qualification and requalification triggers.
 
 `README.md`, Status, Architecture, and Compatibility are current truth. Local
 raw evidence under `.local/` is not documentation and must not be committed.

@@ -14,9 +14,12 @@ import {
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-test("managed candidate manifest is exact-build and unqualified", () => {
+test("managed candidate manifest freezes one exact operational baseline", () => {
   const { manifest } = loadManagedCandidateManifest(ROOT);
-  assert.equal(manifest.status, "experimental_unqualified");
+  assert.equal(manifest.status, "stpd_v0_operational_baseline");
+  assert.equal(manifest.expected_build.artifact_sha256.length, 64);
+  assert.match(manifest.expected_build.artifact_mvid, /^[0-9a-f-]{36}$/u);
+  assert.equal(manifest.admission.forbidden_claims.includes("formal H1.0 qualification"), true);
   assert.ok(manifest.semantic_shims.some((entry) => entry.risk === "critical"));
   assert.throws(() => assertManagedCandidateGame(manifest, {
     platform: "darwin",
@@ -132,6 +135,7 @@ test("managed build inspection resolves a relative candidate path before returni
   const result = await inspectManagedCandidateBuild({ root: ROOT, candidateDirectory: candidate, manifest });
   assert.equal(path.isAbsolute(result.candidate_directory), true);
   assert.equal(path.isAbsolute(result.artifact), true);
+  assert.equal(result.artifact_mvid, manifest.expected_build.artifact_mvid);
 });
 
 test("managed probes reject invalid workload dimensions before touching a runtime", async () => {

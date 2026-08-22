@@ -1,90 +1,48 @@
 # Roadmap
 
-## H1.0 Core Release Gate
+## Current Baseline
 
-Completed or implemented:
+`v1.0.0` freezes the exact Managed Exact route for STPD v0 operational use.
+This is intentionally narrower than formal H1.0 qualification. Headless and
+Connector feature work stops unless a generic environment regression is
+reproduced.
 
-- exact game discovery and fail-closed compatibility;
-- official shipped Reference Host and Host-neutral Player Environment use;
-- isolated native profiles, verified templates and hard reset generations;
-- process-local endpoints, multi-worker orchestration and resource measurement;
-- fault injection, recovered runtime identity and endpoint/process cleanup;
-- durable semantic traces and canonical decision comparison;
-- game-owned seed and runtime-bound episode provenance;
-- same-artifact semantic repeatability with first-divergence diagnostics;
-- bounded supervisor, exact machine context and shared-profile tree sentinel;
-- fail-closed identity-drift requalification planning;
-- phase-aware shutdown diagnostics and a bounded containment candidate that
-  rejects unknown, misplaced and over-limit messages;
-- one exact suspended-process hang detection/replacement/recovery cycle bound
-  to stable decisions and verified episode seed provenance.
+The routine maintenance loop is:
 
-Open:
+```text
+verify exact tuple
+-> audit frozen candidate
+-> run cheap Python environment smoke
+-> run STPD
+-> quarantine environment-invalid episodes
+```
 
-- clean shutdown or long-soak qualification of the current bounded containment
-  policy for shipped teardown diagnostics;
-- a repeatably admitted 8-worker-or-higher capacity window; current default
-  and `--single-threaded-scene` experiments expose intermittent pre-shutdown
-  Godot diagnostics and the latter route is rejected;
-- randomized and high-risk cross-Host semantic differential corpus;
-- broader hang/fault matrix, 72-hour/10-million-decision soak and Steam Cloud
-  server evidence;
-- a real changed-build invalidation and targeted requalification drill;
-- reproducible release of the RC Connector Host and compatible SDK;
-- broader managed-to-Reference canonical differential and randomized/high-risk
-  interaction coverage; the current ten-seed managed corpus reaches ten
-  ordinary `game_over` boundaries but does not establish broad parity;
-- managed reset/recovery/1M+ reliability plus an external consumer and minimal
-  learning/Reference-transfer smoke;
-- public release packaging and final exact-artifact gates.
+Reference remains the semantic authority. A regression is owned by Connector
+or the game contract when both Reference and Managed fail, by Headless when
+Reference passes and Managed fails, and by STPD when both environments pass.
 
-## Training-Ready Claim Gate
+## Requalification Triggers
 
-No backend currently qualifies. The claim requires all of:
+Reopen the relevant gates after any:
 
-- realistic usable samples/s under a measured learner resource envelope; the
-  partial Host-only candidate now exceeds the old `>=1000` route hypothesis,
-  but no learner has measured contention or sample utility;
-- 1M+ reset/scale/recovery/qualification evidence;
-- a clean Python/Gym/VectorEnv adapter outside Headless and Connector;
-- real learning smoke;
-- policy evaluation on the highest-confidence Reference Host.
+- game version, executable, `sts2.dll`, GodotSharp or platform change;
+- Managed upstream, patch, artifact or semantic shim change;
+- Connector source, artifact, protocol, Modset or information-policy change;
+- reset, isolation, controller, idempotency, unknown, binding or successor
+  lifecycle change;
+- previously unseen environment-invalid episode.
 
-## Host Route Experiments
+## Deferred Formal Qualification
 
-1. Retain shipped Godot as Reference and differential authority.
-2. Use the completed seed/provenance and same-artifact canonicalizer to admit
-   cross-Host candidates; do not confuse repeatability with parity.
-3. Continue the rebuilt exact managed candidate through broader cross-Host
-   semantic qualification and Training-Grade gates. Clean-source profiling measured a `2,461 d/s`
-   exclusive machine plateau and a realistic pre-learner planning range of
-   about `1,373-1,687 d/s` at six to eight workers. One current same-seed
-   map/combat/reward prefix and one later reward-to-map-to-combat window now
-   match Reference. Ten fixed managed seeds reach `game_over`, so ordinary
-   lifecycle is no longer the immediate blocker, and all 2,129 decisions in
-   that bounded corpus now report complete stable information. Breadth,
-   reliability, an external consumer, learning and transfer remain open.
-   Same-state authority rotation, exact duplicate Receipt replay, ambiguous
-   transport unknown-no-retry and exact process replacement now pass bounded
-   current-source gates; long reliability remains open.
-4. Treat Managed Exact v2 only as narrow allocation, projection and lifecycle
-   work while the exact game assembly continues to own rules, RNG, effects and
-   Commit. Do not prioritize JSON rewrites or sharded Node supervisors.
-5. Rename a route Hybrid as soon as it persistently reconstructs or
-   short-circuits game lifecycle semantics. Rename it Simulator when it owns
-   gameplay rules, RNG or rewards.
-6. Admit managed, Hybrid, snapshotable or simulator candidates only through the same normalized
-   decision, resource, reset, recovery and differential gates.
-7. Run end-to-end learning bottleneck and policy transfer only after one
-   candidate clears semantic admission.
-8. Retain the completed exact-build official `AutoSlayer` experiment as a
-   native automation upper bound and coverage generator. Its `394.5s` full run
-   was CPU-light but UI/wait-bound; its fixed policy/UI handlers cannot become
-   the training contract or inherit Connector qualification.
+These are future qualification campaigns, not blockers for STPD v0:
 
-The route is deliberately open. H* is whichever measured Host or combination
-best satisfies fidelity, throughput, density, reset, reliability and update
-maintenance. Architecture symmetry is not a promotion criterion.
+- randomized/high-risk and exhaustive CrossHost differential coverage;
+- 72-hour/10-million-decision soak and broad fault matrix;
+- real changed-build impact analysis and requalification;
+- cluster/high-core/cross-platform/resource-density qualification;
+- all card, relic, event, selector and Mod coverage;
+- broad Candidate-to-Reference policy-quality and semantic-transfer studies.
 
-The current recommendation and explicit route estimates are recorded in the
-[performance route closeout](evidence/MANAGED_HOST_PERFORMANCE_ROUTE_SELECTION_2026-08-21.md).
+Managed Exact v2, Hybrid and Simulator work is not active. It should reopen
+only if measured STPD work exposes a concrete Host bottleneck that cannot be
+fixed while the exact game continues to own gameplay semantics.

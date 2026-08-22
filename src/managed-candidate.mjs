@@ -129,6 +129,20 @@ export async function resolveDotnet() {
   throw new Error("A .NET 9+ SDK is required for the managed candidate.");
 }
 
+async function fingerprintManagedAssembly(root, assembly) {
+  const dotnet = await resolveDotnet();
+  const project = path.join(root, "tools", "dotnet", "AssemblyFingerprint");
+  const { stdout } = await run(dotnet.command, [
+    "run", "--project", project, "--", "--assembly", assembly
+  ]);
+  const fingerprint = JSON.parse(stdout);
+  const moduleMvid = fingerprint?.assembly?.module_mvid;
+  if (typeof moduleMvid !== "string" || moduleMvid.length === 0) {
+    throw new Error("Managed candidate assembly fingerprint did not report an MVID.");
+  }
+  return { moduleMvid };
+}
+
 export async function auditManagedCandidateSource({ root, candidateDirectory, manifest }) {
   const resolvedCandidateDirectory = path.resolve(candidateDirectory);
   const revision = await git(["rev-parse", "HEAD"], resolvedCandidateDirectory);
@@ -176,12 +190,30 @@ export async function inspectManagedCandidateBuild({ root, candidateDirectory, m
   if (manifest.setup_contract.requires_unmodified_game_assembly && runtimeSha !== originalSha) {
     throw new Error(`Managed candidate runtime sts2.dll SHA ${runtimeSha} differs from the exact game assembly.`);
   }
+  const artifactSha = sha256File(artifact);
+  if (source.source_patch_sha256 !== manifest.expected_build?.source_patch_sha256) {
+    throw new Error(
+      `Managed candidate patch SHA ${source.source_patch_sha256} does not match the frozen baseline.`
+    );
+  }
+  if (artifactSha !== manifest.expected_build?.artifact_sha256) {
+    throw new Error(
+      `Managed candidate artifact SHA ${artifactSha} does not match the frozen baseline.`
+    );
+  }
+  const { moduleMvid } = await fingerprintManagedAssembly(root, artifact);
+  if (moduleMvid !== manifest.expected_build?.artifact_mvid) {
+    throw new Error(
+      `Managed candidate artifact MVID ${moduleMvid} does not match the frozen baseline.`
+    );
+  }
   return {
     ...source,
     candidate_directory: resolvedCandidateDirectory,
     artifact,
     artifact_size: statSync(artifact).size,
-    artifact_sha256: sha256File(artifact),
+    artifact_sha256: artifactSha,
+    artifact_mvid: moduleMvid,
     original_sts2_sha256: originalSha,
     runtime_sts2_sha256: runtimeSha
   };

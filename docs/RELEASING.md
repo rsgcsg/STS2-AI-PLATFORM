@@ -1,34 +1,48 @@
 # Releasing
 
-Headless, Connector Host, Player Environment protocol, and Connector SDK are
-separate versions.
+Headless, Connector Host, Player Environment protocol and Connector SDK are
+independently versioned.
 
-- Headless `0.x`: launcher, lifecycle, compatibility and evidence tooling.
-- Connector Host `1.0.1`: installed Mod artifact.
-- Player Environment protocol `1.0.0`: wire contract.
-- Connector SDK `1.0.0`: strategy-free client/validator.
+- Headless `1.0.0`: exact STPD v0 operational baseline;
+- Connector `1.1.0-rc.1`: exact shipped-Reference Host prerelease;
+- protocol/SDK `1.0.0/1.0.0`: Host-neutral gameplay contract/client.
 
-A Headless release contains source and scripts only. It never contains STS2 or
-Connector binaries. Before tagging:
+The Headless version is not a formal H1 qualification claim. Release assets
+contain source and a machine-readable runtime seal only; they never contain
+STS2, generated Managed binaries, localization, saves or profiles.
 
-1. run `npm ci && npm run check` from a fresh clone;
-2. verify the pinned Connector Release and checksum are public;
-3. run `doctor` on the claimed exact tuple;
-4. run H0, H1, and H2 on the final source;
-5. review local evidence for non-claims and secrets;
-6. update Status, Compatibility, and Evidence;
-7. tag only the reviewed commit.
+## Release Gate
 
-For H1.0, also require:
+1. clean source, deterministic checks and repository boundary checks;
+2. exact candidate audit including upstream, patch, game and Host artifact;
+3. current-tag Python `reset/observe/read/step` smoke;
+4. stale/duplicate/unknown-no-retry and reset old-authority gates;
+5. ambiguous-loss process replacement/recovery gate;
+6. one current-artifact Candidate-to-shipped-Reference comparison;
+7. planned-worker identity/endpoint/process smoke;
+8. reviewed exact identities, deferred qualification and non-claims;
+9. annotated tag, public release, runtime seal and anonymous download check.
 
-8. seed/provenance and semantic differential gates;
-9. reset/recovery, soak, fault and update-drill evidence;
-10. a reproducibly published Connector Host plus matching SDK dependency;
-11. explicit Reference/primary-trainer and Training-Ready verdicts;
-12. clean shutdown, or a reviewed containment policy that does not hide runtime
-    diagnostics.
+Long soak, exhaustive semantics and changed-build campaigns are deferred formal
+qualification, not hidden release gates.
 
-Game updates do not automatically require a Headless version bump to collect
-experimental evidence, but admitting the new tuple is a source and release
-change. Runtime evidence never transfers across tags, game bytes, Connector
-artifacts, Modsets, or profile modes.
+## Release Contents
+
+The Git tag is the source authority. The release notes/runtime seal record:
+
+- Headless tag and source digest;
+- exact game tuple;
+- Managed upstream/patch/artifact SHA/MVID;
+- Connector release/source/artifact SHA/MVID and protocol/SDK;
+- named operational gates and report summaries;
+- deferred qualification, non-claims and requalification triggers.
+
+Every installation rebuilds the Managed Host locally from the exact game and
+reviewable patch. Hash mismatch fails closed.
+
+## Requalification
+
+Runtime evidence never transfers across Headless tags, game bytes, Managed
+patch/artifact, Connector artifacts/protocol, Modsets or information policy.
+Run only the gates affected by orchestration-only changes; reopen semantic and
+Reference gates for any gameplay-facing change.

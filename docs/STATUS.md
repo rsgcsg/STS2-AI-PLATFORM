@@ -1,142 +1,73 @@
 # Status
 
-Release: `0.1.0` evidence preview
+Release: `v1.0.0` STPD v0 operational baseline
 
-Verdict: **H1.0 Core incomplete; Training Ready false; H* unresolved.**
+Verdict: **operationally frozen for STPD v0; formal H1.0 qualification is not
+claimed.**
 
-The shipped Godot `--headless` route remains the highest-confidence Reference
-Host. It has real boot, native control, Read, settling, bounded journey,
-game-owned seed provenance, isolated reset, same-artifact repeatability,
-capacity, crash/restart, multi-worker supervisor and shared-profile sentinel
-evidence. Its throughput rejects it as the current primary trainer.
+## Exact Baseline
 
-Completed:
+| Layer | Frozen identity |
+|---|---|
+| Game | macOS arm64 STS2 `v0.111.0`, commit `41cef1ea` |
+| Game assembly | SHA-256 `9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4`, MVID `57785517-0b16-42b9-8b36-bad6fb28384b` |
+| Managed upstream | `wuhao21/sts2-cli@d11aa883b582dd68bd39b331f3370746b30d447e` |
+| Managed patch | SHA-256 `ed9248b76d3e7b7b793250d0e5fe16753c654faf5d267756df50b5d1890341c2` |
+| Managed Host | SHA-256 `a884b1048b5334f6b008dbfc543789cf7662f35fd7f33e01acb1b83f313b3d66`, MVID `5b6adbd6-1e21-4148-a6f1-a6510a534838` |
+| Connector | `v1.1.0-rc.1`, source `e0651024117d22bdeb95142766917103d87c0185` |
+| Connector Host | SHA-256 `c1877f1af1b311904b0d536fdfc08cd5c425281f4cc93eed2ff11729380c7586`, MVID `64765ea1-29fe-4475-9b7d-3b0d65955825` |
+| Player Environment | protocol `1.0.0`, SDK `1.0.0` |
 
-- exact installation discovery and identity;
-- exact-build normal-start admission and explicit experimental probe mode;
-- released, checksummed Connector setup and rollback integration;
-- foreground lifecycle supervision, status, safe PID ownership check, stop,
-  local logs and identity record;
-- H0/H1/H2 probes with structured local evidence;
-- durable rotating trajectory records, canonical fair-player decision
-  comparison, and normalized semantic-decision timing;
-- separate journey integrity and named-surface coverage verdicts;
-- exact-runtime profile templates and destructive reset guarded by template
-  payload plus game identity;
-- admitted 1/2/4-worker capacity plus fail-closed 8-worker capacity evidence;
-- fault injection, new-generation restart, distinct-runtime verification,
-  process cleanup and endpoint-release checks;
-- suspended-process hang detection after a stable, seed-proven successor,
-  followed by exact-generation/runtime replacement and recovery;
-- game-owned seed application plus runtime-bound episode provenance;
-- canonical Snapshot/Read/action comparison with first-divergence reporting;
-- same-seed, same-artifact repeatability across independent runtime/profile
-  generations;
-- a bounded supervisor smoke covering four independent Host processes and
-  thirty-two delivered semantic decisions;
-- before/after hashing of the normal user-data tree during isolated execution;
-- an exact-identity update planner that fails closed and emits source, Host and
-  runtime requalification gates;
-- process-local, secret, runtime-bound native shutdown control outside the
-  Player Environment contract;
-- exact phase/signature/count classification for shipped-runtime shutdown
-  diagnostics, with supervisor admission failing closed on any unknown,
-  misplaced or over-limit diagnostic;
-- public game-independent tests and repository boundary checks.
+The tag and its runtime-seal asset bind the final Headless source identity.
+Generated candidates, game files, saves and raw reports remain local and are
+not release assets.
 
-Current managed exact candidate:
+## Operationally Verified
 
-- a reproducible patch ledger now rebuilds the pinned upstream against the
-  unmodified exact macOS `v0.111.0` assembly instead of applying a global IL
-  rewrite;
-- its canonical Player Environment path preserves snapshot binding,
-  Host-local native operands, finite actions, idempotency and
-  unknown-no-retry;
-- native combat rewards and treasure selection now retain game-owned
-  generation, legality, vote/RNG and Commit rather than manually choosing or
-  settling them;
-- the current semantic artifact is patch `53cf5872...`, Host `b0794fe7...` /
-  MVID `badc4c67...`, with the exact byte-identical STS2
-  assembly `9cb4f1a...` / MVID `57785517...`;
-- fresh current-source windows measured `D_engine` at `345.88 d/s` hot-loop,
-  `D_train` at `208.87 d/s`, and strict `D_qual` at `183.25 d/s` mean; these
-  workload-specific values complement rather than invalidate the prior seed
-  windows;
-- a shared supervisor scaled the training profile to `1,686.88 d/s` at eight
-  workers and a `2,460.62 d/s` Host-exclusive plateau at 24 environments on
-  this 10-core M4; a supervisor per worker was rejected as slower or equal and
-  substantially more memory-intensive;
-- JSON, SDK validation, IDs, Reads and evidence together explain only a small
-  part of the ceiling. Native lifecycle plus about `0.71 MB/decision` allocation
-  dominate. Managed Exact v2 is the preferred route for narrow lifecycle and
-  allocation work, not a semantic rewrite;
-- exact Candidate SHA `b0794fe7...` passed 26/26 native identity/Commit/
-  localization/treasure gates, completed ten fixed-seed ordinary lifecycles
-  with 2,129/2,129 actions and 3,944 Reads, and matched shipped Reference
-  Connector source `99f09a7...`, artifact `99d5df9...`, MVID `e7b2be84...`
-  for one fixed same-seed reward/map/combat semantic window;
-- all 2,129 action decisions in that ten-seed corpus now have complete stable
-  Player Environment information, including game-owned relic/potion/modifier
-  hover facts and localized rest option text;
-- clean source `9e282de` completed ten same-seed reset episodes with 1,670
-  deliveries, 3,110 Reads, 9/9 prior-episode stale refusals and 10/10 exact
-  duplicate Receipt replays; an injected ambiguous transport loss then closed
-  authority and recovered only through a distinct exact process/runtime;
-- this route remains unqualified: randomized/high-risk and broad CrossHost
-  evidence, 1M+ reliability, external consumption, learning and Reference
-  transfer are absent, and its TestMode/runtime projection seams remain
-  critical risks.
+- exact identity admission and wrong-identity fail closed;
+- complete finite action authority only on stable snapshots;
+- state-bound Reads and actions, stale refusal and exact duplicate Receipt
+  replay;
+- request idempotency and unknown-no-retry;
+- real state -> legal BoundAction -> native Commit -> stable successor or
+  terminal;
+- reset invalidates old authority;
+- ambiguous delivery loss quarantines the process and recovers only through a
+  distinct exact replacement runtime;
+- independent Python `reset/observe/read/step`;
+- two-worker STPD actor/learner contention with exact episode provenance;
+- two Candidate-trained-policy executions on shipped Reference, both reaching
+  terminal with zero unknown delivery; one exact terminal result matched;
+- Connector card-reward mounting remains `settling` with no mutation
+  authority until the complete selectable-card catalog is ready.
 
-Current isolation boundary:
+The long one-million-decision capacity run is retained as predecessor
+reliability evidence for the same Managed artifact, not as formal current-tag
+qualification.
 
-- an experimental Windows namespace redirects `HOME`, `USERPROFILE`,
-  `APPDATA`, and `LOCALAPPDATA` before process creation and disables Steam
-  before platform initialization;
-- a fresh real runtime created native SettingsSave v8, prefs, and progress only
-  under that namespace while logging that Steam was not initialized;
-- native clean template `vanilla-clean` has payload SHA
-  `c44a5bb775e650c88e4150dd0a73fe530b6a522df70c1508023505204677b863`;
-- one current-artifact fault/restart cycle replaced both profile generation and
-  runtime instance, preserved exact environment identity, released process and
-  endpoint, and returned no unknown delivery;
-- one bounded sentinel run left all 1,051 normal-profile files, counts, sizes,
-  metadata and content digest unchanged;
-- this is still not a release support claim: Steam Cloud server isolation,
-  long soak, a real changed-build drill and broader recovery remain absent.
+## Ownership
 
-Current blockers:
+- STS2 owns gameplay rules, RNG, legality, effects and Commit.
+- Headless owns process/runtime lifecycle, exact compatibility, reset,
+  recovery, worker orchestration and evidence.
+- Connector owns the Host-neutral Player Environment contract, Host-local
+  binding, one controller, delivery Receipt and successor.
+- STPD owns strategy, rewards, learner state, data and evaluation.
 
-- shutdown containment qualification: native `NGame.Quit()` exits with code 0
-  and no forced fallback; one current-source soak rejected an unexpected
-  pre-shutdown diagnostic before its exact bounded policy was established, and
-  a later clean-source soak passed that bounded policy. Two current-artifact
-  eight-worker runs then failed admission on intermittent RID/shader or
-  over-limit null-texture diagnostics. A `--single-threaded-scene` candidate
-  passed once and failed once on four `Invalid Task ID` diagnostics, so it was
-  rejected. This is not clean shutdown or long-soak qualification;
-- long soak, broader hang/fault matrix and a real changed-build
-  requalification drill;
-- reproducible RC Host/SDK publication: current local RC evidence cannot be
-  reproduced by the stable dependency lock, and `npm ls` correctly reports the
-  local `1.0.0-rc.1` SDK as invalid against the pinned public `1.0.0` spec;
-- broad semantic qualification, post-Commit Outcome-loss injection, 1M+
-  reliability and real learning/policy-transfer evidence for the now-fast
-  managed candidate;
-- physical P/E-core affinity, real learner contention, high-core and cluster
-  capacity; `5k`/`10k` remain route estimates rather than measured facts;
-- Windows release qualification, Linux, macOS x86_64, later builds and Modsets.
+## Deferred Qualification And Non-Claims
 
-The first local `wuhao21/sts2-cli` spike was correctly rejected after
-profile/bootstrap, global CoreCLR patch, localization and save failures. A
-separately rebuilt candidate at the same upstream revision has since removed
-the global game-assembly rewrite and passed bounded canonical runtime/capacity
-gates. That supersedes the old implementation verdict, not its evidence: the
-new route is a promising unqualified candidate, not an admitted primary
-trainer. See the [managed exact closeout](evidence/MANAGED_EXACT_NATIVE_REWARDS_TREASURE_AND_CAPACITY_2026-08-17.md).
+- no 72-hour or 10-million-decision soak;
+- no exhaustive/randomized CrossHost corpus or all-content coverage;
+- no full fault matrix, cluster/high-core or cross-platform qualification;
+- no real alternate-build requalification campaign;
+- no arbitrary game version, Modset or future patch support;
+- no claim that two transfer episodes prove broad semantic parity or policy
+  quality;
+- no claim that a delivery Receipt proves business completion;
+- no hidden-state, arbitrary reflection/coordinate input or second gameplay
+  rules engine.
 
-The exact game source also contains an official `AutoSlayer`, but the shipped
-Steam build hard-codes `NGame.IsReleaseGame()` to true, so its `--autoslay`
-entry is unreachable. An exact-fingerprint research Mod invoked that same
-official class after native main-menu initialization and completed one full
-three-act run in `394.5s`. The run establishes a native automation upper bound,
-not Connector conformance, normalized decision throughput or qualification.
+Any game/assembly, Managed patch/artifact, Connector source/artifact/protocol,
+Modset, information-policy or hard-shell change reopens qualification. See
+[Evidence](EVIDENCE.md), [Compatibility](COMPATIBILITY.md), and
+[Operations](OPERATIONS.md).
