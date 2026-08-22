@@ -1,94 +1,65 @@
 # Current Status
 
-Stable release: `v1.0.0`
+General stable release: `v1.0.1`
 
-Host lifecycle/exact-authority candidate: `1.1.0-rc.1`
-(`freeze blocked`; latest combat-mount fix has source/test evidence only)
+STPD operational baseline prerelease: `v1.1.0-rc.1`
 
-Player Environment protocol: `1.0.0`
+Player Environment protocol/SDK: `1.0.0/1.0.0`
 
-Verdict: **Player Environment C1 `v1.0.0` is the runtime-sealed stable
-baseline for its exact artifact, game and Modset identity**
+Verdict: **`v1.1.0-rc.1` is runtime-sealed for the exact STPD operational
+baseline; it is not universal support or formal H1.0.**
 
-The candidate is based on public `v1.0.1` and keeps Player Environment protocol
-`1.0.0`. It adds process-local endpoint selection, runtime-bound native
-shutdown, exact seed provenance, and a fail-closed exact-game/artifact authority
-contract. The audit found that the prior implementation treated complete
-identity fields as qualified identity; an unknown but well-formed game build or
-an arbitrary clean-source rebuild could therefore reach mutation authority.
-`contracts/host-compatibility.json` now distinguishes sealed, candidate and
-unknown tuples. Candidate game and artifact identities require two exact,
-process-local opt-ins and remain non-support evidence.
+## STPD Baseline Identity
 
-Current source evidence: 130 Host tests and 7 SDK tests pass, including empty,
-mismatched and explicit canary authority cases. The Windows symlink-dependent
-release check now remains runnable without Developer Mode while explicitly
-reporting that the symlink entry itself was not exercised. Pre-fix source
-`d32c0cb...` was built, installed and cold-loaded: exact canary admission and
-the H0/menu gate passed, but its seeded Journey stopped at a real combat UI
-mount gap. The current source bounds that known no-input window and prevents a
-card-reward Skip button from making visible-but-not-clickable cards look like a
-stable complete decision. Settling Snapshots now publish no mutation authority.
-These latest changes have source/test evidence only; old artifact evidence does
-not qualify them. See the dated H1 canary record.
+- tag/source: `v1.1.0-rc.1/e0651024117d22bdeb95142766917103d87c0185`;
+- source digest: `430c90109a521a1ef199bec0f16e7e82d30d1c1e4e686ab94bbafea6e7151183`;
+- Host DLL: `c1877f1af1b311904b0d536fdfc08cd5c425281f4cc93eed2ff11729380c7586`;
+- Host MVID: `64765ea1-29fe-4475-9b7d-3b0d65955825`;
+- exact game: macOS arm64 `v0.111.0/41cef1ea`, assembly
+  `9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4`;
+- Modset: exact Connector-only;
+- authority: explicit exact process-local canary.
 
-## Implemented
+The clean source passes 130 Host and 7 SDK tests plus contract, boundary,
+compatibility, CLI, release-tool, package, docs and Python checks. The release
+build reproduces the DLL/MVID above; it was installed and cold-loaded.
 
-- standalone Host, machine contract, TypeScript SDK and optional MCP adapter;
-- single fair-player Observe/Read/Interact production path;
-- complete finite BoundAction authority with Host-local native operands;
-- execute-time rediscovery/revalidation, one controller and request
-  idempotency;
-- `delivered / not_delivered / unknown` receipts and immediate successor;
-- state-bound non-authorizing Reads and default-off native-page evidence;
-- exact-game tooltip subtype drift check and explicit information limits;
-- standalone doctor/build/deploy/verify/rollback tooling;
-- a strategy-free SDK helper for coherence-checked eager Read aggregation.
+Exact runtime evidence proves that partially mounted card rewards remain
+`settling` and publish no mutation authority even when Skip is enabled. The
+first stable successor publishes all three selectable cards plus Skip, and an
+independent observation reproduces the complete catalog. Two
+Candidate-trained-policy shipped-Reference episodes reached terminal with 390
+deliveries, exact seed provenance and zero unknown; one exact terminal outcome
+matched. This is named operational evidence, not broad parity.
 
-## Stable Evidence State
+## Implemented Contract
 
-The stable release is exact source/tag
-`c38d4ad2e9d6eb029f8853ed852cce1152bc6d50` / `v1.0.0`:
+- one fair-player Observe/Read/Interact path;
+- visible facts and Referents independent of action publication;
+- complete finite BoundActions with Host-local native operands;
+- execute-time owner/target/legality revalidation;
+- exact controller, stale rejection and request idempotency;
+- `delivered/not_delivered/unknown` Receipt plus immediate successor;
+- state-bound non-authorizing Reads;
+- settling Snapshots with empty mutation authority;
+- standalone build/deploy/verify/rollback and strategy-free SDK.
 
-- Player Environment source digest:
-  `fdc91b0ee57046b9695d6f5b7c53ac04d43abf363ba2db618251a89796b4c258`;
-- built/installed/loaded DLL SHA-256:
-  `5014224ce8a1f5a61455f21d6873a87052eac533acffce04ac3fb75195bff185`;
-- built/installed/loaded MVID: `68f7a9aa-c293-4897-94cd-1e59ab6dd180`;
-- exact game: `v0.111.0/41cef1ea`, assembly hash `1010476334`;
-- Modset: `exact_player_environment_only`, with only `STS2_MCP` loaded;
-- final loaded runtime: `81aa04efe03a4ea8ad79ee07d781cc52`.
+## General Stable Lineage
 
-The tag passed 106/106 Host tests, 7/7 SDK tests, strict typecheck/build,
-contract/boundary/CLI/docs/Python/package checks, a fresh-clone identity match,
-and anonymous release archive/checksum verification. Exact-runtime gates passed
-for controller exclusion, duplicate request/Receipt identity, stale action and
-Read rejection, wrong-runtime native-page refusal, `run_deck` open/read/return
-and owner restoration. An ordinary same-artifact run reached `game_over`; its
-final continuous segment delivered 89 inputs, performed 209 Reads, rejected
-105 stale Reads and nine stale Snapshot actions, and returned zero `unknown`.
-
-Rollback restored RC2 SHA `cf7ed1454437cb796f5931b361f655222d2f3f2e3da3a21f038a752694645cc6`
-and MVID `6824e21d-7486-40fd-a131-43e789fdc8d2`, cold-loaded it as runtime
-`f1de33c153084e4e9b8c6f958e2a8f09`, then reinstalled and cold-loaded stable.
-The public release contains the matching machine-readable runtime seal.
-
-RC1, RC2 and monorepo runs remain auditable predecessor evidence only. Commits
-after the `v1.0.0` tag are not built or loaded merely because they document the
-release.
+`v1.0.1` remains the general-support release. Its source/artifact and the
+`v1.0.0` C1 runtime seal remain immutable predecessor authority. The STPD RC
+does not silently broaden that support table; it requires two exact,
+process-local canary opt-ins.
 
 ## Explicit Non-Claims
 
-- arbitrary game versions or Modsets;
-- hidden-state access;
-- coordinate/reflection mutation or visual computer use;
-- save isolation, training, search or strategy implementation (process-local
-  Host controls are present but remain candidate-only);
+- formal H1.0 or broad CrossHost semantic equivalence;
+- arbitrary versions, platforms, Modsets, cards/relics/events or native pages;
+- long soak, changed-build campaign, training/search/strategy;
+- hidden-state, coordinate/reflection mutation or visual computer use;
 - business completion inferred from a delivery Receipt;
-- native pages outside the fixed evidence profile;
-- transient VFX/SFX/history information closure;
-- arbitrary native pages beyond the fixed evidence profile;
-- durable support for a future game build without a new exact identity and
-  compatibility run.
+- transient VFX/SFX/history information closure.
 
-See [Coverage](player-environment/COVERAGE.md) and [Support](SUPPORT.md).
+See [Coverage](player-environment/COVERAGE.md),
+[Support](SUPPORT.md), and the
+[STPD operational runtime seal](evidence/STPD_OPERATIONAL_RUNTIME_SEAL_2026-08-22.md).

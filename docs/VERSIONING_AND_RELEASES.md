@@ -2,8 +2,8 @@
 
 Four identities are intentionally separate:
 
-1. **Connector release** (`1.1.0-rc.1` candidate; `1.0.0` sealed): source/product
-   packaging.
+1. **Connector release** (`1.1.0-rc.1` STPD operational prerelease;
+   `1.0.1` general stable): source/product packaging.
 2. **Player Environment protocol** (`1.0.0`): wire compatibility.
 3. **Capabilities**: loaded features, exact game/Modset and observation/input
    availability.

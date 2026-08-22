@@ -44,13 +44,13 @@ See the repository [Player Environment Information Closure](../INFORMATION_CLOSU
 
 ## Evidence
 
-The repaired public source has 130 exact-game Host tests and portable SDK, package,
-contract, boundary, CLI, Python and documentation checks. It has no current
-loaded or Live evidence until a clean commit is built, installed and cold-loaded.
-
-The targeted runtime notes for local-only sources `b050c46...` and `f104e16...`
-remain useful predecessor diagnostics, but those Git objects are not fetchable
-and cannot qualify the repaired source. Monorepo journeys are predecessor-only.
+Source `e065102...` has 130 exact-game Host tests plus portable SDK, package,
+contract, boundary, CLI, Python and documentation checks. Its reproducible
+`c1877f1a.../64765ea1...` artifact was built, installed and cold-loaded.
+Exact runtime evidence proves card-reward incomplete-catalog settling with no
+authority and the subsequent complete four-action catalog. Two shipped
+Reference terminal journeys exercised the same artifact with zero unknown.
+This is named operational coverage, not exhaustive interaction qualification.
 
 ## Unsupported
 

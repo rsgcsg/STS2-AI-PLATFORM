@@ -21,5 +21,7 @@ The HTTP listener is loopback-only. Local controller leases coordinate one
 writer but do not defend against a hostile process on the same OS account.
 
 Candidate testing requires exact process-local game and source-revision opt-ins.
-Those opt-ins authorize only that process for canary evidence; no candidate
-artifact or Windows run inherits the macOS/v1.0.0 support seal.
+Those opt-ins authorize only that process for canary evidence. The exact
+`v1.1.0-rc.1/e065102` macOS artifact has an STPD operational runtime seal,
+but remains canary authority rather than general support. No other candidate
+artifact or Windows run inherits either the stable or STPD baseline seal.
