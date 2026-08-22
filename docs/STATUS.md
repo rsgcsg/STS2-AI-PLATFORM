@@ -12,8 +12,8 @@ claimed.**
 | Game | macOS arm64 STS2 `v0.111.0`, commit `41cef1ea` |
 | Game assembly | SHA-256 `9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4`, MVID `57785517-0b16-42b9-8b36-bad6fb28384b` |
 | Managed upstream | `wuhao21/sts2-cli@d11aa883b582dd68bd39b331f3370746b30d447e` |
-| Managed patch | SHA-256 `ed9248b76d3e7b7b793250d0e5fe16753c654faf5d267756df50b5d1890341c2` |
-| Managed Host | SHA-256 `a884b1048b5334f6b008dbfc543789cf7662f35fd7f33e01acb1b83f313b3d66`, MVID `5b6adbd6-1e21-4148-a6f1-a6510a534838` |
+| Managed patch | SHA-256 `8ced088bffbfeaa378d4580ca2c254c41cd89ae58b5b1e9b6ee1a764f8eef87e` |
+| Managed Host | SHA-256 `8dc622b0c003dc632a753e0bb524a82690290930dfe9573a4c71cb8234a6d8a6`, MVID `7228541c-d4f4-4033-9ff5-30f4c9997e98` |
 | Connector | `v1.1.0-rc.1`, source `e0651024117d22bdeb95142766917103d87c0185` |
 | Connector Host | SHA-256 `c1877f1af1b311904b0d536fdfc08cd5c425281f4cc93eed2ff11729380c7586`, MVID `64765ea1-29fe-4475-9b7d-3b0d65955825` |
 | Player Environment | protocol `1.0.0`, SDK `1.0.0` |

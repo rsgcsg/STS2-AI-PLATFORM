@@ -625,7 +625,7 @@ index 800f139..d950eec 100644
                  return sim.StartRun(
                      cmd.TryGetProperty("character", out var ch) ? ch.GetString() ?? "Ironclad" : "Ironclad",
 diff --git a/src/Sts2Headless/RunSimulator.cs b/src/Sts2Headless/RunSimulator.cs
-index 6b9de4a..b33203e 100644
+index 6b9de4a..0d74927 100644
 --- a/src/Sts2Headless/RunSimulator.cs
 +++ b/src/Sts2Headless/RunSimulator.cs
 @@ -1,4 +1,6 @@
@@ -3266,7 +3266,41 @@ index 6b9de4a..b33203e 100644
                  };
              }).Where(x => x != null).ToList(),
              ["deck_size"] = player.Deck?.Cards?.Count(c => c != null) ?? 0,
-@@ -3034,6 +3237,100 @@ public class RunSimulator
+@@ -3005,25 +3208,14 @@ public class RunSimulator
+                 var dstats = new Dictionary<string, object?>();
+                 try { foreach (var dv in c.DynamicVars.Values) dstats[dv.Name.ToLowerInvariant()] = (int)dv.BaseValue; } catch { }
+                 var dkws = c.Keywords?.Where(k => k != CardKeyword.None).Select(k => k.ToString()).ToList();
+-                var dcard = new Dictionary<string, object?>
+-                {
+-                    ["id"] = c.Id.ToString(),
+-                    ["name"] = _loc.Card(c.Id.Entry),
+-                    ["cost"] = c.EnergyCost?.GetResolved() ?? 0,
+-                    ["type"] = c.Type.ToString(),
+-                    ["upgraded"] = c.IsUpgraded,
+-                    ["description"] = _loc.Bilingual("cards", c.Id.Entry + ".description"),
+-                    ["stats"] = dstats.Count > 0 ? dstats : null,
+-                    ["keywords"] = dkws?.Count > 0 ? dkws : null,
+-                    ["after_upgrade"] = GetUpgradedInfo(c),
+-                };
+-                // Enchantment/affliction metadata, matching the combat hand export so clients
+-                // can see e.g. Slither applied to a deck card after an event (#76).
+-                if (c.Enchantment != null)
+-                {
+-                    dcard["enchantment"] = _loc.Bilingual("enchantments", c.Enchantment.Id.Entry + ".title");
+-                    try { if (c.Enchantment.Amount != 0) dcard["enchantment_amount"] = c.Enchantment.Amount; } catch { }
+-                }
++                // Use the same game-owned card rendering path as a normal pile hover. The
++                // managed Host exports facts and exact identity; it does not reimplement
++                // DynamicVar formatting or card rules.
++                var dcard = VisibleHoverCard(c);
++                dcard["native_ref"] = NativeObjectIdentity.Get(c);
++                dcard["stats"] = dstats.Count > 0 ? dstats : null;
++                dcard["keywords"] = dkws?.Count > 0 ? dkws : null;
++                dcard["after_upgrade"] = GetUpgradedInfo(c);
+                 if (c.Affliction != null)
+                 {
+                     dcard["affliction"] = _loc.Bilingual("afflictions", c.Affliction.Id.Entry + ".title");
+@@ -3034,6 +3226,100 @@ public class RunSimulator
          };
      }
  
@@ -3367,7 +3401,7 @@ index 6b9de4a..b33203e 100644
      /// <summary>Common context added to every decision point.</summary>
      private Dictionary<string, object?> RunContext()
      {
-@@ -3041,9 +3338,26 @@ public class RunSimulator
+@@ -3041,9 +3327,26 @@ public class RunSimulator
          var ctx = new Dictionary<string, object?>
          {
              ["act"] = _runState.CurrentActIndex + 1,
@@ -3394,7 +3428,7 @@ index 6b9de4a..b33203e 100644
          };
  
          // Boss encounter info — use BossEncounter?.Id?.Entry
-@@ -3064,6 +3378,27 @@ public class RunSimulator
+@@ -3064,6 +3367,27 @@ public class RunSimulator
          }
          catch { }
  
@@ -3422,7 +3456,7 @@ index 6b9de4a..b33203e 100644
          return ctx;
      }
  
-@@ -3074,6 +3409,11 @@ public class RunSimulator
+@@ -3074,6 +3398,11 @@ public class RunSimulator
  
          TestMode.IsOn = true;
  
@@ -3434,7 +3468,7 @@ index 6b9de4a..b33203e 100644
          // Install inline sync context on main thread
          SynchronizationContext.SetSynchronizationContext(_syncCtx);
  
-@@ -3099,14 +3439,6 @@ public class RunSimulator
+@@ -3099,14 +3428,6 @@ public class RunSimulator
          try { SaveManager.Instance.InitPrefsDataForTest(); }
          catch (Exception ex) { Console.Error.WriteLine($"[WARN] SaveManager.InitPrefsDataForTest: {ex.Message}"); }
  
@@ -3449,7 +3483,7 @@ index 6b9de4a..b33203e 100644
          // Patch Cmd.Wait to be a no-op in headless mode.
          // Cmd.Wait(duration) is used for UI animations (e.g., PreviewCardPileAdd during
          // Vantom's Dismember move adding Wounds). In headless mode, these never complete
-@@ -3139,9 +3471,15 @@ public class RunSimulator
+@@ -3139,9 +3460,15 @@ public class RunSimulator
          }
          Console.Error.WriteLine($"[INFO] ModelDb: {registered} registered, {failed} failed out of {subtypes.Count}");
  
@@ -3465,7 +3499,7 @@ index 6b9de4a..b33203e 100644
              ModelIdSerializationCache.Init();
              Console.Error.WriteLine("[INFO] ModelIdSerializationCache initialized");
          }
-@@ -3151,15 +3489,15 @@ public class RunSimulator
+@@ -3151,15 +3478,15 @@ public class RunSimulator
          }
      }
  
@@ -3487,7 +3521,7 @@ index 6b9de4a..b33203e 100644
              _ => null
          };
      }
-@@ -3263,42 +3601,168 @@ public class RunSimulator
+@@ -3263,42 +3590,168 @@ public class RunSimulator
          }
      }
  
@@ -3496,7 +3530,8 @@ index 6b9de4a..b33203e 100644
      {
 -        try
 +        private enum RequestKind
-+        {
+         {
+-            var harmony = new Harmony("sts2headless.yieldpatch");
 +            Select,
 +            Skip,
 +            StateChanged,
@@ -3504,19 +3539,18 @@ index 6b9de4a..b33203e 100644
 +        }
 +
 +        private sealed record RewardRequest(RequestKind Kind, Reward? Reward = null);
-+
-+        private sealed class SelectionContext
-         {
--            var harmony = new Harmony("sts2headless.yieldpatch");
-+            public required RewardsSet Set { get; init; }
-+            public TaskCompletionSource<RewardRequest>? Request { get; set; }
-+        }
  
 -            // Patch YieldAwaitable.YieldAwaiter.IsCompleted to return true
 -            // This makes `await Task.Yield()` execute synchronously (continuation runs inline)
 -            var yieldAwaiterType = typeof(System.Runtime.CompilerServices.YieldAwaitable)
 -                .GetNestedType("YieldAwaiter");
 -            if (yieldAwaiterType != null)
++        private sealed class SelectionContext
++        {
++            public required RewardsSet Set { get; init; }
++            public TaskCompletionSource<RewardRequest>? Request { get; set; }
++        }
++
 +        private readonly object _gate = new();
 +        private readonly List<SelectionContext> _stack = new();
 +
@@ -3560,13 +3594,11 @@ index 6b9de4a..b33203e 100644
 -                    if (getter != null && prefix != null)
 +                    Task<RewardRequest> requestTask;
 +                    lock (_gate)
-                     {
--                        harmony.Patch(getter, new HarmonyMethod(prefix));
--                        Console.Error.WriteLine("[INFO] Patched Task.Yield() to be synchronous");
++                    {
 +                        context.Request ??= new TaskCompletionSource<RewardRequest>(
 +                            TaskCreationOptions.RunContinuationsAsynchronously);
 +                        requestTask = context.Request.Task;
-                     }
++                    }
 +
 +                    var request = await requestTask.ConfigureAwait(false);
 +                    if (request.Kind == RequestKind.Cancel)
@@ -3574,12 +3606,14 @@ index 6b9de4a..b33203e 100644
 +                    if (request.Kind == RequestKind.StateChanged)
 +                        continue;
 +                    if (request.Kind == RequestKind.Skip)
-+                    {
+                     {
+-                        harmony.Patch(getter, new HarmonyMethod(prefix));
+-                        Console.Error.WriteLine("[INFO] Patched Task.Yield() to be synchronous");
 +                        if (set.DisallowSkipping)
 +                            throw new InvalidOperationException("The native rewards set disallows skipping.");
 +                        synchronizer.SkipLocalRewardsSet();
 +                        continue;
-+                    }
+                     }
 +
 +                    var reward = request.Reward
 +                        ?? throw new InvalidOperationException("A native reward selection had no reward binding.");
@@ -3678,7 +3712,7 @@ index 6b9de4a..b33203e 100644
      /// <summary>
      /// Card selector that creates a pending selection decision point.
      /// When the game needs the player to choose cards (upgrade, remove, transform, bundle pick),
-@@ -3362,6 +3826,12 @@ public class RunSimulator
+@@ -3362,6 +3815,12 @@ public class RunSimulator
              _pendingTcs = null;
          }
  
@@ -3691,7 +3725,7 @@ index 6b9de4a..b33203e 100644
          // Pending card reward from events (GetSelectedCardReward blocks until resolved)
          public List<MegaCrit.Sts2.Core.Entities.Cards.CardCreationResult>? PendingRewardCards { get; private set; }
          private ManualResetEventSlim? _rewardWait;
-@@ -3411,19 +3881,6 @@ public class RunSimulator
+@@ -3411,19 +3870,6 @@ public class RunSimulator
  
      internal static class YieldPatches
      {
@@ -3711,7 +3745,7 @@ index 6b9de4a..b33203e 100644
          /// <summary>Harmony prefix: make Cmd.Wait() return completed task immediately (no-op in headless).</summary>
          public static bool CmdWaitPrefix(ref Task __result)
          {
-@@ -3447,178 +3904,22 @@ public class RunSimulator
+@@ -3447,178 +3893,22 @@ public class RunSimulator
  
      private static void InitLocManager()
      {
@@ -3899,7 +3933,7 @@ index 6b9de4a..b33203e 100644
  
              // Patch FromChooseABundleScreen to use our card selector
              try
-@@ -3634,42 +3935,6 @@ public class RunSimulator
+@@ -3634,42 +3924,6 @@ public class RunSimulator
                  }
              }
              catch (Exception ex) { Console.Error.WriteLine($"[WARN] Bundle patch: {ex.Message}"); }
@@ -3942,7 +3976,7 @@ index 6b9de4a..b33203e 100644
          }
          catch (Exception ex)
          {
-@@ -3677,85 +3942,79 @@ public class RunSimulator
+@@ -3677,85 +3931,79 @@ public class RunSimulator
          }
      }
  
@@ -4091,7 +4125,7 @@ index 6b9de4a..b33203e 100644
          /// <summary>
          /// Intercept bundle selection — store bundles and wait for player to pick a pack index.
          /// </summary>
-@@ -3789,16 +4048,12 @@ public class RunSimulator
+@@ -3789,16 +4037,12 @@ public class RunSimulator
          // Static reference so Harmony patch can access the simulator instance
          internal static RunSimulator? _bundleSimRef;
  
@@ -4110,7 +4144,7 @@ index 6b9de4a..b33203e 100644
      }
  
      private static Dictionary<string, object?> Error(string message) =>
-@@ -3826,36 +4081,54 @@ public class RunSimulator
+@@ -3826,36 +4070,54 @@ public class RunSimulator
          var currentCoord = _runState.CurrentMapCoord;
          var visited = _runState.VisitedMapCoords;
  
@@ -4184,7 +4218,7 @@ index 6b9de4a..b33203e 100644
          // Boss node
          var bossNode = new Dictionary<string, object?>
          {
-@@ -3896,15 +4169,114 @@ public class RunSimulator
+@@ -3896,15 +4158,114 @@ public class RunSimulator
      {
          try
          {
@@ -4216,9 +4250,9 @@ index 6b9de4a..b33203e 100644
          {
              Log($"CleanUp exception: {ex.Message}");
 +            throw;
-+        }
-+    }
-+
+         }
+     }
+ 
 +    public Dictionary<string, object?> GetRunIdentity()
 +    {
 +        var state = RunManager.Instance.DebugOnlyGetState();
@@ -4272,7 +4306,7 @@ index 6b9de4a..b33203e 100644
 +        {
 +            _syncCtx.Pump();
 +            Thread.Sleep(1);
-         }
++        }
 +        if (executor.IsRunning)
 +            throw new TimeoutException("The previous run ActionExecutor did not stop during cleanup.");
 +    }
@@ -4291,8 +4325,8 @@ index 6b9de4a..b33203e 100644
 +        CombatManager.Instance.TurnStarted -= OnTurnStarted;
 +        CombatManager.Instance.CombatEnded -= OnCombatEnded;
 +        _combatHandlersAttached = false;
-     }
- 
++    }
++
 +    private void OnTurnStarted(CombatState _) => _turnStarted.Set();
 +
 +    private void OnCombatEnded(CombatRoom _) => _combatEnded.Set();

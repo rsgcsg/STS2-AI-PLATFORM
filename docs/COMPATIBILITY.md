@@ -15,8 +15,8 @@ insufficient.
 | Runtime assembly hash | `1010476334` |
 | `GodotSharp.dll` SHA-256 | `0e4897ecdfb31456a97c7d8028dfb8d7dbdc632e2f73fc9b438d7b266a139289` |
 | Managed upstream | `d11aa883b582dd68bd39b331f3370746b30d447e` |
-| Managed patch | `ed9248b76d3e7b7b793250d0e5fe16753c654faf5d267756df50b5d1890341c2` |
-| Managed Host | SHA `a884b1048b5334f6b008dbfc543789cf7662f35fd7f33e01acb1b83f313b3d66`, MVID `5b6adbd6-1e21-4148-a6f1-a6510a534838` |
+| Managed patch | `8ced088bffbfeaa378d4580ca2c254c41cd89ae58b5b1e9b6ee1a764f8eef87e` |
+| Managed Host | SHA `8dc622b0c003dc632a753e0bb524a82690290930dfe9573a4c71cb8234a6d8a6`, MVID `7228541c-d4f4-4033-9ff5-30f4c9997e98` |
 | Connector Reference Host | `v1.1.0-rc.1`, source `e0651024117d22bdeb95142766917103d87c0185` |
 | Connector artifact | SHA `c1877f1af1b311904b0d536fdfc08cd5c425281f4cc93eed2ff11729380c7586`, MVID `64765ea1-29fe-4475-9b7d-3b0d65955825` |
 | Player Environment | protocol `1.0.0`, SDK `1.0.0` |

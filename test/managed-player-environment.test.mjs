@@ -26,6 +26,7 @@ function player() {
     relics: [],
     potions: [],
     deck: [{
+      native_ref: "deck-card-a",
       id: "CARD.STRIKE_IRONCLAD",
       name: "Strike",
       cost: 1,
@@ -576,8 +577,25 @@ test("state-bound run-deck reads pass the strict SDK and reject stale tokens", a
   });
   const snapshot = await session.mount({ seed: "TEST" });
   const read = session.read({ readId: snapshot.reads[0].read_id, expectedSnapshotId: snapshot.snapshot_id });
-  assert.equal(decodePlayerRead(read).data.content.card_count, 1);
+  const decoded = decodePlayerRead(read).data;
+  assert.equal(decoded.content.card_count, 1);
+  assert.equal(decoded.completeness.status, "complete");
+  assert.equal(decoded.content.cards[0].rarity, "Basic");
+  assert.equal(JSON.stringify(decoded).includes("deck-card-a"), false);
   assert.throws(() => session.read({ readId: snapshot.reads[0].read_id, expectedSnapshotId: "old" }), /stale_snapshot/u);
+});
+
+test("run-deck read remains explicitly partial when game-owned card rendering is incomplete", () => {
+  const state = eventState();
+  delete state.player.deck[0].native_ref;
+  state.player.deck[0].description = "Deal {Damage:diff()} damage.";
+  const projection = projectManagedCandidateDecision({ state, ...projectionIdentity });
+  const session = projection.reads.get(projection.snapshot.reads[0].read_id);
+  assert.equal(session.completeness.status, "partial");
+  assert.deepEqual(session.completeness.missing, [
+    "native_card_entity_identity",
+    "fully_rendered_localized_dynamic_text"
+  ]);
 });
 
 test("enforces stale rejection and request idempotency before raw execution", async () => {

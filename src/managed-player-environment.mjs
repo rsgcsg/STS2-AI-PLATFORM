@@ -1440,6 +1440,23 @@ function capabilities(actions, referents) {
 
 function runDeckRead(snapshotId, state, makeId = stableId) {
   if (!Array.isArray(state.player?.deck)) return null;
+  const nativeIdentityComplete = state.player.deck.every((card) =>
+    typeof card?.native_ref === "string" && card.native_ref.length > 0);
+  const renderedTextComplete = state.player.deck.every((card) =>
+    typeof card?.description === "string"
+    && card.description.length > 0
+    && !/\{[^{}]+\}/u.test(card.description));
+  const cardDetailsComplete = state.player.deck.every((card) =>
+    typeof card?.name === "string"
+    && card.name.length > 0
+    && typeof card?.rarity === "string"
+    && card.rarity !== "Unknown");
+  const complete = nativeIdentityComplete && renderedTextComplete && cardDetailsComplete;
+  const missing = [
+    ...(nativeIdentityComplete ? [] : ["native_card_entity_identity"]),
+    ...(renderedTextComplete ? [] : ["fully_rendered_localized_dynamic_text"]),
+    ...(cardDetailsComplete ? [] : ["visible_card_details"])
+  ];
   return {
     descriptor: {
       read_id: makeId("read", snapshotId, "run_deck"),
@@ -1454,8 +1471,8 @@ function runDeckRead(snapshotId, state, makeId = stableId) {
     content: {
       kind: "run_deck",
       card_count: state.player.deck.length,
-      cards: state.player.deck.map((card, index) => {
-        const entityId = makeId("deck_card", snapshotId, index, card.id, card.upgraded);
+      cards: state.player.deck.map((card) => {
+        const entityId = makeId("deck_card", card.native_ref ?? snapshotId, card.id, card.upgraded);
         return {
           ...visibleCombatCard(card, entityId),
           is_selected: false
@@ -1463,10 +1480,12 @@ function runDeckRead(snapshotId, state, makeId = stableId) {
       })
     },
     completeness: {
-      status: "partial",
-      visible_information: "managed_candidate_run_deck_projection_not_cross_host_qualified",
+      status: complete ? "complete" : "partial",
+      visible_information: complete
+        ? "complete_for_player_openable_run_deck_view"
+        : "managed_candidate_run_deck_projection_incomplete",
       interaction_discovery: "read_only",
-      missing: ["native_card_entity_identity", "fully_rendered_localized_dynamic_text"],
+      missing,
       hidden_by_policy: []
     }
   };
