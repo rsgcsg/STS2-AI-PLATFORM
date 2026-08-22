@@ -15,7 +15,9 @@
   <ItemGroup>
     <AssemblyMetadata Include="SourceRevision" Value="$(SourceRevision)" />
     <AssemblyMetadata Include="AnnotatorSourceDigest" Value="$(AnnotatorSourceDigest)" />
-    <ProjectReference Include="../STS2HumanAnnotator.Core/STS2HumanAnnotator.Core.csproj" />
+    <!-- STS2 loads one assembly per Mod manifest. Link the single Core source
+         authority into the Mod instead of adding an unresolved runtime DLL. -->
+    <Compile Include="../STS2HumanAnnotator.Core/*.cs" Link="Core/%(Filename)%(Extension)" />
     <Reference Include="sts2">
       <HintPath>$(STS2GameDataDir)/sts2.dll</HintPath>
       <Private>false</Private>

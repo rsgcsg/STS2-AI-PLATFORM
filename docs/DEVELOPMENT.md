@@ -10,6 +10,11 @@ node tools/check-boundary.mjs
 node tools/check-docs.mjs
 ```
 
+STS2 initializes one assembly from each Mod manifest and does not resolve the
+adjacent Core project DLL. The Mod project therefore links the same Core source
+files into its one runtime assembly; tests and the offline Tool compile the Core
+project normally. There is one source authority and no runtime loader shim.
+
 ## Exact-Game Check
 
 With a local exact STS2 installation and sibling Connector build:

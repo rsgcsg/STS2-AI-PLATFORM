@@ -202,8 +202,8 @@ function deploy() {
     if (existed) fs.copyFileSync(installed, path.join(backup, name));
   }
   writeJson(path.join(backup, "rollback-manifest.json"), { schema_version: 1, files: backupState });
+  fs.rmSync(path.join(modsDir, "STS2HumanAnnotator.Core.dll"), { force: true });
   fs.copyFileSync(path.join(modOutput, "STS2_HUMAN_ANNOTATOR.dll"), path.join(modsDir, "STS2_HUMAN_ANNOTATOR.dll"));
-  fs.copyFileSync(path.join(modOutput, "STS2HumanAnnotator.Core.dll"), path.join(modsDir, "STS2HumanAnnotator.Core.dll"));
   fs.copyFileSync(manifestSource, path.join(modsDir, "STS2_HUMAN_ANNOTATOR.json"));
   writeJson(path.join(modsDir, "STS2_HUMAN_ANNOTATOR.conf"), {
     recording_root: path.join(local, "recordings"),
