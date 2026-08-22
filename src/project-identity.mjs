@@ -5,16 +5,46 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const IGNORED_DIRECTORIES = new Set([".git", ".local", "node_modules"]);
+const IGNORED_DIRECTORIES = new Set([
+  ".git",
+  ".local",
+  ".mypy_cache",
+  ".pytest_cache",
+  ".venv",
+  "__pycache__",
+  "bin",
+  "node_modules",
+  "obj"
+]);
+
+function gitSourceFiles(root) {
+  try {
+    const output = execFileSync(
+      "git",
+      ["ls-files", "-z", "--cached", "--others", "--exclude-standard"],
+      { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }
+    );
+    return output
+      .split("\0")
+      .filter(Boolean)
+      .sort()
+      .map((relative) => path.join(root, relative))
+      .filter((file) => statSync(file, { throwIfNoEntry: false })?.isFile() === true);
+  } catch {
+    return null;
+  }
+}
 
 function sourceFiles(root) {
+  const gitFiles = gitSourceFiles(root);
+  if (gitFiles != null) return gitFiles;
   const files = [];
   function walk(directory) {
     for (const entry of readdirSync(directory).sort()) {
       if (IGNORED_DIRECTORIES.has(entry)) continue;
       const file = path.join(directory, entry);
       if (statSync(file).isDirectory()) walk(file);
-      else files.push(file);
+      else if (!entry.endsWith(".pyc")) files.push(file);
     }
   }
   walk(root);
