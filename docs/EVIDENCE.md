@@ -2,35 +2,31 @@
 
 Evidence is exact and non-transferable. Source, test, build, boot, loaded,
 mutation, journey, differential, performance and qualification are separate
-levels. The `v1.0.0` release runtime-seal asset is the machine-readable
+levels. The `v1.0.1` release runtime-seal asset is the machine-readable
 authority for the final tag; raw reports remain ignored under `.local/`.
 
 ## Frozen Tuple
 
 - game: macOS arm64 `v0.111.0/41cef1ea`;
 - `sts2.dll`: SHA-256 `9cb4f1ad...f12b4`, MVID `57785517...84b`;
-- Managed patch: `ed9248b...341c2`;
-- Managed Host: `a884b104...b3d66`, MVID `5b6adbd6...38b`;
+- Managed patch: `8ced088b...87e`;
+- Managed Host: `8dc622b0...8a6`, MVID `7228541c...e98`;
 - Connector: `v1.1.0-rc.1/e065102`, Host `c1877f1a...7586`,
   MVID `64765ea1...5825`;
 - Player Environment protocol/SDK: `1.0.0/1.0.0`.
 
-## Reused Exact Evidence
+## Current Patch Evidence
 
 | Gate | Exact evidence | Boundary |
 |---|---|---|
-| Candidate build/audit | Reproducible upstream + patch ledger produces `a884b104...` and the exact unmodified game assembly | source/build, not runtime |
-| Stable information | Ten fixed Managed episodes, 2,129 decisions and 3,944 Reads reached terminal with complete supported-scope information | bounded corpus, not all content |
-| Reset/authority | Ten resets, 1,670 deliveries, 9/9 old-authority stale refusals and 10/10 duplicate Receipt replays | same exact candidate |
-| Ambiguous loss | Accepted request followed by process loss closed authority; distinct exact runtime recovered | Commit intentionally unknown |
-| Reliability | 8 workers, 5,600 episodes, 1,084,992 decisions, zero unknown/process failures | predecessor Headless source, same Host artifact; not formal current-tag soak |
-| Python consumer | External `reset/observe/read/step` episode reached terminal | one consumer episode |
-| Learner contention | 2 workers, 12 terminal episodes, 1,567 deliveries, 1,163 learner updates, zero unknown/failure | STPD integration smoke |
-| Reference transfer | Two same-seed Candidate and shipped-Reference runs all reached terminal; 327 Managed and 390 Reference deliveries, zero unknown; one exact terminal outcome matched | execution transfer, not broad parity |
+| Candidate build/audit | Reproducible upstream + patch ledger produces `8dc622b0...` and the exact unmodified game assembly | source/build, not runtime |
+| Stable information | Current Python collector reached natural game over with 10 Combat transitions, complete finite authority and complete `run_deck`/`combat_piles` Reads | one bounded current-artifact journey, not all content |
+| Receipt/successor | All collected actions had exact delivery Receipts and independently observed stable successors | action-local delivery, not business completion |
 | Card reward settling | Connector `e065102` cold-loaded as `c1877f1a.../64765ea1...`; partial cards published no authority and the stable successor exposed all three cards plus Skip | exact named lifecycle |
 
-The final release seal adds current-tag audit, Python smoke, reset/recovery and
-worker identity gates without repeating the long campaigns above.
+The `v1.0.0` reset/recovery, reliability, learner-contention and Reference
+comparison reports are preserved as predecessor evidence only. They bind a
+different patch and Host artifact and therefore do not qualify `v1.0.1`.
 
 ## Environment-Invalid Conditions
 

@@ -1,6 +1,6 @@
 # Status
 
-Release: `v1.0.0` STPD v0 operational baseline
+Release: `v1.0.1` STPD v0 operational patch baseline
 
 Verdict: **operationally frozen for STPD v0; formal H1.0 qualification is not
 claimed.**
@@ -18,7 +18,9 @@ claimed.**
 | Connector Host | SHA-256 `c1877f1af1b311904b0d536fdfc08cd5c425281f4cc93eed2ff11729380c7586`, MVID `64765ea1-29fe-4475-9b7d-3b0d65955825` |
 | Player Environment | protocol `1.0.0`, SDK `1.0.0` |
 
-The tag and its runtime-seal asset bind the final Headless source identity.
+The `v1.0.1` tag and its runtime-seal asset bind the final Headless source
+identity. `v1.0.0` remains immutable predecessor evidence for its different
+Managed patch and Host artifact.
 Generated candidates, game files, saves and raw reports remain local and are
 not release assets.
 
@@ -31,19 +33,14 @@ not release assets.
 - request idempotency and unknown-no-retry;
 - real state -> legal BoundAction -> native Commit -> stable successor or
   terminal;
-- reset invalidates old authority;
-- ambiguous delivery loss quarantines the process and recovers only through a
-  distinct exact replacement runtime;
-- independent Python `reset/observe/read/step`;
-- two-worker STPD actor/learner contention with exact episode provenance;
-- two Candidate-trained-policy executions on shipped Reference, both reaching
-  terminal with zero unknown delivery; one exact terminal result matched;
+- independent Python `reset/observe/read/step` collection through terminal;
+- complete current `run_deck` and `combat_piles` Reads in that collection;
 - Connector card-reward mounting remains `settling` with no mutation
   authority until the complete selectable-card catalog is ready.
 
-The long one-million-decision capacity run is retained as predecessor
-reliability evidence for the same Managed artifact, not as formal current-tag
-qualification.
+Reset/recovery, two-worker contention, Candidate-to-Reference and long
+reliability runs are retained as `v1.0.0` predecessor evidence only. The
+changed `v1.0.1` Host artifact inherits none of their runtime authority.
 
 ## Ownership
 

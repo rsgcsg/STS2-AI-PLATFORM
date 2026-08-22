@@ -161,7 +161,7 @@ observe or prove Steam Cloud server state.
 
 ## Release Boundary
 
-`v1.0.0` is an operational STPD baseline, not formal H1.0. It requires exact
+`v1.0.1` is an operational STPD patch baseline, not formal H1.0. It requires exact
 identity, complete action authority, stable successor/terminal, reset,
 idempotency, unknown-no-retry, recovery, external Python consumption, planned
 worker operation and named Reference comparison. Long soak, exhaustive

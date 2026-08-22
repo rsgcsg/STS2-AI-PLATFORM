@@ -2,7 +2,8 @@
 
 ## Current Baseline
 
-`v1.0.0` freezes the exact Managed Exact route for STPD v0 operational use.
+`v1.0.1` is the exact Managed Exact patch baseline for STPD v0 operational use.
+`v1.0.0` remains immutable predecessor evidence for its distinct Host artifact.
 This is intentionally narrower than formal H1.0 qualification. Headless and
 Connector feature work stops unless a generic environment regression is
 reproduced.

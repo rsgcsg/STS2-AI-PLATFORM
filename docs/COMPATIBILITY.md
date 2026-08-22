@@ -3,7 +3,7 @@
 Compatibility is exact and fail-closed. Matching the display version alone is
 insufficient.
 
-## STPD v0 Operational Tuple
+## STPD v0.1 Operational Patch Tuple
 
 | Field | Exact value |
 |---|---|

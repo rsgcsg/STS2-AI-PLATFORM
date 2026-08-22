@@ -3,7 +3,8 @@
 Headless, Connector Host, Player Environment protocol and Connector SDK are
 independently versioned.
 
-- Headless `1.0.0`: exact STPD v0 operational baseline;
+- Headless `1.0.1`: current exact STPD v0 operational patch baseline;
+- Headless `1.0.0`: immutable predecessor baseline for its distinct Host;
 - Connector `1.1.0-rc.1`: exact shipped-Reference Host prerelease;
 - protocol/SDK `1.0.0/1.0.0`: Host-neutral gameplay contract/client.
 

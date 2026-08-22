@@ -12,26 +12,26 @@ simulator or a wrapper around a reimplemented game.
 
 ## Current Status
 
-Version `1.0.0` freezes one **STPD v0 operational baseline**. It does not claim
+Version `1.0.1` is the current **STPD v0 operational patch baseline**. It does not claim
 formal H1.0 qualification or universal STS2 compatibility.
 
 The baseline is exact and fail-closed:
 
-- Headless source/tag: `v1.0.0`;
+- Headless source/tag: `v1.0.1`;
 - game: macOS arm64 STS2 `v0.111.0` / `41cef1ea`, `sts2.dll`
   `9cb4f1ad...`, MVID `57785517...`;
-- Managed Exact upstream `d11aa883...`, patch `ed9248b...`, Host artifact
-  `a884b104...`, MVID `5b6adbd6...`;
+- Managed Exact upstream `d11aa883...`, patch `8ced088b...`, Host artifact
+  `8dc622b0...`, MVID `7228541c...`;
 - Connector `v1.1.0-rc.1`, source `e065102...`, artifact `c1877f1a...`, MVID
   `64765ea1...`, protocol/SDK `1.0.0`.
 
 The real game still owns rules, RNG, effects and Commit. The managed route is
 the primary STPD environment; shipped Godot remains the Reference Host. Exact
-evidence covers complete finite actions, state-bound Reads, stable successors,
-terminal episodes, reset authority rotation, duplicate request replay,
-unknown-no-retry recovery, an independent Python consumer, two-worker learner
-contention and two Candidate-to-Reference terminal runs. One of those two runs
-matched the exact terminal outcome; this is not broad semantic equivalence.
+evidence for the current patch covers complete finite actions, state-bound
+`run_deck`/`combat_piles` Reads, stable successors and a terminal Combat
+collection consumed by independent Python. The wider reset, recovery,
+contention and Candidate-to-Reference campaigns remain immutable `v1.0.0`
+predecessor evidence and are not transferred across the changed Host artifact.
 
 Long soak, exhaustive/randomized CrossHost coverage, arbitrary cards/relics/
 events, a real changed-build campaign, cluster/high-core qualification and

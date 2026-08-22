@@ -1,6 +1,6 @@
 {
   "name": "sts2-headless-workspace",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Evidence-first tooling for running the real Slay the Spire 2 runtime without a display",
   "license": "MIT",

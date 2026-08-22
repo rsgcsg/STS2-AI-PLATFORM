@@ -26,7 +26,7 @@ npm run experiment:managed -- prepare
 npm run experiment:managed -- audit --candidate .local/candidates/<exact-candidate>
 ```
 
-Audit must report patch `ed9248b...`, Host `a884b104...`, and the exact
+Audit must report patch `8ced088b...`, Host `8dc622b0...`, and the exact
 unmodified game assembly `9cb4f1ad...`. Any mismatch is a requalification
 event, not a reason to edit the expected hash.
 
