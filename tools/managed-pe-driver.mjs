@@ -40,6 +40,8 @@ write({
   type: "ready",
   protocol: "sts2.headless/managed-player-environment-driver-1",
   headless: readProjectIdentity(ROOT),
+  candidate_manifest: started.runtime.manifest,
+  exact_game: started.runtime.exactGame,
   candidate_build: started.runtime.build,
   runtime_identity: started.runtime.runtimeIdentity,
   adapter_runtime_instance_id: started.runtime.adapterRuntimeInstanceId,
