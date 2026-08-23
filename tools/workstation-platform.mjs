@@ -192,6 +192,48 @@ export function commandMatchesExecutable(command, executable) {
   return normalize(command).includes(normalize(executable));
 }
 
+export function prepareExactWindowsModSettings({
+  settings,
+  enabledModIds,
+  allowedPreviouslyEnabledModIds
+}) {
+  if (settings == null || typeof settings !== "object" || Array.isArray(settings)
+      || settings.mod_settings == null
+      || typeof settings.mod_settings !== "object"
+      || Array.isArray(settings.mod_settings)
+      || !Array.isArray(settings.mod_settings.mod_list)) {
+    throw new Error("Windows settings have an unexpected mod_settings shape.");
+  }
+  if (!Array.isArray(enabledModIds) || enabledModIds.length === 0
+      || new Set(enabledModIds).size !== enabledModIds.length) {
+    throw new Error("Exact enabled Mod IDs must be a non-empty unique list.");
+  }
+  const allowed = new Set(allowedPreviouslyEnabledModIds);
+  const unexpected = settings.mod_settings.mod_list
+    .filter((entry) => entry?.is_enabled === true && !allowed.has(entry.id))
+    .map((entry) => entry.id ?? "unidentified");
+  if (unexpected.length) {
+    throw new Error(`Refusing to preserve an enabled non-admitted Modset: ${unexpected.join(", ")}`);
+  }
+  const managed = new Set(allowedPreviouslyEnabledModIds);
+  const retained = settings.mod_settings.mod_list.filter((entry) => !managed.has(entry?.id));
+  return {
+    ...settings,
+    mod_settings: {
+      ...settings.mod_settings,
+      mod_list: [
+        ...allowedPreviouslyEnabledModIds.map((id) => ({
+          id,
+          is_enabled: enabledModIds.includes(id),
+          source: "mods_directory"
+        })),
+        ...retained
+      ],
+      mods_enabled: true
+    }
+  };
+}
+
 function sameArtifactIdentity(left, right) {
   return left?.sha256 === right?.sha256
     && left?.module_version_id === right?.module_version_id;

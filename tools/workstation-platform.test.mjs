@@ -5,9 +5,52 @@ import {
   fallbackInstallation,
   normalizeExactModsetCanary,
   normalizeInstalledProvenance,
+  prepareExactWindowsModSettings,
   resolveConnectorCanaryEnvironment,
   resolveWorkstationInstallation
 } from "./workstation-platform.mjs";
+
+test("Windows live settings preserve both artifacts but enable only Connector", () => {
+  const settings = {
+    schema_version: 8,
+    mod_settings: {
+      mods_enabled: true,
+      mod_list: [
+        { id: "STS2_MCP", is_enabled: true, source: "mods_directory" },
+        { id: "STS2_HUMAN_ANNOTATOR", is_enabled: true, source: "mods_directory" },
+        { id: "DISABLED_MOD", is_enabled: false, source: "mods_directory" }
+      ]
+    }
+  };
+  const result = prepareExactWindowsModSettings({
+    settings,
+    enabledModIds: ["STS2_MCP"],
+    allowedPreviouslyEnabledModIds: ["STS2_MCP", "STS2_HUMAN_ANNOTATOR"]
+  });
+  assert.deepEqual(
+    result.mod_settings.mod_list.map(({ id, is_enabled }) => ({ id, is_enabled })),
+    [
+      { id: "STS2_MCP", is_enabled: true },
+      { id: "STS2_HUMAN_ANNOTATOR", is_enabled: false },
+      { id: "DISABLED_MOD", is_enabled: false }
+    ]
+  );
+  assert.equal(settings.mod_settings.mod_list[1].is_enabled, true);
+});
+
+test("Windows live settings reject an enabled third-party Mod", () => {
+  const settings = {
+    mod_settings: {
+      mods_enabled: true,
+      mod_list: [{ id: "GAMEPLAY_MOD", is_enabled: true, source: "mods_directory" }]
+    }
+  };
+  assert.throws(() => prepareExactWindowsModSettings({
+    settings,
+    enabledModIds: ["STS2_MCP"],
+    allowedPreviouslyEnabledModIds: ["STS2_MCP", "STS2_HUMAN_ANNOTATOR"]
+  }), /non-admitted Modset/u);
+});
 
 test("Windows installation uses Headless discovery and exact native paths", () => {
   const calls = [];

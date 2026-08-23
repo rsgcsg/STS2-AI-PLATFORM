@@ -63,3 +63,20 @@ registry entries use portable bundle-relative paths and own corpus semantics.
 Never combine sessions by concatenating JSONL. STPD replays strict admission per
 session, rejects identity drift and collisions, assigns whole runs to splits, and
 freezes a new immutable corpus snapshot.
+
+## Experimental Connector-only live policy profile
+
+The Human recorder's two-observer Modset is observation-only by design. A real
+Connector-controlled policy must instead cold-load the Host's existing
+`exact_player_environment_only` authority profile. On Windows, with STS2 closed:
+
+```powershell
+npm run prepare:live-connector
+npm run launch:live-connector
+```
+
+The preparation command makes a checksummed local settings backup, keeps the
+Annotator artifact installed but disables it, rejects every enabled third-party
+Mod and enables only `STS2_MCP`. The launch reuses Headless game discovery and
+the exact Connector game/source canaries. This does not qualify a model or turn
+live evidence into Human Annotator evidence.

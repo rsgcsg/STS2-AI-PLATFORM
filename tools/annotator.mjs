@@ -8,6 +8,7 @@ import {
   loadHeadlessWorkstationApi,
   normalizeExactModsetCanary,
   normalizeInstalledProvenance,
+  prepareExactWindowsModSettings,
   resolveConnectorCanaryEnvironment,
   resolveWorkstationInstallation
 } from "./workstation-platform.mjs";
@@ -38,6 +39,7 @@ const manifestSource = path.join(root, "src", "STS2HumanAnnotator.Mod", "mod_man
 const steamAppId = "2868840";
 const windowsSettingsSchema = 8;
 const exactObserverModIds = ["STS2_MCP", "STS2_HUMAN_ANNOTATOR"];
+const exactConnectorOnlyModIds = ["STS2_MCP"];
 
 const command = process.argv[2] || "doctor";
 const args = process.argv.slice(3);
@@ -294,6 +296,96 @@ function prepareModSettings() {
     backup,
     enabled_mods: exactObserverModIds
   }, null, 2));
+}
+
+function requireExactConnectorOnlyModSettings() {
+  const resolved = windowsSettings();
+  if (resolved == null) throw new Error("Connector-only live launch currently requires Windows.");
+  const entries = resolved.value.mod_settings.mod_list;
+  const enabled = entries.filter((entry) => entry?.is_enabled === true).map((entry) => entry.id);
+  const exact = exactConnectorOnlyModIds.every((id) => entries.some((entry) =>
+    entry?.id === id && entry?.source === "mods_directory" && entry?.is_enabled === true
+  ));
+  if (resolved.value.mod_settings.mods_enabled !== true
+      || !exact
+      || enabled.length !== exactConnectorOnlyModIds.length) {
+    throw new Error(`Windows Connector-only Mod settings drifted: ${enabled.join(", ")}`);
+  }
+  return resolved;
+}
+
+function prepareConnectorOnlyModSettings() {
+  if (process.platform !== "win32")
+    throw new Error("Connector-only live settings currently require Windows.");
+  if (gameRunning()) throw new Error("Fully close Slay the Spire 2 before changing Mod settings.");
+  const resolved = windowsSettings();
+  const updated = prepareExactWindowsModSettings({
+    settings: resolved.value,
+    enabledModIds: exactConnectorOnlyModIds,
+    allowedPreviouslyEnabledModIds: exactObserverModIds
+  });
+  const backup = path.join(local, "live-settings-backups", safeTimestamp());
+  fs.mkdirSync(backup, { recursive: true });
+  fs.copyFileSync(resolved.file, path.join(backup, "settings.save"));
+  writeJson(path.join(backup, "backup-provenance.json"), {
+    schema_version: 1,
+    backed_up_at: new Date().toISOString(),
+    source_path: resolved.file,
+    source_sha256: sha256(path.join(backup, "settings.save")),
+    expected_settings_schema: windowsSettingsSchema,
+    purpose: "temporary_exact_connector_only_live_s1"
+  });
+  writeJson(resolved.file, updated);
+  requireExactConnectorOnlyModSettings();
+  console.log(JSON.stringify({
+    status: "exact_connector_only_enabled_cold_start_required",
+    settings_file: resolved.file,
+    backup,
+    enabled_mods: exactConnectorOnlyModIds,
+    disabled_but_preserved_mods: ["STS2_HUMAN_ANNOTATOR"]
+  }, null, 2));
+}
+
+function launchConnectorOnly() {
+  if (process.platform !== "win32")
+    throw new Error("Connector-only live launch currently requires Windows.");
+  if (gameRunning()) throw new Error("Slay the Spire 2 is already running; cold-load requires a fully closed process.");
+  requireInstallation();
+  requireExactConnectorOnlyModSettings();
+  const currentGame = exactCurrentGame();
+  const connectorBuild = readJson(connectorBuildIdentity);
+  const installedConnector = exactIdentity(path.join(modsDir, "STS2_MCP.dll"));
+  if (installedConnector.sha256 !== connectorBuild.artifact_sha256
+      || installedConnector.module_version_id !== connectorBuild.artifact_mvid) {
+    throw new Error("Installed Connector differs from the exact built artifact.");
+  }
+  const connectorCanary = connectorProcessCanary({
+    game: { release: currentGame.release, sts2_identity: currentGame.sts2_identity }
+  });
+  const env = { ...process.env, ...connectorCanary.environment };
+  env.SteamAppId ??= steamAppId;
+  env.SteamGameId ??= steamAppId;
+  delete env.STS2_CONNECTOR_EXPERIMENTAL_MODSET_FINGERPRINT;
+  const child = spawn(installation.executable, [], {
+    cwd: installation.executable_cwd,
+    env,
+    detached: true,
+    stdio: "ignore",
+    windowsHide: false
+  });
+  child.unref();
+  const record = {
+    status: "launched_exact_connector_only",
+    launched_at: new Date().toISOString(),
+    pid: child.pid,
+    executable: installation.executable,
+    connector_runtime: connectorCanary.runtime,
+    connector_environment: connectorCanary.environment,
+    installed_connector: installedConnector,
+    enabled_mods: exactConnectorOnlyModIds
+  };
+  writeJson(path.join(local, "last-live-connector-launch.json"), record);
+  console.log(JSON.stringify(record, null, 2));
 }
 
 function processAlive(pid) {
@@ -674,8 +766,10 @@ try {
   else if (command === "check") check();
   else if (command === "deploy") deploy();
   else if (command === "prepare-mod-settings") prepareModSettings();
+  else if (command === "prepare-live-connector-settings") prepareConnectorOnlyModSettings();
   else if (command === "admit-current-modset") admitCurrentModset();
   else if (command === "launch") launch();
+  else if (command === "launch-live-connector") launchConnectorOnly();
   else if (command === "verify-loaded") verifyLoaded();
   else if (command === "audit") audit();
   else if (command === "export") exportRecords();
