@@ -34,6 +34,8 @@ const canaryPath = path.join(local, "exact-modset-canary.json");
 const provenancePath = path.join(local, "build-provenance.json");
 const manifestSource = path.join(root, "src", "STS2HumanAnnotator.Mod", "mod_manifest.json");
 const steamAppId = "2868840";
+const windowsSettingsSchema = 8;
+const exactObserverModIds = ["STS2_MCP", "STS2_HUMAN_ANNOTATOR"];
 
 const command = process.argv[2] || "doctor";
 const args = process.argv.slice(3);
@@ -186,6 +188,99 @@ function requireInstalledProvenance() {
   if (!sameIdentity(installedConnector, provenance.connector_artifact))
     throw new Error("Installed Connector no longer matches Annotator provenance.");
   return { provenance, currentGame, installedAnnotator, installedConnector };
+}
+
+function windowsSettings() {
+  if (process.platform !== "win32") return null;
+  const roaming = process.env.APPDATA;
+  if (!roaming) throw new Error("APPDATA is unavailable; cannot resolve Windows STS2 settings.");
+  const steamRoot = path.join(roaming, "SlayTheSpire2", "steam");
+  if (!fs.existsSync(steamRoot)) throw new Error(`Windows STS2 Steam settings root is absent: ${steamRoot}`);
+  const candidates = fs.readdirSync(steamRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(steamRoot, entry.name, "settings.save"))
+    .filter(fs.existsSync);
+  if (candidates.length !== 1) {
+    throw new Error(`Expected exactly one Windows Steam settings.save, observed ${candidates.length}.`);
+  }
+  const file = candidates[0];
+  const value = readJson(file);
+  if (value.schema_version !== windowsSettingsSchema)
+    throw new Error(`Windows settings schema drift: expected ${windowsSettingsSchema}, observed ${value.schema_version}.`);
+  if (value.mod_settings == null
+      || typeof value.mod_settings !== "object"
+      || Array.isArray(value.mod_settings)
+      || !Array.isArray(value.mod_settings.mod_list))
+    throw new Error("Windows settings have an unexpected mod_settings shape.");
+  return { file, value };
+}
+
+function requireExactObserverModSettings() {
+  const resolved = windowsSettings();
+  if (resolved == null) return null;
+  const { value } = resolved;
+  const entries = value.mod_settings.mod_list;
+  const enabledUnexpected = entries
+    .filter((entry) => entry?.is_enabled === true && !exactObserverModIds.includes(entry.id))
+    .map((entry) => entry.id ?? "unidentified");
+  const exact = exactObserverModIds.every((id) => entries.some((entry) =>
+    entry?.id === id
+      && entry?.source === "mods_directory"
+      && entry?.is_enabled === true
+  ));
+  if (value.mod_settings.mods_enabled !== true || !exact || enabledUnexpected.length) {
+    throw new Error(
+      `Windows exact observer Mod settings are not admitted; unexpected enabled Mods: ${enabledUnexpected.join(", ") || "none"}. `
+      + "Run npm run prepare:mods while STS2 is closed."
+    );
+  }
+  return resolved;
+}
+
+function prepareModSettings() {
+  if (process.platform !== "win32") {
+    console.log(JSON.stringify({ status: "not_required", platform: process.platform }, null, 2));
+    return;
+  }
+  if (gameRunning()) throw new Error("Fully close Slay the Spire 2 before changing Mod settings.");
+  const resolved = windowsSettings();
+  const entries = resolved.value.mod_settings.mod_list;
+  const enabledUnexpected = entries
+    .filter((entry) => entry?.is_enabled === true && !exactObserverModIds.includes(entry.id))
+    .map((entry) => entry.id ?? "unidentified");
+  if (enabledUnexpected.length) {
+    throw new Error(`Refusing to preserve an enabled non-observer Modset: ${enabledUnexpected.join(", ")}`);
+  }
+  const retained = entries.filter((entry) => !exactObserverModIds.includes(entry?.id));
+  const updated = {
+    ...resolved.value,
+    mod_settings: {
+      ...resolved.value.mod_settings,
+      mod_list: [
+        ...exactObserverModIds.map((id) => ({ id, is_enabled: true, source: "mods_directory" })),
+        ...retained
+      ],
+      mods_enabled: true
+    }
+  };
+  const backup = path.join(local, "settings-backups", safeTimestamp());
+  fs.mkdirSync(backup, { recursive: true });
+  fs.copyFileSync(resolved.file, path.join(backup, "settings.save"));
+  writeJson(path.join(backup, "backup-provenance.json"), {
+    schema_version: 1,
+    backed_up_at: new Date().toISOString(),
+    source_path: resolved.file,
+    source_sha256: sha256(path.join(backup, "settings.save")),
+    expected_settings_schema: windowsSettingsSchema
+  });
+  writeJson(resolved.file, updated);
+  requireExactObserverModSettings();
+  console.log(JSON.stringify({
+    status: "exact_observer_mods_enabled_cold_start_required",
+    settings_file: resolved.file,
+    backup,
+    enabled_mods: exactObserverModIds
+  }, null, 2));
 }
 
 function processAlive(pid) {
@@ -400,6 +495,7 @@ function launch() {
   if (!["darwin", "win32"].includes(process.platform))
     throw new Error(`Automated cold launch is unsupported on ${process.platform}.`);
   const installed = requireInstalledProvenance();
+  requireExactObserverModSettings();
   const executable = installation.executable;
   const connectorCanary = connectorProcessCanary(installed.provenance);
   const env = { ...process.env };
@@ -560,6 +656,7 @@ try {
   else if (command === "test") test();
   else if (command === "check") check();
   else if (command === "deploy") deploy();
+  else if (command === "prepare-mod-settings") prepareModSettings();
   else if (command === "admit-current-modset") admitCurrentModset();
   else if (command === "launch") launch();
   else if (command === "verify-loaded") verifyLoaded();

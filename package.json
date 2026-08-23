@@ -15,6 +15,7 @@
     "check:docs": "node tools/check-docs.mjs",
     "check": "node tools/annotator.mjs check",
     "deploy": "node tools/annotator.mjs deploy",
+    "prepare:mods": "node tools/annotator.mjs prepare-mod-settings",
     "dev-deploy": "node tools/annotator.mjs deploy --allow-dirty",
     "launch": "node tools/annotator.mjs launch",
     "admit:modset": "node tools/annotator.mjs admit-current-modset",

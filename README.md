@@ -90,6 +90,7 @@ npm run deploy
 
 cd ../STS2-human-Annotator
 npm run deploy
+npm run prepare:mods
 npm run launch
 ```
 
@@ -112,6 +113,9 @@ revision before starting the native executable. `deploy`, `admit:modset`,
 `launch`, `verify:loaded`, and `rollback` all fail closed if process discovery,
 the executable, game assembly, source digest, artifact SHA/MVID, or admitted
 Modset envelope drifts. macOS keeps its existing supported-exact launch path.
+`prepare:mods` validates SettingsSave schema 8, backs up the one Windows Steam
+account settings file, enables only the local Connector and Annotator, and
+refuses any already-enabled third-party Mod.
 
 ## Record And Audit
 
