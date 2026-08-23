@@ -159,12 +159,14 @@ export function resolveConnectorCanaryEnvironment({
   if (!/^[0-9a-f]{40}$/u.test(sourceRevision ?? "")) {
     throw new Error("Connector build identity lacks an exact source revision.");
   }
+  // release_info.main_assembly_hash is release metadata and is not the runtime
+  // assembly hash used by Connector compatibility. Exact selected assembly bytes
+  // are already pinned here by SHA-256 + MVID; do not compare the two hash domains.
   const runtime = compatibility?.runtimes?.find((candidate) =>
     candidate.platform === platform
       && candidate.architecture === architecture
       && candidate.game_version === gameRelease?.version
       && candidate.game_commit === gameRelease?.commit
-      && candidate.runtime_main_assembly_hash === gameRelease?.main_assembly_hash
       && candidate.main_assembly_sha256 === gameIdentity?.sha256
       && candidate.main_assembly_mvid === gameIdentity?.module_version_id
   );
