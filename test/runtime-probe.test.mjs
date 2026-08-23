@@ -5,6 +5,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
+  listGameProcesses,
   requestHostProvenance,
   requestHostShutdown,
   resolveExperimentalConnectorCanary,
@@ -14,6 +15,38 @@ import {
   GAME_CANARY_ENVIRONMENT_VARIABLE,
   SOURCE_CANARY_ENVIRONMENT_VARIABLE
 } from "../src/connector-endpoint.mjs";
+
+test("Windows process discovery recognizes only the shipped executable", () => {
+  const spawnProcess = () => ({
+    status: 0,
+    stdout: [
+      '"SlayTheSpire2.exe","4242","Console","1","123,456 K"',
+      '"SlayTheSpire2Helper.exe","4343","Console","1","12,345 K"',
+      '"node.exe","4444","Console","1","12,345 K"'
+    ].join("\r\n"),
+    stderr: "",
+    error: null
+  });
+
+  assert.deepEqual(listGameProcesses("win32", { spawnProcess, failClosed: true }), [
+    '"SlayTheSpire2.exe","4242","Console","1","123,456 K"'
+  ]);
+});
+
+test("strict process discovery fails closed when Windows enumeration fails", () => {
+  const spawnProcess = () => ({
+    status: 1,
+    stdout: "",
+    stderr: "access denied",
+    error: null
+  });
+
+  assert.deepEqual(listGameProcesses("win32", { spawnProcess }), []);
+  assert.throws(
+    () => listGameProcesses("win32", { spawnProcess, failClosed: true }),
+    /Could not enumerate Windows STS2 processes/u
+  );
+});
 
 test("experimental authority binds a verified artifact and known game candidate", () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "sts2-headless-canary-"));
