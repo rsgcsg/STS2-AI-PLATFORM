@@ -108,7 +108,7 @@ test("Windows Connector canaries bind exact game and source identities", () => {
   );
 });
 
-test("macOS supported-exact launch retains source-only Connector canary", () => {
+test("macOS supported-exact launch separates release-declared and runtime assembly hashes", () => {
   const compatibility = {
     canary_environment_variable: "STS2_CONNECTOR_EXPERIMENTAL_GAME_ID",
     artifact_canary_environment_variable: "STS2_CONNECTOR_EXPERIMENTAL_SOURCE_REVISION",
@@ -130,7 +130,7 @@ test("macOS supported-exact launch retains source-only Connector canary", () => 
     gameRelease: {
       version: "v0.111.0",
       commit: "41cef1ea",
-      main_assembly_hash: 1010476334
+      main_assembly_hash: 1172974615
     },
     gameIdentity: {
       sha256: "2".repeat(64),
@@ -143,6 +143,24 @@ test("macOS supported-exact launch retains source-only Connector canary", () => 
   assert.deepEqual(result.environment, {
     STS2_CONNECTOR_EXPERIMENTAL_SOURCE_REVISION: "b".repeat(40)
   });
+  assert.throws(
+    () => resolveConnectorCanaryEnvironment({
+      compatibility,
+      connectorBuild: { source_revision: "b".repeat(40) },
+      gameRelease: {
+        version: "v0.111.0",
+        commit: "41cef1ea",
+        main_assembly_hash: 1172974615
+      },
+      gameIdentity: {
+        sha256: "3".repeat(64),
+        module_version_id: "22222222-2222-2222-2222-222222222222"
+      },
+      platform: "darwin",
+      architecture: "arm64"
+    }),
+    /absent from Connector compatibility/u
+  );
 });
 
 test("process command matching binds the exact executable path", () => {
