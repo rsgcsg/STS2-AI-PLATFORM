@@ -17,6 +17,13 @@
 `npm run doctor` is read-only. Build, install, loaded identity, and recorded
 native-human decisions are separate states.
 
+The current CLI can verify and relaunch the predecessor macOS schema-1
+deployment/canary without redeploying it. This compatibility path is
+macOS-arm64-only and derives missing platform/release/Connector-build fields
+only after the current game assembly and installed Connector artifact exactly
+match the recorded identities. It is reported as
+`legacy_macos_v1_derived_exact`; any drift still fails closed.
+
 ## Platform discovery and cold launch
 
 The canonical sibling `STS2-headless` checkout owns Steam discovery and runtime

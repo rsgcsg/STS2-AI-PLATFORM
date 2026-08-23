@@ -6,6 +6,8 @@ import { spawn, spawnSync } from "node:child_process";
 import {
   commandMatchesExecutable,
   loadHeadlessWorkstationApi,
+  normalizeExactModsetCanary,
+  normalizeInstalledProvenance,
   resolveConnectorCanaryEnvironment,
   resolveWorkstationInstallation
 } from "./workstation-platform.mjs";
@@ -173,10 +175,15 @@ function exactCurrentGame() {
 function requireInstalledProvenance() {
   const file = path.join(local, "installed-provenance.json");
   if (!fs.existsSync(file)) throw new Error("Deploy the exact Annotator before launching STS2.");
-  const provenance = readJson(file);
+  const storedProvenance = readJson(file);
   const currentGame = exactCurrentGame();
-  if (provenance.platform !== process.platform || provenance.architecture !== process.arch)
-    throw new Error("Installed provenance belongs to a different platform or architecture.");
+  const connectorBuild = readJson(connectorBuildIdentity);
+  const normalized = normalizeInstalledProvenance({
+    provenance: storedProvenance,
+    currentGame,
+    connectorBuild
+  });
+  const provenance = normalized.provenance;
   if (provenance.game.executable.sha256 !== currentGame.executable.sha256
       || !sameIdentity(provenance.game.sts2_identity, currentGame.sts2_identity)
       || JSON.stringify(provenance.game.release) !== JSON.stringify(currentGame.release))
@@ -187,7 +194,13 @@ function requireInstalledProvenance() {
     throw new Error("Installed Annotator no longer matches installed provenance.");
   if (!sameIdentity(installedConnector, provenance.connector_artifact))
     throw new Error("Installed Connector no longer matches Annotator provenance.");
-  return { provenance, currentGame, installedAnnotator, installedConnector };
+  return {
+    provenance,
+    provenanceCompatibility: normalized.compatibility,
+    currentGame,
+    installedAnnotator,
+    installedConnector
+  };
 }
 
 function windowsSettings() {
@@ -504,7 +517,11 @@ function launch() {
   Object.assign(env, connectorCanary.environment);
   let canary = null;
   if (fs.existsSync(canaryPath)) {
-    canary = readJson(canaryPath);
+    canary = normalizeExactModsetCanary({
+      canary: readJson(canaryPath),
+      installed,
+      connectorRuntime: connectorCanary.runtime
+    });
     if (canary.connector_source_revision !== installed.provenance.connector_build.source_revision
         || canary.annotator_source_revision !== installed.provenance.source_revision
         || canary.game_executable_sha256 !== installed.currentGame.executable.sha256
@@ -570,7 +587,7 @@ function verifyLoaded() {
   if (status.environment?.game?.main_assembly_module_version_id !== provenance.game.sts2_identity.module_version_id) errors.push("loaded_game_mvid_mismatch");
   if (status.environment?.modset_status !== "canary_exact_observer_modset") errors.push("exact_observer_modset_canary_not_active");
   if (status.environment?.modset_fingerprint !== canary.modset_fingerprint) errors.push("loaded_modset_fingerprint_mismatch");
-  console.log(JSON.stringify({ status: errors.length ? "fail" : "pass", errors, runtime_command: runtimeCommand, runtime: status, canary, installed_annotator: installedAnnotator, installed_connector: installedConnector }, null, 2));
+  console.log(JSON.stringify({ status: errors.length ? "fail" : "pass", errors, provenance_compatibility: installed.provenanceCompatibility, runtime_command: runtimeCommand, runtime: status, canary, installed_annotator: installedAnnotator, installed_connector: installedConnector }, null, 2));
   if (errors.length) process.exitCode = 1;
 }
 

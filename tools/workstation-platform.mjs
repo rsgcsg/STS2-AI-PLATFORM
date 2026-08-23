@@ -189,3 +189,85 @@ export function commandMatchesExecutable(command, executable) {
   const normalize = (value) => value.replaceAll("/", "\\").toLowerCase();
   return normalize(command).includes(normalize(executable));
 }
+
+function sameArtifactIdentity(left, right) {
+  return left?.sha256 === right?.sha256
+    && left?.module_version_id === right?.module_version_id;
+}
+
+export function normalizeInstalledProvenance({
+  provenance,
+  currentGame,
+  connectorBuild,
+  platform = process.platform,
+  architecture = process.arch
+}) {
+  if (provenance?.platform === platform && provenance?.architecture === architecture) {
+    return { provenance, compatibility: "native" };
+  }
+  const legacyMac = provenance?.schema_version === 1
+    && provenance?.platform == null
+    && provenance?.architecture == null
+    && platform === "darwin"
+    && architecture === "arm64";
+  if (!legacyMac) {
+    throw new Error("Installed provenance belongs to a different platform or architecture.");
+  }
+  if (!sameArtifactIdentity(provenance.game?.sts2_identity, currentGame?.sts2_identity)) {
+    throw new Error("Legacy macOS provenance no longer matches the exact STS2 assembly.");
+  }
+  if (provenance.connector_artifact?.sha256 !== connectorBuild?.artifact_sha256
+      || provenance.connector_artifact?.module_version_id !== connectorBuild?.artifact_mvid) {
+    throw new Error("Legacy macOS provenance no longer matches the exact Connector build.");
+  }
+  if (!/^[0-9a-f]{40}$/u.test(connectorBuild?.source_revision ?? "")
+      || !/^[0-9a-f]{64}$/u.test(connectorBuild?.player_environment_source_digest ?? "")) {
+    throw new Error("Connector build identity cannot upgrade legacy macOS provenance.");
+  }
+  return {
+    compatibility: "legacy_macos_v1_derived_exact",
+    provenance: {
+      ...provenance,
+      platform,
+      architecture,
+      game: {
+        ...provenance.game,
+        release: currentGame.release,
+        executable: currentGame.executable
+      },
+      connector_build: connectorBuild
+    }
+  };
+}
+
+export function normalizeExactModsetCanary({
+  canary,
+  installed,
+  connectorRuntime,
+  platform = process.platform
+}) {
+  if (canary?.schema_version === 2) return canary;
+  const legacyMac = installed.provenanceCompatibility === "legacy_macos_v1_derived_exact"
+    && platform === "darwin"
+    && canary?.schema_version == null
+    && /^[0-9a-f]{64}$/u.test(canary?.modset_fingerprint ?? "")
+    && canary?.connector_source_revision
+      === installed.provenance.connector_build.source_revision;
+  if (!legacyMac) {
+    throw new Error("Exact Modset canary schema is unsupported for this installed process envelope.");
+  }
+  return {
+    ...canary,
+    schema_version: 2,
+    connector_game_id: connectorRuntime.status === "candidate_exact"
+      ? connectorRuntime.id
+      : null,
+    connector_artifact: installed.installedConnector,
+    annotator_source_revision: installed.provenance.source_revision,
+    annotator_source_digest_sha256: installed.provenance.source_digest_sha256,
+    annotator_artifact: installed.installedAnnotator,
+    game_release: installed.currentGame.release,
+    game_executable_sha256: installed.currentGame.executable.sha256,
+    game_sts2_identity: installed.currentGame.sts2_identity
+  };
+}

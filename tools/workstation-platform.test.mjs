@@ -3,6 +3,8 @@ import test from "node:test";
 import {
   commandMatchesExecutable,
   fallbackInstallation,
+  normalizeExactModsetCanary,
+  normalizeInstalledProvenance,
   resolveConnectorCanaryEnvironment,
   resolveWorkstationInstallation
 } from "./workstation-platform.mjs";
@@ -152,4 +154,106 @@ test("process command matching binds the exact executable path", () => {
     '"E:\\Other\\SlayTheSpire2.exe"',
     "E:\\SteamLibrary\\steamapps\\common\\Slay the Spire 2\\SlayTheSpire2.exe"
   ), false);
+});
+
+test("legacy macOS provenance is upgraded only through exact current identities", () => {
+  const gameIdentity = {
+    sha256: "1".repeat(64),
+    module_version_id: "11111111-1111-1111-1111-111111111111"
+  };
+  const connectorArtifact = {
+    sha256: "2".repeat(64),
+    module_version_id: "22222222-2222-2222-2222-222222222222"
+  };
+  const currentGame = {
+    release: { version: "v0.111.0", commit: "41cef1ea" },
+    executable: { sha256: "3".repeat(64) },
+    sts2_identity: gameIdentity
+  };
+  const connectorBuild = {
+    source_revision: "a".repeat(40),
+    player_environment_source_digest: "b".repeat(64),
+    artifact_sha256: connectorArtifact.sha256,
+    artifact_mvid: connectorArtifact.module_version_id
+  };
+  const legacy = {
+    schema_version: 1,
+    game: { sts2_identity: gameIdentity },
+    connector_artifact: connectorArtifact
+  };
+  const result = normalizeInstalledProvenance({
+    provenance: legacy,
+    currentGame,
+    connectorBuild,
+    platform: "darwin",
+    architecture: "arm64"
+  });
+  assert.equal(result.compatibility, "legacy_macos_v1_derived_exact");
+  assert.deepEqual(result.provenance.game.release, currentGame.release);
+  assert.deepEqual(result.provenance.connector_build, connectorBuild);
+  assert.throws(
+    () => normalizeInstalledProvenance({
+      provenance: legacy,
+      currentGame: {
+        ...currentGame,
+        sts2_identity: { ...gameIdentity, sha256: "4".repeat(64) }
+      },
+      connectorBuild,
+      platform: "darwin",
+      architecture: "arm64"
+    }),
+    /no longer matches the exact STS2 assembly/u
+  );
+  assert.throws(
+    () => normalizeInstalledProvenance({
+      provenance: legacy,
+      currentGame,
+      connectorBuild,
+      platform: "win32",
+      architecture: "x64"
+    }),
+    /different platform or architecture/u
+  );
+});
+
+test("legacy macOS Modset canary is upgraded only inside the exact installed envelope", () => {
+  const installed = {
+    provenanceCompatibility: "legacy_macos_v1_derived_exact",
+    provenance: {
+      source_revision: "c".repeat(40),
+      source_digest_sha256: "d".repeat(64),
+      connector_build: { source_revision: "a".repeat(40) }
+    },
+    installedConnector: { sha256: "1".repeat(64), module_version_id: "connector-mvid" },
+    installedAnnotator: { sha256: "2".repeat(64), module_version_id: "annotator-mvid" },
+    currentGame: {
+      release: { version: "v0.111.0", commit: "41cef1ea" },
+      executable: { sha256: "3".repeat(64) },
+      sts2_identity: { sha256: "4".repeat(64), module_version_id: "game-mvid" }
+    }
+  };
+  const normalized = normalizeExactModsetCanary({
+    canary: {
+      connector_source_revision: "a".repeat(40),
+      modset_fingerprint: "b".repeat(64)
+    },
+    installed,
+    connectorRuntime: { status: "supported_exact", id: "mac" },
+    platform: "darwin"
+  });
+  assert.equal(normalized.schema_version, 2);
+  assert.equal(normalized.connector_game_id, null);
+  assert.deepEqual(normalized.annotator_artifact, installed.installedAnnotator);
+  assert.throws(
+    () => normalizeExactModsetCanary({
+      canary: {
+        connector_source_revision: "e".repeat(40),
+        modset_fingerprint: "b".repeat(64)
+      },
+      installed,
+      connectorRuntime: { status: "supported_exact", id: "mac" },
+      platform: "darwin"
+    }),
+    /schema is unsupported/u
+  );
 });
