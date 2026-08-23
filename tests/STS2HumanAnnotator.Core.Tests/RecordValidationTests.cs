@@ -144,6 +144,9 @@ public sealed class RecordValidationTests
             string export = Path.Combine(root, "export.jsonl");
             Assert.Equal(2, RecordingAuditor.ExportAdmitted(session, export));
             Assert.Equal(2, File.ReadLines(export).Count());
+            byte[] exportBytes = File.ReadAllBytes(export);
+            Assert.DoesNotContain((byte)'\r', exportBytes);
+            Assert.Equal((byte)'\n', exportBytes[^1]);
         }
         finally
         {

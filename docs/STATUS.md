@@ -15,6 +15,10 @@
   raw/audit/export provenance and complete checksums;
 - exact game/Connector/Annotator SHA, MVID, source revision, source digest,
   runtime, environment, protocol, and Modset provenance;
+- shared Windows Steam discovery, strict process detection, safe deployment,
+  native cold launch, exact Connector game/source canaries, Modset admission,
+  loaded-process verification, and rollback while retaining the macOS path;
+- deterministic UTF-8/LF exports on Windows and macOS;
 - STPD strict import through its existing Player Environment projection and B0.
 
 ## Automated Evidence
@@ -76,6 +80,11 @@ Machine audit still cannot independently prove operator identity or controlled
 non-interference. These runs validate the declared ordinary-combat recorder
 slice. They do not validate the new offline bundle/corpus tooling against
 multiple real workers, qualify a broader action family, or authorize training.
+
+Windows x64 automated checks cover path discovery, exact candidate Connector
+canaries, executable matching, deterministic export, and exact-game Mod builds.
+A Windows loaded seal and human canary remain separate evidence and must be
+recorded only after the corresponding cold loads and owner-operated actions.
 
 ## Declared Unsupported
 

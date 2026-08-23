@@ -14,7 +14,9 @@ or expose native references on a wire.
 - Implemented and automated-test verified: ordinary Combat `play` (including an
   exact target when present), `end_turn`, append-only recording, independent
   audit/export, exact artifact identity, and fail-closed STPD import.
-- Built from the exact local STS2 `v0.111.0` assembly on macOS arm64.
+- Builds from the exact local STS2 `v0.111.0` assembly on macOS arm64 and
+  Windows x64. Windows discovery and process inspection reuse the canonical
+  sibling `STS2-headless` runtime modules.
 - Current exact-root artifact is owner-validated with a latest 28-record
   ordinary-combat session: 14 targeted plays, 9 untargeted plays and 5 end
   turns. Independent audit accepted all 28 with zero rejected records; one
@@ -49,7 +51,7 @@ quarantined rather than guessed.
 
 ## Prerequisites
 
-- macOS arm64 with Slay the Spire 2 installed from Steam at the default path, or
+- macOS arm64 or Windows x64 with Slay the Spire 2 installed from Steam, or
   `STS2_GAME_DIR` set to another exact installation;
 - .NET SDK 9 and Node.js 20 or newer;
 - sibling checkouts named `STS2-Connector` and `STS2-human-Annotator` under the
@@ -104,6 +106,12 @@ npm run verify:loaded
 The canary identifies one exact non-gameplay observer Modset for recording. It
 does **not** enable Connector mutation, qualify the Modset, or claim generic Mod
 compatibility.
+
+On Windows, `launch` binds the exact candidate runtime ID and Connector source
+revision before starting the native executable. `deploy`, `admit:modset`,
+`launch`, `verify:loaded`, and `rollback` all fail closed if process discovery,
+the executable, game assembly, source digest, artifact SHA/MVID, or admitted
+Modset envelope drifts. macOS keeps its existing supported-exact launch path.
 
 ## Record And Audit
 

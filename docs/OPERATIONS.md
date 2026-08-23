@@ -15,6 +15,19 @@
 `npm run doctor` is read-only. Build, install, loaded identity, and recorded
 native-human decisions are separate states.
 
+## Platform discovery and cold launch
+
+The canonical sibling `STS2-headless` checkout owns Steam discovery and runtime
+process inspection on Windows. `STS2_GAME_DIR` remains the explicit override on
+both Windows and macOS. A Windows launch requires the exact Connector
+`candidate_exact` game ID plus its source-revision canary; a macOS launch keeps
+the existing `supported_exact` source-revision canary. The admitted Modset
+fingerprint is added only after the first cold load and `npm run admit:modset`.
+
+Deployment archives any prior runtime status and canary in its rollback snapshot.
+Rollback archives the current status/canary before restoring the previous files,
+so stale loaded-state evidence cannot silently authorize a new process.
+
 ## Failure Triage
 
 - `exact_observer_modset_canary_missing`: cold-load fingerprint not pinned;
@@ -23,6 +36,8 @@ native-human decisions are separate states.
 - `mapping_zero` / `mapping_ambiguous`: do not recover by name or coordinates;
 - `stable_successor_timeout`: the transition boundary was not observed;
 - `runtime_identity_changed`: preserve the invalidation and start a new session;
+- `runtime_process_executable_mismatch`: the status PID is not the discovered
+  exact game executable;
 - `unsupported_native_action_type`: outside the current explicit slice.
 
 Inspect `.local/runtime-status.json`, the session invalidations, Connector logs,

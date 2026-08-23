@@ -1,26 +1,34 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { spawn, spawnSync } from "node:child_process";
+import {
+  commandMatchesExecutable,
+  loadHeadlessWorkstationApi,
+  resolveConnectorCanaryEnvironment,
+  resolveWorkstationInstallation
+} from "./workstation-platform.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const local = path.join(root, ".local");
 const connectorRoot = path.resolve(root, "..", "STS2-Connector");
 const connectorArtifact = path.join(connectorRoot, "host", "out", "STS2_MCP", "STS2_MCP.dll");
+const connectorBuildIdentity = path.join(
+  connectorRoot,
+  "host",
+  "out",
+  "STS2_MCP",
+  "build-identity.json"
+);
+const connectorCompatibility = path.join(connectorRoot, "contracts", "host-compatibility.json");
 const modOutput = path.join(root, "src", "STS2HumanAnnotator.Mod", "bin", "Release", "net9.0");
 const toolDll = path.join(root, "src", "STS2HumanAnnotator.Tool", "bin", "Release", "net9.0", "sts2-human-annotator.dll");
-const defaultMacGame = path.join(os.homedir(), "Library", "Application Support", "Steam", "steamapps", "common", "Slay the Spire 2");
-const gameDir = path.resolve(process.env.STS2_GAME_DIR || defaultMacGame);
-const dataDir = process.platform === "darwin"
-  ? path.join(gameDir, "SlayTheSpire2.app", "Contents", "Resources", "data_sts2_macos_arm64")
-  : process.platform === "win32"
-    ? path.join(gameDir, "data_sts2_windows_x86_64")
-    : path.join(gameDir, "data_sts2_linuxbsd_x86_64");
-const modsDir = process.platform === "darwin"
-  ? path.join(gameDir, "SlayTheSpire2.app", "Contents", "MacOS", "mods")
-  : path.join(gameDir, "mods");
+const headlessApi = await loadHeadlessWorkstationApi(root);
+const installation = resolveWorkstationInstallation({ headlessApi });
+const gameDir = installation.game_dir;
+const dataDir = installation.data_dir;
+const modsDir = installation.mods_dir;
 const runtimeStatus = path.join(local, "runtime-status.json");
 const canaryPath = path.join(local, "exact-modset-canary.json");
 const provenancePath = path.join(local, "build-provenance.json");
@@ -80,10 +88,104 @@ function exactIdentity(file) {
   return JSON.parse(output);
 }
 
+function safeTimestamp() {
+  return new Date().toISOString().replaceAll(":", "-").replaceAll(".", "-");
+}
+
+function sameIdentity(left, right) {
+  return left?.sha256 === right?.sha256
+    && left?.module_version_id === right?.module_version_id;
+}
+
+function archiveLocalState(destination) {
+  const entries = [runtimeStatus, canaryPath];
+  const state = [];
+  for (const file of entries) {
+    const name = path.basename(file);
+    const existed = fs.existsSync(file);
+    state.push({ name, existed });
+    if (existed) fs.copyFileSync(file, path.join(destination, name));
+    fs.rmSync(file, { force: true });
+  }
+  return state;
+}
+
 function gameRunning() {
-  if (process.platform === "win32") return false;
+  if (headlessApi) {
+    return headlessApi.listGameProcesses(process.platform, { failClosed: true }).length > 0;
+  }
+  if (process.platform === "win32") {
+    throw new Error(
+      "Strict Windows process detection requires the canonical sibling STS2-headless checkout."
+    );
+  }
   const result = spawnSync("pgrep", ["-f", "SlayTheSpire2"], { encoding: "utf8" });
+  if (result.error || ![0, 1].includes(result.status)) {
+    throw new Error(`Could not enumerate STS2 processes: ${result.error?.message ?? result.stderr}`);
+  }
   return result.status === 0;
+}
+
+function requireInstallation() {
+  const required = [
+    installation.executable,
+    installation.data_dir,
+    installation.release_info,
+    path.join(installation.data_dir, "sts2.dll"),
+    path.join(installation.data_dir, "GodotSharp.dll"),
+    path.join(installation.data_dir, "0Harmony.dll")
+  ];
+  const missing = required.filter((entry) => !fs.existsSync(entry));
+  if (missing.length) {
+    throw new Error(`STS2 installation is incomplete: ${missing.join(", ")}`);
+  }
+}
+
+function connectorProcessCanary(provenance) {
+  if (!fs.existsSync(connectorBuildIdentity) || !fs.existsSync(connectorCompatibility)) {
+    throw new Error("Build the exact Connector before launching STS2.");
+  }
+  return resolveConnectorCanaryEnvironment({
+    compatibility: readJson(connectorCompatibility),
+    connectorBuild: readJson(connectorBuildIdentity),
+    gameRelease: provenance.game.release,
+    gameIdentity: provenance.game.sts2_identity
+  });
+}
+
+function exactCurrentGame() {
+  requireInstallation();
+  const release = readJson(installation.release_info);
+  const sts2Identity = exactIdentity(path.join(dataDir, "sts2.dll"));
+  return {
+    release,
+    executable: {
+      path: installation.executable,
+      sha256: sha256(installation.executable)
+    },
+    sts2_identity: sts2Identity,
+    godotsharp_sha256: sha256(path.join(dataDir, "GodotSharp.dll"))
+  };
+}
+
+function requireInstalledProvenance() {
+  const file = path.join(local, "installed-provenance.json");
+  if (!fs.existsSync(file)) throw new Error("Deploy the exact Annotator before launching STS2.");
+  const provenance = readJson(file);
+  const currentGame = exactCurrentGame();
+  if (provenance.platform !== process.platform || provenance.architecture !== process.arch)
+    throw new Error("Installed provenance belongs to a different platform or architecture.");
+  if (provenance.game.executable.sha256 !== currentGame.executable.sha256
+      || !sameIdentity(provenance.game.sts2_identity, currentGame.sts2_identity)
+      || JSON.stringify(provenance.game.release) !== JSON.stringify(currentGame.release))
+    throw new Error("Installed provenance no longer matches the exact STS2 installation.");
+  const installedAnnotator = exactIdentity(path.join(modsDir, "STS2_HUMAN_ANNOTATOR.dll"));
+  const installedConnector = exactIdentity(path.join(modsDir, "STS2_MCP.dll"));
+  if (!sameIdentity(installedAnnotator, provenance.installed_artifact))
+    throw new Error("Installed Annotator no longer matches installed provenance.");
+  if (!sameIdentity(installedConnector, provenance.connector_artifact))
+    throw new Error("Installed Connector no longer matches Annotator provenance.");
+  return { provenance, currentGame, installedAnnotator, installedConnector };
 }
 
 function processAlive(pid) {
@@ -105,35 +207,50 @@ function sourceState() {
 }
 
 function build() {
+  requireInstallation();
   const source = sourceState();
+  const digest = sourceDigest();
   run("dotnet", [
     "build", "STS2HumanAnnotator.sln", "-c", "Release",
     `-p:STS2GameDir=${gameDir}`,
     `-p:ConnectorAssembly=${connectorArtifact}`,
     `-p:SourceRevision=${source.head}`,
-    `-p:AnnotatorSourceDigest=${sourceDigest()}`
+    `-p:AnnotatorSourceDigest=${digest}`
   ]);
   const artifact = exactIdentity(path.join(modOutput, "STS2_HUMAN_ANNOTATOR.dll"));
   const connector = exactIdentity(connectorArtifact);
+  const connectorBuild = readJson(connectorBuildIdentity);
+  if (connector.sha256 !== connectorBuild.artifact_sha256
+      || connector.module_version_id !== connectorBuild.artifact_mvid)
+    throw new Error("Connector build identity does not match the exact build artifact.");
+  const game = exactCurrentGame();
   writeJson(provenancePath, {
-    schema_version: 1,
+    schema_version: 2,
     built_at: new Date().toISOString(),
+    platform: process.platform,
+    architecture: process.arch,
     source_revision: source.head,
-    source_digest_sha256: sourceDigest(),
+    source_digest_sha256: digest,
     source_worktree: source.worktree,
     artifact,
     connector_artifact: connector,
-    game: {
-      directory: gameDir,
-      sts2_sha256: sha256(path.join(dataDir, "sts2.dll")),
-      sts2_identity: exactIdentity(path.join(dataDir, "sts2.dll"))
-    }
+    connector_build: connectorBuild,
+    installation: {
+      discovery_method: installation.discovery_method,
+      game_dir: gameDir,
+      executable: installation.executable,
+      executable_cwd: installation.executable_cwd,
+      data_dir: dataDir,
+      mods_dir: modsDir
+    },
+    game
   });
   console.log(JSON.stringify(readJson(provenancePath), null, 2));
 }
 
 function test() {
   run("dotnet", ["test", "tests/STS2HumanAnnotator.Core.Tests/STS2HumanAnnotator.Core.Tests.csproj", "-c", "Release"]);
+  run("node", ["--test", path.join(root, "tools", "workstation-platform.test.mjs")]);
   run("node", [path.join(root, "tools", "check-boundary.mjs")]);
   run("node", [path.join(root, "tools", "check-docs.mjs")]);
 }
@@ -143,10 +260,12 @@ function doctor() {
   const installed = path.join(modsDir, "STS2_HUMAN_ANNOTATOR.dll");
   const status = fs.existsSync(runtimeStatus) ? readJson(runtimeStatus) : null;
   const report = {
-    status: fs.existsSync(gameDir) && fs.existsSync(connectorRoot) ? "ok" : "action_required",
+    status: fs.existsSync(installation.executable) && fs.existsSync(connectorRoot) ? "ok" : "action_required",
     repository: sourceState(),
-    game_dir: gameDir,
-    game_exists: fs.existsSync(gameDir),
+    platform: process.platform,
+    architecture: process.arch,
+    installation,
+    game_exists: fs.existsSync(installation.executable) && fs.existsSync(dataDir),
     game_running: gameRunning(),
     connector_repository: connectorRoot,
     connector_exists: fs.existsSync(connectorRoot),
@@ -160,6 +279,7 @@ function doctor() {
 }
 
 function deploy() {
+  requireInstallation();
   if (gameRunning()) throw new Error("Fully close Slay the Spire 2 before deployment.");
   const allowDirty = args.includes("--allow-dirty");
   const source = sourceState();
@@ -167,22 +287,25 @@ function deploy() {
     throw new Error("Refusing to deploy a dirty source; commit first or use --allow-dirty for local development only.");
   if (!fs.existsSync(provenancePath)) throw new Error("Run npm run build first.");
   const provenance = readJson(provenancePath);
-  if (provenance.source_revision !== source.head)
-    throw new Error("Build provenance does not match current HEAD.");
+  if (provenance.source_revision !== source.head || provenance.source_digest_sha256 !== sourceDigest())
+    throw new Error("Build provenance does not match the current exact source.");
+  const currentGame = exactCurrentGame();
+  if (provenance.platform !== process.platform || provenance.architecture !== process.arch
+      || provenance.game.executable.sha256 !== currentGame.executable.sha256
+      || !sameIdentity(provenance.game.sts2_identity, currentGame.sts2_identity)
+      || JSON.stringify(provenance.game.release) !== JSON.stringify(currentGame.release))
+    throw new Error("Build provenance does not match the exact STS2 runtime.");
   const builtArtifact = exactIdentity(path.join(modOutput, "STS2_HUMAN_ANNOTATOR.dll"));
   const currentConnector = exactIdentity(connectorArtifact);
-  if (builtArtifact.sha256 !== provenance.artifact.sha256
-      || builtArtifact.module_version_id !== provenance.artifact.module_version_id)
+  if (!sameIdentity(builtArtifact, provenance.artifact))
     throw new Error("Built Annotator artifact no longer matches build provenance.");
-  if (currentConnector.sha256 !== provenance.connector_artifact.sha256
-      || currentConnector.module_version_id !== provenance.connector_artifact.module_version_id)
+  if (!sameIdentity(currentConnector, provenance.connector_artifact))
     throw new Error("Connector artifact no longer matches Annotator build provenance.");
   const installedConnectorPath = path.join(modsDir, "STS2_MCP.dll");
   if (!fs.existsSync(installedConnectorPath))
     throw new Error("Deploy the exact Connector before deploying the Annotator.");
   const installedConnector = exactIdentity(installedConnectorPath);
-  if (installedConnector.sha256 !== currentConnector.sha256
-      || installedConnector.module_version_id !== currentConnector.module_version_id)
+  if (!sameIdentity(installedConnector, currentConnector))
     throw new Error("Installed Connector does not match the Annotator build dependency.");
   fs.mkdirSync(modsDir, { recursive: true });
   const timestamp = new Date().toISOString().replaceAll(":", "-");
@@ -201,7 +324,12 @@ function deploy() {
     backupState.push({ name, existed });
     if (existed) fs.copyFileSync(installed, path.join(backup, name));
   }
-  writeJson(path.join(backup, "rollback-manifest.json"), { schema_version: 1, files: backupState });
+  const localState = archiveLocalState(backup);
+  writeJson(path.join(backup, "rollback-manifest.json"), {
+    schema_version: 2,
+    files: backupState,
+    local_state: localState
+  });
   fs.rmSync(path.join(modsDir, "STS2HumanAnnotator.Core.dll"), { force: true });
   fs.copyFileSync(path.join(modOutput, "STS2_HUMAN_ANNOTATOR.dll"), path.join(modsDir, "STS2_HUMAN_ANNOTATOR.dll"));
   fs.copyFileSync(manifestSource, path.join(modsDir, "STS2_HUMAN_ANNOTATOR.json"));
@@ -223,22 +351,44 @@ function admitCurrentModset() {
   if (gameRunning()) throw new Error("Fully close Slay the Spire 2 before admitting the observed fingerprint.");
   if (!fs.existsSync(runtimeStatus)) throw new Error("No runtime status. Cold-load once without canary first.");
   const status = readJson(runtimeStatus);
+  const installed = requireInstalledProvenance();
   if (!status.environment?.modset_fingerprint) throw new Error("Runtime status lacks a Modset fingerprint.");
   const loadedAnnotator = status.environment?.annotator;
   const loadedConnector = status.environment?.connector;
-  const installedAnnotator = exactIdentity(path.join(modsDir, "STS2_HUMAN_ANNOTATOR.dll"));
-  const installedConnector = exactIdentity(path.join(modsDir, "STS2_MCP.dll"));
-  if (loadedAnnotator?.sha256 !== installedAnnotator.sha256
-      || loadedAnnotator?.module_version_id !== installedAnnotator.module_version_id
-      || loadedConnector?.sha256 !== installedConnector.sha256
-      || loadedConnector?.module_version_id !== installedConnector.module_version_id)
+  const installedAnnotator = installed.installedAnnotator;
+  const installedConnector = installed.installedConnector;
+  if (!sameIdentity(loadedAnnotator, installedAnnotator)
+      || !sameIdentity(loadedConnector, installedConnector))
     throw new Error("The observed Modset fingerprint is not from the currently installed artifacts.");
   const connectorSource = status.environment.connector.source_revision;
   if (!/^[0-9a-f]{40}$/.test(connectorSource)) throw new Error("Connector source revision is not exact.");
+  const connectorCanary = connectorProcessCanary(installed.provenance);
+  if (connectorSource !== installed.provenance.connector_build.source_revision
+      || loadedConnector.source_digest_sha256
+        !== installed.provenance.connector_build.player_environment_source_digest)
+    throw new Error("Observed Connector source provenance does not match the deployed exact build.");
+  if (loadedAnnotator.source_revision !== installed.provenance.source_revision
+      || loadedAnnotator.source_digest_sha256 !== installed.provenance.source_digest_sha256)
+    throw new Error("Observed Annotator source provenance does not match the deployed exact build.");
+  if (status.environment.game.main_assembly_sha256 !== installed.currentGame.sts2_identity.sha256
+      || status.environment.game.main_assembly_module_version_id
+        !== installed.currentGame.sts2_identity.module_version_id)
+    throw new Error("Observed game identity does not match the deployed exact runtime.");
   writeJson(canaryPath, {
+    schema_version: 2,
     admitted_at: new Date().toISOString(),
     modset_fingerprint: status.environment.modset_fingerprint,
     connector_source_revision: connectorSource,
+    connector_game_id: connectorCanary.runtime.status === "candidate_exact"
+      ? connectorCanary.runtime.id
+      : null,
+    connector_artifact: installedConnector,
+    annotator_source_revision: installed.provenance.source_revision,
+    annotator_source_digest_sha256: installed.provenance.source_digest_sha256,
+    annotator_artifact: installedAnnotator,
+    game_release: installed.currentGame.release,
+    game_executable_sha256: installed.currentGame.executable.sha256,
+    game_sts2_identity: installed.currentGame.sts2_identity,
     observed_runtime_instance_id: status.environment.runtime_instance_id,
     note: "Process-local canary input only; this is not qualification or human validation."
   });
@@ -247,32 +397,67 @@ function admitCurrentModset() {
 
 function launch() {
   if (gameRunning()) throw new Error("Slay the Spire 2 is already running; cold-load requires a fully closed process.");
-  if (process.platform !== "darwin") throw new Error("Automated launch is currently implemented only for macOS.");
-  const executable = path.join(gameDir, "SlayTheSpire2.app", "Contents", "MacOS", "Slay the Spire 2");
-  if (!fs.existsSync(executable))
-    throw new Error(`The macOS game executable is absent: ${executable}`);
+  if (!["darwin", "win32"].includes(process.platform))
+    throw new Error(`Automated cold launch is unsupported on ${process.platform}.`);
+  const installed = requireInstalledProvenance();
+  const executable = installation.executable;
+  const connectorCanary = connectorProcessCanary(installed.provenance);
   const env = { ...process.env };
   env.SteamAppId ??= steamAppId;
   env.SteamGameId ??= steamAppId;
+  Object.assign(env, connectorCanary.environment);
+  let canary = null;
   if (fs.existsSync(canaryPath)) {
-    const canary = readJson(canaryPath);
-    env.STS2_CONNECTOR_EXPERIMENTAL_SOURCE_REVISION = canary.connector_source_revision;
+    canary = readJson(canaryPath);
+    if (canary.connector_source_revision !== installed.provenance.connector_build.source_revision
+        || canary.annotator_source_revision !== installed.provenance.source_revision
+        || canary.game_executable_sha256 !== installed.currentGame.executable.sha256
+        || !sameIdentity(canary.connector_artifact, installed.installedConnector)
+        || !sameIdentity(canary.annotator_artifact, installed.installedAnnotator)
+        || !sameIdentity(canary.game_sts2_identity, installed.currentGame.sts2_identity)
+        || canary.connector_game_id !== (connectorCanary.runtime.status === "candidate_exact"
+          ? connectorCanary.runtime.id
+          : null))
+      throw new Error("Exact Modset canary has drifted from the installed process envelope.");
     env.STS2_CONNECTOR_EXPERIMENTAL_MODSET_FINGERPRINT = canary.modset_fingerprint;
   }
-  const child = spawn(executable, [], { cwd: path.dirname(executable), env, detached: true, stdio: "ignore" });
+  const child = spawn(executable, [], {
+    cwd: installation.executable_cwd,
+    env,
+    detached: true,
+    stdio: "ignore",
+    windowsHide: false
+  });
   child.unref();
-  console.log(JSON.stringify({ status: "launched", pid: child.pid, canary_applied: fs.existsSync(canaryPath) }, null, 2));
+  const launchRecord = {
+    status: "launched",
+    launched_at: new Date().toISOString(),
+    pid: child.pid,
+    executable,
+    connector_runtime: connectorCanary.runtime,
+    connector_environment: connectorCanary.environment,
+    modset_canary_applied: canary != null,
+    modset_fingerprint: canary?.modset_fingerprint ?? null
+  };
+  writeJson(path.join(local, "last-launch.json"), launchRecord);
+  console.log(JSON.stringify(launchRecord, null, 2));
 }
 
 function verifyLoaded() {
   if (!fs.existsSync(runtimeStatus)) throw new Error("Runtime status is absent.");
   const status = readJson(runtimeStatus);
-  const provenance = readJson(path.join(local, "installed-provenance.json"));
+  const installed = requireInstalledProvenance();
+  const provenance = installed.provenance;
+  if (!fs.existsSync(canaryPath)) throw new Error("Exact Modset canary is absent.");
+  const canary = readJson(canaryPath);
   const ageMs = Date.now() - Date.parse(status.observed_at);
-  const installedAnnotator = exactIdentity(path.join(modsDir, "STS2_HUMAN_ANNOTATOR.dll"));
-  const installedConnector = exactIdentity(path.join(modsDir, "STS2_MCP.dll"));
+  const installedAnnotator = installed.installedAnnotator;
+  const installedConnector = installed.installedConnector;
   const errors = [];
   if (!gameRunning() || !processAlive(status.process_id)) errors.push("runtime_process_not_running");
+  const runtimeCommand = headlessApi?.processCommand(status.process_id, process.platform) ?? null;
+  if (!commandMatchesExecutable(runtimeCommand, installation.executable))
+    errors.push("runtime_process_executable_mismatch");
   if (ageMs > 5000) errors.push("runtime_status_not_fresh");
   if (status.process_id <= 0) errors.push("runtime_process_id_missing");
   if (status.environment?.annotator?.sha256 !== installedAnnotator.sha256) errors.push("annotator_loaded_installed_sha_mismatch");
@@ -281,10 +466,15 @@ function verifyLoaded() {
   if (status.environment?.connector?.module_version_id !== installedConnector.module_version_id) errors.push("connector_loaded_installed_mvid_mismatch");
   if (status.environment?.annotator?.source_revision !== provenance.source_revision) errors.push("annotator_loaded_source_revision_mismatch");
   if (status.environment?.annotator?.source_digest_sha256 !== provenance.source_digest_sha256) errors.push("annotator_loaded_source_digest_mismatch");
-  if (status.environment?.game?.main_assembly_sha256 !== provenance.game.sts2_sha256) errors.push("loaded_game_sha_mismatch");
+  if (status.environment?.connector?.source_revision !== provenance.connector_build.source_revision) errors.push("connector_loaded_source_revision_mismatch");
+  if (status.environment?.connector?.source_digest_sha256 !== provenance.connector_build.player_environment_source_digest) errors.push("connector_loaded_source_digest_mismatch");
+  if (status.environment?.game?.version !== provenance.game.release.version
+      || status.environment?.game?.commit !== provenance.game.release.commit) errors.push("loaded_game_release_mismatch");
+  if (status.environment?.game?.main_assembly_sha256 !== provenance.game.sts2_identity.sha256) errors.push("loaded_game_sha_mismatch");
   if (status.environment?.game?.main_assembly_module_version_id !== provenance.game.sts2_identity.module_version_id) errors.push("loaded_game_mvid_mismatch");
   if (status.environment?.modset_status !== "canary_exact_observer_modset") errors.push("exact_observer_modset_canary_not_active");
-  console.log(JSON.stringify({ status: errors.length ? "fail" : "pass", errors, runtime: status, installed_annotator: installedAnnotator, installed_connector: installedConnector }, null, 2));
+  if (status.environment?.modset_fingerprint !== canary.modset_fingerprint) errors.push("loaded_modset_fingerprint_mismatch");
+  console.log(JSON.stringify({ status: errors.length ? "fail" : "pass", errors, runtime_command: runtimeCommand, runtime: status, canary, installed_annotator: installedAnnotator, installed_connector: installedConnector }, null, 2));
   if (errors.length) process.exitCode = 1;
 }
 
@@ -342,15 +532,24 @@ function rollback() {
   const backup = installation.rollback;
   if (!backup || !fs.existsSync(backup)) throw new Error("Rollback snapshot is unavailable.");
   const manifest = readJson(path.join(backup, "rollback-manifest.json"));
+  const rollbackArchive = path.join(local, "rollback-state", safeTimestamp());
+  fs.mkdirSync(rollbackArchive, { recursive: true });
+  archiveLocalState(rollbackArchive);
   for (const entry of manifest.files) {
     const installed = path.join(modsDir, entry.name);
     if (entry.existed) fs.copyFileSync(path.join(backup, entry.name), installed);
     else fs.rmSync(installed, { force: true });
   }
+  for (const entry of manifest.local_state ?? []) {
+    const target = path.join(local, entry.name);
+    if (entry.existed) fs.copyFileSync(path.join(backup, entry.name), target);
+    else fs.rmSync(target, { force: true });
+  }
   console.log(JSON.stringify({ status: "restored", rollback: backup }, null, 2));
 }
 
 function check() {
+  requireInstallation();
   test();
   run("dotnet", ["build", "STS2HumanAnnotator.sln", "-c", "Release", `-p:STS2GameDir=${gameDir}`, `-p:ConnectorAssembly=${connectorArtifact}`]);
 }

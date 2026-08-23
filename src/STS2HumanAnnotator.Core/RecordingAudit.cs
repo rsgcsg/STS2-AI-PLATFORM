@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 
 namespace STS2HumanAnnotator.Core;
@@ -105,8 +106,12 @@ public static class RecordingAuditor
         string output = Path.GetFullPath(outputPath);
         Directory.CreateDirectory(Path.GetDirectoryName(output)!);
         string temporary = output + $".tmp-{Guid.NewGuid():N}";
-        using (var writer = new StreamWriter(temporary, append: false))
+        using (var writer = new StreamWriter(
+                   temporary,
+                   append: false,
+                   new UTF8Encoding(encoderShouldEmitUTF8Identifier: false)))
         {
+            writer.NewLine = "\n";
             foreach (string inputPath in inputPaths)
             {
                 foreach ((string line, _) in Lines(inputPath))

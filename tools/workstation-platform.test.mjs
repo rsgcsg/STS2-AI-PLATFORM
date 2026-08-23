@@ -1,0 +1,155 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import {
+  commandMatchesExecutable,
+  fallbackInstallation,
+  resolveConnectorCanaryEnvironment,
+  resolveWorkstationInstallation
+} from "./workstation-platform.mjs";
+
+test("Windows installation uses Headless discovery and exact native paths", () => {
+  const calls = [];
+  const headlessApi = {
+    source: "sibling_sts2_headless",
+    discoverGameDirectory(options) {
+      calls.push(options);
+      return "E:\\SteamLibrary\\steamapps\\common\\Slay the Spire 2";
+    },
+    resolveInstallation(directory, options) {
+      return fallbackInstallation(directory, options);
+    }
+  };
+  const result = resolveWorkstationInstallation({
+    headlessApi,
+    env: {},
+    platform: "win32",
+    arch: "x64",
+    home: "C:\\Users\\player"
+  });
+
+  assert.equal(calls.length, 1);
+  assert.equal(result.discovery_method, "sibling_sts2_headless");
+  assert.equal(result.executable, "E:\\SteamLibrary\\steamapps\\common\\Slay the Spire 2\\SlayTheSpire2.exe");
+  assert.equal(result.data_dir, "E:\\SteamLibrary\\steamapps\\common\\Slay the Spire 2\\data_sts2_windows_x86_64");
+  assert.equal(result.mods_dir, "E:\\SteamLibrary\\steamapps\\common\\Slay the Spire 2\\mods");
+});
+
+test("macOS fallback retains the established application bundle layout", () => {
+  const result = resolveWorkstationInstallation({
+    headlessApi: null,
+    env: {},
+    platform: "darwin",
+    arch: "arm64",
+    home: "/Users/player"
+  });
+
+  assert.equal(result.discovery_method, "platform_default");
+  assert.equal(
+    result.executable,
+    "/Users/player/Library/Application Support/Steam/steamapps/common/Slay the Spire 2/SlayTheSpire2.app/Contents/MacOS/Slay the Spire 2"
+  );
+  assert.equal(
+    result.data_dir,
+    "/Users/player/Library/Application Support/Steam/steamapps/common/Slay the Spire 2/SlayTheSpire2.app/Contents/Resources/data_sts2_macos_arm64"
+  );
+});
+
+test("Windows Connector canaries bind exact game and source identities", () => {
+  const compatibility = {
+    canary_environment_variable: "STS2_CONNECTOR_EXPERIMENTAL_GAME_ID",
+    artifact_canary_environment_variable: "STS2_CONNECTOR_EXPERIMENTAL_SOURCE_REVISION",
+    runtimes: [{
+      id: "win32-candidate",
+      status: "candidate_exact",
+      platform: "win32",
+      architecture: "x64",
+      game_version: "v0.111.0",
+      game_commit: "41cef1ea",
+      runtime_main_assembly_hash: 222455745,
+      main_assembly_sha256: "1".repeat(64),
+      main_assembly_mvid: "11111111-1111-1111-1111-111111111111"
+    }]
+  };
+  const result = resolveConnectorCanaryEnvironment({
+    compatibility,
+    connectorBuild: { source_revision: "a".repeat(40) },
+    gameRelease: {
+      version: "v0.111.0",
+      commit: "41cef1ea",
+      main_assembly_hash: 222455745
+    },
+    gameIdentity: {
+      sha256: "1".repeat(64),
+      module_version_id: "11111111-1111-1111-1111-111111111111"
+    },
+    platform: "win32",
+    architecture: "x64"
+  });
+
+  assert.deepEqual(result.environment, {
+    STS2_CONNECTOR_EXPERIMENTAL_GAME_ID: "win32-candidate",
+    STS2_CONNECTOR_EXPERIMENTAL_SOURCE_REVISION: "a".repeat(40)
+  });
+  assert.throws(
+    () => resolveConnectorCanaryEnvironment({
+      compatibility,
+      connectorBuild: { source_revision: "a".repeat(40) },
+      gameRelease: { version: "drift", commit: "41cef1ea", main_assembly_hash: 222455745 },
+      gameIdentity: {
+        sha256: "1".repeat(64),
+        module_version_id: "11111111-1111-1111-1111-111111111111"
+      },
+      platform: "win32",
+      architecture: "x64"
+    }),
+    /absent from Connector compatibility/u
+  );
+});
+
+test("macOS supported-exact launch retains source-only Connector canary", () => {
+  const compatibility = {
+    canary_environment_variable: "STS2_CONNECTOR_EXPERIMENTAL_GAME_ID",
+    artifact_canary_environment_variable: "STS2_CONNECTOR_EXPERIMENTAL_SOURCE_REVISION",
+    runtimes: [{
+      id: "darwin-supported",
+      status: "supported_exact",
+      platform: "darwin",
+      architecture: "arm64",
+      game_version: "v0.111.0",
+      game_commit: "41cef1ea",
+      runtime_main_assembly_hash: 1010476334,
+      main_assembly_sha256: "2".repeat(64),
+      main_assembly_mvid: "22222222-2222-2222-2222-222222222222"
+    }]
+  };
+  const result = resolveConnectorCanaryEnvironment({
+    compatibility,
+    connectorBuild: { source_revision: "b".repeat(40) },
+    gameRelease: {
+      version: "v0.111.0",
+      commit: "41cef1ea",
+      main_assembly_hash: 1010476334
+    },
+    gameIdentity: {
+      sha256: "2".repeat(64),
+      module_version_id: "22222222-2222-2222-2222-222222222222"
+    },
+    platform: "darwin",
+    architecture: "arm64"
+  });
+
+  assert.deepEqual(result.environment, {
+    STS2_CONNECTOR_EXPERIMENTAL_SOURCE_REVISION: "b".repeat(40)
+  });
+});
+
+test("process command matching binds the exact executable path", () => {
+  assert.equal(commandMatchesExecutable(
+    '"E:\\SteamLibrary\\steamapps\\common\\Slay the Spire 2\\SlayTheSpire2.exe"',
+    "E:\\SteamLibrary\\steamapps\\common\\Slay the Spire 2\\SlayTheSpire2.exe"
+  ), true);
+  assert.equal(commandMatchesExecutable(
+    '"E:\\Other\\SlayTheSpire2.exe"',
+    "E:\\SteamLibrary\\steamapps\\common\\Slay the Spire 2\\SlayTheSpire2.exe"
+  ), false);
+});
