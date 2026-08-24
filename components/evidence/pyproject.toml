@@ -14,6 +14,8 @@ sts2-evidence = "sts2_platform_evidence.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
+include = ["sts2_platform_evidence*"]
+exclude = ["tests*"]
 
 [tool.setuptools.package-data]
 sts2_platform_evidence = ["py.typed"]
