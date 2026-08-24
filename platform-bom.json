@@ -1,6 +1,6 @@
 {
   "schema": "sts2.ai-platform/bom-1",
-  "version": "0.1.0-rc.2",
+  "version": "0.1.0-rc.3",
   "components": {
     "connector": {
       "version": "1.2.0-rc.5",
@@ -91,13 +91,24 @@
         "status": "pass",
         "runtime_instance_id": "a57a3d52437e45f79fa3bb1b38ff0462",
         "modset_fingerprint": "d919571dd1f424a4671b3970dd5ed9ab293f9431f051b81f809248720d733cb7"
+      },
+      "annotator_human": {
+        "status": "pass",
+        "runtime_instance_id": "a57a3d52437e45f79fa3bb1b38ff0462",
+        "session_id": "session-20260824T125449Z-1104aece077d4b0eb1e4cfb9709a7d16",
+        "audit_status": "pass",
+        "admitted_records": 30,
+        "invalidations": 8,
+        "export_sha256": "9433b3b4240dc365cbd24a4af6d28cc5269f02359922bce6940308cc31f5feab",
+        "human_origin": "owner_attested_not_machine_proven"
       }
     }
   },
   "migration_sources": "migration/source-manifest.json",
-  "support_level": "runtime_seal_candidate_owner_validation_pending",
+  "support_level": "runtime_seal_candidate_human_gate_passed",
   "non_claims": [
-    "annotator_current_artifact_not_human_validated",
+    "human_origin_owner_attested_not_machine_proven",
+    "annotator_invalidated_actions_not_admitted",
     "optional_noninteractive_host_profile_not_verified",
     "not_durably_qualified",
     "not_long_soak_or_full_journey_qualified"

@@ -1,6 +1,6 @@
 # Current Context
 
-Phase: **runtime-seal candidate; owner native-human validation pending.**
+Phase: **runtime-seal candidate; current native-human gate passed.**
 
 `STS2-AI-PLATFORM` is the only forward-development source authority for the
 Platform components. The root BOM and component release manifests are the
@@ -14,10 +14,11 @@ identity registry.
   green.
 - Preserve Connector `1.2.0-rc.5`, Host Runtime `1.1.0-rc.7`, Annotator
   `0.2.0-rc.2` and STPD `f75fb140...` as separate exact identities.
-- The game is cold-loaded with the exact current Connector + Annotator Modset.
-  The only open current-artifact gate is one owner-operated ordinary-combat
-  session, followed by audit; no external Connector controller may run during
-  that session.
+- The exact current Connector + Annotator Modset produced one owner-operated
+  ordinary-combat session with 30 admitted decisions. Independent audit passed
+  with no invalid records; eight unstable pre-frames failed closed before
+  admission. The next work belongs to wider evidence or downstream consumers,
+  not another current-scope Platform source change.
 
 ## Evidence Boundary
 

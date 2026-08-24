@@ -1,6 +1,6 @@
 # Current Status
 
-Phase: **runtime-seal candidate; owner native-human validation pending**.
+Phase: **runtime-seal candidate; current native-human gate passed**.
 
 ## Implemented
 
@@ -25,8 +25,11 @@ Phase: **runtime-seal candidate; owner native-human validation pending**.
   deliveries, reached reward flow, exercised two Reads and eight stale
   refusals, and had zero unknown, Read, successor or provenance failures.
 - Annotator `0.2.0-rc.2` is component-reproducible, installed and cold-loaded
-  with the exact two-observer Modset. Loaded identity matches source, build and
-  install; no owner action has yet been recorded by this artifact.
+  with the exact two-observer Modset. Session
+  `session-20260824T125449Z-1104aece077d4b0eb1e4cfb9709a7d16` recorded 30
+  owner-operated ordinary-combat decisions: 10 targeted plays, 12 untargeted
+  plays and 8 end turns. All mapped exact-unique and reached a different stable
+  interactive successor; independent audit accepted 30/30.
 
 ## Current Evidence
 
@@ -39,8 +42,9 @@ does not transfer.
 
 ## Non-claims
 
-- The current Annotator has no owner-operated native UI action evidence; loaded
-  identity alone is not a recording claim.
+- Human origin is owner-attested and cannot be independently machine-proven.
+  Eight additional actions with unstable pre-frames failed closed and were not
+  admitted; the gate does not claim lossless capture under rapid input.
 - H0/H1/H2 are automated real-runtime evidence, not human validation, a full
   game journey, durable qualification, semantic parity or long-soak proof.
 - The optional noninteractive Host execution profile was not implemented by the

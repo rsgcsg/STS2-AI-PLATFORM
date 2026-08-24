@@ -23,10 +23,10 @@
   download verification.
 - Complete: install, rollback snapshots, exact Connector H0/H1/H2, and exact
   Annotator loaded-identity/Modset gates.
-- Pending owner: one normal native-human combat recording with the current
-  Annotator artifact, followed by machine audit and evidence closeout.
-- Pending after owner evidence: promote or reject the candidate BOM; do not
-  infer qualification from a single session.
+- Complete: one normal native-human combat recording with the current exact
+  Annotator artifact, followed by independent audit and deterministic export.
+- Complete: promote the exact composition to Platform BOM `0.1.0-rc.3` after
+  the human gate; this remains a runtime-seal candidate, not qualification.
 
 Workbench, Receiver, cloud storage and wider Annotator capture are later work,
 not reasons to weaken the initial component boundaries.

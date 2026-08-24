@@ -101,17 +101,25 @@ export function validatePlatformBom(bom, authorities) {
     ["runtime Annotator SHA", bom.exact_runtime_candidate?.annotator?.artifact_sha256],
     ["H0 report SHA", bom.exact_runtime_candidate?.gates?.h0?.report_sha256],
     ["H1 report SHA", bom.exact_runtime_candidate?.gates?.h1?.report_sha256],
-    ["H2 report SHA", bom.exact_runtime_candidate?.gates?.h2?.report_sha256]
+    ["H2 report SHA", bom.exact_runtime_candidate?.gates?.h2?.report_sha256],
+    ["human export SHA", bom.exact_runtime_candidate?.gates?.annotator_human?.export_sha256]
   ]) expectPattern(errors, label, value, SHA256);
   expectPattern(errors, "runtime game MVID", bom.exact_runtime_candidate?.game?.main_assembly_mvid, MVID);
   expectPattern(errors, "runtime Connector MVID", bom.exact_runtime_candidate?.connector?.artifact_mvid, MVID);
   expectPattern(errors, "runtime Annotator MVID", bom.exact_runtime_candidate?.annotator?.artifact_mvid, MVID);
   expectPattern(errors, "STPD cutover", bom.external_consumer_cutovers?.stpd, COMMIT);
-  for (const gate of ["h0", "h1", "h2", "annotator_loaded"])
+  for (const gate of ["h0", "h1", "h2", "annotator_loaded", "annotator_human"])
     expectEqual(errors, `${gate} gate`, bom.exact_runtime_candidate?.gates?.[gate]?.status, "pass");
-  expectEqual(errors, "support level", bom.support_level, "runtime_seal_candidate_owner_validation_pending");
-  if (!bom.non_claims?.includes("annotator_current_artifact_not_human_validated"))
-    errors.push("owner human-validation non-claim is missing");
+  const humanGate = bom.exact_runtime_candidate?.gates?.annotator_human;
+  expectEqual(errors, "human gate runtime", humanGate?.runtime_instance_id,
+    bom.exact_runtime_candidate?.gates?.annotator_loaded?.runtime_instance_id);
+  expectEqual(errors, "human gate audit", humanGate?.audit_status, "pass");
+  expectEqual(errors, "human gate records", humanGate?.admitted_records, 30);
+  expectEqual(errors, "human origin boundary", humanGate?.human_origin,
+    "owner_attested_not_machine_proven");
+  expectEqual(errors, "support level", bom.support_level, "runtime_seal_candidate_human_gate_passed");
+  if (!bom.non_claims?.includes("human_origin_owner_attested_not_machine_proven"))
+    errors.push("human-origin epistemic-boundary non-claim is missing");
   return errors;
 }
 
