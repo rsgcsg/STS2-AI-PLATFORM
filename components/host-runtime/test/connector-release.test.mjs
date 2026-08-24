@@ -7,7 +7,7 @@ import {
 
 test("Platform Connector release pins archive and native artifact identity", () => {
   assert.match(CONNECTOR_RELEASE.baseUrl, /rsgcsg\/STS2-AI-PLATFORM\/releases\/download\/connector\//u);
-  assert.equal(CONNECTOR_RELEASE.version, "1.2.0-rc.4");
+  assert.equal(CONNECTOR_RELEASE.version, "1.2.0-rc.5");
   assert.doesNotThrow(() => assertConnectorReleaseIdentity({
     source_revision: CONNECTOR_RELEASE.sourceRevision,
     source_protocol: CONNECTOR_RELEASE.protocol,

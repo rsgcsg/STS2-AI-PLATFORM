@@ -9,14 +9,14 @@ import path from "node:path";
 import { sha256File } from "./game-installation.mjs";
 
 export const CONNECTOR_RELEASE = Object.freeze({
-  version: "1.2.0-rc.4",
+  version: "1.2.0-rc.5",
   protocol: "1.0.0",
-  sourceRevision: "79afcb440f4a7cf1eb0762be6ee8cef52f6d1815",
-  artifactSha256: "30a51bf5f7abec0e86496ac4d437fc822fde7dac8e2193ce93ba0334fd0b9be9",
-  artifactMvid: "8ff081ec-245d-4d29-93df-02c51962a8f3",
-  archive: "STS2-Connector-1.2.0-rc.4-host.tar.gz",
-  archiveSha256: "4b8147c5433ca976f0624c3cdad73c685ea91c591435b936393de8db26c69b81",
-  baseUrl: "https://github.com/rsgcsg/STS2-AI-PLATFORM/releases/download/connector/v1.2.0-rc.4"
+  sourceRevision: "d0b4a3feab7fc707adf8a4e8fc22881564748f92",
+  artifactSha256: "8bf01c6818127a9e4febc870b058945742e33e6152d1a946105dd4a76ac3976f",
+  artifactMvid: "9476e499-efe8-4167-9614-8c66322677b7",
+  archive: "STS2-Connector-1.2.0-rc.5-host.tar.gz",
+  archiveSha256: "a0bc1985995806a93498949b213972504d73c2f4b8d52f299c1356ecec34b908",
+  baseUrl: "https://github.com/rsgcsg/STS2-AI-PLATFORM/releases/download/connector/v1.2.0-rc.5"
 });
 
 export function assertConnectorReleaseIdentity(identity, release = CONNECTOR_RELEASE) {
