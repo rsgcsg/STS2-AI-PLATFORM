@@ -98,19 +98,18 @@ function combatPlayAction(snapshot, actions) {
 
   const enemyOrder = new Map((Array.isArray(enemies) ? enemies : [])
     .map((enemy, index) => [enemy.entity_id, index]));
-  for (const card of hand) {
-    const matching = actions.filter((action) => action.verb === "play"
-      && action.subject_referent_id === card.entity_id);
-    if (matching.length === 0) continue;
-    return [...matching].sort((left, right) => {
-      const leftTarget = left.arguments?.find((argument) => argument.role === "target")?.referent_id;
-      const rightTarget = right.arguments?.find((argument) => argument.role === "target")?.referent_id;
-      return (enemyOrder.get(leftTarget) ?? Number.MAX_SAFE_INTEGER)
+  const handOrder = new Map(hand.map((card, index) => [card.entity_id, index]));
+  const candidates = actions.filter((action) => action.verb === "play"
+    && handOrder.has(action.subject_referent_id));
+  return [...candidates].sort((left, right) => {
+    const leftTarget = left.arguments?.find((argument) => argument.role === "target")?.referent_id;
+    const rightTarget = right.arguments?.find((argument) => argument.role === "target")?.referent_id;
+    return Number(leftTarget == null) - Number(rightTarget == null)
+      || handOrder.get(left.subject_referent_id) - handOrder.get(right.subject_referent_id)
+      || (enemyOrder.get(leftTarget) ?? Number.MAX_SAFE_INTEGER)
         - (enemyOrder.get(rightTarget) ?? Number.MAX_SAFE_INTEGER)
-        || left.label.localeCompare(right.label);
-    })[0];
-  }
-  return null;
+      || left.label.localeCompare(right.label);
+  })[0] ?? null;
 }
 
 export function chooseBoundAction(snapshot, { tutorialPreference = "disable" } = {}) {

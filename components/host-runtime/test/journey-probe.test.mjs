@@ -64,7 +64,7 @@ test("deterministic test policy does not depend on runtime action publication or
   assert.equal(chooseBoundAction(snapshot("combat_turn", [bash, strike])).label, "Play Bash");
 });
 
-test("combat policy binds the first visible playable card and target across runtimes", () => {
+test("combat policy prefers a published targeted play and binds the first target", () => {
   const firstDefend = {
     bound_action_id: "runtime-defend-first",
     verb: "play",
@@ -103,9 +103,9 @@ test("combat policy binds the first visible playable card and target across runt
     context: {
       player: {
         hand: [
-          { entity_id: "card-strike" },
           { entity_id: "card-first" },
-          { entity_id: "card-second" }
+          { entity_id: "card-second" },
+          { entity_id: "card-strike" }
         ]
       },
       enemies: [
