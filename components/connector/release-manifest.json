@@ -32,7 +32,8 @@
   },
   "evidence": {
     "predecessor_source": "154a5cdf435626f2cc84fe0412e9f9e1adbd637b",
-    "runtime_seal_asset": "STS2-Connector-1.2.0-rc.1-runtime-seal.json",
+    "runtime_seal_asset": null,
+    "runtime_seal_status": "pending_current_artifact_exact_runtime",
     "transfer_policy": "No predecessor artifact, runtime or journey evidence qualifies this release."
   },
   "host_compatibility_contract": "contracts/host-compatibility.json"
