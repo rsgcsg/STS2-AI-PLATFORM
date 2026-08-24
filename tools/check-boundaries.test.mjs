@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { textBoundaryErrors } from "./check-boundaries.mjs";
+import { packageEntrypointErrors, textBoundaryErrors } from "./check-boundaries.mjs";
 
 test("active production code rejects predecessor release authority", () => {
   const errors = textBoundaryErrors(
@@ -23,4 +23,26 @@ test("production code rejects user-specific paths and reverse component imports"
     "components/connector/tools/bad.mjs",
     'import value from "../../host-runtime/src/value.mjs"; const root = "/Users/dev/project";'
   ).length, 2);
+});
+
+test("declared package entrypoints must exist in the Git source authority", () => {
+  const packageJson = { bin: { "fixture-tool": "bin/tool.mjs" } };
+  assert.deepEqual(packageEntrypointErrors(
+    "apps/fixture/package.json",
+    packageJson,
+    new Set(),
+    () => true
+  ), ["apps/fixture/package.json: bin target is not tracked: apps/fixture/bin/tool.mjs"]);
+  assert.deepEqual(packageEntrypointErrors(
+    "apps/fixture/package.json",
+    packageJson,
+    new Set(["apps/fixture/bin/tool.mjs"]),
+    () => false
+  ), ["apps/fixture/package.json: bin target is missing: apps/fixture/bin/tool.mjs"]);
+  assert.deepEqual(packageEntrypointErrors(
+    "apps/fixture/package.json",
+    packageJson,
+    new Set(["apps/fixture/bin/tool.mjs"]),
+    () => true
+  ), []);
 });

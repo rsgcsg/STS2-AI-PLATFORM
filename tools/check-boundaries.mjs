@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -30,6 +31,33 @@ export function textBoundaryErrors(relative, contents) {
   return errors;
 }
 
+export function packageEntrypointErrors(
+  relativePackage,
+  packageJson,
+  trackedFiles,
+  exists = () => true
+) {
+  const errors = [];
+  const packageDirectory = path.posix.dirname(relativePackage);
+  const declared = typeof packageJson.bin === "string"
+    ? [packageJson.bin]
+    : Object.values(packageJson.bin ?? {});
+  for (const target of declared) {
+    if (typeof target !== "string" || target.length === 0) {
+      errors.push(`${relativePackage}: invalid bin target`);
+      continue;
+    }
+    const relativeTarget = path.posix.normalize(path.posix.join(packageDirectory, target));
+    if (!exists(relativeTarget)) {
+      errors.push(`${relativePackage}: bin target is missing: ${relativeTarget}`);
+    }
+    if (!trackedFiles.has(relativeTarget)) {
+      errors.push(`${relativePackage}: bin target is not tracked: ${relativeTarget}`);
+    }
+  }
+  return errors;
+}
+
 function visit(workspaceRoot, directory, errors) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     if (["bin", "obj", "out", "dist", "node_modules", ".local"].includes(entry.name)) continue;
@@ -55,6 +83,27 @@ export function collectBoundaryErrors(workspaceRoot = root) {
   ];
   if (JSON.stringify(rootPackage.workspaces) !== JSON.stringify(expectedWorkspaces)) {
     errors.push("package.json: workspace dependency graph is not the admitted Platform graph");
+  }
+
+  let trackedFiles = new Set();
+  try {
+    trackedFiles = new Set(execFileSync(
+      "git",
+      ["-C", workspaceRoot, "ls-files", "-z"],
+      { encoding: "utf8" }
+    ).split("\0").filter(Boolean));
+  } catch (error) {
+    errors.push(`git index unavailable for source-completeness check: ${error.message}`);
+  }
+  for (const workspace of expectedWorkspaces) {
+    const relativePackage = `${workspace}/package.json`;
+    const packageJson = JSON.parse(fs.readFileSync(path.join(workspaceRoot, relativePackage), "utf8"));
+    errors.push(...packageEntrypointErrors(
+      relativePackage,
+      packageJson,
+      trackedFiles,
+      (relative) => fs.existsSync(path.join(workspaceRoot, relative))
+    ));
   }
 
   const hostPackage = JSON.parse(fs.readFileSync(
@@ -109,7 +158,8 @@ export function collectBoundaryErrors(workspaceRoot = root) {
     "components/annotator/src",
     "components/annotator/tools",
     "components/evidence/sts2_platform_evidence",
-    "apps/workbench/src"
+    "apps/workbench/src",
+    "apps/workbench/bin"
   ]) {
     visit(workspaceRoot, path.join(workspaceRoot, relative), errors);
   }
