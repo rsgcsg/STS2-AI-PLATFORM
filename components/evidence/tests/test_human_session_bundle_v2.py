@@ -18,6 +18,10 @@ def canonical(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":"), sort_keys=True)
 
 
+def producer_compact(value: Any) -> str:
+    return json.dumps(value, ensure_ascii=False, allow_nan=False, separators=(",", ":"))
+
+
 def sha_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
 
@@ -53,7 +57,7 @@ class HumanSessionBundleV2Tests(unittest.TestCase):
             ],
             "non_claims": ["fixture_not_live"],
         }
-        profile_sha = sha_bytes(canonical(profile).encode())
+        profile_sha = sha_bytes(producer_compact(profile).encode())
         session_id = "session-v2-test"
         timeline_id = "timeline-v2-test"
         environment = {
@@ -129,9 +133,11 @@ class HumanSessionBundleV2Tests(unittest.TestCase):
             "capture_profile_sha256": profile_sha,
         }
         (raw / "recording-manifest.json").write_text(canonical(recording) + "\n", encoding="utf-8")
-        (raw / "capture-profile.json").write_text(canonical(profile) + "\n", encoding="utf-8")
+        (raw / "capture-profile.json").write_text(
+            producer_compact(profile) + "\n", encoding="utf-8"
+        )
         (bundle / "profile" / "capture-profile.json").write_text(
-            canonical(profile) + "\n", encoding="utf-8"
+            producer_compact(profile) + "\n", encoding="utf-8"
         )
         coverage = {
             "schema_version": 2,
@@ -235,6 +241,25 @@ class HumanSessionBundleV2Tests(unittest.TestCase):
         automatic = verify_human_session_bundle(bundle)
         self.assertTrue(automatic.passed, automatic.findings)
         self.assertIsInstance(automatic.require_value(), HumanSessionBundleV2)
+
+    def test_v2_profile_digest_matches_schema_ordered_dotnet_producer(self) -> None:
+        bundle = self._bundle("bundle-v2-profile-order")
+        profile = json.loads(
+            (bundle / "profile" / "capture-profile.json").read_text(encoding="utf-8")
+        )
+        manifest = json.loads(
+            (bundle / "session-bundle-manifest.json").read_text(encoding="utf-8")
+        )
+
+        self.assertEqual(
+            manifest["capture_profile_sha256"],
+            sha_bytes(producer_compact(profile).encode()),
+        )
+        self.assertNotEqual(
+            manifest["capture_profile_sha256"],
+            sha_bytes(canonical(profile).encode()),
+        )
+        self.assertTrue(verify_human_session_bundle(bundle).passed)
 
     def test_v2_required_read_and_blob_tampering_fail_closed(self) -> None:
         bundle = self._bundle("bundle-v2-tampered-blob")

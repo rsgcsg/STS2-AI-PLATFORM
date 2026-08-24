@@ -18,6 +18,11 @@ required materialized Reads, content-addressed Read blobs, and exact content
 identity. Verification does not prove Human origin; the bundle carries an
 explicit owner attestation with `machine_verifiable=false`.
 
+V2 capture-profile identity is the SHA-256 of the producer's compact,
+schema-ordered JSON. Bundle content identity remains canonical sorted JSON.
+These are intentionally distinct so independent consumers verify the exact
+producer contract without changing V1 profile semantics.
+
 ## Check
 
 ```bash

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -31,6 +33,18 @@ PROFILE_SCHEMA = "sts2.ai-platform/human-capture-profile-2"
 RECORD_SCHEMA = "sts2.human-annotator/decision-record-2"
 READ_SCHEMA = "sts2.human-annotator/read-evidence-2"
 JOURNAL_SCHEMA = "sts2.human-annotator/run-journal-event-2"
+
+
+def _capture_profile_hash(value: Any) -> str:
+    """Match the V2 producer's compact, schema-ordered profile identity."""
+    encoded = json.dumps(
+        value,
+        ensure_ascii=False,
+        allow_nan=False,
+        separators=(",", ":"),
+        sort_keys=False,
+    ).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -126,7 +140,7 @@ class HumanSessionBundleV2Verifier:
 
         profile = _load_json(directory / "profile" / "capture-profile.json")
         _validate_profile(profile)
-        profile_sha = _semantic_hash(profile)
+        profile_sha = _capture_profile_hash(profile)
         if expected is not None:
             expected_profile_id = expected.get("profile_id")
             expected_profile_sha = expected.get("profile_sha256")
