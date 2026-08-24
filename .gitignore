@@ -6,6 +6,9 @@ node_modules/
 **/obj/
 **/out/
 **/dist/
+**/__pycache__/
+*.py[cod]
+*.egg-info/
 *.user
 *.suo
 *.log
