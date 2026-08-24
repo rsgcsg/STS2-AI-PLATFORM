@@ -30,3 +30,14 @@ test("BOM check rejects human gate drift and machine-proven origin claims", asyn
   assert.ok(errors.some((error) => error.startsWith("human gate runtime:")));
   assert.ok(errors.some((error) => error.startsWith("human origin boundary:")));
 });
+
+test("BOM check separates current V2 source and load from predecessor human evidence", async () => {
+  const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
+  bom.current_v2_candidate.connector.source_revision = "0".repeat(40);
+  bom.current_v2_candidate.annotator.loaded = "pending";
+  bom.current_v2_candidate.native_human_gate.status = "pass";
+  const errors = validatePlatformBom(bom, await readBomAuthorities(root));
+  assert.ok(errors.some((error) => error.startsWith("V2 Connector source:")));
+  assert.ok(errors.some((error) => error.startsWith("V2 annotator loaded:")));
+  assert.ok(errors.some((error) => error.startsWith("V2 human gate:")));
+});

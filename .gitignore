@@ -6,6 +6,7 @@ node_modules/
 **/obj/
 **/out/
 **/dist/
+components/evidence/build/
 **/__pycache__/
 *.py[cod]
 *.egg-info/

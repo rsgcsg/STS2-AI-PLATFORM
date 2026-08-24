@@ -1,6 +1,6 @@
 # Current Status
 
-Phase: **Human Evidence V2 source/test candidate; exact runtime validation pending**.
+Phase: **Human Evidence V2 loaded candidate; native-human validation pending**.
 
 ## Implemented
 
@@ -55,6 +55,15 @@ component and package authorities. The dated
 [runtime-seal report](evidence/RUNTIME_SEAL_CANDIDATE_2026-08-24.md) records the
 evidence boundaries and local report hashes. Predecessor loaded/Live evidence
 does not transfer.
+
+The V2 candidate is independently built, installed and cold-loaded against
+macOS arm64 STS2 `v0.111.0/41cef1ea`. Connector
+`6c66cbf.../11f1da35...` and Annotator `4e911dd6.../692e9dd9...` loaded in
+runtime `abb6b2d8...` under exact observer Modset `be4b23c7...`. A read-only
+menu Snapshot canary passed. Mutation remained disabled by the observer Modset,
+as required. Evidence wheel build/fresh install, remote STPD consumption and a
+real Workbench status read passed. These facts prove load and bounded
+non-human operation, not native-human V2 capture.
 
 ## Non-claims
 

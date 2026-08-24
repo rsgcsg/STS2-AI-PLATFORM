@@ -40,8 +40,10 @@
   read-rich projection.
 - Complete: read-only Workbench foundation for Environment, Human Recording,
   Evidence, Transfer and Diagnostics.
-- Pending exact runtime: cold-loaded V2 artifact and owner-operated targeted,
-  untargeted, end-turn and generated-choice evidence.
+- Complete: exact build, safe install, cold-load identity, observer Modset and
+  read-only Snapshot/Workbench canaries for the V2 artifact.
+- Pending owner runtime: targeted play, untargeted play, end-turn and one
+  generated-card choice, followed by V2 audit/bundle/store/receive/STPD closeout.
 
 Cloud storage, broad action-family capture and a full Workbench remain later
 work; they are not reasons to weaken the component boundaries.

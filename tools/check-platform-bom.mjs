@@ -29,6 +29,8 @@ export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
   const hostPackage = readJson(path.join(platformRoot, "components", "host-runtime", "package.json"));
   const annotatorPackage = readJson(path.join(platformRoot, "components", "annotator", "package.json"));
   const annotatorManifest = readJson(path.join(platformRoot, "components", "annotator", "src", "STS2HumanAnnotator.Mod", "mod_manifest.json"));
+  const evidencePackage = readJson(path.join(platformRoot, "components", "evidence", "package.json"));
+  const workbenchPackage = readJson(path.join(platformRoot, "apps", "workbench", "package.json"));
   const hostReleaseModule = await import(pathToFileURL(
     path.join(platformRoot, "components", "host-runtime", "src", "connector-release.mjs")
   ));
@@ -40,6 +42,8 @@ export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
     hostPackage,
     annotatorPackage,
     annotatorManifest,
+    evidencePackage,
+    workbenchPackage,
     hostConnectorRelease: hostReleaseModule.CONNECTOR_RELEASE
   };
 }
@@ -50,7 +54,9 @@ export function validatePlatformBom(bom, authorities) {
   const componentMap = {
     connector: "connector",
     host_runtime: "host-runtime",
-    annotator: "annotator"
+    annotator: "annotator",
+    evidence: "evidence",
+    workbench: "workbench"
   };
   for (const [bomKey, identityKey] of Object.entries(componentMap)) {
     const component = bom.components?.[bomKey];
@@ -68,6 +74,8 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "Host Runtime version", bom.components?.host_runtime?.version, authorities.hostPackage.version);
   expectEqual(errors, "Annotator package version", bom.components?.annotator?.version, authorities.annotatorPackage.version);
   expectEqual(errors, "Annotator Mod version", authorities.annotatorManifest.version, authorities.annotatorPackage.version);
+  expectEqual(errors, "Evidence package version", bom.components?.evidence?.version, authorities.evidencePackage.version);
+  expectEqual(errors, "Workbench package version", bom.components?.workbench?.version, authorities.workbenchPackage.version);
   const dependency = authorities.annotatorManifest.dependencies?.find(({ id }) => id === "STS2_MCP");
   expectEqual(errors, "Annotator Connector dependency", dependency?.min_version, authorities.connectorManifest.version);
 
@@ -78,7 +86,6 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "public Connector archive SHA", publicConnector?.sha256, pinnedConnector.archiveSha256);
   expectEqual(errors, "public Connector artifact SHA", publicConnector?.artifact_sha256, pinnedConnector.artifactSha256);
   expectEqual(errors, "public Connector artifact MVID", publicConnector?.artifact_mvid, pinnedConnector.artifactMvid);
-  expectEqual(errors, "Host Connector source pin", bom.components?.connector?.source_revision, pinnedConnector.sourceRevision);
   expectEqual(errors, "Host Connector protocol pin", bom.components?.player_environment_protocol, pinnedConnector.protocol);
 
   expectEqual(errors, "public Host release", bom.public_packages?.host_runtime?.release, `host-runtime/v${authorities.hostPackage.version}`);
@@ -87,8 +94,20 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "runtime Connector SHA", bom.exact_runtime_candidate?.connector?.artifact_sha256, pinnedConnector.artifactSha256);
   expectEqual(errors, "runtime Connector MVID", bom.exact_runtime_candidate?.connector?.artifact_mvid, pinnedConnector.artifactMvid);
   expectEqual(errors, "runtime protocol", bom.exact_runtime_candidate?.connector?.protocol, pinnedConnector.protocol);
-  expectEqual(errors, "runtime Annotator source", bom.exact_runtime_candidate?.annotator?.source_revision, bom.components?.annotator?.source_revision);
-  expectEqual(errors, "runtime Annotator digest", bom.exact_runtime_candidate?.annotator?.source_digest_sha256, bom.components?.annotator?.component_source_digest_sha256);
+  expectEqual(errors, "V1 runtime generation", bom.exact_runtime_candidate?.evidence_generation, "v1_runtime_seal_predecessor");
+
+  const v2 = bom.current_v2_candidate;
+  expectEqual(errors, "V2 status", v2?.status, "loaded_pending_native_human_validation");
+  expectEqual(errors, "V2 Connector source", v2?.connector?.source_revision, bom.components?.connector?.source_revision);
+  expectEqual(errors, "V2 Connector protocol", v2?.connector?.protocol, bom.components?.player_environment_protocol);
+  expectEqual(errors, "V2 Annotator source", v2?.annotator?.source_revision, bom.components?.annotator?.source_revision);
+  expectEqual(errors, "V2 Annotator digest", v2?.annotator?.source_digest_sha256, bom.components?.annotator?.component_source_digest_sha256);
+  for (const component of ["connector", "annotator"])
+    for (const level of ["build", "installed", "loaded"])
+      expectEqual(errors, `V2 ${component} ${level}`, v2?.[component]?.[level], "pass");
+  expectEqual(errors, "V2 observation canary", v2?.runtime?.observation_canary, "pass");
+  expectEqual(errors, "V2 observer mutation boundary", v2?.runtime?.mutation, "disabled_by_observer_modset");
+  expectEqual(errors, "V2 human gate", v2?.native_human_gate?.status, "pending");
 
   for (const [label, value] of [
     ["public Connector archive SHA", publicConnector?.sha256],
@@ -99,6 +118,8 @@ export function validatePlatformBom(bom, authorities) {
     ["runtime game executable SHA", bom.exact_runtime_candidate?.game?.executable_sha256],
     ["runtime game assembly SHA", bom.exact_runtime_candidate?.game?.main_assembly_sha256],
     ["runtime Annotator SHA", bom.exact_runtime_candidate?.annotator?.artifact_sha256],
+    ["V2 Connector SHA", v2?.connector?.artifact_sha256],
+    ["V2 Annotator SHA", v2?.annotator?.artifact_sha256],
     ["H0 report SHA", bom.exact_runtime_candidate?.gates?.h0?.report_sha256],
     ["H1 report SHA", bom.exact_runtime_candidate?.gates?.h1?.report_sha256],
     ["H2 report SHA", bom.exact_runtime_candidate?.gates?.h2?.report_sha256],
@@ -107,6 +128,11 @@ export function validatePlatformBom(bom, authorities) {
   expectPattern(errors, "runtime game MVID", bom.exact_runtime_candidate?.game?.main_assembly_mvid, MVID);
   expectPattern(errors, "runtime Connector MVID", bom.exact_runtime_candidate?.connector?.artifact_mvid, MVID);
   expectPattern(errors, "runtime Annotator MVID", bom.exact_runtime_candidate?.annotator?.artifact_mvid, MVID);
+  expectPattern(errors, "V2 game executable SHA", v2?.game?.executable_sha256, SHA256);
+  expectPattern(errors, "V2 game assembly SHA", v2?.game?.main_assembly_sha256, SHA256);
+  expectPattern(errors, "V2 game MVID", v2?.game?.main_assembly_mvid, MVID);
+  expectPattern(errors, "V2 Connector MVID", v2?.connector?.artifact_mvid, MVID);
+  expectPattern(errors, "V2 Annotator MVID", v2?.annotator?.artifact_mvid, MVID);
   expectPattern(errors, "STPD cutover", bom.external_consumer_cutovers?.stpd, COMMIT);
   for (const gate of ["h0", "h1", "h2", "annotator_loaded", "annotator_human"])
     expectEqual(errors, `${gate} gate`, bom.exact_runtime_candidate?.gates?.[gate]?.status, "pass");
@@ -117,9 +143,11 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "human gate records", humanGate?.admitted_records, 30);
   expectEqual(errors, "human origin boundary", humanGate?.human_origin,
     "owner_attested_not_machine_proven");
-  expectEqual(errors, "support level", bom.support_level, "runtime_seal_candidate_human_gate_passed");
+  expectEqual(errors, "support level", bom.support_level, "human_evidence_v2_loaded_pending_native_human_validation");
   if (!bom.non_claims?.includes("human_origin_owner_attested_not_machine_proven"))
     errors.push("human-origin epistemic-boundary non-claim is missing");
+  if (!bom.non_claims?.includes("v2_native_human_actions_not_exercised"))
+    errors.push("V2 native-human non-claim is missing");
   return errors;
 }
 

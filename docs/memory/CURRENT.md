@@ -1,6 +1,6 @@
 # Current Context
 
-Phase: **Human Evidence V2 source/test candidate; exact runtime pending.**
+Phase: **Human Evidence V2 loaded candidate; native-human validation pending.**
 
 `STS2-AI-PLATFORM` is the only forward-development source authority for the
 Platform components. The root BOM and component release manifests are the
@@ -18,8 +18,9 @@ identity registry.
   Workbench `0.1.0-rc.1` implement the read-rich V2 source path.
 - STPD `d222e340...` consumes the exact Evidence Git package, preserves V1
   verifier parity, rejects unverified V2 and projects verified Reads.
-- Complete automated checks, exact build/deploy/load and non-human canaries;
-  then request one owner native-UI session for play/end-turn/generated choice.
+- Exact build/deploy/load and non-human Snapshot/Workbench canaries pass for
+  runtime `abb6b2d8...`; request one owner native-UI session for
+  play/end-turn/generated choice, then close the evidence pipeline automatically.
 
 ## Evidence Boundary
 

@@ -29,8 +29,8 @@ Current status: the V1 public Connector/Host composition retains its exact
 runtime seal. Read-rich Human Evidence V2 is implemented and automated-tested:
 same-frame `run_deck`/`combat_piles`, typed V2 records and bundles, immutable
 local evidence logistics, one generated-card selector witness, verified STPD
-consumption, and a minimal Workbench. The V2 artifact has separate build/install
-and runtime evidence and does not inherit V1 Live or human validation. See
+consumption, and a minimal Workbench. The exact V2 Connector/Annotator artifacts
+are built, installed and cold-loaded, but do not inherit V1 Human action evidence. See
 [Status](docs/STATUS.md) and the [V1 candidate report](docs/evidence/RUNTIME_SEAL_CANDIDATE_2026-08-24.md).
 
 The initial consolidation imports the complete histories of:
