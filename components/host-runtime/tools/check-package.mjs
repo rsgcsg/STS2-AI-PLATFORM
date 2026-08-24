@@ -28,6 +28,7 @@ if (report?.name !== "@rsgcsg/sts2-host-runtime") {
   throw new Error(`Host Runtime pack resolved the wrong package: ${report?.name ?? "missing"}`);
 }
 const files = new Set(report.files.map((entry) => entry.path));
+const fileMetadata = new Map(report.files.map((entry) => [entry.path, entry]));
 for (const required of [
   "tools/headless.mjs",
   "tools/managed-pe-driver.mjs",
@@ -41,6 +42,12 @@ for (const required of [
   "LICENSE"
 ]) {
   if (!files.has(required)) throw new Error(`Host Runtime package is missing ${required}`);
+}
+for (const executable of ["tools/headless.mjs", "tools/managed-pe-driver.mjs"]) {
+  const mode = fileMetadata.get(executable)?.mode;
+  if (typeof mode !== "number" || (mode & 0o111) === 0) {
+    throw new Error(`Host Runtime package entry is not executable: ${executable}`);
+  }
 }
 const forbidden = [...files].filter((file) =>
   file.startsWith(".local/")
