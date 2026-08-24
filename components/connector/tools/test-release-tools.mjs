@@ -18,6 +18,7 @@ import {
   processListContainsGame,
   rollbackRelease
 } from "./install-release.mjs";
+import { createDeterministicTarGzip } from "./deterministic-archive.mjs";
 import { evaluateReleaseIdentity } from "./verify-release.mjs";
 
 const root = mkdtempSync(path.join(os.tmpdir(), "sts2-connector-release-"));
@@ -113,6 +114,24 @@ try {
   const help = spawnSync(process.execPath, [verifierEntry, "--help"], { encoding: "utf8" });
   assert.equal(help.status, 0);
   assert.match(help.stdout, /Usage: node tools\/verify-release\.mjs/u);
+
+  const deterministicStage = path.join(root, "deterministic-stage");
+  mkdirSync(path.join(deterministicStage, "payload"), { recursive: true });
+  writeFileSync(path.join(deterministicStage, "payload", "b.txt"), "second\n");
+  writeFileSync(path.join(deterministicStage, "a.txt"), "first\n");
+  const firstArchive = path.join(root, "first.tar.gz");
+  const secondArchive = path.join(root, "second.tar.gz");
+  createDeterministicTarGzip(deterministicStage, firstArchive);
+  createDeterministicTarGzip(deterministicStage, secondArchive);
+  assert.deepEqual(readFileSync(firstArchive), readFileSync(secondArchive));
+  const extracted = path.join(root, "extracted");
+  mkdirSync(extracted);
+  const extract = spawnSync("tar", ["-xzf", firstArchive, "-C", extracted], {
+    encoding: "utf8"
+  });
+  assert.equal(extract.status, 0, extract.stderr);
+  assert.equal(readFileSync(path.join(extracted, "a.txt"), "utf8"), "first\n");
+  assert.equal(readFileSync(path.join(extracted, "payload", "b.txt"), "utf8"), "second\n");
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

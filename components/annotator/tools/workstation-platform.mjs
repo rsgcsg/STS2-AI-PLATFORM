@@ -5,24 +5,18 @@ import { pathToFileURL } from "node:url";
 
 export async function loadHostRuntimeWorkstationApi(annotatorRoot) {
   const hostRuntimeRoot = path.resolve(annotatorRoot, "..", "host-runtime");
-  const installationModule = path.join(hostRuntimeRoot, "src", "game-installation.mjs");
-  const runtimeModule = path.join(hostRuntimeRoot, "src", "runtime-probe.mjs");
-  const hostModule = path.join(hostRuntimeRoot, "src", "headless-host.mjs");
-  if (![installationModule, runtimeModule, hostModule].every(fs.existsSync)) return null;
+  const workstationModule = path.join(hostRuntimeRoot, "src", "workstation-api.mjs");
+  if (!fs.existsSync(workstationModule)) return null;
 
-  const [installation, runtime, host] = await Promise.all([
-    import(pathToFileURL(installationModule).href),
-    import(pathToFileURL(runtimeModule).href),
-    import(pathToFileURL(hostModule).href)
-  ]);
+  const workstation = await import(pathToFileURL(workstationModule).href);
   return {
     source: "platform_host_runtime",
     host_runtime_root: hostRuntimeRoot,
-    discoverGameDirectory: installation.discoverGameDirectory,
-    resolveInstallation: installation.resolveInstallation,
-    readDiskIdentity: installation.readDiskIdentity,
-    listGameProcesses: runtime.listGameProcesses,
-    processCommand: host.processCommand
+    discoverGameDirectory: workstation.discoverGameDirectory,
+    resolveInstallation: workstation.resolveInstallation,
+    readDiskIdentity: workstation.readDiskIdentity,
+    listGameProcesses: workstation.listGameProcesses,
+    processCommand: workstation.processCommand
   };
 }
 

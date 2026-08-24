@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { componentGitState } from "../../../tools/component-git.mjs";
+import { createDeterministicTarGzip } from "./deterministic-archive.mjs";
 
 const root = process.cwd();
 function npmExecFileSync(args, options) {
@@ -84,7 +85,7 @@ for (const required of [
 }
 
 const hostArchive = `STS2-Connector-${version}-host.tar.gz`;
-execFileSync("tar", ["-czf", path.join(releaseRoot, hostArchive), "-C", stageRoot, "."], { stdio: "inherit" });
+createDeterministicTarGzip(stageRoot, path.join(releaseRoot, hostArchive));
 const packOutput = npmExecFileSync(
   ["pack", "--pack-destination", releaseRoot, "--json"],
   { cwd: path.join(root, "sdk", "typescript"), encoding: "utf8" }

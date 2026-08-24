@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, realpathSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -112,6 +112,12 @@ if (importResult.status !== 0) {
 }
 const installedIdentity = JSON.parse(importResult.stdout);
 const installedPackage = JSON.parse(readFileSync(path.join(installedRoot, "package.json"), "utf8"));
+const installedSdkRoot = path.join(smokeRoot, "node_modules", "@rsgcsg", "sts2-connector-client");
+const installedSdk = JSON.parse(readFileSync(path.join(installedSdkRoot, "package.json"), "utf8"));
+const resolvedSdkRoot = realpathSync(installedSdkRoot);
+if (resolvedSdkRoot.startsWith(`${realpathSync(root)}${path.sep}`)) {
+  throw new Error("Standalone Host package resolved the Connector SDK from the Platform workspace");
+}
 console.log(JSON.stringify({
   status: "host_runtime_package_clean",
   name: report.name,
@@ -125,6 +131,8 @@ console.log(JSON.stringify({
     package_name: installedPackage.name,
     package_version: installedPackage.version,
     distribution_kind: installedIdentity.distribution_kind,
-    source_digest_sha256: installedIdentity.source_digest_sha256
+    source_digest_sha256: installedIdentity.source_digest_sha256,
+    connector_sdk_version: installedSdk.version,
+    connector_sdk_resolved_outside_workspace: true
   }
 }, null, 2));
