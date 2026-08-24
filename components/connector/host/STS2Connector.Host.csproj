@@ -9,6 +9,11 @@
     <Nullable>enable</Nullable>
     <LangVersion>12.0</LangVersion>
     <SourceRevision Condition="'$(SourceRevision)' == ''">unavailable</SourceRevision>
+    <!-- Component releases must not change when an unrelated monorepo component
+         advances the workspace HEAD. The SDK uses SourceRevisionId in the
+         informational version and, without this assignment, discovers the
+         workspace revision from Git. -->
+    <SourceRevisionId>$(SourceRevision)</SourceRevisionId>
     <PlayerEnvironmentSourceDigest Condition="'$(PlayerEnvironmentSourceDigest)' == ''">unavailable</PlayerEnvironmentSourceDigest>
     <STS2GameDir Condition="'$(STS2GameDir)' == '' and '$(STS2_GAME_DIR)' != ''">$(STS2_GAME_DIR)</STS2GameDir>
     <STS2GameDataDir Condition="'$(STS2GameDataDir)' == '' and '$(OS)' == 'Windows_NT'">$(STS2GameDir)/data_sts2_windows_x86_64</STS2GameDataDir>
