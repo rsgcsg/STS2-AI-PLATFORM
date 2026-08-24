@@ -3,8 +3,19 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { resolveCliPath } from "./cli-paths.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
+
+test("evidence CLI paths are resolved from the caller working directory", () => {
+  const caller = path.join(path.parse(root).root, "workspace");
+
+  assert.equal(
+    resolveCliPath("components/annotator/.local/recordings/session-1", caller),
+    path.join(caller, "components/annotator/.local/recordings/session-1")
+  );
+  assert.equal(resolveCliPath(path.join(caller, "absolute"), root), path.join(caller, "absolute"));
+});
 
 test("Annotator CLI exposes portable and exact-game entry points", () => {
   const result = spawnSync(process.execPath, [path.join(import.meta.dirname, "annotator.mjs"), "--help"], {

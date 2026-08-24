@@ -12,6 +12,7 @@ import {
   resolveConnectorCanaryEnvironment,
   resolveWorkstationInstallation
 } from "./workstation-platform.mjs";
+import { resolveCliPath } from "./cli-paths.mjs";
 import { componentGitState } from "../../../tools/component-git.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
@@ -722,13 +723,15 @@ function verifyLoaded() {
 }
 
 function audit() {
-  const directory = args[0] || readJson(runtimeStatus).recording_directory;
+  const directory = resolveCliPath(args[0] || readJson(runtimeStatus).recording_directory);
   run("dotnet", [toolDll, "audit", directory]);
 }
 
 function exportRecords() {
-  const directory = args[0] || readJson(runtimeStatus).recording_directory;
-  const output = args[1] || path.join(local, "exports", `${path.basename(directory)}.jsonl`);
+  const directory = resolveCliPath(args[0] || readJson(runtimeStatus).recording_directory);
+  const output = args[1]
+    ? resolveCliPath(args[1])
+    : path.join(local, "exports", `${path.basename(directory)}.jsonl`);
   run("dotnet", [toolDll, "export", directory, output]);
 }
 
@@ -742,7 +745,7 @@ function packSession() {
   const source = sourceState();
   if (source.worktree !== "clean")
     throw new Error("Commit or remove Annotator worktree changes before evidence packing.");
-  const directory = path.resolve(args[0] || readJson(runtimeStatus).recording_directory);
+  const directory = resolveCliPath(args[0] || readJson(runtimeStatus).recording_directory);
   const manifest = readJson(path.join(directory, "recording-manifest.json"));
   const v2 = manifest.schema === "sts2.human-annotator/recording-manifest-2";
   const profile = v2 ? null : path.resolve(option("--profile"));
@@ -752,7 +755,7 @@ function packSession() {
     throw new Error("Packing requires explicit --attest-human-origin.");
   const outputIndex = args.indexOf("--output");
   const output = outputIndex >= 0
-    ? path.resolve(args[outputIndex + 1])
+    ? resolveCliPath(args[outputIndex + 1])
     : path.join(local, "bundles", path.basename(directory));
   if (gameRunning() && fs.existsSync(runtimeStatus)) {
     const status = readJson(runtimeStatus);
