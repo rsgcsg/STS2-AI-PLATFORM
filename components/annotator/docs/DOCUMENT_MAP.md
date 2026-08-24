@@ -12,5 +12,10 @@ Read current truth in this order:
 8. [Development](DEVELOPMENT.md)
 9. [Exact native seam notes](REVERSE_ENGINEERING_NOTES.md)
 
+The Platform root [Testing](../../../docs/TESTING.md) defines the shared
+portable versus exact-game evidence boundary. `LIVE_EVIDENCE_2026-08-22.md`
+and dated reports are evidence/history, not a current Platform identity
+registry.
+
 The repository root [README](../README.md) is the user entry point. Source and
 tests override prose if they disagree; fix the prose in the same change.

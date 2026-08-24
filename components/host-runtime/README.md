@@ -1,46 +1,34 @@
 # STS2 Host Runtime
 
-> This component lives in `rsgcsg/STS2-AI-PLATFORM`. `headless` remains a Host
-> mode and historical product/release name; the component owns general STS2
-> discovery, lifecycle, isolation and qualification tooling.
+> This component lives in `rsgcsg/STS2-AI-PLATFORM`. **Host Runtime** is the
+> component name. `headless` is a stable CLI/runtime compatibility term and is
+> not a separate current source repository.
 
 Run the **real installed Slay the Spire 2 process** without a display and
 control its normal single-player decisions through a verified fair-player
 interface. STS2 remains the rules, RNG, legality, task, and effects engine.
 
 The current route launches the shipped Godot executable with `--headless`,
-retains the official SceneTree and Mod loader, and uses the separately released
-[STS2 Connector](https://github.com/rsgcsg/STS2-Connector) for observations,
-Reads, current BoundActions, delivery Receipts, and successors. It is not a
-simulator or a wrapper around a reimplemented game.
+retains the official SceneTree and Mod loader, and uses the Platform Connector
+component for observations, Reads, current BoundActions, delivery Receipts, and
+successors. It is not a simulator or a wrapper around a reimplemented game.
 
 ## Current Status
 
-Version `1.0.1` is the current **STPD v0 operational patch baseline**. It does not claim
-formal H1.0 qualification or universal STS2 compatibility.
+The Platform is currently a **source/package candidate**. Current component
+versions, source revisions, package checksums, protocol, compatibility tuple,
+and non-claims are recorded by the root `platform-bom.json` and the Connector
+release manifest. This README intentionally does not duplicate those values.
 
-The baseline is exact and fail-closed:
+The candidate is not a runtime-sealed release. In particular, no current
+Platform-built artifact is claimed here as installed, loaded, Live-exercised,
+human-validated, or qualified. Predecessor Host/Connector reports remain
+history and rollback evidence only.
 
-- Headless source/tag: `v1.0.1`;
-- game: macOS arm64 STS2 `v0.111.0` / `41cef1ea`, `sts2.dll`
-  `9cb4f1ad...`, MVID `57785517...`;
-- Managed Exact upstream `d11aa883...`, patch `8ced088b...`, Host artifact
-  `8dc622b0...`, MVID `7228541c...`;
-- Connector `v1.1.0-rc.1`, source `e065102...`, artifact `c1877f1a...`, MVID
-  `64765ea1...`, protocol/SDK `1.0.0`.
-
-The real game still owns rules, RNG, effects and Commit. The managed route is
-the primary STPD environment; shipped Godot remains the Reference Host. Exact
-evidence for the current patch covers complete finite actions, state-bound
-`run_deck`/`combat_piles` Reads, stable successors and a terminal Combat
-collection consumed by independent Python. The wider reset, recovery,
-contention and Candidate-to-Reference campaigns remain immutable `v1.0.0`
-predecessor evidence and are not transferred across the changed Host artifact.
-
-Long soak, exhaustive/randomized CrossHost coverage, arbitrary cards/relics/
-events, a real changed-build campaign, cluster/high-core qualification and
-cross-platform support are deliberately deferred. See [Status](docs/STATUS.md)
-and the release runtime seal for the exact evidence boundary.
+The real game still owns rules, RNG, effects, legality, tasks, commands, and
+Commit. The shipped Godot route is the highest-confidence Reference Host; any
+Managed route is a separately identified Host candidate and cannot inherit
+Reference or predecessor authority.
 
 See [Status](docs/STATUS.md), [Compatibility](docs/COMPATIBILITY.md), and
 [Evidence](docs/EVIDENCE.md) for exact scope.
@@ -59,22 +47,24 @@ repository.
 ## Quick Start
 
 ```bash
-git clone https://github.com/rsgcsg/STS2-headless.git
-cd STS2-headless
+git clone https://github.com/rsgcsg/STS2-AI-PLATFORM.git
+cd STS2-AI-PLATFORM
 npm ci
 npm run check
 npm run doctor
-npm run setup
+npm run host:setup
 ```
 
-`setup` downloads the pinned Connector `1.1.0-rc.1` GitHub Release, verifies its
-SHA-256, delegates to the release installer, and records a rollback snapshot.
-It does not build or install a branch.
+`npm run host:setup` is a game-bound installation operation, not a portable
+check. It downloads the pinned immutable Platform Connector release, verifies
+the archive checksum and native source/SHA/MVID/protocol identity, delegates to
+the Connector installer, and records rollback. Never replace the pin with a
+branch or an unverified local DLL.
 
 Fully exit all STS2 processes. The smallest real boot gate is:
 
 ```bash
-npm run probe:shipped -- --shared-profile
+npm run host:probe-shipped -- --shared-profile
 ```
 
 Maintainers testing the experimental isolated Windows route first let the game

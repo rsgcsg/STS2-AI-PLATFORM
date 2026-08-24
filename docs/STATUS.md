@@ -4,35 +4,38 @@ Phase: **coherent Platform source/package candidate; runtime seal pending**.
 
 ## Implemented
 
-- Complete non-squashed Git histories of Connector, Host Runtime and Human
-  Annotator are imported under `components/`.
-- The original source revisions remain unchanged ancestors and are fixed in a
-  machine-readable migration manifest.
-- Root dependency direction, evidence terminology and component identity are
-  explicit.
+- Connector, Host Runtime, and Human Annotator histories are preserved under
+  `components/` without squashing the imported ancestry.
+- Root dependency direction, evidence terminology, and component identity are
+  explicit and checked by the portable suite.
 - Annotator compiles against the exact Connector output produced by the Platform
   build; it does not create a second Connector build.
-- Host Runtime consumes the immutable public Connector SDK package rather than
-  sibling source.
-- Connector SDK `1.1.0-rc.1` and Host Runtime `1.1.0-rc.3` are public prerelease
-  assets with checksums and successful external cold-install smokes. Host Runtime
-  `1.1.0-rc.1` is superseded after its package smoke found a root import; rc.2 is
-  superseded because npm-altered bin modes made reconstructed tar bytes nondeterministic.
-  rc.3 has a matching fresh-clone repack checksum.
-- STPD source `473e3a12ee4402145c52caf94bfd07409eb17eab` consumes both public packages and
-  no longer requires any predecessor sibling checkout.
-- Root and component portable checks pass, including identity, dependency-boundary,
-  history-preservation and standalone-package checks.
+- The Host Runtime package and Connector SDK are represented by the current
+  public-package entries in `platform-bom.json`; source may be ahead of the
+  last BOM only during an explicit release closeout.
+- Host Runtime setup is pinned to the immutable Platform Connector release,
+  including archive checksum and native source/SHA/MVID/protocol identity.
+- STPD consumes public packages and does not require a predecessor sibling
+  checkout for its package path.
+- Root and component portable checks pass at the current source revision.
 
 ## Current Evidence
 
-Platform exact-game build evidence is bound to macOS arm64 STS2
-`v0.111.0/41cef1ea`; public package download/install evidence is recorded in the
-release checksums and BOM. Predecessor loaded/Live evidence does not transfer.
+The current candidate's exact-game and package identities are recorded in
+`platform-bom.json` and the component release manifests. The current source
+tree is the authority for what can be built; those files are the authority for
+published candidate identity. Predecessor loaded/Live evidence does not
+transfer.
 
 ## Non-claims
 
-- No Platform-built Connector or Annotator artifact is installed or loaded.
-- No Platform artifact has Live, human-validation or qualification evidence.
+- The current Platform-built Connector and Annotator artifacts are not proven
+  installed or loaded by this source/package candidate record.
+- No current Platform artifact has current-identity Live, human-validation, or
+  qualification evidence.
 - The Platform BOM is a source/package candidate, not a runtime-sealed release.
-- Workbench, generic evidence receiver and Python SDK are not implemented.
+- A source change ahead of the current public Host package/BOM remains a
+  package non-claim until that release closeout is published and cold-checked.
+- Workbench, generic evidence receiver, and a Platform-wide Python SDK are not
+  current Platform claims; the Host component's Python consumer is component
+  scope.

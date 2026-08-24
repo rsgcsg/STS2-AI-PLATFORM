@@ -19,7 +19,8 @@ gameplay or creating a second action authority.
 ## Authority Boundaries
 
 - STS2 owns rules, RNG, native legality, effects, and accepted game actions.
-- STS2-Connector owns stable Player Environment truth and finite BoundActions.
+- The Platform Connector component owns stable Player Environment truth and
+  finite BoundActions.
 - This repository owns native-human witness correlation and recording evidence.
 - STPD owns research projection, datasets, eligibility, and training.
 - Native references are process-local and never serialized or executable.

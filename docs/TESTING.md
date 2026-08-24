@@ -1,6 +1,8 @@
 # Testing And Evidence
 
-Install portable dependencies and run all source checks:
+The root suite is the portable source and package gate. It does not require
+proprietary STS2 files and does not prove installation, loading, mutation, a
+journey, or qualification.
 
 ```bash
 npm ci
@@ -15,20 +17,34 @@ npm run check:boundaries
 npm run check:history
 npm --prefix components/connector run check
 npm --prefix components/host-runtime run check
-npm --prefix components/annotator run check
+npm --prefix components/annotator run test
 ```
 
-`npm run build` requires an exact local STS2 installation and builds Connector
-and Annotator artifacts. A successful build is not install, load or Live
-evidence.
+The component checks have separate meanings:
 
-`npm run check:exact-game` compiles the current game-bound projects after the
-portable suite. Public CI runs `npm run check` and does not require proprietary
-game assemblies.
+- Connector check: contract, native source, SDK, and Connector-local tests;
+- Host Runtime check: lifecycle, package, Python consumer, and Host tests;
+- Annotator `test`: portable recorder and workstation-tool tests;
+- Annotator `check`: the portable tests plus exact native compilation against
+  the locally installed game and current Connector artifact.
 
-Evidence levels are strictly ordered but never implied:
+`npm run build` and `npm run check:exact-game` require the exact local STS2
+installation. They build or compile game-bound artifacts; a successful build is
+not install, load, Live, native-human mutation, or qualification evidence.
+
+Public CI runs `npm run check` and does not require proprietary game assemblies.
+Exact-game checks are local and must record the game, platform, Modset, source,
+artifact, and runtime identities from the current manifests and reports.
+
+## Evidence Ladder
+
+Evidence levels are ordered but never implied:
 
 ```text
-source/test -> build -> installed -> loaded -> live_exercised
-            -> human_validated -> qualified
+source -> test -> build -> package -> installed -> loaded
+       -> Live mutation -> journey -> human_validated -> qualified
 ```
+
+Predecessor reports and fixtures can test mechanics or migration assumptions,
+but cannot qualify a different Platform artifact. Local `.local/` evidence is
+not documentation and must not be committed.

@@ -6,7 +6,7 @@ STS2 AI Platform provides a real-game Host, a fair-player Player Environment,
 native-human evidence recording and strategy-free integration tools. It does
 not provide policy, reward, model, training or research authority.
 
-## Three Planes
+## Planes
 
 ```text
 Environment:  Host <-> Connector <-> consumer
@@ -14,8 +14,9 @@ Host control: Host Runtime <-> STS2 process lifecycle
 Evidence:     Annotator -> immutable bundle -> evidence consumer
 ```
 
-The planes may share exact environment identity but not mutation authority or
-transport semantics.
+The planes may share exact environment identity, but not mutation authority or
+transport semantics. The Platform is not a strategy, reward, training, or
+research service.
 
 ## Hard Shell
 
@@ -25,21 +26,35 @@ delivery time. Reads are state-bound and non-authorizing. Host control is not a
 Player Environment action. Annotator observes accepted native-human actions and
 cannot execute them. Unknown delivery is never automatically retried.
 
-## Dependency Direction
+## Component DAG
 
 ```text
-contracts
-  <- connector
-  <- host-runtime
-  <- annotator
-  <- public SDK/tools
-  <- external consumers
+STS2 installation and native runtime
+  -> Connector component
+     -> Player Environment contract, native Mod, SDK, and release identity
+  -> Host Runtime component
+     -> lifecycle, exact-build admission, probes
+     -> public Connector SDK + pinned Connector Host release
+  -> Annotator component
+     -> Host workstation seam + exact Connector witness artifact
+     -> native-human witness recording and session evidence
+
+External consumers -> public Connector SDK / Host Runtime package
+STPD              -> public packages and admitted evidence
+SpireAgent        -> consumer integration and policy
 ```
 
-Connector does not depend on Host Runtime, Annotator or STPD. Annotator may use
-Connector's process-local witness SPI and Host Runtime discovery/probe APIs.
-STPD consumes public packages/contracts and evidence artifacts, never Platform
-implementation internals.
+The Connector gameplay authority is one component-local path. Host Runtime
+owns process lifecycle and may consume the public SDK; it must install the
+Connector artifact named by the current Platform BOM/release authority, not an
+unrelated branch or predecessor release. Annotator may use the explicitly
+declared Platform composition seams for exact native witnessing, but it does
+not create a second Connector build or action authority. STPD consumes public
+packages and evidence artifacts, never Platform implementation internals.
+
+Portable boundary tests require the Host installer to consume a versioned
+Platform Connector release and require Annotator to use only the declared Host
+workstation seam plus the exact component-local Connector witness artifact.
 
 ## Identity
 
