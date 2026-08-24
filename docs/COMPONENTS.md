@@ -15,3 +15,7 @@ override the root hard shell.
 The Annotator compiles against the exact Connector Release artifact produced at
 `components/connector/host/out/STS2_MCP/STS2_MCP.dll`; it never recompiles or
 copies a second Connector implementation.
+
+The versioned Host Runtime package is the public programmatic boundary for its
+Node driver/CLI and strategy-free Python client. Consumers provide external
+candidate artifacts; they do not import a sibling source checkout.

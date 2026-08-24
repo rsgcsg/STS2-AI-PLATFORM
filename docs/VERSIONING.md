@@ -8,6 +8,8 @@ The monorepo does not impose lockstep component versions.
 - `platform-bom/v<version>` names a tested compatible composition.
 - Player Environment protocol, SDK version, component version and exact artifact
   identity are distinct.
+- Consumer SDK and Host Runtime package assets are immutable release inputs;
+  external consumers do not install a branch or sibling source checkout.
 
 The component identity report records the workspace commit, the most recent
 commit that changed each component path, the component Git tree, and source and
