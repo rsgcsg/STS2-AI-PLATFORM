@@ -42,8 +42,11 @@
   Evidence, Transfer and Diagnostics.
 - Complete: exact build, safe install, cold-load identity, observer Modset and
   read-only Snapshot/Workbench canaries for the V2 artifact.
-- Pending owner runtime: targeted play, untargeted play, end-turn and one
-  generated-card choice, followed by V2 audit/bundle/store/receive/STPD closeout.
+- Complete: exact-artifact native-human targeted play, untargeted play and
+  end-turn with pre/successor `run_deck` and `combat_piles`, followed by V2
+  audit/bundle/store/receive/STPD and Workbench closeout.
+- Pending exact-runtime evidence: generated-card choice did not naturally occur
+  and remains `not exercised`; it is not inferred from ordinary combat.
 
 Cloud storage, broad action-family capture and a full Workbench remain later
 work; they are not reasons to weaken the component boundaries.

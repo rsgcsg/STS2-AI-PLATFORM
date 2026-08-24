@@ -26,12 +26,13 @@ function, model, training system or second game-rules engine. STPD remains an
 independent research consumer.
 
 Current status: the V1 public Connector/Host composition retains its exact
-runtime seal. Read-rich Human Evidence V2 is implemented and automated-tested:
-same-frame `run_deck`/`combat_piles`, typed V2 records and bundles, immutable
-local evidence logistics, one generated-card selector witness, verified STPD
-consumption, and a minimal Workbench. The exact V2 Connector/Annotator artifacts
-are built, installed and cold-loaded, but do not inherit V1 Human action evidence. See
-[Status](docs/STATUS.md) and the [V1 candidate report](docs/evidence/RUNTIME_SEAL_CANDIDATE_2026-08-24.md).
+runtime seal. The exact V2 Connector/Annotator artifact has also produced 30
+audited native-human ordinary-combat decisions with materialized `run_deck` and
+`combat_piles` Reads before and after every admitted action. Its immutable V2
+bundle passed Platform store/transfer/receiver and independent STPD import.
+Generated-card choice remains source/test-verified but `not exercised` at
+runtime. See [Status](docs/STATUS.md), the [V2 closeout](docs/evidence/HUMAN_EVIDENCE_V2_READ_RICH_COMBAT_CLOSEOUT_2026-08-25.md), and the
+[V1 candidate report](docs/evidence/RUNTIME_SEAL_CANDIDATE_2026-08-24.md).
 
 The initial consolidation imports the complete histories of:
 

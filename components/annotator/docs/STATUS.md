@@ -1,9 +1,10 @@
 # Status
 
 Historical Annotator evidence below remains bound to its original
-source/artifact. Annotator `0.3.0-rc.1` is the current read-rich V2 source
-candidate; it does not inherit the V1 loaded or native-human evidence. Root
-`../../../docs/STATUS.md` is authoritative for the current runtime boundary.
+source/artifact. Annotator `0.3.0-rc.1` is the current read-rich V2 source.
+Its exact Native artifact has current ordinary-combat V2 evidence; generated-card
+choice remains `not exercised`. Root `../../../docs/STATUS.md` is authoritative
+for the current runtime boundary.
 
 ## Implemented
 
@@ -69,6 +70,23 @@ prove same-card staging, no-fallback operation and the downstream path, but do
 not validate this final ordering source artifact.
 
 ## Current Exact Runtime Seal
+
+The V2 artifact from source `09e5c236...`, SHA `4e911dd6...`, MVID
+`692e9dd9...` loaded with Connector `6c66cbf.../11f1da35...` in runtime
+`abb6b2d8...`. Session
+`session-20260824T153454Z-3005d3b9cea9425ab0c615f0bd961a39` admitted 30
+Decision V2 records: 7 targeted plays, 16 untargeted plays and 7 end turns.
+Every admitted pre-state and successor materialized both required Reads;
+independent V2 audit and typed bundle verification passed. Five unstable
+pre-frames failed closed. Bundle `b92778be...` passed immutable Platform
+store/receive/retry and STPD imported 30/30 with zero rejection. Current source
+`144a9dc...` adds only caller-CWD CLI evidence-path handling and is automated
+tested, not claimed loaded. Exact hashes are in the root V2 closeout.
+
+Generated-card choice did not naturally occur in this session and is
+`not exercised`; source/tests do not substitute for Native UI evidence.
+
+## V1 Predecessor Evidence
 
 Source `9459d22...` was built, installed, cold-loaded and owner-operated with
 Connector source `2a14504...`. Session

@@ -1,6 +1,6 @@
 # Current Status
 
-Phase: **Human Evidence V2 loaded candidate; native-human validation pending**.
+Phase: **Human Evidence V2 Read-Rich Combat baseline verified; selector Live evidence pending**.
 
 ## Implemented
 
@@ -30,7 +30,7 @@ Phase: **Human Evidence V2 loaded candidate; native-human validation pending**.
   immutable local store, transfer and staged receiver with receipts.
 - Workbench `0.1.0-rc.1` provides read-only Environment, Human Recording,
   Evidence, Transfer and Diagnostics status through application services.
-- STPD `d222e340...` installs Evidence from the exact public Git revision,
+- STPD `25b53062...` installs Evidence from the exact public Git revision,
   preserves V1 verifier parity, rejects unverified V2 JSONL and projects
   verified `run_deck`/`combat_piles` into state and successor.
 - Connector `1.2.0-rc.5` and Host Runtime `1.1.0-rc.7` are immutable public
@@ -59,14 +59,30 @@ component and package authorities. The dated
 evidence boundaries and local report hashes. Predecessor loaded/Live evidence
 does not transfer.
 
-The V2 candidate is independently built, installed and cold-loaded against
+The V2 native artifact was independently built, installed and cold-loaded against
 macOS arm64 STS2 `v0.111.0/41cef1ea`. Connector
 `6c66cbf.../11f1da35...` and Annotator `4e911dd6.../692e9dd9...` loaded in
-runtime `abb6b2d8...` under exact observer Modset `be4b23c7...`. A read-only
-menu Snapshot canary passed. Mutation remained disabled by the observer Modset,
-as required. Evidence wheel build/fresh install, remote STPD consumption and a
-real Workbench status read passed. These facts prove load and bounded
-non-human operation, not native-human V2 capture.
+runtime `abb6b2d8...` under exact observer Modset `be4b23c7...`.
+Owner-operated session `session-20260824T153454Z-3005d3b9cea9425ab0c615f0bd961a39`
+then admitted 30 audited Decision V2 records: 7 targeted plays, 16 untargeted
+plays, and 7 end turns. Every admitted record contains materialized
+`run_deck` and `combat_piles` for both S and S', for 120 verified Read results;
+all 30 successors were interactive. Five actions without a complete stable
+pre-frame failed closed and were not admitted.
+
+Bundle `b92778be...` was typed-verified, promoted into the immutable local
+Evidence Store, and reused idempotently on retry with zero findings. STPD
+`25b53062...` imported all 30 records with zero rejection while preserving V1
+compatibility; the records were not added to the frozen corpus or authorized
+for training. A real Workbench HTTP smoke reported Environment, Annotator,
+Evidence, Transfer, and Diagnostics available. The dated
+[V2 closeout](evidence/HUMAN_EVIDENCE_V2_READ_RICH_COMBAT_CLOSEOUT_2026-08-25.md)
+holds exact hashes and evidence boundaries.
+
+The loaded Native artifact remains bound to Annotator source `09e5c236...`.
+Current Annotator source `144a9dc...` adds only caller-CWD CLI evidence-path
+resolution; Evidence verifier and Workbench fixes are non-Native. These later
+source commits are tested but are not claimed loaded.
 
 ## Non-claims
 
@@ -78,8 +94,9 @@ non-human operation, not native-human V2 capture.
 - The optional noninteractive Host execution profile was not implemented by the
   current Connector and remains a non-claim; shipped-default semantics passed.
 - V2 generated-card choice has exact-source and deterministic test coverage but
-  no current native-human runtime exercise. No V2 session, store/receiver
-  receipt, STPD V2 corpus admission or training authorization is yet Live.
+  did not naturally occur in the current native-human run: `not exercised`.
+- The V2 bundle/store/receiver/STPD path is verified, but this does not authorize
+  corpus inclusion or training and does not qualify unexercised action families.
 - Platform Evidence is a focused evidence-integrity package, not a
   Platform-wide gameplay SDK. Workbench remains read-only and is not an
   authority or full product UI.

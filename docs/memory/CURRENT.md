@@ -1,6 +1,6 @@
 # Current Context
 
-Phase: **Human Evidence V2 loaded candidate; native-human validation pending.**
+Phase: **Human Evidence V2 Read-Rich Combat baseline verified; selector Live evidence pending.**
 
 `STS2-AI-PLATFORM` is the only forward-development source authority for the
 Platform components. The root BOM and component release manifests are the
@@ -16,11 +16,13 @@ identity registry.
   tracking current V2 source/build/install/load independently.
 - Connector `1.2.0-rc.6`, Annotator `0.3.0-rc.1`, Evidence `0.1.0-rc.1` and
   Workbench `0.1.0-rc.1` implement the read-rich V2 source path.
-- STPD `d222e340...` consumes the exact Evidence Git package, preserves V1
+- STPD `25b53062...` consumes the exact Evidence Git package, preserves V1
   verifier parity, rejects unverified V2 and projects verified Reads.
-- Exact build/deploy/load and non-human Snapshot/Workbench canaries pass for
-  runtime `abb6b2d8...`; request one owner native-UI session for
-  play/end-turn/generated choice, then close the evidence pipeline automatically.
+- Runtime `abb6b2d8...` produced 30 audited native-human V2 decisions with 120
+  materialized pre/successor Reads. Bundle `b92778be...` passed immutable
+  store/transfer/receiver, STPD imported 30/30, and Workbench HTTP status passed.
+- Generated-card choice is source/test-complete but `not exercised`; corpus and
+  training authorization remain separate and absent.
 
 ## Evidence Boundary
 
