@@ -26,8 +26,8 @@ match the recorded identities. It is reported as
 
 ## Platform discovery and cold launch
 
-The canonical sibling `STS2-headless` checkout owns Steam discovery and runtime
-process inspection on Windows. `STS2_GAME_DIR` remains the explicit override on
+The Platform Host Runtime component owns Steam discovery and runtime process
+inspection on Windows. `STS2_GAME_DIR` remains the explicit override on
 both Windows and macOS. A Windows launch requires the exact Connector
 `candidate_exact` game ID plus its source-revision canary; a macOS launch keeps
 the existing `supported_exact` source-revision canary. The admitted Modset

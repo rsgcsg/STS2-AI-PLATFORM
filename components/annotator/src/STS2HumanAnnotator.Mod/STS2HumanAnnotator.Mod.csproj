@@ -9,10 +9,12 @@
     <STS2GameDataDir Condition="'$(STS2GameDataDir)' == '' and '$(OS)' == 'Windows_NT'">$(STS2GameDir)/data_sts2_windows_x86_64</STS2GameDataDir>
     <STS2GameDataDir Condition="'$(STS2GameDataDir)' == '' and $([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))">$(STS2GameDir)/SlayTheSpire2.app/Contents/Resources/data_sts2_macos_arm64</STS2GameDataDir>
     <STS2GameDataDir Condition="'$(STS2GameDataDir)' == '' and '$(OS)' != 'Windows_NT' and !$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))">$(STS2GameDir)/data_sts2_linuxbsd_x86_64</STS2GameDataDir>
-    <ConnectorAssembly Condition="'$(ConnectorAssembly)' == ''">$(MSBuildThisFileDirectory)../../../STS2-Connector/host/out/STS2_MCP/STS2_MCP.dll</ConnectorAssembly>
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../../../connector/host/STS2Connector.Host.csproj"
+                      ReferenceOutputAssembly="true"
+                      Private="false" />
     <AssemblyMetadata Include="SourceRevision" Value="$(SourceRevision)" />
     <AssemblyMetadata Include="AnnotatorSourceDigest" Value="$(AnnotatorSourceDigest)" />
     <!-- STS2 loads one assembly per Mod manifest. Link the single Core source
@@ -28,10 +30,6 @@
     </Reference>
     <Reference Include="0Harmony">
       <HintPath>$(STS2GameDataDir)/0Harmony.dll</HintPath>
-      <Private>false</Private>
-    </Reference>
-    <Reference Include="STS2_MCP">
-      <HintPath>$(ConnectorAssembly)</HintPath>
       <Private>false</Private>
     </Reference>
   </ItemGroup>

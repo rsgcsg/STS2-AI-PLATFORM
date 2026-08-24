@@ -1,5 +1,10 @@
 # Current Status
 
+Platform migration note: this document retains exact predecessor release and
+runtime evidence. Current Platform Connector `1.2.0-rc.1` is a source candidate
+with no inherited build, loaded, Live or qualification claim. Root
+`../../../docs/STATUS.md` is authoritative for the consolidated source state.
+
 General stable release: `v1.0.1`
 
 STPD operational baseline prerelease: `v1.1.0-rc.1`

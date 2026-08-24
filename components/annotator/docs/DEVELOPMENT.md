@@ -17,11 +17,10 @@ project normally. There is one source authority and no runtime loader shim.
 
 ## Exact-Game Check
 
-With a local exact STS2 installation and sibling Connector build:
+With a local exact STS2 installation, from the Platform root:
 
 ```bash
-cd ../STS2-Connector && npm run build
-cd ../STS2-human-Annotator && npm run check
+npm run check:exact-game
 ```
 
 To add a native action family, identify its shipped UI entry method and the

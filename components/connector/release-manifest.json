@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "release": {
-    "version": "1.1.0-rc.1",
+    "version": "1.2.0-rc.1",
     "channel": "prerelease",
     "status": "local_canary_runtime_seal_required"
   },
@@ -16,7 +16,7 @@
   },
   "client": {
     "npm_package": "@rsgcsg/sts2-connector-client",
-    "version": "1.0.0"
+    "version": "1.1.0-rc.1"
   },
   "exact_game_audit": {
     "support_id": "win32-x64-v0.111.0-41cef1ea-candidate",
@@ -32,7 +32,7 @@
   },
   "evidence": {
     "predecessor_source": "154a5cdf435626f2cc84fe0412e9f9e1adbd637b",
-    "runtime_seal_asset": "STS2-Connector-1.1.0-rc.1-runtime-seal.json",
+    "runtime_seal_asset": "STS2-Connector-1.2.0-rc.1-runtime-seal.json",
     "transfer_policy": "No predecessor artifact, runtime or journey evidence qualifies this release."
   },
   "host_compatibility_contract": "contracts/host-compatibility.json"

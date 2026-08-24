@@ -1,4 +1,8 @@
-# STS2 Headless
+# STS2 Host Runtime
+
+> This component lives in `rsgcsg/STS2-AI-PLATFORM`. `headless` remains a Host
+> mode and historical product/release name; the component owns general STS2
+> discovery, lifecycle, isolation and qualification tooling.
 
 Run the **real installed Slay the Spire 2 process** without a display and
 control its normal single-player decisions through a verified fair-player

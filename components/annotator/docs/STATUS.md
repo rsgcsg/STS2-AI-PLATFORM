@@ -1,5 +1,10 @@
 # Status
 
+Platform migration note: historical Annotator evidence below remains bound to
+its original source/artifact. Annotator `0.2.0-rc.1` in the consolidated source
+has no inherited build, loaded or native-human evidence claim; root
+`../../../docs/STATUS.md` is authoritative for migration status.
+
 ## Implemented
 
 - process-local Connector witness freezing one stable Snapshot and complete

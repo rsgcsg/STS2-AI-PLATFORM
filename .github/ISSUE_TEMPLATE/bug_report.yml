@@ -1,0 +1,34 @@
+name: Bug report
+description: Report a reproducible Platform component defect
+body:
+  - type: dropdown
+    id: component
+    attributes:
+      label: Owning component
+      options:
+        - Connector
+        - Host Runtime
+        - Human Annotator
+        - Platform tooling
+        - Unknown
+    validations:
+      required: true
+  - type: textarea
+    id: identity
+    attributes:
+      label: Exact identity
+      description: Component version/tree digest, game identity, artifact SHA/MVID and evidence level when relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction and observed result
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+    validations:
+      required: true

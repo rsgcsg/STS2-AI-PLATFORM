@@ -19,6 +19,7 @@ import {
   readOptionalJson
 } from "./connector-provenance.mjs";
 import { resolveGameDir, resolveModsDir } from "./steam-paths.mjs";
+import { componentGitState } from "../../../tools/component-git.mjs";
 
 export { evaluateBuildProvenance } from "./connector-provenance.mjs";
 export { resolveGameDir, resolveModsDir } from "./steam-paths.mjs";
@@ -277,9 +278,11 @@ function writeBuildIdentity(resolved) {
     schema_version: 1,
     built_at: new Date().toISOString(),
     source_revision: currentSource.revision,
+    workspace_revision: currentSource.workspaceRevision,
+    component_tree_revision: currentSource.componentTreeRevision,
     player_environment_source_digest: currentSource.sourceDigest,
     source_worktree_status: currentSource.worktreeStatus,
-    repository_worktree_status: gitWorkspaceState().worktree,
+    workspace_worktree_status: currentSource.workspaceWorktreeStatus,
     source_file_count: currentSource.fileCount,
     source_protocol: protocols.csharp,
     artifact_sha256: identity.sha256,
@@ -650,8 +653,7 @@ function install(options) {
     throw new Error("Could not establish Player Environment source identity before install.");
   }
   if (!options.allowDirty
-      && (currentSource.worktreeStatus !== "clean"
-        || gitWorkspaceState().worktree !== "clean")) {
+      && currentSource.worktreeStatus !== "clean") {
     throw new Error(
       "Release install requires a clean Host source tree. Commit the intended source or use npm run dev-deploy for an explicitly non-release install."
     );
@@ -674,9 +676,7 @@ function install(options) {
       `Release build does not match current Player Environment source: ${buildProvenance.errors.join(", ")}. Run connector build before install.`
     );
   }
-  if (!options.allowDirty
-      && (buildMetadata?.source_worktree_status !== "clean"
-        || buildMetadata?.repository_worktree_status !== "clean")) {
+  if (!options.allowDirty && buildMetadata?.source_worktree_status !== "clean") {
     throw new Error(
       "Release install refused a build recorded from dirty Host source. Rebuild from clean source or use npm run dev-deploy."
     );
@@ -767,8 +767,7 @@ function deploy(options) {
   const source = playerEnvironmentSourceIdentity();
   if (!source) throw new Error("Could not establish Player Environment source identity before deploy.");
   if (!options.allowDirty
-      && (source.worktreeStatus !== "clean"
-        || gitWorkspaceState().worktree !== "clean")) {
+      && source.worktreeStatus !== "clean") {
     throw new Error(
       "Release deploy requires a clean Host source tree. Commit the intended source or run npm run dev-deploy for an explicitly non-release install."
     );
@@ -930,19 +929,14 @@ function probeCommand(command, args = ["--version"]) {
 }
 
 function gitWorkspaceState() {
-  const read = (args) => {
-    const result = spawnSync("git", args, {
-      cwd: WORKSPACE,
-      encoding: "utf8",
-      stdio: "pipe"
-    });
-    return result.status === 0 ? result.stdout.trim() : null;
-  };
+  const state = componentGitState(WORKSPACE);
   return {
-    branch: read(["branch", "--show-current"]),
-    head: read(["rev-parse", "HEAD"]),
-    upstream: read(["rev-parse", "--abbrev-ref", "@{upstream}"]),
-    worktree: read(["status", "--porcelain"]) ? "dirty" : "clean"
+    workspace_head: state.workspaceRevision,
+    source_revision: state.componentSourceRevision,
+    component_tree_revision: state.componentTreeRevision,
+    component_path: state.componentPath,
+    component_worktree: state.componentWorktreeStatus,
+    workspace_worktree: state.workspaceWorktreeStatus
   };
 }
 
@@ -1175,24 +1169,6 @@ export async function main(argv = process.argv.slice(2)) {
     if (options.run) args.push("--run", options.run);
     if (options.runs) args.push("--runs", options.runs);
     run("node", [path.join(WORKSPACE, "tools/connector-run-identity-audit.mjs"), ...args]);
-    return;
-  }
-  if (command === "run-agent") {
-    console.log(JSON.stringify(await prepareAgentRun(options), null, 2));
-    const sourceIdentity = workspaceSourceIdentity();
-    run("npm", ["--prefix", "Re-SpireAgent", "run", "agent:run:direct", "--", ...options.passthrough], {
-      env: {
-        ...process.env,
-        STS2_API_URL: options.endpoint ?? process.env.STS2_API_URL ?? DEFAULT_ENDPOINT,
-        ...(sourceIdentity
-          ? {
-              SPIREAGENT_RE_SOURCE_REVISION: sourceIdentity.revision,
-              SPIREAGENT_RE_SOURCE_DIGEST: sourceIdentity.sourceDigest,
-              SPIREAGENT_RE_WORKTREE_STATUS: sourceIdentity.worktreeStatus
-            }
-          : {})
-      }
-    });
     return;
   }
   throw new Error(`Unknown command ${command}.\n${usage()}`);

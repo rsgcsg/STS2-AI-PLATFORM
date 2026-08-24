@@ -55,7 +55,7 @@ test("Windows live settings reject an enabled third-party Mod", () => {
 test("Windows installation uses Headless discovery and exact native paths", () => {
   const calls = [];
   const headlessApi = {
-    source: "sibling_sts2_headless",
+    source: "platform_host_runtime",
     discoverGameDirectory(options) {
       calls.push(options);
       return "E:\\SteamLibrary\\steamapps\\common\\Slay the Spire 2";
@@ -73,7 +73,7 @@ test("Windows installation uses Headless discovery and exact native paths", () =
   });
 
   assert.equal(calls.length, 1);
-  assert.equal(result.discovery_method, "sibling_sts2_headless");
+  assert.equal(result.discovery_method, "platform_host_runtime");
   assert.equal(result.executable, "E:\\SteamLibrary\\steamapps\\common\\Slay the Spire 2\\SlayTheSpire2.exe");
   assert.equal(result.data_dir, "E:\\SteamLibrary\\steamapps\\common\\Slay the Spire 2\\data_sts2_windows_x86_64");
   assert.equal(result.mods_dir, "E:\\SteamLibrary\\steamapps\\common\\Slay the Spire 2\\mods");

@@ -2,18 +2,20 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { componentGitState } from "../../../tools/component-git.mjs";
 
 export function canonicalSourceBytes(contents) {
   return Buffer.from(contents.toString("utf8").replace(/\r\n/gu, "\n"), "utf8");
 }
 
 export function playerEnvironmentSourceIdentity(workspace) {
-  const headResult = spawnSync("git", ["rev-parse", "--verify", "HEAD"], {
-    cwd: workspace,
-    encoding: "utf8",
-    stdio: "pipe"
-  });
-  const revision = headResult.status === 0 ? headResult.stdout.trim() : "";
+  let gitState;
+  try {
+    gitState = componentGitState(workspace);
+  } catch {
+    return null;
+  }
+  const revision = gitState.componentSourceRevision;
   if (!/^[0-9a-f]{40}$/u.test(revision)) return null;
 
   const filesResult = spawnSync("git", [
@@ -52,10 +54,11 @@ export function playerEnvironmentSourceIdentity(workspace) {
   });
   return {
     revision,
+    workspaceRevision: gitState.workspaceRevision,
+    componentTreeRevision: gitState.componentTreeRevision,
     sourceDigest: digest.digest("hex"),
-    worktreeStatus: statusResult.status === 0 && statusResult.stdout.trim().length === 0
-      ? "clean"
-      : "dirty",
+    worktreeStatus: gitState.componentWorktreeStatus,
+    workspaceWorktreeStatus: gitState.workspaceWorktreeStatus,
     fileCount: files.length
   };
 }

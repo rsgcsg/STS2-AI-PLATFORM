@@ -3,11 +3,11 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-export async function loadHeadlessWorkstationApi(annotatorRoot) {
-  const headlessRoot = path.resolve(annotatorRoot, "..", "STS2-headless");
-  const installationModule = path.join(headlessRoot, "src", "game-installation.mjs");
-  const runtimeModule = path.join(headlessRoot, "src", "runtime-probe.mjs");
-  const hostModule = path.join(headlessRoot, "src", "headless-host.mjs");
+export async function loadHostRuntimeWorkstationApi(annotatorRoot) {
+  const hostRuntimeRoot = path.resolve(annotatorRoot, "..", "host-runtime");
+  const installationModule = path.join(hostRuntimeRoot, "src", "game-installation.mjs");
+  const runtimeModule = path.join(hostRuntimeRoot, "src", "runtime-probe.mjs");
+  const hostModule = path.join(hostRuntimeRoot, "src", "headless-host.mjs");
   if (![installationModule, runtimeModule, hostModule].every(fs.existsSync)) return null;
 
   const [installation, runtime, host] = await Promise.all([
@@ -16,8 +16,8 @@ export async function loadHeadlessWorkstationApi(annotatorRoot) {
     import(pathToFileURL(hostModule).href)
   ]);
   return {
-    source: "sibling_sts2_headless",
-    headless_root: headlessRoot,
+    source: "platform_host_runtime",
+    host_runtime_root: hostRuntimeRoot,
     discoverGameDirectory: installation.discoverGameDirectory,
     resolveInstallation: installation.resolveInstallation,
     readDiskIdentity: installation.readDiskIdentity,

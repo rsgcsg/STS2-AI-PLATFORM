@@ -1,8 +1,12 @@
 # STS2 Native UI Human Annotator
 
+> This is the Human Annotator component of `rsgcsg/STS2-AI-PLATFORM`. It uses
+> the in-repository Host Runtime and Connector components; sibling checkouts are
+> no longer part of the current development contract.
+
 `STS2-human-Annotator` records ordinary human decisions made through the shipped
 Slay the Spire 2 UI. It combines the exact pre-action Player Environment frame
-from [STS2-Connector](https://github.com/rsgcsg/STS2-Connector), a native action
+from the Platform Connector component, a native action
 already accepted by the game, an exact process-local mapping to one frozen
 `BoundAction`, and the next stable Player Environment snapshot.
 
@@ -15,8 +19,8 @@ or expose native references on a wire.
   exact target when present), `end_turn`, append-only recording, independent
   audit/export, exact artifact identity, and fail-closed STPD import.
 - Builds from the exact local STS2 `v0.111.0` assembly on macOS arm64 and
-  Windows x64. Windows discovery and process inspection reuse the canonical
-  sibling `STS2-headless` runtime modules.
+  Windows x64. Windows discovery and process inspection use the Platform Host
+  Runtime component.
 - Current exact-root artifact is owner-validated with a latest 28-record
   ordinary-combat session: 14 targeted plays, 9 untargeted plays and 5 end
   turns. Independent audit accepted all 28 with zero rejected records; one
@@ -54,25 +58,19 @@ quarantined rather than guessed.
 - macOS arm64 or Windows x64 with Slay the Spire 2 installed from Steam, or
   `STS2_GAME_DIR` set to another exact installation;
 - .NET SDK 9 and Node.js 20 or newer;
-- sibling checkouts named `STS2-Connector` and `STS2-human-Annotator` under the
-  same parent directory;
-- a clean, exact commit in both repositories for evidence-bearing deployment.
+- one clean `STS2-AI-PLATFORM` checkout with exact component identities.
 
 No game DLL, decompiled source, save, raw recording, or local deployment artifact
 belongs in Git.
 
 ## Build And Check
 
-Build the exact Connector first, then the recorder:
+From the Platform root:
 
 ```bash
-cd ../STS2-Connector
+npm ci
 npm run check
-npm run test
-npm run build
-
-cd ../STS2-human-Annotator
-npm run check
+npm run check:exact-game
 npm run build
 ```
 
@@ -85,13 +83,10 @@ available.
 Fully close the game before each deployment or cold load:
 
 ```bash
-cd ../STS2-Connector
-npm run deploy
-
-cd ../STS2-human-Annotator
-npm run deploy
-npm run prepare:mods
-npm run launch
+npm --prefix components/connector run deploy
+npm --prefix components/annotator run deploy
+npm --prefix components/annotator run prepare:mods
+npm --prefix components/annotator run launch
 ```
 
 The first launch discovers the complete Connector + observer Modset fingerprint
@@ -99,10 +94,13 @@ and remains fail closed. Quit the game, then explicitly pin that exact process
 envelope and cold-load again:
 
 ```bash
-npm run admit:modset
-npm run launch
-npm run verify:loaded
+npm --prefix components/annotator run admit:modset
+npm --prefix components/annotator run launch
+npm --prefix components/annotator run verify:loaded
 ```
+
+When already inside `components/annotator`, the final command is simply
+`npm run verify:loaded`.
 
 The canary identifies one exact non-gameplay observer Modset for recording. It
 does **not** enable Connector mutation, qualify the Modset, or claim generic Mod
@@ -135,10 +133,11 @@ Then audit and pack a session. Packing requires an explicit human-origin
 attestation and an exact collection profile; it never infers operator identity:
 
 ```bash
-npm run audit -- .local/recordings/<session>
-npm run export -- .local/recordings/<session> .local/exports/<session>.jsonl
-npm run pack-session -- .local/recordings/<session> \
-  --profile ../STPD/collection-profiles/human-mac-combat-v1.json \
+npm --prefix components/annotator run audit -- .local/recordings/<session>
+npm --prefix components/annotator run export -- \
+  .local/recordings/<session> .local/exports/<session>.jsonl
+npm --prefix components/annotator run pack-session -- .local/recordings/<session> \
+  --profile "$COLLECTION_PROFILE" \
   --worker human-001 \
   --campaign human-combat-smoke-2026-08 \
   --attest-human-origin
@@ -149,9 +148,9 @@ collection uses the versioned bundle/registry/corpus workflow documented in
 [Session bundles](docs/SESSION_BUNDLES.md).
 
 ```bash
-cd ../STPD
+cd /path/to/STS2-The-Perfect-Defect
 uv run python tools/import_human_recording.py \
-  ../STS2-human-Annotator/.local/exports/<session>.jsonl \
+  /path/to/STS2-AI-PLATFORM/components/annotator/.local/exports/<session>.jsonl \
   --output .local/human-dataset \
   --split-salt human-v1
 ```

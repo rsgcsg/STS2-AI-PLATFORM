@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { componentGitState } from "../../../tools/component-git.mjs";
 
 const root = process.cwd();
 function npmExecFileSync(args, options) {
@@ -22,12 +23,14 @@ if (release.release.version !== version) {
   throw new Error(`release-manifest version ${release.release.version} does not match package version ${version}`);
 }
 
-const status = execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).trim();
-if (status) throw new Error("Release packaging requires a clean source worktree");
-const head = execFileSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).trim();
+const source = componentGitState(root);
+if (source.componentWorktreeStatus !== "clean") {
+  throw new Error("Release packaging requires a clean Connector component worktree");
+}
+const head = source.componentSourceRevision;
 let taggedHead = null;
 try {
-  taggedHead = execFileSync("git", ["rev-list", "-n", "1", `v${version}`], {
+  taggedHead = execFileSync("git", ["rev-list", "-n", "1", `connector/v${version}`], {
     cwd: root,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "ignore"]
@@ -36,7 +39,9 @@ try {
   // A not-yet-tagged version may be packaged for its pre-publication gates.
 }
 if (taggedHead && taggedHead !== head) {
-  throw new Error(`Release v${version} is immutable at ${taggedHead}; bump the version before packaging ${head}`);
+  throw new Error(
+    `Release connector/v${version} is immutable at ${taggedHead}; bump the version before packaging ${head}`
+  );
 }
 
 const hostOut = path.join(root, "host", "out", "STS2_MCP");
@@ -44,8 +49,7 @@ const identityPath = path.join(hostOut, "build-identity.json");
 if (!fs.existsSync(identityPath)) throw new Error("Run npm run build before packaging a release");
 const identity = JSON.parse(fs.readFileSync(identityPath, "utf8"));
 if (identity.source_revision !== head
-    || identity.source_worktree_status !== "clean"
-    || identity.repository_worktree_status !== "clean") {
+    || identity.source_worktree_status !== "clean") {
   throw new Error("Host build identity is not a clean build of the current commit");
 }
 
@@ -109,6 +113,8 @@ fs.writeFileSync(path.join(releaseRoot, "checksums.sha256"), checksums);
 console.log(JSON.stringify({
   status: "release_assets_ready",
   source_revision: head,
+  workspace_revision: source.workspaceRevision,
+  component_tree_revision: source.componentTreeRevision,
   release: version,
   protocol: release.player_environment.protocol,
   host_artifact_sha256: identity.artifact_sha256,

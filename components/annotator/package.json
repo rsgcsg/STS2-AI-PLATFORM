@@ -1,9 +1,14 @@
 {
-  "name": "sts2-human-annotator-workspace",
-  "version": "0.1.0",
+  "name": "@rsgcsg/sts2-human-annotator",
+  "version": "0.2.0-rc.1",
   "private": true,
   "description": "Native STS2 UI human decision recorder",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rsgcsg/STS2-AI-PLATFORM.git",
+    "directory": "components/annotator"
+  },
   "type": "module",
   "engines": {
     "node": ">=20"

@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { componentGitState } from "../../../tools/component-git.mjs";
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const IGNORED_DIRECTORIES = new Set([
@@ -63,28 +64,19 @@ export function calculateSourceDigest(root = PROJECT_ROOT) {
   return { sha256: hash.digest("hex"), file_count: files.length };
 }
 
-function gitOutput(args, root) {
-  try {
-    return execFileSync("git", args, {
-      cwd: root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"]
-    }).trim();
-  } catch {
-    return null;
-  }
-}
-
 export function readProjectIdentity(root = PROJECT_ROOT) {
   const workspace = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
-  const revision = gitOutput(["rev-parse", "HEAD"], root);
-  const worktree = gitOutput(["status", "--porcelain"], root);
+  const git = componentGitState(root);
   const digest = calculateSourceDigest(root);
   return {
-    product: "sts2-headless",
+    product: "sts2-host-runtime",
     version: workspace.version,
-    source_revision: revision,
-    source_worktree_status: worktree == null ? "unavailable" : worktree === "" ? "clean" : "dirty",
+    workspace_revision: git.workspaceRevision,
+    component_path: git.componentPath,
+    source_revision: git.componentSourceRevision,
+    component_tree_revision: git.componentTreeRevision,
+    source_worktree_status: git.componentWorktreeStatus,
+    workspace_worktree_status: git.workspaceWorktreeStatus,
     source_digest_sha256: digest.sha256,
     source_file_count: digest.file_count
   };

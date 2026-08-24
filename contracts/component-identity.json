@@ -1,0 +1,32 @@
+{
+  "schema": "sts2.ai-platform/component-identity-spec-1",
+  "components": {
+    "connector": {
+      "path": "components/connector",
+      "version_file": "package.json",
+      "contract_paths": [
+        "contracts",
+        "sdk/typescript/src/protocol.ts",
+        "sdk/typescript/src/decisionBundle.ts",
+        "sdk/typescript/src/controllerSession.ts"
+      ]
+    },
+    "host-runtime": {
+      "path": "components/host-runtime",
+      "version_file": "package.json",
+      "contract_paths": [
+        "src/host-driver.mjs",
+        "src/host-execution-profile.mjs",
+        "consumers/python/sts2_headless"
+      ]
+    },
+    "annotator": {
+      "path": "components/annotator",
+      "version_file": "package.json",
+      "contract_paths": [
+        "src/STS2HumanAnnotator.Core",
+        "docs/DATA_CONTRACT.md"
+      ]
+    }
+  }
+}

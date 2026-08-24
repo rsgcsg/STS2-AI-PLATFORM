@@ -1,0 +1,19 @@
+{
+  "schema": "sts2.ai-platform/bom-1",
+  "version": "0.1.0",
+  "components": {
+    "connector": "1.2.0-rc.1",
+    "host_runtime": "1.1.0-rc.1",
+    "annotator": "0.2.0-rc.1",
+    "player_environment_protocol": "1.0.0",
+    "typescript_sdk": "1.1.0-rc.1"
+  },
+  "migration_sources": "migration/source-manifest.json",
+  "support_level": "source_candidate",
+  "non_claims": [
+    "not_installed",
+    "not_loaded",
+    "not_live_exercised",
+    "not_qualified"
+  ]
+}

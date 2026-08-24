@@ -1,5 +1,10 @@
 # Status
 
+Platform migration note: historical Headless releases/evidence below retain
+their original identities. Host Runtime `1.1.0-rc.1` in the consolidated source
+has no inherited artifact or runtime claim; root `../../../docs/STATUS.md` is the
+current consolidation authority.
+
 Release: `v1.0.1` STPD v0 operational patch baseline
 
 Verdict: **operationally frozen for STPD v0; formal H1.0 qualification is not

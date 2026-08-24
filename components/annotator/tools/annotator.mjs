@@ -5,17 +5,18 @@ import process from "node:process";
 import { spawn, spawnSync } from "node:child_process";
 import {
   commandMatchesExecutable,
-  loadHeadlessWorkstationApi,
+  loadHostRuntimeWorkstationApi,
   normalizeExactModsetCanary,
   normalizeInstalledProvenance,
   prepareExactWindowsModSettings,
   resolveConnectorCanaryEnvironment,
   resolveWorkstationInstallation
 } from "./workstation-platform.mjs";
+import { componentGitState } from "../../../tools/component-git.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const local = path.join(root, ".local");
-const connectorRoot = path.resolve(root, "..", "STS2-Connector");
+const connectorRoot = path.resolve(root, "..", "connector");
 const connectorArtifact = path.join(connectorRoot, "host", "out", "STS2_MCP", "STS2_MCP.dll");
 const connectorBuildIdentity = path.join(
   connectorRoot,
@@ -27,8 +28,8 @@ const connectorBuildIdentity = path.join(
 const connectorCompatibility = path.join(connectorRoot, "contracts", "host-compatibility.json");
 const modOutput = path.join(root, "src", "STS2HumanAnnotator.Mod", "bin", "Release", "net9.0");
 const toolDll = path.join(root, "src", "STS2HumanAnnotator.Tool", "bin", "Release", "net9.0", "sts2-human-annotator.dll");
-const headlessApi = await loadHeadlessWorkstationApi(root);
-const installation = resolveWorkstationInstallation({ headlessApi });
+const hostRuntimeApi = await loadHostRuntimeWorkstationApi(root);
+const installation = resolveWorkstationInstallation({ headlessApi: hostRuntimeApi });
 const gameDir = installation.game_dir;
 const dataDir = installation.data_dir;
 const modsDir = installation.mods_dir;
@@ -117,12 +118,12 @@ function archiveLocalState(destination) {
 }
 
 function gameRunning() {
-  if (headlessApi) {
-    return headlessApi.listGameProcesses(process.platform, { failClosed: true }).length > 0;
+  if (hostRuntimeApi) {
+    return hostRuntimeApi.listGameProcesses(process.platform, { failClosed: true }).length > 0;
   }
   if (process.platform === "win32") {
     throw new Error(
-      "Strict Windows process detection requires the canonical sibling STS2-headless checkout."
+      "Strict Windows process detection requires the Platform Host Runtime component."
     );
   }
   const result = spawnSync("pgrep", ["-f", "SlayTheSpire2"], { encoding: "utf8" });
@@ -399,10 +400,14 @@ function processAlive(pid) {
 }
 
 function sourceState() {
+  const state = componentGitState(root);
   return {
-    branch: git("branch", "--show-current"),
-    head: git("rev-parse", "HEAD"),
-    worktree: git("status", "--porcelain").length === 0 ? "clean" : "dirty"
+    workspace_head: state.workspaceRevision,
+    component_path: state.componentPath,
+    head: state.componentSourceRevision,
+    component_tree_revision: state.componentTreeRevision,
+    worktree: state.componentWorktreeStatus,
+    workspace_worktree: state.workspaceWorktreeStatus
   };
 }
 
@@ -430,6 +435,8 @@ function build() {
     platform: process.platform,
     architecture: process.arch,
     source_revision: source.head,
+    workspace_revision: source.workspace_head,
+    component_tree_revision: source.component_tree_revision,
     source_digest_sha256: digest,
     source_worktree: source.worktree,
     artifact,
@@ -660,7 +667,7 @@ function verifyLoaded() {
   const installedConnector = installed.installedConnector;
   const errors = [];
   if (!gameRunning() || !processAlive(status.process_id)) errors.push("runtime_process_not_running");
-  const runtimeCommand = headlessApi?.processCommand(status.process_id, process.platform) ?? null;
+  const runtimeCommand = hostRuntimeApi?.processCommand(status.process_id, process.platform) ?? null;
   if (!commandMatchesExecutable(runtimeCommand, installation.executable))
     errors.push("runtime_process_executable_mismatch");
   if (ageMs > 5000) errors.push("runtime_status_not_fresh");
@@ -701,7 +708,8 @@ function option(name) {
 }
 
 function packSession() {
-  if (git("status", "--porcelain").trim())
+  const source = sourceState();
+  if (source.worktree !== "clean")
     throw new Error("Commit or remove Annotator worktree changes before evidence packing.");
   const directory = path.resolve(args[0] || readJson(runtimeStatus).recording_directory);
   const profile = path.resolve(option("--profile"));
@@ -726,7 +734,7 @@ function packSession() {
     worker,
     campaign,
     output,
-    git("rev-parse", "HEAD"),
+    source.head,
     "human_origin_attested"
   ]);
 }

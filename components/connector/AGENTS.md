@@ -1,5 +1,7 @@
 # STS2 Connector Engineering Rules
 
+This file adds Connector-specific rules to the Platform root `AGENTS.md`.
+
 Read `docs/NEW_ENGINEER_GUIDE.md`, `docs/ARCHITECTURE.md`, the current protocol
 and coverage before changing game-bound behavior.
 

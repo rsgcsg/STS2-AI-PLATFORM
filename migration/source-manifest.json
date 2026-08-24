@@ -9,20 +9,25 @@
       "repository": "https://github.com/rsgcsg/STS2-Connector.git",
       "source_revision": "2a14504fffe2cf6fc21298dcb5e4084b9ac27ef1",
       "source_tree": "b6f0a0bda0cde5c60ecd6d5c19baa6419a3c65f0",
-      "target_path": "components/connector"
+      "import_commit": "437dd615896364a67a58938c6f55c70b0c9e7162",
+      "target_path": "components/connector",
+      "historical_tag_namespace": "migration/connector/"
     },
     {
       "component_id": "host-runtime",
       "repository": "https://github.com/rsgcsg/STS2-headless.git",
       "source_revision": "1deb5b7b3125e2308df7e8e44cb3b213e46e7f64",
       "source_tree": "73629a2ddb4c4d032fe396d80f4aaeda87ae4e2f",
-      "target_path": "components/host-runtime"
+      "import_commit": "69a7dbf7ab96a352110774067e9e5dcc818b7a42",
+      "target_path": "components/host-runtime",
+      "historical_tag_namespace": "migration/host-runtime/"
     },
     {
       "component_id": "annotator",
       "repository": "https://github.com/rsgcsg/STS2-human-Annotator.git",
       "source_revision": "82c5e8e60fdb08d876fd3726597608eb43a69a52",
       "source_tree": "94619ee27334ceb01da384773669fcab9be9f569",
+      "import_commit": "e60f6f6fcf08e6a413f8b143fd6945ed9e65d0c3",
       "target_path": "components/annotator"
     }
   ],

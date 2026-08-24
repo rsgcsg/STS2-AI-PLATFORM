@@ -1,5 +1,9 @@
 # STS2 Connector
 
+> This is the Connector component of `rsgcsg/STS2-AI-PLATFORM`. Historical
+> standalone releases and evidence retain their original repository identities;
+> root Platform status governs new source and release claims.
+
 STS2 Connector exposes the real Slay the Spire 2 UI as one fair-player
 Player Environment for external consumers.
 
@@ -18,13 +22,12 @@ second legality model. Reads are state-bound and non-authorizing. A complete
 finite BoundAction projection is required for input authority; delivery is
 revalidated against the current native UI. Unknown delivery is not retryable.
 
-Current runtime-sealed stable release: `1.0.0`. Current Host lifecycle and
-exact-authority candidate: `1.1.0-rc.1`. Player Environment protocol and
-TypeScript SDK remain `1.0.0`. The candidate adds process-local worker ports,
-runtime-bound native shutdown, seed provenance and exact game/artifact
-admission. It has no support or Live claim until its own exact runtime gates
-pass; `v1.0.0` remains the only sealed artifact. Earlier RC lines remain
-predecessor evidence only.
+Historical standalone stable/RC releases remain available from the predecessor
+repository. Current Platform source versions are Connector `1.2.0-rc.1`, SDK
+`1.1.0-rc.1` and Player Environment protocol `1.0.0`. They are source
+candidates only until new Platform-built artifacts complete their own build,
+install, cold-load and Live gates; predecessor runtime evidence does not
+transfer.
 
 ## Repository Map
 

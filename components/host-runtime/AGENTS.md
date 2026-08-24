@@ -1,5 +1,7 @@
 # STS2 Headless Engineering Rules
 
+This file adds Host Runtime-specific rules to the Platform root `AGENTS.md`.
+
 This repository runs the real Slay the Spire 2 runtime without a normal display.
 It is not a simulator, strategy agent, RL framework, or copy of the game.
 

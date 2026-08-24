@@ -1,5 +1,7 @@
 # Agent Guide
 
+This file adds Human Annotator-specific rules to the Platform root `AGENTS.md`.
+
 ## Mission
 
 Record exact human decisions made through the shipped STS2 UI without changing

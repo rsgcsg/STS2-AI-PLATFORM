@@ -1,17 +1,18 @@
 {
-  "name": "sts2-headless-workspace",
-  "version": "1.0.1",
+  "name": "@rsgcsg/sts2-host-runtime",
+  "version": "1.1.0-rc.1",
   "private": true,
   "description": "Evidence-first tooling for running the real Slay the Spire 2 runtime without a display",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rsgcsg/STS2-headless.git"
+    "url": "git+https://github.com/rsgcsg/STS2-AI-PLATFORM.git",
+    "directory": "components/host-runtime"
   },
   "bugs": {
-    "url": "https://github.com/rsgcsg/STS2-headless/issues"
+    "url": "https://github.com/rsgcsg/STS2-AI-PLATFORM/issues"
   },
-  "homepage": "https://github.com/rsgcsg/STS2-headless#readme",
+  "homepage": "https://github.com/rsgcsg/STS2-AI-PLATFORM/tree/main/components/host-runtime",
   "type": "module",
   "engines": {
     "node": ">=20"
@@ -47,6 +48,6 @@
     "check": "npm run check:syntax && npm test && npm run check:python && npm run check:docs && npm run check:repository"
   },
   "dependencies": {
-    "@rsgcsg/sts2-connector-client": "https://github.com/rsgcsg/STS2-Connector/releases/download/v1.1.0-rc.1/rsgcsg-sts2-connector-client-1.0.0.tgz"
+    "@rsgcsg/sts2-connector-client": "file:../connector/sdk/typescript"
   }
 }
