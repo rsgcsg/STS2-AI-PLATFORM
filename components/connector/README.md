@@ -23,7 +23,7 @@ finite BoundAction projection is required for input authority; delivery is
 revalidated against the current native UI. Unknown delivery is not retryable.
 
 Historical standalone stable/RC releases remain available from the predecessor
-repository. Current Platform source versions are Connector `1.2.0-rc.1`, SDK
+repository. Current Platform source versions are Connector `1.2.0-rc.2`, SDK
 `1.1.0-rc.1` and Player Environment protocol `1.0.0`. They are source
 candidates only until new Platform-built artifacts complete their own build,
 install, cold-load and Live gates; predecessor runtime evidence does not
