@@ -34,6 +34,27 @@ Read [the consolidation ADR](docs/adr/0001-consolidate-environment-platform.md)
 and [migration provenance](migration/source-manifest.json) before changing a
 component boundary.
 
+## Quick Start
+
+```bash
+npm ci
+npm run check
+npm run identity
+npm run doctor
+```
+
+External consumers install immutable Connector SDK and Host Runtime release assets;
+they do not depend on this checkout or a branch. Native-human operations are available
+from the repository root:
+
+```bash
+npm run annotator:doctor
+npm run annotator:launch
+npm run annotator:verify-loaded
+npm run annotator:audit -- <session-directory>
+npm run annotator:pack-session -- <session-directory> [options]
+```
+
 ## Evidence Boundary
 
 `source/test -> build -> installed -> loaded -> live_exercised ->

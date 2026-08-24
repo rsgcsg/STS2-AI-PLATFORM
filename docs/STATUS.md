@@ -1,6 +1,6 @@
 # Current Status
 
-Phase: **coherent Platform source baseline under migration**.
+Phase: **coherent Platform source/package candidate; runtime seal pending**.
 
 ## Implemented
 
@@ -10,21 +10,27 @@ Phase: **coherent Platform source baseline under migration**.
   machine-readable migration manifest.
 - Root dependency direction, evidence terminology and component identity are
   explicit.
-- Annotator consumes Host Runtime and Connector through in-repository component
-  paths rather than sibling checkout names or sibling build outputs.
-- Host Runtime consumes the strategy-free Connector client through a declared
-  package dependency.
-- Root portable checks compose all existing component checks.
+- Annotator compiles against the exact Connector output produced by the Platform
+  build; it does not create a second Connector build.
+- Host Runtime consumes the immutable public Connector SDK package rather than
+  sibling source.
+- Connector SDK `1.1.0-rc.1` and Host Runtime `1.1.0-rc.2` are public prerelease
+  assets with checksums and successful external cold-install smokes. Host Runtime
+  `1.1.0-rc.1` is explicitly superseded after its package smoke found a root import.
+- STPD source `05a2ce04e6d0dbcae721fd32b1b377500ca2b9e4` consumes both public packages and
+  no longer requires any predecessor sibling checkout.
+- Root and component portable checks pass, including identity, dependency-boundary,
+  history-preservation and standalone-package checks.
 
 ## Current Evidence
 
-The predecessor repositories passed their portable checks at the exact
-migration refs before import. Platform source checks must pass again after all
-path and identity changes; predecessor loaded/Live evidence does not transfer.
+Platform exact-game build evidence is bound to macOS arm64 STS2
+`v0.111.0/41cef1ea`; public package download/install evidence is recorded in the
+release checksums and BOM. Predecessor loaded/Live evidence does not transfer.
 
 ## Non-claims
 
 - No Platform-built Connector or Annotator artifact is installed or loaded.
 - No Platform artifact has Live, human-validation or qualification evidence.
-- The initial Platform BOM is a source candidate, not a supported release.
+- The Platform BOM is a source/package candidate, not a runtime-sealed release.
 - Workbench, generic evidence receiver and Python SDK are not implemented.

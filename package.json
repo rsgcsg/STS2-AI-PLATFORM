@@ -22,6 +22,12 @@
     "check": "npm run check:identity && npm run check:boundaries && npm run check:history && npm run check:components",
     "check:exact-game": "npm --prefix components/connector run build && npm --prefix components/annotator run check",
     "build": "npm --prefix components/connector run build && npm --prefix components/annotator run build",
-    "doctor": "node tools/platform-doctor.mjs"
+    "doctor": "node tools/platform-doctor.mjs",
+    "annotator:doctor": "node components/annotator/tools/annotator.mjs doctor",
+    "annotator:launch": "node components/annotator/tools/annotator.mjs launch",
+    "annotator:launch-live-connector": "node components/annotator/tools/annotator.mjs launch-live-connector",
+    "annotator:verify-loaded": "node components/annotator/tools/annotator.mjs verify-loaded",
+    "annotator:audit": "node components/annotator/tools/annotator.mjs audit",
+    "annotator:pack-session": "node components/annotator/tools/annotator.mjs pack-session"
   }
 }

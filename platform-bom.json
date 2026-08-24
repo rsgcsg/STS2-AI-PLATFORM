@@ -1,15 +1,42 @@
 {
   "schema": "sts2.ai-platform/bom-1",
-  "version": "0.1.0",
+  "version": "0.1.0-rc.1",
   "components": {
-    "connector": "1.2.0-rc.1",
-    "host_runtime": "1.1.0-rc.1",
-    "annotator": "0.2.0-rc.1",
+    "connector": {
+      "version": "1.2.0-rc.1",
+      "source_revision": "d2dfdf8473c39428a9d51f9aa7ba99a0b3b05ff7",
+      "component_tree_revision": "eedd39302cdab2b8a324ecc27c6d16a8cfbb67ee"
+    },
+    "host_runtime": {
+      "version": "1.1.0-rc.2",
+      "source_revision": "797b77f08ecea1d34dd21cab910fb70ca484081d",
+      "component_tree_revision": "9fed2019ab13d1c8a701783480649e0a82c29d25"
+    },
+    "annotator": {
+      "version": "0.2.0-rc.1",
+      "source_revision": "9316b28fc09c16386cf5f2f7d464bb09ff649659",
+      "component_tree_revision": "4fa2424738699b27aca3017becf3140cd4c8bbf7"
+    },
     "player_environment_protocol": "1.0.0",
     "typescript_sdk": "1.1.0-rc.1"
   },
+  "public_packages": {
+    "typescript_sdk": {
+      "release": "consumer-sdk/v1.1.0-rc.1",
+      "asset": "rsgcsg-sts2-connector-client-1.1.0-rc.1.tgz",
+      "sha256": "4484b4bec90f43c29c108fe5444e419c8a81164fb4b246ac3212c51960db1ed3"
+    },
+    "host_runtime": {
+      "release": "host-runtime/v1.1.0-rc.2",
+      "asset": "rsgcsg-sts2-host-runtime-1.1.0-rc.2.tgz",
+      "sha256": "e2dac542571e8dae1340ec50a33d82623c64bdfa89a0d2bcecb956f3540d346d"
+    }
+  },
+  "external_consumer_cutovers": {
+    "stpd": "05a2ce04e6d0dbcae721fd32b1b377500ca2b9e4"
+  },
   "migration_sources": "migration/source-manifest.json",
-  "support_level": "source_candidate",
+  "support_level": "source_and_package_candidate",
   "non_claims": [
     "not_installed",
     "not_loaded",

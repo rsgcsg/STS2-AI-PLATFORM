@@ -2,15 +2,15 @@
 
 ## Consolidation Baseline
 
-- import all three histories without squashing;
-- remove sibling source/build-output coupling;
-- establish independent component identity and one portable check entry;
-- publish a source-candidate Platform BOM.
+- Complete: import all three histories without squashing.
+- Complete: remove sibling source/build-output coupling.
+- Complete: establish independent component identity and one portable check entry.
+- Complete: publish a source/package-candidate Platform BOM.
 
 ## Consumer Cutover
 
-- package the Connector SDK from Platform;
-- make STPD consume a pinned public package instead of sibling source;
+- Complete: package the Connector SDK and Host Runtime from Platform.
+- Complete: make STPD consume pinned public packages instead of sibling source.
 - move generic bundle/profile verification only after parity tests;
 - retain ResearchTransition, corpus policy, splits, B0, serialization, models and
   training in STPD.
