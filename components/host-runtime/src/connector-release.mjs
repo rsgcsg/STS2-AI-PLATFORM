@@ -9,12 +9,31 @@ import path from "node:path";
 import { sha256File } from "./game-installation.mjs";
 
 export const CONNECTOR_RELEASE = Object.freeze({
-  version: "1.1.0-rc.1",
+  version: "1.2.0-rc.1",
   protocol: "1.0.0",
-  archive: "STS2-Connector-1.1.0-rc.1-host.tar.gz",
-  archiveSha256: "b2f7321dab36689c26133eb198955321722d5ca928f2b6a0b5a125c6df861de2",
-  baseUrl: "https://github.com/rsgcsg/STS2-Connector/releases/download/v1.1.0-rc.1"
+  sourceRevision: "f87fa33da081a614b170e1b9e7216c23fb8c527f",
+  artifactSha256: "f7ab74ee17bb331e6e37616a285a48d472e8986b8571404a208758364080bb89",
+  artifactMvid: "8f2073ac-b514-4d43-8837-24e3d96249ae",
+  archive: "STS2-Connector-1.2.0-rc.1-host.tar.gz",
+  archiveSha256: "9bfdfdd923577b0a2aa2374fb6c97b8b8d5c73a95d901b74e3b201a86435f0ca",
+  baseUrl: "https://github.com/rsgcsg/STS2-AI-PLATFORM/releases/download/connector/v1.2.0-rc.1"
 });
+
+export function assertConnectorReleaseIdentity(identity, release = CONNECTOR_RELEASE) {
+  const expected = {
+    source_revision: release.sourceRevision,
+    source_protocol: release.protocol,
+    artifact_sha256: release.artifactSha256,
+    artifact_mvid: release.artifactMvid
+  };
+  const errors = Object.entries(expected)
+    .filter(([key, value]) => identity?.[key] !== value)
+    .map(([key, value]) => `${key}: expected ${value}, got ${identity?.[key] ?? "missing"}`);
+  if (errors.length > 0) {
+    throw new Error(`Connector release identity mismatch: ${errors.join("; ")}`);
+  }
+  return identity;
+}
 
 function connectorModsDirectory(installation, platform = process.platform) {
   if (platform === "darwin") {
@@ -70,6 +89,13 @@ export async function installConnectorRelease({ installation, localRoot }) {
     extractArchive(archive, releaseRoot);
   }
   const payloadDll = path.join(releaseRoot, "payload", "STS2_MCP.dll");
+  const payloadIdentity = assertConnectorReleaseIdentity(JSON.parse(readFileSync(
+    path.join(releaseRoot, "payload", "build-identity.json"),
+    "utf8"
+  )));
+  if (sha256File(payloadDll) !== payloadIdentity.artifact_sha256) {
+    throw new Error("Connector release payload does not match its exact build identity");
+  }
   const installedDll = path.join(connectorModsDirectory(installation), "STS2_MCP.dll");
   const expectedSha = sha256File(payloadDll);
   const installedSha = sha256File(installedDll);
@@ -78,6 +104,8 @@ export async function installConnectorRelease({ installation, localRoot }) {
       status: "already_installed",
       connector_version: CONNECTOR_RELEASE.version,
       protocol: CONNECTOR_RELEASE.protocol,
+      source_revision: CONNECTOR_RELEASE.sourceRevision,
+      artifact_mvid: CONNECTOR_RELEASE.artifactMvid,
       installed_sha256: installedSha,
       rollback_backup: null,
       loaded: "non_claim"
@@ -86,6 +114,8 @@ export async function installConnectorRelease({ installation, localRoot }) {
   return {
     connector_version: CONNECTOR_RELEASE.version,
     protocol: CONNECTOR_RELEASE.protocol,
+    source_revision: CONNECTOR_RELEASE.sourceRevision,
+    artifact_mvid: CONNECTOR_RELEASE.artifactMvid,
     ...runInstaller(releaseRoot, ["--game-dir", installation.game_dir])
   };
 }

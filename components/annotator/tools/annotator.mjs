@@ -45,6 +45,21 @@ const exactConnectorOnlyModIds = ["STS2_MCP"];
 const command = process.argv[2] || "doctor";
 const args = process.argv.slice(3);
 
+function printHelp() {
+  console.log(`Usage: node tools/annotator.mjs <command> [options]
+
+Portable:
+  test | doctor
+
+Exact-game lifecycle:
+  build | check | deploy | rollback
+  prepare-mod-settings | prepare-live-connector-settings
+  launch | launch-live-connector | verify-loaded | admit-current-modset
+
+Evidence:
+  audit | export | pack-session`);
+}
+
 function run(executable, commandArgs, options = {}) {
   const result = spawnSync(executable, commandArgs, {
     cwd: options.cwd || root,
@@ -457,7 +472,11 @@ function build() {
 
 function test() {
   run("dotnet", ["test", "tests/STS2HumanAnnotator.Core.Tests/STS2HumanAnnotator.Core.Tests.csproj", "-c", "Release"]);
-  run("node", ["--test", path.join(root, "tools", "workstation-platform.test.mjs")]);
+  run("node", [
+    "--test",
+    path.join(root, "tools", "annotator-cli.test.mjs"),
+    path.join(root, "tools", "workstation-platform.test.mjs")
+  ]);
   run("node", [path.join(root, "tools", "check-boundary.mjs")]);
   run("node", [path.join(root, "tools", "check-docs.mjs")]);
 }
@@ -768,7 +787,8 @@ function check() {
 }
 
 try {
-  if (command === "doctor") doctor();
+  if (["--help", "-h", "help"].includes(command)) printHelp();
+  else if (command === "doctor") doctor();
   else if (command === "build") build();
   else if (command === "test") test();
   else if (command === "check") check();
