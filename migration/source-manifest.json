@@ -1,0 +1,34 @@
+{
+  "schema": "sts2.ai-platform/source-migration-1",
+  "created_at": "2026-08-24",
+  "method": "git_subtree_non_squash",
+  "history_semantics": "original_commit_ids_are_unchanged_ancestors",
+  "sources": [
+    {
+      "component_id": "connector",
+      "repository": "https://github.com/rsgcsg/STS2-Connector.git",
+      "source_revision": "2a14504fffe2cf6fc21298dcb5e4084b9ac27ef1",
+      "source_tree": "b6f0a0bda0cde5c60ecd6d5c19baa6419a3c65f0",
+      "target_path": "components/connector"
+    },
+    {
+      "component_id": "host-runtime",
+      "repository": "https://github.com/rsgcsg/STS2-headless.git",
+      "source_revision": "1deb5b7b3125e2308df7e8e44cb3b213e46e7f64",
+      "source_tree": "73629a2ddb4c4d032fe396d80f4aaeda87ae4e2f",
+      "target_path": "components/host-runtime"
+    },
+    {
+      "component_id": "annotator",
+      "repository": "https://github.com/rsgcsg/STS2-human-Annotator.git",
+      "source_revision": "82c5e8e60fdb08d876fd3726597608eb43a69a52",
+      "source_tree": "94619ee27334ceb01da384773669fcab9be9f569",
+      "target_path": "components/annotator"
+    }
+  ],
+  "evidence_non_claims": [
+    "source_import_is_not_artifact_equivalence",
+    "source_import_is_not_loaded_evidence",
+    "predecessor_live_evidence_does_not_qualify_platform_artifacts"
+  ]
+}

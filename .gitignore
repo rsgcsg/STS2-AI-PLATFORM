@@ -1,0 +1,15 @@
+.DS_Store
+.local/
+node_modules/
+**/node_modules/
+**/bin/
+**/obj/
+**/out/
+**/dist/
+*.user
+*.suo
+*.log
+*.dll
+*.pck
+*.pt
+*.safetensors
