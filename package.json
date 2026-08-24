@@ -1,6 +1,6 @@
 {
   "name": "sts2-ai-platform-workspace",
-  "version": "0.1.0",
+  "version": "0.2.0-rc.1",
   "private": true,
   "description": "Shared STS2 Host, Player Environment and human evidence platform",
   "license": "MIT",
@@ -11,7 +11,9 @@
   "workspaces": [
     "components/connector/sdk/typescript",
     "components/host-runtime",
-    "components/annotator"
+    "components/annotator",
+    "components/evidence",
+    "apps/workbench"
   ],
   "scripts": {
     "identity": "node tools/component-identity.mjs",
@@ -19,7 +21,7 @@
     "check:bom": "node --test tools/check-platform-bom.test.mjs && node tools/check-platform-bom.mjs",
     "check:boundaries": "node --test tools/check-boundaries.test.mjs && node tools/check-boundaries.mjs",
     "check:history": "node tools/check-migration-history.mjs",
-    "check:components": "npm --prefix components/connector run check && npm --prefix components/host-runtime run check && npm --prefix components/annotator run test",
+    "check:components": "npm --prefix components/connector run check && npm --prefix components/host-runtime run check && npm --prefix components/annotator run test && npm --prefix components/evidence run check && npm --prefix apps/workbench run test",
     "check": "npm run check:identity && npm run check:bom && npm run check:boundaries && npm run check:history && npm run check:components",
     "check:exact-game": "npm --prefix components/connector run build && npm --prefix components/annotator run check",
     "build": "npm --prefix components/connector run build && npm --prefix components/annotator run build",
@@ -48,6 +50,10 @@
     "annotator:launch-live-connector": "node components/annotator/tools/annotator.mjs launch-live-connector",
     "annotator:verify-loaded": "node components/annotator/tools/annotator.mjs verify-loaded",
     "annotator:audit": "node components/annotator/tools/annotator.mjs audit",
-    "annotator:pack-session": "node components/annotator/tools/annotator.mjs pack-session"
+    "annotator:pack-session": "node components/annotator/tools/annotator.mjs pack-session",
+    "evidence": "node tools/run-python-component.mjs components/evidence -m sts2_platform_evidence.cli",
+    "evidence:test": "npm --prefix components/evidence run test",
+    "workbench": "npm --prefix apps/workbench run start",
+    "workbench:test": "npm --prefix apps/workbench run test"
   }
 }

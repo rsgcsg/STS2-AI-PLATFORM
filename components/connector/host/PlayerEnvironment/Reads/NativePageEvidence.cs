@@ -41,7 +41,10 @@ internal sealed record PlayerEnvironmentNativePageRuntimeSnapshot(
     PlayerEnvironmentNativePageOwner Owner,
     PlayerEnvironmentHostIdentity Host,
     PlayerEnvironmentGameIdentity Game,
-    IReadOnlyList<string> ReadKinds);
+    IReadOnlyList<string> ReadKinds)
+{
+    internal SnapshotBuildResult? AuthoritativeBuild { get; init; }
+}
 
 internal sealed record PlayerEnvironmentNativePageResult(
     PlayerEnvironmentNativePageRead? Page,
@@ -60,7 +63,8 @@ internal interface IPlayerEnvironmentNativePageHost
 {
     bool HasOwnedPage { get; }
 
-    PlayerEnvironmentNativePageRuntimeSnapshot Capture();
+    PlayerEnvironmentNativePageRuntimeSnapshot Capture(
+        IReadOnlyCollection<string>? requiredReadKinds = null);
 
     PlayerEnvironmentNativePageResult Open(
         string kind,
@@ -133,7 +137,6 @@ internal sealed class PlayerEnvironmentNativePageSession
     public PlayerEnvironmentNativePageOperationResult Open(
         PlayerEnvironmentNativePageOpenRequest request)
     {
-        PlayerEnvironmentNativePageRuntimeSnapshot current = _environment.Capture();
         string profile = request.Profile ?? string.Empty;
         string kind = request.Kind ?? string.Empty;
         string expectedSnapshotId = request.ExpectedSnapshotId ?? string.Empty;
@@ -147,12 +150,15 @@ internal sealed class PlayerEnvironmentNativePageSession
             return Failure("native_page_evidence_kind_not_supported", "The requested native page is outside the fixed evidence profile.");
         if (ReservesInputOwner)
             return Failure("native_page_evidence_session_active", "Return or recover the active native-page evidence session first.");
+
+        string readKind = ReadKind(kind);
+        PlayerEnvironmentNativePageRuntimeSnapshot current = _environment.Capture(
+            new[] { readKind });
         if (!string.Equals(current.RuntimeInstanceId, expectedRuntime, StringComparison.Ordinal))
             return Failure("runtime_instance_changed", "The expected Host runtime instance is no longer loaded.");
         if (!string.Equals(current.SnapshotId, expectedSnapshotId, StringComparison.Ordinal))
             return Failure("stale_state", "The expected state token is no longer current; obtain a fresh observation before opening a native page.");
 
-        string readKind = ReadKind(kind);
         if (!current.ReadKinds.Contains(readKind, StringComparer.Ordinal))
             return Failure("native_page_evidence_not_available", "The matching Player Environment Read is not advertised for the exact current state.");
 
@@ -458,13 +464,13 @@ internal sealed class PlayerEnvironmentNativePageSession
 internal sealed class LiveNativePageEvidenceHost :
     IPlayerEnvironmentNativePageHost
 {
-    private readonly Func<SnapshotBuildResult> _capture;
+    private readonly Func<IReadOnlyCollection<string>?, SnapshotBuildResult> _capture;
     private readonly NativeEntityRegistry _entities;
     private object? _activePage;
-    private ILiveContext? _preContext;
+    private SnapshotBuildResult? _preBuild;
 
     public LiveNativePageEvidenceHost(
-        Func<SnapshotBuildResult> capture,
+        Func<IReadOnlyCollection<string>?, SnapshotBuildResult> capture,
         NativeEntityRegistry entities)
     {
         _capture = capture;
@@ -473,9 +479,10 @@ internal sealed class LiveNativePageEvidenceHost :
 
     public bool HasOwnedPage => _activePage != null;
 
-    public PlayerEnvironmentNativePageRuntimeSnapshot Capture()
+    public PlayerEnvironmentNativePageRuntimeSnapshot Capture(
+        IReadOnlyCollection<string>? requiredReadKinds = null)
     {
-        SnapshotBuildResult snapshot = _capture();
+        SnapshotBuildResult snapshot = _capture(requiredReadKinds);
         return new PlayerEnvironmentNativePageRuntimeSnapshot(
             snapshot.Snapshot.SnapshotId,
             snapshot.Snapshot.Session.RuntimeInstanceId,
@@ -488,7 +495,10 @@ internal sealed class LiveNativePageEvidenceHost :
             snapshot.Snapshot.Reads
                 .Where(entry => entry.TargetReferentId == null)
                 .Select(entry => entry.Kind)
-                .ToArray());
+                .ToArray())
+        {
+            AuthoritativeBuild = snapshot
+        };
     }
 
     public PlayerEnvironmentNativePageResult Open(
@@ -500,8 +510,13 @@ internal sealed class LiveNativePageEvidenceHost :
                 "native_page_already_owned",
                 "The evidence environment already owns a native page.");
 
-        SnapshotBuildResult snapshot = _capture();
-        _preContext = snapshot.HostObservation.Context;
+        _preBuild = pre.AuthoritativeBuild;
+        if (_preBuild == null)
+        {
+            return PlayerEnvironmentNativePageResult.Failure(
+                "native_page_prebuild_missing",
+                "The native page did not receive the authoritative pre-page build.");
+        }
         try
         {
             PlayerEnvironmentNativePageResult result = kind switch
@@ -550,7 +565,7 @@ internal sealed class LiveNativePageEvidenceHost :
 
     public PlayerEnvironmentNativePageResult Read(string kind)
     {
-        if (_activePage == null || _preContext == null)
+        if (_activePage == null || _preBuild == null)
             return PlayerEnvironmentNativePageResult.Failure(
                 "native_page_not_owned",
                 "This runtime no longer owns the exact native page.");
@@ -618,7 +633,7 @@ internal sealed class LiveNativePageEvidenceHost :
     public void Reset()
     {
         _activePage = null;
-        _preContext = null;
+        _preBuild = null;
     }
 
     private PlayerEnvironmentNativePageResult OpenRunDeck()
@@ -750,10 +765,17 @@ internal sealed class LiveNativePageEvidenceHost :
     {
         string readKind =
             PlayerEnvironmentNativePageSession.ReadKind(kind);
-        PlayerReadBuildResult built = PlayerVisibleReadBuilder.Build(
-            readKind,
-            _preContext!,
-            _entities);
+        SnapshotBuildResult? preBuild = _preBuild;
+        if (preBuild == null
+            || !preBuild.ReadBuilds.TryGetValue(
+                readKind,
+                out PlayerReadBuildResult? built)
+            || built == null)
+        {
+            return PlayerEnvironmentNativePageResult.Failure(
+                "native_page_read_materialization_missing",
+                "The authoritative pre-page build did not materialize the requested read.");
+        }
         if (built.Draft == null)
         {
             return PlayerEnvironmentNativePageResult.Failure(

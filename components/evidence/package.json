@@ -1,0 +1,12 @@
+{
+  "name": "@rsgcsg/sts2-platform-evidence-workspace",
+  "version": "0.1.0-rc.1",
+  "private": true,
+  "description": "Platform Evidence Python component workspace wrapper",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "test": "node ../../tools/run-python-component.mjs components/evidence -m unittest discover -s tests -v",
+    "check": "npm run test"
+  }
+}

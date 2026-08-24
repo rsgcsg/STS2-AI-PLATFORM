@@ -21,4 +21,7 @@ public static class EvidenceIdentity
     public static string Sha256Text(string value) =>
         Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)))
             .ToLowerInvariant();
+
+    public static string Sha256Bytes(ReadOnlySpan<byte> value) =>
+        Convert.ToHexString(SHA256.HashData(value)).ToLowerInvariant();
 }

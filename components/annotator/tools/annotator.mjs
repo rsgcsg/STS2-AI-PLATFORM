@@ -743,7 +743,9 @@ function packSession() {
   if (source.worktree !== "clean")
     throw new Error("Commit or remove Annotator worktree changes before evidence packing.");
   const directory = path.resolve(args[0] || readJson(runtimeStatus).recording_directory);
-  const profile = path.resolve(option("--profile"));
+  const manifest = readJson(path.join(directory, "recording-manifest.json"));
+  const v2 = manifest.schema === "sts2.human-annotator/recording-manifest-2";
+  const profile = v2 ? null : path.resolve(option("--profile"));
   const worker = option("--worker");
   const campaign = option("--campaign");
   if (!args.includes("--attest-human-origin"))
@@ -757,17 +759,10 @@ function packSession() {
     if (path.resolve(status.recording_directory) === directory && processAlive(status.process_id))
       throw new Error("The active recording session must be closed before packing.");
   }
-  run("dotnet", [
-    toolDll,
-    "pack-session",
-    directory,
-    profile,
-    worker,
-    campaign,
-    output,
-    source.head,
-    "human_origin_attested"
-  ]);
+  const command = v2
+    ? [toolDll, "pack-session-v2", directory, worker, campaign, output, source.head, "human_origin_attested"]
+    : [toolDll, "pack-session", directory, profile, worker, campaign, output, source.head, "human_origin_attested"];
+  run("dotnet", command);
 }
 
 function rollback() {

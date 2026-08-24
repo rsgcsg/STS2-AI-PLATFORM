@@ -49,7 +49,9 @@ export function collectBoundaryErrors(workspaceRoot = root) {
   const expectedWorkspaces = [
     "components/connector/sdk/typescript",
     "components/host-runtime",
-    "components/annotator"
+    "components/annotator",
+    "components/evidence",
+    "apps/workbench"
   ];
   if (JSON.stringify(rootPackage.workspaces) !== JSON.stringify(expectedWorkspaces)) {
     errors.push("package.json: workspace dependency graph is not the admitted Platform graph");
@@ -105,7 +107,9 @@ export function collectBoundaryErrors(workspaceRoot = root) {
     "components/host-runtime/src",
     "components/host-runtime/tools",
     "components/annotator/src",
-    "components/annotator/tools"
+    "components/annotator/tools",
+    "components/evidence/sts2_platform_evidence",
+    "apps/workbench/src"
   ]) {
     visit(workspaceRoot, path.join(workspaceRoot, relative), errors);
   }

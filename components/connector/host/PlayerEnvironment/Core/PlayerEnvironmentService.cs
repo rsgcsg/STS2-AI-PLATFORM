@@ -15,7 +15,8 @@ namespace STS2Connector.PlayerEnvironment;
 internal sealed record SnapshotBuildResult(
     PlayerEnvironmentSnapshot Snapshot,
     LiveObservation HostObservation,
-    IReadOnlyDictionary<string, PlayerEnvironmentNativeBinding> Bindings);
+    IReadOnlyDictionary<string, PlayerEnvironmentNativeBinding> Bindings,
+    IReadOnlyDictionary<string, PlayerReadBuildResult> ReadBuilds);
 
 internal sealed record PlayerEnvironmentNativeBinding(
     NativeUiBoundAction NativeAction,
@@ -52,7 +53,9 @@ internal static partial class PlayerEnvironmentService
     private static readonly Lazy<PlayerEnvironmentNativePageSession> NativePageEvidenceLazy =
         new(() => new PlayerEnvironmentNativePageSession(
             new LiveNativePageEvidenceHost(
-                () => BuildSnapshot(suppressNativePageEvidence: false),
+                requiredReadKinds => BuildSnapshot(
+                    suppressNativePageEvidence: false,
+                    requiredReadKinds: requiredReadKinds),
                 Entities)));
     private static PlayerEnvironmentNativePageSession NativePageEvidence =>
         NativePageEvidenceLazy.Value;

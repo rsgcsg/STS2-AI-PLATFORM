@@ -15,7 +15,8 @@ namespace STS2Connector.PlayerEnvironment;
 internal static partial class PlayerEnvironmentService
 {
     internal static SnapshotBuildResult BuildSnapshot(
-        bool suppressNativePageEvidence = true)
+        bool suppressNativePageEvidence = true,
+        IReadOnlyCollection<string>? requiredReadKinds = null)
     {
         GameBuildIdentity game = EnvironmentIdentityRuntime.ReadGame();
         LiveObservation? sourceFreeSurface =
@@ -47,6 +48,8 @@ internal static partial class PlayerEnvironmentService
             ? PersistentVisibleStateReader.Build(Entities)
             : new PersistentVisibleStateBuildResult(false, null, null);
         draft = LiveObservationReader.ApplyMissingPersistentStatePolicy(draft, shared);
+        IReadOnlyDictionary<string, PlayerReadBuildResult> readBuilds =
+            BuildRequiredReads(requiredReadKinds, draft.Context);
         bool shopCatalogAvailable = ShopSurfaceFacts.TryGetCurrent(out _, out _, out _);
         PlayerVisibilityProjection information = PlayerVisibilityCatalog.Build(
             draft,
@@ -178,8 +181,28 @@ internal static partial class PlayerEnvironmentService
         return new SnapshotBuildResult(
             snapshot,
             draft,
-            projected.Bindings);
+            projected.Bindings,
+            readBuilds);
     }
+
+    private static IReadOnlyDictionary<string, PlayerReadBuildResult> BuildRequiredReads(
+        IReadOnlyCollection<string>? requiredReadKinds,
+        ILiveContext context) => MaterializeRequiredReads(
+            requiredReadKinds,
+            kind => PlayerVisibleReadBuilder.Build(kind, context, Entities));
+
+    internal static IReadOnlyDictionary<string, PlayerReadBuildResult> MaterializeRequiredReads(
+        IReadOnlyCollection<string>? requiredReadKinds,
+        Func<string, PlayerReadBuildResult> build) =>
+        requiredReadKinds == null
+            ? new Dictionary<string, PlayerReadBuildResult>(StringComparer.Ordinal)
+            : requiredReadKinds
+                .Where(kind => !string.IsNullOrWhiteSpace(kind))
+                .Distinct(StringComparer.Ordinal)
+                .ToDictionary(
+                    kind => kind,
+                    build,
+                    StringComparer.Ordinal);
 
     internal static bool CanPublishMutationAuthority(string readiness) =>
         string.Equals(readiness, "ready", StringComparison.Ordinal);

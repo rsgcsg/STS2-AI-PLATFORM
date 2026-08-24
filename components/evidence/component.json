@@ -1,0 +1,13 @@
+{
+  "component_id": "sts2-platform-evidence",
+  "name": "STS2 Platform Evidence",
+  "version": "0.1.0-rc.1",
+  "schema_version": 1,
+  "runtime": "python3.11",
+  "entrypoint": "sts2_platform_evidence.cli:main",
+  "core": "stdlib_only",
+  "non_claims": [
+    "Verification does not prove human origin or non-interference.",
+    "Content checksums do not make the source recording cryptographically append-only."
+  ]
+}

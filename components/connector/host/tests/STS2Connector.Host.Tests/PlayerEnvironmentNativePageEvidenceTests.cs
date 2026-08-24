@@ -69,6 +69,9 @@ public sealed class PlayerEnvironmentNativePageEvidenceTests
         Assert.False(opened.EntersActionLedger);
         Assert.True(machine.ReservesInputOwner);
         Assert.Equal("run_deck", opened.Page?.ReadKind);
+        Assert.Equal(
+            new[] { STS2Connector.LiveHost.PlayerVisibleReadBuilder.RunDeckKind },
+            Assert.Single(environment.RequiredReadKinds));
 
         PlayerEnvironmentNativePageOperationResult wrongRuntime = machine.Read(
             opened.SessionId,
@@ -211,6 +214,7 @@ public sealed class PlayerEnvironmentNativePageEvidenceTests
         public int ReadCount { get; private set; }
         public int ReturnCount { get; private set; }
         public int ResetCount { get; private set; }
+        public List<string[]> RequiredReadKinds { get; } = new();
         public bool FailFirstReturn { get; init; }
         public bool FailOpenWithOwnedPage { get; init; }
         public bool ThrowOnPostOpenCapture { get; init; }
@@ -218,8 +222,11 @@ public sealed class PlayerEnvironmentNativePageEvidenceTests
         public bool HasOwnedPage { get; private set; }
         private bool _throwNextCapture;
 
-        public PlayerEnvironmentNativePageRuntimeSnapshot Capture()
+        public PlayerEnvironmentNativePageRuntimeSnapshot Capture(
+            IReadOnlyCollection<string>? requiredReadKinds = null)
         {
+            if (requiredReadKinds != null)
+                RequiredReadKinds.Add(requiredReadKinds.ToArray());
             if (_throwNextCapture)
             {
                 _throwNextCapture = false;

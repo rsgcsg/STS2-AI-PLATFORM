@@ -25,6 +25,13 @@ public sealed record ProcessLocalNativeMatch(
     string Evidence,
     string? Detail);
 
+public sealed record ProcessLocalReadCapture(
+    string Kind,
+    string Status,
+    PlayerEnvironmentReadResponse? Read,
+    string? ErrorCode,
+    string? Detail);
+
 /// <summary>
 /// One immutable public Snapshot plus the exact Host-local bindings from the
 /// same observation. It can correlate an observed native action but cannot
@@ -41,7 +48,8 @@ public sealed class ProcessLocalNativeWitnessFrame
         string sourceDigest,
         bool externalControllerActive,
         IReadOnlyDictionary<string, object> exactEntities,
-        IReadOnlySet<string> exactBindingIds)
+        IReadOnlySet<string> exactBindingIds,
+        IReadOnlyDictionary<string, ProcessLocalReadCapture>? reads = null)
     {
         Snapshot = snapshot;
         Capabilities = capabilities;
@@ -49,6 +57,7 @@ public sealed class ProcessLocalNativeWitnessFrame
         ExternalControllerActive = externalControllerActive;
         _exactEntities = exactEntities;
         _exactBindingIds = exactBindingIds;
+        Reads = reads ?? new Dictionary<string, ProcessLocalReadCapture>(StringComparer.Ordinal);
     }
 
     public PlayerEnvironmentSnapshot Snapshot { get; }
@@ -58,6 +67,8 @@ public sealed class ProcessLocalNativeWitnessFrame
     public string SourceDigest { get; }
 
     public bool ExternalControllerActive { get; }
+
+    public IReadOnlyDictionary<string, ProcessLocalReadCapture> Reads { get; }
 
     public ProcessLocalNativeMatch Resolve(ProcessLocalObservedAction observed)
     {
@@ -153,23 +164,73 @@ public sealed class ProcessLocalNativeWitnessFrame
 /// </summary>
 public static class PlayerEnvironmentNativeWitness
 {
-    public static ProcessLocalNativeWitnessFrame Capture()
+    public static ProcessLocalNativeWitnessFrame Capture(
+        IReadOnlyCollection<string>? requiredReadKinds = null)
     {
         SnapshotBuildResult frame =
-            STS2Connector.PlayerEnvironment.PlayerEnvironmentService.BuildSnapshot();
+            STS2Connector.PlayerEnvironment.PlayerEnvironmentService.BuildSnapshot(
+                requiredReadKinds: requiredReadKinds);
         HashSet<string> referentIds = frame.Snapshot.BoundActions.Actions
             .SelectMany(action => action.Arguments.Select(argument => argument.ReferentId)
                 .Append(action.SubjectReferentId))
             .Where(referentId => referentId != null)
             .Cast<string>()
             .ToHashSet(StringComparer.Ordinal);
+        IReadOnlyDictionary<string, ProcessLocalReadCapture> reads =
+            MaterializeReads(frame, requiredReadKinds);
         return new ProcessLocalNativeWitnessFrame(
             frame.Snapshot,
             STS2Connector.PlayerEnvironment.PlayerEnvironmentService.GetCapabilities(),
             ReadAssemblyMetadata("PlayerEnvironmentSourceDigest"),
             MutationControlRuntime.Snapshot().Controller != null,
             NativeUiRuntime.Entities.CaptureExactReferences(referentIds),
-            frame.Bindings.Keys.ToHashSet(StringComparer.Ordinal));
+            frame.Bindings.Keys.ToHashSet(StringComparer.Ordinal),
+            reads);
+    }
+
+    private static IReadOnlyDictionary<string, ProcessLocalReadCapture> MaterializeReads(
+        SnapshotBuildResult frame,
+        IReadOnlyCollection<string>? requiredReadKinds)
+    {
+        if (requiredReadKinds == null || requiredReadKinds.Count == 0)
+            return new Dictionary<string, ProcessLocalReadCapture>(StringComparer.Ordinal);
+        var result = new Dictionary<string, ProcessLocalReadCapture>(StringComparer.Ordinal);
+        foreach (string kind in requiredReadKinds
+                     .Where(kind => !string.IsNullOrWhiteSpace(kind))
+                     .Distinct(StringComparer.Ordinal))
+        {
+            string readId = $"read:{kind}";
+            PlayerEnvironmentReadResolution resolution =
+                STS2Connector.PlayerEnvironment.PlayerEnvironmentService.ResolveReadMaterialization(
+                    frame.Snapshot,
+                    readId,
+                    frame.Snapshot.SnapshotId,
+                    frame.ReadBuilds);
+            if (resolution.ErrorCode != null)
+            {
+                result[kind] = new ProcessLocalReadCapture(
+                    kind,
+                    resolution.ErrorCode == "read_not_available" ? "not_available" : "failed",
+                    null,
+                    resolution.ErrorCode,
+                    resolution.Detail);
+                continue;
+            }
+            PlayerEnvironmentReadResult built =
+                STS2Connector.PlayerEnvironment.PlayerEnvironmentService.BuildResolvedRead(
+                    frame,
+                    resolution,
+                    frame.Snapshot.SnapshotId);
+            result[kind] = built.Read == null
+                ? new ProcessLocalReadCapture(
+                    kind,
+                    "failed",
+                    null,
+                    built.ErrorCode ?? "read_materialization_failed",
+                    built.Detail)
+                : new ProcessLocalReadCapture(kind, "materialized", built.Read, null, null);
+        }
+        return result;
     }
 
     private static string ReadAssemblyMetadata(string key) =>

@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rsgcsg-sts2-platform-evidence"
+version = "0.1.0-rc.1"
+description = "Typed, fail-closed evidence verification and transfer primitives."
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+sts2-evidence = "sts2_platform_evidence.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.setuptools.package-data]
+sts2_platform_evidence = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

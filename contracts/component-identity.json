@@ -27,6 +27,21 @@
         "src/STS2HumanAnnotator.Core",
         "docs/DATA_CONTRACT.md"
       ]
+    },
+    "evidence": {
+      "path": "components/evidence",
+      "version_file": "component.json",
+      "contract_paths": [
+        "sts2_platform_evidence"
+      ]
+    },
+    "workbench": {
+      "path": "apps/workbench",
+      "version_file": "package.json",
+      "contract_paths": [
+        "src/workbench-service.mjs",
+        "src/server.mjs"
+      ]
     }
   }
 }

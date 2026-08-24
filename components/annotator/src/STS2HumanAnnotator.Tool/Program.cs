@@ -10,6 +10,9 @@ return args switch
     ["pack-session", string directory, string profile, string worker, string campaign,
         string output, string sourceRevision, "human_origin_attested"] =>
         PackSession(directory, profile, worker, campaign, output, sourceRevision),
+    ["pack-session-v2", string directory, string worker, string campaign,
+        string output, string sourceRevision, "human_origin_attested"] =>
+        PackSessionV2(directory, worker, campaign, output, sourceRevision),
     ["identity", string assembly] => Identity(assembly),
     _ => Usage()
 };
@@ -34,20 +37,50 @@ static int PackSession(
     return 0;
 }
 
+static int PackSessionV2(
+    string directory,
+    string worker,
+    string campaign,
+    string output,
+    string sourceRevision)
+{
+    SessionBundleResult result = V2SessionBundlePacker.Pack(
+        directory,
+        worker,
+        campaign,
+        output,
+        sourceRevision,
+        humanOriginAttested: true);
+    Console.WriteLine(JsonSerializer.Serialize(result, EvidenceJson.IndentedOptions));
+    return 0;
+}
+
 static int Audit(string directory)
 {
-    RecordingAuditResult audit = RecordingAuditor.Audit(directory);
+    RecordingAuditResult audit = IsV2(directory)
+        ? V2RecordingAuditor.Audit(directory)
+        : RecordingAuditor.Audit(directory);
     Console.WriteLine(JsonSerializer.Serialize(audit, EvidenceJson.IndentedOptions));
     return audit.Status == "pass" ? 0 : 1;
 }
 
 static int Export(string directory, string output)
 {
-    long count = RecordingAuditor.ExportAdmitted(directory, output);
+    long count = IsV2(directory)
+        ? V2RecordingAuditor.ExportAdmitted(directory, output)
+        : RecordingAuditor.ExportAdmitted(directory, output);
     Console.WriteLine(JsonSerializer.Serialize(
         new { status = "pass", exported_records = count, output = Path.GetFullPath(output) },
         EvidenceJson.IndentedOptions));
     return 0;
+}
+
+static bool IsV2(string directory)
+{
+    using JsonDocument document = JsonDocument.Parse(
+        File.ReadAllText(Path.Combine(directory, "recording-manifest.json")));
+    return document.RootElement.TryGetProperty("schema", out JsonElement schema)
+           && schema.GetString() == HumanRecorderV2Contract.ManifestSchema;
 }
 
 static int Identity(string assembly)
@@ -70,6 +103,6 @@ static int Identity(string assembly)
 
 static int Usage()
 {
-    Console.Error.WriteLine("usage: sts2-human-annotator audit <recording-dir> | export <recording-dir> <output.jsonl> | pack-session <recording-dir> <profile.json> <worker-id> <campaign-id> <output-dir> <source-revision> human_origin_attested | identity <assembly>");
+    Console.Error.WriteLine("usage: sts2-human-annotator audit <recording-dir> | export <recording-dir> <output.jsonl> | pack-session <recording-dir> <profile.json> <worker-id> <campaign-id> <output-dir> <source-revision> human_origin_attested | pack-session-v2 <recording-dir> <worker-id> <campaign-id> <output-dir> <source-revision> human_origin_attested | identity <assembly>");
     return 2;
 }

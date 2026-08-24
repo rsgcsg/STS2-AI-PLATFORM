@@ -12,6 +12,12 @@ using STS2Connector.NativeUi;
 
 namespace STS2Connector.PlayerEnvironment;
 
+internal sealed record PlayerEnvironmentReadResolution(
+    PlayerEnvironmentReadOpportunity? Opportunity,
+    PlayerReadBuildResult? Build,
+    string? ErrorCode,
+    string? Detail);
+
 internal static partial class PlayerEnvironmentService
 {
     public static PlayerEnvironmentReadResult Read(
@@ -19,43 +25,35 @@ internal static partial class PlayerEnvironmentService
         string expectedSnapshotId)
     {
         SnapshotBuildResult snapshot =
-            BuildSnapshot();
+            BuildSnapshot(requiredReadKinds: RequiredReadKindsFor(readId));
         PlayerEnvironmentSnapshot observation = snapshot.Snapshot;
-        if (!string.Equals(observation.SnapshotId, expectedSnapshotId, StringComparison.Ordinal))
-        {
-            return new PlayerEnvironmentReadResult(
-                null,
-                "stale_state",
-                "The expected snapshot is no longer current; obtain a fresh Player Environment observation.");
-        }
-        PlayerEnvironmentReadOpportunity? opportunity = observation.Reads.SingleOrDefault(entry =>
-            string.Equals(entry.ReadId, readId, StringComparison.Ordinal));
-        if (opportunity == null)
-        {
-            return new PlayerEnvironmentReadResult(
-                null,
-                "read_not_available",
-                "This read is not in the current player-visible read catalog.");
-        }
+        PlayerEnvironmentReadResolution resolution = ResolveReadMaterialization(
+            observation,
+            readId,
+            expectedSnapshotId,
+            snapshot.ReadBuilds);
+        if (resolution.ErrorCode != null)
+            return new PlayerEnvironmentReadResult(null, resolution.ErrorCode, resolution.Detail);
 
+        return BuildResolvedRead(snapshot, resolution, expectedSnapshotId);
+    }
+
+    internal static PlayerEnvironmentReadResult BuildResolvedRead(
+        SnapshotBuildResult snapshot,
+        PlayerEnvironmentReadResolution resolution,
+        string expectedSnapshotId)
+    {
+        PlayerEnvironmentReadOpportunity opportunity = resolution.Opportunity!;
         if (opportunity.TargetReferentId != null)
             return ReadLinkedDetail(snapshot, opportunity, expectedSnapshotId);
-
-        PlayerReadBuildResult built = PlayerVisibleReadBuilder.Build(
-            opportunity.Kind,
-            snapshot.HostObservation.Context,
-            Entities);
-        if (built.Draft == null)
-            return new PlayerEnvironmentReadResult(null, built.ErrorCode, built.Detail);
-
-        PlayerReadDraft draft = built.Draft;
+        PlayerReadDraft draft = resolution.Build!.Draft!;
         return new PlayerEnvironmentReadResult(
             new PlayerEnvironmentReadResponse(
                 PlayerEnvironmentContract.ProtocolVersion,
                 PlayerEnvironmentContract.ReadSchema,
-                readId,
+                opportunity.ReadId,
                 expectedSnapshotId,
-                observation.SnapshotId,
+                snapshot.Snapshot.SnapshotId,
                 DateTimeOffset.UtcNow,
                 draft.Kind,
                 null,
@@ -64,10 +62,73 @@ internal static partial class PlayerEnvironmentService
                 PlayerEnvironmentContract.ReadContentSchema(draft.Kind),
                 JsonSerializer.SerializeToNode(draft.Content, draft.Content.GetType(), ConnectorMod._jsonOptions) ?? new JsonObject(),
                 ToCompleteness(draft.Completeness, opportunity.HiddenByPolicy),
-                observation.Session,
-                observation.InformationPolicy),
+                snapshot.Snapshot.Session,
+                snapshot.Snapshot.InformationPolicy),
             null,
             null);
+    }
+
+    internal static PlayerEnvironmentReadResolution ResolveReadMaterialization(
+        PlayerEnvironmentSnapshot observation,
+        string readId,
+        string expectedSnapshotId,
+        IReadOnlyDictionary<string, PlayerReadBuildResult> readBuilds)
+    {
+        if (!string.Equals(observation.SnapshotId, expectedSnapshotId, StringComparison.Ordinal))
+        {
+            return new PlayerEnvironmentReadResolution(
+                null,
+                null,
+                "stale_state",
+                "The expected snapshot is no longer current; obtain a fresh Player Environment observation.");
+        }
+
+        PlayerEnvironmentReadOpportunity? opportunity = observation.Reads.SingleOrDefault(entry =>
+            string.Equals(entry.ReadId, readId, StringComparison.Ordinal));
+        if (opportunity == null)
+        {
+            return new PlayerEnvironmentReadResolution(
+                null,
+                null,
+                "read_not_available",
+                "This read is not in the current player-visible read catalog.");
+        }
+
+        if (opportunity.TargetReferentId != null)
+            return new PlayerEnvironmentReadResolution(opportunity, null, null, null);
+
+        if (!readBuilds.TryGetValue(opportunity.Kind, out PlayerReadBuildResult? build)
+            || build == null)
+        {
+            return new PlayerEnvironmentReadResolution(
+                opportunity,
+                null,
+                "read_materialization_missing",
+                "The current authoritative snapshot did not materialize the advertised read.");
+        }
+
+        if (build.Draft == null)
+        {
+            return new PlayerEnvironmentReadResolution(
+                opportunity,
+                null,
+                build.ErrorCode ?? "read_binding_failed",
+                build.Detail ?? "The current authoritative snapshot could not materialize the advertised read.");
+        }
+
+        return new PlayerEnvironmentReadResolution(opportunity, build, null, null);
+    }
+
+    private static IReadOnlyCollection<string> RequiredReadKindsFor(string readId)
+    {
+        const string prefix = "read:";
+        if (!readId.StartsWith(prefix, StringComparison.Ordinal))
+            return Array.Empty<string>();
+
+        string kind = readId[prefix.Length..];
+        return kind.Length > 0 && !kind.Contains(':', StringComparison.Ordinal)
+            ? new[] { kind }
+            : Array.Empty<string>();
     }
 
     private static PlayerEnvironmentReadResult ReadLinkedDetail(
