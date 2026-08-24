@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { calculateSourceDigest } from "../src/project-identity.mjs";
+import { calculateSourceDigest, readProjectIdentity } from "../src/project-identity.mjs";
 
 test("source digest is deterministic and ignores local evidence", () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "sts2-headless-source-"));
@@ -33,4 +33,21 @@ test("git source digest ignores generated files while retaining untracked source
 
   writeFileSync(path.join(root, "new-source.txt"), "untracked but relevant");
   assert.notDeepEqual(calculateSourceDigest(root), first);
+});
+
+test("installed package identity is exact without requiring a parent Git checkout", () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "sts2-host-runtime-package-"));
+  writeFileSync(path.join(root, "package.json"), JSON.stringify({
+    name: "@rsgcsg/sts2-host-runtime",
+    version: "1.1.0-rc.2"
+  }));
+  writeFileSync(path.join(root, "runtime.mjs"), "export const ready = true;\n");
+
+  const identity = readProjectIdentity(root);
+  assert.equal(identity.distribution_kind, "installed_package");
+  assert.equal(identity.package_name, "@rsgcsg/sts2-host-runtime");
+  assert.equal(identity.version, "1.1.0-rc.2");
+  assert.equal(identity.source_revision, null);
+  assert.equal(identity.component_tree_revision, null);
+  assert.match(identity.source_digest_sha256, /^[a-f0-9]{64}$/u);
 });

@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -49,6 +51,60 @@ const forbidden = [...files].filter((file) =>
 if (forbidden.length > 0) {
   throw new Error(`Host Runtime package contains forbidden files: ${forbidden.join(", ")}`);
 }
+
+const smokeRoot = mkdtempSync(path.join(os.tmpdir(), "sts2-host-runtime-package-smoke-"));
+const packResult = typeof npmExecPath === "string" && npmExecPath.length > 0
+  ? spawnSync(process.execPath, [npmExecPath, "pack", "--pack-destination", smokeRoot, "--json"], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: "pipe"
+    })
+  : spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", [
+      "pack",
+      "--pack-destination",
+      smokeRoot,
+      "--json"
+    ], {
+      cwd: root,
+      encoding: "utf8",
+      stdio: "pipe",
+      shell: process.platform === "win32"
+    });
+if (packResult.error) throw packResult.error;
+if (packResult.status !== 0) throw new Error(packResult.stderr || packResult.stdout);
+const packed = JSON.parse(packResult.stdout)[0];
+const tarball = path.join(smokeRoot, packed.filename);
+const installResult = spawnSync(
+  process.platform === "win32" ? "npm.cmd" : "npm",
+  ["install", tarball, "--ignore-scripts", "--no-audit", "--no-fund"],
+  {
+    cwd: smokeRoot,
+    encoding: "utf8",
+    stdio: "pipe",
+    shell: process.platform === "win32"
+  }
+);
+if (installResult.error) throw installResult.error;
+if (installResult.status !== 0) {
+  throw new Error(installResult.stderr || installResult.stdout);
+}
+const installedRoot = path.join(smokeRoot, "node_modules", "@rsgcsg", "sts2-host-runtime");
+const importResult = spawnSync(process.execPath, [
+  "--input-type=module",
+  "--eval",
+  [
+    `import { readProjectIdentity } from ${JSON.stringify(path.join(installedRoot, "src/project-identity.mjs"))};`,
+    `const identity = readProjectIdentity(${JSON.stringify(installedRoot)});`,
+    "if (identity.distribution_kind !== 'installed_package') process.exit(3);",
+    "console.log(JSON.stringify(identity));"
+  ].join("\n")
+], { encoding: "utf8", stdio: "pipe" });
+if (importResult.error) throw importResult.error;
+if (importResult.status !== 0) {
+  throw new Error(importResult.stderr || importResult.stdout);
+}
+const installedIdentity = JSON.parse(importResult.stdout);
+const installedPackage = JSON.parse(readFileSync(path.join(installedRoot, "package.json"), "utf8"));
 console.log(JSON.stringify({
   status: "host_runtime_package_clean",
   name: report.name,
@@ -57,5 +113,11 @@ console.log(JSON.stringify({
   file_count: files.size,
   packed_size: report.size,
   unpacked_size: report.unpackedSize,
-  integrity: report.integrity
+  integrity: report.integrity,
+  standalone_smoke: {
+    package_name: installedPackage.name,
+    package_version: installedPackage.version,
+    distribution_kind: installedIdentity.distribution_kind,
+    source_digest_sha256: installedIdentity.source_digest_sha256
+  }
 }, null, 2));
