@@ -16,21 +16,21 @@
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
-      "component_tree_revision": "6de1440e924527966c6e53cff8bc115e2398079d",
-      "component_source_digest_sha256": "8d23f1015a7b0df800f78a7545da5c86bfee521131c4391b398c884ff917918f"
+      "source_revision": "793597fa559c839ddfa0a9cad06f1df7088c1e22",
+      "component_tree_revision": "12788da62493e9acab4519f9717b178b2b024fd0",
+      "component_source_digest_sha256": "897c23365e5c89b2d3e829d18b8174373ba9b410d6c32a59e76cd00fc3b0541b"
     },
     "evidence": {
       "version": "0.1.0-rc.1",
-      "source_revision": "e0dc260c149c2c58ff5ce7d923db18ca7bb10a1b",
-      "component_tree_revision": "f8dabbbd8c121aa2bd6f806c80ab695cd589318f",
-      "component_source_digest_sha256": "9e9f02b28a518780aab69cb1d1dc17dbccd935c398c2cb63d3142605388ed4d6"
+      "source_revision": "5154be6881d2b307e42b70f9b0399b94754db8be",
+      "component_tree_revision": "ff5596c0903cf042905267e5923466ee50710a61",
+      "component_source_digest_sha256": "3e3875f211b1a7fb6783e7f2327de17193ec6aecbdaefb8abd810a3daeeae6f4"
     },
     "workbench": {
       "version": "0.1.0-rc.1",
-      "source_revision": "02b62d22346594716098c482da0d4e040554d42a",
-      "component_tree_revision": "120a08f7b18c3678636a7624d9d60e408893566b",
-      "component_source_digest_sha256": "79d02b4c623d971af2aa349f677eaa041a94b982890ef8b4c2aafbc09047c472"
+      "source_revision": "5154be6881d2b307e42b70f9b0399b94754db8be",
+      "component_tree_revision": "37003a8bbfb12313805b4baf16bec60990da7584",
+      "component_source_digest_sha256": "f2455cd712dd0a3c8eca1c8823f911579cdf2d167fb7d2225cc88a94f5946fb4"
     },
     "player_environment_protocol": "1.0.0",
     "typescript_sdk": "1.1.0-rc.1"
@@ -56,7 +56,7 @@
     }
   },
   "external_consumer_cutovers": {
-    "stpd": "ab13f54c9ba9f7fb44537060b6a1227f73c27b03"
+    "stpd": "25b5306225bd2c4ea39ddc678e916dd483d5b37e"
   },
   "exact_runtime_candidate": {
     "evidence_generation": "v1_runtime_seal_predecessor",
@@ -118,7 +118,7 @@
     }
   },
   "current_v2_candidate": {
-    "status": "loaded_pending_native_human_validation",
+    "status": "native_human_read_rich_combat_verified_selector_pending",
     "platform": "darwin",
     "architecture": "arm64",
     "game": {
@@ -140,6 +140,9 @@
     "annotator": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
       "source_digest_sha256": "8d23f1015a7b0df800f78a7545da5c86bfee521131c4391b398c884ff917918f",
+      "current_component_source_revision": "793597fa559c839ddfa0a9cad06f1df7088c1e22",
+      "current_component_source_digest_sha256": "897c23365e5c89b2d3e829d18b8174373ba9b410d6c32a59e76cd00fc3b0541b",
+      "source_relation": "loaded_native_artifact_precedes_cli_only_evidence_path_and_closeout_docs",
       "artifact_sha256": "4e911dd616afa55753a5320a42c11ce0cebe9d4d10fefd66c8f8a431884cf105",
       "artifact_mvid": "692e9dd9-4bc7-4203-ae12-511ef95a5331",
       "build": "pass",
@@ -158,33 +161,68 @@
       "connector_host_tests": 142,
       "connector_sdk_tests": 7,
       "annotator_core_tests": 15,
-      "annotator_cli_tests": 11,
-      "evidence_tests": 12,
-      "workbench_tests": 5,
+      "annotator_cli_tests": 12,
+      "evidence_tests": 14,
+      "workbench_tests": 6,
       "stpd_tests": 153,
       "evidence_wheel_build_and_fresh_install": "pass",
       "stpd_public_git_dependency": "pass"
     },
     "native_human_gate": {
-      "status": "pending",
-      "required": [
-        "targeted_play",
-        "untargeted_play",
-        "end_turn",
-        "generated_card_choice"
-      ]
+      "status": "partial_pass",
+      "runtime_instance_id": "abb6b2d81b3d44f1876e88d89324f155",
+      "session_id": "session-20260824T153454Z-3005d3b9cea9425ab0c615f0bd961a39",
+      "audit_status": "pass",
+      "admitted_records": 30,
+      "invalidations": 5,
+      "human_origin": "owner_attested_not_machine_proven",
+      "ordinary_combat": {
+        "status": "pass",
+        "targeted_play": 7,
+        "untargeted_play": 16,
+        "end_turn": 7,
+        "interactive_successors": 30
+      },
+      "reads": {
+        "status": "pass",
+        "run_deck": 60,
+        "combat_piles": 60,
+        "failed": 0
+      },
+      "bundle": {
+        "schema": "sts2.human-annotator/session-bundle-2",
+        "content_id": "b92778bed35ab129920cc8a23071058812ca3637ae693979197f0c85ec044b01",
+        "capture_profile_sha256": "ae8e5b9b1402176fc43bb366e2e79cf797a9375dce73bb58aedd16a657b1cb21",
+        "export_sha256": "2b8cc6ed08a3cdf33f585ae6ae7b9e34cf054337d01907d37b1810e2166332d6",
+        "checksums_sha256": "79727a7d3210912a88e118785bd4c135b82b2c5bc8d93d002c14e73f5b57ec52"
+      },
+      "transfer": {
+        "manifest_sha256": "742f333c3f1ad83545d6574361a41ff20cefc77e7a79871b16f25decdd6b7169",
+        "initial_status": "promoted",
+        "retry_status": "reused",
+        "findings": 0
+      },
+      "stpd_import": {
+        "source_revision": "25b5306225bd2c4ea39ddc678e916dd483d5b37e",
+        "status": "pass",
+        "accepted": 30,
+        "rejected": 0
+      },
+      "generated_card_choice": {
+        "source_and_test_status": "pass",
+        "runtime_status": "not_exercised"
+      }
     }
   },
   "migration_sources": "migration/source-manifest.json",
-  "support_level": "human_evidence_v2_loaded_pending_native_human_validation",
+  "support_level": "human_evidence_v2_read_rich_combat_verified_selector_pending",
   "non_claims": [
     "human_origin_owner_attested_not_machine_proven",
     "annotator_invalidated_actions_not_admitted",
     "optional_noninteractive_host_profile_not_verified",
     "not_durably_qualified",
     "not_long_soak_or_full_journey_qualified",
-    "v2_native_human_actions_not_exercised",
-    "v2_session_bundle_store_transfer_receiver_not_live",
+    "v2_generated_card_choice_not_exercised",
     "v2_corpus_and_training_not_authorized"
   ]
 }

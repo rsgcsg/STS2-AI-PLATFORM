@@ -80,9 +80,10 @@ Evidence, Transfer, and Diagnostics available. The dated
 holds exact hashes and evidence boundaries.
 
 The loaded Native artifact remains bound to Annotator source `09e5c236...`.
-Current Annotator source `144a9dc...` adds only caller-CWD CLI evidence-path
-resolution; Evidence verifier and Workbench fixes are non-Native. These later
-source commits are tested but are not claimed loaded.
+Current Annotator component revision `793597fa...` adds only caller-CWD CLI
+evidence-path resolution and closeout documentation; Evidence verifier and
+Workbench fixes are non-Native. These later source commits are tested but are
+not claimed loaded.
 
 ## Non-claims
 

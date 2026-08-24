@@ -66,10 +66,12 @@ rewritten or admitted.
 ## Corrective Work And Boundary
 
 Post-load source fixed three non-Native integration defects: Annotator CLI paths
-now resolve from caller CWD (`144a9dc...`), V2 CaptureProfile verification matches
-the C# producer's ordered compact JSON (`a5f733d...`), and Workbench recognizes
-official receiver receipts/store status (`5154be6...`). These commits are tested
-source evidence only; they do not change or inherit the loaded Native artifact.
+now resolve from caller CWD (`144a9dc...`; current component revision
+`793597fa...` also contains closeout docs), V2 CaptureProfile verification
+matches the C# producer's ordered compact JSON (`a5f733d...`), and Workbench
+recognizes official receiver receipts/store status (`5154be6...`). These commits
+are tested source evidence only; they do not change or inherit the loaded Native
+artifact.
 
 V1 verification remains covered. This V2 object is not part of the frozen V1
 corpus and has no training authorization, broad selector qualification, full-run

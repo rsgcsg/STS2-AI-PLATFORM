@@ -31,13 +31,28 @@ test("BOM check rejects human gate drift and machine-proven origin claims", asyn
   assert.ok(errors.some((error) => error.startsWith("human origin boundary:")));
 });
 
-test("BOM check separates current V2 source and load from predecessor human evidence", async () => {
+test("BOM check separates the loaded V2 artifact from later operations-only source", async () => {
   const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
   bom.current_v2_candidate.connector.source_revision = "0".repeat(40);
+  bom.current_v2_candidate.annotator.current_component_source_revision = "0".repeat(40);
   bom.current_v2_candidate.annotator.loaded = "pending";
   bom.current_v2_candidate.native_human_gate.status = "pass";
   const errors = validatePlatformBom(bom, await readBomAuthorities(root));
   assert.ok(errors.some((error) => error.startsWith("V2 Connector source:")));
+  assert.ok(errors.some((error) => error.startsWith("V2 current Annotator source:")));
   assert.ok(errors.some((error) => error.startsWith("V2 annotator loaded:")));
   assert.ok(errors.some((error) => error.startsWith("V2 human gate:")));
+});
+
+test("BOM check rejects V2 evidence and selector-claim drift", async () => {
+  const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
+  bom.current_v2_candidate.native_human_gate.reads.run_deck = 59;
+  bom.current_v2_candidate.native_human_gate.transfer.retry_status = "promoted";
+  bom.current_v2_candidate.native_human_gate.generated_card_choice.runtime_status = "pass";
+  bom.non_claims = bom.non_claims.filter((claim) => claim !== "v2_generated_card_choice_not_exercised");
+  const errors = validatePlatformBom(bom, await readBomAuthorities(root));
+  assert.ok(errors.some((error) => error.startsWith("V2 run-deck Reads:")));
+  assert.ok(errors.some((error) => error.startsWith("V2 transfer retry:")));
+  assert.ok(errors.some((error) => error.startsWith("V2 selector runtime:")));
+  assert.ok(errors.includes("V2 generated-card-choice non-claim is missing"));
 });

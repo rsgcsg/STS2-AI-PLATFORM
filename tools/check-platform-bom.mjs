@@ -97,17 +97,50 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "V1 runtime generation", bom.exact_runtime_candidate?.evidence_generation, "v1_runtime_seal_predecessor");
 
   const v2 = bom.current_v2_candidate;
-  expectEqual(errors, "V2 status", v2?.status, "loaded_pending_native_human_validation");
+  expectEqual(errors, "V2 status", v2?.status,
+    "native_human_read_rich_combat_verified_selector_pending");
   expectEqual(errors, "V2 Connector source", v2?.connector?.source_revision, bom.components?.connector?.source_revision);
   expectEqual(errors, "V2 Connector protocol", v2?.connector?.protocol, bom.components?.player_environment_protocol);
-  expectEqual(errors, "V2 Annotator source", v2?.annotator?.source_revision, bom.components?.annotator?.source_revision);
-  expectEqual(errors, "V2 Annotator digest", v2?.annotator?.source_digest_sha256, bom.components?.annotator?.component_source_digest_sha256);
+  expectPattern(errors, "V2 loaded Annotator source", v2?.annotator?.source_revision, COMMIT);
+  expectPattern(errors, "V2 loaded Annotator digest", v2?.annotator?.source_digest_sha256, SHA256);
+  expectEqual(errors, "V2 current Annotator source", v2?.annotator?.current_component_source_revision,
+    bom.components?.annotator?.source_revision);
+  expectEqual(errors, "V2 current Annotator digest", v2?.annotator?.current_component_source_digest_sha256,
+    bom.components?.annotator?.component_source_digest_sha256);
+  expectEqual(errors, "V2 Annotator source relation", v2?.annotator?.source_relation,
+    "loaded_native_artifact_precedes_cli_only_evidence_path_and_closeout_docs");
   for (const component of ["connector", "annotator"])
     for (const level of ["build", "installed", "loaded"])
       expectEqual(errors, `V2 ${component} ${level}`, v2?.[component]?.[level], "pass");
   expectEqual(errors, "V2 observation canary", v2?.runtime?.observation_canary, "pass");
   expectEqual(errors, "V2 observer mutation boundary", v2?.runtime?.mutation, "disabled_by_observer_modset");
-  expectEqual(errors, "V2 human gate", v2?.native_human_gate?.status, "pending");
+  const v2Human = v2?.native_human_gate;
+  expectEqual(errors, "V2 human gate", v2Human?.status, "partial_pass");
+  expectEqual(errors, "V2 human runtime", v2Human?.runtime_instance_id, v2?.runtime?.runtime_instance_id);
+  expectEqual(errors, "V2 human audit", v2Human?.audit_status, "pass");
+  expectEqual(errors, "V2 human records", v2Human?.admitted_records, 30);
+  expectEqual(errors, "V2 human invalidations", v2Human?.invalidations, 5);
+  expectEqual(errors, "V2 human origin", v2Human?.human_origin, "owner_attested_not_machine_proven");
+  expectEqual(errors, "V2 ordinary combat", v2Human?.ordinary_combat?.status, "pass");
+  expectEqual(errors, "V2 targeted play", v2Human?.ordinary_combat?.targeted_play, 7);
+  expectEqual(errors, "V2 untargeted play", v2Human?.ordinary_combat?.untargeted_play, 16);
+  expectEqual(errors, "V2 end turn", v2Human?.ordinary_combat?.end_turn, 7);
+  expectEqual(errors, "V2 interactive successors", v2Human?.ordinary_combat?.interactive_successors, 30);
+  expectEqual(errors, "V2 run-deck Reads", v2Human?.reads?.run_deck, 60);
+  expectEqual(errors, "V2 combat-pile Reads", v2Human?.reads?.combat_piles, 60);
+  expectEqual(errors, "V2 Read failures", v2Human?.reads?.failed, 0);
+  expectEqual(errors, "V2 bundle schema", v2Human?.bundle?.schema,
+    "sts2.human-annotator/session-bundle-2");
+  expectEqual(errors, "V2 transfer promotion", v2Human?.transfer?.initial_status, "promoted");
+  expectEqual(errors, "V2 transfer retry", v2Human?.transfer?.retry_status, "reused");
+  expectEqual(errors, "V2 transfer findings", v2Human?.transfer?.findings, 0);
+  expectEqual(errors, "V2 STPD source", v2Human?.stpd_import?.source_revision,
+    bom.external_consumer_cutovers?.stpd);
+  expectEqual(errors, "V2 STPD import", v2Human?.stpd_import?.status, "pass");
+  expectEqual(errors, "V2 STPD accepted", v2Human?.stpd_import?.accepted, 30);
+  expectEqual(errors, "V2 STPD rejected", v2Human?.stpd_import?.rejected, 0);
+  expectEqual(errors, "V2 selector source/test", v2Human?.generated_card_choice?.source_and_test_status, "pass");
+  expectEqual(errors, "V2 selector runtime", v2Human?.generated_card_choice?.runtime_status, "not_exercised");
 
   for (const [label, value] of [
     ["public Connector archive SHA", publicConnector?.sha256],
@@ -120,6 +153,13 @@ export function validatePlatformBom(bom, authorities) {
     ["runtime Annotator SHA", bom.exact_runtime_candidate?.annotator?.artifact_sha256],
     ["V2 Connector SHA", v2?.connector?.artifact_sha256],
     ["V2 Annotator SHA", v2?.annotator?.artifact_sha256],
+    ["V2 loaded Annotator source digest", v2?.annotator?.source_digest_sha256],
+    ["V2 current Annotator source digest", v2?.annotator?.current_component_source_digest_sha256],
+    ["V2 bundle content ID", v2Human?.bundle?.content_id],
+    ["V2 capture profile SHA", v2Human?.bundle?.capture_profile_sha256],
+    ["V2 export SHA", v2Human?.bundle?.export_sha256],
+    ["V2 checksums SHA", v2Human?.bundle?.checksums_sha256],
+    ["V2 transfer manifest SHA", v2Human?.transfer?.manifest_sha256],
     ["H0 report SHA", bom.exact_runtime_candidate?.gates?.h0?.report_sha256],
     ["H1 report SHA", bom.exact_runtime_candidate?.gates?.h1?.report_sha256],
     ["H2 report SHA", bom.exact_runtime_candidate?.gates?.h2?.report_sha256],
@@ -133,6 +173,8 @@ export function validatePlatformBom(bom, authorities) {
   expectPattern(errors, "V2 game MVID", v2?.game?.main_assembly_mvid, MVID);
   expectPattern(errors, "V2 Connector MVID", v2?.connector?.artifact_mvid, MVID);
   expectPattern(errors, "V2 Annotator MVID", v2?.annotator?.artifact_mvid, MVID);
+  expectPattern(errors, "V2 loaded Annotator source", v2?.annotator?.source_revision, COMMIT);
+  expectPattern(errors, "V2 current Annotator source", v2?.annotator?.current_component_source_revision, COMMIT);
   expectPattern(errors, "STPD cutover", bom.external_consumer_cutovers?.stpd, COMMIT);
   for (const gate of ["h0", "h1", "h2", "annotator_loaded", "annotator_human"])
     expectEqual(errors, `${gate} gate`, bom.exact_runtime_candidate?.gates?.[gate]?.status, "pass");
@@ -143,11 +185,14 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "human gate records", humanGate?.admitted_records, 30);
   expectEqual(errors, "human origin boundary", humanGate?.human_origin,
     "owner_attested_not_machine_proven");
-  expectEqual(errors, "support level", bom.support_level, "human_evidence_v2_loaded_pending_native_human_validation");
+  expectEqual(errors, "support level", bom.support_level,
+    "human_evidence_v2_read_rich_combat_verified_selector_pending");
   if (!bom.non_claims?.includes("human_origin_owner_attested_not_machine_proven"))
     errors.push("human-origin epistemic-boundary non-claim is missing");
-  if (!bom.non_claims?.includes("v2_native_human_actions_not_exercised"))
-    errors.push("V2 native-human non-claim is missing");
+  if (!bom.non_claims?.includes("v2_generated_card_choice_not_exercised"))
+    errors.push("V2 generated-card-choice non-claim is missing");
+  if (!bom.non_claims?.includes("v2_corpus_and_training_not_authorized"))
+    errors.push("V2 corpus/training authorization non-claim is missing");
   return errors;
 }
 
