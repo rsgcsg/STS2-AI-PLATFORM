@@ -23,6 +23,14 @@ const version = workspace.version;
 if (release.release.version !== version) {
   throw new Error(`release-manifest version ${release.release.version} does not match package version ${version}`);
 }
+const modManifest = JSON.parse(fs.readFileSync(path.join(root, "host", "mod_manifest.json"), "utf8"));
+const connectorMod = fs.readFileSync(path.join(root, "host", "ConnectorMod.cs"), "utf8");
+const nativeVersion = connectorMod.match(/public const string Version = "([^"]+)";/u)?.[1] ?? null;
+if (modManifest.version !== version || nativeVersion !== version) {
+  throw new Error(
+    `Connector release ${version}, Mod manifest ${modManifest.version} and native implementation ${nativeVersion ?? "missing"} must match`
+  );
+}
 
 const source = componentGitState(root);
 if (source.componentWorktreeStatus !== "clean") {
@@ -77,6 +85,7 @@ for (const name of ["install-release.mjs", "verify-release.mjs", "steam-paths.mj
 }
 fs.copyFileSync(path.join(root, "docs", "INSTALLATION.md"), path.join(stageRoot, "INSTALL.md"));
 fs.copyFileSync(path.join(root, "contracts", "player-environment-contract.json"), path.join(stageRoot, "player-environment-contract.json"));
+fs.copyFileSync(path.join(root, "contracts", "host-compatibility.json"), path.join(stageRoot, "host-compatibility.json"));
 fs.copyFileSync(path.join(root, "release-manifest.json"), path.join(stageRoot, "release-manifest.json"));
 
 for (const required of [
@@ -105,11 +114,21 @@ function sha256(file) {
   return createHash("sha256").update(fs.readFileSync(file)).digest("hex");
 }
 
-const assets = [hostArchive, sdkArchive, "release-manifest.json", "player-environment-contract.json"];
+const assets = [
+  hostArchive,
+  sdkArchive,
+  "release-manifest.json",
+  "player-environment-contract.json",
+  "host-compatibility.json"
+];
 fs.copyFileSync(path.join(root, "release-manifest.json"), path.join(releaseRoot, "release-manifest.json"));
 fs.copyFileSync(
   path.join(root, "contracts", "player-environment-contract.json"),
   path.join(releaseRoot, "player-environment-contract.json")
+);
+fs.copyFileSync(
+  path.join(root, "contracts", "host-compatibility.json"),
+  path.join(releaseRoot, "host-compatibility.json")
 );
 const checksums = assets
   .map((name) => `${sha256(path.join(releaseRoot, name))}  ${name}`)

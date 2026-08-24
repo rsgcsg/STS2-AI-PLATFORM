@@ -72,6 +72,16 @@ export function readOptionalJson(file) {
   }
 }
 
+export function readInstalledProvenance(sidecarFile, localRecordFile) {
+  const sidecar = readOptionalJson(sidecarFile);
+  if (sidecar) return { metadata: sidecar, location: "installed_sidecar" };
+
+  const localRecord = readOptionalJson(localRecordFile);
+  if (localRecord) return { metadata: localRecord, location: "workspace_record" };
+
+  return { metadata: null, location: null };
+}
+
 export function evaluateBuildProvenance({
   currentSource,
   sourceProtocol: currentProtocol,

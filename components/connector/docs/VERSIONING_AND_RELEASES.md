@@ -2,8 +2,9 @@
 
 Four identities are intentionally separate:
 
-1. **Connector release** (`1.1.0-rc.1` STPD operational prerelease;
-   `1.0.1` general stable): source/product packaging.
+1. **Connector release** (`1.2.0-rc.5` current Platform candidate;
+   predecessor releases remain immutable): source/product packaging and native
+   implementation version.
 2. **Player Environment protocol** (`1.0.0`): wire compatibility.
 3. **Capabilities**: loaded features, exact game/Modset and observation/input
    availability.
@@ -47,7 +48,9 @@ manifest and checksums under `.local/release/v<version>/`. The Git tag and
 published assets must all refer to that exact source revision; a branch name or
 working-tree build is not a release.
 
-The static release manifest names a separate runtime-seal asset. This avoids a
+The static release manifest names the single machine-readable compatibility
+contract and a separate runtime-seal asset. It does not copy one platform's
+runtime identity into a second compatibility table. This also avoids a
 circular artifact identity: runtime evidence is produced only after the exact
 tagged Host has been built, installed and cold-loaded. A release is not sealed
 unless that exact runtime-seal asset is present.

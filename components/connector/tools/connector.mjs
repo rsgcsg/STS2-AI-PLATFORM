@@ -16,6 +16,7 @@ import { spawnSync } from "node:child_process";
 import {
   evaluateBuildProvenance,
   playerEnvironmentSourceIdentity as readPlayerEnvironmentSourceIdentity,
+  readInstalledProvenance,
   readOptionalJson
 } from "./connector-provenance.mjs";
 import { resolveGameDir, resolveModsDir } from "./steam-paths.mjs";
@@ -553,7 +554,13 @@ async function inspect(options, requireLoaded = false) {
   const builtIdentity = artifactIdentity(resolved.builtDll);
   const installedIdentity = artifactIdentity(resolved.installedDll);
   const buildMetadata = readOptionalJson(resolved.buildIdentity);
-  const installedMetadata = readOptionalJson(resolved.installedIdentity);
+  // The artifact-local sidecar is authoritative for both source deploys and
+  // public release installs. The workspace record may be absent or stale.
+  const installedProvenance = readInstalledProvenance(
+    resolved.installedIdentitySidecar,
+    resolved.installedIdentity
+  );
+  const installedMetadata = installedProvenance.metadata;
   const evaluation = evaluateLoadedArtifact({
     csharpProtocol: protocols.csharp,
     clientProtocol: protocols.client,
@@ -583,6 +590,7 @@ async function inspect(options, requireLoaded = false) {
     source_identity: currentSource,
     build_provenance: buildMetadata,
     installed_provenance: installedMetadata,
+    installed_provenance_location: installedProvenance.location,
     ...evaluateEnvironmentReadiness(readinessCapabilities, protocols.csharp),
     game_dir: resolved.gameDir,
     mods_dir: resolved.modsDir,

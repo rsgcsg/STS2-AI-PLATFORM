@@ -12,7 +12,10 @@ import {
   sourceProtocols,
   windowsTaskListHasGame
 } from "./connector.mjs";
-import { canonicalSourceBytes } from "./connector-provenance.mjs";
+import {
+  canonicalSourceBytes,
+  readInstalledProvenance
+} from "./connector-provenance.mjs";
 
 assert.deepEqual(sourceProtocols(), { csharp: "1.0.0", client: "1.0.0" });
 assert.equal(resolveModsDir("C:\\Game", "win32"), "C:\\Game\\mods");
@@ -75,6 +78,19 @@ try {
   assert.deepEqual(JSON.parse(readFileSync(configPath, "utf8")), {
     port: 15526,
     player_environment_native_page_evidence_enabled: true
+  });
+
+  const sidecarPath = path.join(temporary, "STS2_MCP.identity");
+  const workspaceRecordPath = path.join(temporary, "workspace-installation.json");
+  writeFileSync(workspaceRecordPath, JSON.stringify({ source_revision: "stale-workspace" }));
+  assert.deepEqual(readInstalledProvenance(sidecarPath, workspaceRecordPath), {
+    metadata: { source_revision: "stale-workspace" },
+    location: "workspace_record"
+  });
+  writeFileSync(sidecarPath, JSON.stringify({ source_revision: "release-sidecar" }));
+  assert.deepEqual(readInstalledProvenance(sidecarPath, workspaceRecordPath), {
+    metadata: { source_revision: "release-sidecar" },
+    location: "installed_sidecar"
   });
 } finally {
   rmSync(temporary, { recursive: true, force: true });
