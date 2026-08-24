@@ -79,9 +79,10 @@ Decision V2 records: 7 targeted plays, 16 untargeted plays and 7 end turns.
 Every admitted pre-state and successor materialized both required Reads;
 independent V2 audit and typed bundle verification passed. Five unstable
 pre-frames failed closed. Bundle `b92778be...` passed immutable Platform
-store/receive/retry and STPD imported 30/30 with zero rejection. Current source
-`144a9dc...` adds only caller-CWD CLI evidence-path handling and is automated
-tested, not claimed loaded. Exact hashes are in the root V2 closeout.
+store/receive/retry and STPD imported 30/30 with zero rejection. Post-load
+Annotator changes add only caller-CWD CLI evidence-path handling and this
+closeout documentation; they are automated-tested, not claimed loaded. Exact
+hashes are in the root V2 closeout.
 
 Generated-card choice did not naturally occur in this session and is
 `not exercised`; source/tests do not substitute for Native UI evidence.
