@@ -45,6 +45,10 @@ The initial consolidation imports the complete histories of:
   immutable local store, transfer and receiver receipts;
 - `apps/workbench`: read-only application services and diagnostics UI.
 
+The three predecessor GitHub repositories are archived and remain read-only
+history/rollback references. All forward Platform development happens here;
+STPD remains the independent research consumer.
+
 Read [the consolidation ADR](docs/adr/0001-consolidate-environment-platform.md)
 and [migration provenance](migration/source-manifest.json) before changing a
 component boundary.

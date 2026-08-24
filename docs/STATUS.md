@@ -18,6 +18,9 @@ Phase: **Human Evidence V2 loaded candidate; native-human validation pending**.
 - STPD consumes public packages and does not require a predecessor sibling
   checkout for its package path.
 - Root and component portable checks pass at the current source revision.
+- GitHub predecessors `STS2-Connector`, `STS2-headless`, and
+  `STS2-human-Annotator` are archived; Platform is the only forward-development
+  authority for those responsibilities.
 - Connector `1.2.0-rc.6` exposes process-local same-frame Snapshot plus required
   Read materialization for Annotator without creating a wire authority.
 - Annotator `0.3.0-rc.1` implements Decision V2, state-bound ReadEvidence,
