@@ -30,6 +30,9 @@ Phase: **Human Evidence V2 Read-Rich Combat baseline verified; selector Live evi
   immutable local store, transfer and staged receiver with receipts.
 - Workbench `0.1.0-rc.1` provides read-only Environment, Human Recording,
   Evidence, Transfer and Diagnostics status through application services.
+- The portable boundary check validates that every declared workspace CLI
+  entrypoint exists in Git source authority; ignored local files cannot satisfy
+  a clean-check claim.
 - STPD `25b53062...` installs Evidence from the exact public Git revision,
   preserves V1 verifier parity, rejects unverified V2 JSONL and projects
   verified `run_deck`/`combat_piles` into state and successor.
@@ -75,7 +78,9 @@ Evidence Store, and reused idempotently on retry with zero findings. STPD
 `25b53062...` imported all 30 records with zero rejection while preserving V1
 compatibility; the records were not added to the frozen corpus or authorized
 for training. A real Workbench HTTP smoke reported Environment, Annotator,
-Evidence, Transfer, and Diagnostics available. The dated
+  Evidence, Transfer, and Diagnostics available. Workbench source
+  `0ae81907...` additionally closes the Git source-completeness defect without
+  changing its read-only behavior. The dated
 [V2 closeout](evidence/HUMAN_EVIDENCE_V2_READ_RICH_COMBAT_CLOSEOUT_2026-08-25.md)
 holds exact hashes and evidence boundaries.
 

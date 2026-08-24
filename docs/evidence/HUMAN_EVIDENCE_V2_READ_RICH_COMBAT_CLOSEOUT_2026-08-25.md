@@ -73,6 +73,12 @@ recognizes official receiver receipts/store status (`5154be6...`). These commits
 are tested source evidence only; they do not change or inherit the loaded Native
 artifact.
 
+Portable CI later exposed that the Workbench `bin` entrypoint existed only as an
+ignored local file. Source `0ae81907...` tracks the unchanged entrypoint and adds
+a root gate requiring every declared workspace `bin` target to exist in Git.
+This is a non-Native source-completeness fix and does not alter the runtime or
+Human evidence identities above.
+
 V1 verification remains covered. This V2 object is not part of the frozen V1
 corpus and has no training authorization, broad selector qualification, full-run
 journey claim, long-soak claim, or durable qualification.

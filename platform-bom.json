@@ -28,9 +28,9 @@
     },
     "workbench": {
       "version": "0.1.0-rc.1",
-      "source_revision": "5154be6881d2b307e42b70f9b0399b94754db8be",
-      "component_tree_revision": "37003a8bbfb12313805b4baf16bec60990da7584",
-      "component_source_digest_sha256": "f2455cd712dd0a3c8eca1c8823f911579cdf2d167fb7d2225cc88a94f5946fb4"
+      "source_revision": "0ae81907ded02a2a48d3807bc4ff7683b102b80b",
+      "component_tree_revision": "1f7c9a509c4535ece5cb035e55638b1e87b41ea6",
+      "component_source_digest_sha256": "12e1e673292e2870376a15a392bf2ef59fbf860962740f099462ab5c8ecae18e"
     },
     "player_environment_protocol": "1.0.0",
     "typescript_sdk": "1.1.0-rc.1"
@@ -165,6 +165,7 @@
       "evidence_tests": 14,
       "workbench_tests": 6,
       "stpd_tests": 153,
+      "workspace_entrypoints_tracked": "pass",
       "evidence_wheel_build_and_fresh_install": "pass",
       "stpd_public_git_dependency": "pass"
     },

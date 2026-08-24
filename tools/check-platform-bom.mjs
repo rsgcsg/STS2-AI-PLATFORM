@@ -114,6 +114,8 @@ export function validatePlatformBom(bom, authorities) {
       expectEqual(errors, `V2 ${component} ${level}`, v2?.[component]?.[level], "pass");
   expectEqual(errors, "V2 observation canary", v2?.runtime?.observation_canary, "pass");
   expectEqual(errors, "V2 observer mutation boundary", v2?.runtime?.mutation, "disabled_by_observer_modset");
+  expectEqual(errors, "workspace entrypoint source gate",
+    v2?.automated_gates?.workspace_entrypoints_tracked, "pass");
   const v2Human = v2?.native_human_gate;
   expectEqual(errors, "V2 human gate", v2Human?.status, "partial_pass");
   expectEqual(errors, "V2 human runtime", v2Human?.runtime_instance_id, v2?.runtime?.runtime_instance_id);
