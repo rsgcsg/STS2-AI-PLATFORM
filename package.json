@@ -16,10 +16,11 @@
   "scripts": {
     "identity": "node tools/component-identity.mjs",
     "check:identity": "node --test tools/component-identity.test.mjs && node tools/component-identity.mjs >/dev/null",
+    "check:bom": "node --test tools/check-platform-bom.test.mjs && node tools/check-platform-bom.mjs",
     "check:boundaries": "node --test tools/check-boundaries.test.mjs && node tools/check-boundaries.mjs",
     "check:history": "node tools/check-migration-history.mjs",
     "check:components": "npm --prefix components/connector run check && npm --prefix components/host-runtime run check && npm --prefix components/annotator run test",
-    "check": "npm run check:identity && npm run check:boundaries && npm run check:history && npm run check:components",
+    "check": "npm run check:identity && npm run check:bom && npm run check:boundaries && npm run check:history && npm run check:components",
     "check:exact-game": "npm --prefix components/connector run build && npm --prefix components/annotator run check",
     "build": "npm --prefix components/connector run build && npm --prefix components/annotator run build",
     "doctor": "node tools/platform-doctor.mjs",

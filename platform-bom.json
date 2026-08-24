@@ -1,46 +1,105 @@
 {
   "schema": "sts2.ai-platform/bom-1",
-  "version": "0.1.0-rc.1",
+  "version": "0.1.0-rc.2",
   "components": {
     "connector": {
-      "version": "1.2.0-rc.1",
-      "source_revision": "d2dfdf8473c39428a9d51f9aa7ba99a0b3b05ff7",
-      "component_tree_revision": "eedd39302cdab2b8a324ecc27c6d16a8cfbb67ee"
+      "version": "1.2.0-rc.5",
+      "source_revision": "d0b4a3feab7fc707adf8a4e8fc22881564748f92",
+      "component_tree_revision": "04f9544b8ffdcd354517e75f03e90412547fa496",
+      "component_source_digest_sha256": "b75042c6dae56c035bf0cd8d705ae0fc5c88845b7e73383ec408bd9a90124495"
     },
     "host_runtime": {
-      "version": "1.1.0-rc.3",
-      "source_revision": "254bc89224729ddfdbcaa1c14c7015fc3a43128d",
-      "component_tree_revision": "30c3dd47c1e18d8280acbf191b1aae1389d3891d"
+      "version": "1.1.0-rc.7",
+      "source_revision": "dce2c26c0accb0bbbe435191ca371aee9725fa48",
+      "component_tree_revision": "c5a0beb062a2f402a64c26ed21eb3a01b2613688",
+      "component_source_digest_sha256": "9ef893001895e955f8f5efce7cf9d73f8528dcb602685b4bc38acac150f2f149"
     },
     "annotator": {
-      "version": "0.2.0-rc.1",
-      "source_revision": "9316b28fc09c16386cf5f2f7d464bb09ff649659",
-      "component_tree_revision": "4fa2424738699b27aca3017becf3140cd4c8bbf7"
+      "version": "0.2.0-rc.2",
+      "source_revision": "484f289a805ef18aff85e0ef0444f1f32f296a31",
+      "component_tree_revision": "b2c509db01b6a22ceeb778aa5e26201bff67de28",
+      "component_source_digest_sha256": "bac4d8c64aa3fc529d2b7f9e8c8b8717e85a6dbe7a04f4cd92676026a8b333c8"
     },
     "player_environment_protocol": "1.0.0",
     "typescript_sdk": "1.1.0-rc.1"
   },
   "public_packages": {
+    "connector_host": {
+      "release": "connector/v1.2.0-rc.5",
+      "asset": "STS2-Connector-1.2.0-rc.5-host.tar.gz",
+      "sha256": "a0bc1985995806a93498949b213972504d73c2f4b8d52f299c1356ecec34b908",
+      "artifact_sha256": "8bf01c6818127a9e4febc870b058945742e33e6152d1a946105dd4a76ac3976f",
+      "artifact_mvid": "9476e499-efe8-4167-9614-8c66322677b7"
+    },
     "typescript_sdk": {
-      "release": "consumer-sdk/v1.1.0-rc.1",
+      "release": "connector/v1.2.0-rc.5",
       "asset": "rsgcsg-sts2-connector-client-1.1.0-rc.1.tgz",
       "sha256": "4484b4bec90f43c29c108fe5444e419c8a81164fb4b246ac3212c51960db1ed3"
     },
     "host_runtime": {
-      "release": "host-runtime/v1.1.0-rc.3",
-      "asset": "rsgcsg-sts2-host-runtime-1.1.0-rc.3.tgz",
-      "sha256": "8d26a839dfeaefcaca8c996dba995603165df4f9a2e454f9078ff0cbd747bb3b"
+      "release": "host-runtime/v1.1.0-rc.7",
+      "asset": "rsgcsg-sts2-host-runtime-1.1.0-rc.7.tgz",
+      "sha256": "b77fb7956caabb3b43ac03c0aee78c9918ce852cee819c6ca44cf77671743f20",
+      "package_content_digest_sha256": "abb4dcb0627e74db48ec0e6c10e1bd2fb53d08215ae5fea581bc991e55d35585"
     }
   },
   "external_consumer_cutovers": {
-    "stpd": "473e3a12ee4402145c52caf94bfd07409eb17eab"
+    "stpd": "f75fb140a7a1ed204ad96998df688850c03dc9cb"
+  },
+  "exact_runtime_candidate": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "game": {
+      "version": "v0.111.0",
+      "commit": "41cef1ea",
+      "executable_sha256": "ec8c10831dbb424c45859907f5ef6a7711f7a6e9a02f386ad13922ba8a7fcbe7",
+      "main_assembly_sha256": "9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4",
+      "main_assembly_mvid": "57785517-0b16-42b9-8b36-bad6fb28384b"
+    },
+    "connector": {
+      "source_revision": "d0b4a3feab7fc707adf8a4e8fc22881564748f92",
+      "artifact_sha256": "8bf01c6818127a9e4febc870b058945742e33e6152d1a946105dd4a76ac3976f",
+      "artifact_mvid": "9476e499-efe8-4167-9614-8c66322677b7",
+      "protocol": "1.0.0"
+    },
+    "annotator": {
+      "source_revision": "484f289a805ef18aff85e0ef0444f1f32f296a31",
+      "source_digest_sha256": "bac4d8c64aa3fc529d2b7f9e8c8b8717e85a6dbe7a04f4cd92676026a8b333c8",
+      "artifact_sha256": "c7517c7b18762fd2572eff6b0143a711b096f619ffe922919a541171b6a83f21",
+      "artifact_mvid": "698e751b-4ad4-41f3-8b8a-3edec677a1d3"
+    },
+    "gates": {
+      "h0": {
+        "status": "pass",
+        "host_runtime": "1.1.0-rc.7",
+        "runtime_instance_id": "02c791951729461e9f0852b317c3842e",
+        "report_sha256": "b429d2bc0630e9e42f1b5249e7de81384898846c52dd4a8e45dee57bc94d201e"
+      },
+      "h1": {
+        "status": "pass",
+        "host_runtime": "1.1.0-rc.7",
+        "runtime_instance_id": "e9c33a6bd43243a5ab2b549667797f1c",
+        "report_sha256": "5c324fc38b0510528d76b33147e9cda0bd8da172c161c86f978b6b06195c568e"
+      },
+      "h2": {
+        "status": "pass",
+        "host_runtime": "1.1.0-rc.7",
+        "runtime_instance_id": "268a6d278f8c454b83ca990d40d24d56",
+        "report_sha256": "f74a1a1192a656ee81b188b0b27423c9c13a4e6e76ff134f8ccc9243e793bd98"
+      },
+      "annotator_loaded": {
+        "status": "pass",
+        "runtime_instance_id": "a57a3d52437e45f79fa3bb1b38ff0462",
+        "modset_fingerprint": "d919571dd1f424a4671b3970dd5ed9ab293f9431f051b81f809248720d733cb7"
+      }
+    }
   },
   "migration_sources": "migration/source-manifest.json",
-  "support_level": "source_and_package_candidate",
+  "support_level": "runtime_seal_candidate_owner_validation_pending",
   "non_claims": [
-    "not_installed",
-    "not_loaded",
-    "not_live_exercised",
-    "not_qualified"
+    "annotator_current_artifact_not_human_validated",
+    "optional_noninteractive_host_profile_not_verified",
+    "not_durably_qualified",
+    "not_long_soak_or_full_journey_qualified"
   ]
 }

@@ -17,10 +17,16 @@
 
 ## Runtime Seal
 
-- exact-game build from clean Platform source;
-- install/cold-load exact artifacts;
-- targeted Connector, Host and Annotator canaries;
-- publish independent component releases and a tested BOM.
+- Complete: exact-game, deterministic Connector and Annotator builds from clean
+  component source.
+- Complete: immutable public Connector/SDK/Host releases and anonymous cold
+  download verification.
+- Complete: install, rollback snapshots, exact Connector H0/H1/H2, and exact
+  Annotator loaded-identity/Modset gates.
+- Pending owner: one normal native-human combat recording with the current
+  Annotator artifact, followed by machine audit and evidence closeout.
+- Pending after owner evidence: promote or reject the candidate BOM; do not
+  infer qualification from a single session.
 
 Workbench, Receiver, cloud storage and wider Annotator capture are later work,
 not reasons to weaken the initial component boundaries.

@@ -1,6 +1,6 @@
 # Current Status
 
-Phase: **coherent Platform source/package candidate; runtime seal pending**.
+Phase: **runtime-seal candidate; owner native-human validation pending**.
 
 ## Implemented
 
@@ -18,24 +18,33 @@ Phase: **coherent Platform source/package candidate; runtime seal pending**.
 - STPD consumes public packages and does not require a predecessor sibling
   checkout for its package path.
 - Root and component portable checks pass at the current source revision.
+- Connector `1.2.0-rc.5` and Host Runtime `1.1.0-rc.7` are immutable public
+  releases whose assets were cold-downloaded and checksum-verified.
+- The public Host package passed exact-game H0, H1 and bounded H2 against the
+  same Connector artifact. H2 delivered 52 actions, including 47 combat
+  deliveries, reached reward flow, exercised two Reads and eight stale
+  refusals, and had zero unknown, Read, successor or provenance failures.
+- Annotator `0.2.0-rc.2` is component-reproducible, installed and cold-loaded
+  with the exact two-observer Modset. Loaded identity matches source, build and
+  install; no owner action has yet been recorded by this artifact.
 
 ## Current Evidence
 
-The current candidate's exact-game and package identities are recorded in
-`platform-bom.json` and the component release manifests. The current source
-tree is the authority for what can be built; those files are the authority for
-published candidate identity. Predecessor loaded/Live evidence does not
-transfer.
+The current candidate's exact-game, package and runtime identities are recorded
+in `platform-bom.json`; `npm run check:bom` verifies that composition against
+component and package authorities. The dated
+[runtime-seal report](evidence/RUNTIME_SEAL_CANDIDATE_2026-08-24.md) records the
+evidence boundaries and local report hashes. Predecessor loaded/Live evidence
+does not transfer.
 
 ## Non-claims
 
-- The current Platform-built Connector and Annotator artifacts are not proven
-  installed or loaded by this source/package candidate record.
-- No current Platform artifact has current-identity Live, human-validation, or
-  qualification evidence.
-- The Platform BOM is a source/package candidate, not a runtime-sealed release.
-- A source change ahead of the current public Host package/BOM remains a
-  package non-claim until that release closeout is published and cold-checked.
+- The current Annotator has no owner-operated native UI action evidence; loaded
+  identity alone is not a recording claim.
+- H0/H1/H2 are automated real-runtime evidence, not human validation, a full
+  game journey, durable qualification, semantic parity or long-soak proof.
+- The optional noninteractive Host execution profile was not implemented by the
+  current Connector and remains a non-claim; shipped-default semantics passed.
 - Workbench, generic evidence receiver, and a Platform-wide Python SDK are not
   current Platform claims; the Host component's Python consumer is component
   scope.

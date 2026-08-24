@@ -21,6 +21,12 @@ and authorities. It does not contain a policy, reward function, model, training
 system or second game-rules engine. STPD remains an independent research
 consumer.
 
+Current status: the public Connector and Host packages have passed exact-game
+H0/H1/H2 gates, and the current Annotator is built, installed and cold-loaded.
+The composition is a runtime-seal candidate awaiting one owner-operated native
+UI recording; it is not yet human-validated or qualified. See
+[Status](docs/STATUS.md) and the [candidate report](docs/evidence/RUNTIME_SEAL_CANDIDATE_2026-08-24.md).
+
 The initial consolidation imports the complete histories of:
 
 - `components/connector`: Player Environment contract, native STS2 adapter,
@@ -40,6 +46,7 @@ component boundary.
 npm ci
 npm run check
 npm run identity
+npm run check:bom
 npm run doctor
 ```
 

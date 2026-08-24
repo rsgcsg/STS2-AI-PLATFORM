@@ -13,6 +13,7 @@ Focused checks:
 
 ```bash
 npm run check:identity
+npm run check:bom
 npm run check:boundaries
 npm run check:history
 npm --prefix components/connector run check
@@ -23,6 +24,8 @@ npm --prefix components/annotator run test
 The component checks have separate meanings:
 
 - Connector check: contract, native source, SDK, and Connector-local tests;
+- BOM check: component source identities, component versions, public package
+  pins, runtime artifact identities and explicit non-claims agree;
 - Host Runtime check: lifecycle, package, Python consumer, and Host tests;
 - Annotator `test`: portable recorder and workstation-tool tests;
 - Annotator `check`: the portable tests plus exact native compilation against
