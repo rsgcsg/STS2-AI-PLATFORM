@@ -91,6 +91,29 @@ test("unconfigured roots are unknown and CLI configuration is explicit", () => {
   });
 });
 
+test("official Evidence store status and transfer receipt are recognized", async () => {
+  const configured = roots();
+  configured.evidence = path.join(tempRoot, "official-evidence");
+  configured.transfer = path.join(tempRoot, "official-transfer");
+  await mkdir(configured.evidence, { recursive: true });
+  await mkdir(configured.transfer, { recursive: true });
+  await writeFile(
+    path.join(configured.evidence, "store-status.json"),
+    '{"schema":"sts2.evidence/store-status-1","last_receipt":{"status":"promoted"}}\n'
+  );
+  await writeFile(
+    path.join(configured.transfer, "transfer-receipt.json"),
+    '{"status":"promoted","content_id":"fixture"}\n'
+  );
+
+  const status = await createWorkbenchService(configured).readStatus();
+  const byName = Object.fromEntries(status.services.map((service) => [service.name, service]));
+  assert.equal(byName.evidence.state, "available");
+  assert.equal(byName.evidence.status.value.last_receipt.status, "promoted");
+  assert.equal(byName.transfer.state, "available");
+  assert.equal(byName.transfer.status.value.content_id, "fixture");
+});
+
 test("JSON API and HTML render the same read-only DTO", async () => {
   const configured = roots();
   await mkdir(configured.environment, { recursive: true });

@@ -7,6 +7,7 @@ import json
 import os
 import uuid
 from dataclasses import fields, is_dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .core import VerifierRegistry
@@ -81,9 +82,18 @@ def main(argv: list[str] | None = None) -> int:
     receipt = DirectoryReceiver(
         ContentAddressedStore(args.root), promotion_verifier=promotion_verifier
     ).receive(args.directory, args.manifest)
+    receipt_value = _jsonable(receipt)
+    _write_json_atomic(
+        args.root / "store-status.json",
+        {
+            "schema": "sts2.evidence/store-status-1",
+            "observed_at": datetime.now(UTC).isoformat(),
+            "last_receipt": receipt_value,
+        },
+    )
     if args.receipt:
-        _write_json_atomic(args.receipt, _jsonable(receipt))
-    print(json.dumps(_jsonable(receipt), indent=2, sort_keys=True))
+        _write_json_atomic(args.receipt, receipt_value)
+    print(json.dumps(receipt_value, indent=2, sort_keys=True))
     return 0 if receipt.status in {"promoted", "reused"} else 1
 
 

@@ -29,7 +29,7 @@ Known status filenames:
 | Environment | `runtime-status.json`, `environment-status.json`, `status.json` |
 | Annotator | `runtime-status.json`, `recording-status.json`, `status.json` |
 | Evidence | `store-status.json`, `status.json` |
-| Transfer | `transfer-status.json`, `status.json` |
+| Transfer | `transfer-status.json`, `transfer-receipt.json`, `status.json` |
 | Diagnostics | `diagnostics.json`, `status.json` |
 
 ## Test

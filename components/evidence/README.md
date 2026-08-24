@@ -51,4 +51,6 @@ npm run evidence -- receive /path/to/session-bundle /path/to/transfer-manifest.j
 
 The receiver validates bytes, then runs the typed verifier inside staging before
 promotion. A failed or partial artifact is quarantined and never becomes an
-admitted object.
+admitted object. Each receive attempt also publishes a non-authorizing
+`store-status.json` containing its last receipt so the read-only Workbench can
+show operational state without reimplementing verification.

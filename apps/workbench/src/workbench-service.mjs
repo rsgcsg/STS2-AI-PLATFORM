@@ -13,7 +13,7 @@ const STATUS_CANDIDATES = Object.freeze({
   environment: ["runtime-status.json", "environment-status.json", "status.json"],
   annotator: ["runtime-status.json", "recording-status.json", "status.json"],
   evidence: ["store-status.json", "status.json"],
-  transfer: ["transfer-status.json", "status.json"],
+  transfer: ["transfer-status.json", "transfer-receipt.json", "status.json"],
   diagnostics: ["diagnostics.json", "status.json"]
 });
 

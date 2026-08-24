@@ -372,6 +372,40 @@ class EvidenceTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertEqual(DirectoryTransferManifest.read(transfer_path).artifact_type, "human-session-bundle")
 
+    def test_cli_receive_publishes_read_only_store_status_and_receipt(self) -> None:
+        bundle = self._bundle("cli-receive")
+        content_id = json.loads(
+            (bundle / "session-bundle-manifest.json").read_text(encoding="utf-8")
+        )["bundle_content_id"]
+        transfer = DirectoryTransferManifest.from_directory(
+            bundle,
+            content_id=content_id,
+            artifact_type="human-session-bundle",
+        )
+        manifest_path = transfer.write(self.root / "cli-transfer.json")
+        store_root = self.root / "cli-store"
+        receipt_path = self.root / "cli-transfer" / "transfer-receipt.json"
+
+        with contextlib.redirect_stdout(io.StringIO()):
+            code = main([
+                "receive",
+                str(bundle),
+                str(manifest_path),
+                "--root",
+                str(store_root),
+                "--verify-type",
+                "human-session-bundle",
+                "--receipt",
+                str(receipt_path),
+            ])
+
+        self.assertEqual(code, 0)
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        status = json.loads((store_root / "store-status.json").read_text(encoding="utf-8"))
+        self.assertEqual(receipt["status"], "promoted")
+        self.assertEqual(status["schema"], "sts2.evidence/store-status-1")
+        self.assertEqual(status["last_receipt"], receipt)
+
 
 if __name__ == "__main__":
     unittest.main()
