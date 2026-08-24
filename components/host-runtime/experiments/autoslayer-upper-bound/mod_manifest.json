@@ -1,0 +1,11 @@
+{
+  "id": "STS2_AutoSlayerUpperBound",
+  "name": "STS2 Headless AutoSlayer Upper-Bound Probe",
+  "author": "rsgcsg",
+  "description": "Exact-build route experiment; not a gameplay contract or supported Mod",
+  "version": "0.1.0",
+  "has_pck": false,
+  "has_dll": true,
+  "affects_gameplay": true,
+  "min_game_version": "0.111.0"
+}

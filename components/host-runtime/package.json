@@ -1,0 +1,52 @@
+{
+  "name": "sts2-headless-workspace",
+  "version": "1.0.1",
+  "private": true,
+  "description": "Evidence-first tooling for running the real Slay the Spire 2 runtime without a display",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rsgcsg/STS2-headless.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rsgcsg/STS2-headless/issues"
+  },
+  "homepage": "https://github.com/rsgcsg/STS2-headless#readme",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "setup": "node tools/headless.mjs setup",
+    "rollback": "node tools/headless.mjs rollback",
+    "doctor": "node tools/headless.mjs doctor",
+    "drill:update": "node tools/headless.mjs drill-update",
+    "start": "node tools/headless.mjs start",
+    "status": "node tools/headless.mjs status",
+    "stop": "node tools/headless.mjs stop",
+    "bootstrap:profile": "node tools/headless.mjs bootstrap-profile",
+    "probe:shipped": "node tools/headless.mjs probe-shipped",
+    "probe:menu-control": "node tools/headless.mjs probe-menu-control",
+    "probe:journey": "node tools/headless.mjs probe-journey",
+    "bench:capacity": "node tools/headless.mjs bench-capacity",
+    "probe:differential": "node tools/headless.mjs probe-reference-differential",
+    "compare:hosts": "node tools/compare-host-evidence.mjs",
+    "profile:waits": "node tools/profile-waits.mjs",
+    "probe:recovery": "node tools/headless.mjs probe-recovery",
+    "soak:reference": "node tools/headless.mjs soak-reference",
+    "experiment:autoslayer": "node tools/headless.mjs experiment-autoslayer",
+    "experiment:managed": "node tools/managed-exact.mjs",
+    "audit:source": "node tools/source-audit.mjs",
+    "test": "node --test",
+    "test:python": "node tools/python-check.mjs test",
+    "check:python": "node tools/python-check.mjs check",
+    "smoke:python": "node tools/python-check.mjs smoke",
+    "check:syntax": "node --check tools/headless.mjs && node --check tools/compare-host-evidence.mjs && node --check tools/managed-exact.mjs && node --check tools/managed-pe-driver.mjs && node --check tools/managed-pe-worker.mjs && node --check tools/python-check.mjs && node --check tools/reference-pe-driver.mjs && node --check tools/profile-waits.mjs && node --check tools/source-audit.mjs && node --check src/autoslayer-experiment.mjs && node --check src/capacity-benchmark.mjs && node --check src/causal-wait-profiler.mjs && node --check src/compatibility.mjs && node --check src/connector-endpoint.mjs && node --check src/connector-release.mjs && node --check src/cross-host-driver.mjs && node --check src/decision-timing.mjs && node --check src/episode-provenance.mjs && node --check src/filesystem-sentinel.mjs && node --check src/game-installation.mjs && node --check src/headless-host.mjs && node --check src/host-driver.mjs && node --check src/host-execution-profile.mjs && node --check src/journey-probe.mjs && node --check src/json-line-process.mjs && node --check src/jsonl-recorder.mjs && node --check src/managed-candidate.mjs && node --check src/managed-native-binding-gates.mjs && node --check src/managed-performance-lab.mjs && node --check src/managed-player-environment.mjs && node --check src/managed-player-environment-probe.mjs && node --check src/managed-recovery-probe.mjs && node --check src/managed-sharded-capacity.mjs && node --check src/process-faults.mjs && node --check src/process-resource-sampler.mjs && node --check src/probe-verdict.mjs && node --check src/profile-bootstrap.mjs && node --check src/profile-isolation.mjs && node --check src/profile-template.mjs && node --check src/project-identity.mjs && node --check src/recovery-drill.mjs && node --check src/requalification.mjs && node --check src/runtime-diagnostics.mjs && node --check src/runtime-probe.mjs && node --check src/semantic-decision.mjs && node --check src/semantic-differential.mjs && node --check src/shipped-player-environment.mjs && node --check src/soak-supervisor.mjs && node --check src/system-identity.mjs && node --check test/runtime-probe.test.mjs",
+    "check:repository": "node tools/check-repository.mjs",
+    "check:docs": "node tools/check-markdown-links.mjs",
+    "check": "npm run check:syntax && npm test && npm run check:python && npm run check:docs && npm run check:repository"
+  },
+  "dependencies": {
+    "@rsgcsg/sts2-connector-client": "https://github.com/rsgcsg/STS2-Connector/releases/download/v1.1.0-rc.1/rsgcsg-sts2-connector-client-1.0.0.tgz"
+  }
+}

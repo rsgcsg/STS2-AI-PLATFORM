@@ -1,0 +1,167 @@
+{
+  "schema": "sts2.headless/managed-candidate-manifest-1",
+  "candidate_id": "wuhao21-sts2-cli-d11aa88-v01110",
+  "status": "stpd_v0_operational_baseline",
+  "upstream": {
+    "url": "https://github.com/wuhao21/sts2-cli.git",
+    "revision": "d11aa883b582dd68bd39b331f3370746b30d447e",
+    "license": "MIT"
+  },
+  "exact_game": {
+    "platform": "darwin",
+    "architecture": "arm64",
+    "version": "v0.111.0",
+    "commit": "41cef1ea",
+    "runtime_main_assembly_hash": 1010476334,
+    "sts2_dll_sha256": "9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4",
+    "godotsharp_dll_sha256": "0e4897ecdfb31456a97c7d8028dfb8d7dbdc632e2f73fc9b438d7b266a139289"
+  },
+  "source_patch": "patches/sts2-cli-d11aa88-v01110.patch",
+  "required_game_files": [
+    "sts2.dll",
+    "SmartFormat.dll",
+    "SmartFormat.ZString.dll",
+    "Sentry.dll",
+    "Sentry.Godot.dll",
+    "Steamworks.NET.dll",
+    "MonoMod.Backports.dll",
+    "MonoMod.ILHelpers.dll",
+    "0Harmony.dll",
+    "System.IO.Hashing.dll"
+  ],
+  "setup_contract": {
+    "dotnet_major_minimum": 9,
+    "requires_unmodified_game_assembly": true,
+    "managed_project": "src/Sts2Headless/Sts2Headless.csproj",
+    "managed_artifact": "src/Sts2Headless/bin/Release/net9.0/Sts2Headless.dll"
+  },
+  "expected_build": {
+    "source_patch_sha256": "8ced088bffbfeaa378d4580ca2c254c41cd89ae58b5b1e9b6ee1a764f8eef87e",
+    "artifact_sha256": "8dc622b0c003dc632a753e0bb524a82690290930dfe9573a4c71cb8234a6d8a6",
+    "artifact_mvid": "7228541c-d4f4-4033-9ff5-30f4c9997e98"
+  },
+  "platform_baselines": [
+    {
+      "baseline_id": "win32-x64-v0.111.0-41cef1ea-managed-candidate",
+      "status": "windows_candidate_separate_provenance",
+      "exact_game": {
+        "platform": "win32",
+        "architecture": "x64",
+        "version": "v0.111.0",
+        "commit": "41cef1ea",
+        "runtime_main_assembly_hash": 222455745,
+        "sts2_dll_sha256": "0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9",
+        "godotsharp_dll_sha256": "0e4897ecdfb31456a97c7d8028dfb8d7dbdc632e2f73fc9b438d7b266a139289"
+      },
+      "expected_build": {
+        "source_patch_sha256": "8ced088bffbfeaa378d4580ca2c254c41cd89ae58b5b1e9b6ee1a764f8eef87e",
+        "artifact_sha256": "0d8c916365f0a64a0ed5cfc706186811e33708c841fef82e1f73c6a33dcfcc4d",
+        "artifact_mvid": "387bc1a3-5a3f-4f76-babb-698a770cdb8b"
+      },
+      "non_claims": [
+        "This Windows build has separate provenance and does not inherit macOS qualification.",
+        "Admission is candidate-local and does not establish formal H1.0 support."
+      ]
+    }
+  ],
+  "privileged_commands": [
+    "load_save",
+    "set_player",
+    "enter_room",
+    "set_draw_order",
+    "write_continue_save"
+  ],
+  "lifecycle_commands": [
+    "reset_run",
+    "quit"
+  ],
+  "diagnostic_commands": [
+    "runtime_identity",
+    "run_identity"
+  ],
+  "semantic_shims": [
+    {
+      "id": "runtime_cmd_wait",
+      "kind": "harmony_patch",
+      "risk": "medium",
+      "effect": "removes native wait command timing"
+    },
+    {
+      "id": "runtime_talk_command",
+      "kind": "harmony_patch",
+      "risk": "medium",
+      "effect": "suppresses speech presentation command"
+    },
+    {
+      "id": "localization_substitution",
+      "kind": "host_bootstrap_seam",
+      "risk": "medium",
+      "effect": "loads setup-extracted exact-build localization tables into the game LocManager while retaining native lookup, English fallback, and SmartFormat behavior"
+    },
+    {
+      "id": "test_mode_managed_runtime",
+      "kind": "host_runtime_seam",
+      "risk": "critical",
+      "effect": "runs game code outside the shipped SceneTree under TestMode; bootstrap now follows native singleplayer creation but broad parity is unproved"
+    },
+    {
+      "id": "bundle_selection_adapter",
+      "kind": "runtime_patch",
+      "risk": "high",
+      "effect": "replaces the absent choose-a-bundle UI with an explicit pending player selection"
+    },
+    {
+      "id": "manual_decision_projection",
+      "kind": "host_implementation",
+      "risk": "critical",
+      "effect": "projects decisions and actions outside the canonical Player Environment"
+    },
+    {
+      "id": "managed_rewards_presentation_adapter",
+      "kind": "host_presentation_adapter",
+      "risk": "high",
+      "effect": "replaces the absent rewards screen with exact-identity input waiting; game-owned RewardsCmd, hooks, RewardsSetSynchronizer, Reward.OnSelect, and room exit retain reward authority, while cross-host presentation parity remains unqualified"
+    },
+    {
+      "id": "managed_treasure_presentation_adapter",
+      "kind": "host_presentation_adapter",
+      "risk": "high",
+      "effect": "replaces the absent chest and relic UI with explicit exact-identity input; native treasure voting and RNG stay authoritative, while the Host performs only the UI-owned RelicCmd/fallback completion and cross-host parity remains unqualified"
+    },
+    {
+      "id": "managed_map_presentation_owner",
+      "kind": "host_lifecycle_adapter",
+      "risk": "medium",
+      "effect": "represents the player-visible map-open phase when NMapScreen is absent; the exact native map vote still owns room exit and entry"
+    },
+    {
+      "id": "managed_visible_card_preview",
+      "kind": "observation_adapter",
+      "risk": "high",
+      "effect": "reads game-owned DynamicVar preview APIs without a rendered card node; target-specific information parity remains unqualified"
+    },
+    {
+      "id": "tracked_suspending_host_operation",
+      "kind": "host_lifecycle_adapter",
+      "risk": "high",
+      "effect": "tracks the one game-owned event, rest, or merchant task that may suspend on a player selection before successor observation"
+    },
+    {
+      "id": "in_process_run_cleanup",
+      "kind": "host_lifecycle_adapter",
+      "risk": "high",
+      "effect": "drains pending selections and the prior ActionExecutor around game-owned RunManager cleanup before mounting the next run"
+    }
+  ],
+  "admission": {
+    "allowed_claim": "exact-tuple STPD v0 operational Player Environment baseline",
+    "forbidden_claims": [
+      "formal H1.0 qualification",
+      "broad cross-host semantic equivalence",
+      "arbitrary interaction coverage",
+      "changed-build compatibility",
+      "long-soak qualification",
+      "redistributable game runtime"
+    ]
+  }
+}

@@ -1,0 +1,37 @@
+name: Bug report
+description: Report a reproducible Headless lifecycle or compatibility defect
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: Do not attach saves, game files, Steam identifiers, credentials, or unreviewed logs.
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Observed behavior
+      description: Include the command, expected behavior, actual behavior, and evidence level.
+    validations:
+      required: true
+  - type: textarea
+    id: identity
+    attributes:
+      label: Sanitized identity
+      description: Platform, architecture, game version/commit, Headless tag, Connector version/protocol, and Modset. Remove local paths and account identifiers.
+    validations:
+      required: true
+  - type: dropdown
+    id: evidence
+    attributes:
+      label: Highest evidence level
+      options:
+        - source/unit only
+        - disk identity
+        - boot
+        - loaded
+        - control
+        - journey
+        - differential/performance
+    validations:
+      required: true

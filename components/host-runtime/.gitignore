@@ -1,0 +1,12 @@
+.DS_Store
+.kilo/
+.local/
+node_modules/
+bin/
+obj/
+*.log
+lib/
+game/
+artifacts/
+__pycache__/
+*.pyc
