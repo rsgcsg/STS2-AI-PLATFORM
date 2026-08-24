@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>STS2HumanAnnotator.Core</AssemblyName>
+    <RootNamespace>STS2HumanAnnotator.Core</RootNamespace>
+  </PropertyGroup>
+</Project>

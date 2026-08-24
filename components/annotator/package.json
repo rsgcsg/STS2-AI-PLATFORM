@@ -1,0 +1,30 @@
+{
+  "name": "sts2-human-annotator-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Native STS2 UI human decision recorder",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "doctor": "node tools/annotator.mjs doctor",
+    "build": "node tools/annotator.mjs build",
+    "test": "node tools/annotator.mjs test",
+    "check:docs": "node tools/check-docs.mjs",
+    "check": "node tools/annotator.mjs check",
+    "deploy": "node tools/annotator.mjs deploy",
+    "prepare:mods": "node tools/annotator.mjs prepare-mod-settings",
+    "prepare:live-connector": "node tools/annotator.mjs prepare-live-connector-settings",
+    "dev-deploy": "node tools/annotator.mjs deploy --allow-dirty",
+    "launch": "node tools/annotator.mjs launch",
+    "launch:live-connector": "node tools/annotator.mjs launch-live-connector",
+    "admit:modset": "node tools/annotator.mjs admit-current-modset",
+    "verify:loaded": "node tools/annotator.mjs verify-loaded",
+    "audit": "node tools/annotator.mjs audit",
+    "export": "node tools/annotator.mjs export",
+    "pack-session": "node tools/annotator.mjs pack-session",
+    "rollback": "node tools/annotator.mjs rollback"
+  }
+}

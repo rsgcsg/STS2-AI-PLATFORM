@@ -1,0 +1,677 @@
+using System.Reflection;
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using Godot;
+using MegaCrit.Sts2.Core.Entities.Creatures;
+using MegaCrit.Sts2.Core.Entities.Multiplayer;
+using MegaCrit.Sts2.Core.GameActions;
+using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Multiplayer.Game;
+using MegaCrit.Sts2.Core.Runs;
+using STS2Connector.PlayerEnvironment.Protocol;
+using STS2Connector.PlayerEnvironment.Witness;
+using STS2HumanAnnotator.Core;
+
+namespace STS2HumanAnnotator.Mod;
+
+internal static class RecorderRuntime
+{
+    private sealed record ExactDecisionFrame(
+        ProcessLocalNativeWitnessFrame Frame,
+        RecorderEnvironmentIdentity Environment);
+
+    private sealed record StagedCardFrame(
+        ExactDecisionFrame Decision,
+        CardModel Card,
+        DateTimeOffset StagedAt);
+
+    private sealed record PendingDecision(
+        string RecordId,
+        string RunId,
+        long Sequence,
+        HumanActionContext Context,
+        RecorderEnvironmentIdentity Environment,
+        FrozenDecisionFrame Pre,
+        NativeWitnessEvidence NativeWitness,
+        ExactMappingEvidence Mapping,
+        RecordedBoundAction Action,
+        DateTimeOffset Deadline);
+
+    private static readonly object Gate = new();
+    private static AnnotatorConfiguration? _configuration;
+    private static RecordingStore? _store;
+    private static PendingDecision? _pending;
+    private static StagedCardFrame? _stagedCardFrame;
+    private static long _sequence;
+    private static DateTimeOffset _lastIdleStatusAt;
+    private static DateTimeOffset _lastFrameProbeAt;
+    private static string _runtimeState = "initializing";
+    private static string? _detail;
+    private static int _runSequence;
+    private static bool _runActive;
+    private static string _currentRunId = "run-unassigned";
+
+    internal static string SessionId { get; private set; } = "uninitialized";
+
+    internal static void Initialize(AnnotatorConfiguration configuration)
+    {
+        _configuration = configuration;
+        SessionId = $"session-{DateTimeOffset.UtcNow:yyyyMMddTHHmmssZ}-{Guid.NewGuid():N}";
+        Assembly assembly = typeof(RecorderMod).Assembly;
+        string sourceRevision = ReadSourceRevision(assembly);
+        var manifest = new RecordingManifest(
+            HumanRecorderContract.SchemaVersion,
+            HumanRecorderContract.ManifestSchema,
+            SessionId,
+            DateTimeOffset.UtcNow,
+            RecorderMod.Version,
+            sourceRevision,
+            System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier,
+            new[] { "ordinary_combat.play_card", "ordinary_combat.end_turn" },
+            new[]
+            {
+                "not_human_validated",
+                "ordinary_combat_only",
+                "potion_and_noncombat_actions_unsupported",
+                "receipt_is_recording_evidence_not_gameplay_completion"
+            });
+        _store = RecordingStore.Create(configuration.RecordingRoot, manifest);
+        _runtimeState = "waiting_for_player_environment";
+        WriteStatus(null, null, new[] { "no_current_exact_frame" });
+    }
+
+    internal static void StageCardPlay(CardModel card)
+    {
+        try
+        {
+            ProcessLocalNativeWitnessFrame frame = PlayerEnvironmentNativeWitness.Capture();
+            RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
+            var staged = EligibilityBlockers(frame, environment).Count == 0
+                ? new StagedCardFrame(
+                    new ExactDecisionFrame(frame, environment),
+                    card,
+                    DateTimeOffset.UtcNow)
+                : null;
+            lock (Gate)
+                _stagedCardFrame = staged;
+        }
+        catch
+        {
+            lock (Gate)
+                _stagedCardFrame = null;
+        }
+    }
+
+    internal static bool TryEnterCardScope(CardModel card, Creature? target)
+    {
+        var arguments = new Dictionary<string, object>(StringComparer.Ordinal);
+        if (target != null)
+            arguments["target"] = target;
+        return TryEnterScope(
+            "native_card_play_ui",
+            nameof(PlayCardAction),
+            new ProcessLocalObservedAction("play", card, arguments),
+            card);
+    }
+
+    internal static bool TryEnterScope(
+        string origin,
+        string expectedNativeActionType,
+        ProcessLocalObservedAction? expectedAction = null,
+        CardModel? stagedCard = null)
+    {
+        try
+        {
+            ProcessLocalNativeWitnessFrame current = PlayerEnvironmentNativeWitness.Capture();
+            RecorderEnvironmentIdentity currentEnvironment = BuildEnvironment(current);
+            List<string> currentBlockers = EligibilityBlockers(current, currentEnvironment);
+            ProcessLocalNativeWitnessFrame? selected = null;
+
+            if (currentBlockers.Count == 0
+                && (expectedAction == null || IsExact(current.Resolve(expectedAction))))
+            {
+                selected = current;
+            }
+
+            if (selected == null && expectedAction != null && stagedCard != null)
+            {
+                StagedCardFrame? staged;
+                lock (Gate)
+                {
+                    staged = _stagedCardFrame;
+                    _stagedCardFrame = null;
+                }
+                if (staged != null
+                    && ReferenceEquals(staged.Card, stagedCard)
+                    && DateTimeOffset.UtcNow - staged.StagedAt <= TimeSpan.FromSeconds(30)
+                    && SameDecisionContext(staged.Decision, current, currentEnvironment)
+                    && IsExact(staged.Decision.Frame.Resolve(expectedAction)))
+                {
+                    selected = staged.Decision.Frame;
+                }
+            }
+
+            if (selected == null)
+            {
+                Quarantine(
+                    "pre_frame_capture_failed",
+                    string.Join(",", currentBlockers.Count == 0
+                        ? new[] { "no_same_context_authoritative_frame" }
+                        : currentBlockers.Append("no_same_context_authoritative_frame")),
+                    current.Snapshot.SnapshotId,
+                    expectedNativeActionType,
+                    "fail_closed");
+                return false;
+            }
+
+            HumanActionScope.Enter(origin, expectedNativeActionType, selected);
+            return true;
+        }
+        catch (Exception exception)
+        {
+            Quarantine(
+                "pre_frame_capture_failed",
+                exception.Message,
+                null,
+                origin,
+                "implemented_runtime_error");
+            return false;
+        }
+    }
+
+    private static bool IsExact(ProcessLocalNativeMatch match) =>
+        string.Equals(match.Status, "exact_unique", StringComparison.Ordinal)
+        && match.MatchCount == 1
+        && match.BoundAction != null;
+
+    internal static void ObserveAcceptedAction(GameAction action)
+    {
+        HumanActionContext? context = HumanActionScope.Current;
+        if (context == null)
+            return;
+        string nativeActionType = action.GetType().Name;
+        if (!context.AcceptsRootAction(nativeActionType))
+            return;
+        try
+        {
+            if (!TryDescribeAction(action, context, out ProcessLocalObservedAction? observed, out NativeWitnessEvidence? witness))
+                return;
+            ProcessLocalNativeMatch match = context.Frame.Resolve(observed!);
+            if (!IsExact(match) || !context.TryClaimRootAction(nativeActionType))
+                return;
+            StartPending(context, witness!, match);
+        }
+        catch (Exception exception)
+        {
+            Quarantine(
+                "native_action_observation_failed",
+                exception.Message,
+                context.Frame.Snapshot.SnapshotId,
+                action.GetType().FullName,
+                "implemented_runtime_error");
+        }
+    }
+
+    internal static void OnProcessFrame()
+    {
+        try
+        {
+            UpdateRunLifecycle();
+            PendingDecision? pending;
+            lock (Gate)
+                pending = _pending;
+            if (pending != null)
+            {
+                TrySettle(pending);
+                return;
+            }
+
+            DateTimeOffset now = DateTimeOffset.UtcNow;
+            if (now - _lastFrameProbeAt < TimeSpan.FromMilliseconds(50))
+                return;
+            _lastFrameProbeAt = now;
+            ProcessLocalNativeWitnessFrame frame = PlayerEnvironmentNativeWitness.Capture();
+            RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
+            List<string> blockers = EligibilityBlockers(frame, environment);
+            if (blockers.Any(blocker => !string.Equals(
+                         blocker,
+                         "pre_frame_not_complete_interactive",
+                         StringComparison.Ordinal)))
+            {
+                lock (Gate)
+                    _stagedCardFrame = null;
+            }
+
+            if (now - _lastIdleStatusAt < TimeSpan.FromSeconds(1))
+                return;
+            _lastIdleStatusAt = now;
+            string status = blockers.Count == 0
+                ? "ready_for_human_action"
+                : "fail_closed";
+            _runtimeState = status;
+            _detail = null;
+            WriteStatus(environment, frame.Snapshot.SnapshotId, blockers);
+        }
+        catch (Exception exception)
+        {
+            _runtimeState = "observer_error";
+            _detail = exception.Message;
+            WriteStatus(null, null, new[] { "player_environment_capture_failed" });
+        }
+    }
+
+    private static bool TryDescribeAction(
+        GameAction action,
+        HumanActionContext context,
+        out ProcessLocalObservedAction? observed,
+        out NativeWitnessEvidence? witness)
+    {
+        observed = null;
+        witness = null;
+        if (action is PlayCardAction play)
+        {
+            object? card = play.NetCombatCard.ToCardModelOrNull();
+            if (card == null)
+            {
+                Quarantine(
+                    "play_card_native_subject_missing",
+                    "The accepted PlayCardAction no longer resolved its exact card model.",
+                    context.Frame.Snapshot.SnapshotId,
+                    nameof(PlayCardAction),
+                    "native_witness_missing");
+                return false;
+            }
+            var arguments = new Dictionary<string, object>(StringComparer.Ordinal);
+            var argumentWitnesses = new Dictionary<string, string>(StringComparer.Ordinal);
+            if (play.Target != null)
+            {
+                arguments["target"] = play.Target;
+                argumentWitnesses["target"] = NativeWitnessIdentity.Get(play.Target, "target");
+            }
+            observed = new ProcessLocalObservedAction("play", card, arguments);
+            witness = new NativeWitnessEvidence(
+                context.Origin,
+                nameof(PlayCardAction),
+                NativeWitnessIdentity.Get(card, "card"),
+                argumentWitnesses,
+                DateTimeOffset.UtcNow);
+            return true;
+        }
+
+        if (action is EndPlayerTurnAction)
+        {
+            observed = new ProcessLocalObservedAction(
+                "end_turn",
+                null,
+                new Dictionary<string, object>(StringComparer.Ordinal));
+            witness = new NativeWitnessEvidence(
+                context.Origin,
+                nameof(EndPlayerTurnAction),
+                null,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                DateTimeOffset.UtcNow);
+            return true;
+        }
+
+        string type = action.GetType().FullName ?? action.GetType().Name;
+        Quarantine(
+            "native_scope_contract_error",
+            $"The configured root action {type} has no recorder mapping.",
+            context.Frame.Snapshot.SnapshotId,
+            type,
+            "implemented_runtime_error");
+        return false;
+    }
+
+    private static void StartPending(
+        HumanActionContext context,
+        NativeWitnessEvidence witness,
+        ProcessLocalNativeMatch match)
+    {
+        RecorderEnvironmentIdentity environment = BuildEnvironment(context.Frame);
+        List<string> blockers = EligibilityBlockers(context.Frame, environment);
+        if (blockers.Count > 0)
+        {
+            Quarantine(
+                "action_not_eligible",
+                string.Join(",", blockers),
+                context.Frame.Snapshot.SnapshotId,
+                witness.NativeActionType,
+                "fail_closed");
+            return;
+        }
+
+        lock (Gate)
+        {
+            if (_pending != null)
+            {
+                Quarantine(
+                    "overlapping_action_before_successor",
+                    "A second accepted native action arrived before the previous stable successor.",
+                    context.Frame.Snapshot.SnapshotId,
+                    witness.NativeActionType,
+                    "lifecycle_ambiguous");
+                return;
+            }
+
+            PlayerEnvironmentBoundAction bound = match.BoundAction!;
+            long sequence = Interlocked.Increment(ref _sequence);
+            string recordId = $"record-{sequence:D8}-{Guid.NewGuid():N}";
+            _pending = new PendingDecision(
+                recordId,
+                _currentRunId,
+                sequence,
+                context,
+                environment,
+                Freeze(context.Frame.Snapshot),
+                witness,
+                new ExactMappingEvidence(match.Status, match.MatchCount, match.Evidence, match.Detail),
+                new RecordedBoundAction(
+                    bound.BoundActionId,
+                    bound.Verb,
+                    bound.SubjectReferentId,
+                    bound.Arguments.ToDictionary(
+                        argument => argument.Role,
+                        argument => argument.ReferentId,
+                        StringComparer.Ordinal),
+                    bound.Label),
+                DateTimeOffset.UtcNow + _configuration!.SuccessorTimeout);
+            _runtimeState = "waiting_for_stable_successor";
+            _detail = null;
+            WriteStatus(environment, context.Frame.Snapshot.SnapshotId, Array.Empty<string>());
+        }
+    }
+
+    private static void TrySettle(PendingDecision pending)
+    {
+        if (DateTimeOffset.UtcNow > pending.Deadline)
+        {
+            ClearPendingWithInvalidation(
+                pending,
+                "stable_successor_timeout",
+                "No different complete interactive successor was observed before the bounded timeout.",
+                "successor_missing");
+            return;
+        }
+
+        ProcessLocalNativeWitnessFrame successorFrame = PlayerEnvironmentNativeWitness.Capture();
+        if (!string.Equals(
+                successorFrame.Capabilities.Host.RuntimeInstanceId,
+                pending.Environment.RuntimeInstanceId,
+                StringComparison.Ordinal)
+            || !string.Equals(
+                successorFrame.Capabilities.EnvironmentFingerprint,
+                pending.Environment.EnvironmentFingerprint,
+                StringComparison.Ordinal))
+        {
+            ClearPendingWithInvalidation(
+                pending,
+                "runtime_identity_changed",
+                "Runtime or environment identity changed before successor settlement.",
+                "environment_changed");
+            return;
+        }
+
+        PlayerEnvironmentSnapshot successor = successorFrame.Snapshot;
+        if (!string.Equals(successor.Status, "interactive", StringComparison.Ordinal)
+            || !string.Equals(successor.BoundActions.Status, "complete", StringComparison.Ordinal)
+            || string.Equals(successor.SnapshotId, pending.Pre.SnapshotId, StringComparison.Ordinal))
+            return;
+
+        var record = new HumanDecisionRecord(
+            HumanRecorderContract.SchemaVersion,
+            HumanRecorderContract.RecordSchema,
+            pending.RecordId,
+            SessionId,
+            pending.RunId,
+            pending.Sequence,
+            DateTimeOffset.UtcNow,
+            pending.Environment,
+            pending.Pre,
+            pending.NativeWitness,
+            pending.Mapping,
+            pending.Action,
+            new StableSuccessor(
+                successor.SnapshotId,
+                successor.Status,
+                successor.Interaction.InteractionId,
+                successor.Interaction.Kind,
+                successor.ObservedAt,
+                ToNode(successor)),
+            DecisionFamily(pending.Pre.InteractionKind),
+            pending.Pre.SurfaceSchema,
+            new RecordEligibility(
+                "admitted",
+                new[]
+                {
+                    "singleplayer",
+                    "exact_artifact_identity",
+                    "exact_observer_modset_canary",
+                    "complete_pre_catalog",
+                    "native_ui_scope",
+                    "exact_unique_reference_mapping",
+                    "different_complete_interactive_successor"
+                },
+                new[]
+                {
+                    "not_business_completion",
+                    "not_human_validated_until_owner_review",
+                    "ordinary_combat_only"
+                }));
+        _store!.AppendDecision(record);
+        RecorderEnvironmentIdentity successorEnvironment = BuildEnvironment(successorFrame);
+        lock (Gate)
+            _pending = null;
+        _runtimeState = "record_appended";
+        _detail = record.RecordId;
+        WriteStatus(pending.Environment, successor.SnapshotId, Array.Empty<string>());
+        GD.Print($"[STS2 Human Annotator] admitted {record.RecordId} {record.Action.Verb}");
+    }
+
+    private static FrozenDecisionFrame Freeze(PlayerEnvironmentSnapshot snapshot) => new(
+        snapshot.SnapshotId,
+        snapshot.Interaction.InteractionId,
+        snapshot.Interaction.Kind,
+        snapshot.Interaction.ContentSchema,
+        EvidenceIdentity.Sha256Json(snapshot.BoundActions),
+        snapshot.BoundActions.Actions.Count,
+        ToNode(snapshot));
+
+    private static RecorderEnvironmentIdentity BuildEnvironment(
+        ProcessLocalNativeWitnessFrame frame)
+    {
+        PlayerEnvironmentCapabilitiesResponse capabilities = frame.Capabilities;
+        Assembly gameAssembly = typeof(RunManager).Assembly;
+        Assembly annotatorAssembly = typeof(RecorderMod).Assembly;
+        return new RecorderEnvironmentIdentity(
+            new ExactGameIdentity(
+                capabilities.Game.Version,
+                capabilities.Game.Commit,
+                EvidenceIdentity.Sha256File(gameAssembly.Location),
+                gameAssembly.ManifestModule.ModuleVersionId.ToString("D")),
+            new ExactArtifactIdentity(
+                capabilities.Host.Name,
+                capabilities.Host.Version,
+                capabilities.Host.Implementation.SourceRevision ?? "unavailable",
+                frame.SourceDigest,
+                capabilities.Host.Implementation.ArtifactSha256 ?? "unavailable",
+                capabilities.Host.Implementation.ModuleVersionId ?? "unavailable"),
+            new ExactArtifactIdentity(
+                "STS2 Native UI Human Annotator",
+                RecorderMod.Version,
+                ReadSourceRevision(annotatorAssembly),
+                ReadAssemblyMetadata(annotatorAssembly, "AnnotatorSourceDigest"),
+                EvidenceIdentity.Sha256File(annotatorAssembly.Location),
+                annotatorAssembly.ManifestModule.ModuleVersionId.ToString("D")),
+            capabilities.ProtocolVersion,
+            capabilities.Host.RuntimeInstanceId,
+            capabilities.EnvironmentFingerprint,
+            capabilities.Game.Modset.Status,
+            capabilities.Game.Modset.Fingerprint);
+    }
+
+    private static List<string> EligibilityBlockers(
+        ProcessLocalNativeWitnessFrame frame,
+        RecorderEnvironmentIdentity environment)
+    {
+        var blockers = new List<string>();
+        if (!RunManager.Instance.IsInProgress
+            || RunManager.Instance.NetService?.Type != NetGameType.Singleplayer)
+            blockers.Add("not_singleplayer_run");
+        if (frame.ExternalControllerActive)
+            blockers.Add("external_controller_active");
+        if (!string.Equals(frame.Snapshot.Status, "interactive", StringComparison.Ordinal)
+            || !string.Equals(frame.Snapshot.BoundActions.Status, "complete", StringComparison.Ordinal)
+            || frame.Snapshot.BoundActions.Actions.Count == 0)
+            blockers.Add("pre_frame_not_complete_interactive");
+        if (!string.Equals(environment.ModsetStatus, "canary_exact_observer_modset", StringComparison.Ordinal))
+            blockers.Add("exact_observer_modset_canary_missing");
+        if (!IsCommit(environment.Connector.SourceRevision)
+            || !IsCommit(environment.Annotator.SourceRevision))
+            blockers.Add("source_revision_not_exact");
+        return blockers;
+    }
+
+    private static bool SameDecisionContext(
+        ExactDecisionFrame cached,
+        ProcessLocalNativeWitnessFrame current,
+        RecorderEnvironmentIdentity currentEnvironment) =>
+        string.Equals(
+            cached.Environment.RuntimeInstanceId,
+            currentEnvironment.RuntimeInstanceId,
+            StringComparison.Ordinal)
+        && string.Equals(
+            cached.Environment.EnvironmentFingerprint,
+            currentEnvironment.EnvironmentFingerprint,
+            StringComparison.Ordinal)
+        && string.Equals(
+            cached.Frame.Snapshot.Interaction.InteractionId,
+            current.Snapshot.Interaction.InteractionId,
+            StringComparison.Ordinal)
+        && !current.ExternalControllerActive;
+
+    private static string DecisionFamily(string interactionKind) =>
+        interactionKind.StartsWith("combat", StringComparison.Ordinal)
+            ? "ordinary_combat"
+            : interactionKind;
+
+    private static void ClearPendingWithInvalidation(
+        PendingDecision pending,
+        string reason,
+        string detail,
+        string evidenceLevel)
+    {
+        lock (Gate)
+        {
+            if (!ReferenceEquals(_pending, pending))
+                return;
+            _pending = null;
+        }
+        Quarantine(
+            reason,
+            detail,
+            pending.Pre.SnapshotId,
+            pending.NativeWitness.NativeActionType,
+            evidenceLevel);
+    }
+
+    private static void Quarantine(
+        string reason,
+        string detail,
+        string? snapshotId,
+        string? nativeActionType,
+        string evidenceLevel)
+    {
+        try
+        {
+            _store?.AppendInvalidation(new InvalidationRecord(
+                HumanRecorderContract.SchemaVersion,
+                HumanRecorderContract.InvalidationSchema,
+                $"invalidation-{Guid.NewGuid():N}",
+                SessionId,
+                _currentRunId,
+                DateTimeOffset.UtcNow,
+                reason,
+                detail,
+                snapshotId,
+                nativeActionType,
+                evidenceLevel));
+            _runtimeState = "quarantined";
+            _detail = $"{reason}: {detail}";
+            GD.PrintErr($"[STS2 Human Annotator] quarantined {reason}: {detail}");
+        }
+        catch (Exception exception)
+        {
+            GD.PrintErr($"[STS2 Human Annotator] failed to persist invalidation: {exception}");
+        }
+    }
+
+    private static void WriteStatus(
+        RecorderEnvironmentIdentity? environment,
+        string? snapshotId,
+        IReadOnlyList<string> blockers)
+    {
+        if (_store == null || _configuration == null)
+            return;
+        try
+        {
+            _store.WriteRuntimeStatus(
+                _configuration.RuntimeStatusPath,
+                new RecorderRuntimeStatus(
+                    HumanRecorderContract.SchemaVersion,
+                    HumanRecorderContract.RuntimeStatusSchema,
+                    _runtimeState,
+                    DateTimeOffset.UtcNow,
+                    System.Environment.ProcessId,
+                    SessionId,
+                    _store.DirectoryPath,
+                    environment,
+                    snapshotId,
+                    _pending?.RecordId,
+                    _detail,
+                    blockers,
+                    new[]
+                    {
+                        "status_is_not_human_validation",
+                        "installed_is_not_loaded",
+                        "loaded_is_not_recording_evidence"
+                    }));
+        }
+        catch (Exception exception)
+        {
+            GD.PrintErr($"[STS2 Human Annotator] failed to write runtime status: {exception.Message}");
+        }
+    }
+
+    private static JsonNode ToNode<T>(T value) =>
+        JsonSerializer.SerializeToNode(value, EvidenceJson.Options)
+        ?? throw new InvalidOperationException("Evidence serialization returned null.");
+
+    private static string ReadSourceRevision(Assembly assembly) =>
+        ReadAssemblyMetadata(assembly, "SourceRevision");
+
+    private static string ReadAssemblyMetadata(Assembly assembly, string key) =>
+        assembly.GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(attribute =>
+                string.Equals(attribute.Key, key, StringComparison.Ordinal))
+            ?.Value
+        ?? "unavailable";
+
+    private static bool IsCommit(string value) =>
+        value.Length == 40 && value.All(Uri.IsHexDigit);
+
+    private static void UpdateRunLifecycle()
+    {
+        bool inProgress = RunManager.Instance.IsInProgress;
+        if (inProgress && !_runActive)
+        {
+            _runSequence++;
+            _currentRunId = $"run-{_runSequence:D4}";
+            _runActive = true;
+        }
+        else if (!inProgress)
+        {
+            _runActive = false;
+        }
+    }
+}

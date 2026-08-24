@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>sts2-human-annotator</AssemblyName>
+    <RootNamespace>STS2HumanAnnotator.Tool</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../STS2HumanAnnotator.Core/STS2HumanAnnotator.Core.csproj" />
+  </ItemGroup>
+</Project>
