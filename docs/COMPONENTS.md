@@ -11,3 +11,7 @@
 Each imported component retains its focused `AGENTS.md`, tests and operational
 documentation. Those files add component-specific constraints but cannot
 override the root hard shell.
+
+The Annotator compiles against the exact Connector Release artifact produced at
+`components/connector/host/out/STS2_MCP/STS2_MCP.dll`; it never recompiles or
+copies a second Connector implementation.

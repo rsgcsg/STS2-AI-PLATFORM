@@ -14,6 +14,16 @@ for (const [relative, forbidden] of checks) {
   const contents = fs.readFileSync(path.join(root, relative), "utf8");
   if (forbidden.test(contents)) errors.push(`${relative}: legacy sibling coupling remains`);
 }
+const annotatorProject = fs.readFileSync(
+  path.join(root, "components/annotator/src/STS2HumanAnnotator.Mod/STS2HumanAnnotator.Mod.csproj"),
+  "utf8"
+);
+if (!annotatorProject.includes("../../../connector/host/out/STS2_MCP/STS2_MCP.dll")) {
+  errors.push("Annotator Mod must consume the exact component-local Connector build artifact");
+}
+if (annotatorProject.includes("ProjectReference Include=\"../../../connector")) {
+  errors.push("Annotator Mod must not create an untracked second Connector build");
+}
 const productionRoots = [
   "components/connector/host",
   "components/connector/sdk",
