@@ -1,0 +1,12 @@
+[project]
+name = "sts2-connector-mcp"
+version = "1.0.0rc1"
+description = "Thin MCP transport for the STS2 Player Environment"
+requires-python = ">=3.11"
+dependencies = [
+    "mcp>=1.7.1",
+    "httpx>=0.25.0",
+]
+
+[project.scripts]
+sts2-connector-mcp = "server:main"

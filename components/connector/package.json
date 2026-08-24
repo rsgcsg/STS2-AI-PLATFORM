@@ -1,0 +1,34 @@
+{
+  "name": "sts2-connector-workspace",
+  "version": "1.1.0-rc.1",
+  "private": true,
+  "description": "Development workspace for the STS2 Player Environment Host, client SDK and transports",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "bootstrap": "npm --prefix sdk/typescript ci",
+    "doctor": "node tools/connector.mjs doctor",
+    "connector": "node tools/connector.mjs",
+    "build": "node tools/connector.mjs build",
+    "test": "node tools/connector.mjs test",
+    "deploy": "node tools/connector.mjs deploy",
+    "dev-deploy": "node tools/connector.mjs deploy --allow-dirty",
+    "verify:loaded": "node tools/connector.mjs verify-loaded-artifact --wait",
+    "rollback": "node tools/connector.mjs restore-known-environment",
+    "check": "npm run check:sdk && npm run check:package && npm run check:docs && npm run check:compatibility && npm run check:cli && npm run check:release-tools && npm run check:python",
+    "check:sdk": "npm --prefix sdk/typescript run check",
+    "check:docs": "node tools/check-active-markdown-links.mjs && npm run check:contract && npm run check:boundary",
+    "check:contract": "node tools/check-player-environment-contract.mjs",
+    "check:compatibility": "node tools/check-host-compatibility.mjs",
+    "check:boundary": "node tools/check-player-environment-boundary.mjs",
+    "check:cli": "node tools/test-connector-cli.mjs",
+    "check:release-tools": "node tools/test-release-tools.mjs",
+    "check:python": "python -m py_compile transports/mcp/server.py",
+    "check:package": "node tools/pack-sdk.mjs --dry-run",
+    "pack:sdk": "node tools/pack-sdk.mjs --dry-run",
+    "package:release": "node tools/package-release.mjs"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "release": {
+    "version": "1.1.0-rc.1",
+    "channel": "prerelease",
+    "status": "local_canary_runtime_seal_required"
+  },
+  "player_environment": {
+    "protocol": "1.0.0",
+    "contract": "contracts/player-environment-contract.json"
+  },
+  "host": {
+    "implementation_id": "STS2_MCP",
+    "implementation_id_policy": "immutable_compatibility_id_for_major_1",
+    "manifest": "host/mod_manifest.json"
+  },
+  "client": {
+    "npm_package": "@rsgcsg/sts2-connector-client",
+    "version": "1.0.0"
+  },
+  "exact_game_audit": {
+    "support_id": "win32-x64-v0.111.0-41cef1ea-candidate",
+    "status": "candidate_exact",
+    "platform": "win32",
+    "architecture": "x64",
+    "version": "v0.111.0",
+    "commit": "41cef1ea",
+    "runtime_main_assembly_hash": 222455745,
+    "main_assembly_sha256": "0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9",
+    "main_assembly_mvid": "73b63ee0-6c0a-47bb-b0d1-b21f6d94222e",
+    "authority": "explicit_process_local_canary_only"
+  },
+  "evidence": {
+    "predecessor_source": "154a5cdf435626f2cc84fe0412e9f9e1adbd637b",
+    "runtime_seal_asset": "STS2-Connector-1.1.0-rc.1-runtime-seal.json",
+    "transfer_policy": "No predecessor artifact, runtime or journey evidence qualifies this release."
+  },
+  "host_compatibility_contract": "contracts/host-compatibility.json"
+}
