@@ -1,6 +1,6 @@
 # Current Status
 
-Phase: **runtime-seal candidate; current native-human gate passed**.
+Phase: **Human Evidence V2 source/test candidate; exact runtime validation pending**.
 
 ## Implemented
 
@@ -18,6 +18,18 @@ Phase: **runtime-seal candidate; current native-human gate passed**.
 - STPD consumes public packages and does not require a predecessor sibling
   checkout for its package path.
 - Root and component portable checks pass at the current source revision.
+- Connector `1.2.0-rc.6` exposes process-local same-frame Snapshot plus required
+  Read materialization for Annotator without creating a wire authority.
+- Annotator `0.3.0-rc.1` implements Decision V2, state-bound ReadEvidence,
+  CaptureProfile, minimal RunJournal, portable Bundle V2 and generated-card
+  choice witness while retaining the exact ordinary-combat correlation kernel.
+- Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
+  immutable local store, transfer and staged receiver with receipts.
+- Workbench `0.1.0-rc.1` provides read-only Environment, Human Recording,
+  Evidence, Transfer and Diagnostics status through application services.
+- STPD `d222e340...` installs Evidence from the exact public Git revision,
+  preserves V1 verifier parity, rejects unverified V2 JSONL and projects
+  verified `run_deck`/`combat_piles` into state and successor.
 - Connector `1.2.0-rc.5` and Host Runtime `1.1.0-rc.7` are immutable public
   releases whose assets were cold-downloaded and checksum-verified.
 - The public Host package passed exact-game H0, H1 and bounded H2 against the
@@ -30,6 +42,10 @@ Phase: **runtime-seal candidate; current native-human gate passed**.
   owner-operated ordinary-combat decisions: 10 targeted plays, 12 untargeted
   plays and 8 end turns. All mapped exact-unique and reached a different stable
   interactive successor; independent audit accepted 30/30.
+
+The public package and native-human bullets above are the retained V1 runtime
+seal. They are predecessor evidence for regression only and do not claim that
+the V2 Connector/Annotator source has loaded or recorded Human V2 evidence.
 
 ## Current Evidence
 
@@ -49,6 +65,9 @@ does not transfer.
   game journey, durable qualification, semantic parity or long-soak proof.
 - The optional noninteractive Host execution profile was not implemented by the
   current Connector and remains a non-claim; shipped-default semantics passed.
-- Workbench, generic evidence receiver, and a Platform-wide Python SDK are not
-  current Platform claims; the Host component's Python consumer is component
-  scope.
+- V2 generated-card choice has exact-source and deterministic test coverage but
+  no current native-human runtime exercise. No V2 session, store/receiver
+  receipt, STPD V2 corpus admission or training authorization is yet Live.
+- Platform Evidence is a focused evidence-integrity package, not a
+  Platform-wide gameplay SDK. Workbench remains read-only and is not an
+  authority or full product UI.

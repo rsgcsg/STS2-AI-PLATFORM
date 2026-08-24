@@ -9,12 +9,15 @@ Read current Platform truth in this order:
 5. [Versioning](VERSIONING.md)
 6. [Roadmap](ROADMAP.md)
 7. [Current handoff](memory/CURRENT.md)
-8. [Current runtime-seal candidate evidence](evidence/RUNTIME_SEAL_CANDIDATE_2026-08-24.md)
+8. [V1 runtime-seal predecessor evidence](evidence/RUNTIME_SEAL_CANDIDATE_2026-08-24.md)
 
 Then read the component entry points:
 
-9. [Host Runtime map](../components/host-runtime/docs/DOCUMENT_MAP.md)
-10. [Annotator map](../components/annotator/docs/DOCUMENT_MAP.md)
+9. [Connector map](../components/connector/docs/DOCUMENT_MAP.md)
+10. [Host Runtime map](../components/host-runtime/docs/DOCUMENT_MAP.md)
+11. [Annotator map](../components/annotator/docs/DOCUMENT_MAP.md)
+12. [Evidence package](../components/evidence/README.md)
+13. [Workbench](../apps/workbench/README.md)
 
 The Connector contract and release identity are authoritative in the Connector
 component manifest and the root `platform-bom.json`. Component documentation is

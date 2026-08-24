@@ -1,9 +1,9 @@
 # Status
 
-Platform migration note: historical Annotator evidence below remains bound to
-its original source/artifact. Annotator `0.2.0-rc.2` in the consolidated source
-has no inherited build, loaded or native-human evidence claim; root
-`../../../docs/STATUS.md` is authoritative for migration status.
+Historical Annotator evidence below remains bound to its original
+source/artifact. Annotator `0.3.0-rc.1` is the current read-rich V2 source
+candidate; it does not inherit the V1 loaded or native-human evidence. Root
+`../../../docs/STATUS.md` is authoritative for the current runtime boundary.
 
 ## Implemented
 
@@ -25,6 +25,12 @@ has no inherited build, loaded or native-human evidence claim; root
   loaded-process verification, and rollback while retaining the macOS path;
 - deterministic UTF-8/LF exports on Windows and macOS;
 - STPD strict import through its existing Player Environment projection and B0.
+- Decision V2, state-bound ReadEvidence, CaptureProfile, minimal RunJournal and
+  portable HumanSessionBundle V2;
+- required pre/successor `run_deck` and `combat_piles` captured from one
+  authoritative Connector frame;
+- exact generated-card choice select/skip witness using shipped native UI
+  callbacks and the same frozen BoundAction authority.
 
 ## Automated Evidence
 
@@ -34,6 +40,9 @@ audit, export, deterministic bundle packing, retry reuse, immutable-destination
 rejection, collection-profile drift and missing-attestation rejection. Connector
 tests cover duplicate-looking native objects,
 target disambiguation, incomplete frames, and exact observer fingerprinting.
+V2 tests additionally cover required-Read fail-closed admission, blob/content
+identity, RunJournal/bundle portability, selector transition precision and
+version-aware external verification.
 
 ## Exact Runtime Findings
 
@@ -93,5 +102,7 @@ recorded only after the corresponding cold loads and owner-operated actions.
 
 ## Declared Unsupported
 
-Potions, non-Combat selectors, event/reward/shop/rest/map/menu actions,
-multiplayer, and gameplay-affecting Modsets are not admitted by version 0.2.0-rc.2.
+Potions, event/reward/shop/rest/map/menu actions, arbitrary selectors,
+multiplayer, and gameplay-affecting Modsets are not admitted by version
+`0.3.0-rc.1`. Generated-card choice is implemented but remains pending exact
+native-human runtime evidence.

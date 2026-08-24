@@ -4,7 +4,7 @@
 > the in-repository Host Runtime and Connector components; sibling checkouts are
 > no longer part of the current development contract.
 
-`STS2-human-Annotator` records ordinary human decisions made through the shipped
+The Human Annotator records bounded human decisions made through the shipped
 Slay the Spire 2 UI. It combines the exact pre-action Player Environment frame
 from the Platform Connector component, a native action
 already accepted by the game, an exact process-local mapping to one frozen
@@ -18,6 +18,9 @@ or expose native references on a wire.
 - Implemented and automated-test verified: ordinary Combat `play` (including an
   exact target when present), `end_turn`, append-only recording, independent
   audit/export, exact artifact identity, and fail-closed STPD import.
+- V2 source/test coverage adds same-frame `run_deck` and `combat_piles`, typed
+  ReadEvidence, CaptureProfile, RunJournal, portable Bundle V2, and exact
+  generated-card choice select/skip observation. V2 runtime evidence is pending.
 - Builds from the exact local STS2 `v0.111.0` assembly on macOS arm64 and
   Windows x64. Windows discovery and process inspection use the Platform Host
   Runtime component.
@@ -42,11 +45,12 @@ shipped STS2 UI
   -> observer freezes Connector S + complete A(S) at native selection start
   -> game accepts a semantic action
   -> exact native references match exactly one frozen BoundAction
-  -> Connector observes a different stable S'
-  -> append-only HumanDecisionRecord
+  -> Connector observes a different stable S' with required same-frame Reads
+  -> append-only HumanDecisionRecord V2 + RunJournal + content-addressed blobs
   -> audit/export
-  -> immutable HumanSessionBundle
-  -> STPD registry, deterministic corpus, split, B0 and profiling
+  -> immutable HumanSessionBundle V2
+  -> Platform Evidence verify/store/transfer/receive
+  -> STPD research admission, corpus, split, B0 and profiling
 ```
 
 Zero or multiple matches, no current or same-card staged stable pre-frame,

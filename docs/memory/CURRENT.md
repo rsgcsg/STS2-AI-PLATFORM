@@ -1,6 +1,6 @@
 # Current Context
 
-Phase: **runtime-seal candidate; current native-human gate passed.**
+Phase: **Human Evidence V2 source/test candidate; exact runtime pending.**
 
 `STS2-AI-PLATFORM` is the only forward-development source authority for the
 Platform components. The root BOM and component release manifests are the
@@ -12,13 +12,14 @@ identity registry.
 
 - Keep portable source, BOM, boundary, history, package and component checks
   green.
-- Preserve Connector `1.2.0-rc.5`, Host Runtime `1.1.0-rc.7`, Annotator
-  `0.2.0-rc.2` and STPD `f75fb140...` as separate exact identities.
-- The exact current Connector + Annotator Modset produced one owner-operated
-  ordinary-combat session with 30 admitted decisions. Independent audit passed
-  with no invalid records; eight unstable pre-frames failed closed before
-  admission. The next work belongs to wider evidence or downstream consumers,
-  not another current-scope Platform source change.
+- Preserve the V1 public package/runtime seal as predecessor evidence while
+  tracking current V2 source/build/install/load independently.
+- Connector `1.2.0-rc.6`, Annotator `0.3.0-rc.1`, Evidence `0.1.0-rc.1` and
+  Workbench `0.1.0-rc.1` implement the read-rich V2 source path.
+- STPD `d222e340...` consumes the exact Evidence Git package, preserves V1
+  verifier parity, rejects unverified V2 and projects verified Reads.
+- Complete automated checks, exact build/deploy/load and non-human canaries;
+  then request one owner native-UI session for play/end-turn/generated choice.
 
 ## Evidence Boundary
 

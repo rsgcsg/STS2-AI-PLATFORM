@@ -19,6 +19,8 @@ npm run check:history
 npm --prefix components/connector run check
 npm --prefix components/host-runtime run check
 npm --prefix components/annotator run test
+npm --prefix components/evidence run check
+npm --prefix apps/workbench run test
 ```
 
 The component checks have separate meanings:
@@ -30,6 +32,9 @@ The component checks have separate meanings:
 - Annotator `test`: portable recorder and workstation-tool tests;
 - Annotator `check`: the portable tests plus exact native compilation against
   the locally installed game and current Connector artifact.
+- Evidence check: Python package build, V1/V2 typed verification, immutable
+  store/transfer/receiver and failure paths;
+- Workbench test: read-only service aggregation, JSON status and HTML entry.
 
 `npm run build` and `npm run check:exact-game` require the exact local STS2
 installation. They build or compile game-bound artifacts; a successful build is

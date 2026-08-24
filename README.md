@@ -12,21 +12,26 @@ STS2 game truth
 Native human play
   -> Human Annotator
   -> immutable evidence bundles
+  -> Platform Evidence verify/store/transfer/receive
   -> external evidence consumers
+
+Operator diagnostics
+  -> read-only Platform Workbench services and UI
 ```
 
-The repository physically unifies the Connector, Host Runtime and Human
-Annotator while preserving them as separate components, artifacts, identities
-and authorities. It does not contain a policy, reward function, model, training
-system or second game-rules engine. STPD remains an independent research
-consumer.
+The repository physically unifies Connector, Host Runtime, Human Annotator,
+Platform Evidence, and a read-only Workbench while preserving separate
+components, identities and authorities. It does not contain a policy, reward
+function, model, training system or second game-rules engine. STPD remains an
+independent research consumer.
 
-Current status: the public Connector and Host packages have passed exact-game
-H0/H1/H2 gates, and the current Annotator is built, installed and cold-loaded.
-The same exact Annotator artifact has now passed an owner-operated native-UI
-ordinary-combat gate and independent machine audit. The composition is a
-runtime-seal candidate, not a durable qualification or full-game claim. See
-[Status](docs/STATUS.md) and the [candidate report](docs/evidence/RUNTIME_SEAL_CANDIDATE_2026-08-24.md).
+Current status: the V1 public Connector/Host composition retains its exact
+runtime seal. Read-rich Human Evidence V2 is implemented and automated-tested:
+same-frame `run_deck`/`combat_piles`, typed V2 records and bundles, immutable
+local evidence logistics, one generated-card selector witness, verified STPD
+consumption, and a minimal Workbench. The V2 artifact has separate build/install
+and runtime evidence and does not inherit V1 Live or human validation. See
+[Status](docs/STATUS.md) and the [V1 candidate report](docs/evidence/RUNTIME_SEAL_CANDIDATE_2026-08-24.md).
 
 The initial consolidation imports the complete histories of:
 
@@ -36,6 +41,9 @@ The initial consolidation imports the complete histories of:
   tooling and qualification;
 - `components/annotator`: native-human witness recording, audit and immutable
   session bundles.
+- `components/evidence`: typed artifact verification, content identity,
+  immutable local store, transfer and receiver receipts;
+- `apps/workbench`: read-only application services and diagnostics UI.
 
 Read [the consolidation ADR](docs/adr/0001-consolidate-environment-platform.md)
 and [migration provenance](migration/source-manifest.json) before changing a
@@ -61,6 +69,8 @@ npm run annotator:launch
 npm run annotator:verify-loaded
 npm run annotator:audit -- <session-directory>
 npm run annotator:pack-session -- <session-directory> [options]
+npm run evidence -- --help
+npm run workbench
 ```
 
 ## Evidence Boundary

@@ -1,8 +1,8 @@
 # Current Status
 
-Platform migration note: this document retains exact predecessor release and
-runtime evidence. Current Platform Connector `1.2.0-rc.5` is a source candidate
-with no inherited build, loaded, Live or qualification claim. Root
+This document retains exact predecessor release and runtime evidence. Current
+Platform Connector `1.2.0-rc.6` is the read-rich Human Evidence V2 source
+candidate with no inherited loaded, Live or qualification claim. Root
 `../../../docs/STATUS.md` is authoritative for the consolidated source state.
 
 General stable release: `v1.0.1`
@@ -63,6 +63,10 @@ after collection; no loaded-runtime claim is made for that restored disk state.
 - state-bound non-authorizing Reads;
 - settling Snapshots with empty mutation authority;
 - standalone build/deploy/verify/rollback and strategy-free SDK.
+- process-local same-frame Snapshot plus required Read materialization for
+  exact observer evidence; this seam is not a transport or action authority;
+- generated-card choice native UI binding retained under the same finite
+  BoundAction/execution authority.
 
 ## General Stable Lineage
 

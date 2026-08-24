@@ -11,7 +11,7 @@
 
 - Complete: package the Connector SDK and Host Runtime from Platform.
 - Complete: make STPD consume pinned public packages instead of sibling source.
-- move generic bundle/profile verification only after parity tests;
+- Complete: move generic V1/V2 bundle verification after exact V1 parity tests;
 - retain ResearchTransition, corpus policy, splits, B0, serialization, models and
   training in STPD.
 
@@ -28,5 +28,20 @@
 - Complete: promote the exact composition to Platform BOM `0.1.0-rc.3` after
   the human gate; this remains a runtime-seal candidate, not qualification.
 
-Workbench, Receiver, cloud storage and wider Annotator capture are later work,
-not reasons to weaken the initial component boundaries.
+## Human Evidence V2
+
+- Complete at source/test: same-frame process-local `run_deck` and
+  `combat_piles` capture, Decision/Read/CaptureProfile/RunJournal/Bundle V2.
+- Complete at source/test: generated-card choice select/skip native witness
+  without changing Connector action authority.
+- Complete: local immutable Evidence Store, directory transfer, staged typed
+  receiver verification and receipts.
+- Complete: STPD version-pinned V2 consumption with V1 compatibility and
+  read-rich projection.
+- Complete: read-only Workbench foundation for Environment, Human Recording,
+  Evidence, Transfer and Diagnostics.
+- Pending exact runtime: cold-loaded V2 artifact and owner-operated targeted,
+  untargeted, end-turn and generated-choice evidence.
+
+Cloud storage, broad action-family capture and a full Workbench remain later
+work; they are not reasons to weaken the component boundaries.

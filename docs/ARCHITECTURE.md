@@ -11,7 +11,8 @@ not provide policy, reward, model, training or research authority.
 ```text
 Environment:  Host <-> Connector <-> consumer
 Host control: Host Runtime <-> STS2 process lifecycle
-Evidence:     Annotator -> immutable bundle -> evidence consumer
+Evidence:     Annotator -> immutable bundle -> verify/store/transfer/receive -> consumer
+Operations:   read-only Workbench services -> diagnostics UI
 ```
 
 The planes may share exact environment identity, but not mutation authority or
@@ -38,9 +39,13 @@ STS2 installation and native runtime
   -> Annotator component
      -> Host workstation seam + exact Connector witness artifact
      -> native-human witness recording and session evidence
+  -> Evidence component
+     -> typed V1/V2 verification, content identity, immutable local logistics
+  -> Workbench application
+     -> read-only Environment/Annotator/Evidence/Transfer diagnostics
 
 External consumers -> public Connector SDK / Host Runtime package
-STPD              -> public packages and admitted evidence
+STPD              -> public packages + version-pinned Evidence package
 SpireAgent        -> consumer integration and policy
 ```
 
@@ -50,7 +55,10 @@ Connector artifact named by the current Platform BOM/release authority, not an
 unrelated branch or predecessor release. Annotator may use the explicitly
 declared Platform composition seams for exact native witnessing, but it does
 not create a second Connector build or action authority. STPD consumes public
-packages and evidence artifacts, never Platform implementation internals.
+packages and verified evidence artifacts, never Platform implementation
+internals. Evidence validates artifact integrity and transport; STPD alone owns
+research admission, splits, labels, B0 and training authorization. Workbench
+orchestrates read-only application services and owns no domain decision.
 
 Portable boundary tests require the Host installer to consume a versioned
 Platform Connector release and require Annotator to use only the declared Host

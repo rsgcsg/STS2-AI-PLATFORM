@@ -81,6 +81,11 @@ checking eager Read aggregator for memoryless consumers; that helper cannot add
 facts or authority. Consumers own strategy, normalization and progress policy.
 They must not reconstruct native legality or retry an `unknown` receipt.
 
+The process-local witness used by the Platform Annotator may request required
+Reads while the Connector owns one authoritative frame. It returns the same
+Snapshot plus materialized read-only payloads and never publishes a second wire,
+binding or executor.
+
 The REST surface is documented in
 [Player Environment Protocol](docs/player-environment/PROTOCOL.md). MCP is an
 optional adapter over the same endpoints, not another authority.
