@@ -53,6 +53,11 @@ if (identity.source_revision !== head
     || identity.source_worktree_status !== "clean") {
   throw new Error("Host build identity is not a clean build of the current commit");
 }
+const pdbPath = path.join(hostOut, "STS2_MCP.pdb");
+if (fs.existsSync(pdbPath)
+    && fs.readFileSync(pdbPath).includes(Buffer.from("raw.githubusercontent.com/rsgcsg/STS2-AI-PLATFORM/"))) {
+  throw new Error("Host PDB embeds workspace SourceLink; the binary is not component-reproducible");
+}
 
 const releaseRoot = path.join(root, ".local", "release", `v${version}`);
 const stageRoot = path.join(releaseRoot, "stage");
