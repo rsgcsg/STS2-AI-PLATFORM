@@ -27,6 +27,7 @@ const connectorBuildIdentity = path.join(
 );
 const connectorCompatibility = path.join(connectorRoot, "contracts", "host-compatibility.json");
 const modOutput = path.join(root, "src", "STS2HumanAnnotator.Mod", "bin", "Release", "net9.0");
+const modPdb = path.join(modOutput, "STS2_HUMAN_ANNOTATOR.pdb");
 const toolDll = path.join(root, "src", "STS2HumanAnnotator.Tool", "bin", "Release", "net9.0", "sts2-human-annotator.dll");
 const hostRuntimeApi = await loadHostRuntimeWorkstationApi(root);
 const installation = resolveWorkstationInstallation({ headlessApi: hostRuntimeApi });
@@ -430,13 +431,24 @@ function build() {
   requireInstallation();
   const source = sourceState();
   const digest = sourceDigest();
+  fs.rmSync(path.join(root, "src", "STS2HumanAnnotator.Mod", "bin", "Release"), {
+    recursive: true,
+    force: true
+  });
   run("dotnet", [
     "build", "STS2HumanAnnotator.sln", "-c", "Release",
+    "--no-incremental",
     `-p:STS2GameDir=${gameDir}`,
     `-p:ConnectorAssembly=${connectorArtifact}`,
     `-p:SourceRevision=${source.head}`,
-    `-p:AnnotatorSourceDigest=${digest}`
+    `-p:AnnotatorSourceDigest=${digest}`,
+    "-p:UseSharedCompilation=false",
+    `-p:PathMap=${root}=/_/sts2-human-annotator`
   ]);
+  if (fs.existsSync(modPdb)
+      && fs.readFileSync(modPdb).includes(Buffer.from("raw.githubusercontent.com/rsgcsg/STS2-AI-PLATFORM/"))) {
+    throw new Error("Annotator PDB embeds workspace SourceLink; the binary is not component-reproducible.");
+  }
   const artifact = exactIdentity(path.join(modOutput, "STS2_HUMAN_ANNOTATOR.dll"));
   const connector = exactIdentity(connectorArtifact);
   const connectorBuild = readJson(connectorBuildIdentity);
@@ -781,9 +793,8 @@ function rollback() {
 }
 
 function check() {
-  requireInstallation();
   test();
-  run("dotnet", ["build", "STS2HumanAnnotator.sln", "-c", "Release", `-p:STS2GameDir=${gameDir}`, `-p:ConnectorAssembly=${connectorArtifact}`]);
+  build();
 }
 
 try {

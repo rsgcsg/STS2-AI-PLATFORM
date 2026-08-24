@@ -148,7 +148,7 @@ public static class SessionBundlePacker
                 ["packer"] = new JsonObject
                 {
                     ["product"] = "STS2 Native UI Human Annotator Tool",
-                    ["version"] = "0.1.0",
+                    ["version"] = HumanRecorderContract.ProductVersion,
                     ["source_revision"] = packerSourceRevision
                 },
                 ["record_count"] = records.Count,

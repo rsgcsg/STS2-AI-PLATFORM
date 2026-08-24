@@ -1,7 +1,7 @@
 # Status
 
 Platform migration note: historical Annotator evidence below remains bound to
-its original source/artifact. Annotator `0.2.0-rc.1` in the consolidated source
+its original source/artifact. Annotator `0.2.0-rc.2` in the consolidated source
 has no inherited build, loaded or native-human evidence claim; root
 `../../../docs/STATUS.md` is authoritative for migration status.
 
@@ -94,4 +94,4 @@ recorded only after the corresponding cold loads and owner-operated actions.
 ## Declared Unsupported
 
 Potions, non-Combat selectors, event/reward/shop/rest/map/menu actions,
-multiplayer, and gameplay-affecting Modsets are not admitted by version 0.1.0.
+multiplayer, and gameplay-affecting Modsets are not admitted by version 0.2.0-rc.2.

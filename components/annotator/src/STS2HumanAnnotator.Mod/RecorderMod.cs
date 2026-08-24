@@ -2,13 +2,14 @@ using System.Reflection;
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Modding;
+using STS2HumanAnnotator.Core;
 
 namespace STS2HumanAnnotator.Mod;
 
 [ModInitializer("Initialize")]
 public static class RecorderMod
 {
-    public const string Version = "0.1.0";
+    public const string Version = HumanRecorderContract.ProductVersion;
 
     public static void Initialize()
     {

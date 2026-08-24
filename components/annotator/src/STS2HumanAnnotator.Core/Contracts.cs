@@ -4,6 +4,7 @@ namespace STS2HumanAnnotator.Core;
 
 public static class HumanRecorderContract
 {
+    public const string ProductVersion = "0.2.0-rc.2";
     public const int SchemaVersion = 1;
     public const string RecordSchema = "sts2.human-annotator/decision-record-1";
     public const string InvalidationSchema = "sts2.human-annotator/invalidation-1";
