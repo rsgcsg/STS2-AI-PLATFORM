@@ -14,10 +14,12 @@ Phase: **coherent Platform source/package candidate; runtime seal pending**.
   build; it does not create a second Connector build.
 - Host Runtime consumes the immutable public Connector SDK package rather than
   sibling source.
-- Connector SDK `1.1.0-rc.1` and Host Runtime `1.1.0-rc.2` are public prerelease
+- Connector SDK `1.1.0-rc.1` and Host Runtime `1.1.0-rc.3` are public prerelease
   assets with checksums and successful external cold-install smokes. Host Runtime
-  `1.1.0-rc.1` is explicitly superseded after its package smoke found a root import.
-- STPD source `05a2ce04e6d0dbcae721fd32b1b377500ca2b9e4` consumes both public packages and
+  `1.1.0-rc.1` is superseded after its package smoke found a root import; rc.2 is
+  superseded because npm-altered bin modes made reconstructed tar bytes nondeterministic.
+  rc.3 has a matching fresh-clone repack checksum.
+- STPD source `473e3a12ee4402145c52caf94bfd07409eb17eab` consumes both public packages and
   no longer requires any predecessor sibling checkout.
 - Root and component portable checks pass, including identity, dependency-boundary,
   history-preservation and standalone-package checks.
