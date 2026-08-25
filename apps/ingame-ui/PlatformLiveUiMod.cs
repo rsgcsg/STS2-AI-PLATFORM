@@ -97,7 +97,7 @@ internal enum PlatformCommandMode
     Auto
 }
 
-internal sealed class PlatformLivePanel : Control
+internal sealed partial class PlatformLivePanel : Control
 {
     private readonly PlatformLiveStatusClient _statusClient = new();
     private readonly Dictionary<string, Label> _pageText = new(StringComparer.Ordinal);

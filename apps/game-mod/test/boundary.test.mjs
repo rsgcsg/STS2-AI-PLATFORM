@@ -32,6 +32,7 @@ test("component initializers are disabled only in the unified build", () => {
 test("Live UI uses K at the early input stage and logs readiness", () => {
   const source = read("apps/ingame-ui/PlatformLiveUiMod.cs");
   assert.match(source, /SetProcessInput\(true\)/u);
+  assert.match(source, /internal sealed partial class PlatformLivePanel : Control/u);
   assert.match(source, /public override void _Input\(InputEvent @event\)/u);
   assert.match(source, /key\.Keycode == Key\.K \|\| key\.PhysicalKeycode == Key\.K/u);
   assert.match(source, /adding layer to SceneTree root/u);
