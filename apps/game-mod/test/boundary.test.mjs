@@ -29,15 +29,15 @@ test("component initializers are disabled only in the unified build", () => {
   }
 });
 
-test("Live UI uses K at the early input stage and logs readiness", () => {
+test("Live UI uses K from the SceneTree signal and logs readiness", () => {
   const source = read("apps/ingame-ui/PlatformLiveUiMod.cs");
-  assert.match(source, /SetProcessInput\(true\)/u);
-  assert.match(source, /internal sealed partial class PlatformLivePanel : Control/u);
-  assert.match(source, /public override void _Input\(InputEvent @event\)/u);
-  assert.match(source, /key\.Keycode == Key\.K \|\| key\.PhysicalKeycode == Key\.K/u);
+  assert.match(source, /internal sealed class PlatformLivePanel : IDisposable/u);
+  assert.match(source, /tree\.ProcessFrame \+= _processFrameHandler/u);
+  assert.match(source, /Input\.IsKeyPressed\(Key\.K\) \|\| Input\.IsPhysicalKeyPressed\(Key\.K\)/u);
+  assert.doesNotMatch(source, /class PlatformLivePanel : Control/u);
+  assert.doesNotMatch(source, /override void _(Ready|Process|Input)/u);
   assert.match(source, /adding layer to SceneTree root/u);
-  assert.match(source, /panel _Ready entered/u);
-  assert.match(source, /panel _Ready failed/u);
+  assert.match(source, /panel mount failed/u);
   assert.match(source, /panel ready; input=K/u);
   assert.doesNotMatch(source, /Key\.F\d+/u);
 });

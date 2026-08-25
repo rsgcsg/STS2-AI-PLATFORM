@@ -3,6 +3,7 @@ using MegaCrit.Sts2.Core.Modding;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
+using static Godot.Control;
 
 namespace STS2PlatformLiveUi;
 
@@ -12,6 +13,7 @@ namespace STS2PlatformLiveUi;
 public static class PlatformLiveUiMod
 {
     private static bool _initialized;
+    private static PlatformLivePanel? _panel;
 
     public static void Initialize()
     {
@@ -25,10 +27,14 @@ public static class PlatformLiveUiMod
             {
                 Layer = 100
             };
+            var tree = (SceneTree)Engine.GetMainLoop();
+            var panel = new PlatformLivePanel();
             GD.Print($"[STS2 Platform Live UI] identity {JsonSerializer.Serialize(RuntimeIdentity())}");
-            layer.AddChild(new PlatformLivePanel());
+            layer.AddChild(panel.Root);
             GD.Print("[STS2 Platform Live UI] adding layer to SceneTree root");
-            ((SceneTree)Engine.GetMainLoop()).Root.AddChild(layer);
+            tree.Root.AddChild(layer);
+            panel.Mount(tree);
+            _panel = panel;
             GD.Print("[STS2 Platform Live UI] layer added; press K to toggle. Gameplay actions are not exposed directly.");
         }
         catch (Exception exception)
@@ -97,49 +103,72 @@ internal enum PlatformCommandMode
     Auto
 }
 
-internal sealed partial class PlatformLivePanel : Control
+internal sealed class PlatformLivePanel : IDisposable
 {
     private readonly PlatformLiveStatusClient _statusClient = new();
     private readonly Dictionary<string, Label> _pageText = new(StringComparer.Ordinal);
     private readonly Dictionary<PlatformCommandMode, Button> _modeButtons = new();
+    private SceneTree? _tree;
+    private Action? _processFrameHandler;
     private Label _connection = null!;
     private Label _command = null!;
     private Button _tickButton = null!;
     private PlatformCommandMode _mode = PlatformCommandMode.Human;
+    private bool _kWasPressed;
+    private bool _escapeWasPressed;
+    private bool _disposed;
     private int _pollInFlight;
     private PlatformLiveStatus? _pendingStatus;
     private string? _pendingPollError;
 
-    public override void _Ready()
+    internal Control Root { get; } = new()
     {
-        GD.Print("[STS2 Platform Live UI] panel _Ready entered");
+        Visible = false,
+        MouseFilter = MouseFilterEnum.Stop
+    };
+
+    internal PlatformLivePanel()
+    {
+        Root.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        Root.GuiInput += ConsumeGuiInput;
+        BuildUi();
+
+        var timer = new Godot.Timer
+        {
+            WaitTime = 1.0,
+            Autostart = true,
+            OneShot = false
+        };
+        timer.Timeout += OnPollTimeout;
+        Root.AddChild(timer);
+    }
+
+    internal void Mount(SceneTree tree)
+    {
         try
         {
-            SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-            Visible = false;
-            MouseFilter = MouseFilterEnum.Stop;
-            GuiInput += ConsumeGuiInput;
-            SetProcessInput(true);
-            BuildUi();
-
-            var timer = new Godot.Timer
-            {
-                WaitTime = 1.0,
-                Autostart = true,
-                OneShot = false
-            };
-            timer.Timeout += OnPollTimeout;
-            AddChild(timer);
+            _tree = tree;
+            _processFrameHandler = OnProcessFrame;
+            tree.ProcessFrame += _processFrameHandler;
+            Root.TreeExiting += Dispose;
             _ = PollAsync();
             GD.Print("[STS2 Platform Live UI] panel ready; input=K; visible=false");
         }
         catch (Exception exception)
         {
-            GD.PrintErr($"[STS2 Platform Live UI] panel _Ready failed: {exception}");
+            GD.PrintErr($"[STS2 Platform Live UI] panel mount failed: {exception}");
         }
     }
 
-    public override void _ExitTree() => _statusClient.Dispose();
+    public void Dispose()
+    {
+        if (_disposed)
+            return;
+        _disposed = true;
+        if (_tree != null && _processFrameHandler != null && GodotObject.IsInstanceValid(_tree))
+            _tree.ProcessFrame -= _processFrameHandler;
+        _statusClient.Dispose();
+    }
 
     private void BuildUi()
     {
@@ -153,7 +182,7 @@ internal sealed partial class PlatformLivePanel : Control
         margin.AddThemeConstantOverride("margin_top", 28);
         margin.AddThemeConstantOverride("margin_right", 28);
         margin.AddThemeConstantOverride("margin_bottom", 28);
-        AddChild(margin);
+        Root.AddChild(margin);
 
         var panel = new PanelContainer
         {
@@ -347,16 +376,14 @@ internal sealed partial class PlatformLivePanel : Control
     {
         if (Interlocked.Exchange(ref _pollInFlight, 1) != 0)
             return;
-        try
-        {
-            PlatformLiveStatus status = await _statusClient.ReadAsync();
-            _pendingStatus = status;
-            CallDeferred(nameof(ApplyPendingStatus));
-        }
-        catch (Exception exception)
-        {
-            _pendingPollError = exception.GetType().Name;
-            CallDeferred(nameof(ApplyPendingPollError));
+            try
+            {
+                PlatformLiveStatus status = await _statusClient.ReadAsync();
+                Interlocked.Exchange(ref _pendingStatus, status);
+            }
+            catch (Exception exception)
+            {
+                Interlocked.Exchange(ref _pendingPollError, exception.GetType().Name);
         }
         finally
         {
@@ -366,18 +393,16 @@ internal sealed partial class PlatformLivePanel : Control
 
     private void ApplyPendingStatus()
     {
-        if (_pendingStatus is { } status)
+        if (Interlocked.Exchange(ref _pendingStatus, null) is { } status)
         {
-            _pendingStatus = null;
             ApplyStatus(status);
         }
     }
 
     private void ApplyPendingPollError()
     {
-        if (_pendingPollError is { } error)
+        if (Interlocked.Exchange(ref _pendingPollError, null) is { } error)
         {
-            _pendingPollError = null;
             _connection.Text = $"Connector loopback: UI poll failed ({error})";
         }
     }
@@ -484,33 +509,38 @@ internal sealed partial class PlatformLivePanel : Control
 
     private void ConsumeGuiInput(InputEvent @event)
     {
-        if (Visible)
-            GetViewport().SetInputAsHandled();
+        if (Root.Visible)
+            Root.GetViewport().SetInputAsHandled();
     }
 
-    public override void _Input(InputEvent @event)
+    private void OnProcessFrame()
     {
-        if (@event is not InputEventKey key || !key.Pressed || key.Echo)
-            return;
-        if (key.Keycode == Key.K || key.PhysicalKeycode == Key.K)
+        ApplyPendingStatus();
+        ApplyPendingPollError();
+
+        bool kPressed = Input.IsKeyPressed(Key.K) || Input.IsPhysicalKeyPressed(Key.K);
+        if (kPressed && !_kWasPressed)
         {
-            Visible = !Visible;
-            if (Visible)
+            Root.Visible = !Root.Visible;
+            if (Root.Visible)
                 _ = PollAsync();
-            GD.Print($"[STS2 Platform Live UI] toggle; input=K; visible={Visible.ToString().ToLowerInvariant()}");
-            GetViewport().SetInputAsHandled();
-            return;
+            GD.Print($"[STS2 Platform Live UI] toggle; input=K; visible={Root.Visible.ToString().ToLowerInvariant()}");
+            Root.GetViewport().SetInputAsHandled();
         }
-        if (Visible && key.Keycode == Key.Escape)
+        _kWasPressed = kPressed;
+
+        bool escapePressed = Input.IsKeyPressed(Key.Escape);
+        if (Root.Visible && escapePressed && !_escapeWasPressed)
         {
             HidePanel();
-            GetViewport().SetInputAsHandled();
+            Root.GetViewport().SetInputAsHandled();
         }
+        _escapeWasPressed = escapePressed;
     }
 
     private void HidePanel()
     {
-        Visible = false;
+        Root.Visible = false;
         GD.Print("[STS2 Platform Live UI] toggle; input=close; visible=false");
     }
 

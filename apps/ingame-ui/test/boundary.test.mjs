@@ -11,11 +11,13 @@ const contracts = fs.readFileSync(path.join(root, "PlatformLiveContracts.cs"), "
 test("Live UI remains a non-authorizing hidden overlay", () => {
   assert.match(mod, /Visible = false/u);
   assert.match(mod, /Key\.K/u);
-  assert.match(mod, /public override void _Input/u);
+  assert.match(mod, /tree\.ProcessFrame \+= _processFrameHandler/u);
+  assert.match(mod, /Input\.IsPhysicalKeyPressed/u);
   assert.match(mod, /Key\.Escape/u);
   assert.doesNotMatch(`${mod}\n${client}`, /player-environment\/actions/u);
   assert.doesNotMatch(`${mod}\n${client}`, /bound_action_id/u);
   assert.doesNotMatch(`${mod}\n${client}`, /Input\.ParseInputEvent|InputEventMouseMotion/u);
+  assert.doesNotMatch(mod, /override void _(Ready|Process|Input)/u);
   assert.doesNotMatch(`${mod}\n${client}`, /Key\.F\d+/u);
 });
 
