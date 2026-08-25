@@ -15,6 +15,8 @@
     <DefineConstants>$(DefineConstants);STS2_PLATFORM_UNIFIED</DefineConstants>
     <Version>0.2.0-rc.1</Version>
     <PlatformSourceRevision Condition="'$(PlatformSourceRevision)' == ''">unavailable</PlatformSourceRevision>
+    <!-- Keep the assembly stable when only non-Native workspace files change. -->
+    <SourceRevisionId>$(PlatformSourceRevision)</SourceRevisionId>
     <PlatformSourceDigestSha256 Condition="'$(PlatformSourceDigestSha256)' == ''">unavailable</PlatformSourceDigestSha256>
     <ConnectorSourceRevision Condition="'$(ConnectorSourceRevision)' == ''">unavailable</ConnectorSourceRevision>
     <ConnectorPlayerEnvironmentSourceDigest Condition="'$(ConnectorPlayerEnvironmentSourceDigest)' == ''">unavailable</ConnectorPlayerEnvironmentSourceDigest>

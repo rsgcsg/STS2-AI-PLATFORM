@@ -34,6 +34,20 @@ function componentIdentity(componentRoot, filter = () => true) {
   };
 }
 
+export function compiledSourceDigest(components) {
+  const compiledInputs = Object.fromEntries(
+    Object.entries(components)
+      .sort(([left], [right]) => left.localeCompare(right))
+      .map(([name, component]) => [name, {
+        source_revision: component.source_revision,
+        source_digest_sha256: component.source_digest_sha256
+      }])
+  );
+  return crypto.createHash("sha256")
+    .update(JSON.stringify(compiledInputs))
+    .digest("hex");
+}
+
 export function sourceSetIdentity(platformRoot) {
   const connectorRoot = path.join(platformRoot, "components/connector");
   const connector = playerEnvironmentSourceIdentity(connectorRoot);
@@ -68,9 +82,7 @@ export function sourceSetIdentity(platformRoot) {
     live_ui: liveUi,
     game_mod: gameMod
   };
-  const platformDigest = crypto.createHash("sha256")
-    .update(JSON.stringify(components))
-    .digest("hex");
+  const platformDigest = compiledSourceDigest(components);
   return {
     platform: {
       source_revision: gameMod.source_revision,

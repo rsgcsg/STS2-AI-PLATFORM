@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
+import { compiledSourceDigest } from "../source-identity.mjs";
+
 const root = path.resolve(import.meta.dirname, "../../..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 
@@ -15,7 +17,33 @@ test("production game Mod has one manifest, assembly and explicit initializer", 
   assert.deepEqual(manifest.dependencies, []);
   assert.match(project, /<AssemblyName>STS2_PLATFORM<\/AssemblyName>/u);
   assert.match(project, /STS2_PLATFORM_UNIFIED/u);
+  assert.match(project, /<SourceRevisionId>\$\(PlatformSourceRevision\)<\/SourceRevisionId>/u);
   assert.match(initializer, /ConnectorMod\.Initialize\(\);[\s\S]*RecorderMod\.Initialize\(\);[\s\S]*PlatformLiveUiMod\.Initialize\(\);/u);
+});
+
+test("compiled identity ignores repository-only provenance", () => {
+  const component = {
+    source_revision: "a".repeat(40),
+    source_digest_sha256: "b".repeat(64),
+    component_tree_revision: "c".repeat(40),
+    component_worktree_status: "clean",
+    file_count: 3
+  };
+  const baseline = compiledSourceDigest({ game_mod: component });
+  const repositoryOnlyDrift = compiledSourceDigest({
+    game_mod: {
+      ...component,
+      component_tree_revision: "d".repeat(40),
+      component_worktree_status: "dirty",
+      file_count: 99
+    }
+  });
+  const nativeDrift = compiledSourceDigest({
+    game_mod: { ...component, source_digest_sha256: "e".repeat(64) }
+  });
+
+  assert.equal(repositoryOnlyDrift, baseline);
+  assert.notEqual(nativeDrift, baseline);
 });
 
 test("component initializers are disabled only in the unified build", () => {
