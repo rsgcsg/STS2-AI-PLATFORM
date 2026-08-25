@@ -163,7 +163,7 @@ export function validatePlatformBom(bom, authorities) {
 
   const policyCandidate = bom.unified_platform_runtime_candidate;
   expectEqual(errors, "unified Platform candidate status", policyCandidate?.status,
-    "recording_application_source_test_complete_new_artifact_load_pending");
+    "recording_application_build_install_load_complete_owner_lifecycle_pending");
   expectEqual(errors, "candidate STPD source", policyCandidate?.external_policy?.stpd_source_revision,
     bom.external_consumer_cutovers?.stpd);
   expectEqual(errors, "candidate policy checkpoint", policyCandidate?.external_policy?.checkpoint_status,
@@ -190,9 +190,9 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "candidate Connector source relation", policyCandidate?.connector?.source_relation,
     "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Annotator source relation", policyCandidate?.annotator?.source_relation,
-    "loaded_artifact_precedes_recording_application_source");
+    "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Live UI source relation", policyCandidate?.live_ui?.source_relation,
-    "loaded_artifact_precedes_recording_application_source");
+    "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Connector protocol", policyCandidate?.connector?.protocol,
     bom.components?.player_environment_protocol);
   expectEqual(errors, "candidate Policy Runtime source", policyCandidate?.policy_runtime?.source_revision,
@@ -214,7 +214,7 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "candidate rollback", policyCandidate?.game_mod?.rollback_available, true);
   expectEqual(errors, "candidate UI panel", policyCandidate?.ui_panel_ready, "pass");
   expectEqual(errors, "candidate UI input canary", policyCandidate?.ui_toggle_runtime_canary,
-    "pass_non_human");
+    "not_observed");
   expectEqual(errors, "candidate owner UI visibility", policyCandidate?.owner_ui_visibility, "pending");
   expectEqual(errors, "candidate recording controls",
     policyCandidate?.human_recording_controls_exercised, "pending");

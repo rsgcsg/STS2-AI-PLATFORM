@@ -1,7 +1,7 @@
 # Current Status
 
-Phase: **Recording Application Plane source/test candidate; final unified
-artifact requires a new cold-load and owner lifecycle validation**.
+Phase: **Recording Application Plane build/install/load complete; owner
+multi-session lifecycle validation pending**.
 
 ## Implemented
 
@@ -58,14 +58,16 @@ artifact requires a new cold-load and owner lifecycle validation**.
   It has no direct BoundAction submission path; Connector Reads and
   Connector/Annotator/UI identities remain inspectable without a policy process.
 - The current exact-game candidate is one `STS2_PLATFORM` Mod. Common artifact
-  `65498489... / c280d226...` contains Connector, Annotator and Live UI and is
+  `a7b11d93... / c3e7127a...` contains Connector, Annotator and Live UI and is
   cold-loaded against STS2 `v0.111.0`, assembly
-  `9cb4f1ad... / 57785517...`, in runtime `f3195698...`. The exact Modset contains
-  only `STS2_PLATFORM`; Connector reports `execution_available=true`.
-- Live UI source `5bb1236f...` uses only built-in Godot nodes and a
+  `9cb4f1ad... / 57785517...`, in runtime `bd6b73e7...`. The exact Modset contains
+  only `STS2_PLATFORM`; Connector reports `execution_available=true`, and the
+  Recording Application reports `Ready` with no implicit session.
+- Live UI source `94ecc515...` uses only built-in Godot nodes and a
   `SceneTree.ProcessFrame` signal because standard single-DLL Mods do not run
-  Godot's C# node source generator. Panel readiness and automated K open/close
-  input canaries passed. Automation is not owner-visible UI evidence.
+  Godot's C# node source generator. The final artifact reports panel readiness;
+  its K toggle was not observed by the non-human verifier and remains an owner
+  visibility gate rather than an automated claim.
 - The portable boundary check validates that every declared workspace CLI
   entrypoint exists in Git source authority; ignored local files cannot satisfy
   a clean-check claim.
@@ -131,18 +133,19 @@ with exact-unique mapping and an interactive successor. Generated-card skip,
 targeted play and untargeted play were not exercised in that session. This is
 predecessor evidence and does not qualify the unified artifact.
 
-The predecessor unified artifact was built, safely installed, cold-loaded and
-identity-verified with rollback at
-`apps/game-mod/.local/deployments/2026-08-25T06-42-44.907Z`. Runtime
-`f3195698...` reports environment `02ec1f39...`, exact unified Modset
-`447fc8f9...`, ready UI, and automated K open/close events. Owner page
-visibility, recording controls, ordinary Human play and policy modes remain
-separate pending gates.
+The Recording Application artifact was built, safely installed, cold-loaded and
+identity-verified. Its exact SHA/MVID is
+`a7b11d930c0d5b2dee22ac7ce5faea7bc5db84802b5b36bfb27e8258320c9c0f /
+c3e7127a-93bf-4e29-9c05-257b5089edc6`; runtime
+`bd6b73e7c2744680848539f96b6cae6d` reports environment
+`f8de356a0991d09c687538bccb831ebde72a53a6e11d75176f333a6c40fdcc9f`,
+exact unified Modset `89f0a3ed...`, and Ready/no-session state. Rollback is at
+`apps/game-mod/.local/deployments/2026-08-25T10-36-08.359Z`.
 
-The Recording Application Plane changes native unified source. Its automated
-core/boundary/exact-game checks pass, but the predecessor loaded SHA/MVID and
-Human sessions do not transfer. A final build/install/load identity and owner
-multi-session lifecycle check are pending for the new artifact.
+The final artifact has source/test/build/install/load evidence. It does not yet
+have owner evidence for K visibility, New Session, Pause/Resume, pending-safe
+Close, a second session in the same process, or native Human decisions. Earlier
+Human sessions and the predecessor UI canary do not transfer.
 
 ## Non-claims
 
@@ -162,9 +165,10 @@ multi-session lifecycle check are pending for the new artifact.
   Platform-wide gameplay SDK. Workbench and Live UI are application shells, not
   action/evidence authorities.
 - The unified Connector, Annotator and Platform Live UI have source/test/build/
-  install/load evidence plus a non-human K input canary. Actual five-page
-  visibility, recording controls and normal Human play on this artifact remain
-  `pending owner interaction`; predecessor Human V2 evidence does not transfer.
+  install/load evidence. The final artifact's K toggle was `not_observed` by the
+  non-human verifier; actual five-page visibility, recording controls and normal
+  Human play remain `pending owner interaction`. Predecessor Human V2 evidence
+  does not transfer.
 - The current S1 Policy Manifest is validated, but its exact checkpoint is not
   present on this Mac. Real-model Shadow, One-Step, Auto, policy Agent evidence
   and legacy/new path parity are therefore `not exercised`.

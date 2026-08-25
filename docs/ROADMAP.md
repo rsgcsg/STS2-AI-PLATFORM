@@ -96,10 +96,12 @@ action-family expansion remain outside this bounded baseline.
   disposes the session store before allowing a new session.
 - Complete at source/test: Live UI consumes only `RecordingService`; application
   commands have no native action or HumanDecision path.
-- Pending exact runtime: cold-load the final unified artifact and owner-check
-  New Session, Pause/Resume, pending-safe Close, then a second session in the
-  same process. Source/test/build evidence does not transfer predecessor Human
-  evidence.
+- Complete exact runtime: final artifact `a7b11d93... / c3e7127a...` is installed
+  and cold-loaded in runtime `bd6b73e7...`; it starts Ready with no session and
+  has an available rollback.
+- Pending owner interaction: check New Session, Pause/Resume, pending-safe
+  Close, then a second session in the same process. Earlier Human evidence does
+  not transfer to this artifact.
 
 Next phase, not part of this slice: **Live Workspace Window Kernel -> Human
 Recorder Window**.

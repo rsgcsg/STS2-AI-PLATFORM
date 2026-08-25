@@ -34,7 +34,8 @@ Agent-run evidence remain separate claims.
 See `apps/game-mod/README.md` for commands and `apps/ingame-ui/README.md` for the
 presentation boundary. The predecessor three-Mod artifact passed exact
 install/cold-load identity verification, but its F10 input was not observed.
-The unified `K` artifact is cold-loaded and its panel-ready plus automated
-open/close canaries pass. That canary is not proof that an owner saw the panel,
-used its controls or produced Human/policy evidence; predecessor Human evidence
-does not qualify it.
+The final unified `K` artifact `a7b11d93... / c3e7127a...` is cold-loaded and
+reports panel readiness. Its non-human toggle canary was `not_observed`, so K
+visibility and recording controls remain explicit owner gates. No Human/policy
+evidence is inferred from load identity, and predecessor Human evidence does not
+qualify this artifact.
