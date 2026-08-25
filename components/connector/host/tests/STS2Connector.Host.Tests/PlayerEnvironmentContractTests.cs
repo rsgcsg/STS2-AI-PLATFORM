@@ -20,7 +20,7 @@ public sealed class PlayerEnvironmentContractTests
     }
 
     [Fact]
-    public void ExecutionReadinessRequiresExactPlayerEnvironmentOnlyModset()
+    public void ExecutionReadinessRequiresAnExactAdmittedModset()
     {
         var modset = ExactConnectorModset();
         var compatibility = new CompatibilityAssessment(
@@ -83,7 +83,7 @@ public sealed class PlayerEnvironmentContractTests
             },
             "loaded-sha",
             sourceRevision));
-        Assert.False(EnvironmentIdentityRuntime.ExecutionAvailable(
+        Assert.True(EnvironmentIdentityRuntime.ExecutionAvailable(
             game with
             {
                 Modset = modset with { Status = "canary_exact_observer_modset" }

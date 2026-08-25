@@ -77,11 +77,16 @@ internal static class EnvironmentIdentityRuntime
         bool executionIdentityComplete = gamePermission.ActionExecutionAllowed
                                          && artifactPermission.ActionExecutionAllowed
                                          && IsExactSupportedModset(modset);
+        bool canaryModset = string.Equals(
+            modset.Status,
+            "canary_exact_observer_modset",
+            StringComparison.Ordinal);
         string permissionStatus = !gamePermission.ActionExecutionAllowed
             ? gamePermission.Status
             : !artifactPermission.ActionExecutionAllowed
                 ? artifactPermission.Status
-                : string.Equals(gamePermission.Status, "supported_exact", StringComparison.Ordinal)
+                : !canaryModset
+                  && string.Equals(gamePermission.Status, "supported_exact", StringComparison.Ordinal)
                   && string.Equals(artifactPermission.Status, "supported_exact", StringComparison.Ordinal)
                     ? "supported_exact"
                     : "canary_exact";
@@ -176,7 +181,8 @@ internal static class EnvironmentIdentityRuntime
         && IsExactSupportedModset(game.Modset);
 
     private static bool IsExactSupportedModset(ModsetIdentity? modset) =>
-        string.Equals(modset?.Status, "exact_player_environment_only", StringComparison.Ordinal);
+        string.Equals(modset?.Status, "exact_player_environment_only", StringComparison.Ordinal)
+        || string.Equals(modset?.Status, "canary_exact_observer_modset", StringComparison.Ordinal);
 
     private static bool IsExactSourceRevision(string? sourceRevision) =>
         sourceRevision?.Length == 40

@@ -20,10 +20,12 @@ explicit exact environment with matching Live evidence.
 For bounded observer experiments, one process-local canary may identify an exact
 full Modset fingerprint when every extra loaded Mod declares
 `affects_gameplay=false`. The fingerprint must be discovered from the loaded
-runtime and explicitly replayed on a later cold start. This permits provenance-
-bound observation for that process only. It does not enable Connector mutation,
-grant generic Mod compatibility, qualify the environment, or admit a gameplay-
-affecting Mod.
+runtime and explicitly replayed on a later cold start. The exact canary admits
+Connector input delivery for that process so the Platform's non-gameplay
+Annotator and Live UI can coexist with a Policy Runtime. It does not grant
+generic Mod compatibility, durable qualification, or admission to any
+gameplay-affecting Mod. Current UI actionability and execute-time native
+revalidation remain independently required for every delivered action.
 
 The HTTP listener is loopback-only. Local controller leases coordinate one
 writer but do not defend against a hostile process on the same OS account.
