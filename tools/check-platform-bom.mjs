@@ -117,7 +117,7 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "V2 current Connector digest", v2?.connector?.current_component_source_digest_sha256,
     bom.components?.connector?.component_source_digest_sha256);
   expectEqual(errors, "V2 Connector source relation", v2?.connector?.source_relation,
-    "loaded_human_v2_artifact_precedes_policy_observer_execution_source_candidate");
+    "loaded_human_v2_artifact_precedes_unified_platform_source");
   expectEqual(errors, "V2 Connector protocol", v2?.connector?.protocol, bom.components?.player_environment_protocol);
   expectPattern(errors, "V2 loaded Annotator source", v2?.annotator?.source_revision, COMMIT);
   expectPattern(errors, "V2 loaded Annotator digest", v2?.annotator?.source_digest_sha256, SHA256);
@@ -126,7 +126,7 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "V2 current Annotator digest", v2?.annotator?.current_component_source_digest_sha256,
     bom.components?.annotator?.component_source_digest_sha256);
   expectEqual(errors, "V2 Annotator source relation", v2?.annotator?.source_relation,
-    "loaded_native_artifact_precedes_recording_controls_and_live_ui_source_candidate");
+    "loaded_human_v2_artifact_precedes_unified_platform_source");
   for (const component of ["connector", "annotator"])
     for (const level of ["build", "installed", "loaded"])
       expectEqual(errors, `V2 ${component} ${level}`, v2?.[component]?.[level], "pass");
@@ -161,20 +161,24 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "V2 selector source/test", v2Human?.generated_card_choice?.source_and_test_status, "pass");
   expectEqual(errors, "V2 selector runtime", v2Human?.generated_card_choice?.runtime_status, "not_exercised");
 
-  const policyCandidate = bom.policy_runtime_live_ui_candidate;
-  expectEqual(errors, "Policy Runtime/Live UI candidate status", policyCandidate?.status,
-    "source_test_build_install_load_complete_owner_validation_pending");
+  const policyCandidate = bom.unified_platform_runtime_candidate;
+  expectEqual(errors, "unified Platform candidate status", policyCandidate?.status,
+    "source_test_build_install_load_input_canary_complete_owner_visibility_pending");
   expectEqual(errors, "candidate STPD source", policyCandidate?.external_policy?.stpd_source_revision,
     bom.external_consumer_cutovers?.stpd);
   expectEqual(errors, "candidate policy checkpoint", policyCandidate?.external_policy?.checkpoint_status,
     "absent");
-  expectEqual(errors, "candidate Annotator source", policyCandidate?.annotator?.source_revision,
+  expectEqual(errors, "candidate current Annotator source",
+    policyCandidate?.annotator?.current_component_source_revision,
     bom.components?.annotator?.source_revision);
-  expectEqual(errors, "candidate Annotator digest", policyCandidate?.annotator?.source_digest_sha256,
+  expectEqual(errors, "candidate current Annotator digest",
+    policyCandidate?.annotator?.current_component_source_digest_sha256,
     bom.components?.annotator?.component_source_digest_sha256);
-  expectEqual(errors, "candidate Live UI source", policyCandidate?.live_ui?.source_revision,
+  expectEqual(errors, "candidate current Live UI source",
+    policyCandidate?.live_ui?.current_component_source_revision,
     bom.components?.live_ui?.source_revision);
-  expectEqual(errors, "candidate Live UI digest", policyCandidate?.live_ui?.source_digest_sha256,
+  expectEqual(errors, "candidate current Live UI digest",
+    policyCandidate?.live_ui?.current_component_source_digest_sha256,
     bom.components?.live_ui?.component_source_digest_sha256);
   expectPattern(errors, "candidate loaded Connector source", policyCandidate?.connector?.source_revision, COMMIT);
   expectEqual(errors, "candidate current Connector source",
@@ -184,7 +188,11 @@ export function validatePlatformBom(bom, authorities) {
     policyCandidate?.connector?.current_component_source_digest_sha256,
     bom.components?.connector?.component_source_digest_sha256);
   expectEqual(errors, "candidate Connector source relation", policyCandidate?.connector?.source_relation,
-    "loaded_native_artifact_precedes_operations_only_tooling_source");
+    "loaded_native_source_scope_matches_current_component");
+  expectEqual(errors, "candidate Annotator source relation", policyCandidate?.annotator?.source_relation,
+    "loaded_native_source_scope_matches_current_component");
+  expectEqual(errors, "candidate Live UI source relation", policyCandidate?.live_ui?.source_relation,
+    "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Connector protocol", policyCandidate?.connector?.protocol,
     bom.components?.player_environment_protocol);
   expectEqual(errors, "candidate Policy Runtime source", policyCandidate?.policy_runtime?.source_revision,
@@ -193,19 +201,52 @@ export function validatePlatformBom(bom, authorities) {
     bom.components?.policy_runtime?.component_source_digest_sha256);
   expectEqual(errors, "candidate Policy Runtime version", policyCandidate?.policy_runtime?.version,
     bom.components?.policy_runtime?.version);
+  expectEqual(errors, "candidate Game Mod version", policyCandidate?.game_mod?.version,
+    bom.components?.game_mod?.version);
+  expectEqual(errors, "candidate current Game Mod source",
+    policyCandidate?.game_mod?.current_component_source_revision,
+    bom.components?.game_mod?.source_revision);
+  expectEqual(errors, "candidate current Game Mod digest",
+    policyCandidate?.game_mod?.current_component_source_digest_sha256,
+    bom.components?.game_mod?.component_source_digest_sha256);
   for (const level of ["installed", "loaded"])
-    expectEqual(errors, `candidate ${level}`, policyCandidate?.[level], "pass");
-  for (const level of ["live_ui_exercised", "human_recording_controls_exercised"])
-    expectEqual(errors, `candidate ${level}`, policyCandidate?.[level], "pending");
+    expectEqual(errors, `candidate Game Mod ${level}`, policyCandidate?.game_mod?.[level], "pass");
+  expectEqual(errors, "candidate rollback", policyCandidate?.game_mod?.rollback_available, true);
+  expectEqual(errors, "candidate UI panel", policyCandidate?.ui_panel_ready, "pass");
+  expectEqual(errors, "candidate UI input canary", policyCandidate?.ui_toggle_runtime_canary,
+    "pass_non_human");
+  expectEqual(errors, "candidate owner UI visibility", policyCandidate?.owner_ui_visibility, "pending");
+  expectEqual(errors, "candidate recording controls",
+    policyCandidate?.human_recording_controls_exercised, "pending");
   expectEqual(errors, "candidate compatibility", policyCandidate?.runtime?.compatibility_status, "canary_exact");
   expectEqual(errors, "candidate Modset status", policyCandidate?.runtime?.modset_status,
-    "canary_exact_observer_modset");
+    "exact_platform_modset");
   expectEqual(errors, "candidate loaded Mods", JSON.stringify(policyCandidate?.runtime?.loaded_mod_ids),
-    JSON.stringify(["STS2_HUMAN_ANNOTATOR", "STS2_MCP", "STS2_PLATFORM_LIVE_UI"]));
+    JSON.stringify(["STS2_PLATFORM"]));
   expectEqual(errors, "candidate execution", policyCandidate?.runtime?.execution_available, true);
+  for (const component of ["connector", "annotator", "live_ui"])
+    expectEqual(errors, `candidate common artifact SHA (${component})`,
+      policyCandidate?.[component]?.artifact_sha256, policyCandidate?.game_mod?.artifact_sha256);
+  for (const component of ["connector", "annotator", "live_ui"])
+    expectEqual(errors, `candidate common artifact MVID (${component})`,
+      policyCandidate?.[component]?.artifact_mvid, policyCandidate?.game_mod?.artifact_mvid);
   expectEqual(errors, "candidate model modes",
     policyCandidate?.policy_shadow_one_step_auto_exercised,
     "not_exercised_checkpoint_absent");
+  const predecessorHuman = policyCandidate?.predecessor_human_session;
+  expectEqual(errors, "predecessor Human generation", predecessorHuman?.artifact_generation,
+    "three_mod_predecessor");
+  expectEqual(errors, "predecessor Human audit", predecessorHuman?.audit_status, "pass");
+  expectEqual(errors, "predecessor Human records", predecessorHuman?.admitted_records, 10);
+  expectEqual(errors, "predecessor Human invalidations", predecessorHuman?.invalidations, 36);
+  expectEqual(errors, "predecessor ordinary combat end turns",
+    predecessorHuman?.ordinary_combat_end_turn, 9);
+  expectEqual(errors, "predecessor generated-card select",
+    predecessorHuman?.generated_card_select, 1);
+  expectEqual(errors, "predecessor generated-card skip",
+    predecessorHuman?.generated_card_skip, "not_exercised");
+  expectEqual(errors, "predecessor evidence transfer",
+    predecessorHuman?.evidence_transfer_to_unified_artifact, false);
 
   for (const [label, value] of [
     ["public Connector archive SHA", publicConnector?.sha256],
@@ -226,11 +267,14 @@ export function validatePlatformBom(bom, authorities) {
     ["V2 checksums SHA", v2Human?.bundle?.checksums_sha256],
     ["V2 transfer manifest SHA", v2Human?.transfer?.manifest_sha256],
     ["candidate game assembly SHA", policyCandidate?.game?.main_assembly_sha256],
+    ["candidate Connector source digest", policyCandidate?.connector?.source_digest_sha256],
     ["candidate Connector artifact SHA", policyCandidate?.connector?.artifact_sha256],
     ["candidate Annotator source digest", policyCandidate?.annotator?.source_digest_sha256],
     ["candidate Annotator artifact SHA", policyCandidate?.annotator?.artifact_sha256],
     ["candidate Live UI source digest", policyCandidate?.live_ui?.source_digest_sha256],
     ["candidate Live UI artifact SHA", policyCandidate?.live_ui?.artifact_sha256],
+    ["candidate Platform source digest", policyCandidate?.game_mod?.platform_source_digest_sha256],
+    ["candidate Game Mod artifact SHA", policyCandidate?.game_mod?.artifact_sha256],
     ["candidate environment fingerprint", policyCandidate?.runtime?.environment_fingerprint],
     ["candidate Modset fingerprint", policyCandidate?.runtime?.modset_fingerprint],
     ["H0 report SHA", bom.exact_runtime_candidate?.gates?.h0?.report_sha256],
@@ -250,7 +294,9 @@ export function validatePlatformBom(bom, authorities) {
   expectPattern(errors, "candidate Connector MVID", policyCandidate?.connector?.artifact_mvid, MVID);
   expectPattern(errors, "candidate Annotator MVID", policyCandidate?.annotator?.artifact_mvid, MVID);
   expectPattern(errors, "candidate Live UI MVID", policyCandidate?.live_ui?.artifact_mvid, MVID);
+  expectPattern(errors, "candidate Game Mod MVID", policyCandidate?.game_mod?.artifact_mvid, MVID);
   expectPattern(errors, "candidate runtime instance", policyCandidate?.runtime?.runtime_instance_id, /^[0-9a-f]{32}$/u);
+  expectPattern(errors, "predecessor Human runtime", predecessorHuman?.runtime_instance_id, /^[0-9a-f]{32}$/u);
   expectPattern(errors, "V2 loaded Annotator source", v2?.annotator?.source_revision, COMMIT);
   expectPattern(errors, "V2 current Annotator source", v2?.annotator?.current_component_source_revision, COMMIT);
   expectPattern(errors, "STPD cutover", bom.external_consumer_cutovers?.stpd, COMMIT);
@@ -264,15 +310,19 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "human origin boundary", humanGate?.human_origin,
     "owner_attested_not_machine_proven");
   expectEqual(errors, "support level", bom.support_level,
-    "human_evidence_v2_read_rich_combat_verified_selector_pending");
+    "human_evidence_v2_and_predecessor_generated_select_verified_unified_owner_gate_pending");
   if (!bom.non_claims?.includes("human_origin_owner_attested_not_machine_proven"))
     errors.push("human-origin epistemic-boundary non-claim is missing");
-  if (!bom.non_claims?.includes("v2_generated_card_choice_not_exercised"))
-    errors.push("V2 generated-card-choice non-claim is missing");
+  if (!bom.non_claims?.includes("current_v2_candidate_generated_card_choice_not_exercised"))
+    errors.push("Current V2 candidate generated-card-choice non-claim is missing");
+  if (!bom.non_claims?.includes("generated_card_skip_not_exercised"))
+    errors.push("Generated-card skip non-claim is missing");
   if (!bom.non_claims?.includes("v2_corpus_and_training_not_authorized"))
     errors.push("V2 corpus/training authorization non-claim is missing");
-  if (!bom.non_claims?.includes("policy_runtime_live_ui_loaded_owner_interaction_pending"))
-    errors.push("Policy Runtime/Live UI owner-interaction non-claim is missing");
+  if (!bom.non_claims?.includes("unified_live_ui_owner_visibility_and_controls_pending"))
+    errors.push("Unified Live UI owner-interaction non-claim is missing");
+  if (!bom.non_claims?.includes("automated_input_canary_is_not_owner_visibility_evidence"))
+    errors.push("Automated-input epistemic-boundary non-claim is missing");
   if (!bom.non_claims?.includes("s1_checkpoint_absent_shadow_one_step_auto_not_exercised"))
     errors.push("S1 checkpoint/model-mode non-claim is missing");
   return errors;

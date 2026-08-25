@@ -49,29 +49,38 @@ test("BOM check rejects V2 evidence and selector-claim drift", async () => {
   bom.current_v2_candidate.native_human_gate.reads.run_deck = 59;
   bom.current_v2_candidate.native_human_gate.transfer.retry_status = "promoted";
   bom.current_v2_candidate.native_human_gate.generated_card_choice.runtime_status = "pass";
-  bom.non_claims = bom.non_claims.filter((claim) => claim !== "v2_generated_card_choice_not_exercised");
+  bom.non_claims = bom.non_claims.filter(
+    (claim) => claim !== "current_v2_candidate_generated_card_choice_not_exercised"
+  );
   const errors = validatePlatformBom(bom, await readBomAuthorities(root));
   assert.ok(errors.some((error) => error.startsWith("V2 run-deck Reads:")));
   assert.ok(errors.some((error) => error.startsWith("V2 transfer retry:")));
   assert.ok(errors.some((error) => error.startsWith("V2 selector runtime:")));
-  assert.ok(errors.includes("V2 generated-card-choice non-claim is missing"));
+  assert.ok(errors.includes("Current V2 candidate generated-card-choice non-claim is missing"));
 });
 
-test("BOM check rejects Policy Runtime candidate identity and evidence promotion", async () => {
+test("BOM check rejects unified artifact, identity and evidence promotion", async () => {
   const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
-  bom.policy_runtime_live_ui_candidate.live_ui.source_revision = "0".repeat(40);
-  bom.policy_runtime_live_ui_candidate.connector.current_component_source_revision = "0".repeat(40);
-  bom.policy_runtime_live_ui_candidate.installed = "pending";
-  bom.policy_runtime_live_ui_candidate.runtime.execution_available = false;
-  bom.policy_runtime_live_ui_candidate.external_policy.checkpoint_status = "present";
+  const candidate = bom.unified_platform_runtime_candidate;
+  candidate.live_ui.current_component_source_revision = "0".repeat(40);
+  candidate.live_ui.artifact_sha256 = "0".repeat(64);
+  candidate.connector.current_component_source_revision = "0".repeat(40);
+  candidate.game_mod.installed = "pending";
+  candidate.runtime.execution_available = false;
+  candidate.owner_ui_visibility = "pass";
+  candidate.predecessor_human_session.evidence_transfer_to_unified_artifact = true;
+  candidate.external_policy.checkpoint_status = "present";
   bom.non_claims = bom.non_claims.filter(
     (claim) => claim !== "s1_checkpoint_absent_shadow_one_step_auto_not_exercised"
   );
   const errors = validatePlatformBom(bom, await readBomAuthorities(root));
-  assert.ok(errors.some((error) => error.startsWith("candidate Live UI source:")));
+  assert.ok(errors.some((error) => error.startsWith("candidate current Live UI source:")));
+  assert.ok(errors.some((error) => error.startsWith("candidate common artifact SHA (live_ui):")));
   assert.ok(errors.some((error) => error.startsWith("candidate current Connector source:")));
-  assert.ok(errors.some((error) => error.startsWith("candidate installed:")));
+  assert.ok(errors.some((error) => error.startsWith("candidate Game Mod installed:")));
   assert.ok(errors.some((error) => error.startsWith("candidate execution:")));
+  assert.ok(errors.some((error) => error.startsWith("candidate owner UI visibility:")));
+  assert.ok(errors.some((error) => error.startsWith("predecessor evidence transfer:")));
   assert.ok(errors.some((error) => error.startsWith("candidate policy checkpoint:")));
   assert.ok(errors.includes("S1 checkpoint/model-mode non-claim is missing"));
 });
