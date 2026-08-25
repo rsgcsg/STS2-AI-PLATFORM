@@ -97,14 +97,16 @@ deployment, launch, or rollback:
 npm run game-mod:build
 npm run game-mod:deploy
 npm run game-mod:launch
-npm run game-mod:verify-loaded
+npm run verify:loaded
 ```
 
 The unified `STS2_PLATFORM` assembly embeds component-specific source identity
 while Connector and Annotator report one common loaded SHA/MVID. The old
 component-local deploy/admit commands remain narrow standalone development
 tools; they are not the production install path and must not be composed with
-the unified Mod.
+the unified Mod. `npm run verify:loaded` is the canonical Platform-root loaded
+identity check; `npm run game-mod:verify-loaded` is its component-level
+equivalent for game-Mod development.
 
 On Windows, the component development `launch` binds the exact candidate runtime ID and Connector source
 revision before starting the native executable. `deploy`, `admit:modset`,
