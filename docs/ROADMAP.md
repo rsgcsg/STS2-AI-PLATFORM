@@ -105,8 +105,11 @@ action-family expansion remain outside this bounded baseline.
   accepted by runtime but rejected by final record validation, and persistence
   exceptions retried successor Reads. Runtime and audit now share exact Modset
   admission; unknown evidence commit invalidates once without retry.
-- Pending exact runtime: build/install/cold-load the repair and admit at least
-  one ordinary Human decision. Failed zero-record sessions do not transfer.
+- Complete exact runtime: repaired artifact `d3b25e62... / ee78d9a1...` is
+  installed and cold-loaded in runtime `88db3f9c...` with Ready/no session.
+- Pending owner interaction: admit at least one ordinary Human decision, verify
+  Read count remains bounded, then Close and audit. Failed zero-record sessions
+  do not transfer.
 
 Next phase, not part of this slice: **Live Workspace Window Kernel -> Human
 Recorder Window**.

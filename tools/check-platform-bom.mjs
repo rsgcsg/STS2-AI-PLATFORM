@@ -163,7 +163,7 @@ export function validatePlatformBom(bom, authorities) {
 
   const policyCandidate = bom.unified_platform_runtime_candidate;
   expectEqual(errors, "unified Platform candidate status", policyCandidate?.status,
-    "recording_application_owner_lifecycle_exercised_record_admission_repair_source_only");
+    "recording_application_repair_build_install_load_complete_owner_decision_pending");
   expectEqual(errors, "candidate STPD source", policyCandidate?.external_policy?.stpd_source_revision,
     bom.external_consumer_cutovers?.stpd);
   expectEqual(errors, "candidate policy checkpoint", policyCandidate?.external_policy?.checkpoint_status,
@@ -190,7 +190,7 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "candidate Connector source relation", policyCandidate?.connector?.source_relation,
     "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Annotator source relation", policyCandidate?.annotator?.source_relation,
-    "loaded_artifact_precedes_record_admission_repair");
+    "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Live UI source relation", policyCandidate?.live_ui?.source_relation,
     "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Connector protocol", policyCandidate?.connector?.protocol,
@@ -216,13 +216,13 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "candidate UI input canary", policyCandidate?.ui_toggle_runtime_canary,
     "not_observed");
   expectEqual(errors, "candidate owner UI visibility", policyCandidate?.owner_ui_visibility,
-    "pass_owner_attested");
+    "predecessor_owner_attested_revalidation_pending");
   expectEqual(errors, "candidate recording controls",
     policyCandidate?.human_recording_controls_exercised,
-    "lifecycle_pass_record_admission_failed");
+    "predecessor_lifecycle_pass_repair_decision_pending");
   const recordingValidation = policyCandidate?.recording_application_owner_validation;
-  expectEqual(errors, "recording lifecycle runtime", recordingValidation?.runtime_instance_id,
-    policyCandidate?.runtime?.runtime_instance_id);
+  expectPattern(errors, "recording predecessor lifecycle runtime",
+    recordingValidation?.predecessor_runtime_instance_id, /^[0-9a-f]{32}$/u);
   expectEqual(errors, "recording lifecycle sessions", recordingValidation?.session_ids?.length, 2);
   expectEqual(errors, "recording lifecycle timelines", recordingValidation?.distinct_timelines, 2);
   expectEqual(errors, "recording lifecycle pause/resume", recordingValidation?.pause_resume, "pass");
@@ -235,7 +235,11 @@ export function validatePlatformBom(bom, authorities) {
     "fail_no_decision_file");
   expectEqual(errors, "recording root cause", recordingValidation?.root_cause,
     "unified_modset_validator_drift");
-  expectEqual(errors, "recording repair loaded", recordingValidation?.repair_loaded, false);
+  expectEqual(errors, "recording repair loaded", recordingValidation?.repair_loaded, true);
+  expectEqual(errors, "recording repair artifact", recordingValidation?.repair_artifact_sha256,
+    policyCandidate?.game_mod?.artifact_sha256);
+  expectEqual(errors, "recording repair Human decision",
+    recordingValidation?.repair_human_decision, "pending");
   expectEqual(errors, "recording evidence transfer",
     recordingValidation?.evidence_transfer_to_repair, false);
   expectEqual(errors, "candidate compatibility", policyCandidate?.runtime?.compatibility_status, "canary_exact");

@@ -1,7 +1,7 @@
 # Current Status
 
 Phase: **Recording Application Plane lifecycle proved; unified record-admission
-repair is source/test complete and requires a new exact artifact**.
+repair is built, installed and cold-loaded, with one owner decision pending**.
 
 ## Implemented
 
@@ -154,9 +154,14 @@ records exact sessions, counts, attribution and non-claims.
 
 Current source uses one exact-Modset predicate in runtime and independent audit,
 and turns any evidence-commit exception into one unknown/no-retry invalidation.
-This repair changes Native source. The lifecycle proof remains bound to the
-artifact above; successful Human decision admission is pending a new build,
-install, cold-load and owner action.
+The repaired artifact is now built, installed and cold-loaded as
+`d3b25e628068f4a6946be0c1182f00745fd6195f9c0b02920bc9bc699b2d0b2d /
+ee78d9a1-791e-4582-b8fa-97cc1949cd2a` in runtime
+`88db3f9cf1e940ba906cab09e87714df`. It reports Ready/no session under exact
+Modset `bfc65fbb...`; rollback is
+`apps/game-mod/.local/deployments/2026-08-25T11-41-44.984Z`. The earlier
+lifecycle proof does not transfer. Successful Human decision admission remains
+pending one owner action on this exact artifact.
 
 ## Non-claims
 
@@ -177,8 +182,9 @@ install, cold-load and owner action.
   action/evidence authorities.
 - The owner saw and operated the K Human Data workspace and proved two-session
   lifecycle behavior on `a7b11d93...`. Its zero-record sessions are diagnostic
-  failures, not Human Evidence. The record-admission repair has source/test
-  evidence only and requires a new exact artifact; no evidence transfers.
+  failures, not Human Evidence. The repaired `d3b25e62...` artifact is loaded,
+  but K visibility, lifecycle and a successfully admitted decision on that exact
+  artifact remain pending; no evidence transfers.
 - The current S1 Policy Manifest is validated, but its exact checkpoint is not
   present on this Mac. Real-model Shadow, One-Step, Auto, policy Agent evidence
   and legacy/new path parity are therefore `not exercised`.
