@@ -64,8 +64,9 @@ test("deployment is source-bound, reversible, and keeps loaded identity distinct
 
 test("Live UI builds dependencies by default and rejects stale ui-only builds", () => {
   assert.match(build, /--ui-only is disabled/u);
-  assert.match(build, /run\(connectorProject\);/u);
-  assert.match(build, /run\(annotatorProject,/u);
-  assert.match(build, /run\(annotatorToolProject\);/u);
+  assert.match(build, /runComponentBuild\(connectorRoot\);/u);
+  assert.match(build, /runComponentBuild\(annotatorRoot\);/u);
+  assert.match(build, /Component-owned build entrypoints are the only provenance authorities/u);
+  assert.doesNotMatch(build, /run\(connectorProject\)|run\(annotatorProject/u);
   assert.doesNotMatch(build, /if \(!uiOnly\)/u);
 });

@@ -8,9 +8,8 @@ import { defaultGameDirectory } from "../../components/annotator/tools/workstati
 import { componentGitFiles, componentGitState } from "../../tools/component-git.mjs";
 
 const root = path.resolve(import.meta.dirname, "../..");
-const connectorProject = path.join(root, "components/connector/host/STS2Connector.Host.csproj");
-const annotatorProject = path.join(root, "components/annotator/src/STS2HumanAnnotator.Mod/STS2HumanAnnotator.Mod.csproj");
-const annotatorToolProject = path.join(root, "components/annotator/src/STS2HumanAnnotator.Tool/STS2HumanAnnotator.Tool.csproj");
+const connectorRoot = path.join(root, "components/connector");
+const annotatorRoot = path.join(root, "components/annotator");
 const uiProject = path.join(import.meta.dirname, "STS2PlatformLiveUi.csproj");
 const connectorAssembly = path.join(root, "components/connector/host/out/STS2_MCP/STS2_MCP.dll");
 const annotatorAssembly = path.join(
@@ -28,6 +27,16 @@ function run(project, properties = []) {
   const args = [project, "--configuration", "Release", ...properties];
   const result = spawnSync("dotnet", ["build", ...args], {
     cwd: root,
+    env: process.env,
+    stdio: "inherit"
+  });
+  if (result.status !== 0)
+    process.exit(result.status ?? 1);
+}
+
+function runComponentBuild(componentRoot) {
+  const result = spawnSync("npm", ["run", "build"], {
+    cwd: componentRoot,
     env: process.env,
     stdio: "inherit"
   });
@@ -98,12 +107,11 @@ if (!fs.existsSync(gameDir)) {
 const gameProperty = [`-p:STS2GameDir=${gameDir}`];
 const source = sourceIdentity();
 
-run(connectorProject);
-run(annotatorProject, [
-  `-p:ConnectorAssembly=${connectorAssembly}`,
-  ...gameProperty
-]);
-run(annotatorToolProject);
+// Component-owned build entrypoints are the only provenance authorities for
+// dependency artifacts. Direct project builds can silently replace a DLL
+// without updating its component build record.
+runComponentBuild(connectorRoot);
+runComponentBuild(annotatorRoot);
 
 run(uiProject, [
   `-p:ConnectorAssembly=${connectorAssembly}`,
