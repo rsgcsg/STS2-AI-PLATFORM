@@ -4,6 +4,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import os from "node:os";
 import path from "node:path";
 import {
+  clientDependenciesAvailable,
   configurePlayerEnvironmentEvidenceProfile,
   evaluateEnvironmentReadiness,
   evaluateLoadedArtifact,
@@ -18,6 +19,7 @@ import {
 } from "./connector-provenance.mjs";
 
 assert.deepEqual(sourceProtocols(), { csharp: "1.0.0", client: "1.0.0" });
+assert.equal(clientDependenciesAvailable(), true);
 assert.equal(resolveModsDir("C:\\Game", "win32"), "C:\\Game\\mods");
 assert.equal(windowsTaskListHasGame('"SlayTheSpire2.exe","123"'), true);
 assert.equal(windowsTaskListHasGame('"steam.exe","123"'), false);

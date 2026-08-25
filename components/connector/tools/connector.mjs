@@ -13,6 +13,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
 import {
   evaluateBuildProvenance,
   playerEnvironmentSourceIdentity as readPlayerEnvironmentSourceIdentity,
@@ -29,6 +30,17 @@ const WORKSPACE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..
 const DEFAULT_ENDPOINT = "http://127.0.0.1:15526";
 const DEFAULT_HOST_WAIT_MS = 60_000;
 const DEFAULT_HOST_POLL_MS = 500;
+
+export function clientDependenciesAvailable() {
+  const sdkPackage = path.join(WORKSPACE, "sdk/typescript/package.json");
+  try {
+    createRequire(sdkPackage).resolve("typescript");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function sha256File(file) {
   if (!existsSync(file)) return null;
   return createHash("sha256").update(readFileSync(file)).digest("hex");
@@ -1031,10 +1043,7 @@ async function doctor(options) {
   } catch (error) {
     gameDirError = error instanceof Error ? error.message : String(error);
   }
-  const clientDependenciesInstalled = existsSync(path.join(
-    WORKSPACE,
-    "sdk/typescript/node_modules/typescript/package.json"
-  ));
+  const clientDependenciesInstalled = clientDependenciesAvailable();
   let status = null;
   let inspectionError = gameDirError;
   if (gameDirExists && prerequisites.dotnet.available) {
