@@ -3,7 +3,6 @@ using MegaCrit.Sts2.Core.Modding;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
-using STS2Connector.NativeUi;
 
 namespace STS2PlatformLiveUi;
 
@@ -28,29 +27,13 @@ public static class PlatformLiveUiMod
             };
             GD.Print($"[STS2 Platform Live UI] identity {JsonSerializer.Serialize(RuntimeIdentity())}");
             layer.AddChild(new PlatformLivePanel());
-            _ = MountOnMainThread(layer);
-            GD.Print("[STS2 Platform Live UI] main-thread mount scheduled; press K to toggle. Gameplay actions are not exposed directly.");
+            GD.Print("[STS2 Platform Live UI] adding layer to SceneTree root");
+            ((SceneTree)Engine.GetMainLoop()).Root.AddChild(layer);
+            GD.Print("[STS2 Platform Live UI] layer added; press K to toggle. Gameplay actions are not exposed directly.");
         }
         catch (Exception exception)
         {
             GD.PrintErr($"[STS2 Platform Live UI] initialization failed: {exception}");
-        }
-    }
-
-    private static async Task MountOnMainThread(CanvasLayer layer)
-    {
-        try
-        {
-            await NativeUiMainThread.Run(() =>
-            {
-                SceneTree tree = (SceneTree)Engine.GetMainLoop();
-                tree.Root.AddChild(layer);
-                GD.Print("[STS2 Platform Live UI] mounted on Connector main-thread queue");
-            });
-        }
-        catch (Exception exception)
-        {
-            GD.PrintErr($"[STS2 Platform Live UI] main-thread mount failed: {exception}");
         }
     }
 
@@ -129,23 +112,31 @@ internal sealed class PlatformLivePanel : Control
 
     public override void _Ready()
     {
-        SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        Visible = false;
-        MouseFilter = MouseFilterEnum.Stop;
-        GuiInput += ConsumeGuiInput;
-        SetProcessInput(true);
-        BuildUi();
-        GD.Print("[STS2 Platform Live UI] panel ready; input=K; visible=false");
-
-        var timer = new Godot.Timer
+        GD.Print("[STS2 Platform Live UI] panel _Ready entered");
+        try
         {
-            WaitTime = 1.0,
-            Autostart = true,
-            OneShot = false
-        };
-        timer.Timeout += OnPollTimeout;
-        AddChild(timer);
-        _ = PollAsync();
+            SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+            Visible = false;
+            MouseFilter = MouseFilterEnum.Stop;
+            GuiInput += ConsumeGuiInput;
+            SetProcessInput(true);
+            BuildUi();
+
+            var timer = new Godot.Timer
+            {
+                WaitTime = 1.0,
+                Autostart = true,
+                OneShot = false
+            };
+            timer.Timeout += OnPollTimeout;
+            AddChild(timer);
+            _ = PollAsync();
+            GD.Print("[STS2 Platform Live UI] panel ready; input=K; visible=false");
+        }
+        catch (Exception exception)
+        {
+            GD.PrintErr($"[STS2 Platform Live UI] panel _Ready failed: {exception}");
+        }
     }
 
     public override void _ExitTree() => _statusClient.Dispose();
