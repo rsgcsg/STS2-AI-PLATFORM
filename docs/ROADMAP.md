@@ -107,9 +107,16 @@ action-family expansion remain outside this bounded baseline.
   admission; unknown evidence commit invalidates once without retry.
 - Complete exact runtime: repaired artifact `d3b25e62... / ee78d9a1...` is
   installed and cold-loaded in runtime `88db3f9c...` with Ready/no session.
-- Pending owner interaction: admit at least one ordinary Human decision, verify
-  Read count remains bounded, then Close and audit. Failed zero-record sessions
-  do not transfer.
+- Complete on `d3b25e62...`: session `session-20260825T115335Z-...` audited six
+  end-turn records and 24 bounded Reads. First Close completed in 5.036 ms.
+- Defect found and repaired at source/test: 21 supported play-card attempts were
+  rejected because staged and transient snapshots were required to be equal;
+  the UI also retained intermediate Closing text. Exact native continuity now
+  preserves the complete staged frame, and status explicitly partitions
+  recorded, failed-closed, not-observed and out-of-scope families.
+- Pending exact runtime: clean build/install/cold-load this repair, then exercise
+  one play card and one first-click Close. Prior end-turn evidence does not
+  transfer to the new artifact.
 
 Next phase, not part of this slice: **Live Workspace Window Kernel -> Human
 Recorder Window**.

@@ -15,9 +15,10 @@ or expose native references on a wire.
 
 ## Current Status
 
-- Implemented and automated-test verified: ordinary Combat `play` (including an
-  exact target when present), `end_turn`, append-only recording, independent
-  audit/export, exact artifact identity, and fail-closed STPD import.
+- Implemented at source/test: ordinary Combat `play` (including an exact target
+  when present), `end_turn`, append-only recording, independent audit/export,
+  exact artifact identity, and fail-closed STPD import. Exact-artifact Live
+  evidence is stated separately and never inferred from this implementation.
 - V2 adds same-frame `run_deck` and `combat_piles`, typed ReadEvidence,
   CaptureProfile, RunJournal, portable Bundle V2, and exact generated-card
   choice select/skip observation. Ordinary-combat V2 is exact native-human
@@ -29,10 +30,13 @@ or expose native references on a wire.
   waits for an admitted pending decision before flushing. A closed session can
   be followed by another session in the same STS2 process. The service never
   invokes a game action.
+- RecordingStatus revision 2 exposes the CaptureProfile boundary as four
+  disjoint views: recorded, supported-but-failed-closed, supported-not-observed,
+  and declared out of scope. A failure count is never presented as a record.
 - Builds from the exact local STS2 `v0.111.0` assembly on macOS arm64 and
   Windows x64. Windows discovery and process inspection use the Platform Host
   Runtime component.
-- Current exact-root artifact is owner-validated with a latest 28-record
+- A predecessor V1 exact-root artifact is owner-validated with a 28-record
   ordinary-combat session: 14 targeted plays, 9 untargeted plays and 5 end
   turns. Independent audit accepted all 28 with zero rejected records; one
   overlapping action failed closed before it could become a record. An earlier
@@ -42,6 +46,13 @@ or expose native references on a wire.
   identity or authority to the current artifact. Pending scope remains explicit:
   potions and non-Combat UI actions are unsupported by this recorder slice.
 - Unsupported by this first slice: potions and non-Combat UI actions.
+
+The current unified-artifact owner session admitted six end turns with all
+required Reads, but 21 supported card plays failed closed because the staged
+complete frame was compared with an expected transient native-play frame.
+Current source repairs that correlation while retaining exact card/runtime/
+environment/interaction/controller checks; it requires new exact-runtime Live
+validation and does not inherit older play-card evidence.
 
 Implementation or build evidence is not human-origin evidence. See
 [Status](docs/STATUS.md) and [Evidence](docs/EVIDENCE.md).

@@ -7,14 +7,15 @@ audited generated-card select. Generated-card skip and the current unified
 artifact's Human path remain `not exercised`. Root `../../../docs/STATUS.md` is
 authoritative for the current runtime boundary.
 
-Current source adds the Recording Application Plane: runtime starts Ready,
-sessions are explicit and repeatable, status/events are typed, commands are
-idempotent, and pending-safe Close flushes/disposes the active store. Owner
-runtime evidence proved two isolated sessions plus Pause/Resume/Close, but also
-found unified-Modset validation drift that rejected every final decision append
-and retried successor Reads. Current source unifies exact Modset admission and
-invalidates an unknown evidence commit once without retry. A repaired artifact
-still requires cold-load and owner-operated decision evidence.
+The Recording Application Plane starts Ready, creates explicit repeatable
+sessions, and exposes typed status/events plus idempotent lifecycle commands.
+Unified Modset admission and unknown/no-retry persistence are now Live-proved by
+six audited end-turn records with 24 bounded Reads. The same session exposed 21
+supported card-play misses: staged and transient snapshots were incorrectly
+required to be identical. Current source repairs that bounded native transition,
+reports per-family recorded/failed/not-observed/out-of-scope status, and displays
+authoritative Closed state after the first Close. Those latest changes still
+require a new cold load and owner card-play validation.
 
 ## Implemented
 

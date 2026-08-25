@@ -44,15 +44,18 @@ public static class HumanCaptureProfileValidator
         var errors = new List<string>();
         if (!string.Equals(record.CaptureProfileId, profile.ProfileId, StringComparison.Ordinal))
             errors.Add("record_capture_profile_mismatch");
-        string family = record.DecisionFamily == "ordinary_combat" && record.Action.Verb == "play"
-            ? "ordinary_combat.play_card"
-            : $"{record.DecisionFamily}.{record.Action.Verb}";
+        string family = ResolveActionFamily(record.DecisionFamily, record.Action.Verb);
         if (!profile.SupportedActionFamilies.Contains(family, StringComparer.Ordinal))
             errors.Add("record_action_family_outside_profile");
         ValidateRequiredReads(profile, record.Pre.Reads, "pre", errors);
         ValidateRequiredReads(profile, record.Successor.Reads, "successor", errors);
         return new RecordValidationResult(errors.Count == 0, errors);
     }
+
+    public static string ResolveActionFamily(string decisionFamily, string verb) =>
+        decisionFamily == "ordinary_combat" && verb == "play"
+            ? "ordinary_combat.play_card"
+            : $"{decisionFamily}.{verb}";
 
     private static void ValidateRequiredReads(
         HumanCaptureProfile profile,

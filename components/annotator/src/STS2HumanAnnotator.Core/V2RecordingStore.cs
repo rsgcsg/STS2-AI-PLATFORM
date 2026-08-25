@@ -14,6 +14,8 @@ public sealed class V2RecordingStore : IDisposable
     private readonly Dictionary<string, long> _families = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _readsByKind = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _invalidationsByReason = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, long> _recordedActionFamilies = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, long> _invalidatedNativeActions = new(StringComparer.Ordinal);
     private long _admittedCount;
     private long _invalidationCount;
     private long _readMaterialized;
@@ -61,6 +63,9 @@ public sealed class V2RecordingStore : IDisposable
                     _readFailed),
                 _lastRecord,
                 _lastInvalidation,
+                new Dictionary<string, long>(_recordedActionFamilies, StringComparer.Ordinal),
+                new Dictionary<string, long>(_invalidatedNativeActions, StringComparer.Ordinal),
+                new Dictionary<string, long>(_invalidationsByReason, StringComparer.Ordinal),
                 _appendHealth,
                 _diskHealth,
                 _lastError,
@@ -180,6 +185,11 @@ public sealed class V2RecordingStore : IDisposable
             AppendLine(DecisionFile(record.RunId), record);
             _admittedCount++;
             _families[record.DecisionFamily] = _families.GetValueOrDefault(record.DecisionFamily) + 1;
+            string actionFamily = HumanCaptureProfileValidator.ResolveActionFamily(
+                record.DecisionFamily,
+                record.Action.Verb);
+            _recordedActionFamilies[actionFamily] =
+                _recordedActionFamilies.GetValueOrDefault(actionFamily) + 1;
             _lastRecord = new RecordingItemStatus(
                 record.RecordId,
                 record.Action.Verb,
@@ -211,6 +221,11 @@ public sealed class V2RecordingStore : IDisposable
             _invalidationCount++;
             _invalidationsByReason[invalidation.ReasonCode] =
                 _invalidationsByReason.GetValueOrDefault(invalidation.ReasonCode) + 1;
+            if (!string.IsNullOrWhiteSpace(invalidation.NativeActionType))
+            {
+                _invalidatedNativeActions[invalidation.NativeActionType] =
+                    _invalidatedNativeActions.GetValueOrDefault(invalidation.NativeActionType) + 1;
+            }
             _lastInvalidation = new RecordingItemStatus(
                 invalidation.InvalidationId,
                 invalidation.ReasonCode,

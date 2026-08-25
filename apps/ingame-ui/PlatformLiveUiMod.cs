@@ -322,8 +322,10 @@ internal sealed class PlatformLivePanel : IDisposable
             kind);
         STS2HumanAnnotator.Core.RecordingCommandResult result =
             STS2HumanAnnotator.Mod.RecordingApplicationService.Instance.Execute(command);
+        STS2HumanAnnotator.Core.RecordingApplicationStatus authoritative =
+            STS2HumanAnnotator.Mod.RecordingApplicationService.Instance.QueryStatus();
         _command.Text = result.Accepted
-            ? $"Recording: {result.Lifecycle.State}. {result.Detail}"
+            ? $"Recording: {authoritative.Lifecycle.State}. {authoritative.Detail}"
             : $"Recording control rejected: {result.Detail}";
         _ = PollAsync();
     }
@@ -484,6 +486,11 @@ internal sealed class PlatformLivePanel : IDisposable
         $"Profile: {status.Recording.Session?.CaptureProfileId ?? "none"}",
         $"Runtime state: {status.Recording.RuntimeState}",
         $"Records / invalidations: {status.Recording.Counters.Records} / {status.Recording.Counters.Invalidations}",
+        $"Recorded by family: {FormatCounts(status.Recording.Scope.RecordedByActionFamily)}",
+        $"SUPPORTED BUT FAILED CLOSED (not recorded): {FormatCounts(status.Recording.Scope.FailedClosedByActionFamily)}",
+        $"Supported, not observed: {FormatItems(status.Recording.Scope.SupportedNotObserved)}",
+        $"Declared out of scope: {FormatItems(status.Recording.Scope.DeclaredOutOfScope)}",
+        $"Profile boundary: {status.Recording.Scope.Detail}",
         $"Reads materialized / failed: {status.Recording.Counters.ReadsMaterialized} / {status.Recording.Counters.ReadsFailed}",
         $"Pending decision: {status.Recording.PendingDecision?.RecordId ?? "none"}",
         $"Last record: {status.Recording.LastRecord?.Id ?? "none"}",
@@ -498,6 +505,15 @@ internal sealed class PlatformLivePanel : IDisposable
         $"Invalidation reasons: {(status.PolicyRuntime == null ? "unavailable" : string.Join(", ", status.Invalidations))}",
         "Recording directory: intentionally not exposed to the UI"
     });
+
+    private static string FormatCounts(IReadOnlyDictionary<string, long> values) =>
+        values.Count == 0
+            ? "none"
+            : string.Join(", ", values.OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                .Select(pair => $"{pair.Key}={pair.Value}"));
+
+    private static string FormatItems(IReadOnlyList<string> values) =>
+        values.Count == 0 ? "none" : string.Join(", ", values);
 
     private static string FormatDiagnostics(PlatformLiveStatus status) => string.Join('\n', new[]
     {

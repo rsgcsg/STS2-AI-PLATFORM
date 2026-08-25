@@ -4,7 +4,7 @@ public static class RecordingApplicationContract
 {
     public const string CommandSchema = "sts2.ai-platform/recording-command-1";
     public const string CommandResultSchema = "sts2.ai-platform/recording-command-result-1";
-    public const string StatusSchema = "sts2.ai-platform/recording-status-1";
+    public const string StatusSchema = "sts2.ai-platform/recording-status-2";
     public const string EventBatchSchema = "sts2.ai-platform/recording-event-batch-1";
 }
 
@@ -72,6 +72,9 @@ public sealed record RecordingStoreSnapshot(
     RecordingCounters Counters,
     RecordingItemStatus? LastRecord,
     RecordingItemStatus? LastInvalidation,
+    IReadOnlyDictionary<string, long> RecordedActionFamilies,
+    IReadOnlyDictionary<string, long> InvalidatedNativeActions,
+    IReadOnlyDictionary<string, long> InvalidationsByReason,
     string AppendHealth,
     string DiskHealth,
     string? LastError,
@@ -105,6 +108,15 @@ public sealed record RecordingCloseoutStatus(
         new("idle", null, null, null);
 }
 
+public sealed record RecordingScopeStatus(
+    IReadOnlyList<string> SupportedActionFamilies,
+    IReadOnlyDictionary<string, long> RecordedByActionFamily,
+    IReadOnlyDictionary<string, long> FailedClosedByActionFamily,
+    IReadOnlyDictionary<string, long> InvalidationsByReason,
+    IReadOnlyList<string> SupportedNotObserved,
+    IReadOnlyList<string> DeclaredOutOfScope,
+    string Detail);
+
 public sealed record RecordingApplicationStatus(
     string Schema,
     DateTimeOffset ObservedAt,
@@ -116,6 +128,7 @@ public sealed record RecordingApplicationStatus(
     RecordingItemStatus? LastRecord,
     RecordingItemStatus? LastInvalidation,
     RecordingHealthStatus Health,
+    RecordingScopeStatus Scope,
     RecordingCloseoutStatus Closeout,
     string RuntimeState,
     string Detail,
@@ -123,6 +136,47 @@ public sealed record RecordingApplicationStatus(
     string? CurrentSnapshotId,
     IReadOnlyList<string> Blockers,
     long LatestEventSequence);
+
+/// <summary>
+/// Validates the bounded native UI interval between selecting a hand card and
+/// STS2 attempting its native PlayCardAction. The second frame is expected to
+/// be transient, so snapshot/catalog equality would reject legitimate plays.
+/// </summary>
+public static class StagedCardPlayGuard
+{
+    public static bool IsContinuous(
+        string stagedRuntimeInstanceId,
+        string stagedEnvironmentFingerprint,
+        string stagedInteractionId,
+        long stagedSequence,
+        DateTimeOffset stagedAt,
+        string currentRuntimeInstanceId,
+        string currentEnvironmentFingerprint,
+        string currentInteractionId,
+        long currentSequence,
+        DateTimeOffset observedAt,
+        bool externalControllerActive,
+        TimeSpan maximumAge)
+    {
+        return !externalControllerActive
+            && maximumAge > TimeSpan.Zero
+            && observedAt >= stagedAt
+            && observedAt - stagedAt <= maximumAge
+            && currentSequence >= stagedSequence
+            && string.Equals(
+                stagedRuntimeInstanceId,
+                currentRuntimeInstanceId,
+                StringComparison.Ordinal)
+            && string.Equals(
+                stagedEnvironmentFingerprint,
+                currentEnvironmentFingerprint,
+                StringComparison.Ordinal)
+            && string.Equals(
+                stagedInteractionId,
+                currentInteractionId,
+                StringComparison.Ordinal);
+    }
+}
 
 public enum RecordingEventKind
 {

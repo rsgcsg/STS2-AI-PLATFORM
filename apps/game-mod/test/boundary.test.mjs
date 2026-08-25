@@ -100,3 +100,16 @@ test("record settlement accepts only shared exact Modsets and never retries an u
   assert.match(runtime, /evidence_commit_unknown/u);
   assert.match(runtime, /ClearPendingWithInvalidation\([\s\S]*decision_persistence_unknown/u);
 });
+
+test("native card staging permits transient snapshot advance without weakening identity guards", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const guard = read("components/annotator/src/STS2HumanAnnotator.Core/RecordingApplication.cs");
+
+  assert.match(runtime, /StagedCardPlayGuard\.IsContinuous/u);
+  assert.doesNotMatch(runtime, /cached\.Frame\.Snapshot\.SnapshotId,[\s\S]*current\.Snapshot\.SnapshotId/u);
+  assert.match(guard, /currentSequence >= stagedSequence/u);
+  assert.match(guard, /stagedRuntimeInstanceId/u);
+  assert.match(guard, /stagedEnvironmentFingerprint/u);
+  assert.match(guard, /stagedInteractionId/u);
+  assert.match(guard, /externalControllerActive/u);
+});

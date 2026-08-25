@@ -7,6 +7,20 @@ namespace STS2HumanAnnotator.Core.Tests;
 
 public sealed class V2EvidenceTests
 {
+    [Theory]
+    [InlineData("ordinary_combat", "play", "ordinary_combat.play_card")]
+    [InlineData("ordinary_combat", "end_turn", "ordinary_combat.end_turn")]
+    [InlineData("native_generated_card_choice", "select", "native_generated_card_choice.select")]
+    public void ActionFamilyNormalizationIsSharedByAdmissionAndStatus(
+        string decisionFamily,
+        string verb,
+        string expected)
+    {
+        Assert.Equal(
+            expected,
+            HumanCaptureProfileValidator.ResolveActionFamily(decisionFamily, verb));
+    }
+
     [Fact]
     public void ReadRichDecisionValidatesWithoutChangingV1()
     {

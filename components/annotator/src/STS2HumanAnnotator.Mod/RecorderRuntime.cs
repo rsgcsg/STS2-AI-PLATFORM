@@ -59,6 +59,9 @@ internal static class RecorderRuntime
         new RecordingCounters(0, 0, 0, 0),
         null,
         null,
+        new Dictionary<string, long>(StringComparer.Ordinal),
+        new Dictionary<string, long>(StringComparer.Ordinal),
+        new Dictionary<string, long>(StringComparer.Ordinal),
         "not_open",
         "not_open",
         null,
@@ -82,6 +85,12 @@ internal static class RecorderRuntime
         .Select(read => read.Kind)
         .Distinct(StringComparer.Ordinal)
         .ToArray();
+    private static readonly string[] DeclaredOutOfScopeActionFamilies =
+    {
+        "ordinary_combat.use_potion",
+        "navigation_and_non_combat",
+        "selectors_other_than_native_generated_card_choice"
+    };
 
     internal static string? SessionId { get; private set; }
 
@@ -143,6 +152,7 @@ internal static class RecorderRuntime
                     store.DiskHealth,
                     store.LastError,
                     DateTimeOffset.UtcNow),
+                BuildScopeStatus(store),
                 _closeout,
                 _runtimeState,
                 _detail ?? _lifecycle.Detail,
@@ -589,8 +599,12 @@ internal static class RecorderRuntime
                 }
                 if (staged != null
                     && ReferenceEquals(staged.Card, stagedCard)
-                    && DateTimeOffset.UtcNow - staged.StagedAt <= TimeSpan.FromSeconds(30)
-                    && SameDecisionContext(staged.Decision, current, currentEnvironment)
+                    && SameNativeCardPlayContext(
+                        staged.Decision,
+                        staged.StagedAt,
+                        current,
+                        currentEnvironment,
+                        DateTimeOffset.UtcNow)
                     && IsExact(staged.Decision.Frame.Resolve(expectedAction)))
                 {
                     selected = staged.Decision.Frame;
@@ -1152,33 +1166,59 @@ internal static class RecorderRuntime
         return blockers;
     }
 
-    private static bool SameDecisionContext(
+    private static bool SameNativeCardPlayContext(
         ExactDecisionFrame cached,
+        DateTimeOffset stagedAt,
         ProcessLocalNativeWitnessFrame current,
-        RecorderEnvironmentIdentity currentEnvironment) =>
-        string.Equals(
+        RecorderEnvironmentIdentity currentEnvironment,
+        DateTimeOffset observedAt) =>
+        StagedCardPlayGuard.IsContinuous(
             cached.Environment.RuntimeInstanceId,
-            currentEnvironment.RuntimeInstanceId,
-            StringComparison.Ordinal)
-        && string.Equals(
             cached.Environment.EnvironmentFingerprint,
-            currentEnvironment.EnvironmentFingerprint,
-            StringComparison.Ordinal)
-        && string.Equals(
             cached.Frame.Snapshot.Interaction.InteractionId,
+            cached.Frame.Snapshot.Sequence,
+            stagedAt,
+            currentEnvironment.RuntimeInstanceId,
+            currentEnvironment.EnvironmentFingerprint,
             current.Snapshot.Interaction.InteractionId,
-            StringComparison.Ordinal)
-        && string.Equals(
-            cached.Frame.Snapshot.SnapshotId,
-            current.Snapshot.SnapshotId,
-            StringComparison.Ordinal)
-        && cached.Frame.Snapshot.Sequence == current.Snapshot.Sequence
-        && cached.Frame.Snapshot.BoundActions.Actions
-            .Select(action => action.BoundActionId)
-            .SequenceEqual(
-                current.Snapshot.BoundActions.Actions.Select(action => action.BoundActionId),
-                StringComparer.Ordinal)
-        && !current.ExternalControllerActive;
+            current.Snapshot.Sequence,
+            observedAt,
+            current.ExternalControllerActive,
+            TimeSpan.FromSeconds(30));
+
+    private static RecordingScopeStatus BuildScopeStatus(RecordingStoreSnapshot store)
+    {
+        var failedClosed = new Dictionary<string, long>(StringComparer.Ordinal);
+        foreach ((string nativeAction, long count) in store.InvalidatedNativeActions)
+        {
+            string? family = SupportedFamilyForNativeAction(nativeAction);
+            if (family != null)
+                failedClosed[family] = failedClosed.GetValueOrDefault(family) + count;
+        }
+        string[] notObserved = CaptureProfile.SupportedActionFamilies
+            .Where(family => !store.RecordedActionFamilies.ContainsKey(family)
+                && !failedClosed.ContainsKey(family))
+            .OrderBy(family => family, StringComparer.Ordinal)
+            .ToArray();
+        return new RecordingScopeStatus(
+            CaptureProfile.SupportedActionFamilies,
+            store.RecordedActionFamilies,
+            failedClosed,
+            store.InvalidationsByReason,
+            notObserved,
+            DeclaredOutOfScopeActionFamilies,
+            "Only supported_action_families are eligible for recording; all other gameplay actions are outside this capture profile.");
+    }
+
+    private static string? SupportedFamilyForNativeAction(string nativeActionType) =>
+        nativeActionType switch
+        {
+            nameof(PlayCardAction) => "ordinary_combat.play_card",
+            nameof(EndPlayerTurnAction) => "ordinary_combat.end_turn",
+            "NChooseACardSelectionScreen.SelectHolder" => "native_generated_card_choice.select",
+            "NChooseACardSelectionScreen.OnSkipButtonReleased" => "native_generated_card_choice.skip",
+            _ => null
+        };
 
     private static string DecisionFamily(string interactionKind) =>
         interactionKind.StartsWith("combat", StringComparison.Ordinal)

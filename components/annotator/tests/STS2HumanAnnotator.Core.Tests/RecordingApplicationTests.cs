@@ -141,4 +141,54 @@ public sealed class RecordingApplicationTests
         Assert.True(ledger.TryGet("command-1", out RecordingCommandResult? remembered));
         Assert.Equal(original, remembered);
     }
+
+    [Fact]
+    public void StagedCardPlayAllowsTheExpectedTransientSnapshotAdvance()
+    {
+        bool continuous = StagedCardPlayGuard.IsContinuous(
+            "runtime-1",
+            "environment-1",
+            "combat-1",
+            stagedSequence: 10,
+            stagedAt: T0,
+            "runtime-1",
+            "environment-1",
+            "combat-1",
+            currentSequence: 11,
+            observedAt: T0.AddMilliseconds(20),
+            externalControllerActive: false,
+            maximumAge: TimeSpan.FromSeconds(30));
+
+        Assert.True(continuous);
+    }
+
+    [Theory]
+    [InlineData("runtime-2", "environment-1", "combat-1", 11, false)]
+    [InlineData("runtime-1", "environment-2", "combat-1", 11, false)]
+    [InlineData("runtime-1", "environment-1", "combat-2", 11, false)]
+    [InlineData("runtime-1", "environment-1", "combat-1", 9, false)]
+    [InlineData("runtime-1", "environment-1", "combat-1", 11, true)]
+    public void StagedCardPlayRejectsAuthorityOrContextDrift(
+        string runtime,
+        string environment,
+        string interaction,
+        long sequence,
+        bool externalController)
+    {
+        bool continuous = StagedCardPlayGuard.IsContinuous(
+            "runtime-1",
+            "environment-1",
+            "combat-1",
+            stagedSequence: 10,
+            stagedAt: T0,
+            runtime,
+            environment,
+            interaction,
+            sequence,
+            observedAt: T0.AddMilliseconds(20),
+            externalController,
+            maximumAge: TimeSpan.FromSeconds(30));
+
+        Assert.False(continuous);
+    }
 }

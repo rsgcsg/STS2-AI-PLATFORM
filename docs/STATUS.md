@@ -1,7 +1,7 @@
 # Current Status
 
-Phase: **Recording Application Plane lifecycle proved; unified record-admission
-repair is built, installed and cold-loaded, with one owner decision pending**.
+Phase: **Recording Application decision admission is Live-proved; card-play
+correlation and recording-scope clarity repairs are source/test complete**.
 
 ## Implemented
 
@@ -159,9 +159,23 @@ The repaired artifact is now built, installed and cold-loaded as
 ee78d9a1-791e-4582-b8fa-97cc1949cd2a` in runtime
 `88db3f9cf1e940ba906cab09e87714df`. It reports Ready/no session under exact
 Modset `bfc65fbb...`; rollback is
-`apps/game-mod/.local/deployments/2026-08-25T11-41-44.984Z`. The earlier
-lifecycle proof does not transfer. Successful Human decision admission remains
-pending one owner action on this exact artifact.
+`apps/game-mod/.local/deployments/2026-08-25T11-41-44.984Z`. Owner session
+`session-20260825T115335Z-08907007f20a49318573f638ff627696` then independently
+audited `6/6` admitted end turns with 24 materialized Reads and zero Read
+failures. Twenty-one attempted `PlayCardAction`s failed closed; because
+play-card is in the active profile, this is a recorder defect rather than an
+out-of-scope boundary. The first Close actually completed in 5.036 ms, but the
+UI retained the command's intermediate `Closing` text until another click. The
+dated [decision gate](evidence/RECORDING_APPLICATION_DECISION_GATE_2026-08-25.md)
+records exact attribution.
+
+Current source accepts the complete frame staged at native card selection across
+the expected transient card-play snapshot while retaining exact card, runtime,
+environment, interaction, monotonic-sequence, bounded-age and controller checks.
+Recording status revision 2 separately reports recorded, supported-but-failed,
+supported-not-observed and declared-out-of-scope families. The Live UI reads
+authoritative post-command status, so a completed first Close displays Closed.
+These changes require a new exact artifact; no Live claim transfers.
 
 ## Non-claims
 
@@ -180,11 +194,11 @@ pending one owner action on this exact artifact.
 - Platform Evidence is a focused evidence-integrity package, not a
   Platform-wide gameplay SDK. Workbench and Live UI are application shells, not
   action/evidence authorities.
-- The owner saw and operated the K Human Data workspace and proved two-session
-  lifecycle behavior on `a7b11d93...`. Its zero-record sessions are diagnostic
-  failures, not Human Evidence. The repaired `d3b25e62...` artifact is loaded,
-  but K visibility, lifecycle and a successfully admitted decision on that exact
-  artifact remain pending; no evidence transfers.
+- The repaired `d3b25e62...` artifact has six audited owner-attested end-turn
+  records with bounded Reads. Its 21 play-card invalidations prove a current
+  supported-family defect, not play-card coverage. The staged-card/UI clarity
+  repair is source/test evidence only until a new artifact is cold-loaded and
+  owner-exercised.
 - The current S1 Policy Manifest is validated, but its exact checkpoint is not
   present on this Mac. Real-model Shadow, One-Step, Auto, policy Agent evidence
   and legacy/new path parity are therefore `not exercised`.

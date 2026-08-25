@@ -9,7 +9,7 @@ with the uncommon letter key `K`; `Escape` closes it.
 | Overview | combined typed status and exact identity |
 | Environment | Connector Snapshot/capabilities plus in-process Annotator and Live UI identity |
 | Policy | Policy Runtime status, scores, selected action, Receipt |
-| Human Data | RecordingService lifecycle, counters, health and closeout |
+| Human Data | RecordingService lifecycle, per-family scope/results, health and closeout |
 | Diagnostics | Reads, invalidations, errors and transports |
 
 The UI has no Player Environment submit client. Connector Read opportunities
@@ -23,6 +23,11 @@ Close safely, and create another isolated session. Views obtain a current
 RecordingStatus and may follow typed events from a sequence number; a reported
 event gap requires another status query. These controls never enter the native
 human witness path and cannot create a HumanDecision by themselves.
+After a lifecycle command, the UI presents the authoritative post-command
+status rather than leaving an intermediate command result on screen. Human Data
+separately lists actions that were recorded, supported actions that failed
+closed and were not recorded, supported actions not observed in this session,
+and actions declared outside the active CaptureProfile.
 
 Build/deploy/rollback are source- and artifact-bound in `apps/game-mod`. One
 manifest and one DLL replace the former Connector/Annotator/Live-UI manifests.
@@ -34,8 +39,9 @@ Agent-run evidence remain separate claims.
 See `apps/game-mod/README.md` for commands and `apps/ingame-ui/README.md` for the
 presentation boundary. The predecessor three-Mod artifact passed exact
 install/cold-load identity verification, but its F10 input was not observed.
-The final unified `K` artifact `a7b11d93... / c3e7127a...` is cold-loaded and
-reports panel readiness. Its non-human toggle canary was `not_observed`, so K
-visibility and recording controls remain explicit owner gates. No Human/policy
-evidence is inferred from load identity, and predecessor Human evidence does not
-qualify this artifact.
+The unified `K` artifact `d3b25e62... / ee78d9a1...` is cold-loaded and has six
+audited end-turn records on its exact runtime. That artifact's first Close
+completed internally while its command label remained at `Closing`; current
+source repairs the presentation and adds typed scope results. No Human/policy
+evidence is inferred from load identity, and prior evidence does not qualify a
+new source artifact.

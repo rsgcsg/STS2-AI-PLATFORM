@@ -52,6 +52,9 @@ test("Human Data controls use only the typed RecordingService application bounda
   assert.match(mod, /RecordingApplicationService\.Instance\.Execute\(command\)/u);
   assert.match(mod, /RecordingCommandKind\.StartNewSession/u);
   assert.doesNotMatch(`${mod}\n${client}`, /RecorderRuntime|HumanActionScope|AppendDecision/u);
+  assert.match(mod, /QueryStatus\(\)/u);
+  assert.match(mod, /SUPPORTED BUT FAILED CLOSED \(not recorded\)/u);
+  assert.match(mod, /Declared out of scope/u);
 });
 
 test("Live UI has no standalone packaging or deployment authority", () => {
