@@ -81,7 +81,8 @@ export function collectBoundaryErrors(workspaceRoot = root) {
     "components/evidence",
     "components/policy-runtime",
     "apps/workbench",
-    "apps/ingame-ui"
+    "apps/ingame-ui",
+    "apps/game-mod"
   ];
   if (JSON.stringify(rootPackage.workspaces) !== JSON.stringify(expectedWorkspaces)) {
     errors.push("package.json: workspace dependency graph is not the admitted Platform graph");
@@ -163,7 +164,8 @@ export function collectBoundaryErrors(workspaceRoot = root) {
     "components/policy-runtime/src",
     "apps/workbench/src",
     "apps/workbench/bin",
-    "apps/ingame-ui"
+    "apps/ingame-ui",
+    "apps/game-mod"
   ]) {
     visit(workspaceRoot, path.join(workspaceRoot, relative), errors);
   }

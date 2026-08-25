@@ -1,0 +1,12 @@
+{
+  "id": "STS2_PLATFORM",
+  "name": "STS2 AI Platform",
+  "author": "rsgcsg",
+  "description": "Unified Connector, Human Annotator and Platform Live UI",
+  "version": "0.2.0-rc.1",
+  "has_pck": false,
+  "has_dll": true,
+  "affects_gameplay": false,
+  "min_game_version": "0.111.0",
+  "dependencies": []
+}

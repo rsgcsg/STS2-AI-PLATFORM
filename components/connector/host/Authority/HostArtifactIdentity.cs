@@ -46,9 +46,13 @@ internal static class HostArtifactIdentity
 
     private static string? ReadSourceRevision()
     {
-        string? revision = typeof(ConnectorMod).Assembly
+        AssemblyMetadataAttribute[] metadata = typeof(ConnectorMod).Assembly
             .GetCustomAttributes<AssemblyMetadataAttribute>()
-            .FirstOrDefault(attribute =>
+            .ToArray();
+        string? revision = metadata.FirstOrDefault(attribute =>
+                string.Equals(attribute.Key, "ConnectorSourceRevision", StringComparison.Ordinal))
+            ?.Value
+            ?? metadata.FirstOrDefault(attribute =>
                 string.Equals(attribute.Key, "SourceRevision", StringComparison.Ordinal))
             ?.Value;
         return string.IsNullOrWhiteSpace(revision) ? null : revision;

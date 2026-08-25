@@ -181,7 +181,7 @@ public static class PlayerEnvironmentNativeWitness
         return new ProcessLocalNativeWitnessFrame(
             frame.Snapshot,
             STS2Connector.PlayerEnvironment.PlayerEnvironmentService.GetCapabilities(),
-            ReadAssemblyMetadata("PlayerEnvironmentSourceDigest"),
+            ReadAssemblyMetadata("ConnectorPlayerEnvironmentSourceDigest", "PlayerEnvironmentSourceDigest"),
             MutationControlRuntime.Snapshot().Controller != null,
             NativeUiRuntime.Entities.CaptureExactReferences(referentIds),
             frame.Bindings.Keys.ToHashSet(StringComparer.Ordinal),
@@ -233,10 +233,19 @@ public static class PlayerEnvironmentNativeWitness
         return result;
     }
 
-    private static string ReadAssemblyMetadata(string key) =>
-        typeof(PlayerEnvironmentNativeWitness).Assembly
+    private static string ReadAssemblyMetadata(params string[] keys)
+    {
+        AssemblyMetadataAttribute[] metadata = typeof(PlayerEnvironmentNativeWitness).Assembly
             .GetCustomAttributes<AssemblyMetadataAttribute>()
-            .FirstOrDefault(attribute => string.Equals(attribute.Key, key, StringComparison.Ordinal))
-            ?.Value
-        ?? "unavailable";
+            .ToArray();
+        foreach (string key in keys)
+        {
+            string? value = metadata.FirstOrDefault(attribute =>
+                    string.Equals(attribute.Key, key, StringComparison.Ordinal))
+                ?.Value;
+            if (!string.IsNullOrWhiteSpace(value))
+                return value;
+        }
+        return "unavailable";
+    }
 }

@@ -21,7 +21,8 @@ Then read the component entry points:
 14. [Annotator map](../components/annotator/docs/DOCUMENT_MAP.md)
 15. [Evidence package](../components/evidence/README.md)
 16. [Workbench](../apps/workbench/README.md)
-17. [In-game Live UI](../apps/ingame-ui/README.md)
+17. [Platform Game Mod operations](../apps/game-mod/README.md)
+18. [In-game Live UI boundary](../apps/ingame-ui/README.md)
 
 The Connector contract and release identity are authoritative in the Connector
 component manifest and the root `platform-bom.json`. Component documentation is

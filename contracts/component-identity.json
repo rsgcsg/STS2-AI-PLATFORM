@@ -59,6 +59,15 @@
         "PlatformLiveContracts.cs",
         "PlatformLiveStatusClient.cs"
       ]
+    },
+    "game-mod": {
+      "path": "apps/game-mod",
+      "version_file": "package.json",
+      "contract_paths": [
+        "UnifiedPlatformMod.cs",
+        "STS2Platform.GameMod.csproj",
+        "mod_manifest.json"
+      ]
     }
   }
 }

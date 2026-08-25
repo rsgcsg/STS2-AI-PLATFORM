@@ -182,6 +182,7 @@ internal static class EnvironmentIdentityRuntime
 
     private static bool IsExactSupportedModset(ModsetIdentity? modset) =>
         string.Equals(modset?.Status, "exact_player_environment_only", StringComparison.Ordinal)
+        || string.Equals(modset?.Status, "exact_platform_modset", StringComparison.Ordinal)
         || string.Equals(modset?.Status, "canary_exact_observer_modset", StringComparison.Ordinal);
 
     private static bool IsExactSourceRevision(string? sourceRevision) =>

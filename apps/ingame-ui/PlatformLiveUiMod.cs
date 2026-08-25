@@ -6,7 +6,9 @@ using System.Text.Json;
 
 namespace STS2PlatformLiveUi;
 
+#if !STS2_PLATFORM_UNIFIED
 [ModInitializer("Initialize")]
+#endif
 public static class PlatformLiveUiMod
 {
     private static bool _initialized;
@@ -24,10 +26,10 @@ public static class PlatformLiveUiMod
             {
                 Layer = 100
             };
+            GD.Print($"[STS2 Platform Live UI] identity {JsonSerializer.Serialize(RuntimeIdentity())}");
             tree.Root.AddChild(layer);
             layer.AddChild(new PlatformLivePanel());
-            GD.Print($"[STS2 Platform Live UI] identity {JsonSerializer.Serialize(RuntimeIdentity())}");
-            GD.Print("[STS2 Platform Live UI] DLL-only UI initialized; gameplay actions are not exposed directly.");
+            GD.Print("[STS2 Platform Live UI] mounted; press K to toggle. Gameplay actions are not exposed directly.");
         }
         catch (Exception exception)
         {
@@ -45,7 +47,7 @@ public static class PlatformLiveUiMod
             artifact_sha256 = identity.ArtifactSha256,
             module_version_id = identity.ModuleVersionId,
             source_revision = identity.SourceRevision,
-            source_digest_sha256 = ReadAssemblyMetadata("SourceDigestSha256"),
+            source_digest_sha256 = ReadAssemblyMetadata("LiveUiSourceDigestSha256", "SourceDigestSha256"),
             version = identity.Version
         };
     }
@@ -63,17 +65,28 @@ public static class PlatformLiveUiMod
         return new PlatformArtifactIdentity(
             "STS2 Platform Live UI",
             assembly.GetName().Version?.ToString() ?? "unavailable",
-            metadata.GetValueOrDefault("SourceRevision", "unavailable"),
+            metadata.GetValueOrDefault(
+                "LiveUiSourceRevision",
+                metadata.GetValueOrDefault("SourceRevision", "unavailable")),
             assembly.ManifestModule.ModuleVersionId.ToString(),
             sha256);
     }
 
-    private static string ReadAssemblyMetadata(string key) =>
-        typeof(PlatformLiveUiMod).Assembly
+    private static string ReadAssemblyMetadata(params string[] keys)
+    {
+        AssemblyMetadataAttribute[] metadata = typeof(PlatformLiveUiMod).Assembly
             .GetCustomAttributes<AssemblyMetadataAttribute>()
-            .FirstOrDefault(item => string.Equals(item.Key, key, StringComparison.Ordinal))
-            ?.Value
-        ?? "unavailable";
+            .ToArray();
+        foreach (string key in keys)
+        {
+            string? value = metadata.FirstOrDefault(item =>
+                    string.Equals(item.Key, key, StringComparison.Ordinal))
+                ?.Value;
+            if (!string.IsNullOrWhiteSpace(value))
+                return value;
+        }
+        return "unavailable";
+    }
 }
 
 internal enum PlatformCommandMode
@@ -103,8 +116,9 @@ internal sealed class PlatformLivePanel : Control
         Visible = false;
         MouseFilter = MouseFilterEnum.Stop;
         GuiInput += ConsumeGuiInput;
-        SetProcessUnhandledKeyInput(true);
+        SetProcessInput(true);
         BuildUi();
+        GD.Print("[STS2 Platform Live UI] panel ready; input=K; visible=false");
 
         var timer = new Godot.Timer
         {
@@ -466,15 +480,16 @@ internal sealed class PlatformLivePanel : Control
             GetViewport().SetInputAsHandled();
     }
 
-    public override void _UnhandledKeyInput(InputEvent @event)
+    public override void _Input(InputEvent @event)
     {
         if (@event is not InputEventKey key || !key.Pressed || key.Echo)
             return;
-        if (key.Keycode == Key.F10)
+        if (key.Keycode == Key.K || key.PhysicalKeycode == Key.K)
         {
             Visible = !Visible;
             if (Visible)
                 _ = PollAsync();
+            GD.Print($"[STS2 Platform Live UI] toggle; input=K; visible={Visible.ToString().ToLowerInvariant()}");
             GetViewport().SetInputAsHandled();
             return;
         }
@@ -485,7 +500,11 @@ internal sealed class PlatformLivePanel : Control
         }
     }
 
-    private void HidePanel() => Visible = false;
+    private void HidePanel()
+    {
+        Visible = false;
+        GD.Print("[STS2 Platform Live UI] toggle; input=close; visible=false");
+    }
 
     private static string ToRuntimeMode(PlatformCommandMode mode) => mode switch
     {

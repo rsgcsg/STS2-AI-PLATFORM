@@ -1,0 +1,67 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <AssemblyName>STS2_PLATFORM</AssemblyName>
+    <RootNamespace>STS2Platform</RootNamespace>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12.0</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+    <EnableSourceLink>false</EnableSourceLink>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <DefineConstants>$(DefineConstants);STS2_PLATFORM_UNIFIED</DefineConstants>
+    <Version>0.2.0-rc.1</Version>
+    <PlatformSourceRevision Condition="'$(PlatformSourceRevision)' == ''">unavailable</PlatformSourceRevision>
+    <PlatformSourceDigestSha256 Condition="'$(PlatformSourceDigestSha256)' == ''">unavailable</PlatformSourceDigestSha256>
+    <ConnectorSourceRevision Condition="'$(ConnectorSourceRevision)' == ''">unavailable</ConnectorSourceRevision>
+    <ConnectorPlayerEnvironmentSourceDigest Condition="'$(ConnectorPlayerEnvironmentSourceDigest)' == ''">unavailable</ConnectorPlayerEnvironmentSourceDigest>
+    <AnnotatorSourceRevision Condition="'$(AnnotatorSourceRevision)' == ''">unavailable</AnnotatorSourceRevision>
+    <AnnotatorSourceDigest Condition="'$(AnnotatorSourceDigest)' == ''">unavailable</AnnotatorSourceDigest>
+    <LiveUiSourceRevision Condition="'$(LiveUiSourceRevision)' == ''">unavailable</LiveUiSourceRevision>
+    <LiveUiSourceDigestSha256 Condition="'$(LiveUiSourceDigestSha256)' == ''">unavailable</LiveUiSourceDigestSha256>
+    <STS2GameDir Condition="'$(STS2GameDir)' == '' and '$(STS2_GAME_DIR)' != ''">$(STS2_GAME_DIR)</STS2GameDir>
+    <STS2GameDataDir Condition="'$(STS2GameDataDir)' == '' and '$(OS)' == 'Windows_NT'">$(STS2GameDir)/data_sts2_windows_x86_64</STS2GameDataDir>
+    <STS2GameDataDir Condition="'$(STS2GameDataDir)' == '' and $([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))">$(STS2GameDir)/SlayTheSpire2.app/Contents/Resources/data_sts2_macos_arm64</STS2GameDataDir>
+    <STS2GameDataDir Condition="'$(STS2GameDataDir)' == '' and '$(OS)' != 'Windows_NT' and !$([System.Runtime.InteropServices.RuntimeInformation]::IsOSPlatform($([System.Runtime.InteropServices.OSPlatform]::OSX)))">$(STS2GameDir)/data_sts2_linuxbsd_x86_64</STS2GameDataDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <AssemblyMetadata Include="SourceRevision" Value="$(PlatformSourceRevision)" />
+    <AssemblyMetadata Include="SourceDigestSha256" Value="$(PlatformSourceDigestSha256)" />
+    <AssemblyMetadata Include="PlatformSourceRevision" Value="$(PlatformSourceRevision)" />
+    <AssemblyMetadata Include="PlatformSourceDigestSha256" Value="$(PlatformSourceDigestSha256)" />
+    <AssemblyMetadata Include="ConnectorSourceRevision" Value="$(ConnectorSourceRevision)" />
+    <AssemblyMetadata Include="ConnectorPlayerEnvironmentSourceDigest" Value="$(ConnectorPlayerEnvironmentSourceDigest)" />
+    <AssemblyMetadata Include="AnnotatorSourceRevision" Value="$(AnnotatorSourceRevision)" />
+    <AssemblyMetadata Include="AnnotatorSourceDigest" Value="$(AnnotatorSourceDigest)" />
+    <AssemblyMetadata Include="LiveUiSourceRevision" Value="$(LiveUiSourceRevision)" />
+    <AssemblyMetadata Include="LiveUiSourceDigestSha256" Value="$(LiveUiSourceDigestSha256)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="UnifiedPlatformMod.cs" />
+    <Compile Include="../../components/connector/host/**/*.cs"
+             Exclude="../../components/connector/host/bin/**;../../components/connector/host/obj/**;../../components/connector/host/out/**;../../components/connector/host/tests/**;../../components/connector/host/tools/**" />
+    <Compile Include="../../components/annotator/src/STS2HumanAnnotator.Core/*.cs" Link="Annotator/Core/%(Filename)%(Extension)" />
+    <Compile Include="../../components/annotator/src/STS2HumanAnnotator.Mod/*.cs" Link="Annotator/Mod/%(Filename)%(Extension)" />
+    <Compile Include="../ingame-ui/*.cs" Link="LiveUi/%(Filename)%(Extension)" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="sts2">
+      <HintPath>$(STS2GameDataDir)/sts2.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="GodotSharp">
+      <HintPath>$(STS2GameDataDir)/GodotSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(STS2GameDataDir)/0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+</Project>

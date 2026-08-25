@@ -1033,8 +1033,13 @@ internal static class RecorderRuntime
         JsonSerializer.SerializeToNode(value, EvidenceJson.Options)
         ?? throw new InvalidOperationException("Evidence serialization returned null.");
 
-    private static string ReadSourceRevision(Assembly assembly) =>
-        ReadAssemblyMetadata(assembly, "SourceRevision");
+    private static string ReadSourceRevision(Assembly assembly)
+    {
+        string componentRevision = ReadAssemblyMetadata(assembly, "AnnotatorSourceRevision");
+        return componentRevision == "unavailable"
+            ? ReadAssemblyMetadata(assembly, "SourceRevision")
+            : componentRevision;
+    }
 
     private static string ReadAssemblyMetadata(Assembly assembly, string key) =>
         assembly.GetCustomAttributes<AssemblyMetadataAttribute>()

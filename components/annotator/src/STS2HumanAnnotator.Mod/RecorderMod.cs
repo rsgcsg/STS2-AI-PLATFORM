@@ -6,7 +6,9 @@ using STS2HumanAnnotator.Core;
 
 namespace STS2HumanAnnotator.Mod;
 
+#if !STS2_PLATFORM_UNIFIED
 [ModInitializer("Initialize")]
+#endif
 public static class RecorderMod
 {
     public const string Version = HumanRecorderContract.ProductVersion;

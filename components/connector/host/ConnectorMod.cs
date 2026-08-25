@@ -16,7 +16,9 @@ using STS2Connector.HostControl;
 
 namespace STS2Connector;
 
+#if !STS2_PLATFORM_UNIFIED
 [ModInitializer("Initialize")]
+#endif
 public static partial class ConnectorMod
 {
     public const string Version = "1.2.0-rc.6";

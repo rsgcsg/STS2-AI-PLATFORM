@@ -44,7 +44,7 @@ bounded decision timeout returns to Human before controller acquisition.
 ```text
 STS2 installation and native runtime
   -> Connector component
-     -> Player Environment contract, native Mod, SDK, and release identity
+     -> Player Environment contract, native UI implementation, SDK, and release identity
   -> Host Runtime component
      -> lifecycle, exact-build admission, probes
      -> public Connector SDK + pinned Connector Host release
@@ -60,6 +60,9 @@ STS2 installation and native runtime
      -> typed live status, explicit partial fallback, bounded Runtime commands
   -> Platform Live UI
      -> one in-game shell over typed Connector/Runtime/Annotator services
+  -> Platform Game Mod
+     -> one manifest/DLL packages Connector + Annotator + Live UI source
+     -> exact build/install/load identity and rollback only
 
 External consumers -> public Connector SDK / Host Runtime package
 STPD              -> public packages + version-pinned Evidence + thin Policy Adapter
@@ -73,7 +76,9 @@ unrelated branch or predecessor release. Annotator may use the explicitly
 declared Platform composition seams for exact native witnessing, but it does
 not create a second Connector build or action authority. STPD consumes public
 packages and verified evidence artifacts, never Platform implementation
-internals. Evidence validates artifact integrity and transport; STPD alone owns
+internals. STS2 sees one `STS2_PLATFORM` Mod, while Connector, Annotator and UI
+retain separate source provenance and authority inside that assembly. Evidence
+validates artifact integrity and transport; STPD alone owns
 research admission, splits, labels, B0 and training authorization. STPD owns
 checkpoint/Qwen/projection/scoring support but no controller or Connector
 lifecycle. Workbench and Live UI own presentation and bounded application

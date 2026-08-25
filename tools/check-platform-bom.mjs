@@ -33,6 +33,7 @@ export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
   const policyRuntimePackage = readJson(path.join(platformRoot, "components", "policy-runtime", "package.json"));
   const workbenchPackage = readJson(path.join(platformRoot, "apps", "workbench", "package.json"));
   const liveUiPackage = readJson(path.join(platformRoot, "apps", "ingame-ui", "package.json"));
+  const gameModPackage = readJson(path.join(platformRoot, "apps", "game-mod", "package.json"));
   const hostReleaseModule = await import(pathToFileURL(
     path.join(platformRoot, "components", "host-runtime", "src", "connector-release.mjs")
   ));
@@ -48,6 +49,7 @@ export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
     policyRuntimePackage,
     workbenchPackage,
     liveUiPackage,
+    gameModPackage,
     hostConnectorRelease: hostReleaseModule.CONNECTOR_RELEASE
   };
 }
@@ -62,7 +64,8 @@ export function validatePlatformBom(bom, authorities) {
     evidence: "evidence",
     policy_runtime: "policy-runtime",
     workbench: "workbench",
-    live_ui: "live-ui"
+    live_ui: "live-ui",
+    game_mod: "game-mod"
   };
   for (const [bomKey, identityKey] of Object.entries(componentMap)) {
     const component = bom.components?.[bomKey];
@@ -84,6 +87,7 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "Policy Runtime package version", bom.components?.policy_runtime?.version, authorities.policyRuntimePackage.version);
   expectEqual(errors, "Workbench package version", bom.components?.workbench?.version, authorities.workbenchPackage.version);
   expectEqual(errors, "Live UI package version", bom.components?.live_ui?.version, authorities.liveUiPackage.version);
+  expectEqual(errors, "Game Mod package version", bom.components?.game_mod?.version, authorities.gameModPackage.version);
   const dependency = authorities.annotatorManifest.dependencies?.find(({ id }) => id === "STS2_MCP");
   expectEqual(errors, "Annotator Connector dependency", dependency?.min_version, authorities.connectorManifest.version);
 

@@ -2,16 +2,11 @@
   "name": "@rsgcsg/sts2-platform-live-ui",
   "version": "0.1.0-rc.1",
   "private": true,
-  "description": "Unified in-game STS2 AI Platform live control and diagnostics UI",
+  "description": "In-game STS2 AI Platform presentation component, packaged only by apps/game-mod",
   "license": "MIT",
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {
-    "check": "node --test test/*.test.mjs",
-    "build": "node build.mjs",
-    "doctor": "node deploy.mjs doctor",
-    "deploy": "node deploy.mjs deploy",
-    "verify:loaded": "node deploy.mjs verify-loaded",
-    "rollback": "node deploy.mjs rollback"
+    "check": "node --test test/*.test.mjs"
   }
 }

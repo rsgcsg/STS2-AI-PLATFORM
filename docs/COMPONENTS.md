@@ -8,7 +8,8 @@
 | Platform Evidence | `components/evidence` | typed verification, content identity, immutable store, transfer/receiver receipts | research eligibility, corpus policy, mutation |
 | Policy Runtime | `components/policy-runtime` | policy process boundary, Human/Shadow/One-Step/Auto, controller lifecycle, stale/Receipt/successor and Agent-run evidence | model inference, legality, native operands, candidate filtering |
 | Workbench | `apps/workbench` | typed live status, explicit filesystem fallback, bounded Policy Runtime commands | gameplay submission, evidence admission, model loading |
-| Platform Live UI | `apps/ingame-ui` | unified in-game Environment/Policy/Human Data/Diagnostics presentation and typed application commands | direct BoundAction submission, legality, recording writes |
+| Platform Live UI | `apps/ingame-ui` | in-game Environment/Policy/Human Data/Diagnostics presentation and typed application commands | packaging/deployment, direct BoundAction submission, legality, recording writes |
+| Platform Game Mod | `apps/game-mod` | one manifest/DLL, explicit component initialization, exact build/install/load/rollback provenance | gameplay legality, Human witness semantics, UI domain logic |
 | Platform tools | `tools` | composition, component identity, migration/boundary checks | native operands, policy |
 | STPD | external repository | ResearchTransition, Dataset Views, representation, Qwen, training/evaluation | Host implementation or legality |
 
@@ -16,9 +17,10 @@ Each imported component retains its focused `AGENTS.md`, tests and operational
 documentation. Those files add component-specific constraints but cannot
 override the root hard shell.
 
-The Annotator compiles against the exact Connector Release artifact produced at
-`components/connector/host/out/STS2_MCP/STS2_MCP.dll`; it never recompiles or
-copies a second Connector implementation.
+Standalone component tests compile Annotator against the exact Connector build
+artifact. The production Game Mod instead compiles both source authorities into
+one assembly and disables their standalone initializer attributes; it does not
+copy or wrap either implementation.
 
 The versioned Host Runtime package is the public programmatic boundary for its
 Node driver/CLI and strategy-free Python client. Consumers provide external
@@ -32,4 +34,5 @@ The Policy Runtime is a Connector consumer. A Policy Manifest names exact
 model, adapter, representation, Reads, support and environment requirements.
 The adapter returns only an ordered score vector and selected index; Runtime
 resolves that index against the unchanged current Connector catalog. Workbench
-and Live UI issue only typed Runtime or Annotator application commands.
+and Live UI issue only typed Runtime or Annotator application commands. STS2
+loads one `STS2_PLATFORM` manifest; logical authority does not follow DLL count.

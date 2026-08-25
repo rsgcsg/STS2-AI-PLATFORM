@@ -90,6 +90,13 @@ public sealed class PlayerEnvironmentContractTests
             },
             "loaded-sha",
             sourceRevision));
+        Assert.True(EnvironmentIdentityRuntime.ExecutionAvailable(
+            game with
+            {
+                Modset = modset with { Status = "exact_platform_modset" }
+            },
+            "loaded-sha",
+            sourceRevision));
         Assert.False(EnvironmentIdentityRuntime.ExecutionAvailable(
             game with { Modset = null },
             "loaded-sha",
@@ -200,6 +207,35 @@ public sealed class PlayerEnvironmentContractTests
         Assert.Equal("STS2_MCP", LiveModsetIdentity.ConnectorModId);
         Assert.Equal("exact_player_environment_only", exact.Status);
         Assert.Equal("connector_identity_missing", renamedId.Status);
+    }
+
+    [Fact]
+    public void ExactUnifiedPlatformModsetUsesTheConnectorAssemblyAsItsHostIdentity()
+    {
+        var platform = new LoadedModIdentity(
+            LiveModsetIdentity.PlatformModId,
+            "0.1.0",
+            "ModsDirectory",
+            "Loaded",
+            false,
+            null,
+            new[]
+            {
+                new LoadedModAssemblyIdentity(
+                    LiveModsetIdentity.PlatformModId,
+                    "0.1.0.0",
+                    "00000000-0000-0000-0000-000000000001")
+            });
+
+        ModsetIdentity exact = LiveModsetIdentity.Evaluate(
+            "Initialized",
+            new[] { platform },
+            "00000000-0000-0000-0000-000000000001",
+            ConnectorMod.Version);
+
+        Assert.Equal("STS2_PLATFORM", LiveModsetIdentity.PlatformModId);
+        Assert.Equal("exact_platform_modset", exact.Status);
+        Assert.Contains("unified STS2 Platform", exact.Detail);
     }
 
     [Fact]

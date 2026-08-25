@@ -12,6 +12,7 @@ namespace STS2Connector.LiveHost;
 internal static class LiveModsetIdentity
 {
     internal const string ConnectorModId = "STS2_MCP";
+    internal const string PlatformModId = "STS2_PLATFORM";
     internal const string ExperimentalFingerprintEnvironmentVariable =
         "STS2_CONNECTOR_EXPERIMENTAL_MODSET_FINGERPRINT";
     private const string FingerprintScope =
@@ -64,23 +65,30 @@ internal static class LiveModsetIdentity
             || string.Equals(mod.LoadState, "AddedAtRuntime", StringComparison.Ordinal));
         LoadedModIdentity? connector = loaded.FirstOrDefault(mod =>
             string.Equals(mod.Id, ConnectorModId, StringComparison.Ordinal));
-        bool exactConnectorAssembly = connector?.Assemblies.Any(assembly =>
+        LoadedModIdentity? platform = loaded.FirstOrDefault(mod =>
+            string.Equals(mod.Id, PlatformModId, StringComparison.Ordinal));
+        LoadedModIdentity? host = connector ?? platform;
+        bool exactConnectorAssembly = host?.Assemblies.Any(assembly =>
             string.Equals(assembly.ModuleVersionId, connectorModuleVersionId, StringComparison.OrdinalIgnoreCase)) == true;
-        bool exactConnectorVersion = string.Equals(connector?.Version, connectorVersion, StringComparison.Ordinal);
+        bool exactConnectorVersion = platform != null
+            || string.Equals(connector?.Version, connectorVersion, StringComparison.Ordinal);
         bool exact = string.Equals(managerState, "Initialized", StringComparison.Ordinal)
                      && loaded.Length == 1
-                     && connector != null
+                     && host != null
                      && exactConnectorAssembly
                      && exactConnectorVersion
                      && !hazardousDetectedState;
         if (exact)
         {
+            bool unifiedPlatform = platform != null;
             return new ModsetIdentity(
-                "exact_player_environment_only",
+                unifiedPlatform ? "exact_platform_modset" : "exact_player_environment_only",
                 fingerprint,
                 FingerprintScope,
                 mods,
-                "ModManager is initialized and the only loaded Mod is this exact STS2Connector assembly.");
+                unifiedPlatform
+                    ? "ModManager is initialized and the only loaded Mod is the exact unified STS2 Platform assembly containing this Connector."
+                    : "ModManager is initialized and the only loaded Mod is this exact STS2Connector assembly.");
         }
         bool observerCanary = string.Equals(managerState, "Initialized", StringComparison.Ordinal)
                               && connector != null

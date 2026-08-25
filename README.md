@@ -25,8 +25,8 @@ Trained policy
 ```
 
 The repository physically unifies Connector, Host Runtime, Human Annotator,
-Platform Evidence, a model-neutral Policy Runtime, Workbench and one in-game
-Live UI while preserving separate identities and authorities. It does not own
+Platform Evidence, a model-neutral Policy Runtime, Workbench and one unified
+game Mod while preserving separate component identities and authorities. It does not own
 a trained policy, reward function, model, training system or second game-rules
 engine. STPD remains an independent research consumer and supplies only a thin
 policy adapter plus model artifact.
@@ -36,8 +36,10 @@ runtime seal. The exact V2 Connector/Annotator artifact has also produced 30
 audited native-human ordinary-combat decisions with materialized `run_deck` and
 `combat_piles` Reads before and after every admitted action. Its immutable V2
 bundle passed Platform store/transfer/receiver and independent STPD import.
-Generated-card choice remains source/test-verified but `not exercised` at
-runtime. See [Status](docs/STATUS.md), the [V2 closeout](docs/evidence/HUMAN_EVIDENCE_V2_READ_RICH_COMBAT_CLOSEOUT_2026-08-25.md), and the
+Generated-card choice is source/test-verified and was naturally exercised once
+by a later owner-attested predecessor-artifact session; that small session does
+not replace the 30-decision V2 baseline or transfer to a new artifact. See
+[Status](docs/STATUS.md), the [V2 closeout](docs/evidence/HUMAN_EVIDENCE_V2_READ_RICH_COMBAT_CLOSEOUT_2026-08-25.md), and the
 [V1 candidate report](docs/evidence/RUNTIME_SEAL_CANDIDATE_2026-08-24.md).
 
 The initial consolidation imports the complete histories of:
@@ -53,7 +55,8 @@ The initial consolidation imports the complete histories of:
 - `components/policy-runtime`: controller/mode/stale/Receipt/successor lifecycle
   for any strict decision-only policy adapter;
 - `apps/workbench`: typed live/fallback application services and browser UI;
-- `apps/ingame-ui`: the unified DLL-only in-game Platform Live UI.
+- `apps/ingame-ui`: typed in-game presentation source with no deployment authority;
+- `apps/game-mod`: the only production STS2 Mod build/deploy/launch/rollback path.
 
 The three predecessor GitHub repositories are archived and remain read-only
 history/rollback references. All forward Platform development happens here;
@@ -74,19 +77,21 @@ npm run doctor
 ```
 
 External consumers install immutable Connector SDK and Host Runtime release assets;
-they do not depend on this checkout or a branch. Native-human operations are available
-from the repository root:
+they do not depend on this checkout or a branch. Game-side operations use one
+installed `STS2_PLATFORM` Mod from the repository root:
 
 ```bash
+npm run game-mod:build
+npm run game-mod:doctor
+npm run game-mod:deploy
+npm run game-mod:launch
+npm run game-mod:verify-loaded
 npm run annotator:doctor
-npm run annotator:launch
-npm run annotator:verify-loaded
 npm run annotator:audit -- <session-directory>
 npm run annotator:pack-session -- <session-directory> [options]
 npm run evidence -- --help
 npm run policy:check
 npm run workbench
-npm run live-ui:doctor
 ```
 
 See [Policy Runtime](docs/POLICY_RUNTIME.md) and [Live UI](docs/LIVE_UI.md).

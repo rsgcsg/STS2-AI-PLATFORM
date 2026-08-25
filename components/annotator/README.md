@@ -89,35 +89,23 @@ available.
 
 ## Deploy And Cold Load
 
-Fully close the game before each deployment or cold load:
+The normal Platform path installs one Mod. Fully close the game before each
+deployment, launch, or rollback:
 
 ```bash
-npm --prefix components/connector run deploy
-npm --prefix components/annotator run deploy
-npm run live-ui:deploy
-npm --prefix components/annotator run prepare:mods
-npm --prefix components/annotator run launch
+npm run game-mod:build
+npm run game-mod:deploy
+npm run game-mod:launch
+npm run game-mod:verify-loaded
 ```
 
-The first launch discovers the complete Connector + observer Modset fingerprint
-and remains fail closed. Quit the game, then explicitly pin that exact process
-envelope and cold-load again:
+The unified `STS2_PLATFORM` assembly embeds component-specific source identity
+while Connector and Annotator report one common loaded SHA/MVID. The old
+component-local deploy/admit commands remain narrow standalone development
+tools; they are not the production install path and must not be composed with
+the unified Mod.
 
-```bash
-npm --prefix components/annotator run admit:modset
-npm --prefix components/annotator run launch
-npm --prefix components/annotator run verify:loaded
-npm run live-ui:verify-loaded
-```
-
-When already inside `components/annotator`, the final command is simply
-`npm run verify:loaded`.
-
-The canary identifies one exact non-gameplay observer Modset for recording. It
-does **not** enable Connector mutation, qualify the Modset, or claim generic Mod
-compatibility.
-
-On Windows, `launch` binds the exact candidate runtime ID and Connector source
+On Windows, the component development `launch` binds the exact candidate runtime ID and Connector source
 revision before starting the native executable. `deploy`, `admit:modset`,
 `launch`, `verify:loaded`, and `rollback` all fail closed if process discovery,
 the executable, game assembly, source digest, artifact SHA/MVID, or admitted
