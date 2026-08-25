@@ -21,7 +21,8 @@ or expose native references on a wire.
 - V2 adds same-frame `run_deck` and `combat_piles`, typed ReadEvidence,
   CaptureProfile, RunJournal, portable Bundle V2, and exact generated-card
   choice select/skip observation. Ordinary-combat V2 is exact native-human
-  verified; generated-card choice remains `not exercised`.
+  verified; generated-card select has one audited predecessor record while skip
+  and the unified artifact remain `not exercised`.
 - A typed recording application service exposes Pause/Resume/Close to the
   unified Platform Live UI. These commands gate new witness admission only;
   already pending successor settlement continues, and the service never

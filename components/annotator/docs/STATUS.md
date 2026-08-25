@@ -2,9 +2,10 @@
 
 Historical Annotator evidence below remains bound to its original
 source/artifact. Annotator `0.3.0-rc.1` is the current read-rich V2 source.
-Its exact Native artifact has current ordinary-combat V2 evidence; generated-card
-choice remains `not exercised`. Root `../../../docs/STATUS.md` is authoritative
-for the current runtime boundary.
+Its exact predecessor Native artifacts have ordinary-combat V2 evidence and one
+audited generated-card select. Generated-card skip and the current unified
+artifact's Human path remain `not exercised`. Root `../../../docs/STATUS.md` is
+authoritative for the current runtime boundary.
 
 ## Implemented
 
@@ -84,8 +85,12 @@ Annotator changes add only caller-CWD CLI evidence-path handling and this
 closeout documentation; they are automated-tested, not claimed loaded. Exact
 hashes are in the root V2 closeout.
 
-Generated-card choice did not naturally occur in this session and is
-`not exercised`; source/tests do not substitute for Native UI evidence.
+Generated-card choice did not occur in this 30-record session. A later exact
+three-Mod session
+`session-20260825T022415Z-18df9e07f32d43f2a1beb8ad0db91c14`
+audited 10/10 records and includes one generated-card select with exact-unique
+mapping and an interactive successor. Skip remains `not exercised`; this
+predecessor evidence does not transfer to the unified artifact.
 
 ## V1 Predecessor Evidence
 
@@ -123,5 +128,5 @@ recorded only after the corresponding cold loads and owner-operated actions.
 
 Potions, event/reward/shop/rest/map/menu actions, arbitrary selectors,
 multiplayer, and gameplay-affecting Modsets are not admitted by version
-`0.3.0-rc.1`. Generated-card choice is implemented but remains pending exact
-native-human runtime evidence.
+`0.3.0-rc.1`. Generated-card select has one predecessor Live record; skip and
+the unified artifact still require exact native-human runtime evidence.

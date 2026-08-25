@@ -357,6 +357,7 @@ async function verifyLoaded() {
   if (liveUiIdentity?.module_version_id !== expected.module_version_id) errors.push("live_ui_loaded_mvid_mismatch");
   if (liveUiIdentity?.source_revision !== installed.source.components.live_ui.source_revision) errors.push("live_ui_source_revision_mismatch");
   const latestUiIdentityIndex = log.lastIndexOf("[STS2 Platform Live UI] identity ");
+  const uiLog = log.slice(Math.max(0, latestUiIdentityIndex));
   if (latestUiIdentityIndex < 0 || !log.slice(latestUiIdentityIndex).includes("[STS2 Platform Live UI] panel ready; input=K")) {
     errors.push("live_ui_panel_ready_absent");
   }
@@ -368,11 +369,16 @@ async function verifyLoaded() {
     live_ui_loaded_identity: liveUiIdentity,
     runtime: status,
     connector_capabilities: capabilities,
-    owner_ui_toggle: log.slice(Math.max(0, latestUiIdentityIndex)).includes(
+    ui_toggle_runtime_canary: uiLog.includes(
       "[STS2 Platform Live UI] toggle; input=K; visible=true")
-      ? "exercised"
-      : "pending human runtime evidence",
-    non_claims: ["loaded_is_not_human_action_evidence", "ui_ready_is_not_ui_visible_evidence"]
+      ? "observed"
+      : "not_observed",
+    owner_ui_visibility: "pending human runtime evidence",
+    non_claims: [
+      "loaded_is_not_human_action_evidence",
+      "ui_ready_is_not_ui_visible_evidence",
+      "input_canary_is_not_owner_visibility_evidence"
+    ]
   };
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   if (errors.length) process.exitCode = 1;

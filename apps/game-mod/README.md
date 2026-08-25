@@ -37,5 +37,10 @@ also closes it. Verification requires one exact `STS2_PLATFORM` Modset, one
 common loaded SHA/MVID for Connector/Annotator/UI, component-specific embedded
 source provenance, a ready UI node, and Connector execution availability.
 
+The UI is composed from built-in Godot nodes and driven by SceneTree signals.
+Do not replace it with a custom `Node` callback unless the package explicitly
+adds and validates Godot's C# source-generator toolchain; standard single-DLL
+Mod builds do not generate those callbacks.
+
 `installed`, `loaded`, `K-visible`, Human action evidence and Policy evidence
 are separate claims.

@@ -45,8 +45,10 @@
 - Complete: exact-artifact native-human targeted play, untargeted play and
   end-turn with pre/successor `run_deck` and `combat_piles`, followed by V2
   audit/bundle/store/receive/STPD and Workbench closeout.
-- Pending exact-runtime evidence: generated-card choice did not naturally occur
-  and remains `not exercised`; it is not inferred from ordinary combat.
+- Complete on predecessor exact artifact: one naturally occurring generated-
+  card select mapped exact-unique and reached an interactive successor.
+- Pending exact-runtime evidence: generated-card skip and the unified artifact's
+  Human action path remain `not exercised`; evidence is not transferred.
 
 Cloud storage, broad action-family capture and a full Workbench remain later
 work; they are not reasons to weaken the component boundaries.
@@ -70,11 +72,14 @@ work; they are not reasons to weaken the component boundaries.
   loaded SHA/MVID/source verification.
 - Pending external artifact: the S1 checkpoint named by the Manifest is absent
   on this Mac, so real model Shadow/One-Step/Auto cannot start.
-- Complete: final Connector/Annotator/Live UI artifacts were safely installed,
-  cold-loaded and verified under one exact non-gameplay observer Modset with
-  Connector input delivery available.
-- Pending owner interaction: exercise the five F10 pages, recording pause/resume
-  and ordinary native Human play; no predecessor Human evidence transfers.
+- Complete: one `STS2_PLATFORM` artifact containing Connector, Annotator and
+  Live UI was safely installed, cold-loaded and verified as the only loaded
+  non-gameplay Mod with Connector input delivery available.
+- Complete automated runtime canary: built-in-node UI mounted and K opened and
+  closed the panel through the SceneTree frame signal.
+- Pending owner interaction: confirm the five K pages are visible, exercise
+  recording pause/resume and ordinary native Human play; no predecessor Human
+  evidence transfers.
 
 Full-run policy support, training UI, cloud policy/evidence services and broad
 action-family expansion remain outside this bounded baseline.

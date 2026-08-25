@@ -53,3 +53,11 @@ test("single-Mod deploy retires every legacy production manifest and DLL", () =>
     "STS2_PLATFORM_LIVE_UI.json"
   ]) assert.match(lifecycle, new RegExp(name.replace(".", "\\."), "u"));
 });
+
+test("loaded verification never promotes an input canary to owner evidence", () => {
+  const lifecycle = read("apps/game-mod/lifecycle.mjs");
+  assert.match(lifecycle, /ui_toggle_runtime_canary/u);
+  assert.match(lifecycle, /owner_ui_visibility: "pending human runtime evidence"/u);
+  assert.match(lifecycle, /input_canary_is_not_owner_visibility_evidence/u);
+  assert.doesNotMatch(lifecycle, /owner_ui_toggle/u);
+});

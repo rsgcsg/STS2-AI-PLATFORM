@@ -1,7 +1,8 @@
 # Current Status
 
-Phase: **Human Evidence V2 verified; reusable Policy Runtime and unified Live UI
-loaded candidate awaiting owner interaction**.
+Phase: **Human Evidence V2 verified; one-Mod Policy Runtime/Live UI runtime
+candidate loaded with automated K-toggle canary, awaiting owner visibility and
+control validation**.
 
 ## Implemented
 
@@ -50,16 +51,15 @@ loaded candidate awaiting owner interaction**.
   Overview/Environment/Policy/Human Data/Diagnostics shell over typed services.
   It has no direct BoundAction submission path; Connector Reads and
   Connector/Annotator/UI identities remain inspectable without a policy process.
-- The final exact-game candidate binds Connector
-  `06f29280... / 2b038591...`, Annotator
-  `fcda0e47... / 111b8602...`, and Live UI
-  `0cf30b0f... / 89c75c2b...` to STS2 `v0.111.0`, assembly
-  `9cb4f1ad... / 57785517...`. Source, build, install and loaded identity
-  are independently verified; normal UI interaction remains pending.
-- Current Connector source `b653b19d...` adds only doctor dependency detection
-  and Native-provenance scope correction. The loaded Native artifact remains
-  exactly `f667c842...`; these operations-only changes do not require or claim
-  reload.
+- The current exact-game candidate is one `STS2_PLATFORM` Mod. Common artifact
+  `f202f1f0... / ab0816b2...` contains Connector, Annotator and Live UI and is
+  cold-loaded against STS2 `v0.111.0`, assembly
+  `9cb4f1ad... / 57785517...`, in runtime `c62936c...`. The exact Modset contains
+  only `STS2_PLATFORM`; Connector reports `execution_available=true`.
+- Live UI source `5bb1236f...` uses only built-in Godot nodes and a
+  `SceneTree.ProcessFrame` signal because standard single-DLL Mods do not run
+  Godot's C# node source generator. Panel readiness and automated K open/close
+  input canaries passed. Automation is not owner-visible UI evidence.
 - The portable boundary check validates that every declared workspace CLI
   entrypoint exists in Git source authority; ignored local files cannot satisfy
   a clean-check claim.
@@ -114,13 +114,24 @@ for training. A real Workbench HTTP smoke reported Environment, Annotator,
 [V2 closeout](evidence/HUMAN_EVIDENCE_V2_READ_RICH_COMBAT_CLOSEOUT_2026-08-25.md)
 holds exact hashes and evidence boundaries.
 
-The Human V2 journey evidence remains bound to predecessor Annotator source
-`09e5c236...`; it does not transfer to the current artifact. Separately, the
-current three-Mod candidate cold-loaded in runtime `7c5e7f16...` with
-environment `c77f55f3...` and exact process-local observer Modset
-`acb0373e...`. Connector capabilities reported `canary_exact`, complete Read
-availability and `execution_available=true`; this is loaded/runtime admission,
-not owner UI or policy evidence.
+The original 30-record Human V2 journey remains bound to predecessor Annotator
+source `09e5c236...`; it does not transfer to later artifacts. A later owner-
+operated three-Mod session
+`session-20260825T022415Z-18df9e07f32d43f2a1beb8ad0db91c14`
+ran under runtime `7c5e7f16...` and independently audited 10/10 records. It
+contains nine ordinary-combat end turns and one naturally occurring
+generated-card select (`record-00000009-cd9814ce3eab458f8fe268c04e1acb09`),
+with exact-unique mapping and an interactive successor. Generated-card skip,
+targeted play and untargeted play were not exercised in that session. This is
+predecessor evidence and does not qualify the unified artifact.
+
+The current unified artifact was built, safely installed, cold-loaded and
+identity-verified with rollback at
+`apps/game-mod/.local/deployments/2026-08-25T06-19-32.779Z`. Runtime
+`c62936c...` reports environment `1b3d10d...`, exact unified Modset
+`63754ae4...`, ready UI, and automated K open/close events. Owner page
+visibility, recording controls, ordinary Human play and policy modes remain
+separate pending gates.
 
 ## Non-claims
 
@@ -131,17 +142,18 @@ not owner UI or policy evidence.
   game journey, durable qualification, semantic parity or long-soak proof.
 - The optional noninteractive Host execution profile was not implemented by the
   current Connector and remains a non-claim; shipped-default semantics passed.
-- V2 generated-card choice has exact-source and deterministic test coverage but
-  did not naturally occur in the current native-human run: `not exercised`.
+- Generated-card select has one audited native-human predecessor record;
+  generated-card skip remains `not exercised`. Neither claim transfers to the
+  current unified artifact.
 - The V2 bundle/store/receiver/STPD path is verified, but this does not authorize
   corpus inclusion or training and does not qualify unexercised action families.
 - Platform Evidence is a focused evidence-integrity package, not a
   Platform-wide gameplay SDK. Workbench and Live UI are application shells, not
   action/evidence authorities.
-- The new Connector, Annotator and Platform Live UI have source/test/build/
-  install/load evidence. F10 page navigation, recording controls and normal
-  Human play on this artifact remain `pending owner interaction`; predecessor
-  Human V2 evidence does not transfer.
+- The unified Connector, Annotator and Platform Live UI have source/test/build/
+  install/load evidence plus a non-human K input canary. Actual five-page
+  visibility, recording controls and normal Human play on this artifact remain
+  `pending owner interaction`; predecessor Human V2 evidence does not transfer.
 - The current S1 Policy Manifest is validated, but its exact checkpoint is not
   present on this Mac. Real-model Shadow, One-Step, Auto, policy Agent evidence
   and legacy/new path parity are therefore `not exercised`.
