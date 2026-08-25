@@ -163,7 +163,7 @@ export function validatePlatformBom(bom, authorities) {
 
   const policyCandidate = bom.unified_platform_runtime_candidate;
   expectEqual(errors, "unified Platform candidate status", policyCandidate?.status,
-    "recording_application_repair_build_install_load_complete_owner_decision_pending");
+    "recording_decision_live_play_card_clarity_repair_source_only");
   expectEqual(errors, "candidate STPD source", policyCandidate?.external_policy?.stpd_source_revision,
     bom.external_consumer_cutovers?.stpd);
   expectEqual(errors, "candidate policy checkpoint", policyCandidate?.external_policy?.checkpoint_status,
@@ -190,9 +190,9 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "candidate Connector source relation", policyCandidate?.connector?.source_relation,
     "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Annotator source relation", policyCandidate?.annotator?.source_relation,
-    "loaded_native_source_scope_matches_current_component");
+    "loaded_artifact_precedes_card_play_clarity_repair");
   expectEqual(errors, "candidate Live UI source relation", policyCandidate?.live_ui?.source_relation,
-    "loaded_native_source_scope_matches_current_component");
+    "loaded_artifact_precedes_card_play_clarity_repair");
   expectEqual(errors, "candidate Connector protocol", policyCandidate?.connector?.protocol,
     bom.components?.player_environment_protocol);
   expectEqual(errors, "candidate Policy Runtime source", policyCandidate?.policy_runtime?.source_revision,
@@ -216,10 +216,10 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "candidate UI input canary", policyCandidate?.ui_toggle_runtime_canary,
     "not_observed");
   expectEqual(errors, "candidate owner UI visibility", policyCandidate?.owner_ui_visibility,
-    "predecessor_owner_attested_revalidation_pending");
+    "pass_on_loaded_artifact_new_ui_source_pending");
   expectEqual(errors, "candidate recording controls",
     policyCandidate?.human_recording_controls_exercised,
-    "predecessor_lifecycle_pass_repair_decision_pending");
+    "end_turn_live_pass_play_card_repair_source_only");
   const recordingValidation = policyCandidate?.recording_application_owner_validation;
   expectPattern(errors, "recording predecessor lifecycle runtime",
     recordingValidation?.predecessor_runtime_instance_id, /^[0-9a-f]{32}$/u);
@@ -239,9 +239,29 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "recording repair artifact", recordingValidation?.repair_artifact_sha256,
     policyCandidate?.game_mod?.artifact_sha256);
   expectEqual(errors, "recording repair Human decision",
-    recordingValidation?.repair_human_decision, "pending");
+    recordingValidation?.repair_human_decision, "pass_end_turn_only");
   expectEqual(errors, "recording evidence transfer",
     recordingValidation?.evidence_transfer_to_repair, false);
+  const decisionGate = policyCandidate?.recording_application_decision_gate;
+  expectEqual(errors, "recording decision gate runtime", decisionGate?.runtime_instance_id,
+    policyCandidate?.runtime?.runtime_instance_id);
+  expectPattern(errors, "recording decision gate session", decisionGate?.session_id,
+    /^session-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{32}$/u);
+  expectEqual(errors, "recording decision gate audit", decisionGate?.audit_status, "pass");
+  expectEqual(errors, "recording decision valid records", decisionGate?.valid_records, 6);
+  expectEqual(errors, "recording decision invalid records", decisionGate?.invalid_records, 0);
+  expectEqual(errors, "recording decision end turns", decisionGate?.ordinary_combat_end_turn, 6);
+  expectEqual(errors, "recording decision card plays", decisionGate?.ordinary_combat_play_card, 0);
+  expectEqual(errors, "recording decision card failures", decisionGate?.play_card_failed_closed, 21);
+  expectEqual(errors, "recording decision Reads", decisionGate?.reads_materialized, 24);
+  expectEqual(errors, "recording decision Read failures", decisionGate?.reads_failed, 0);
+  expectEqual(errors, "recording first Close runtime", decisionGate?.close_runtime_status,
+    "closed_on_first_request");
+  expectEqual(errors, "recording stale Close UI", decisionGate?.close_ui_status,
+    "stale_intermediate_until_second_click");
+  expectEqual(errors, "recording current repair loaded", decisionGate?.current_repair_loaded, false);
+  expectEqual(errors, "recording current repair evidence transfer",
+    decisionGate?.evidence_transfer_to_current_repair, false);
   expectEqual(errors, "candidate compatibility", policyCandidate?.runtime?.compatibility_status, "canary_exact");
   expectEqual(errors, "candidate Modset status", policyCandidate?.runtime?.modset_status,
     "exact_platform_modset");
@@ -334,7 +354,7 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "human origin boundary", humanGate?.human_origin,
     "owner_attested_not_machine_proven");
   expectEqual(errors, "support level", bom.support_level,
-    "human_evidence_v2_and_predecessor_generated_select_verified_unified_owner_gate_pending");
+    "human_evidence_v2_end_turn_live_play_card_clarity_repair_pending");
   if (!bom.non_claims?.includes("human_origin_owner_attested_not_machine_proven"))
     errors.push("human-origin epistemic-boundary non-claim is missing");
   if (!bom.non_claims?.includes("current_v2_candidate_generated_card_choice_not_exercised"))
@@ -343,8 +363,8 @@ export function validatePlatformBom(bom, authorities) {
     errors.push("Generated-card skip non-claim is missing");
   if (!bom.non_claims?.includes("v2_corpus_and_training_not_authorized"))
     errors.push("V2 corpus/training authorization non-claim is missing");
-  if (!bom.non_claims?.includes("unified_live_ui_owner_visibility_and_controls_pending"))
-    errors.push("Unified Live UI owner-interaction non-claim is missing");
+  if (!bom.non_claims?.includes("current_card_play_and_scope_ui_repair_not_loaded_or_live_exercised"))
+    errors.push("Current card-play/scope UI repair non-claim is missing");
   if (!bom.non_claims?.includes("automated_input_canary_is_not_owner_visibility_evidence"))
     errors.push("Automated-input epistemic-boundary non-claim is missing");
   if (!bom.non_claims?.includes("s1_checkpoint_absent_shadow_one_step_auto_not_exercised"))
