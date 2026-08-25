@@ -172,8 +172,15 @@ export function validatePlatformBom(bom, authorities) {
     bom.components?.live_ui?.source_revision);
   expectEqual(errors, "candidate Live UI digest", policyCandidate?.live_ui?.source_digest_sha256,
     bom.components?.live_ui?.component_source_digest_sha256);
-  expectEqual(errors, "candidate Connector source", policyCandidate?.connector?.source_revision,
+  expectPattern(errors, "candidate loaded Connector source", policyCandidate?.connector?.source_revision, COMMIT);
+  expectEqual(errors, "candidate current Connector source",
+    policyCandidate?.connector?.current_component_source_revision,
     bom.components?.connector?.source_revision);
+  expectEqual(errors, "candidate current Connector digest",
+    policyCandidate?.connector?.current_component_source_digest_sha256,
+    bom.components?.connector?.component_source_digest_sha256);
+  expectEqual(errors, "candidate Connector source relation", policyCandidate?.connector?.source_relation,
+    "loaded_native_artifact_precedes_operations_only_dependency_detection_source");
   expectEqual(errors, "candidate Connector protocol", policyCandidate?.connector?.protocol,
     bom.components?.player_environment_protocol);
   expectEqual(errors, "candidate Policy Runtime source", policyCandidate?.policy_runtime?.source_revision,

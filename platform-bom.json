@@ -4,9 +4,9 @@
   "components": {
     "connector": {
       "version": "1.2.0-rc.6",
-      "source_revision": "f667c8428be773fef0e762daace3454ed5c86602",
-      "component_tree_revision": "ac048864169fc5688091f0b245b24cde7b11d24b",
-      "component_source_digest_sha256": "53702972d88974650757cf274eb6e6e2682448f2d2add39e12ab6f7013b58eb6"
+      "source_revision": "9a76018f81ec4ea40878e6c1e3012a16b2e3d494",
+      "component_tree_revision": "37b1f010ff0a73b301b3dc1d05c1350f3ad0b21a",
+      "component_source_digest_sha256": "29f1c72310b6ebb1f9cb4265677fb87056c04afb89a44779cfff99eaa76b6e56"
     },
     "host_runtime": {
       "version": "1.1.0-rc.7",
@@ -142,8 +142,8 @@
     },
     "connector": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
-      "current_component_source_revision": "f667c8428be773fef0e762daace3454ed5c86602",
-      "current_component_source_digest_sha256": "53702972d88974650757cf274eb6e6e2682448f2d2add39e12ab6f7013b58eb6",
+      "current_component_source_revision": "9a76018f81ec4ea40878e6c1e3012a16b2e3d494",
+      "current_component_source_digest_sha256": "29f1c72310b6ebb1f9cb4265677fb87056c04afb89a44779cfff99eaa76b6e56",
       "source_relation": "loaded_human_v2_artifact_precedes_policy_observer_execution_source_candidate",
       "artifact_sha256": "6c66cbf06757dca3e7d910467fb56b89376f109c6d7d0ba47d2bc0260ab4a3d2",
       "artifact_mvid": "11f1da35-558f-4346-8ec9-a493fea95cb8",
@@ -242,6 +242,9 @@
     },
     "connector": {
       "source_revision": "f667c8428be773fef0e762daace3454ed5c86602",
+      "current_component_source_revision": "9a76018f81ec4ea40878e6c1e3012a16b2e3d494",
+      "current_component_source_digest_sha256": "29f1c72310b6ebb1f9cb4265677fb87056c04afb89a44779cfff99eaa76b6e56",
+      "source_relation": "loaded_native_artifact_precedes_operations_only_dependency_detection_source",
       "artifact_sha256": "06f29280f73ed8c17331a2de1990be55a1f7c8291ec8f099d418455b384b13e8",
       "artifact_mvid": "2b038591-46a5-4507-8419-ef8ee7f30a93",
       "protocol": "1.0.0"

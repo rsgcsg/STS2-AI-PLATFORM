@@ -56,6 +56,9 @@ loaded candidate awaiting owner interaction**.
   `0cf30b0f... / 89c75c2b...` to STS2 `v0.111.0`, assembly
   `9cb4f1ad... / 57785517...`. Source, build, install and loaded identity
   are independently verified; normal UI interaction remains pending.
+- Current Connector source `9a76018f...` adds only workspace-hoisted dependency
+  detection to the doctor. The loaded Native artifact remains exactly
+  `f667c842...`; this operations-only change does not require or claim reload.
 - The portable boundary check validates that every declared workspace CLI
   entrypoint exists in Git source authority; ignored local files cannot satisfy
   a clean-check claim.
