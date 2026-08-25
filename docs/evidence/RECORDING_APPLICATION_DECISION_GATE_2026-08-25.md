@@ -50,6 +50,10 @@ synchronous Close reports `Closed` after the first click.
 ## Evidence boundary
 
 The session proves end-turn admission, bounded Reads and safe close on the exact
-artifact above. It does not prove the staged-card repair or revised UI/status,
-which require a new build, install and cold load. Generated-card skip remains
-not exercised. Human origin remains owner-attested.
+artifact above. It does not prove the staged-card repair or revised UI/status.
+That repair is built, installed and cold-loaded as
+`06f62285b11df705bcaf269d0da39f0ad291973f5bd16e189045833271e8aa67 /
+17981f40-4d76-4d06-9e15-b4184cb9707c` in runtime
+`e3a89aaef04042f988697374960801af`; owner validation is pending and evidence
+does not transfer. Generated-card skip remains not exercised. Human origin
+remains owner-attested.

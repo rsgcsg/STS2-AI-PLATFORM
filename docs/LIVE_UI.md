@@ -39,9 +39,10 @@ Agent-run evidence remain separate claims.
 See `apps/game-mod/README.md` for commands and `apps/ingame-ui/README.md` for the
 presentation boundary. The predecessor three-Mod artifact passed exact
 install/cold-load identity verification, but its F10 input was not observed.
-The unified `K` artifact `d3b25e62... / ee78d9a1...` is cold-loaded and has six
-audited end-turn records on its exact runtime. That artifact's first Close
-completed internally while its command label remained at `Closing`; current
-source repairs the presentation and adds typed scope results. No Human/policy
-evidence is inferred from load identity, and prior evidence does not qualify a
-new source artifact.
+The unified `K` artifact `d3b25e62... / ee78d9a1...` has six audited end-turn
+records on its exact runtime. Its first Close completed internally while its
+command label remained at `Closing`. The repaired artifact
+`06f62285... / 17981f40...` is now cold-loaded and presents authoritative
+post-command status plus typed scope results. Those presentation and card-play
+changes still require owner exercise; no Human/policy evidence is inferred from
+load identity, and prior evidence does not qualify the new artifact.

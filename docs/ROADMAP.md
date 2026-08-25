@@ -114,9 +114,11 @@ action-family expansion remain outside this bounded baseline.
   the UI also retained intermediate Closing text. Exact native continuity now
   preserves the complete staged frame, and status explicitly partitions
   recorded, failed-closed, not-observed and out-of-scope families.
-- Pending exact runtime: clean build/install/cold-load this repair, then exercise
-  one play card and one first-click Close. Prior end-turn evidence does not
-  transfer to the new artifact.
+- Complete exact runtime: repair artifact `06f62285... / 17981f40...` is safely
+  installed and cold-loaded in runtime `e3a89aae...`; rollback is available.
+- Pending owner runtime: exercise one play card, one end turn and one first-click
+  Close, and inspect the four scope partitions. Prior end-turn evidence does not
+  transfer to this artifact.
 
 Next phase, not part of this slice: **Live Workspace Window Kernel -> Human
 Recorder Window**.

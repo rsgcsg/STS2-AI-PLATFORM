@@ -1,7 +1,8 @@
 # Current Status
 
-Phase: **Recording Application decision admission is Live-proved; card-play
-correlation and recording-scope clarity repairs are source/test complete**.
+Phase: **Recording Application decision admission is Live-proved; the card-play
+correlation and recording-scope clarity repair is loaded and awaits owner
+validation**.
 
 ## Implemented
 
@@ -175,7 +176,14 @@ environment, interaction, monotonic-sequence, bounded-age and controller checks.
 Recording status revision 2 separately reports recorded, supported-but-failed,
 supported-not-observed and declared-out-of-scope families. The Live UI reads
 authoritative post-command status, so a completed first Close displays Closed.
-These changes require a new exact artifact; no Live claim transfers.
+The repair is built, installed and cold-loaded as
+`06f62285b11df705bcaf269d0da39f0ad291973f5bd16e189045833271e8aa67 /
+17981f40-4d76-4d06-9e15-b4184cb9707c` in runtime
+`e3a89aaef04042f988697374960801af`, under exact unified Modset
+`1d8b001f...`. Rollback is
+`apps/game-mod/.local/deployments/2026-08-25T12-12-57.940Z`. Load identity does
+not prove card-play capture, first-click Close presentation or the new scope UI;
+the prior session's evidence does not transfer.
 
 ## Non-claims
 
@@ -194,11 +202,11 @@ These changes require a new exact artifact; no Live claim transfers.
 - Platform Evidence is a focused evidence-integrity package, not a
   Platform-wide gameplay SDK. Workbench and Live UI are application shells, not
   action/evidence authorities.
-- The repaired `d3b25e62...` artifact has six audited owner-attested end-turn
+- The predecessor `d3b25e62...` artifact has six audited owner-attested end-turn
   records with bounded Reads. Its 21 play-card invalidations prove a current
   supported-family defect, not play-card coverage. The staged-card/UI clarity
-  repair is source/test evidence only until a new artifact is cold-loaded and
-  owner-exercised.
+  repair is loaded as `06f62285... / 17981f40...` but remains `not exercised`
+  until a new owner session records a card play and observes first-click Close.
 - The current S1 Policy Manifest is validated, but its exact checkpoint is not
   present on this Mac. Real-model Shadow, One-Step, Auto, policy Agent evidence
   and legacy/new path parity are therefore `not exercised`.
