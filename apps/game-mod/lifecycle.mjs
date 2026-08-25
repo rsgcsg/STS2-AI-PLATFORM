@@ -347,7 +347,7 @@ async function verifyLoaded() {
   if (status.environment?.annotator?.source_digest_sha256 !== installed.source.components.annotator.source_digest_sha256) errors.push("annotator_source_digest_mismatch");
   if (status.environment?.modset_status !== "exact_platform_modset") errors.push("unified_modset_not_exact");
   if (!sameHostIdentity(capabilities.host?.implementation, expected)) errors.push("connector_capabilities_artifact_mismatch");
-  if (capabilities.game?.compatibility?.action_execution_allowed !== true) errors.push("connector_execution_not_available");
+  if (capabilities.execution_available !== true) errors.push("connector_execution_not_available");
   if (!platformIdentity) errors.push("platform_loaded_identity_absent");
   if (platformIdentity?.artifact_sha256 !== expected.sha256) errors.push("platform_loaded_sha_mismatch");
   if (platformIdentity?.module_version_id !== expected.module_version_id) errors.push("platform_loaded_mvid_mismatch");

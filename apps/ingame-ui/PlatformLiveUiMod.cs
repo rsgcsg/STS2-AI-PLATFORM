@@ -27,9 +27,9 @@ public static class PlatformLiveUiMod
                 Layer = 100
             };
             GD.Print($"[STS2 Platform Live UI] identity {JsonSerializer.Serialize(RuntimeIdentity())}");
-            tree.Root.AddChild(layer);
             layer.AddChild(new PlatformLivePanel());
-            GD.Print("[STS2 Platform Live UI] mounted; press K to toggle. Gameplay actions are not exposed directly.");
+            tree.Root.CallDeferred(Node.MethodName.AddChild, layer);
+            GD.Print("[STS2 Platform Live UI] mount scheduled; press K to toggle. Gameplay actions are not exposed directly.");
         }
         catch (Exception exception)
         {

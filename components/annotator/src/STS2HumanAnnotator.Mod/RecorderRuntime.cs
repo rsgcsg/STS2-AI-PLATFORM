@@ -872,8 +872,9 @@ internal static class RecorderRuntime
             || !string.Equals(frame.Snapshot.BoundActions.Status, "complete", StringComparison.Ordinal)
             || frame.Snapshot.BoundActions.Actions.Count == 0)
             blockers.Add("pre_frame_not_complete_interactive");
-        if (!string.Equals(environment.ModsetStatus, "canary_exact_observer_modset", StringComparison.Ordinal))
-            blockers.Add("exact_observer_modset_canary_missing");
+        if (!string.Equals(environment.ModsetStatus, "exact_platform_modset", StringComparison.Ordinal)
+            && !string.Equals(environment.ModsetStatus, "canary_exact_observer_modset", StringComparison.Ordinal))
+            blockers.Add("exact_recording_modset_missing");
         if (!IsCommit(environment.Connector.SourceRevision)
             || !IsCommit(environment.Annotator.SourceRevision))
             blockers.Add("source_revision_not_exact");
