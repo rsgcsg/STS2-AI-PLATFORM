@@ -55,7 +55,9 @@ materialized Reads and zero Read failures. Current source additionally delays a
 capture-failure invalidation until STS2 accepts the expected native action;
 cancelled, invalid-target and otherwise rejected UI attempts are not decisions.
 That final status-semantics change requires a new exact-runtime validation and
-does not inherit the 39-record evidence.
+does not inherit the 39-record evidence. It is now loaded as
+`887630f4... / 14761ed4...`, but its current runtime remains Ready/no-session;
+accepted-only accounting is therefore not yet Human-exercised.
 
 Implementation or build evidence is not human-origin evidence. See
 [Status](docs/STATUS.md) and [Evidence](docs/EVIDENCE.md).

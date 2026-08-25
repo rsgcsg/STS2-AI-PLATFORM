@@ -123,9 +123,12 @@ action-family expansion remain outside this bounded baseline.
   before STS2 native acceptance, so cancelled/rejected UI attempts inflated the
   failed-closed category. RecordingStatus revision 3 now counts only accepted
   native actions in that category.
-- Pending exact runtime: clean build/install/cold-load accepted-only accounting,
-  then verify a normal rejected/cancelled card attempt does not increment it and
-  a successful card play is recorded.
+- Complete exact runtime: accepted-only accounting is clean-built, installed and
+  cold-loaded as `887630f4... / 14761ed4...` in runtime `bcf2b3f1...` with
+  Ready/no-session and rollback available.
+- Pending owner runtime: create a session on that exact artifact, verify a
+  native-rejected/cancelled card attempt does not increment the accepted-failure
+  category, and verify successful card play/end-turn plus first-click Close.
 
 Next phase, not part of this slice: **Live Workspace Window Kernel -> Human
 Recorder Window**.

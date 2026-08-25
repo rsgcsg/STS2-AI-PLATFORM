@@ -197,8 +197,18 @@ missing-target, invalid-target and `TryManualPlay == false` paths, so those
 counts cannot be claimed as accepted actions that should have become records.
 Current source defers capture-failure invalidation until the expected game-owned
 root action is actually enqueued. RecordingStatus revision 3 labels that
-category `native-accepted but failed closed`. The 39 Live records do not
-transfer to this new source.
+category `native-accepted but failed closed`.
+
+That source is now built, safely installed and cold-loaded as
+`887630f4f4505f7ce7889e855c64dd4593aa061d22ffb00a80dfaed0bbf3c342 /
+14761ed4-fed3-4a50-8dd7-d731b2a8b94b` in runtime
+`bcf2b3f1dc0545b8ba1867c4a6357fec`, under exact unified Modset
+`977c56a6...`. Loaded Annotator and Live UI both bind source `305a2cac...`;
+rollback is `apps/game-mod/.local/deployments/2026-08-25T12-37-06.961Z`.
+The runtime is healthy at Ready/no-session, but no recording session was
+created during the latest owner interaction. The 39 predecessor Live records
+do not transfer, so accepted-only failure accounting remains pending Human
+runtime evidence.
 
 ## Non-claims
 
@@ -222,7 +232,8 @@ transfer to this new source.
   supported-family defect, not play-card coverage. The staged-card/UI clarity
   repair was loaded as `06f62285... / 17981f40...`; its two owner sessions prove
   card-play and Close. They do not prove accepted-only invalidation accounting
-  introduced by the later source.
+  introduced by the later source. The later `887630f4... / 14761ed4...`
+  artifact is loaded, but Ready/no-session is not Human action evidence.
 - The current S1 Policy Manifest is validated, but its exact checkpoint is not
   present on this Mac. Real-model Shadow, One-Step, Auto, policy Agent evidence
   and legacy/new path parity are therefore `not exercised`.

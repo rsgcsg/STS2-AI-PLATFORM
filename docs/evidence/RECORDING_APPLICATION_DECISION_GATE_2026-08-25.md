@@ -75,5 +75,20 @@ were emitted at native UI method entry before STS2 acceptance. Exact
 `TryManualPlay` paths. Follow-up source therefore emits a capture-failure
 invalidation only after observing the expected accepted native root action and
 renames the status field accordingly. That source change requires a new
-artifact; evidence does not transfer. Generated-card skip remains not
-exercised. Human origin remains owner-attested.
+artifact; evidence does not transfer.
+
+The accepted-only source was subsequently clean-built, installed and cold-
+loaded with these exact identities:
+
+- artifact SHA-256: `887630f4f4505f7ce7889e855c64dd4593aa061d22ffb00a80dfaed0bbf3c342`;
+- artifact MVID: `14761ed4-fed3-4a50-8dd7-d731b2a8b94b`;
+- runtime instance: `bcf2b3f1dc0545b8ba1867c4a6357fec`;
+- Annotator/Live UI source: `305a2cac80f0bd3126d66cfc5818477c583a8ce5`;
+- exact Modset fingerprint: `977c56a6ad7faffe7c291a959ef7cbe4cc18e3b21d4bb06fd8e0404f9b5cc6b7`;
+- rollback: `apps/game-mod/.local/deployments/2026-08-25T12-37-06.961Z`.
+
+`verify:loaded` passes and Recorder reports Ready/no-session. No new session
+directory, HumanDecision, invalidation or recording event was produced by the
+latest owner interaction, so this is load evidence only. Accepted-only
+accounting, generated-card skip and Human origin on this artifact remain
+unproven; predecessor evidence is not transferred.

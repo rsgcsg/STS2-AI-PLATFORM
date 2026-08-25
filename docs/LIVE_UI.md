@@ -46,6 +46,9 @@ command label remained at `Closing`. The repaired artifact
 post-command status plus typed scope results. Two owner sessions prove card-play
 recording and both immediate and pending-safe Close behavior. Follow-up source
 renames the failure view to `native-accepted but failed closed` and excludes
-native-rejected attempts; that narrower accounting still requires a new exact
-artifact. No Human/policy evidence is inferred from load identity, and prior
-evidence does not qualify later source.
+native-rejected attempts. That source is cold-loaded as
+`887630f4... / 14761ed4...` in runtime `bcf2b3f1...`, but the latest owner
+interaction left Recorder at Ready/no-session and produced no recording
+artifacts. Its narrower accounting therefore still requires Human validation.
+No Human/policy evidence is inferred from load identity, and prior evidence does
+not qualify later source.
