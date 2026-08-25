@@ -89,3 +89,14 @@ test("loaded verification never promotes an input canary to owner evidence", () 
   assert.match(lifecycle, /input_canary_is_not_owner_visibility_evidence/u);
   assert.doesNotMatch(lifecycle, /owner_ui_toggle/u);
 });
+
+test("record settlement accepts only shared exact Modsets and never retries an unknown evidence commit", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const validator = read("components/annotator/src/STS2HumanAnnotator.Core/RecordValidation.cs");
+
+  assert.match(runtime, /RecordingEnvironmentAdmission\.IsExactModset/u);
+  assert.match(validator, /RecordingEnvironmentAdmission\.IsExactModset/u);
+  assert.match(runtime, /decision_persistence_unknown/u);
+  assert.match(runtime, /evidence_commit_unknown/u);
+  assert.match(runtime, /ClearPendingWithInvalidation\([\s\S]*decision_persistence_unknown/u);
+});

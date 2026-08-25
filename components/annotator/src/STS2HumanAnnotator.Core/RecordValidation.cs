@@ -29,8 +29,8 @@ public static class HumanDecisionRecordValidator
             || string.IsNullOrWhiteSpace(record.Environment.EnvironmentFingerprint)
             || string.IsNullOrWhiteSpace(record.Environment.ModsetFingerprint))
             errors.Add("runtime_identity_incomplete");
-        if (!string.Equals(record.Environment.ModsetStatus, "canary_exact_observer_modset", StringComparison.Ordinal))
-            errors.Add("modset_not_exact_observer_canary");
+        if (!RecordingEnvironmentAdmission.IsExactModset(record.Environment.ModsetStatus))
+            errors.Add("modset_not_exact_recording_envelope");
         if (record.Pre.Snapshot == null
             || string.IsNullOrWhiteSpace(record.Pre.SnapshotId)
             || record.Pre.CatalogCount <= 0

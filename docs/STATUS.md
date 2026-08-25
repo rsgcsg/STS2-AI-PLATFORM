@@ -1,7 +1,7 @@
 # Current Status
 
-Phase: **Recording Application Plane build/install/load complete; owner
-multi-session lifecycle validation pending**.
+Phase: **Recording Application Plane lifecycle proved; unified record-admission
+repair is source/test complete and requires a new exact artifact**.
 
 ## Implemented
 
@@ -142,10 +142,21 @@ c3e7127a-93bf-4e29-9c05-257b5089edc6`; runtime
 exact unified Modset `89f0a3ed...`, and Ready/no-session state. Rollback is at
 `apps/game-mod/.local/deployments/2026-08-25T10-36-08.359Z`.
 
-The final artifact has source/test/build/install/load evidence. It does not yet
-have owner evidence for K visibility, New Session, Pause/Resume, pending-safe
-Close, a second session in the same process, or native Human decisions. Earlier
-Human sessions and the predecessor UI canary do not transfer.
+The owner then exercised the K workspace, New Session, Pause/Resume,
+pending-safe Close and a second isolated session in the same process. Both
+sessions closed safely, proving the Recording Application lifecycle. They
+admitted zero decisions: independent audit found that the unified
+`exact_platform_modset` passed runtime admission but the record validator still
+required the predecessor observer-Modset spelling. The resulting append error
+also retried successor Read persistence until timeout. The dated
+[owner validation](evidence/RECORDING_APPLICATION_OWNER_VALIDATION_2026-08-25.md)
+records exact sessions, counts, attribution and non-claims.
+
+Current source uses one exact-Modset predicate in runtime and independent audit,
+and turns any evidence-commit exception into one unknown/no-retry invalidation.
+This repair changes Native source. The lifecycle proof remains bound to the
+artifact above; successful Human decision admission is pending a new build,
+install, cold-load and owner action.
 
 ## Non-claims
 
@@ -164,11 +175,10 @@ Human sessions and the predecessor UI canary do not transfer.
 - Platform Evidence is a focused evidence-integrity package, not a
   Platform-wide gameplay SDK. Workbench and Live UI are application shells, not
   action/evidence authorities.
-- The unified Connector, Annotator and Platform Live UI have source/test/build/
-  install/load evidence. The final artifact's K toggle was `not_observed` by the
-  non-human verifier; actual five-page visibility, recording controls and normal
-  Human play remain `pending owner interaction`. Predecessor Human V2 evidence
-  does not transfer.
+- The owner saw and operated the K Human Data workspace and proved two-session
+  lifecycle behavior on `a7b11d93...`. Its zero-record sessions are diagnostic
+  failures, not Human Evidence. The record-admission repair has source/test
+  evidence only and requires a new exact artifact; no evidence transfers.
 - The current S1 Policy Manifest is validated, but its exact checkpoint is not
   present on this Mac. Real-model Shadow, One-Step, Auto, policy Agent evidence
   and legacy/new path parity are therefore `not exercised`.

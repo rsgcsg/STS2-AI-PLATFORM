@@ -9,10 +9,12 @@ authoritative for the current runtime boundary.
 
 Current source adds the Recording Application Plane: runtime starts Ready,
 sessions are explicit and repeatable, status/events are typed, commands are
-idempotent, and pending-safe Close flushes/disposes the active store. Core,
-boundary and exact-game build evidence pass. Because this changes the unified
-native artifact, all earlier loaded and Human evidence remains predecessor-only
-until the new artifact is cold-loaded and owner-operated.
+idempotent, and pending-safe Close flushes/disposes the active store. Owner
+runtime evidence proved two isolated sessions plus Pause/Resume/Close, but also
+found unified-Modset validation drift that rejected every final decision append
+and retried successor Reads. Current source unifies exact Modset admission and
+invalidates an unknown evidence commit once without retry. A repaired artifact
+still requires cold-load and owner-operated decision evidence.
 
 ## Implemented
 

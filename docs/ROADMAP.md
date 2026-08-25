@@ -99,9 +99,14 @@ action-family expansion remain outside this bounded baseline.
 - Complete exact runtime: final artifact `a7b11d93... / c3e7127a...` is installed
   and cold-loaded in runtime `bd6b73e7...`; it starts Ready with no session and
   has an available rollback.
-- Pending owner interaction: check New Session, Pause/Resume, pending-safe
-  Close, then a second session in the same process. Earlier Human evidence does
-  not transfer to this artifact.
+- Complete on artifact `a7b11d93...`: owner checked K, New Session,
+  Pause/Resume, pending-safe Close and a second isolated session in one process.
+- Defect found and repaired at source/test: unified `exact_platform_modset` was
+  accepted by runtime but rejected by final record validation, and persistence
+  exceptions retried successor Reads. Runtime and audit now share exact Modset
+  admission; unknown evidence commit invalidates once without retry.
+- Pending exact runtime: build/install/cold-load the repair and admit at least
+  one ordinary Human decision. Failed zero-record sessions do not transfer.
 
 Next phase, not part of this slice: **Live Workspace Window Kernel -> Human
 Recorder Window**.

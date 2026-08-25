@@ -16,6 +16,13 @@ public sealed class V2EvidenceTests
         Assert.True(HumanDecisionRecordValidator.Validate(v1).Valid);
         RecordValidationResult result = HumanDecisionRecordV2Validator.Validate(v2);
         Assert.True(result.Valid, string.Join(',', result.Errors));
+
+        HumanDecisionRecordV2 unified = v2 with
+        {
+            Environment = v2.Environment with { ModsetStatus = "exact_platform_modset" }
+        };
+        RecordValidationResult unifiedResult = HumanDecisionRecordV2Validator.Validate(unified);
+        Assert.True(unifiedResult.Valid, string.Join(',', unifiedResult.Errors));
     }
 
     [Fact]

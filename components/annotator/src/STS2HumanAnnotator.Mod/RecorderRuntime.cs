@@ -937,50 +937,65 @@ internal static class RecorderRuntime
         if (!HasRequiredReads(successorFrame))
             return;
 
-        var record = new HumanDecisionRecordV2(
-            HumanRecorderV2Contract.SchemaVersion,
-            HumanRecorderV2Contract.RecordSchema,
-            pending.RecordId,
-            SessionId!,
-            pending.RunId,
-            TimelineId!,
-            pending.Sequence,
-            DateTimeOffset.UtcNow,
-            pending.Environment,
-            CaptureProfile.ProfileId,
-            pending.Pre,
-            pending.NativeWitness,
-            pending.Mapping,
-            pending.Action,
-            new StableSuccessorV2(
-                successor.SnapshotId,
-                successor.Status,
-                successor.Interaction.InteractionId,
-                successor.Interaction.Kind,
-                successor.ObservedAt,
-                ToNode(successor),
-                PersistReads(successorFrame, "successor", pending.Environment)),
-            DecisionFamily(pending.Pre.InteractionKind),
-            pending.Pre.SurfaceSchema,
-            new RecordEligibility(
-                "admitted",
-                new[]
-                {
-                    "singleplayer",
-                    "exact_artifact_identity",
-                    "exact_observer_modset_canary",
-                    "complete_pre_catalog",
-                    "native_ui_scope",
-                    "exact_unique_reference_mapping",
-                    "different_complete_interactive_successor"
-                },
-                new[]
-                {
-                    "not_business_completion",
-                    "not_human_validated_until_owner_review",
-                    "capture_profile_scoped"
-                }));
-        _store!.AppendDecision(record);
+        HumanDecisionRecordV2 record;
+        try
+        {
+            record = new HumanDecisionRecordV2(
+                HumanRecorderV2Contract.SchemaVersion,
+                HumanRecorderV2Contract.RecordSchema,
+                pending.RecordId,
+                SessionId!,
+                pending.RunId,
+                TimelineId!,
+                pending.Sequence,
+                DateTimeOffset.UtcNow,
+                pending.Environment,
+                CaptureProfile.ProfileId,
+                pending.Pre,
+                pending.NativeWitness,
+                pending.Mapping,
+                pending.Action,
+                new StableSuccessorV2(
+                    successor.SnapshotId,
+                    successor.Status,
+                    successor.Interaction.InteractionId,
+                    successor.Interaction.Kind,
+                    successor.ObservedAt,
+                    ToNode(successor),
+                    PersistReads(successorFrame, "successor", pending.Environment)),
+                DecisionFamily(pending.Pre.InteractionKind),
+                pending.Pre.SurfaceSchema,
+                new RecordEligibility(
+                    "admitted",
+                    new[]
+                    {
+                        "singleplayer",
+                        "exact_artifact_identity",
+                        "exact_recording_modset",
+                        "complete_pre_catalog",
+                        "native_ui_scope",
+                        "exact_unique_reference_mapping",
+                        "different_complete_interactive_successor"
+                    },
+                    new[]
+                    {
+                        "not_business_completion",
+                        "not_human_validated_until_owner_review",
+                        "capture_profile_scoped"
+                    }));
+            _store!.AppendDecision(record);
+        }
+        catch (Exception exception)
+        {
+            // A record append can fail after a blob write. Its delivery state is
+            // therefore unknown; invalidate once and never retry it per frame.
+            ClearPendingWithInvalidation(
+                pending,
+                "decision_persistence_unknown",
+                exception.Message,
+                "evidence_commit_unknown");
+            return;
+        }
         AppendJournal(
             "decision_recorded",
             record.RecordId,
@@ -1127,8 +1142,7 @@ internal static class RecorderRuntime
             || !string.Equals(frame.Snapshot.BoundActions.Status, "complete", StringComparison.Ordinal)
             || frame.Snapshot.BoundActions.Actions.Count == 0)
             blockers.Add("pre_frame_not_complete_interactive");
-        if (!string.Equals(environment.ModsetStatus, "exact_platform_modset", StringComparison.Ordinal)
-            && !string.Equals(environment.ModsetStatus, "canary_exact_observer_modset", StringComparison.Ordinal))
+        if (!RecordingEnvironmentAdmission.IsExactModset(environment.ModsetStatus))
             blockers.Add("exact_recording_modset_missing");
         if (!IsCommit(environment.Connector.SourceRevision)
             || !IsCommit(environment.Annotator.SourceRevision))

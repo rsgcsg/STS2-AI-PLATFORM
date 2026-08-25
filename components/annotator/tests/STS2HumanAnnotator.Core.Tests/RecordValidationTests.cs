@@ -28,6 +28,35 @@ public sealed class RecordValidationTests
         Assert.Empty(result.Errors);
     }
 
+    [Fact]
+    public void UnifiedPlatformModsetPassesTheSameExactRecordingGate()
+    {
+        HumanDecisionRecord valid = ValidRecord();
+        HumanDecisionRecord unified = valid with
+        {
+            Environment = valid.Environment with { ModsetStatus = "exact_platform_modset" }
+        };
+
+        RecordValidationResult result = HumanDecisionRecordValidator.Validate(unified);
+
+        Assert.True(result.Valid, string.Join(',', result.Errors));
+    }
+
+    [Fact]
+    public void UnknownModsetStillFailsClosed()
+    {
+        HumanDecisionRecord valid = ValidRecord();
+        HumanDecisionRecord unknown = valid with
+        {
+            Environment = valid.Environment with { ModsetStatus = "unknown" }
+        };
+
+        RecordValidationResult result = HumanDecisionRecordValidator.Validate(unknown);
+
+        Assert.False(result.Valid);
+        Assert.Contains("modset_not_exact_recording_envelope", result.Errors);
+    }
+
     [Theory]
     [InlineData("zero", 0)]
     [InlineData("ambiguous", 2)]
