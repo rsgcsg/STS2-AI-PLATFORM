@@ -151,6 +151,74 @@ public sealed class V2EvidenceTests
         }
     }
 
+    [Fact]
+    public void IndependentSessionsNeverShareTheirTimelineOrStore()
+    {
+        string root = Temp("v2-multiple-sessions");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            using V2RecordingStore first = V2RecordingStore.Create(
+                root,
+                Manifest(profile, "session-first", "timeline-first"),
+                profile);
+            using V2RecordingStore second = V2RecordingStore.Create(
+                root,
+                Manifest(profile, "session-second", "timeline-second"),
+                profile);
+
+            Assert.NotEqual(first.DirectoryPath, second.DirectoryPath);
+            Assert.Equal("session-first", first.Manifest.SessionId);
+            Assert.Equal("session-second", second.Manifest.SessionId);
+            Assert.Equal("timeline-first", first.Manifest.TimelineId);
+            Assert.Equal("timeline-second", second.Manifest.TimelineId);
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
+    public void ReadBlobWriteFailureIsVisibleInStoreHealth()
+    {
+        string root = Temp("v2-write-failure");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            using V2RecordingStore store = V2RecordingStore.Create(root, Manifest(profile), profile);
+            JsonNode payload = JsonNode.Parse("{\"cards\":[{\"name\":\"Strike\"}]}")!;
+            byte[] canonical = System.Text.Encoding.UTF8.GetBytes(
+                "{\"cards\":[{\"name\":\"Strike\"}]}\n");
+            string digest = EvidenceIdentity.Sha256Bytes(canonical);
+            string blob = Path.Combine(store.DirectoryPath, "blobs", "sha256", digest[..2], $"{digest}.json");
+            Directory.CreateDirectory(Path.GetDirectoryName(blob)!);
+            File.WriteAllText(blob, "collision");
+
+            Assert.Throws<IOException>(() => store.PersistRead(new CapturedReadPayload(
+                "read-run-deck",
+                "run_deck",
+                "snapshot-a",
+                "runtime-1",
+                "environment-1",
+                "materialized",
+                "sts2.player-environment/read/run-deck-1",
+                payload,
+                JsonNode.Parse("{\"status\":\"complete\"}")!,
+                DateTimeOffset.UnixEpoch,
+                null,
+                null)));
+            RecordingStoreSnapshot status = store.GetSnapshot();
+            Assert.Equal("failed", status.AppendHealth);
+            Assert.Equal("failed", status.DiskHealth);
+            Assert.NotNull(status.LastError);
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
     private static HumanCaptureProfile Profile() => new(
         2,
         HumanRecorderV2Contract.CaptureProfileSchema,
@@ -166,11 +234,14 @@ public sealed class V2EvidenceTests
         },
         new[] { "ordinary_combat_only", "not_full_run" });
 
-    private static RecordingManifestV2 Manifest(HumanCaptureProfile profile) => new(
+    private static RecordingManifestV2 Manifest(
+        HumanCaptureProfile profile,
+        string sessionId = "session-test",
+        string timelineId = "timeline-test") => new(
         2,
         HumanRecorderV2Contract.ManifestSchema,
-        "session-test",
-        "timeline-test",
+        sessionId,
+        timelineId,
         DateTimeOffset.UnixEpoch,
         "0.3.0",
         new string('b', 40),

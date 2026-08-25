@@ -53,9 +53,30 @@ legality. An external Connector controller blocks recording.
 
 ## Lifecycle
 
+Runtime initialization stops at `Ready`; it does not create evidence or bind a
+session. `RecordingService` owns the application contract:
+
+```text
+Ready -> StartNewSession -> Recording <-> Paused -> Closing -> Closed
+  ^                                                            |
+  +--------------------- StartNewSession -----------------------+
+```
+
+Every session receives a new session ID, timeline, store, counters and run
+sequence. Pause blocks new witness scopes while an already admitted pending
+decision still settles. Close blocks new scopes and waits for that pending
+decision to settle or invalidate before the RunJournal and evidence streams are
+flushed and disposed. Audit/pack/verify/store/transfer remain offline Evidence
+operations.
+
 Only a complete interactive pre-frame is eligible. One accepted root action may
 be pending at a time. Native actions caused by that root are outside the human
 decision boundary and are ignored. A different complete interactive snapshot in
 the same runtime and environment is recorded as S'. Timeout, overlap, runtime
 drift, root-contract error, or mapping failure is appended to
 `invalidations.jsonl`.
+
+The application event stream is typed, process-local and bounded. A consumer
+queries current status, then requests events after sequence N. A gap means the
+consumer must query status again. Application events are operational state, not
+Human evidence and not action authority.

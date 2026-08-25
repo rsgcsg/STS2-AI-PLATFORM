@@ -1,8 +1,7 @@
 # Current Status
 
-Phase: **Human Evidence V2 verified; one-Mod Policy Runtime/Live UI runtime
-candidate loaded with automated K-toggle canary, awaiting owner visibility and
-control validation**.
+Phase: **Recording Application Plane source/test candidate; final unified
+artifact requires a new cold-load and owner lifecycle validation**.
 
 ## Implemented
 
@@ -28,6 +27,13 @@ control validation**.
 - Annotator `0.3.0-rc.1` implements Decision V2, state-bound ReadEvidence,
   CaptureProfile, minimal RunJournal, portable Bundle V2 and generated-card
   choice witness while retaining the exact ordinary-combat correlation kernel.
+- Recording startup now stops at `Ready`. The typed RecordingService owns
+  status, idempotent lifecycle commands and a bounded ordered event stream;
+  explicit New Session supports multiple isolated session/timeline/store
+  lifecycles in one STS2 process. Pause preserves admitted pending settlement,
+  and Close waits for pending settlement/invalidation before flush/dispose.
+  Application events and closeout state are operational projections, not Human
+  Evidence or action authority.
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.
 - Workbench `0.1.0-rc.1` provides Environment, Policy, Human Data, Evidence,
@@ -125,13 +131,18 @@ with exact-unique mapping and an interactive successor. Generated-card skip,
 targeted play and untargeted play were not exercised in that session. This is
 predecessor evidence and does not qualify the unified artifact.
 
-The current unified artifact was built, safely installed, cold-loaded and
+The predecessor unified artifact was built, safely installed, cold-loaded and
 identity-verified with rollback at
 `apps/game-mod/.local/deployments/2026-08-25T06-42-44.907Z`. Runtime
 `f3195698...` reports environment `02ec1f39...`, exact unified Modset
 `447fc8f9...`, ready UI, and automated K open/close events. Owner page
 visibility, recording controls, ordinary Human play and policy modes remain
 separate pending gates.
+
+The Recording Application Plane changes native unified source. Its automated
+core/boundary/exact-game checks pass, but the predecessor loaded SHA/MVID and
+Human sessions do not transfer. A final build/install/load identity and owner
+multi-session lifecycle check are pending for the new artifact.
 
 ## Non-claims
 

@@ -7,6 +7,13 @@ audited generated-card select. Generated-card skip and the current unified
 artifact's Human path remain `not exercised`. Root `../../../docs/STATUS.md` is
 authoritative for the current runtime boundary.
 
+Current source adds the Recording Application Plane: runtime starts Ready,
+sessions are explicit and repeatable, status/events are typed, commands are
+idempotent, and pending-safe Close flushes/disposes the active store. Core,
+boundary and exact-game build evidence pass. Because this changes the unified
+native artifact, all earlier loaded and Human evidence remains predecessor-only
+until the new artifact is cold-loaded and owner-operated.
+
 ## Implemented
 
 - process-local Connector witness freezing one stable Snapshot and complete

@@ -47,6 +47,13 @@ test("environment Reads and Annotator identity do not depend on a running policy
   assert.match(contracts, /advertised by Connector Snapshot/u);
 });
 
+test("Human Data controls use only the typed RecordingService application boundary", () => {
+  assert.match(client, /RecordingApplicationService\.Instance\.QueryStatus\(\)/u);
+  assert.match(mod, /RecordingApplicationService\.Instance\.Execute\(command\)/u);
+  assert.match(mod, /RecordingCommandKind\.StartNewSession/u);
+  assert.doesNotMatch(`${mod}\n${client}`, /RecorderRuntime|HumanActionScope|AppendDecision/u);
+});
+
 test("Live UI has no standalone packaging or deployment authority", () => {
   for (const file of ["build.mjs", "deploy.mjs", "mod_manifest.json", "STS2PlatformLiveUi.csproj"]) {
     assert.equal(fs.existsSync(path.join(root, file)), false);

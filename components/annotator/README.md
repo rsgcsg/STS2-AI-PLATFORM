@@ -23,9 +23,11 @@ or expose native references on a wire.
   choice select/skip observation. Ordinary-combat V2 is exact native-human
   verified; generated-card select has one audited predecessor record while skip
   and the unified artifact remain `not exercised`.
-- A typed recording application service exposes Pause/Resume/Close to the
-  unified Platform Live UI. These commands gate new witness admission only;
-  already pending successor settlement continues, and the service never
+- A typed RecordingService exposes Query/Status, Command and ordered Event
+  contracts to Platform views. Runtime startup is `Ready`; `StartNewSession`
+  opens an isolated session, Pause/Resume gate new witness admission, and Close
+  waits for an admitted pending decision before flushing. A closed session can
+  be followed by another session in the same STS2 process. The service never
   invokes a game action.
 - Builds from the exact local STS2 `v0.111.0` assembly on macOS arm64 and
   Windows x64. Windows discovery and process inspection use the Platform Host
@@ -119,9 +121,12 @@ Live UI, and refuses any already-enabled third-party Mod.
 
 ## Record And Audit
 
-After `verify:loaded` passes, start a normal single-player run and use the native
-UI. Do not run an Agent/Connector controller in the same process. The runtime
-writes to `.local/recordings/<session>/`:
+After `verify:loaded` passes, press `K`, open **Human Data**, and choose **New
+Session** before using the native game UI. Do not run an Agent/Connector
+controller in the same process. Pause stops admission of new witnesses; Close
+settles or invalidates an already pending witness, flushes the session, and
+allows another New Session without restarting STS2. The runtime writes to
+`.local/recordings/<session>/`:
 
 ```text
 recording-manifest.json

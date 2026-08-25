@@ -18,6 +18,12 @@ public sealed class V2RecordingStore : IDisposable
     private long _invalidationCount;
     private long _readMaterialized;
     private long _readFailed;
+    private RecordingItemStatus? _lastRecord;
+    private RecordingItemStatus? _lastInvalidation;
+    private string _appendHealth = "healthy";
+    private string _diskHealth = "healthy";
+    private string? _lastError;
+    private bool _closed;
 
     private V2RecordingStore(
         string directory,
@@ -43,6 +49,25 @@ public sealed class V2RecordingStore : IDisposable
     public RecordingManifestV2 Manifest { get; }
     public HumanCaptureProfile CaptureProfile { get; }
 
+    public RecordingStoreSnapshot GetSnapshot()
+    {
+        lock (_gate)
+        {
+            return new RecordingStoreSnapshot(
+                new RecordingCounters(
+                    _admittedCount,
+                    _invalidationCount,
+                    _readMaterialized,
+                    _readFailed),
+                _lastRecord,
+                _lastInvalidation,
+                _appendHealth,
+                _diskHealth,
+                _lastError,
+                _closed);
+        }
+    }
+
     public static V2RecordingStore Create(
         string root,
         RecordingManifestV2 manifest,
@@ -64,6 +89,20 @@ public sealed class V2RecordingStore : IDisposable
     }
 
     public ReadEvidence PersistRead(CapturedReadPayload capture)
+    {
+        EnsureOpen();
+        try
+        {
+            return PersistReadCore(capture);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            MarkWriteFailure(exception);
+            throw;
+        }
+    }
+
+    private ReadEvidence PersistReadCore(CapturedReadPayload capture)
     {
         string evidenceId = $"read-{Guid.NewGuid():N}";
         if (capture.Status != "materialized")
@@ -128,6 +167,7 @@ public sealed class V2RecordingStore : IDisposable
 
     public void AppendDecision(HumanDecisionRecordV2 record)
     {
+        EnsureOpen();
         RecordValidationResult validation = HumanDecisionRecordV2Validator.Validate(record);
         RecordValidationResult profileValidation =
             HumanCaptureProfileValidator.ValidateRecord(CaptureProfile, record);
@@ -135,13 +175,18 @@ public sealed class V2RecordingStore : IDisposable
             throw new InvalidDataException(
                 $"V2 decision record failed validation: {string.Join(',', validation.Errors.Concat(profileValidation.Errors))}");
         VerifyReadBlobs(record.Pre.Reads.Concat(record.Successor.Reads));
-        lock (_gate)
+        ExecuteWrite(() =>
         {
             AppendLine(DecisionFile(record.RunId), record);
             _admittedCount++;
             _families[record.DecisionFamily] = _families.GetValueOrDefault(record.DecisionFamily) + 1;
+            _lastRecord = new RecordingItemStatus(
+                record.RecordId,
+                record.Action.Verb,
+                record.RecordedAt,
+                record.DecisionFamily);
             WriteCoverage();
-        }
+        });
     }
 
     public void AppendRunEvent(RunJournalEvent value)
@@ -153,39 +198,49 @@ public sealed class V2RecordingStore : IDisposable
             || value.Sequence <= 0
             || string.IsNullOrWhiteSpace(value.Kind))
             throw new InvalidDataException("Run journal event is invalid for this recording.");
-        lock (_gate)
-            AppendLine(_journal, value);
+        EnsureOpen();
+        ExecuteWrite(() => AppendLine(_journal, value));
     }
 
     public void AppendInvalidation(InvalidationRecord invalidation)
     {
-        lock (_gate)
+        EnsureOpen();
+        ExecuteWrite(() =>
         {
             AppendLine(_invalidations, invalidation);
             _invalidationCount++;
             _invalidationsByReason[invalidation.ReasonCode] =
                 _invalidationsByReason.GetValueOrDefault(invalidation.ReasonCode) + 1;
+            _lastInvalidation = new RecordingItemStatus(
+                invalidation.InvalidationId,
+                invalidation.ReasonCode,
+                invalidation.RecordedAt,
+                invalidation.Detail);
             WriteCoverage();
-        }
+        });
     }
 
-    public void WriteRuntimeStatus(string path, RecorderRuntimeStatus status) =>
+    public static void WriteRuntimeStatus(string path, RecorderRuntimeStatus status) =>
         WriteAtomic(path, JsonSerializer.Serialize(status, EvidenceJson.IndentedOptions));
 
     public void Dispose()
     {
         lock (_gate)
         {
+            if (_closed)
+                return;
             foreach (FileStream stream in _decisionFiles.Values)
                 stream.Dispose();
             _invalidations.Dispose();
             _journal.Dispose();
+            _closed = true;
+            _appendHealth = "closed";
         }
     }
 
     private void RecordRead(string kind, bool materialized)
     {
-        lock (_gate)
+        ExecuteWrite(() =>
         {
             if (materialized)
                 _readMaterialized++;
@@ -193,7 +248,50 @@ public sealed class V2RecordingStore : IDisposable
                 _readFailed++;
             _readsByKind[kind] = _readsByKind.GetValueOrDefault(kind) + 1;
             WriteCoverage();
+        });
+    }
+
+    private void EnsureOpen()
+    {
+        lock (_gate)
+        {
+            if (_closed)
+                throw new ObjectDisposedException(nameof(V2RecordingStore));
         }
+    }
+
+    private void ExecuteWrite(Action operation)
+    {
+        lock (_gate)
+        {
+            if (_closed)
+                throw new ObjectDisposedException(nameof(V2RecordingStore));
+            try
+            {
+                operation();
+                _appendHealth = "healthy";
+                _diskHealth = "healthy";
+                _lastError = null;
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                MarkWriteFailureUnsafe(exception);
+                throw;
+            }
+        }
+    }
+
+    private void MarkWriteFailure(Exception exception)
+    {
+        lock (_gate)
+            MarkWriteFailureUnsafe(exception);
+    }
+
+    private void MarkWriteFailureUnsafe(Exception exception)
+    {
+        _appendHealth = "failed";
+        _diskHealth = "failed";
+        _lastError = exception.Message;
     }
 
     private void VerifyReadBlobs(IEnumerable<ReadEvidence> reads)

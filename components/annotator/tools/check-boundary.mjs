@@ -10,6 +10,14 @@ const sources = sourceDirs.flatMap((directory) => fs.readdirSync(directory)
   .filter((name) => name.endsWith(".cs"))
   .map((name) => fs.readFileSync(path.join(directory, name), "utf8")))
   .join("\n");
+const applicationService = fs.readFileSync(
+  path.join(root, "src", "STS2HumanAnnotator.Mod", "RecordingApplicationService.cs"),
+  "utf8"
+);
+const recorderRuntime = fs.readFileSync(
+  path.join(root, "src", "STS2HumanAnnotator.Mod", "RecorderRuntime.cs"),
+  "utf8"
+);
 
 const forbidden = [
   ["HarmonyTranspiler", "transpiler patches are forbidden"],
@@ -39,6 +47,18 @@ if (!sources.includes("context.AcceptsRootAction(nativeActionType)"))
   errors.push("same-type game actions must not claim the human root before exact mapping");
 if (!sources.includes("if (!IsExact(match) || !context.TryClaimRootAction(nativeActionType))"))
   errors.push("the recorder must exact-match before claiming the human root action");
+if (!applicationService.includes("RecordingCommandResult Execute(RecordingCommand command)"))
+  errors.push("all recording views must use the typed RecordingService command boundary");
+if (!applicationService.includes("RecordingEventBatch QueryEvents(long afterSequence)"))
+  errors.push("recording views require the typed reconnectable event query boundary");
+if (/HumanActionScope|GameAction|AppendDecision|PlayerEnvironmentService/u.test(applicationService))
+  errors.push("application commands must not enter native witness or gameplay execution paths");
+if (!recorderRuntime.includes("RecordingLifecycleSnapshot.Ready(now)"))
+  errors.push("runtime initialization must stop at Ready without creating a session");
+if (!recorderRuntime.includes("RecordingCommandKind.StartNewSession"))
+  errors.push("recording session creation must be an explicit typed command");
+if (!recorderRuntime.includes("if (_lifecycle.State != RecordingLifecycleState.Closing || _pending != null)"))
+  errors.push("close must wait for an admitted pending decision before disposing the session");
 
 console.log(JSON.stringify({ status: errors.length === 0 ? "pass" : "fail", errors }, null, 2));
 if (errors.length) process.exit(1);

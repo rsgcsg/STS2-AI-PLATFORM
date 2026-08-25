@@ -51,8 +51,25 @@ internal static class RecorderRuntime
     private static RecorderEnvironmentIdentity? _lastEnvironment;
     private static string? _lastSnapshotId;
     private static IReadOnlyList<string> _lastBlockers = Array.Empty<string>();
-    private static RecordingControlSnapshot _recordingControl =
-        RecordingControlSnapshot.Initial(DateTimeOffset.UnixEpoch);
+    private static RecordingLifecycleSnapshot _lifecycle =
+        RecordingLifecycleSnapshot.Ready(DateTimeOffset.UnixEpoch);
+    private static readonly RecordingEventStream ApplicationEvents = new();
+    private static readonly RecordingCommandLedger CommandLedger = new();
+    private static RecordingStoreSnapshot _lastStoreSnapshot = new(
+        new RecordingCounters(0, 0, 0, 0),
+        null,
+        null,
+        "not_open",
+        "not_open",
+        null,
+        true);
+    private static RecordingCloseoutStatus _closeout = RecordingCloseoutStatus.Idle;
+    private static DateTimeOffset? _sessionStartedAt;
+    private static DateTimeOffset? _sessionClosedAt;
+    private static string? _recordingDirectory;
+    private static string? _sourceRevision;
+    private static string _requiredReadsHealth = "not_active";
+    private static string? _lastPublishedHealth;
     private static bool _initializationStarted;
     private static bool _initialized;
     private static int _runSequence;
@@ -66,9 +83,9 @@ internal static class RecorderRuntime
         .Distinct(StringComparer.Ordinal)
         .ToArray();
 
-    internal static string SessionId { get; private set; } = "uninitialized";
+    internal static string? SessionId { get; private set; }
 
-    internal static string TimelineId { get; private set; } = "uninitialized";
+    internal static string? TimelineId { get; private set; }
 
     internal static void Initialize(AnnotatorConfiguration configuration)
     {
@@ -80,85 +97,108 @@ internal static class RecorderRuntime
         }
 
         _configuration = configuration;
-        SessionId = $"session-{DateTimeOffset.UtcNow:yyyyMMddTHHmmssZ}-{Guid.NewGuid():N}";
-        TimelineId = $"timeline-{Guid.NewGuid():N}";
         Assembly assembly = typeof(RecorderMod).Assembly;
-        string sourceRevision = ReadSourceRevision(assembly);
-        var manifest = new RecordingManifestV2(
-            HumanRecorderV2Contract.SchemaVersion,
-            HumanRecorderV2Contract.ManifestSchema,
-            SessionId,
-            TimelineId,
-            DateTimeOffset.UtcNow,
-            RecorderMod.Version,
-            sourceRevision,
-            System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier,
-            CaptureProfile.ProfileId,
-            EvidenceIdentity.Sha256Json(CaptureProfile),
-            CaptureProfile.SupportedActionFamilies,
-            CaptureProfile.NonClaims.Append("not_human_validated").ToArray());
-        _store = V2RecordingStore.Create(configuration.RecordingRoot, manifest, CaptureProfile);
+        _sourceRevision = ReadSourceRevision(assembly);
+        DateTimeOffset now = DateTimeOffset.UtcNow;
         lock (Gate)
         {
-            _recordingControl = RecordingControlStateMachine.Start(SessionId, DateTimeOffset.UtcNow);
+            _lifecycle = RecordingLifecycleSnapshot.Ready(now);
             _initialized = true;
-            _runtimeState = "waiting_for_player_environment";
-            _detail = _recordingControl.Detail;
+            _runtimeState = "ready";
+            _detail = _lifecycle.Detail;
         }
-        AppendJournal("session_started", null, null, "V2 read-rich recording initialized.");
-        WriteStatus(null, null, new[] { "no_current_exact_frame" });
+        PublishApplicationEvent(RecordingEventKind.RuntimeReady, detail: _detail);
+        WriteStatus(null, null, new[] { "no_open_recording_session", "no_current_exact_frame" });
     }
 
-    internal static RecordingControlSnapshot GetRecordingControlStatus()
+    internal static RecordingLifecycleSnapshot GetRecordingLifecycle()
     {
         lock (Gate)
-            return _recordingControl;
+            return _lifecycle;
     }
 
     internal static RecordingApplicationStatus GetRecordingApplicationStatus()
     {
         lock (Gate)
         {
+            RecordingStoreSnapshot store = _store?.GetSnapshot() ?? _lastStoreSnapshot;
             return new RecordingApplicationStatus(
-                _recordingControl,
+                RecordingApplicationContract.StatusSchema,
+                DateTimeOffset.UtcNow,
+                System.Environment.ProcessId,
+                _lifecycle,
+                BuildSessionStatus(),
+                store.Counters,
+                _pending == null
+                    ? null
+                    : new RecordingPendingStatus(
+                        _pending.RecordId,
+                        _pending.RunId,
+                        _pending.Deadline),
+                store.LastRecord,
+                store.LastInvalidation,
+                new RecordingHealthStatus(
+                    RequiredReadHealth(),
+                    store.AppendHealth,
+                    store.DiskHealth,
+                    store.LastError,
+                    DateTimeOffset.UtcNow),
+                _closeout,
                 _runtimeState,
-                _detail ?? _recordingControl.Detail,
+                _detail ?? _lifecycle.Detail,
                 _lastEnvironment,
                 _lastSnapshotId,
-                _lastBlockers.ToArray());
+                _lastBlockers.ToArray(),
+                ApplicationEvents.LatestSequence);
         }
     }
 
-    internal static RecordingControlResult ApplyRecordingControl(RecordingControlCommand command)
+    internal static RecordingEventBatch ReadRecordingEvents(long afterSequence) =>
+        ApplicationEvents.ReadAfter(afterSequence);
+
+    internal static RecordingCommandResult ExecuteRecordingCommand(RecordingCommand command)
     {
-        RecordingControlResult result;
+        if (!string.Equals(
+                command.Schema,
+                RecordingApplicationContract.CommandSchema,
+                StringComparison.Ordinal))
+            return RejectedCommand("unsupported_command_schema", "Recording command schema is unsupported.");
+        if (string.IsNullOrWhiteSpace(command.CommandId))
+            return RejectedCommand("invalid_command_id", "Recording command_id is required.");
+
+        RecordingCommandResult result;
         RecorderEnvironmentIdentity? environment;
         string? snapshotId;
         IReadOnlyList<string> blockers;
         bool initialized;
+        bool finalizeClose = false;
 
         lock (Gate)
         {
             initialized = _initialized;
+            if (CommandLedger.TryGet(command.CommandId, out RecordingCommandResult? existing))
+                return existing!;
             if (!initialized)
             {
-                result = new RecordingControlResult(
+                result = new RecordingCommandResult(
+                    false,
                     false,
                     "not_initialized",
                     "Recording controls are unavailable before the recorder runtime starts.",
-                    _recordingControl);
+                    _lifecycle);
                 environment = _lastEnvironment;
                 snapshotId = _lastSnapshotId;
                 blockers = _lastBlockers;
             }
-            else if (IsIdempotent(command, _recordingControl.State))
+            else if (IsStateNoOp(command.Kind, _lifecycle.State))
             {
-                string state = _recordingControl.State.ToString().ToLowerInvariant();
-                result = new RecordingControlResult(
+                string state = _lifecycle.State.ToString().ToLowerInvariant();
+                result = new RecordingCommandResult(
                     true,
+                    _lifecycle.State == RecordingLifecycleState.Closing,
                     $"already_{state}",
                     $"Recording is already {state}.",
-                    _recordingControl);
+                    _lifecycle);
                 environment = _lastEnvironment;
                 snapshotId = _lastSnapshotId;
                 blockers = _lastBlockers;
@@ -166,80 +206,272 @@ internal static class RecorderRuntime
             }
             else
             {
-                result = RecordingControlStateMachine.Apply(
-                    _recordingControl,
-                    command,
-                    SessionId,
-                    DateTimeOffset.UtcNow);
+                string? newSessionId = command.Kind == RecordingCommandKind.StartNewSession
+                    ? $"session-{DateTimeOffset.UtcNow:yyyyMMddTHHmmssZ}-{Guid.NewGuid():N}"
+                    : null;
+                result = RecordingLifecycleStateMachine.Apply(
+                    _lifecycle,
+                    command.Kind,
+                    newSessionId,
+                    DateTimeOffset.UtcNow,
+                    _pending != null);
                 if (result.Accepted)
                 {
-                    _recordingControl = result.Snapshot;
-                    if (_recordingControl.State != RecordingControlState.Recording)
+                    if (command.Kind == RecordingCommandKind.StartNewSession)
+                    {
+                        try
+                        {
+                            StartSession(result.Lifecycle, command.CaptureProfileId);
+                        }
+                        catch (Exception exception)
+                        {
+                            _runtimeState = "session_start_failed";
+                            _detail = exception.Message;
+                            _lastStoreSnapshot = _lastStoreSnapshot with
+                            {
+                                AppendHealth = "failed",
+                                DiskHealth = "failed",
+                                LastError = exception.Message
+                            };
+                            result = new RecordingCommandResult(
+                                false,
+                                false,
+                                "session_start_failed",
+                                exception.Message,
+                                _lifecycle);
+                        }
+                    }
+                    else
+                    {
+                        _lifecycle = result.Lifecycle;
+                    }
+                    if (_lifecycle.State != RecordingLifecycleState.Recording)
                         _stagedCardFrame = null;
+                    if (command.Kind == RecordingCommandKind.Close && result.Accepted)
+                    {
+                        _closeout = new RecordingCloseoutStatus(
+                            "closing",
+                            DateTimeOffset.UtcNow,
+                            null,
+                            result.Detail);
+                        finalizeClose = _pending == null;
+                    }
                 }
                 _detail = result.Detail;
-                _runtimeState = RuntimeStatusForControl(_recordingControl.State, _runtimeState);
+                _runtimeState = RuntimeStatusForLifecycle(_lifecycle.State, _runtimeState);
                 environment = _lastEnvironment;
                 snapshotId = _lastSnapshotId;
                 blockers = _lastBlockers;
             }
+            CommandLedger.Remember(command.CommandId, result);
         }
 
         if (!initialized)
             return result;
 
-        string journalKind = result.Accepted
-            ? result.Code.StartsWith("already_", StringComparison.Ordinal)
-                ? "recording_control_noop"
-                : result.Snapshot.State switch
-                {
-                    RecordingControlState.Paused => "recording_paused",
-                    RecordingControlState.Closed => "recording_closed",
-                    RecordingControlState.Recording => "recording_resumed",
-                    _ => "recording_control_changed"
-                }
-            : "recording_control_rejected";
-        AppendJournal(journalKind, null, snapshotId, result.Detail);
+        PublishCommandEvent(command, result);
+        if (result.Accepted && command.Kind != RecordingCommandKind.StartNewSession)
+            AppendJournal(result.Code, null, snapshotId, result.Detail);
+        if (finalizeClose)
+            FinalizeClose();
         WriteStatus(
             environment,
             snapshotId,
-            blockers.Concat(ControlBlockers(result.Snapshot.State)).Distinct(StringComparer.Ordinal).ToArray());
+            blockers.Concat(LifecycleBlockers(GetRecordingLifecycle().State)).Distinct(StringComparer.Ordinal).ToArray());
         return result;
     }
 
-    private static bool IsIdempotent(
-        RecordingControlCommand command,
-        RecordingControlState state) =>
+    private static bool IsStateNoOp(
+        RecordingCommandKind command,
+        RecordingLifecycleState state) =>
         command switch
         {
-            RecordingControlCommand.Pause => state == RecordingControlState.Paused,
-            RecordingControlCommand.Resume => state == RecordingControlState.Recording,
-            RecordingControlCommand.Close => state == RecordingControlState.Closed,
+            RecordingCommandKind.Pause => state == RecordingLifecycleState.Paused,
+            RecordingCommandKind.Resume => state == RecordingLifecycleState.Recording,
+            RecordingCommandKind.Close => state is RecordingLifecycleState.Closing or RecordingLifecycleState.Closed,
             _ => false
         };
 
-    private static IReadOnlyList<string> ControlBlockers(RecordingControlState state) =>
+    private static void StartSession(
+        RecordingLifecycleSnapshot lifecycle,
+        string? requestedCaptureProfileId)
+    {
+        if (_configuration == null || _sourceRevision == null || lifecycle.SessionId == null)
+            throw new InvalidOperationException("Recorder runtime initialization is incomplete.");
+        if (requestedCaptureProfileId != null
+            && !string.Equals(requestedCaptureProfileId, CaptureProfile.ProfileId, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException(
+                $"Unsupported capture profile {requestedCaptureProfileId}; expected {CaptureProfile.ProfileId}.");
+        }
+
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        string timelineId = $"timeline-{Guid.NewGuid():N}";
+        var manifest = new RecordingManifestV2(
+            HumanRecorderV2Contract.SchemaVersion,
+            HumanRecorderV2Contract.ManifestSchema,
+            lifecycle.SessionId,
+            timelineId,
+            now,
+            RecorderMod.Version,
+            _sourceRevision,
+            System.Runtime.InteropServices.RuntimeInformation.RuntimeIdentifier,
+            CaptureProfile.ProfileId,
+            EvidenceIdentity.Sha256Json(CaptureProfile),
+            CaptureProfile.SupportedActionFamilies,
+            CaptureProfile.NonClaims.Append("not_human_validated").ToArray());
+        V2RecordingStore store = V2RecordingStore.Create(
+            _configuration.RecordingRoot,
+            manifest,
+            CaptureProfile);
+
+        _store = store;
+        SessionId = lifecycle.SessionId;
+        TimelineId = timelineId;
+        _recordingDirectory = store.DirectoryPath;
+        _sessionStartedAt = now;
+        _sessionClosedAt = null;
+        _sequence = 0;
+        _journalSequence = 0;
+        _runSequence = 0;
+        _runActive = false;
+        _currentRunId = "run-unassigned";
+        _pending = null;
+        _stagedCardFrame = null;
+        _lastStoreSnapshot = store.GetSnapshot();
+        _requiredReadsHealth = "not_checked";
+        _lastPublishedHealth = null;
+        _closeout = RecordingCloseoutStatus.Idle;
+        _lifecycle = lifecycle;
+        _runtimeState = "waiting_for_player_environment";
+        _detail = lifecycle.Detail;
+        AppendJournal("session_started", null, null, "V2 read-rich recording session started.");
+    }
+
+    private static RecordingSessionStatus? BuildSessionStatus()
+    {
+        if (SessionId == null
+            || TimelineId == null
+            || _recordingDirectory == null
+            || _sessionStartedAt == null)
+            return null;
+        return new RecordingSessionStatus(
+            SessionId,
+            TimelineId,
+            _currentRunId,
+            CaptureProfile.ProfileId,
+            _recordingDirectory,
+            _sessionStartedAt.Value,
+            _sessionClosedAt);
+    }
+
+    private static string RequiredReadHealth()
+    {
+        if (_lifecycle.State is RecordingLifecycleState.Ready or RecordingLifecycleState.Closed)
+            return "not_active";
+        return _requiredReadsHealth;
+    }
+
+    private static RecordingCommandResult RejectedCommand(string code, string detail)
+    {
+        lock (Gate)
+            return new RecordingCommandResult(false, false, code, detail, _lifecycle);
+    }
+
+    private static void PublishCommandEvent(
+        RecordingCommand command,
+        RecordingCommandResult result)
+    {
+        if (result.Code.StartsWith("already_", StringComparison.Ordinal))
+            return;
+        RecordingEventKind kind = result.Accepted
+            ? command.Kind switch
+            {
+                RecordingCommandKind.StartNewSession => RecordingEventKind.SessionStarted,
+                RecordingCommandKind.Pause => RecordingEventKind.SessionPaused,
+                RecordingCommandKind.Resume => RecordingEventKind.SessionResumed,
+                RecordingCommandKind.Close => RecordingEventKind.SessionCloseRequested,
+                _ => RecordingEventKind.CommandRejected
+            }
+            : RecordingEventKind.CommandRejected;
+        PublishApplicationEvent(kind, detail: $"{result.Code}: {result.Detail}");
+    }
+
+    private static void PublishApplicationEvent(
+        RecordingEventKind kind,
+        string? recordId = null,
+        string? detail = null)
+    {
+        string? sessionId;
+        string? runId;
+        lock (Gate)
+        {
+            sessionId = SessionId;
+            runId = SessionId == null ? null : _currentRunId;
+        }
+        ApplicationEvents.Publish(
+            kind,
+            DateTimeOffset.UtcNow,
+            sessionId,
+            runId,
+            recordId,
+            detail);
+    }
+
+    private static void FinalizeClose()
+    {
+        RecordingStoreSnapshot snapshot;
+        lock (Gate)
+        {
+            if (_lifecycle.State != RecordingLifecycleState.Closing || _pending != null)
+                return;
+            AppendJournal("session_closed", null, _lastSnapshotId, "Session flushed and closed.");
+            V2RecordingStore? store = _store;
+            store?.Dispose();
+            snapshot = store?.GetSnapshot() ?? _lastStoreSnapshot;
+            _lastStoreSnapshot = snapshot;
+            _store = null;
+            _sessionClosedAt = DateTimeOffset.UtcNow;
+            _lifecycle = RecordingLifecycleStateMachine.MarkClosed(_lifecycle, _sessionClosedAt.Value);
+            _closeout = new RecordingCloseoutStatus(
+                "closed",
+                _closeout.RequestedAt,
+                _sessionClosedAt,
+                "Session journal and evidence streams were flushed and closed.");
+            _runtimeState = "recording_closed";
+            _detail = _closeout.Detail;
+            _stagedCardFrame = null;
+            _requiredReadsHealth = "not_active";
+        }
+        PublishApplicationEvent(RecordingEventKind.SessionClosed, detail: _closeout.Detail);
+    }
+
+    private static IReadOnlyList<string> LifecycleBlockers(RecordingLifecycleState state) =>
         state switch
         {
-            RecordingControlState.Paused => new[] { "recording_paused" },
-            RecordingControlState.Closed => new[] { "recording_closed" },
+            RecordingLifecycleState.Ready => new[] { "no_open_recording_session" },
+            RecordingLifecycleState.Paused => new[] { "recording_paused" },
+            RecordingLifecycleState.Closing => new[] { "recording_closing" },
+            RecordingLifecycleState.Closed => new[] { "recording_closed" },
             _ => Array.Empty<string>()
         };
 
-    private static string RuntimeStatusForControl(
-        RecordingControlState state,
+    private static string RuntimeStatusForLifecycle(
+        RecordingLifecycleState state,
         string fallback) =>
         state switch
         {
-            RecordingControlState.Paused => "recording_paused",
-            RecordingControlState.Closed => "recording_closed",
+            RecordingLifecycleState.Ready => "ready",
+            RecordingLifecycleState.Paused => "recording_paused",
+            RecordingLifecycleState.Closing => "recording_closing",
+            RecordingLifecycleState.Closed => "recording_closed",
             _ => fallback
         };
 
     private static bool AcceptingNewWitnesses()
     {
         lock (Gate)
-            return _initialized && _recordingControl.State == RecordingControlState.Recording;
+            return _initialized && _lifecycle.State == RecordingLifecycleState.Recording;
     }
 
     internal static void StageCardPlay(CardModel card)
@@ -384,7 +616,7 @@ internal static class RecorderRuntime
             lock (Gate)
             {
                 if (!_initialized
-                    || _recordingControl.State != RecordingControlState.Recording)
+                    || _lifecycle.State != RecordingLifecycleState.Recording)
                     return false;
                 HumanActionScope.Enter(origin, expectedNativeActionType, selected);
             }
@@ -465,7 +697,8 @@ internal static class RecorderRuntime
     {
         try
         {
-            UpdateRunLifecycle();
+            if (_store != null)
+                UpdateRunLifecycle();
             PendingDecision? pending;
             lock (Gate)
                 pending = _pending;
@@ -494,22 +727,32 @@ internal static class RecorderRuntime
             if (now - _lastIdleStatusAt < TimeSpan.FromSeconds(1))
                 return;
             _lastIdleStatusAt = now;
-            RecordingControlSnapshot control = GetRecordingControlStatus();
-            string status = control.State switch
+            if (_store != null)
             {
-                RecordingControlState.Paused => "recording_paused",
-                RecordingControlState.Closed => "recording_closed",
+                ProcessLocalNativeWitnessFrame readFrame = CaptureReadRichFrame();
+                frame = readFrame;
+                environment = BuildEnvironment(readFrame);
+                blockers = EligibilityBlockers(readFrame, environment, requireReads: true);
+                _requiredReadsHealth = HasRequiredReads(readFrame) ? "healthy" : "unavailable";
+            }
+            RecordingLifecycleSnapshot lifecycle = GetRecordingLifecycle();
+            string status = lifecycle.State switch
+            {
+                RecordingLifecycleState.Ready => "ready",
+                RecordingLifecycleState.Paused => "recording_paused",
+                RecordingLifecycleState.Closing => "recording_closing",
+                RecordingLifecycleState.Closed => "recording_closed",
                 _ => blockers.Count == 0
                     ? "ready_for_human_action"
                     : "fail_closed"
             };
             _runtimeState = status;
-            if (control.State == RecordingControlState.Recording)
+            if (lifecycle.State == RecordingLifecycleState.Recording)
                 _detail = null;
             WriteStatus(
                 environment,
                 frame.Snapshot.SnapshotId,
-                blockers.Concat(ControlBlockers(control.State)).Distinct(StringComparer.Ordinal).ToArray());
+                blockers.Concat(LifecycleBlockers(lifecycle.State)).Distinct(StringComparer.Ordinal).ToArray());
         }
         catch (Exception exception)
         {
@@ -592,7 +835,7 @@ internal static class RecorderRuntime
             context.Frame,
             environment,
             requireReads: true,
-            includeRecordingControl: false);
+            includeRecordingLifecycle: false);
         if (blockers.Count > 0)
         {
             Quarantine(
@@ -642,6 +885,10 @@ internal static class RecorderRuntime
                 DateTimeOffset.UtcNow + _configuration!.SuccessorTimeout);
             _runtimeState = "waiting_for_stable_successor";
             _detail = null;
+            PublishApplicationEvent(
+                RecordingEventKind.DecisionPending,
+                recordId,
+                witness.NativeActionType);
             AppendJournal(
                 "human_action_accepted",
                 recordId,
@@ -694,9 +941,9 @@ internal static class RecorderRuntime
             HumanRecorderV2Contract.SchemaVersion,
             HumanRecorderV2Contract.RecordSchema,
             pending.RecordId,
-            SessionId,
+            SessionId!,
             pending.RunId,
-            TimelineId,
+            TimelineId!,
             pending.Sequence,
             DateTimeOffset.UtcNow,
             pending.Environment,
@@ -734,17 +981,25 @@ internal static class RecorderRuntime
                     "capture_profile_scoped"
                 }));
         _store!.AppendDecision(record);
-        lock (Gate)
-            _pending = null;
         AppendJournal(
             "decision_recorded",
             record.RecordId,
             successor.SnapshotId,
             record.Action.Verb);
+        PublishApplicationEvent(
+            RecordingEventKind.DecisionRecorded,
+            record.RecordId,
+            record.Action.Verb);
+        lock (Gate)
+        {
+            if (ReferenceEquals(_pending, pending))
+                _pending = null;
+        }
         _runtimeState = "record_appended";
         _detail = record.RecordId;
         WriteStatus(pending.Environment, successor.SnapshotId, Array.Empty<string>());
         GD.Print($"[STS2 Human Annotator] admitted {record.RecordId} {record.Action.Verb}");
+        FinalizeClose();
     }
 
     private static FrozenDecisionFrameV2 Freeze(
@@ -857,12 +1112,12 @@ internal static class RecorderRuntime
         ProcessLocalNativeWitnessFrame frame,
         RecorderEnvironmentIdentity environment,
         bool requireReads,
-        bool includeRecordingControl = true)
+        bool includeRecordingLifecycle = true)
     {
         var blockers = new List<string>();
-        RecordingControlState controlState = GetRecordingControlStatus().State;
-        if (includeRecordingControl && controlState != RecordingControlState.Recording)
-            blockers.AddRange(ControlBlockers(controlState));
+        RecordingLifecycleState lifecycleState = GetRecordingLifecycle().State;
+        if (includeRecordingLifecycle && lifecycleState != RecordingLifecycleState.Recording)
+            blockers.AddRange(LifecycleBlockers(lifecycleState));
         if (!RunManager.Instance.IsInProgress
             || RunManager.Instance.NetService?.Type != NetGameType.Singleplayer)
             blockers.Add("not_singleplayer_run");
@@ -926,7 +1181,6 @@ internal static class RecorderRuntime
         {
             if (!ReferenceEquals(_pending, pending))
                 return;
-            _pending = null;
         }
         Quarantine(
             reason,
@@ -934,6 +1188,12 @@ internal static class RecorderRuntime
             pending.Pre.SnapshotId,
             pending.NativeWitness.NativeActionType,
             evidenceLevel);
+        lock (Gate)
+        {
+            if (ReferenceEquals(_pending, pending))
+                _pending = null;
+        }
+        FinalizeClose();
     }
 
     private static void Quarantine(
@@ -949,7 +1209,7 @@ internal static class RecorderRuntime
                 HumanRecorderV2Contract.SchemaVersion,
                 HumanRecorderV2Contract.InvalidationSchema,
                 $"invalidation-{Guid.NewGuid():N}",
-                SessionId,
+                SessionId!,
                 _currentRunId,
                 DateTimeOffset.UtcNow,
                 reason,
@@ -958,6 +1218,9 @@ internal static class RecorderRuntime
                 nativeActionType,
                 evidenceLevel));
             AppendJournal("decision_invalidated", null, snapshotId, $"{reason}: {detail}");
+            PublishApplicationEvent(
+                RecordingEventKind.DecisionInvalidated,
+                detail: $"{reason}: {detail}");
             _runtimeState = "quarantined";
             _detail = $"{reason}: {detail}";
             GD.PrintErr($"[STS2 Human Annotator] quarantined {reason}: {detail}");
@@ -973,27 +1236,27 @@ internal static class RecorderRuntime
         string? snapshotId,
         IReadOnlyList<string> blockers)
     {
-        if (_store == null || _configuration == null)
+        if (_configuration == null)
             return;
         try
         {
             string? pendingRecordId;
             string runtimeState;
             string? runtimeDetail;
-            RecordingControlSnapshot control;
+            RecordingLifecycleSnapshot lifecycle;
             lock (Gate)
             {
                 runtimeState = _runtimeState;
                 runtimeDetail = _detail;
-                control = _recordingControl;
+                lifecycle = _lifecycle;
                 pendingRecordId = _pending?.RecordId;
             }
-            string status = RuntimeStatusForControl(control.State, runtimeState);
-            string? detail = control.State == RecordingControlState.Recording
+            string status = RuntimeStatusForLifecycle(lifecycle.State, runtimeState);
+            string? detail = lifecycle.State == RecordingLifecycleState.Recording
                 ? runtimeDetail
-                : control.Detail;
+                : lifecycle.Detail;
             IReadOnlyList<string> effectiveBlockers = blockers
-                .Concat(ControlBlockers(control.State))
+                .Concat(LifecycleBlockers(lifecycle.State))
                 .Distinct(StringComparer.Ordinal)
                 .ToArray();
             lock (Gate)
@@ -1002,7 +1265,23 @@ internal static class RecorderRuntime
                 _lastSnapshotId = snapshotId;
                 _lastBlockers = effectiveBlockers;
             }
-            _store.WriteRuntimeStatus(
+            RecordingStoreSnapshot storeStatus = _store?.GetSnapshot() ?? _lastStoreSnapshot;
+            string health = string.Join('|', new[]
+            {
+                RequiredReadHealth(),
+                storeStatus.AppendHealth,
+                storeStatus.DiskHealth,
+                storeStatus.LastError ?? string.Empty
+            });
+            bool healthChanged;
+            lock (Gate)
+            {
+                healthChanged = !string.Equals(_lastPublishedHealth, health, StringComparison.Ordinal);
+                _lastPublishedHealth = health;
+            }
+            if (healthChanged)
+                PublishApplicationEvent(RecordingEventKind.HealthChanged, detail: health);
+            V2RecordingStore.WriteRuntimeStatus(
                 _configuration.RuntimeStatusPath,
                 new RecorderRuntimeStatus(
                     HumanRecorderContract.SchemaVersion,
@@ -1010,8 +1289,8 @@ internal static class RecorderRuntime
                     status,
                     DateTimeOffset.UtcNow,
                     System.Environment.ProcessId,
-                    SessionId,
-                    _store.DirectoryPath,
+                    SessionId ?? "none",
+                    _store?.DirectoryPath ?? _configuration.RecordingRoot,
                     environment,
                     snapshotId,
                     pendingRecordId,
@@ -1065,9 +1344,9 @@ internal static class RecorderRuntime
             HumanRecorderV2Contract.SchemaVersion,
             HumanRecorderV2Contract.RunJournalSchema,
             $"event-{sequence:D8}-{Guid.NewGuid():N}",
-            SessionId,
+            SessionId!,
             _currentRunId,
-            TimelineId,
+            TimelineId!,
             sequence,
             DateTimeOffset.UtcNow,
             kind,
@@ -1085,10 +1364,14 @@ internal static class RecorderRuntime
             _currentRunId = $"run-{_runSequence:D4}";
             _runActive = true;
             AppendJournal("run_started", null, null, null);
+            PublishApplicationEvent(RecordingEventKind.RunStarted);
         }
         else if (!inProgress && _runActive)
         {
             AppendJournal("run_ended", null, null, "RunManager is no longer in progress.");
+            PublishApplicationEvent(
+                RecordingEventKind.RunEnded,
+                detail: "RunManager is no longer in progress.");
             _runActive = false;
         }
     }

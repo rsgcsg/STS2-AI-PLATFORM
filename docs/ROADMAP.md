@@ -83,3 +83,23 @@ work; they are not reasons to weaken the component boundaries.
 
 Full-run policy support, training UI, cloud policy/evidence services and broad
 action-family expansion remain outside this bounded baseline.
+
+## Recording Application Plane
+
+- Complete at source/test: runtime startup stops at `Ready`; explicit
+  `StartNewSession` supports multiple isolated sessions in one STS2 process.
+- Complete at source/test: typed Query/Command/Event status, command
+  idempotency, bounded ordered reconnect, counters, pending/last decision,
+  Read/append/disk health and closeout status.
+- Complete at source/test: Pause blocks new witnesses while preserving pending
+  settlement; Close waits for pending settlement/invalidation, flushes and
+  disposes the session store before allowing a new session.
+- Complete at source/test: Live UI consumes only `RecordingService`; application
+  commands have no native action or HumanDecision path.
+- Pending exact runtime: cold-load the final unified artifact and owner-check
+  New Session, Pause/Resume, pending-safe Close, then a second session in the
+  same process. Source/test/build evidence does not transfer predecessor Human
+  evidence.
+
+Next phase, not part of this slice: **Live Workspace Window Kernel -> Human
+Recorder Window**.

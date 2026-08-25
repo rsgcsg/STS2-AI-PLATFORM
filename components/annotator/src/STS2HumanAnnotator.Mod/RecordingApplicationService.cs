@@ -3,8 +3,8 @@ using STS2HumanAnnotator.Core;
 namespace STS2HumanAnnotator.Mod;
 
 /// <summary>
-/// Typed application boundary for recording controls used by the Platform UI.
-/// It changes witness admission only; it never owns or invokes STS2 actions.
+/// Single typed application boundary for recording query, command and event views.
+/// It changes recorder lifecycle only; it never owns or invokes STS2 actions.
 /// </summary>
 public sealed class RecordingApplicationService
 {
@@ -14,14 +14,11 @@ public sealed class RecordingApplicationService
     {
     }
 
-    public RecordingApplicationStatus GetStatus() => RecorderRuntime.GetRecordingApplicationStatus();
+    public RecordingApplicationStatus QueryStatus() => RecorderRuntime.GetRecordingApplicationStatus();
 
-    public RecordingControlResult Pause() =>
-        RecorderRuntime.ApplyRecordingControl(RecordingControlCommand.Pause);
+    public RecordingEventBatch QueryEvents(long afterSequence) =>
+        RecorderRuntime.ReadRecordingEvents(afterSequence);
 
-    public RecordingControlResult Resume() =>
-        RecorderRuntime.ApplyRecordingControl(RecordingControlCommand.Resume);
-
-    public RecordingControlResult Close() =>
-        RecorderRuntime.ApplyRecordingControl(RecordingControlCommand.Close);
+    public RecordingCommandResult Execute(RecordingCommand command) =>
+        RecorderRuntime.ExecuteRecordingCommand(command);
 }

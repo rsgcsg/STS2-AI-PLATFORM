@@ -9,7 +9,7 @@ with the uncommon letter key `K`; `Escape` closes it.
 | Overview | combined typed status and exact identity |
 | Environment | Connector Snapshot/capabilities plus in-process Annotator and Live UI identity |
 | Policy | Policy Runtime status, scores, selected action, Receipt |
-| Human Data | Annotator recording application service |
+| Human Data | RecordingService lifecycle, counters, health and closeout |
 | Diagnostics | Reads, invalidations, errors and transports |
 
 The UI has no Player Environment submit client. Connector Read opportunities
@@ -17,6 +17,12 @@ remain visible even when no policy process is running; materialized policy Reads
 are clearly distinguished. Policy controls call the loopback Runtime on the
 canonical default port `15527`; recording controls call the Annotator
 application service. Runtime and Annotator remain the owning layers.
+
+Recording starts only after **New Session**. The same process can Pause/Resume,
+Close safely, and create another isolated session. Views obtain a current
+RecordingStatus and may follow typed events from a sequence number; a reported
+event gap requires another status query. These controls never enter the native
+human witness path and cannot create a HumanDecision by themselves.
 
 Build/deploy/rollback are source- and artifact-bound in `apps/game-mod`. One
 manifest and one DLL replace the former Connector/Annotator/Live-UI manifests.

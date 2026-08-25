@@ -28,7 +28,7 @@ public static class RecorderMod
                 SceneTree.SignalName.ProcessFrame,
                 Callable.From(RecorderRuntime.OnProcessFrame));
             GD.Print(
-                $"[STS2 Human Annotator] v{Version} observer initialized; session={RecorderRuntime.SessionId}");
+                $"[STS2 Human Annotator] v{Version} observer ready; no recording session is open.");
         }
         catch (Exception exception)
         {

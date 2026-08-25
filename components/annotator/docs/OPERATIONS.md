@@ -3,16 +3,15 @@
 ## Safe Lifecycle
 
 1. fully close STS2;
-2. build and deploy a clean exact Connector commit;
-3. build and deploy a clean exact Annotator commit;
-4. on Windows, run `npm run prepare:mods` to back up and admit only the two
-   local observer Mods in the exact native SettingsSave schema;
-5. cold-load once to discover the complete observer Modset fingerprint;
-6. quit, run `npm run admit:modset`, and cold-load again;
-7. run `npm run verify:loaded` before human actions;
-8. play through the shipped UI without an external Connector controller;
-9. quit and run audit, then pack the session against an exact collection profile;
-10. use `npm run rollback` only while the game is fully closed.
+2. from the Platform root, build and deploy the unified `STS2_PLATFORM` Mod;
+3. cold-load and run the root `npm run verify:loaded` identity gate;
+4. press `K`, open Human Data and choose New Session;
+5. play through the shipped UI without an external Connector controller;
+6. Pause/Resume as needed, then Close to flush the session safely;
+7. optionally choose New Session again in the same process to create an isolated
+   second timeline/store;
+8. quit and run audit, then pack each session against an exact collection profile;
+9. use root `npm run rollback` only while the game is fully closed.
 
 `npm run doctor` is read-only. Build, install, loaded identity, and recorded
 native-human decisions are separate states.

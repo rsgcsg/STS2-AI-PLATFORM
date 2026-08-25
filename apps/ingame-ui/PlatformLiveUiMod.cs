@@ -232,19 +232,14 @@ internal sealed class PlatformLivePanel : IDisposable
         body.AddChild(modeRow);
 
         var recordingRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Stop };
-        Button start = BuildCommandButton("Start", () =>
-        {
-            _command.Text = "Start is not exposed by the current typed Annotator API; the session starts in recording state.";
-        });
-        start.Disabled = true;
-        start.TooltipText = "Pending final Annotator Start() API; current sessions start recording on initialization.";
-        recordingRow.AddChild(start);
+        recordingRow.AddChild(BuildCommandButton("New Session", () => ApplyRecordingCommand(
+            STS2HumanAnnotator.Core.RecordingCommandKind.StartNewSession)));
         recordingRow.AddChild(BuildCommandButton("Pause", () => ApplyRecordingCommand(
-            STS2HumanAnnotator.Mod.RecordingApplicationService.Instance.Pause)));
+            STS2HumanAnnotator.Core.RecordingCommandKind.Pause)));
         recordingRow.AddChild(BuildCommandButton("Resume", () => ApplyRecordingCommand(
-            STS2HumanAnnotator.Mod.RecordingApplicationService.Instance.Resume)));
+            STS2HumanAnnotator.Core.RecordingCommandKind.Resume)));
         recordingRow.AddChild(BuildCommandButton("Close", () => ApplyRecordingCommand(
-            STS2HumanAnnotator.Mod.RecordingApplicationService.Instance.Close)));
+            STS2HumanAnnotator.Core.RecordingCommandKind.Close)));
         body.AddChild(recordingRow);
 
         _command = new Label
@@ -320,11 +315,15 @@ internal sealed class PlatformLivePanel : IDisposable
         _pageText.Add(name, label);
     }
 
-    private void ApplyRecordingCommand(Func<STS2HumanAnnotator.Core.RecordingControlResult> command)
+    private void ApplyRecordingCommand(STS2HumanAnnotator.Core.RecordingCommandKind kind)
     {
-        STS2HumanAnnotator.Core.RecordingControlResult result = command();
+        var command = new STS2HumanAnnotator.Core.RecordingCommand(
+            $"live-ui-{Guid.NewGuid():N}",
+            kind);
+        STS2HumanAnnotator.Core.RecordingCommandResult result =
+            STS2HumanAnnotator.Mod.RecordingApplicationService.Instance.Execute(command);
         _command.Text = result.Accepted
-            ? $"Recording: {result.Snapshot.State}. {result.Detail}"
+            ? $"Recording: {result.Lifecycle.State}. {result.Detail}"
             : $"Recording control rejected: {result.Detail}";
         _ = PollAsync();
     }
@@ -439,7 +438,7 @@ internal sealed class PlatformLivePanel : IDisposable
         $"Selected: {(status.PolicyRuntime == null ? "unavailable" : status.Selected.Count == 0 ? "none" : string.Join(", ", status.Selected.Select(item => item.Label)))}",
         $"Receipt: {status.Receipt.Status} ({status.Receipt.Detail})",
         $"Reads: {status.Reads.Count} current Connector opportunities/materializations",
-        $"Recording: {status.Recording.Control.State}"
+        $"Recording: {status.Recording.Lifecycle.State}"
     });
 
     private static string FormatEnvironment(PlatformLiveStatus status) => string.Join('\n', new[]
@@ -479,9 +478,19 @@ internal sealed class PlatformLivePanel : IDisposable
     private static string FormatHumanData(PlatformLiveStatus status) => string.Join('\n', new[]
     {
         "HUMAN DATA",
-        $"Control: {status.Recording.Control.State} ({status.Recording.Detail})",
-        $"Session: {status.Recording.Control.SessionId ?? "uninitialized"}",
+        $"Lifecycle: {status.Recording.Lifecycle.State} ({status.Recording.Detail})",
+        $"Session: {status.Recording.Session?.SessionId ?? "none"}",
+        $"Run / timeline: {status.Recording.Session?.RunId ?? "none"} / {status.Recording.Session?.TimelineId ?? "none"}",
+        $"Profile: {status.Recording.Session?.CaptureProfileId ?? "none"}",
         $"Runtime state: {status.Recording.RuntimeState}",
+        $"Records / invalidations: {status.Recording.Counters.Records} / {status.Recording.Counters.Invalidations}",
+        $"Reads materialized / failed: {status.Recording.Counters.ReadsMaterialized} / {status.Recording.Counters.ReadsFailed}",
+        $"Pending decision: {status.Recording.PendingDecision?.RecordId ?? "none"}",
+        $"Last record: {status.Recording.LastRecord?.Id ?? "none"}",
+        $"Last invalidation: {status.Recording.LastInvalidation?.Id ?? "none"}",
+        $"Required Reads / append / disk: {status.Recording.Health.RequiredReads} / {status.Recording.Health.Append} / {status.Recording.Health.Disk}",
+        $"Closeout: {status.Recording.Closeout.State}",
+        $"Recording event sequence: {status.Recording.LatestEventSequence}",
         $"Current Snapshot: {status.Recording.CurrentSnapshotId ?? "unavailable"}",
         $"Available/materialized Reads: {status.Reads.Count}",
         $"Recorder blockers: {(status.Recording.Blockers.Count == 0 ? "none" : string.Join(", ", status.Recording.Blockers))}",

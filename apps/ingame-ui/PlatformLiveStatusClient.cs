@@ -100,7 +100,7 @@ public sealed class PlatformLiveStatusClient : IDisposable
             errors.Add($"Policy Runtime: {policyRuntimeTransportDetail}");
         }
 
-        RecordingApplicationStatus recording = RecordingApplicationService.Instance.GetStatus();
+        RecordingApplicationStatus recording = RecordingApplicationService.Instance.QueryStatus();
         return PlatformLiveStatusProjection.Build(
             policyRuntime,
             capabilities,

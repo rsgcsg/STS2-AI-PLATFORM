@@ -14,12 +14,30 @@ Environment:  Host <-> Connector <-> consumer
 Host control: Host Runtime <-> STS2 process lifecycle
 Evidence:     Annotator -> immutable bundle -> verify/store/transfer/receive -> consumer
 Policy:       external adapter -> Policy Runtime -> Connector
-Operations:   typed application services -> Workbench / one in-game Live UI
+Operations:   typed application services -> CLI / Workbench / one in-game Live UI
 ```
 
 The planes may share exact environment identity, but not mutation authority or
 transport semantics. The Platform is not a strategy, reward, training, or
 research service.
+
+## Recording Application Plane
+
+The native recorder correlation kernel owns one process-local recording state.
+It starts `Ready`, and a typed `RecordingService` is the only application
+boundary used to query status, issue lifecycle commands, or follow ordered
+events. `StartNewSession` creates a fresh session, timeline and append store;
+`Pause` blocks new witnesses without discarding an already admitted pending
+decision; `Close` waits for that pending decision to settle or invalidate,
+flushes the store, and permits another isolated session in the same STS2
+process.
+
+`RecordingStatus` is a current projection. The bounded event stream supports
+status-first reconnect followed by events after sequence N; a retention gap
+requires a new status query. These operational events are not durable Human
+Evidence. RunJournal, decisions, invalidations, Reads and bundles remain the
+durable Evidence Plane. Audit, pack, verify, store and transfer never run on the
+game main thread.
 
 ## Hard Shell
 
