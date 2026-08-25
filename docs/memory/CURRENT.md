@@ -1,7 +1,7 @@
 # Current Context
 
-Phase: **Human Evidence V2 verified; Policy Runtime and unified Live UI source
-candidate awaiting exact-artifact runtime evidence.**
+Phase: **Human Evidence V2 verified; Policy Runtime and unified Live UI exact
+artifact loaded, awaiting owner interaction.**
 
 `STS2-AI-PLATFORM` is the only forward-development source authority for the
 Platform components. The root BOM and component release manifests are the
@@ -17,7 +17,7 @@ identity registry.
   tracking current V2 source/build/install/load independently.
 - Connector `1.2.0-rc.6`, Annotator `0.3.0-rc.1`, Evidence `0.1.0-rc.1` and
   Workbench `0.1.0-rc.1` implement the read-rich V2 source path.
-- STPD `25b53062...` consumes the exact Evidence Git package, preserves V1
+- STPD `e23215ee...` consumes the exact Evidence Git package, preserves V1
   verifier parity, rejects unverified V2 and projects verified Reads.
 - Runtime `abb6b2d8...` produced 30 audited native-human V2 decisions with 120
   materialized pre/successor Reads. Bundle `b92778be...` passed immutable
@@ -29,8 +29,12 @@ identity registry.
   STPD owns only checkpoint/Qwen/projection/scoring support.
 - Workbench and the in-game Live UI consume typed Runtime status and commands.
   Neither can submit a BoundAction directly or write Human records.
+- Connector `06f29280... / 2b038591...`, Annotator
+  `fcda0e47... / 111b8602...` and Live UI
+  `0cf30b0f... / 89c75c2b...` are installed and cold-loaded under runtime
+  `7c5e7f16...`; exact observer Modset execution admission is active.
 - The S1 checkpoint named by the current Policy Manifest is unavailable on this
-  Mac. New Annotator/Live UI artifacts are not yet claimed loaded or Live.
+  Mac. Policy model modes and owner operation of the new UI remain unexercised.
 
 ## Evidence Boundary
 

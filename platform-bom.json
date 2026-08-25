@@ -4,9 +4,9 @@
   "components": {
     "connector": {
       "version": "1.2.0-rc.6",
-      "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
-      "component_tree_revision": "f3378678443bd5f291d026443a80a1ce29d73b31",
-      "component_source_digest_sha256": "bf5831862e264e1e655471e5aaef37cbde16fcd35d1eeeb4966e2d6e088dbeb2"
+      "source_revision": "f667c8428be773fef0e762daace3454ed5c86602",
+      "component_tree_revision": "ac048864169fc5688091f0b245b24cde7b11d24b",
+      "component_source_digest_sha256": "53702972d88974650757cf274eb6e6e2682448f2d2add39e12ab6f7013b58eb6"
     },
     "host_runtime": {
       "version": "1.1.0-rc.7",
@@ -68,7 +68,7 @@
     }
   },
   "external_consumer_cutovers": {
-    "stpd": "499e65cf2d02cd69993151f0cf9c3cc9fb7e608e"
+    "stpd": "e23215ee282afa3e4204f74401d8b1034cbd04c0"
   },
   "exact_runtime_candidate": {
     "evidence_generation": "v1_runtime_seal_predecessor",
@@ -142,6 +142,9 @@
     },
     "connector": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
+      "current_component_source_revision": "f667c8428be773fef0e762daace3454ed5c86602",
+      "current_component_source_digest_sha256": "53702972d88974650757cf274eb6e6e2682448f2d2add39e12ab6f7013b58eb6",
+      "source_relation": "loaded_human_v2_artifact_precedes_policy_observer_execution_source_candidate",
       "artifact_sha256": "6c66cbf06757dca3e7d910467fb56b89376f109c6d7d0ba47d2bc0260ab4a3d2",
       "artifact_mvid": "11f1da35-558f-4346-8ec9-a493fea95cb8",
       "protocol": "1.0.0",
@@ -228,7 +231,7 @@
     }
   },
   "policy_runtime_live_ui_candidate": {
-    "status": "source_test_build_complete_install_load_pending",
+    "status": "source_test_build_install_load_complete_owner_validation_pending",
     "platform": "darwin",
     "architecture": "arm64",
     "game": {
@@ -238,9 +241,9 @@
       "main_assembly_mvid": "57785517-0b16-42b9-8b36-bad6fb28384b"
     },
     "connector": {
-      "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
-      "artifact_sha256": "6c66cbf06757dca3e7d910467fb56b89376f109c6d7d0ba47d2bc0260ab4a3d2",
-      "artifact_mvid": "11f1da35-558f-4346-8ec9-a493fea95cb8",
+      "source_revision": "f667c8428be773fef0e762daace3454ed5c86602",
+      "artifact_sha256": "06f29280f73ed8c17331a2de1990be55a1f7c8291ec8f099d418455b384b13e8",
+      "artifact_mvid": "2b038591-46a5-4507-8419-ef8ee7f30a93",
       "protocol": "1.0.0"
     },
     "policy_runtime": {
@@ -251,14 +254,23 @@
     "annotator": {
       "source_revision": "7ba324caf1a7d5ffc8fe1abd08ba4391b11beb1b",
       "source_digest_sha256": "c2ab02c79c52e196f94eac3470d417bd7dfe3a2dc05212aa7bb314b6af1af09f",
-      "artifact_sha256": "ca1d425838cdf5504816e4f8c8c22798f26b21a543f9fa98a0fd4a507023f3e4",
-      "artifact_mvid": "278c2c6b-3b8a-4150-b69d-d6b1b28d4546"
+      "artifact_sha256": "fcda0e476bb86f8d22125529aaff5ef24edb2ed162529a52581180fe196b27e3",
+      "artifact_mvid": "111b8602-1900-403f-87d8-152db09e580b"
     },
     "live_ui": {
       "source_revision": "5af8e359fb2767e82f552a7aac49719d5c405790",
       "source_digest_sha256": "c08de8837460fd0c567ffbd41d08608d8b269bb57170ce509df4c728685e87a5",
-      "artifact_sha256": "1842d8341b41bc585014719db8ad6abfe6c7b26f6944ce48cf2f7ed361df3a9d",
-      "artifact_mvid": "81860368-0c19-4802-bb30-1a2176f8d218"
+      "artifact_sha256": "0cf30b0fef3ea95f1923d07dcc7a2866c1a3dbc7e9a00208b3156dceec6836df",
+      "artifact_mvid": "89c75c2b-a5d4-46ba-8ad6-11dfb110be68"
+    },
+    "runtime": {
+      "runtime_instance_id": "7c5e7f1602e3482b8278cba4532f4df8",
+      "environment_fingerprint": "c77f55f36193fdbfad02e9fc6bcc162ac274d5f22a8cd9106a9dd91e7d59cce8",
+      "compatibility_status": "canary_exact",
+      "modset_status": "canary_exact_observer_modset",
+      "modset_fingerprint": "acb0373e41839e2c91e1a7ece1bb203a72ca3088a532f797a5a48b046b835715",
+      "loaded_mod_ids": ["STS2_HUMAN_ANNOTATOR", "STS2_MCP", "STS2_PLATFORM_LIVE_UI"],
+      "execution_available": true
     },
     "automated_gates": {
       "connector_sdk_tests": 7,
@@ -274,13 +286,13 @@
       "dependency_build_provenance": "pass"
     },
     "external_policy": {
-      "stpd_source_revision": "499e65cf2d02cd69993151f0cf9c3cc9fb7e608e",
-      "manifest": "policy-manifests/s1-policy-adapter-v1.json",
+      "stpd_source_revision": "e23215ee282afa3e4204f74401d8b1034cbd04c0",
+      "manifest": "policy-manifests/s1-policy-adapter-v2.json",
       "manifest_source_test_status": "pass",
       "checkpoint_status": "absent"
     },
-    "installed": "pending",
-    "loaded": "pending",
+    "installed": "pass",
+    "loaded": "pass",
     "live_ui_exercised": "pending",
     "human_recording_controls_exercised": "pending",
     "policy_shadow_one_step_auto_exercised": "not_exercised_checkpoint_absent"
@@ -295,7 +307,7 @@
     "not_long_soak_or_full_journey_qualified",
     "v2_generated_card_choice_not_exercised",
     "v2_corpus_and_training_not_authorized",
-    "policy_runtime_live_ui_candidate_not_installed_or_loaded",
+    "policy_runtime_live_ui_loaded_owner_interaction_pending",
     "s1_checkpoint_absent_shadow_one_step_auto_not_exercised"
   ]
 }

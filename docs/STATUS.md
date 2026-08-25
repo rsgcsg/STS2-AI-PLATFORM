@@ -1,7 +1,7 @@
 # Current Status
 
 Phase: **Human Evidence V2 verified; reusable Policy Runtime and unified Live UI
-source candidate awaiting final artifact cold-load**.
+loaded candidate awaiting owner interaction**.
 
 ## Implemented
 
@@ -50,15 +50,16 @@ source candidate awaiting final artifact cold-load**.
   Overview/Environment/Policy/Human Data/Diagnostics shell over typed services.
   It has no direct BoundAction submission path; Connector Reads and
   Connector/Annotator/UI identities remain inspectable without a policy process.
-- The clean exact-game candidate build binds Connector
-  `6c66cbf0... / 11f1da35...`, Annotator
-  `ca1d4258... / 278c2c6b...`, and Live UI
-  `1842d834... / 81860368...` to STS2 `v0.111.0`, assembly
-  `9cb4f1ad... / 57785517...`. These are build facts, not loaded evidence.
+- The final exact-game candidate binds Connector
+  `06f29280... / 2b038591...`, Annotator
+  `fcda0e47... / 111b8602...`, and Live UI
+  `0cf30b0f... / 89c75c2b...` to STS2 `v0.111.0`, assembly
+  `9cb4f1ad... / 57785517...`. Source, build, install and loaded identity
+  are independently verified; normal UI interaction remains pending.
 - The portable boundary check validates that every declared workspace CLI
   entrypoint exists in Git source authority; ignored local files cannot satisfy
   a clean-check claim.
-- STPD `25b53062...` installs Evidence from the exact public Git revision,
+- STPD `e23215ee...` installs Evidence from the exact public Git revision,
   preserves V1 verifier parity, rejects unverified V2 JSONL and projects
   verified `run_deck`/`combat_piles` into state and successor.
 - Connector `1.2.0-rc.5` and Host Runtime `1.1.0-rc.7` are immutable public
@@ -109,11 +110,13 @@ for training. A real Workbench HTTP smoke reported Environment, Annotator,
 [V2 closeout](evidence/HUMAN_EVIDENCE_V2_READ_RICH_COMBAT_CLOSEOUT_2026-08-25.md)
 holds exact hashes and evidence boundaries.
 
-The loaded Native artifact remains bound to Annotator source `09e5c236...`.
-Current Annotator component revision `793597fa...` adds only caller-CWD CLI
-evidence-path resolution and closeout documentation; Evidence verifier and
-Workbench fixes are non-Native. These later source commits are tested but are
-not claimed loaded.
+The Human V2 journey evidence remains bound to predecessor Annotator source
+`09e5c236...`; it does not transfer to the current artifact. Separately, the
+current three-Mod candidate cold-loaded in runtime `7c5e7f16...` with
+environment `c77f55f3...` and exact process-local observer Modset
+`acb0373e...`. Connector capabilities reported `canary_exact`, complete Read
+availability and `execution_available=true`; this is loaded/runtime admission,
+not owner UI or policy evidence.
 
 ## Non-claims
 
@@ -131,10 +134,10 @@ not claimed loaded.
 - Platform Evidence is a focused evidence-integrity package, not a
   Platform-wide gameplay SDK. Workbench and Live UI are application shells, not
   action/evidence authorities.
-- The new Policy Runtime, Annotator recording controls and Platform Live UI have
-  source/test/build evidence only at this point in current truth. Existing
-  loaded Human V2 evidence binds the predecessor Annotator artifact and does not
-  transfer.
+- The new Connector, Annotator and Platform Live UI have source/test/build/
+  install/load evidence. F10 page navigation, recording controls and normal
+  Human play on this artifact remain `pending owner interaction`; predecessor
+  Human V2 evidence does not transfer.
 - The current S1 Policy Manifest is validated, but its exact checkpoint is not
   present on this Mac. Real-model Shadow, One-Step, Auto, policy Agent evidence
   and legacy/new path parity are therefore `not exercised`.

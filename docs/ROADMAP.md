@@ -70,8 +70,11 @@ work; they are not reasons to weaken the component boundaries.
   loaded SHA/MVID/source verification.
 - Pending external artifact: the S1 checkpoint named by the Manifest is absent
   on this Mac, so real model Shadow/One-Step/Auto cannot start.
-- Pending exact-runtime evidence: final Annotator/Live UI artifacts must be
-  installed, cold-loaded and owner-operated; no old loaded evidence transfers.
+- Complete: final Connector/Annotator/Live UI artifacts were safely installed,
+  cold-loaded and verified under one exact non-gameplay observer Modset with
+  Connector input delivery available.
+- Pending owner interaction: exercise the five F10 pages, recording pause/resume
+  and ordinary native Human play; no predecessor Human evidence transfers.
 
 Full-run policy support, training UI, cloud policy/evidence services and broad
 action-family expansion remain outside this bounded baseline.

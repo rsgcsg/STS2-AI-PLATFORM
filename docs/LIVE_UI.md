@@ -22,6 +22,7 @@ SHA, MVID and source identity from inside the loaded assembly; verification
 compares that record with installed provenance. `installed`, `loaded`, Human
 recording evidence and Agent-run evidence remain separate claims.
 
-See `apps/ingame-ui/README.md` for commands. The current source candidate still
-requires cold-load and owner interaction. Existing Human V2 evidence binds the
-predecessor loaded Annotator and does not qualify this new artifact.
+See `apps/ingame-ui/README.md` for commands. The current artifact has passed
+exact install/cold-load identity verification; F10 page navigation and Human
+recording controls still require owner interaction. Existing Human V2 evidence
+binds the predecessor loaded Annotator and does not qualify this new artifact.
