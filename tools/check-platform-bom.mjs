@@ -163,7 +163,7 @@ export function validatePlatformBom(bom, authorities) {
 
   const policyCandidate = bom.unified_platform_runtime_candidate;
   expectEqual(errors, "unified Platform candidate status", policyCandidate?.status,
-    "source_test_build_install_load_input_canary_complete_owner_visibility_pending");
+    "recording_application_source_test_complete_new_artifact_load_pending");
   expectEqual(errors, "candidate STPD source", policyCandidate?.external_policy?.stpd_source_revision,
     bom.external_consumer_cutovers?.stpd);
   expectEqual(errors, "candidate policy checkpoint", policyCandidate?.external_policy?.checkpoint_status,
@@ -190,9 +190,9 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "candidate Connector source relation", policyCandidate?.connector?.source_relation,
     "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Annotator source relation", policyCandidate?.annotator?.source_relation,
-    "loaded_native_source_scope_matches_current_component");
+    "loaded_artifact_precedes_recording_application_source");
   expectEqual(errors, "candidate Live UI source relation", policyCandidate?.live_ui?.source_relation,
-    "loaded_native_source_scope_matches_current_component");
+    "loaded_artifact_precedes_recording_application_source");
   expectEqual(errors, "candidate Connector protocol", policyCandidate?.connector?.protocol,
     bom.components?.player_environment_protocol);
   expectEqual(errors, "candidate Policy Runtime source", policyCandidate?.policy_runtime?.source_revision,
