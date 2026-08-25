@@ -8,6 +8,17 @@ export function canonicalSourceBytes(contents) {
   return Buffer.from(contents.toString("utf8").replace(/\r\n/gu, "\n"), "utf8");
 }
 
+export function sourceRevisionForFiles(workspace, files) {
+  if (files.length === 0) return null;
+  const result = spawnSync("git", ["log", "-1", "--format=%H", "--", ...files], {
+    cwd: workspace,
+    encoding: "utf8",
+    stdio: "pipe"
+  });
+  const revision = result.status === 0 ? result.stdout.trim() : "";
+  return /^[0-9a-f]{40}$/u.test(revision) ? revision : null;
+}
+
 export function playerEnvironmentSourceIdentity(workspace) {
   let gitState;
   try {
@@ -15,9 +26,6 @@ export function playerEnvironmentSourceIdentity(workspace) {
   } catch {
     return null;
   }
-  const revision = gitState.componentSourceRevision;
-  if (!/^[0-9a-f]{40}$/u.test(revision)) return null;
-
   const filesResult = spawnSync("git", [
     "ls-files", "--cached", "--others", "--exclude-standard", "--deduplicate", "--", "host"
   ], {
@@ -40,6 +48,8 @@ export function playerEnvironmentSourceIdentity(workspace) {
     .filter((file) => sourceExtensions.has(path.extname(file).toLowerCase()))
     .filter((file) => existsSync(path.join(workspace, file)))
     .sort();
+  const revision = sourceRevisionForFiles(workspace, files);
+  if (!revision) return null;
   const digest = createHash("sha256");
   for (const file of files) {
     digest.update(file)

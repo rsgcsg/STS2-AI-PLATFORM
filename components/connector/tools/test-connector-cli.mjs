@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import {
@@ -15,7 +16,8 @@ import {
 } from "./connector.mjs";
 import {
   canonicalSourceBytes,
-  readInstalledProvenance
+  readInstalledProvenance,
+  sourceRevisionForFiles
 } from "./connector-provenance.mjs";
 
 assert.deepEqual(sourceProtocols(), { csharp: "1.0.0", client: "1.0.0" });
@@ -24,6 +26,29 @@ assert.equal(resolveModsDir("C:\\Game", "win32"), "C:\\Game\\mods");
 assert.equal(windowsTaskListHasGame('"SlayTheSpire2.exe","123"'), true);
 assert.equal(windowsTaskListHasGame('"steam.exe","123"'), false);
 assert.equal(canonicalSourceBytes(Buffer.from("first\r\nsecond\n")).toString("utf8"), "first\nsecond\n");
+
+const provenanceRepository = mkdtempSync(path.join(os.tmpdir(), "sts2-connector-provenance-"));
+try {
+  const connectorRoot = path.join(provenanceRepository, "components", "connector");
+  mkdirSync(path.join(connectorRoot, "host"), { recursive: true });
+  mkdirSync(path.join(connectorRoot, "tools"), { recursive: true });
+  execFileSync("git", ["init", "-q"], { cwd: provenanceRepository });
+  execFileSync("git", ["config", "user.name", "Connector Test"], { cwd: provenanceRepository });
+  execFileSync("git", ["config", "user.email", "connector-test@example.invalid"], { cwd: provenanceRepository });
+  writeFileSync(path.join(connectorRoot, "host", "Native.cs"), "internal sealed class Native {}\n");
+  execFileSync("git", ["add", "."], { cwd: provenanceRepository });
+  execFileSync("git", ["commit", "-qm", "native"], { cwd: provenanceRepository });
+  const nativeRevision = execFileSync("git", ["rev-parse", "HEAD"], {
+    cwd: provenanceRepository,
+    encoding: "utf8"
+  }).trim();
+  writeFileSync(path.join(connectorRoot, "tools", "doctor.mjs"), "export const doctor = true;\n");
+  execFileSync("git", ["add", "."], { cwd: provenanceRepository });
+  execFileSync("git", ["commit", "-qm", "tooling"], { cwd: provenanceRepository });
+  assert.equal(sourceRevisionForFiles(connectorRoot, ["host/Native.cs"]), nativeRevision);
+} finally {
+  rmSync(provenanceRepository, { recursive: true, force: true });
+}
 
 const capabilities = {
   protocol_version: "1.0.0",
