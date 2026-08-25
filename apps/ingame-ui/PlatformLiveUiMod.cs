@@ -3,6 +3,7 @@ using MegaCrit.Sts2.Core.Modding;
 using System.Reflection;
 using System.Security.Cryptography;
 using System.Text.Json;
+using STS2Connector.NativeUi;
 
 namespace STS2PlatformLiveUi;
 
@@ -12,7 +13,6 @@ namespace STS2PlatformLiveUi;
 public static class PlatformLiveUiMod
 {
     private static bool _initialized;
-    private static CanvasLayer? _pendingLayer;
 
     public static void Initialize()
     {
@@ -22,19 +22,14 @@ public static class PlatformLiveUiMod
         _initialized = true;
         try
         {
-            SceneTree tree = (SceneTree)Engine.GetMainLoop();
             var layer = new CanvasLayer
             {
                 Layer = 100
             };
             GD.Print($"[STS2 Platform Live UI] identity {JsonSerializer.Serialize(RuntimeIdentity())}");
             layer.AddChild(new PlatformLivePanel());
-            _pendingLayer = layer;
-            tree.Connect(
-                SceneTree.SignalName.ProcessFrame,
-                Callable.From(MountOnProcessFrame),
-                (uint)GodotObject.ConnectFlags.OneShot);
-            GD.Print("[STS2 Platform Live UI] first-frame mount scheduled; press K to toggle. Gameplay actions are not exposed directly.");
+            _ = MountOnMainThread(layer);
+            GD.Print("[STS2 Platform Live UI] main-thread mount scheduled; press K to toggle. Gameplay actions are not exposed directly.");
         }
         catch (Exception exception)
         {
@@ -42,21 +37,20 @@ public static class PlatformLiveUiMod
         }
     }
 
-    private static void MountOnProcessFrame()
+    private static async Task MountOnMainThread(CanvasLayer layer)
     {
-        CanvasLayer? layer = _pendingLayer;
-        _pendingLayer = null;
-        if (layer == null)
-            return;
         try
         {
-            SceneTree tree = (SceneTree)Engine.GetMainLoop();
-            tree.Root.AddChild(layer);
-            GD.Print("[STS2 Platform Live UI] mounted on first process frame");
+            await NativeUiMainThread.Run(() =>
+            {
+                SceneTree tree = (SceneTree)Engine.GetMainLoop();
+                tree.Root.AddChild(layer);
+                GD.Print("[STS2 Platform Live UI] mounted on Connector main-thread queue");
+            });
         }
         catch (Exception exception)
         {
-            GD.PrintErr($"[STS2 Platform Live UI] first-frame mount failed: {exception}");
+            GD.PrintErr($"[STS2 Platform Live UI] main-thread mount failed: {exception}");
         }
     }
 

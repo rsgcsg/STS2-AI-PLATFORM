@@ -34,9 +34,8 @@ test("Live UI uses K at the early input stage and logs readiness", () => {
   assert.match(source, /SetProcessInput\(true\)/u);
   assert.match(source, /public override void _Input\(InputEvent @event\)/u);
   assert.match(source, /key\.Keycode == Key\.K \|\| key\.PhysicalKeycode == Key\.K/u);
-  assert.match(source, /SceneTree\.SignalName\.ProcessFrame/u);
-  assert.match(source, /GodotObject\.ConnectFlags\.OneShot/u);
-  assert.match(source, /private static void MountOnProcessFrame\(\)/u);
+  assert.match(source, /NativeUiMainThread\.Run/u);
+  assert.match(source, /private static async Task MountOnMainThread\(CanvasLayer layer\)/u);
   assert.match(source, /panel ready; input=K/u);
   assert.doesNotMatch(source, /Key\.F\d+/u);
 });
