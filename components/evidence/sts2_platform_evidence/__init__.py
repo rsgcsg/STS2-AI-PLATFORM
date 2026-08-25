@@ -6,6 +6,12 @@ from .core import (
     VerifierDescriptor,
     VerifierRegistry,
 )
+from .agent_run_evidence import (
+    AgentRunEvidence,
+    AgentRunEvidenceVerifier,
+    detect_agent_run_type,
+    verify_agent_run_evidence,
+)
 from .human_session_bundle import (
     HumanSessionBundle,
     HumanSessionBundleV2,
@@ -26,9 +32,12 @@ from .transfer import (
 
 __all__ = [
     "CollectionProfile",
+    "AgentRunEvidence",
+    "AgentRunEvidenceVerifier",
     "ContentAddressedStore",
     "DirectoryReceiver",
     "DirectoryTransferManifest",
+    "detect_agent_run_type",
     "HumanSessionBundle",
     "HumanSessionBundleV2",
     "HumanSessionBundleVerifier",
@@ -41,6 +50,7 @@ __all__ = [
     "VerificationResult",
     "VerifierDescriptor",
     "VerifierRegistry",
+    "verify_agent_run_evidence",
     "load_collection_profile",
     "verify_human_session_bundle",
 ]

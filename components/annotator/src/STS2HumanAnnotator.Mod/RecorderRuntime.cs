@@ -48,6 +48,13 @@ internal static class RecorderRuntime
     private static DateTimeOffset _lastFrameProbeAt;
     private static string _runtimeState = "initializing";
     private static string? _detail;
+    private static RecorderEnvironmentIdentity? _lastEnvironment;
+    private static string? _lastSnapshotId;
+    private static IReadOnlyList<string> _lastBlockers = Array.Empty<string>();
+    private static RecordingControlSnapshot _recordingControl =
+        RecordingControlSnapshot.Initial(DateTimeOffset.UnixEpoch);
+    private static bool _initializationStarted;
+    private static bool _initialized;
     private static int _runSequence;
     private static bool _runActive;
     private static string _currentRunId = "run-unassigned";
@@ -65,6 +72,13 @@ internal static class RecorderRuntime
 
     internal static void Initialize(AnnotatorConfiguration configuration)
     {
+        lock (Gate)
+        {
+            if (_initializationStarted)
+                return;
+            _initializationStarted = true;
+        }
+
         _configuration = configuration;
         SessionId = $"session-{DateTimeOffset.UtcNow:yyyyMMddTHHmmssZ}-{Guid.NewGuid():N}";
         TimelineId = $"timeline-{Guid.NewGuid():N}";
@@ -84,9 +98,148 @@ internal static class RecorderRuntime
             CaptureProfile.SupportedActionFamilies,
             CaptureProfile.NonClaims.Append("not_human_validated").ToArray());
         _store = V2RecordingStore.Create(configuration.RecordingRoot, manifest, CaptureProfile);
+        lock (Gate)
+        {
+            _recordingControl = RecordingControlStateMachine.Start(SessionId, DateTimeOffset.UtcNow);
+            _initialized = true;
+            _runtimeState = "waiting_for_player_environment";
+            _detail = _recordingControl.Detail;
+        }
         AppendJournal("session_started", null, null, "V2 read-rich recording initialized.");
-        _runtimeState = "waiting_for_player_environment";
         WriteStatus(null, null, new[] { "no_current_exact_frame" });
+    }
+
+    internal static RecordingControlSnapshot GetRecordingControlStatus()
+    {
+        lock (Gate)
+            return _recordingControl;
+    }
+
+    internal static RecordingApplicationStatus GetRecordingApplicationStatus()
+    {
+        lock (Gate)
+        {
+            return new RecordingApplicationStatus(
+                _recordingControl,
+                _runtimeState,
+                _detail ?? _recordingControl.Detail,
+                _lastEnvironment,
+                _lastSnapshotId,
+                _lastBlockers.ToArray());
+        }
+    }
+
+    internal static RecordingControlResult ApplyRecordingControl(RecordingControlCommand command)
+    {
+        RecordingControlResult result;
+        RecorderEnvironmentIdentity? environment;
+        string? snapshotId;
+        IReadOnlyList<string> blockers;
+        bool initialized;
+
+        lock (Gate)
+        {
+            initialized = _initialized;
+            if (!initialized)
+            {
+                result = new RecordingControlResult(
+                    false,
+                    "not_initialized",
+                    "Recording controls are unavailable before the recorder runtime starts.",
+                    _recordingControl);
+                environment = _lastEnvironment;
+                snapshotId = _lastSnapshotId;
+                blockers = _lastBlockers;
+            }
+            else if (IsIdempotent(command, _recordingControl.State))
+            {
+                string state = _recordingControl.State.ToString().ToLowerInvariant();
+                result = new RecordingControlResult(
+                    true,
+                    $"already_{state}",
+                    $"Recording is already {state}.",
+                    _recordingControl);
+                environment = _lastEnvironment;
+                snapshotId = _lastSnapshotId;
+                blockers = _lastBlockers;
+                _detail = result.Detail;
+            }
+            else
+            {
+                result = RecordingControlStateMachine.Apply(
+                    _recordingControl,
+                    command,
+                    SessionId,
+                    DateTimeOffset.UtcNow);
+                if (result.Accepted)
+                {
+                    _recordingControl = result.Snapshot;
+                    if (_recordingControl.State != RecordingControlState.Recording)
+                        _stagedCardFrame = null;
+                }
+                _detail = result.Detail;
+                _runtimeState = RuntimeStatusForControl(_recordingControl.State, _runtimeState);
+                environment = _lastEnvironment;
+                snapshotId = _lastSnapshotId;
+                blockers = _lastBlockers;
+            }
+        }
+
+        if (!initialized)
+            return result;
+
+        string journalKind = result.Accepted
+            ? result.Code.StartsWith("already_", StringComparison.Ordinal)
+                ? "recording_control_noop"
+                : result.Snapshot.State switch
+                {
+                    RecordingControlState.Paused => "recording_paused",
+                    RecordingControlState.Closed => "recording_closed",
+                    RecordingControlState.Recording => "recording_resumed",
+                    _ => "recording_control_changed"
+                }
+            : "recording_control_rejected";
+        AppendJournal(journalKind, null, snapshotId, result.Detail);
+        WriteStatus(
+            environment,
+            snapshotId,
+            blockers.Concat(ControlBlockers(result.Snapshot.State)).Distinct(StringComparer.Ordinal).ToArray());
+        return result;
+    }
+
+    private static bool IsIdempotent(
+        RecordingControlCommand command,
+        RecordingControlState state) =>
+        command switch
+        {
+            RecordingControlCommand.Pause => state == RecordingControlState.Paused,
+            RecordingControlCommand.Resume => state == RecordingControlState.Recording,
+            RecordingControlCommand.Close => state == RecordingControlState.Closed,
+            _ => false
+        };
+
+    private static IReadOnlyList<string> ControlBlockers(RecordingControlState state) =>
+        state switch
+        {
+            RecordingControlState.Paused => new[] { "recording_paused" },
+            RecordingControlState.Closed => new[] { "recording_closed" },
+            _ => Array.Empty<string>()
+        };
+
+    private static string RuntimeStatusForControl(
+        RecordingControlState state,
+        string fallback) =>
+        state switch
+        {
+            RecordingControlState.Paused => "recording_paused",
+            RecordingControlState.Closed => "recording_closed",
+            _ => fallback
+        };
+
+    private static bool AcceptingNewWitnesses()
+    {
+        lock (Gate)
+            return _initialized && _recordingControl.State == RecordingControlState.Recording;
     }
 
     internal static void StageCardPlay(CardModel card)
@@ -175,6 +328,9 @@ internal static class RecorderRuntime
         ProcessLocalObservedAction? expectedAction = null,
         CardModel? stagedCard = null)
     {
+        if (!AcceptingNewWitnesses())
+            return false;
+
         try
         {
             ProcessLocalNativeWitnessFrame current = CaptureReadRichFrame();
@@ -222,7 +378,16 @@ internal static class RecorderRuntime
                 return false;
             }
 
-            HumanActionScope.Enter(origin, expectedNativeActionType, selected);
+            // The service gate is checked after capture as well as before it. A
+            // concurrent pause or close must not admit a new witness, but the
+            // native UI call continues because this scope is recorder-only.
+            lock (Gate)
+            {
+                if (!_initialized
+                    || _recordingControl.State != RecordingControlState.Recording)
+                    return false;
+                HumanActionScope.Enter(origin, expectedNativeActionType, selected);
+            }
             return true;
         }
         catch (Exception exception)
@@ -329,12 +494,22 @@ internal static class RecorderRuntime
             if (now - _lastIdleStatusAt < TimeSpan.FromSeconds(1))
                 return;
             _lastIdleStatusAt = now;
-            string status = blockers.Count == 0
-                ? "ready_for_human_action"
-                : "fail_closed";
+            RecordingControlSnapshot control = GetRecordingControlStatus();
+            string status = control.State switch
+            {
+                RecordingControlState.Paused => "recording_paused",
+                RecordingControlState.Closed => "recording_closed",
+                _ => blockers.Count == 0
+                    ? "ready_for_human_action"
+                    : "fail_closed"
+            };
             _runtimeState = status;
-            _detail = null;
-            WriteStatus(environment, frame.Snapshot.SnapshotId, blockers);
+            if (control.State == RecordingControlState.Recording)
+                _detail = null;
+            WriteStatus(
+                environment,
+                frame.Snapshot.SnapshotId,
+                blockers.Concat(ControlBlockers(control.State)).Distinct(StringComparer.Ordinal).ToArray());
         }
         catch (Exception exception)
         {
@@ -416,7 +591,8 @@ internal static class RecorderRuntime
         List<string> blockers = EligibilityBlockers(
             context.Frame,
             environment,
-            requireReads: true);
+            requireReads: true,
+            includeRecordingControl: false);
         if (blockers.Count > 0)
         {
             Quarantine(
@@ -680,9 +856,13 @@ internal static class RecorderRuntime
     private static List<string> EligibilityBlockers(
         ProcessLocalNativeWitnessFrame frame,
         RecorderEnvironmentIdentity environment,
-        bool requireReads)
+        bool requireReads,
+        bool includeRecordingControl = true)
     {
         var blockers = new List<string>();
+        RecordingControlState controlState = GetRecordingControlStatus().State;
+        if (includeRecordingControl && controlState != RecordingControlState.Recording)
+            blockers.AddRange(ControlBlockers(controlState));
         if (!RunManager.Instance.IsInProgress
             || RunManager.Instance.NetService?.Type != NetGameType.Singleplayer)
             blockers.Add("not_singleplayer_run");
@@ -718,6 +898,16 @@ internal static class RecorderRuntime
             cached.Frame.Snapshot.Interaction.InteractionId,
             current.Snapshot.Interaction.InteractionId,
             StringComparison.Ordinal)
+        && string.Equals(
+            cached.Frame.Snapshot.SnapshotId,
+            current.Snapshot.SnapshotId,
+            StringComparison.Ordinal)
+        && cached.Frame.Snapshot.Sequence == current.Snapshot.Sequence
+        && cached.Frame.Snapshot.BoundActions.Actions
+            .Select(action => action.BoundActionId)
+            .SequenceEqual(
+                current.Snapshot.BoundActions.Actions.Select(action => action.BoundActionId),
+                StringComparer.Ordinal)
         && !current.ExternalControllerActive;
 
     private static string DecisionFamily(string interactionKind) =>
@@ -786,21 +976,46 @@ internal static class RecorderRuntime
             return;
         try
         {
+            string? pendingRecordId;
+            string runtimeState;
+            string? runtimeDetail;
+            RecordingControlSnapshot control;
+            lock (Gate)
+            {
+                runtimeState = _runtimeState;
+                runtimeDetail = _detail;
+                control = _recordingControl;
+                pendingRecordId = _pending?.RecordId;
+            }
+            string status = RuntimeStatusForControl(control.State, runtimeState);
+            string? detail = control.State == RecordingControlState.Recording
+                ? runtimeDetail
+                : control.Detail;
+            IReadOnlyList<string> effectiveBlockers = blockers
+                .Concat(ControlBlockers(control.State))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            lock (Gate)
+            {
+                _lastEnvironment = environment;
+                _lastSnapshotId = snapshotId;
+                _lastBlockers = effectiveBlockers;
+            }
             _store.WriteRuntimeStatus(
                 _configuration.RuntimeStatusPath,
                 new RecorderRuntimeStatus(
                     HumanRecorderContract.SchemaVersion,
                     HumanRecorderContract.RuntimeStatusSchema,
-                    _runtimeState,
+                    status,
                     DateTimeOffset.UtcNow,
                     System.Environment.ProcessId,
                     SessionId,
                     _store.DirectoryPath,
                     environment,
                     snapshotId,
-                    _pending?.RecordId,
-                    _detail,
-                    blockers,
+                    pendingRecordId,
+                    detail,
+                    effectiveBlockers,
                     new[]
                     {
                         "status_is_not_human_validation",

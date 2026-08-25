@@ -6,7 +6,9 @@
 | Host Runtime | `components/host-runtime` | discovery, isolation, launch/reset/stop, headless/managed experiments, qualification | gameplay legality, research models |
 | Human Annotator | `components/annotator` | native-human witness, records, audit/export/bundle, workstation | action authority, research admission |
 | Platform Evidence | `components/evidence` | typed verification, content identity, immutable store, transfer/receiver receipts | research eligibility, corpus policy, mutation |
-| Workbench | `apps/workbench` | read-only application services and operator diagnostics | domain authority, mutation, evidence admission |
+| Policy Runtime | `components/policy-runtime` | policy process boundary, Human/Shadow/One-Step/Auto, controller lifecycle, stale/Receipt/successor and Agent-run evidence | model inference, legality, native operands, candidate filtering |
+| Workbench | `apps/workbench` | typed live status, explicit filesystem fallback, bounded Policy Runtime commands | gameplay submission, evidence admission, model loading |
+| Platform Live UI | `apps/ingame-ui` | unified in-game Environment/Policy/Human Data/Diagnostics presentation and typed application commands | direct BoundAction submission, legality, recording writes |
 | Platform tools | `tools` | composition, component identity, migration/boundary checks | native operands, policy |
 | STPD | external repository | ResearchTransition, Dataset Views, representation, Qwen, training/evaluation | Host implementation or legality |
 
@@ -25,3 +27,9 @@ candidate artifacts; they do not import a sibling source checkout.
 The versioned Evidence Python package is the portable evidence-integrity
 boundary. It verifies V1/V2 Human bundles and owns local transfer mechanics;
 research consumers remain responsible for their own admission semantics.
+
+The Policy Runtime is a Connector consumer. A Policy Manifest names exact
+model, adapter, representation, Reads, support and environment requirements.
+The adapter returns only an ordered score vector and selected index; Runtime
+resolves that index against the unchanged current Connector catalog. Workbench
+and Live UI issue only typed Runtime or Annotator application commands.

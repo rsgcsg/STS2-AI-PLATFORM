@@ -18,9 +18,14 @@ or expose native references on a wire.
 - Implemented and automated-test verified: ordinary Combat `play` (including an
   exact target when present), `end_turn`, append-only recording, independent
   audit/export, exact artifact identity, and fail-closed STPD import.
-- V2 source/test coverage adds same-frame `run_deck` and `combat_piles`, typed
-  ReadEvidence, CaptureProfile, RunJournal, portable Bundle V2, and exact
-  generated-card choice select/skip observation. V2 runtime evidence is pending.
+- V2 adds same-frame `run_deck` and `combat_piles`, typed ReadEvidence,
+  CaptureProfile, RunJournal, portable Bundle V2, and exact generated-card
+  choice select/skip observation. Ordinary-combat V2 is exact native-human
+  verified; generated-card choice remains `not exercised`.
+- A typed recording application service exposes Pause/Resume/Close to the
+  unified Platform Live UI. These commands gate new witness admission only;
+  already pending successor settlement continues, and the service never
+  invokes a game action.
 - Builds from the exact local STS2 `v0.111.0` assembly on macOS arm64 and
   Windows x64. Windows discovery and process inspection use the Platform Host
   Runtime component.
@@ -89,6 +94,7 @@ Fully close the game before each deployment or cold load:
 ```bash
 npm --prefix components/connector run deploy
 npm --prefix components/annotator run deploy
+npm run live-ui:deploy
 npm --prefix components/annotator run prepare:mods
 npm --prefix components/annotator run launch
 ```
@@ -101,6 +107,7 @@ envelope and cold-load again:
 npm --prefix components/annotator run admit:modset
 npm --prefix components/annotator run launch
 npm --prefix components/annotator run verify:loaded
+npm run live-ui:verify-loaded
 ```
 
 When already inside `components/annotator`, the final command is simply
@@ -116,8 +123,8 @@ revision before starting the native executable. `deploy`, `admit:modset`,
 the executable, game assembly, source digest, artifact SHA/MVID, or admitted
 Modset envelope drifts. macOS keeps its existing supported-exact launch path.
 `prepare:mods` validates SettingsSave schema 8, backs up the one Windows Steam
-account settings file, enables only the local Connector and Annotator, and
-refuses any already-enabled third-party Mod.
+account settings file, enables only the local Connector, Annotator and Platform
+Live UI, and refuses any already-enabled third-party Mod.
 
 ## Record And Audit
 

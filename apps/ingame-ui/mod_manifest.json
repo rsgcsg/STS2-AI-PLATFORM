@@ -1,0 +1,21 @@
+{
+  "id": "STS2_PLATFORM_LIVE_UI",
+  "name": "STS2 Platform Live UI",
+  "author": "rsgcsg",
+  "description": "DLL-only in-game Platform live status and recording control UI",
+  "version": "0.1.0-rc.1",
+  "has_pck": false,
+  "has_dll": true,
+  "affects_gameplay": false,
+  "min_game_version": "0.111.0",
+  "dependencies": [
+    {
+      "id": "STS2_MCP",
+      "min_version": "1.2.0-rc.6"
+    },
+    {
+      "id": "STS2_HUMAN_ANNOTATOR",
+      "min_version": "0.3.0-rc.1"
+    }
+  ]
+}

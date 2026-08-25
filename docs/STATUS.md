@@ -1,6 +1,7 @@
 # Current Status
 
-Phase: **Human Evidence V2 Read-Rich Combat baseline verified; selector Live evidence pending**.
+Phase: **Human Evidence V2 verified; reusable Policy Runtime and unified Live UI
+source candidate awaiting final artifact cold-load**.
 
 ## Implemented
 
@@ -28,8 +29,27 @@ Phase: **Human Evidence V2 Read-Rich Combat baseline verified; selector Live evi
   choice witness while retaining the exact ordinary-combat correlation kernel.
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.
-- Workbench `0.1.0-rc.1` provides read-only Environment, Human Recording,
-  Evidence, Transfer and Diagnostics status through application services.
+- Workbench `0.1.0-rc.1` provides Environment, Policy, Human Data, Evidence,
+  Transfer and Diagnostics status through application services; its only
+  command surface is the typed Policy Runtime mode/one-step boundary.
+- Policy Runtime `0.1.0-rc.1` is a model-neutral Connector consumer with strict
+  Policy Manifest/NDJSON contracts, exact environment admission,
+  Manifest-selected Reads, complete-catalog parity, Human/Shadow/One-Step/Auto,
+  stale refresh, controller lifecycle, Receipt/successor handling and immutable
+  Agent-run evidence. Unknown delivery is never retried.
+- Runtime and Agent evidence bind a compiled Runtime code digest, canonical
+  Policy Manifest digest, policy artifact SHA-256 and pre-decision exact
+  Connector/game/Modset admission; STPD independently checks the Manifest-bound
+  adapter code digest before serving decisions.
+- STPD exposes the current S1 model as one thin decision-only adapter while its
+  original `live_s1` remains a golden regression. Generic controller, stale,
+  delivery and successor lifecycle is no longer required in new model lanes.
+- Workbench now consumes strict live Policy Runtime status and bounded mode/tick
+  commands with an explicitly partial filesystem fallback.
+- Platform Live UI `0.1.0-rc.1` provides one hidden-by-default DLL-only in-game
+  Overview/Environment/Policy/Human Data/Diagnostics shell over typed services.
+  It has no direct BoundAction submission path; Connector Reads and
+  Connector/Annotator/UI identities remain inspectable without a policy process.
 - The portable boundary check validates that every declared workspace CLI
   entrypoint exists in Git source authority; ignored local files cannot satisfy
   a clean-check claim.
@@ -104,5 +124,12 @@ not claimed loaded.
 - The V2 bundle/store/receiver/STPD path is verified, but this does not authorize
   corpus inclusion or training and does not qualify unexercised action families.
 - Platform Evidence is a focused evidence-integrity package, not a
-  Platform-wide gameplay SDK. Workbench remains read-only and is not an
-  authority or full product UI.
+  Platform-wide gameplay SDK. Workbench and Live UI are application shells, not
+  action/evidence authorities.
+- The new Policy Runtime, Annotator recording controls and Platform Live UI have
+  source/test/build evidence only at this point in current truth. Existing
+  loaded Human V2 evidence binds the predecessor Annotator artifact and does not
+  transfer.
+- The current S1 Policy Manifest is validated, but its exact checkpoint is not
+  present on this Mac. Real-model Shadow, One-Step, Auto, policy Agent evidence
+  and legacy/new path parity are therefore `not exercised`.

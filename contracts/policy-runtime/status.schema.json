@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sts2.policy-runtime/status-1",
+  "title": "STS2 Policy Runtime status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "runtime", "policy", "run_id", "lifecycle", "mode", "controller", "tainted", "taint_reason", "refreshing", "last_snapshot_id", "last_snapshot", "last_decision", "last_receipt", "reads", "invalidations", "errors", "environment"],
+  "properties": {
+    "schema": { "const": "sts2.policy-runtime/status-1" },
+    "runtime": { "type": "object", "additionalProperties": false, "required": ["version", "code_sha256"], "properties": { "version": { "type": "string", "minLength": 1 }, "code_sha256": { "oneOf": [{ "type": "null" }, { "type": "string", "pattern": "^[a-f0-9]{64}$" }] } } },
+    "policy": { "type": "object", "additionalProperties": false, "required": ["manifest_id", "policy_id", "policy_version", "provider", "architecture", "artifact_sha256"], "properties": { "manifest_id": { "type": "string", "minLength": 1 }, "policy_id": { "type": "string", "minLength": 1 }, "policy_version": { "type": "string", "minLength": 1 }, "provider": { "type": "string", "minLength": 1 }, "architecture": { "type": "string", "minLength": 1 }, "artifact_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" } } },
+    "run_id": { "type": "string", "minLength": 1 },
+    "lifecycle": { "enum": ["running", "stopped"] },
+    "mode": { "enum": ["human", "shadow", "one_step", "auto"] },
+    "controller": { "enum": ["held", "released"] },
+    "tainted": { "type": "boolean" },
+    "taint_reason": { "type": ["string", "null"] },
+    "refreshing": { "type": "boolean" },
+    "last_snapshot_id": { "type": ["string", "null"] },
+    "last_snapshot": { "oneOf": [
+      { "type": "null" },
+      { "type": "object", "additionalProperties": false, "required": ["snapshot_id", "sequence", "status", "runtime_instance_id", "environment_fingerprint"], "properties": {
+        "snapshot_id": { "type": "string", "minLength": 1 },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "status": { "enum": ["interactive", "visible_unsupported", "settling", "observed"] },
+        "runtime_instance_id": { "type": "string", "minLength": 1 },
+        "environment_fingerprint": { "type": "string", "minLength": 1 }
+      } }
+    ] },
+    "last_decision": { "oneOf": [
+      { "type": "null" },
+      { "type": "object", "additionalProperties": false, "required": ["decision_id", "candidate_digest", "candidate_count", "scores", "selected_index", "bound_action_id", "bound_action_label"], "properties": {
+        "decision_id": { "type": "string", "minLength": 1 },
+        "candidate_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "candidate_count": { "type": "integer", "minimum": 0 },
+        "scores": { "type": "array", "items": { "type": "number" } },
+        "selected_index": { "type": ["integer", "null"], "minimum": 0 },
+        "bound_action_id": { "type": ["string", "null"] },
+        "bound_action_label": { "type": ["string", "null"] }
+      } }
+    ] },
+    "last_receipt": { "oneOf": [
+      { "type": "null" },
+      { "type": "object", "additionalProperties": false, "required": ["request_id", "delivery", "reason_code", "successor_snapshot_id"], "properties": {
+        "request_id": { "type": "string", "minLength": 1 },
+        "delivery": { "enum": ["delivered", "not_delivered", "unknown"] },
+        "reason_code": { "type": ["string", "null"] },
+        "successor_snapshot_id": { "type": ["string", "null"] }
+      } }
+    ] },
+    "reads": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["read_id", "kind", "content_schema", "target_referent_id"], "properties": {
+      "read_id": { "type": "string", "minLength": 1 },
+      "kind": { "type": "string", "minLength": 1 },
+      "content_schema": { "type": "string", "minLength": 1 },
+      "target_referent_id": { "type": ["string", "null"] }
+    } } },
+    "invalidations": { "type": "array", "items": { "type": "string" } },
+    "errors": { "type": "array", "items": { "type": "string" } },
+    "environment": { "oneOf": [
+      { "type": "null" },
+      { "type": "object", "additionalProperties": false, "required": ["runtime_instance_id", "environment_fingerprint", "host_kind", "connector_protocol_version", "connector_version", "connector_source_revision", "connector_artifact_sha256", "connector_module_version_id", "game_version", "game_commit", "modset_status", "modset_fingerprint", "loaded_mod_ids"], "properties": {
+        "runtime_instance_id": { "type": "string", "minLength": 1 },
+        "environment_fingerprint": { "type": "string", "minLength": 1 },
+        "host_kind": { "enum": ["live_ui", "headless", "replay", "test"] },
+        "connector_protocol_version": { "type": "string", "minLength": 1 },
+        "connector_version": { "type": "string", "minLength": 1 },
+        "connector_source_revision": { "type": ["string", "null"] },
+        "connector_artifact_sha256": { "oneOf": [{ "type": "null" }, { "type": "string", "pattern": "^[a-f0-9]{64}$" }] },
+        "connector_module_version_id": { "type": ["string", "null"] },
+        "game_version": { "type": ["string", "null"] },
+        "game_commit": { "type": ["string", "null"] },
+        "modset_status": { "type": "string", "minLength": 1 },
+        "modset_fingerprint": { "type": "string", "minLength": 1 },
+        "loaded_mod_ids": { "type": "array", "items": { "type": "string", "minLength": 1 }, "uniqueItems": true }
+      } }
+    ] }
+  }
+}

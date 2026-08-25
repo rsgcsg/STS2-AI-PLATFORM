@@ -41,7 +41,7 @@ const provenancePath = path.join(local, "build-provenance.json");
 const manifestSource = path.join(root, "src", "STS2HumanAnnotator.Mod", "mod_manifest.json");
 const steamAppId = "2868840";
 const windowsSettingsSchema = 8;
-const exactObserverModIds = ["STS2_MCP", "STS2_HUMAN_ANNOTATOR"];
+const exactObserverModIds = ["STS2_MCP", "STS2_HUMAN_ANNOTATOR", "STS2_PLATFORM_LIVE_UI"];
 const exactConnectorOnlyModIds = ["STS2_MCP"];
 
 const command = process.argv[2] || "doctor";

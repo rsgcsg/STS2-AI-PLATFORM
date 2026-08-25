@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sts2.policy-runtime/immutable-evidence-manifest-1",
+  "title": "STS2 Policy Runtime Immutable Evidence Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "run_id", "complete", "append_only", "files", "manifest_sha256"],
+  "properties": {
+    "schema": { "const": "sts2.policy-runtime/immutable-evidence-manifest-1" },
+    "run_id": { "type": "string", "minLength": 1 },
+    "complete": { "const": true },
+    "append_only": { "const": true },
+    "files": { "type": "array", "minItems": 2, "items": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "bytes", "sha256"],
+      "properties": {
+        "path": { "type": "string", "pattern": "^(?!/)(?!.*\\.\\.).+$" },
+        "bytes": { "type": "integer", "minimum": 0 },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+      }
+    } },
+    "manifest_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

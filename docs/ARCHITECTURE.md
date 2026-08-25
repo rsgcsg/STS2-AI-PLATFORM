@@ -2,9 +2,10 @@
 
 ## Product Boundary
 
-STS2 AI Platform provides a real-game Host, a fair-player Player Environment,
-native-human evidence recording and strategy-free integration tools. It does
-not provide policy, reward, model, training or research authority.
+STS2 AI Platform provides a real-game Host, fair-player Player Environment,
+native-human evidence recording, model-neutral policy execution lifecycle and
+strategy-free integration tools. It does not own policy inference, reward,
+models, training or research authority.
 
 ## Planes
 
@@ -12,7 +13,8 @@ not provide policy, reward, model, training or research authority.
 Environment:  Host <-> Connector <-> consumer
 Host control: Host Runtime <-> STS2 process lifecycle
 Evidence:     Annotator -> immutable bundle -> verify/store/transfer/receive -> consumer
-Operations:   read-only Workbench services -> diagnostics UI
+Policy:       external adapter -> Policy Runtime -> Connector
+Operations:   typed application services -> Workbench / one in-game Live UI
 ```
 
 The planes may share exact environment identity, but not mutation authority or
@@ -26,6 +28,16 @@ only complete finite Host-bound actions and revalidates exact native operands at
 delivery time. Reads are state-bound and non-authorizing. Host control is not a
 Player Environment action. Annotator observes accepted native-human actions and
 cannot execute them. Unknown delivery is never automatically retried.
+
+The Policy Runtime receives the complete ordered Connector catalog and only
+Manifest-required advertised Reads. It cannot filter or invent candidates. Its
+adapter returns scores plus an index, and Runtime resolves that index locally
+against the same Snapshot before acquiring the one Connector controller. Shadow
+never acquires a controller; One-Step returns to Human; Auto hands off on an
+unsupported surface, abstention, or not-delivered Receipt. Receipt and stable
+successor remain distinct evidence. A transport exception after submission or
+an `unknown` Receipt taints the run and is never retried. Adapter failure or a
+bounded decision timeout returns to Human before controller acquisition.
 
 ## Component DAG
 
@@ -41,11 +53,16 @@ STS2 installation and native runtime
      -> native-human witness recording and session evidence
   -> Evidence component
      -> typed V1/V2 verification, content identity, immutable local logistics
+  -> Policy Runtime component
+     -> model-neutral policy process and Connector consumer lifecycle
+     -> append-only Agent-run evidence through Platform Evidence semantics
   -> Workbench application
-     -> read-only Environment/Annotator/Evidence/Transfer diagnostics
+     -> typed live status, explicit partial fallback, bounded Runtime commands
+  -> Platform Live UI
+     -> one in-game shell over typed Connector/Runtime/Annotator services
 
 External consumers -> public Connector SDK / Host Runtime package
-STPD              -> public packages + version-pinned Evidence package
+STPD              -> public packages + version-pinned Evidence + thin Policy Adapter
 SpireAgent        -> consumer integration and policy
 ```
 
@@ -57,8 +74,10 @@ declared Platform composition seams for exact native witnessing, but it does
 not create a second Connector build or action authority. STPD consumes public
 packages and verified evidence artifacts, never Platform implementation
 internals. Evidence validates artifact integrity and transport; STPD alone owns
-research admission, splits, labels, B0 and training authorization. Workbench
-orchestrates read-only application services and owns no domain decision.
+research admission, splits, labels, B0 and training authorization. STPD owns
+checkpoint/Qwen/projection/scoring support but no controller or Connector
+lifecycle. Workbench and Live UI own presentation and bounded application
+commands, never domain authority or direct gameplay submission.
 
 Portable boundary tests require the Host installer to consume a versioned
 Platform Connector release and require Annotator to use only the declared Host

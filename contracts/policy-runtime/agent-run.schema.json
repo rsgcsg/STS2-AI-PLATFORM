@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sts2.policy-runtime/agent-run-1",
+  "title": "STS2 Agent Run Manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "run_id", "manifest_id", "policy_manifest_sha256", "policy_id", "policy_version", "policy_artifact_sha256", "runtime_version", "runtime_code_sha256", "started_at", "ended_at", "status", "mode", "tainted", "append_only"],
+  "properties": {
+    "schema": { "const": "sts2.policy-runtime/agent-run-1" },
+    "run_id": { "type": "string", "minLength": 1 },
+    "manifest_id": { "type": "string", "minLength": 1 },
+    "policy_manifest_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "policy_id": { "type": "string", "minLength": 1 },
+    "policy_version": { "type": "string", "minLength": 1 },
+    "policy_artifact_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "runtime_version": { "type": "string", "minLength": 1 },
+    "runtime_code_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "started_at": { "type": "string", "format": "date-time" },
+    "ended_at": { "type": ["string", "null"] },
+    "status": { "enum": ["running", "completed", "stopped", "tainted"] },
+    "mode": { "enum": ["human", "shadow", "one_step", "auto"] },
+    "tainted": { "type": "boolean" },
+    "append_only": { "const": true }
+  }
+}

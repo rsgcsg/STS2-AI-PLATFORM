@@ -16,14 +16,20 @@ Native human play
   -> external evidence consumers
 
 Operator diagnostics
-  -> read-only Platform Workbench services and UI
+  -> Workbench and one in-game Platform Live UI
+
+Trained policy
+  -> thin external Policy Adapter + versioned Policy Manifest
+  -> model-neutral Platform Policy Runtime
+  -> Connector-authorized BoundAction delivery
 ```
 
 The repository physically unifies Connector, Host Runtime, Human Annotator,
-Platform Evidence, and a read-only Workbench while preserving separate
-components, identities and authorities. It does not contain a policy, reward
-function, model, training system or second game-rules engine. STPD remains an
-independent research consumer.
+Platform Evidence, a model-neutral Policy Runtime, Workbench and one in-game
+Live UI while preserving separate identities and authorities. It does not own
+a trained policy, reward function, model, training system or second game-rules
+engine. STPD remains an independent research consumer and supplies only a thin
+policy adapter plus model artifact.
 
 Current status: the V1 public Connector/Host composition retains its exact
 runtime seal. The exact V2 Connector/Annotator artifact has also produced 30
@@ -44,7 +50,10 @@ The initial consolidation imports the complete histories of:
   session bundles.
 - `components/evidence`: typed artifact verification, content identity,
   immutable local store, transfer and receiver receipts;
-- `apps/workbench`: read-only application services and diagnostics UI.
+- `components/policy-runtime`: controller/mode/stale/Receipt/successor lifecycle
+  for any strict decision-only policy adapter;
+- `apps/workbench`: typed live/fallback application services and browser UI;
+- `apps/ingame-ui`: the unified DLL-only in-game Platform Live UI.
 
 The three predecessor GitHub repositories are archived and remain read-only
 history/rollback references. All forward Platform development happens here;
@@ -75,8 +84,15 @@ npm run annotator:verify-loaded
 npm run annotator:audit -- <session-directory>
 npm run annotator:pack-session -- <session-directory> [options]
 npm run evidence -- --help
+npm run policy:check
 npm run workbench
+npm run live-ui:doctor
 ```
+
+See [Policy Runtime](docs/POLICY_RUNTIME.md) and [Live UI](docs/LIVE_UI.md).
+The current STPD S1 Policy Manifest is source/test verified, but its checkpoint
+is not present on this Mac; this repository therefore makes no current live
+Shadow, One-Step, or Auto claim.
 
 ## Evidence Boundary
 

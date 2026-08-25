@@ -1,9 +1,13 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 
+import { PolicyRuntimeClient } from "./policy-runtime-client.mjs";
+
 export const SERVICE_NAMES = Object.freeze([
   "environment",
+  "policy",
   "annotator",
+  "human_data",
   "evidence",
   "transfer",
   "diagnostics"
@@ -11,7 +15,9 @@ export const SERVICE_NAMES = Object.freeze([
 
 const STATUS_CANDIDATES = Object.freeze({
   environment: ["runtime-status.json", "environment-status.json", "status.json"],
+  policy: ["runtime-status.json", "policy-runtime-status.json", "status.json"],
   annotator: ["runtime-status.json", "recording-status.json", "status.json"],
+  human_data: ["human-data-status.json", "status.json"],
   evidence: ["store-status.json", "status.json"],
   transfer: ["transfer-status.json", "transfer-receipt.json", "status.json"],
   diagnostics: ["diagnostics.json", "status.json"]
@@ -109,6 +115,17 @@ function serviceState(root, status) {
   return status.state === "known" ? "available" : "unknown";
 }
 
+function decorateFilesystemService(service) {
+  const filesystemAvailable = service.state === "available";
+  return {
+    ...service,
+    source: filesystemAvailable ? "filesystem" : "none",
+    freshness: filesystemAvailable ? "filesystem" : "unknown",
+    partial: !filesystemAvailable,
+    unavailable: !filesystemAvailable
+  };
+}
+
 async function inspectService(name, configuredRoot) {
   const root = rootPath(configuredRoot);
   const rootStatus = await inspectRoot(root);
@@ -134,33 +151,89 @@ async function inspectService(name, configuredRoot) {
   };
 }
 
+async function inspectPolicyService(configuredRoot, policyRuntime) {
+  const filesystem = decorateFilesystemService(await inspectService("policy", configuredRoot));
+  if (!policyRuntime?.configured) {
+    return {
+      ...filesystem,
+      state: filesystem.status.state === "known" ? "partial" : filesystem.state,
+      source: filesystem.status.state === "known" ? "filesystem" : "none",
+      freshness: filesystem.status.state === "known" ? "filesystem" : "unknown",
+      partial: true,
+      unavailable: true,
+      upstream: { state: "unavailable", reason: "not_configured" }
+    };
+  }
+
+  try {
+    const value = await policyRuntime.readStatus();
+    return {
+      ...filesystem,
+      state: "available",
+      source: "policy_runtime",
+      freshness: "live",
+      partial: false,
+      unavailable: false,
+      status: { state: "known", source: "policy_runtime", value },
+      upstream: { state: "available", source: "policy_runtime" }
+    };
+  } catch (error) {
+    const fallbackKnown = filesystem.status.state === "known";
+    return {
+      ...filesystem,
+      state: fallbackKnown ? "partial" : "unavailable",
+      source: fallbackKnown ? "filesystem_fallback" : "policy_runtime",
+      freshness: fallbackKnown ? "filesystem" : "unknown",
+      partial: true,
+      unavailable: true,
+      upstream: {
+        state: "unavailable",
+        reason: error?.code ?? "policy_runtime_unavailable"
+      }
+    };
+  }
+}
+
 function overallState(services) {
   return services.every((service) => service.state === "available") ? "available" : "unknown";
 }
 
-export function createWorkbenchService(roots = {}) {
+export function createWorkbenchService(roots = {}, options = {}) {
   const configuredRoots = Object.fromEntries(
     SERVICE_NAMES.map((name) => [name, roots[name] ?? null])
+  );
+  const policyRuntime = options.policyRuntimeClient ?? new PolicyRuntimeClient(
+    options.policyRuntimeUrl ?? null,
+    { timeoutMs: options.policyRuntimeTimeoutMs }
   );
 
   return Object.freeze({
     async readStatus() {
       const services = await Promise.all(
-        SERVICE_NAMES.map((name) => inspectService(name, configuredRoots[name]))
+        SERVICE_NAMES.map((name) => name === "policy"
+          ? inspectPolicyService(configuredRoots[name], policyRuntime)
+          : inspectService(name, configuredRoots[name]).then(decorateFilesystemService))
       );
+      const overallStateValue = overallState(services);
       return {
         schema: "sts2.workbench/status-1",
         generated_at: new Date().toISOString(),
-        read_only: true,
+        read_only: false,
         overall: {
-          state: overallState(services),
-          reason: overallState(services) === "available"
+          state: overallStateValue,
+          reason: overallStateValue === "available"
             ? "all_configured_status_files_read"
-            : "one_or_more_service_states_not_available"
+            : "one_or_more_domains_partial_or_unavailable"
         },
         services,
         roots: Object.fromEntries(services.map((service) => [service.name, service.root]))
       };
+    },
+    async setPolicyMode(mode) {
+      const changed = await policyRuntime.setMode(mode);
+      if (mode !== "one_step") return changed;
+      const ticked = await policyRuntime.tick();
+      return { ...changed, status: ticked.status, tick: ticked.result };
     }
   });
 }

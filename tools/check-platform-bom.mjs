@@ -30,7 +30,9 @@ export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
   const annotatorPackage = readJson(path.join(platformRoot, "components", "annotator", "package.json"));
   const annotatorManifest = readJson(path.join(platformRoot, "components", "annotator", "src", "STS2HumanAnnotator.Mod", "mod_manifest.json"));
   const evidencePackage = readJson(path.join(platformRoot, "components", "evidence", "package.json"));
+  const policyRuntimePackage = readJson(path.join(platformRoot, "components", "policy-runtime", "package.json"));
   const workbenchPackage = readJson(path.join(platformRoot, "apps", "workbench", "package.json"));
+  const liveUiPackage = readJson(path.join(platformRoot, "apps", "ingame-ui", "package.json"));
   const hostReleaseModule = await import(pathToFileURL(
     path.join(platformRoot, "components", "host-runtime", "src", "connector-release.mjs")
   ));
@@ -43,7 +45,9 @@ export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
     annotatorPackage,
     annotatorManifest,
     evidencePackage,
+    policyRuntimePackage,
     workbenchPackage,
+    liveUiPackage,
     hostConnectorRelease: hostReleaseModule.CONNECTOR_RELEASE
   };
 }
@@ -56,7 +60,9 @@ export function validatePlatformBom(bom, authorities) {
     host_runtime: "host-runtime",
     annotator: "annotator",
     evidence: "evidence",
-    workbench: "workbench"
+    policy_runtime: "policy-runtime",
+    workbench: "workbench",
+    live_ui: "live-ui"
   };
   for (const [bomKey, identityKey] of Object.entries(componentMap)) {
     const component = bom.components?.[bomKey];
@@ -75,7 +81,9 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "Annotator package version", bom.components?.annotator?.version, authorities.annotatorPackage.version);
   expectEqual(errors, "Annotator Mod version", authorities.annotatorManifest.version, authorities.annotatorPackage.version);
   expectEqual(errors, "Evidence package version", bom.components?.evidence?.version, authorities.evidencePackage.version);
+  expectEqual(errors, "Policy Runtime package version", bom.components?.policy_runtime?.version, authorities.policyRuntimePackage.version);
   expectEqual(errors, "Workbench package version", bom.components?.workbench?.version, authorities.workbenchPackage.version);
+  expectEqual(errors, "Live UI package version", bom.components?.live_ui?.version, authorities.liveUiPackage.version);
   const dependency = authorities.annotatorManifest.dependencies?.find(({ id }) => id === "STS2_MCP");
   expectEqual(errors, "Annotator Connector dependency", dependency?.min_version, authorities.connectorManifest.version);
 

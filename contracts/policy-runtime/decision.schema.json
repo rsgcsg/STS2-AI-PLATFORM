@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sts2.policy-runtime/decision-1",
+  "title": "STS2 Policy Runtime Decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "decision_id", "run_id", "manifest_id", "snapshot_id", "candidate_digest", "candidate_count", "scores", "selected_index", "disposition", "issued_at"],
+  "properties": {
+    "schema": { "const": "sts2.policy-runtime/decision-1" },
+    "decision_id": { "type": "string", "minLength": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "manifest_id": { "type": "string", "minLength": 1 },
+    "snapshot_id": { "type": "string", "minLength": 1 },
+    "candidate_digest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "candidate_count": { "type": "integer", "minimum": 0 },
+    "scores": { "type": "array", "items": { "type": "number" } },
+    "selected_index": { "type": ["integer", "null"], "minimum": 0 },
+    "disposition": { "enum": ["admit", "abstain"] },
+    "issued_at": { "type": "string", "format": "date-time" }
+  }
+}

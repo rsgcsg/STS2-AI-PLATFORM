@@ -35,12 +35,29 @@
         "sts2_platform_evidence"
       ]
     },
+    "policy-runtime": {
+      "path": "components/policy-runtime",
+      "version_file": "package.json",
+      "contract_paths": [
+        "src/contracts.ts",
+        "src/policy-port.ts",
+        "src/runtime.ts"
+      ]
+    },
     "workbench": {
       "path": "apps/workbench",
       "version_file": "package.json",
       "contract_paths": [
         "src/workbench-service.mjs",
         "src/server.mjs"
+      ]
+    },
+    "live-ui": {
+      "path": "apps/ingame-ui",
+      "version_file": "package.json",
+      "contract_paths": [
+        "PlatformLiveContracts.cs",
+        "PlatformLiveStatusClient.cs"
       ]
     }
   }

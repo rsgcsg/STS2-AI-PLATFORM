@@ -1,6 +1,7 @@
 # Current Context
 
-Phase: **Human Evidence V2 Read-Rich Combat baseline verified; selector Live evidence pending.**
+Phase: **Human Evidence V2 verified; Policy Runtime and unified Live UI source
+candidate awaiting exact-artifact runtime evidence.**
 
 `STS2-AI-PLATFORM` is the only forward-development source authority for the
 Platform components. The root BOM and component release manifests are the
@@ -23,6 +24,13 @@ identity registry.
   store/transfer/receiver, STPD imported 30/30, and Workbench HTTP status passed.
 - Generated-card choice is source/test-complete but `not exercised`; corpus and
   training authorization remain separate and absent.
+- Policy Runtime and the STPD decision-only adapter are source/test complete.
+  The Runtime owns generic controller/mode/stale/Receipt/successor lifecycle;
+  STPD owns only checkpoint/Qwen/projection/scoring support.
+- Workbench and the in-game Live UI consume typed Runtime status and commands.
+  Neither can submit a BoundAction directly or write Human records.
+- The S1 checkpoint named by the current Policy Manifest is unavailable on this
+  Mac. New Annotator/Live UI artifacts are not yet claimed loaded or Live.
 
 ## Evidence Boundary
 

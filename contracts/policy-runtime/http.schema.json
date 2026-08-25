@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "sts2.policy-runtime/http-1",
+  "title": "STS2 loopback Policy Runtime HTTP response",
+  "oneOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "status"],
+      "properties": {
+        "schema": { "const": "sts2.policy-runtime/http-1" },
+        "status": { "$ref": "status.schema.json" }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "results", "status"],
+      "properties": {
+        "schema": { "const": "sts2.policy-runtime/http-1/tick-1" },
+        "results": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["type"] } },
+        "status": { "$ref": "status.schema.json" }
+      }
+    },
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "error"],
+      "properties": {
+        "schema": { "const": "sts2.policy-runtime/http-1" },
+        "error": { "type": "string", "minLength": 1 }
+      }
+    }
+  ]
+}

@@ -9,16 +9,19 @@ Read current Platform truth in this order:
 5. [Versioning](VERSIONING.md)
 6. [Roadmap](ROADMAP.md)
 7. [Current handoff](memory/CURRENT.md)
-8. [V2 Read-Rich Combat closeout](evidence/HUMAN_EVIDENCE_V2_READ_RICH_COMBAT_CLOSEOUT_2026-08-25.md)
-9. [V1 runtime-seal predecessor evidence](evidence/RUNTIME_SEAL_CANDIDATE_2026-08-24.md)
+8. [Policy Runtime](POLICY_RUNTIME.md)
+9. [Platform Live UI](LIVE_UI.md)
+10. [V2 Read-Rich Combat closeout](evidence/HUMAN_EVIDENCE_V2_READ_RICH_COMBAT_CLOSEOUT_2026-08-25.md)
+11. [V1 runtime-seal predecessor evidence](evidence/RUNTIME_SEAL_CANDIDATE_2026-08-24.md)
 
 Then read the component entry points:
 
-10. [Connector map](../components/connector/docs/DOCUMENT_MAP.md)
-11. [Host Runtime map](../components/host-runtime/docs/DOCUMENT_MAP.md)
-12. [Annotator map](../components/annotator/docs/DOCUMENT_MAP.md)
-13. [Evidence package](../components/evidence/README.md)
-14. [Workbench](../apps/workbench/README.md)
+12. [Connector map](../components/connector/docs/DOCUMENT_MAP.md)
+13. [Host Runtime map](../components/host-runtime/docs/DOCUMENT_MAP.md)
+14. [Annotator map](../components/annotator/docs/DOCUMENT_MAP.md)
+15. [Evidence package](../components/evidence/README.md)
+16. [Workbench](../apps/workbench/README.md)
+17. [In-game Live UI](../apps/ingame-ui/README.md)
 
 The Connector contract and release identity are authoritative in the Connector
 component manifest and the root `platform-bom.json`. Component documentation is

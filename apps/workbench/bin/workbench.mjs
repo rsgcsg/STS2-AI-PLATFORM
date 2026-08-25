@@ -9,12 +9,14 @@ function usage() {
 Options:
   --root <name=path>       Configure one service root (repeatable)
   --<name>-root <path>     Configure a named root
+  --policy-runtime-url <url>  Configure the loopback Policy Runtime base URL
   --host <host>            Bind address (default: 127.0.0.1)
   --port <port>            TCP port (default: 8787; 0 selects an ephemeral port)
   --help                   Show this message
 
 Service names: ${SERVICE_NAMES.join(", ")}
 Environment variables: WORKBENCH_<NAME>_ROOT
+Policy Runtime environment variable: WORKBENCH_POLICY_RUNTIME_URL
 `;
 }
 
@@ -32,6 +34,7 @@ export function parseArgs(args, env = process.env) {
   }
   let host = "127.0.0.1";
   let port = 8787;
+  let policyRuntimeUrl = env.WORKBENCH_POLICY_RUNTIME_URL ?? null;
 
   for (let index = 0; index < args.length; index += 1) {
     const argument = args[index];
@@ -50,6 +53,11 @@ export function parseArgs(args, env = process.env) {
       index += 1;
       continue;
     }
+    if (argument === "--policy-runtime-url") {
+      policyRuntimeUrl = requireValue(args, index, argument);
+      index += 1;
+      continue;
+    }
     if (argument === "--root") {
       const assignment = requireValue(args, index, argument);
       const separator = assignment.indexOf("=");
@@ -62,15 +70,17 @@ export function parseArgs(args, env = process.env) {
       index += 1;
       continue;
     }
-    const namedRoot = /^(--(environment|annotator|evidence|transfer|diagnostics)-root)$/u.exec(argument);
+    const namedRoot = /^--([a-z][a-z0-9-]*)-root$/u.exec(argument);
     if (namedRoot) {
-      roots[namedRoot[2]] = requireValue(args, index, argument);
+      const name = namedRoot[1].replaceAll("-", "_");
+      if (!SERVICE_NAMES.includes(name)) throw new Error(`unknown service root: ${name}`);
+      roots[name] = requireValue(args, index, argument);
       index += 1;
       continue;
     }
     throw new Error(`unknown option: ${argument}`);
   }
-  return { help: false, host, port, roots };
+  return { help: false, host, port, roots, policyRuntimeUrl };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -80,13 +90,15 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
       process.stdout.write(usage());
       process.exit(0);
     }
-    const service = createWorkbenchService(options.roots);
-    const server = createWorkbenchServer(service);
+    const service = createWorkbenchService(options.roots, {
+      policyRuntimeUrl: options.policyRuntimeUrl
+    });
+    const server = createWorkbenchServer(service, { bindHost: options.host });
     server.listen(options.port, options.host, () => {
       const address = server.address();
       const port = typeof address === "object" && address !== null ? address.port : options.port;
       process.stdout.write(`STS2 Workbench listening at http://${options.host}:${port}\n`);
-      process.stdout.write("Read-only status API: /api/status\n");
+      process.stdout.write("Status API: /api/status; Policy mode command: POST /api/policy/mode\n");
     });
     const close = () => server.close(() => process.exit(0));
     process.once("SIGINT", close);
