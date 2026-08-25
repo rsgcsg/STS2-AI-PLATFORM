@@ -30,8 +30,8 @@ identity registry.
   STPD owns only checkpoint/Qwen/projection/scoring support.
 - Workbench and the in-game Live UI consume typed Runtime status and commands.
   Neither can submit a BoundAction directly or write Human records.
-- One `STS2_PLATFORM` artifact `f3957544... / 5466820a...` is installed and
-  cold-loaded under runtime `a66d0f26...`; exact unified Modset execution
+- One `STS2_PLATFORM` artifact `65498489... / c280d226...` is installed and
+  cold-loaded under runtime `f3195698...`; exact unified Modset execution
   admission and automated K open/close canaries pass.
 - Owner-visible UI, recording controls, unified-artifact Human decisions and
   model modes remain pending; no Native evidence is transferred.

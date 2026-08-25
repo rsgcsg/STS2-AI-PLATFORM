@@ -52,9 +52,9 @@ control validation**.
   It has no direct BoundAction submission path; Connector Reads and
   Connector/Annotator/UI identities remain inspectable without a policy process.
 - The current exact-game candidate is one `STS2_PLATFORM` Mod. Common artifact
-  `f3957544... / 5466820a...` contains Connector, Annotator and Live UI and is
+  `65498489... / c280d226...` contains Connector, Annotator and Live UI and is
   cold-loaded against STS2 `v0.111.0`, assembly
-  `9cb4f1ad... / 57785517...`, in runtime `a66d0f26...`. The exact Modset contains
+  `9cb4f1ad... / 57785517...`, in runtime `f3195698...`. The exact Modset contains
   only `STS2_PLATFORM`; Connector reports `execution_available=true`.
 - Live UI source `5bb1236f...` uses only built-in Godot nodes and a
   `SceneTree.ProcessFrame` signal because standard single-DLL Mods do not run
@@ -127,9 +127,9 @@ predecessor evidence and does not qualify the unified artifact.
 
 The current unified artifact was built, safely installed, cold-loaded and
 identity-verified with rollback at
-`apps/game-mod/.local/deployments/2026-08-25T06-37-52.581Z`. Runtime
-`a66d0f26...` reports environment `e10bbc4c...`, exact unified Modset
-`33b99b21...`, ready UI, and automated K open/close events. Owner page
+`apps/game-mod/.local/deployments/2026-08-25T06-42-44.907Z`. Runtime
+`f3195698...` reports environment `02ec1f39...`, exact unified Modset
+`447fc8f9...`, ready UI, and automated K open/close events. Owner page
 visibility, recording controls, ordinary Human play and policy modes remain
 separate pending gates.
 
