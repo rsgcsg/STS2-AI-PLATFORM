@@ -3,6 +3,8 @@
 node_modules/
 **/node_modules/
 **/bin/
+!components/policy-runtime/bin/
+!components/policy-runtime/bin/*.mjs
 !apps/workbench/bin/
 !apps/workbench/bin/workbench.mjs
 **/obj/
