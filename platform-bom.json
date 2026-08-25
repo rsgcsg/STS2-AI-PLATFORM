@@ -16,21 +16,33 @@
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "793597fa559c839ddfa0a9cad06f1df7088c1e22",
-      "component_tree_revision": "12788da62493e9acab4519f9717b178b2b024fd0",
-      "component_source_digest_sha256": "897c23365e5c89b2d3e829d18b8174373ba9b410d6c32a59e76cd00fc3b0541b"
+      "source_revision": "7ba324caf1a7d5ffc8fe1abd08ba4391b11beb1b",
+      "component_tree_revision": "f425043953427586859efcd1d682e09c6ff11437",
+      "component_source_digest_sha256": "c2ab02c79c52e196f94eac3470d417bd7dfe3a2dc05212aa7bb314b6af1af09f"
     },
     "evidence": {
       "version": "0.1.0-rc.1",
-      "source_revision": "5154be6881d2b307e42b70f9b0399b94754db8be",
-      "component_tree_revision": "ff5596c0903cf042905267e5923466ee50710a61",
-      "component_source_digest_sha256": "3e3875f211b1a7fb6783e7f2327de17193ec6aecbdaefb8abd810a3daeeae6f4"
+      "source_revision": "7ba324caf1a7d5ffc8fe1abd08ba4391b11beb1b",
+      "component_tree_revision": "ebd775891b73dcc96b0a8e195b99d49ffa5005fa",
+      "component_source_digest_sha256": "215e42045b30ef7b0fe9bfcca34761499513e7c43162dbc5f18904c7b024e1fb"
+    },
+    "policy_runtime": {
+      "version": "0.1.0-rc.1",
+      "source_revision": "4799f0cbf6028ed39ba03648db680115359f667a",
+      "component_tree_revision": "605dc5806a462b910487fd94e1710ec483d1f7e6",
+      "component_source_digest_sha256": "b798ec425e2651359702a3d1ceb8e765d5e9889f65fac92ac62be3abd5015620"
     },
     "workbench": {
       "version": "0.1.0-rc.1",
-      "source_revision": "0ae81907ded02a2a48d3807bc4ff7683b102b80b",
-      "component_tree_revision": "1f7c9a509c4535ece5cb035e55638b1e87b41ea6",
-      "component_source_digest_sha256": "12e1e673292e2870376a15a392bf2ef59fbf860962740f099462ab5c8ecae18e"
+      "source_revision": "7ba324caf1a7d5ffc8fe1abd08ba4391b11beb1b",
+      "component_tree_revision": "e0a89ef04f0f180f5019b5cb57d6a0c9f5c541c8",
+      "component_source_digest_sha256": "5fd900fdde0372f5c8b8b203153b0273a946b51f6998eba5b465f4c4316fd0b9"
+    },
+    "live_ui": {
+      "version": "0.1.0-rc.1",
+      "source_revision": "5af8e359fb2767e82f552a7aac49719d5c405790",
+      "component_tree_revision": "6bad528f75a412f7d1bab14a1e79ef6935bbb76e",
+      "component_source_digest_sha256": "c08de8837460fd0c567ffbd41d08608d8b269bb57170ce509df4c728685e87a5"
     },
     "player_environment_protocol": "1.0.0",
     "typescript_sdk": "1.1.0-rc.1"
@@ -56,7 +68,7 @@
     }
   },
   "external_consumer_cutovers": {
-    "stpd": "25b5306225bd2c4ea39ddc678e916dd483d5b37e"
+    "stpd": "499e65cf2d02cd69993151f0cf9c3cc9fb7e608e"
   },
   "exact_runtime_candidate": {
     "evidence_generation": "v1_runtime_seal_predecessor",
@@ -140,9 +152,9 @@
     "annotator": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
       "source_digest_sha256": "8d23f1015a7b0df800f78a7545da5c86bfee521131c4391b398c884ff917918f",
-      "current_component_source_revision": "793597fa559c839ddfa0a9cad06f1df7088c1e22",
-      "current_component_source_digest_sha256": "897c23365e5c89b2d3e829d18b8174373ba9b410d6c32a59e76cd00fc3b0541b",
-      "source_relation": "loaded_native_artifact_precedes_cli_only_evidence_path_and_closeout_docs",
+      "current_component_source_revision": "7ba324caf1a7d5ffc8fe1abd08ba4391b11beb1b",
+      "current_component_source_digest_sha256": "c2ab02c79c52e196f94eac3470d417bd7dfe3a2dc05212aa7bb314b6af1af09f",
+      "source_relation": "loaded_native_artifact_precedes_recording_controls_and_live_ui_source_candidate",
       "artifact_sha256": "4e911dd616afa55753a5320a42c11ce0cebe9d4d10fefd66c8f8a431884cf105",
       "artifact_mvid": "692e9dd9-4bc7-4203-ae12-511ef95a5331",
       "build": "pass",
@@ -215,6 +227,64 @@
       }
     }
   },
+  "policy_runtime_live_ui_candidate": {
+    "status": "source_test_build_complete_install_load_pending",
+    "platform": "darwin",
+    "architecture": "arm64",
+    "game": {
+      "version": "v0.111.0",
+      "commit": "41cef1ea",
+      "main_assembly_sha256": "9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4",
+      "main_assembly_mvid": "57785517-0b16-42b9-8b36-bad6fb28384b"
+    },
+    "connector": {
+      "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
+      "artifact_sha256": "6c66cbf06757dca3e7d910467fb56b89376f109c6d7d0ba47d2bc0260ab4a3d2",
+      "artifact_mvid": "11f1da35-558f-4346-8ec9-a493fea95cb8",
+      "protocol": "1.0.0"
+    },
+    "policy_runtime": {
+      "source_revision": "4799f0cbf6028ed39ba03648db680115359f667a",
+      "source_digest_sha256": "b798ec425e2651359702a3d1ceb8e765d5e9889f65fac92ac62be3abd5015620",
+      "version": "0.1.0-rc.1"
+    },
+    "annotator": {
+      "source_revision": "7ba324caf1a7d5ffc8fe1abd08ba4391b11beb1b",
+      "source_digest_sha256": "c2ab02c79c52e196f94eac3470d417bd7dfe3a2dc05212aa7bb314b6af1af09f",
+      "artifact_sha256": "ca1d425838cdf5504816e4f8c8c22798f26b21a543f9fa98a0fd4a507023f3e4",
+      "artifact_mvid": "278c2c6b-3b8a-4150-b69d-d6b1b28d4546"
+    },
+    "live_ui": {
+      "source_revision": "5af8e359fb2767e82f552a7aac49719d5c405790",
+      "source_digest_sha256": "c08de8837460fd0c567ffbd41d08608d8b269bb57170ce509df4c728685e87a5",
+      "artifact_sha256": "1842d8341b41bc585014719db8ad6abfe6c7b26f6944ce48cf2f7ed361df3a9d",
+      "artifact_mvid": "81860368-0c19-4802-bb30-1a2176f8d218"
+    },
+    "automated_gates": {
+      "connector_sdk_tests": 7,
+      "host_runtime_tests": 158,
+      "annotator_core_tests": 18,
+      "annotator_cli_tests": 12,
+      "evidence_tests": 22,
+      "policy_runtime_tests": 42,
+      "workbench_tests": 12,
+      "live_ui_tests": 6,
+      "stpd_tests": 169,
+      "exact_game_build": "pass",
+      "dependency_build_provenance": "pass"
+    },
+    "external_policy": {
+      "stpd_source_revision": "499e65cf2d02cd69993151f0cf9c3cc9fb7e608e",
+      "manifest": "policy-manifests/s1-policy-adapter-v1.json",
+      "manifest_source_test_status": "pass",
+      "checkpoint_status": "absent"
+    },
+    "installed": "pending",
+    "loaded": "pending",
+    "live_ui_exercised": "pending",
+    "human_recording_controls_exercised": "pending",
+    "policy_shadow_one_step_auto_exercised": "not_exercised_checkpoint_absent"
+  },
   "migration_sources": "migration/source-manifest.json",
   "support_level": "human_evidence_v2_read_rich_combat_verified_selector_pending",
   "non_claims": [
@@ -224,6 +294,8 @@
     "not_durably_qualified",
     "not_long_soak_or_full_journey_qualified",
     "v2_generated_card_choice_not_exercised",
-    "v2_corpus_and_training_not_authorized"
+    "v2_corpus_and_training_not_authorized",
+    "policy_runtime_live_ui_candidate_not_installed_or_loaded",
+    "s1_checkpoint_absent_shadow_one_step_auto_not_exercised"
   ]
 }

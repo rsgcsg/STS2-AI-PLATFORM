@@ -56,3 +56,18 @@ test("BOM check rejects V2 evidence and selector-claim drift", async () => {
   assert.ok(errors.some((error) => error.startsWith("V2 selector runtime:")));
   assert.ok(errors.includes("V2 generated-card-choice non-claim is missing"));
 });
+
+test("BOM check rejects Policy Runtime candidate identity and evidence promotion", async () => {
+  const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
+  bom.policy_runtime_live_ui_candidate.live_ui.source_revision = "0".repeat(40);
+  bom.policy_runtime_live_ui_candidate.installed = "pass";
+  bom.policy_runtime_live_ui_candidate.external_policy.checkpoint_status = "present";
+  bom.non_claims = bom.non_claims.filter(
+    (claim) => claim !== "s1_checkpoint_absent_shadow_one_step_auto_not_exercised"
+  );
+  const errors = validatePlatformBom(bom, await readBomAuthorities(root));
+  assert.ok(errors.some((error) => error.startsWith("candidate Live UI source:")));
+  assert.ok(errors.some((error) => error.startsWith("candidate installed:")));
+  assert.ok(errors.some((error) => error.startsWith("candidate policy checkpoint:")));
+  assert.ok(errors.includes("S1 checkpoint/model-mode non-claim is missing"));
+});

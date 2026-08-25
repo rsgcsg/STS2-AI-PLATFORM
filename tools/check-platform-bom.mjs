@@ -116,7 +116,7 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "V2 current Annotator digest", v2?.annotator?.current_component_source_digest_sha256,
     bom.components?.annotator?.component_source_digest_sha256);
   expectEqual(errors, "V2 Annotator source relation", v2?.annotator?.source_relation,
-    "loaded_native_artifact_precedes_cli_only_evidence_path_and_closeout_docs");
+    "loaded_native_artifact_precedes_recording_controls_and_live_ui_source_candidate");
   for (const component of ["connector", "annotator"])
     for (const level of ["build", "installed", "loaded"])
       expectEqual(errors, `V2 ${component} ${level}`, v2?.[component]?.[level], "pass");
@@ -144,13 +144,43 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "V2 transfer promotion", v2Human?.transfer?.initial_status, "promoted");
   expectEqual(errors, "V2 transfer retry", v2Human?.transfer?.retry_status, "reused");
   expectEqual(errors, "V2 transfer findings", v2Human?.transfer?.findings, 0);
-  expectEqual(errors, "V2 STPD source", v2Human?.stpd_import?.source_revision,
-    bom.external_consumer_cutovers?.stpd);
+  expectPattern(errors, "V2 STPD source", v2Human?.stpd_import?.source_revision, COMMIT);
   expectEqual(errors, "V2 STPD import", v2Human?.stpd_import?.status, "pass");
   expectEqual(errors, "V2 STPD accepted", v2Human?.stpd_import?.accepted, 30);
   expectEqual(errors, "V2 STPD rejected", v2Human?.stpd_import?.rejected, 0);
   expectEqual(errors, "V2 selector source/test", v2Human?.generated_card_choice?.source_and_test_status, "pass");
   expectEqual(errors, "V2 selector runtime", v2Human?.generated_card_choice?.runtime_status, "not_exercised");
+
+  const policyCandidate = bom.policy_runtime_live_ui_candidate;
+  expectEqual(errors, "Policy Runtime/Live UI candidate status", policyCandidate?.status,
+    "source_test_build_complete_install_load_pending");
+  expectEqual(errors, "candidate STPD source", policyCandidate?.external_policy?.stpd_source_revision,
+    bom.external_consumer_cutovers?.stpd);
+  expectEqual(errors, "candidate policy checkpoint", policyCandidate?.external_policy?.checkpoint_status,
+    "absent");
+  expectEqual(errors, "candidate Annotator source", policyCandidate?.annotator?.source_revision,
+    bom.components?.annotator?.source_revision);
+  expectEqual(errors, "candidate Annotator digest", policyCandidate?.annotator?.source_digest_sha256,
+    bom.components?.annotator?.component_source_digest_sha256);
+  expectEqual(errors, "candidate Live UI source", policyCandidate?.live_ui?.source_revision,
+    bom.components?.live_ui?.source_revision);
+  expectEqual(errors, "candidate Live UI digest", policyCandidate?.live_ui?.source_digest_sha256,
+    bom.components?.live_ui?.component_source_digest_sha256);
+  expectEqual(errors, "candidate Connector source", policyCandidate?.connector?.source_revision,
+    bom.components?.connector?.source_revision);
+  expectEqual(errors, "candidate Connector protocol", policyCandidate?.connector?.protocol,
+    bom.components?.player_environment_protocol);
+  expectEqual(errors, "candidate Policy Runtime source", policyCandidate?.policy_runtime?.source_revision,
+    bom.components?.policy_runtime?.source_revision);
+  expectEqual(errors, "candidate Policy Runtime digest", policyCandidate?.policy_runtime?.source_digest_sha256,
+    bom.components?.policy_runtime?.component_source_digest_sha256);
+  expectEqual(errors, "candidate Policy Runtime version", policyCandidate?.policy_runtime?.version,
+    bom.components?.policy_runtime?.version);
+  for (const level of ["installed", "loaded", "live_ui_exercised", "human_recording_controls_exercised"])
+    expectEqual(errors, `candidate ${level}`, policyCandidate?.[level], "pending");
+  expectEqual(errors, "candidate model modes",
+    policyCandidate?.policy_shadow_one_step_auto_exercised,
+    "not_exercised_checkpoint_absent");
 
   for (const [label, value] of [
     ["public Connector archive SHA", publicConnector?.sha256],
@@ -170,6 +200,12 @@ export function validatePlatformBom(bom, authorities) {
     ["V2 export SHA", v2Human?.bundle?.export_sha256],
     ["V2 checksums SHA", v2Human?.bundle?.checksums_sha256],
     ["V2 transfer manifest SHA", v2Human?.transfer?.manifest_sha256],
+    ["candidate game assembly SHA", policyCandidate?.game?.main_assembly_sha256],
+    ["candidate Connector artifact SHA", policyCandidate?.connector?.artifact_sha256],
+    ["candidate Annotator source digest", policyCandidate?.annotator?.source_digest_sha256],
+    ["candidate Annotator artifact SHA", policyCandidate?.annotator?.artifact_sha256],
+    ["candidate Live UI source digest", policyCandidate?.live_ui?.source_digest_sha256],
+    ["candidate Live UI artifact SHA", policyCandidate?.live_ui?.artifact_sha256],
     ["H0 report SHA", bom.exact_runtime_candidate?.gates?.h0?.report_sha256],
     ["H1 report SHA", bom.exact_runtime_candidate?.gates?.h1?.report_sha256],
     ["H2 report SHA", bom.exact_runtime_candidate?.gates?.h2?.report_sha256],
@@ -183,6 +219,10 @@ export function validatePlatformBom(bom, authorities) {
   expectPattern(errors, "V2 game MVID", v2?.game?.main_assembly_mvid, MVID);
   expectPattern(errors, "V2 Connector MVID", v2?.connector?.artifact_mvid, MVID);
   expectPattern(errors, "V2 Annotator MVID", v2?.annotator?.artifact_mvid, MVID);
+  expectPattern(errors, "candidate game MVID", policyCandidate?.game?.main_assembly_mvid, MVID);
+  expectPattern(errors, "candidate Connector MVID", policyCandidate?.connector?.artifact_mvid, MVID);
+  expectPattern(errors, "candidate Annotator MVID", policyCandidate?.annotator?.artifact_mvid, MVID);
+  expectPattern(errors, "candidate Live UI MVID", policyCandidate?.live_ui?.artifact_mvid, MVID);
   expectPattern(errors, "V2 loaded Annotator source", v2?.annotator?.source_revision, COMMIT);
   expectPattern(errors, "V2 current Annotator source", v2?.annotator?.current_component_source_revision, COMMIT);
   expectPattern(errors, "STPD cutover", bom.external_consumer_cutovers?.stpd, COMMIT);
@@ -203,6 +243,10 @@ export function validatePlatformBom(bom, authorities) {
     errors.push("V2 generated-card-choice non-claim is missing");
   if (!bom.non_claims?.includes("v2_corpus_and_training_not_authorized"))
     errors.push("V2 corpus/training authorization non-claim is missing");
+  if (!bom.non_claims?.includes("policy_runtime_live_ui_candidate_not_installed_or_loaded"))
+    errors.push("Policy Runtime/Live UI install/load non-claim is missing");
+  if (!bom.non_claims?.includes("s1_checkpoint_absent_shadow_one_step_auto_not_exercised"))
+    errors.push("S1 checkpoint/model-mode non-claim is missing");
   return errors;
 }
 

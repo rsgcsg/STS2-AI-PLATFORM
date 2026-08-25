@@ -50,6 +50,11 @@ source candidate awaiting final artifact cold-load**.
   Overview/Environment/Policy/Human Data/Diagnostics shell over typed services.
   It has no direct BoundAction submission path; Connector Reads and
   Connector/Annotator/UI identities remain inspectable without a policy process.
+- The clean exact-game candidate build binds Connector
+  `6c66cbf0... / 11f1da35...`, Annotator
+  `ca1d4258... / 278c2c6b...`, and Live UI
+  `1842d834... / 81860368...` to STS2 `v0.111.0`, assembly
+  `9cb4f1ad... / 57785517...`. These are build facts, not loaded evidence.
 - The portable boundary check validates that every declared workspace CLI
   entrypoint exists in Git source authority; ignored local files cannot satisfy
   a clean-check claim.
