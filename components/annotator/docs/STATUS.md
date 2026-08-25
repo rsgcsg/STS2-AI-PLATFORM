@@ -102,6 +102,17 @@ audited 10/10 records and includes one generated-card select with exact-unique
 mapping and an interactive successor. Skip remains `not exercised`; this
 predecessor evidence does not transfer to the unified artifact.
 
+Unified artifact `06f62285... / 17981f40...`, runtime `e3a89aae...`, has two
+owner-operated sessions that independently audit 39/39 records: 25 card plays
+and 14 end turns with 158 materialized Reads and zero Read failures. Immediate
+Close completed in 4.139 ms; a Close with an admitted pending decision remained
+Closing until bounded settlement, then closed safely. The same sessions exposed
+that pre-frame invalidations were created at native UI method entry, before
+STS2 accepted or rejected the attempted input. Current source defers such an
+invalidation until the expected game-owned action is observed and reports it as
+native-accepted-but-failed-closed. This follow-up source requires a new exact
+runtime and does not inherit the 39 records.
+
 ## V1 Predecessor Evidence
 
 Source `9459d22...` was built, installed, cold-loaded and owner-operated with
@@ -139,4 +150,5 @@ recorded only after the corresponding cold loads and owner-operated actions.
 Potions, event/reward/shop/rest/map/menu actions, arbitrary selectors,
 multiplayer, and gameplay-affecting Modsets are not admitted by version
 `0.3.0-rc.1`. Generated-card select has one predecessor Live record; skip and
-the unified artifact still require exact native-human runtime evidence.
+the current accepted-only accounting source still require exact native-human
+runtime evidence.

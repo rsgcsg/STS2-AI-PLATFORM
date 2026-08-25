@@ -35,16 +35,16 @@ internal static class NativeCardPlayPatch
     private static void Prefix(
         NCardPlay __instance,
         [HarmonyArgument(0)] Creature? target,
-        out bool __state)
+        out NativeUiScopeEntry __state)
     {
         __state = __instance.Holder.CardModel is { } card
-            && RecorderRuntime.TryEnterCardScope(card, target);
+            ? RecorderRuntime.TryEnterCardScope(card, target)
+            : default;
     }
 
-    internal static Exception? Finalizer(bool __state, Exception? __exception)
+    internal static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
     {
-        if (__state)
-            HumanActionScope.Exit();
+        RecorderRuntime.ExitNativeUiScope(__state);
         return __exception;
     }
 }
@@ -52,15 +52,14 @@ internal static class NativeCardPlayPatch
 [HarmonyPatch(typeof(NEndTurnButton), nameof(NEndTurnButton.CallReleaseLogic))]
 internal static class NativeEndTurnPatch
 {
-    internal static void Prefix(out bool __state) =>
+    internal static void Prefix(out NativeUiScopeEntry __state) =>
         __state = RecorderRuntime.TryEnterScope(
             "native_end_turn_ui",
             nameof(EndPlayerTurnAction));
 
-    internal static Exception? Finalizer(bool __state, Exception? __exception)
+    internal static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
     {
-        if (__state)
-            HumanActionScope.Exit();
+        RecorderRuntime.ExitNativeUiScope(__state);
         return __exception;
     }
 }
@@ -68,15 +67,14 @@ internal static class NativeEndTurnPatch
 [HarmonyPatch(typeof(NEndTurnButton), nameof(NEndTurnButton.SecretEndTurnLogicViaFtue))]
 internal static class NativeFtueEndTurnPatch
 {
-    internal static void Prefix(out bool __state) =>
+    internal static void Prefix(out NativeUiScopeEntry __state) =>
         __state = RecorderRuntime.TryEnterScope(
             "native_ftue_end_turn_ui",
             nameof(EndPlayerTurnAction));
 
-    internal static Exception? Finalizer(bool __state, Exception? __exception)
+    internal static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
     {
-        if (__state)
-            HumanActionScope.Exit();
+        RecorderRuntime.ExitNativeUiScope(__state);
         return __exception;
     }
 }
@@ -91,7 +89,10 @@ internal static class AcceptedGameActionPatch
 [HarmonyPatch]
 internal static class NativeGeneratedChoiceCardPatch
 {
-    private readonly record struct PatchState(bool Entered, bool WasSelected, CardModel? Card);
+    private readonly record struct PatchState(
+        NativeUiScopeEntry Scope,
+        bool WasSelected,
+        CardModel? Card);
 
     private static readonly AccessTools.FieldRef<NChooseACardSelectionScreen, bool>
         CardSelected = AccessTools.FieldRefAccess<NChooseACardSelectionScreen, bool>("_cardSelected");
@@ -109,7 +110,7 @@ internal static class NativeGeneratedChoiceCardPatch
     {
         CardModel? card = holder.CardModel;
         __state = new PatchState(
-            card != null && RecorderRuntime.TryEnterGeneratedChoiceCardScope(card),
+            card != null ? RecorderRuntime.TryEnterGeneratedChoiceCardScope(card) : default,
             CardSelected(__instance),
             card);
     }
@@ -118,15 +119,14 @@ internal static class NativeGeneratedChoiceCardPatch
         NChooseACardSelectionScreen __instance,
         PatchState __state)
     {
-        if (__state.Entered && !__state.WasSelected && CardSelected(__instance)
+        if (!__state.WasSelected && CardSelected(__instance)
             && __state.Card is { } card)
             RecorderRuntime.ObserveGeneratedChoiceCard(card);
     }
 
     private static Exception? Finalizer(PatchState __state, Exception? __exception)
     {
-        if (__state.Entered)
-            HumanActionScope.Exit();
+        RecorderRuntime.ExitNativeUiScope(__state.Scope);
         return __exception;
     }
 }
@@ -134,7 +134,7 @@ internal static class NativeGeneratedChoiceCardPatch
 [HarmonyPatch]
 internal static class NativeGeneratedChoiceSkipPatch
 {
-    private readonly record struct PatchState(bool Entered, bool WasComplete);
+    private readonly record struct PatchState(NativeUiScopeEntry Scope, bool WasComplete);
 
     private static readonly AccessTools.FieldRef<NChooseACardSelectionScreen, bool>
         ScreenComplete = AccessTools.FieldRefAccess<NChooseACardSelectionScreen, bool>("_screenComplete");
@@ -154,14 +154,13 @@ internal static class NativeGeneratedChoiceSkipPatch
 
     private static void Postfix(NChooseACardSelectionScreen __instance, PatchState __state)
     {
-        if (__state.Entered && !__state.WasComplete && ScreenComplete(__instance))
+        if (!__state.WasComplete && ScreenComplete(__instance))
             RecorderRuntime.ObserveGeneratedChoiceSkip();
     }
 
     private static Exception? Finalizer(PatchState __state, Exception? __exception)
     {
-        if (__state.Entered)
-            HumanActionScope.Exit();
+        RecorderRuntime.ExitNativeUiScope(__state.Scope);
         return __exception;
     }
 }

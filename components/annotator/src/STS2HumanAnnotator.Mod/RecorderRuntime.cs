@@ -506,7 +506,7 @@ internal static class RecorderRuntime
         }
     }
 
-    internal static bool TryEnterCardScope(CardModel card, Creature? target)
+    internal static NativeUiScopeEntry TryEnterCardScope(CardModel card, Creature? target)
     {
         var arguments = new Dictionary<string, object>(StringComparer.Ordinal);
         if (target != null)
@@ -518,7 +518,7 @@ internal static class RecorderRuntime
             card);
     }
 
-    internal static bool TryEnterGeneratedChoiceCardScope(CardModel card) =>
+    internal static NativeUiScopeEntry TryEnterGeneratedChoiceCardScope(CardModel card) =>
         TryEnterScope(
             "native_generated_card_choice_ui",
             "NChooseACardSelectionScreen.SelectHolder",
@@ -527,7 +527,7 @@ internal static class RecorderRuntime
                 card,
                 new Dictionary<string, object>(StringComparer.Ordinal)));
 
-    internal static bool TryEnterGeneratedChoiceSkipScope() =>
+    internal static NativeUiScopeEntry TryEnterGeneratedChoiceSkipScope() =>
         TryEnterScope(
             "native_generated_card_choice_skip_ui",
             "NChooseACardSelectionScreen.OnSkipButtonReleased",
@@ -564,14 +564,14 @@ internal static class RecorderRuntime
                 new Dictionary<string, string>(StringComparer.Ordinal),
                 DateTimeOffset.UtcNow));
 
-    internal static bool TryEnterScope(
+    internal static NativeUiScopeEntry TryEnterScope(
         string origin,
         string expectedNativeActionType,
         ProcessLocalObservedAction? expectedAction = null,
         CardModel? stagedCard = null)
     {
         if (!AcceptingNewWitnesses())
-            return false;
+            return default;
 
         try
         {
@@ -613,15 +613,15 @@ internal static class RecorderRuntime
 
             if (selected == null)
             {
-                Quarantine(
+                HumanActionScope.EnterDeferredFailure(
+                    expectedNativeActionType,
                     "pre_frame_capture_failed",
                     string.Join(",", currentBlockers.Count == 0
                         ? new[] { "no_same_context_authoritative_frame" }
                         : currentBlockers.Append("no_same_context_authoritative_frame")),
                     current.Snapshot.SnapshotId,
-                    expectedNativeActionType,
                     "fail_closed");
-                return false;
+                return new NativeUiScopeEntry(false, true);
             }
 
             // The service gate is checked after capture as well as before it. A
@@ -631,21 +631,29 @@ internal static class RecorderRuntime
             {
                 if (!_initialized
                     || _lifecycle.State != RecordingLifecycleState.Recording)
-                    return false;
+                    return default;
                 HumanActionScope.Enter(origin, expectedNativeActionType, selected);
             }
-            return true;
+            return new NativeUiScopeEntry(true, false);
         }
         catch (Exception exception)
         {
-            Quarantine(
+            HumanActionScope.EnterDeferredFailure(
+                expectedNativeActionType,
                 "pre_frame_capture_failed",
                 exception.Message,
                 null,
-                origin,
                 "implemented_runtime_error");
-            return false;
+            return new NativeUiScopeEntry(false, true);
         }
+    }
+
+    internal static void ExitNativeUiScope(NativeUiScopeEntry entry)
+    {
+        if (entry.Entered)
+            HumanActionScope.Exit();
+        if (entry.DeferredFailure)
+            HumanActionScope.ExitDeferredFailure();
     }
 
     private static bool IsExact(ProcessLocalNativeMatch match) =>
@@ -657,7 +665,10 @@ internal static class RecorderRuntime
     {
         HumanActionContext? context = HumanActionScope.Current;
         if (context == null)
+        {
+            TryQuarantineDeferredAcceptedAction(action.GetType().Name);
             return;
+        }
         string nativeActionType = action.GetType().Name;
         if (!context.AcceptsRootAction(nativeActionType))
             return;
@@ -687,7 +698,12 @@ internal static class RecorderRuntime
         NativeWitnessEvidence witness)
     {
         HumanActionContext? context = HumanActionScope.Current;
-        if (context == null || !context.AcceptsRootAction(nativeActionType))
+        if (context == null)
+        {
+            TryQuarantineDeferredAcceptedAction(nativeActionType);
+            return;
+        }
+        if (!context.AcceptsRootAction(nativeActionType))
             return;
         try
         {
@@ -705,6 +721,19 @@ internal static class RecorderRuntime
                 nativeActionType,
                 "implemented_runtime_error");
         }
+    }
+
+    private static void TryQuarantineDeferredAcceptedAction(string nativeActionType)
+    {
+        DeferredHumanActionFailure? failure = HumanActionScope.CurrentDeferredFailure;
+        if (failure == null || !failure.TryClaim(nativeActionType))
+            return;
+        Quarantine(
+            failure.ReasonCode,
+            failure.Detail,
+            failure.SnapshotId,
+            nativeActionType,
+            failure.EvidenceLevel);
     }
 
     internal static void OnProcessFrame()

@@ -30,9 +30,11 @@ or expose native references on a wire.
   waits for an admitted pending decision before flushing. A closed session can
   be followed by another session in the same STS2 process. The service never
   invokes a game action.
-- RecordingStatus revision 2 exposes the CaptureProfile boundary as four
-  disjoint views: recorded, supported-but-failed-closed, supported-not-observed,
-  and declared out of scope. A failure count is never presented as a record.
+- RecordingStatus revision 3 exposes the CaptureProfile boundary as four
+  explicit views: recorded, native-accepted-but-failed-closed,
+  supported-not-observed, and declared out of scope. A family may have both
+  successful records and accepted failures, but a rejected native UI attempt is
+  never counted as either a HumanDecision or a recording failure.
 - Builds from the exact local STS2 `v0.111.0` assembly on macOS arm64 and
   Windows x64. Windows discovery and process inspection use the Platform Host
   Runtime component.
@@ -47,12 +49,13 @@ or expose native references on a wire.
   potions and non-Combat UI actions are unsupported by this recorder slice.
 - Unsupported by this first slice: potions and non-Combat UI actions.
 
-The current unified-artifact owner session admitted six end turns with all
-required Reads, but 21 supported card plays failed closed because the staged
-complete frame was compared with an expected transient native-play frame.
-Current source repairs that correlation while retaining exact card/runtime/
-environment/interaction/controller checks; it requires new exact-runtime Live
-validation and does not inherit older play-card evidence.
+Unified artifact `06f62285... / 17981f40...` has two owner-operated sessions
+that independently audit 39/39 records: 25 card plays and 14 end turns, with 158
+materialized Reads and zero Read failures. Current source additionally delays a
+capture-failure invalidation until STS2 accepts the expected native action;
+cancelled, invalid-target and otherwise rejected UI attempts are not decisions.
+That final status-semantics change requires a new exact-runtime validation and
+does not inherit the 39-record evidence.
 
 Implementation or build evidence is not human-origin evidence. See
 [Status](docs/STATUS.md) and [Evidence](docs/EVIDENCE.md).

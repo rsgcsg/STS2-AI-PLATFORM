@@ -1,8 +1,8 @@
 # Current Status
 
-Phase: **Recording Application decision admission is Live-proved; the card-play
-correlation and recording-scope clarity repair is loaded and awaits owner
-validation**.
+Phase: **Recording Application card-play and Close are Live-proved;
+accepted-only recording-scope accounting is source/test complete and awaits
+exact runtime**.
 
 ## Implemented
 
@@ -173,17 +173,32 @@ records exact attribution.
 Current source accepts the complete frame staged at native card selection across
 the expected transient card-play snapshot while retaining exact card, runtime,
 environment, interaction, monotonic-sequence, bounded-age and controller checks.
-Recording status revision 2 separately reports recorded, supported-but-failed,
-supported-not-observed and declared-out-of-scope families. The Live UI reads
+Recording status separately reports recorded, native-accepted-but-failed,
+supported-not-observed and declared-out-of-scope outcomes. The Live UI reads
 authoritative post-command status, so a completed first Close displays Closed.
 The repair is built, installed and cold-loaded as
 `06f62285b11df705bcaf269d0da39f0ad291973f5bd16e189045833271e8aa67 /
 17981f40-4d76-4d06-9e15-b4184cb9707c` in runtime
 `e3a89aaef04042f988697374960801af`, under exact unified Modset
 `1d8b001f...`. Rollback is
-`apps/game-mod/.local/deployments/2026-08-25T12-12-57.940Z`. Load identity does
-not prove card-play capture, first-click Close presentation or the new scope UI;
-the prior session's evidence does not transfer.
+`apps/game-mod/.local/deployments/2026-08-25T12-12-57.940Z`. Owner sessions
+`session-20260825T121841Z-...` and `session-20260825T122157Z-...`
+independently audit 26/26 and 13/13 records: 25 card plays and 14 end turns with
+158 materialized Reads and zero Read failures. A no-pending Close reached
+`session_closed` in 4.139 ms after one request. Another Close correctly remained
+`Closing` while an admitted end turn was pending, then closed after its bounded
+successor timeout. This proves card correlation, authoritative Close display and
+owner-visible scope UI on this exact artifact.
+
+Those sessions also exposed a scope-accounting defect: 42 pre-frame
+invalidations were emitted at native UI method entry before STS2 decided whether
+an action was accepted. Exact `NCardPlay.TryPlayCard` includes cancel,
+missing-target, invalid-target and `TryManualPlay == false` paths, so those
+counts cannot be claimed as accepted actions that should have become records.
+Current source defers capture-failure invalidation until the expected game-owned
+root action is actually enqueued. RecordingStatus revision 3 labels that
+category `native-accepted but failed closed`. The 39 Live records do not
+transfer to this new source.
 
 ## Non-claims
 
@@ -205,8 +220,9 @@ the prior session's evidence does not transfer.
 - The predecessor `d3b25e62...` artifact has six audited owner-attested end-turn
   records with bounded Reads. Its 21 play-card invalidations prove a current
   supported-family defect, not play-card coverage. The staged-card/UI clarity
-  repair is loaded as `06f62285... / 17981f40...` but remains `not exercised`
-  until a new owner session records a card play and observes first-click Close.
+  repair was loaded as `06f62285... / 17981f40...`; its two owner sessions prove
+  card-play and Close. They do not prove accepted-only invalidation accounting
+  introduced by the later source.
 - The current S1 Policy Manifest is validated, but its exact checkpoint is not
   present on this Mac. Real-model Shadow, One-Step, Auto, policy Agent evidence
   and legacy/new path parity are therefore `not exercised`.

@@ -4,7 +4,7 @@ public static class RecordingApplicationContract
 {
     public const string CommandSchema = "sts2.ai-platform/recording-command-1";
     public const string CommandResultSchema = "sts2.ai-platform/recording-command-result-1";
-    public const string StatusSchema = "sts2.ai-platform/recording-status-2";
+    public const string StatusSchema = "sts2.ai-platform/recording-status-3";
     public const string EventBatchSchema = "sts2.ai-platform/recording-event-batch-1";
 }
 
@@ -111,7 +111,7 @@ public sealed record RecordingCloseoutStatus(
 public sealed record RecordingScopeStatus(
     IReadOnlyList<string> SupportedActionFamilies,
     IReadOnlyDictionary<string, long> RecordedByActionFamily,
-    IReadOnlyDictionary<string, long> FailedClosedByActionFamily,
+    IReadOnlyDictionary<string, long> AcceptedFailedClosedByActionFamily,
     IReadOnlyDictionary<string, long> InvalidationsByReason,
     IReadOnlyList<string> SupportedNotObserved,
     IReadOnlyList<string> DeclaredOutOfScope,

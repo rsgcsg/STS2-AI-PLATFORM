@@ -33,10 +33,12 @@ flushes the store, and permits another isolated session in the same STS2
 process.
 
 `RecordingStatus` is a current projection. Its scope section derives from the
-active CaptureProfile and store counters, and keeps recorded, supported but
-failed closed, supported but not observed, and declared-out-of-scope families
-separate. The bounded event stream supports status-first reconnect followed by
-events after sequence N; a retention gap requires a new status query. These
+active CaptureProfile and store counters, and separately reports recorded,
+native-accepted-but-failed-closed, supported-but-not-observed and
+declared-out-of-scope outcomes. A native UI attempt that STS2 rejects creates no
+HumanDecision and no capture-failure invalidation. The bounded event stream
+supports status-first reconnect followed by events after sequence N; a
+retention gap requires a new status query. These
 operational events are not durable Human Evidence. RunJournal, decisions,
 invalidations, Reads and bundles remain the durable Evidence Plane. Audit,
 pack, verify, store and transfer never run on the game main thread.

@@ -53,7 +53,7 @@ test("Human Data controls use only the typed RecordingService application bounda
   assert.match(mod, /RecordingCommandKind\.StartNewSession/u);
   assert.doesNotMatch(`${mod}\n${client}`, /RecorderRuntime|HumanActionScope|AppendDecision/u);
   assert.match(mod, /QueryStatus\(\)/u);
-  assert.match(mod, /SUPPORTED BUT FAILED CLOSED \(not recorded\)/u);
+  assert.match(mod, /Native-accepted but failed closed \(not recorded\)/u);
   assert.match(mod, /Declared out of scope/u);
 });
 

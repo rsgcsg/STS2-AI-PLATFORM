@@ -43,6 +43,9 @@ The unified `K` artifact `d3b25e62... / ee78d9a1...` has six audited end-turn
 records on its exact runtime. Its first Close completed internally while its
 command label remained at `Closing`. The repaired artifact
 `06f62285... / 17981f40...` is now cold-loaded and presents authoritative
-post-command status plus typed scope results. Those presentation and card-play
-changes still require owner exercise; no Human/policy evidence is inferred from
-load identity, and prior evidence does not qualify the new artifact.
+post-command status plus typed scope results. Two owner sessions prove card-play
+recording and both immediate and pending-safe Close behavior. Follow-up source
+renames the failure view to `native-accepted but failed closed` and excludes
+native-rejected attempts; that narrower accounting still requires a new exact
+artifact. No Human/policy evidence is inferred from load identity, and prior
+evidence does not qualify later source.

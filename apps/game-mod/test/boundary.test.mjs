@@ -113,3 +113,16 @@ test("native card staging permits transient snapshot advance without weakening i
   assert.match(guard, /stagedInteractionId/u);
   assert.match(guard, /externalControllerActive/u);
 });
+
+test("capture failures become invalidations only after the native action is accepted", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const scope = read("components/annotator/src/STS2HumanAnnotator.Mod/HumanActionScope.cs");
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+
+  assert.match(runtime, /HumanActionScope\.EnterDeferredFailure/u);
+  assert.match(runtime, /TryQuarantineDeferredAcceptedAction\(action\.GetType\(\)\.Name\)/u);
+  assert.match(runtime, /TryQuarantineDeferredAcceptedAction\(nativeActionType\)/u);
+  assert.match(scope, /AcceptedRootActionGate/u);
+  assert.match(patches, /RecorderRuntime\.ExitNativeUiScope/u);
+  assert.doesNotMatch(runtime, /if \(selected == null\)[\s\S]{0,500}Quarantine\(/u);
+});

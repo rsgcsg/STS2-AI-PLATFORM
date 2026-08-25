@@ -487,7 +487,7 @@ internal sealed class PlatformLivePanel : IDisposable
         $"Runtime state: {status.Recording.RuntimeState}",
         $"Records / invalidations: {status.Recording.Counters.Records} / {status.Recording.Counters.Invalidations}",
         $"Recorded by family: {FormatCounts(status.Recording.Scope.RecordedByActionFamily)}",
-        $"SUPPORTED BUT FAILED CLOSED (not recorded): {FormatCounts(status.Recording.Scope.FailedClosedByActionFamily)}",
+        $"Native-accepted but failed closed (not recorded): {FormatCounts(status.Recording.Scope.AcceptedFailedClosedByActionFamily)}",
         $"Supported, not observed: {FormatItems(status.Recording.Scope.SupportedNotObserved)}",
         $"Declared out of scope: {FormatItems(status.Recording.Scope.DeclaredOutOfScope)}",
         $"Profile boundary: {status.Recording.Scope.Detail}",

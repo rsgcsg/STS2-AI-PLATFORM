@@ -116,9 +116,16 @@ action-family expansion remain outside this bounded baseline.
   recorded, failed-closed, not-observed and out-of-scope families.
 - Complete exact runtime: repair artifact `06f62285... / 17981f40...` is safely
   installed and cold-loaded in runtime `e3a89aae...`; rollback is available.
-- Pending owner runtime: exercise one play card, one end turn and one first-click
-  Close, and inspect the four scope partitions. Prior end-turn evidence does not
-  transfer to this artifact.
+- Complete owner runtime on `06f62285...`: two sessions audited 39/39 records,
+  including 25 card plays and 14 end turns with 158 bounded Reads and no Read
+  failures. Immediate and pending-safe Close behavior both matched lifecycle.
+- Defect found and repaired at source/test: pre-frame invalidations were emitted
+  before STS2 native acceptance, so cancelled/rejected UI attempts inflated the
+  failed-closed category. RecordingStatus revision 3 now counts only accepted
+  native actions in that category.
+- Pending exact runtime: clean build/install/cold-load accepted-only accounting,
+  then verify a normal rejected/cancelled card attempt does not increment it and
+  a successful card play is recorded.
 
 Next phase, not part of this slice: **Live Workspace Window Kernel -> Human
 Recorder Window**.

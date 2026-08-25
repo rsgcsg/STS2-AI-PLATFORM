@@ -37,7 +37,7 @@ controller all agree. Snapshot/catalog equality is intentionally not required
 during the native card-play transition. STS2 still owns legality and the
 accepted `PlayCardAction`; the recorder creates no execution authority.
 
-Recording status revision 2 exposes four disjoint views:
+Recording status revision 2 exposed four views:
 
 - recorded by action family;
 - supported but failed closed and therefore not recorded;
@@ -51,9 +51,29 @@ synchronous Close reports `Closed` after the first click.
 
 The session proves end-turn admission, bounded Reads and safe close on the exact
 artifact above. It does not prove the staged-card repair or revised UI/status.
-That repair is built, installed and cold-loaded as
+That repair was built, installed and cold-loaded as
 `06f62285b11df705bcaf269d0da39f0ad291973f5bd16e189045833271e8aa67 /
 17981f40-4d76-4d06-9e15-b4184cb9707c` in runtime
-`e3a89aaef04042f988697374960801af`; owner validation is pending and evidence
-does not transfer. Generated-card skip remains not exercised. Human origin
-remains owner-attested.
+`e3a89aaef04042f988697374960801af`.
+
+Two owner-operated sessions on that exact runtime then independently passed
+audit:
+
+- `session-20260825T121841Z-71c999f9a604418a83e90c25ac271c39`: 26 records,
+  22 invalidations, 106 Reads, zero Read failures;
+- `session-20260825T122157Z-35faf88cd3ce4b709f8148e668077b94`: 13 records,
+  21 invalidations, 52 Reads, zero Read failures.
+
+Together they contain 25 `play` and 14 `end_turn` records. The second session's
+first Close reached `session_closed` in 4.139 ms. The first session closed after
+an admitted pending end turn reached its bounded successor timeout, so its
+intermediate `Closing` state was correct rather than stale presentation.
+
+The 43 invalidations are not equivalent to 43 accepted Human actions. Forty-two
+were emitted at native UI method entry before STS2 acceptance. Exact
+`NCardPlay.TryPlayCard` contains cancellation, missing/invalid target and failed
+`TryManualPlay` paths. Follow-up source therefore emits a capture-failure
+invalidation only after observing the expected accepted native root action and
+renames the status field accordingly. That source change requires a new
+artifact; evidence does not transfer. Generated-card skip remains not
+exercised. Human origin remains owner-attested.
