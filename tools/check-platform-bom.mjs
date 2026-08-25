@@ -180,7 +180,7 @@ export function validatePlatformBom(bom, authorities) {
     policyCandidate?.connector?.current_component_source_digest_sha256,
     bom.components?.connector?.component_source_digest_sha256);
   expectEqual(errors, "candidate Connector source relation", policyCandidate?.connector?.source_relation,
-    "loaded_native_artifact_precedes_operations_only_dependency_detection_source");
+    "loaded_native_artifact_precedes_operations_only_tooling_source");
   expectEqual(errors, "candidate Connector protocol", policyCandidate?.connector?.protocol,
     bom.components?.player_environment_protocol);
   expectEqual(errors, "candidate Policy Runtime source", policyCandidate?.policy_runtime?.source_revision,

@@ -33,8 +33,9 @@ identity registry.
   `fcda0e47... / 111b8602...` and Live UI
   `0cf30b0f... / 89c75c2b...` are installed and cold-loaded under runtime
   `7c5e7f16...`; exact observer Modset execution admission is active.
-- Connector source `9a76018f...` is an operations-only doctor fix layered after
-  loaded Native source `f667c842...`; no Native evidence is transferred.
+- Connector source `b653b19d...` contains operations-only doctor/provenance
+  fixes layered after loaded Native source `f667c842...`; no Native evidence is
+  transferred.
 - The S1 checkpoint named by the current Policy Manifest is unavailable on this
   Mac. Policy model modes and owner operation of the new UI remain unexercised.
 
