@@ -1,8 +1,8 @@
 # Current Status
 
-Phase: **Recording Application card-play and Close are Live-proved;
-accepted-only recording-scope accounting is source/test complete and awaits
-exact runtime**.
+Phase: **Recording Application card-play and Close are Live-proved on the
+predecessor artifact; rapid accepted-action lifecycle accounting is source/test
+complete and awaits a new exact runtime**.
 
 ## Implemented
 
@@ -35,6 +35,12 @@ exact runtime**.
   and Close waits for pending settlement/invalidation before flush/dispose.
   Application events and closeout state are operational projections, not Human
   Evidence or action authority.
+- The rapid-input repair observes exact accepted roots at
+  `GameAction.OnEnqueued` and records an additive bounded native lifecycle
+  ledger. A single finished action may retain strict V2 successor eligibility;
+  any accepted overlap explicitly invalidates every action in that causal
+  window. The next decision pre-frame is never reused as the prior action's S'.
+  Decision V2 is unchanged, and persistence uncertainty remains no-retry.
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.
 - Workbench `0.1.0-rc.1` provides Environment, Policy, Human Data, Evidence,
@@ -223,11 +229,23 @@ did not change record or invalidation counts; because an intentionally
 unrecorded attempt has no machine event, that absence is not independently
 machine-attributable.
 
+That exact run exposed the remaining correctness gap: its one overlap recorded
+only a failed current attempt while the previous accepted action had no durable
+native lifecycle accounting. Current source replaces the single-pending drop
+path with an additive accepted-action ledger bound to exact STS2 `GameAction`
+identity and lifecycle. Automated tests cover two/three-action bursts,
+targeted/untargeted/end-turn combinations, cancellation, player-choice
+pause/resume, pending Pause/Close, bounded overflow, reset isolation, event
+ordering, sidecar audit/tamper and no false V2 admission. This changes native
+runtime source, so `887630f4... / 14761ed4... / bcf2b3f1...` is predecessor
+Live evidence only. The new candidate is not yet loaded or exercised.
+
 ## Non-claims
 
 - Human origin is owner-attested and cannot be independently machine-proven.
-  Eight additional actions with unstable pre-frames failed closed and were not
-  admitted; the gate does not claim lossless capture under rapid input.
+  Unstable pre-frames still fail closed. The new ledger claims lossless durable
+  accounting only after its exact-runtime rapid-input canary and successful
+  session audit; it does not claim a strict successor for overlapping actions.
 - H0/H1/H2 are automated real-runtime evidence, not human validation, a full
   game journey, durable qualification, semantic parity or long-soak proof.
 - The optional noninteractive Host execution profile was not implemented by the

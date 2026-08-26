@@ -92,6 +92,7 @@ public static class V2RecordingAuditor
         }
 
         ValidateJournal(directory, manifest, errors);
+        ValidateNativeActionLedger(directory, manifest, recordIds, errors);
         long invalidations = File.Exists(Path.Combine(directory, "invalidations.jsonl"))
             ? Lines(Path.Combine(directory, "invalidations.jsonl")).LongCount()
             : 0;
@@ -178,6 +179,54 @@ public static class V2RecordingAuditor
         }
         if (previous == 0)
             Add(errors, "run_journal_empty");
+    }
+
+    private static void ValidateNativeActionLedger(
+        string directory,
+        RecordingManifestV2? manifest,
+        IReadOnlySet<string> admittedRecordIds,
+        IDictionary<string, long> errors)
+    {
+        string path = Path.Combine(directory, "native-action-ledger.jsonl");
+        // V2 recordings sealed before the additive ledger remain readable.
+        if (!File.Exists(path))
+            return;
+
+        var events = new List<NativeActionLedgerEvent>();
+        foreach ((string line, _) in Lines(path))
+        {
+            NativeActionLedgerEvent? value;
+            try
+            {
+                value = JsonSerializer.Deserialize<NativeActionLedgerEvent>(line, EvidenceJson.Options);
+            }
+            catch (JsonException)
+            {
+                Add(errors, "native_action_ledger_json_invalid");
+                continue;
+            }
+            if (value == null
+                || manifest == null
+                || value.SessionId != manifest.SessionId
+                || value.TimelineId != manifest.TimelineId)
+            {
+                Add(errors, "native_action_ledger_session_mismatch");
+                continue;
+            }
+            events.Add(value);
+        }
+        foreach (string error in NativeActionLedgerValidator.Validate(events))
+            Add(errors, error);
+        foreach (NativeActionLedgerEvent disposition in events.Where(value =>
+                     value.Kind is NativeActionLifecycleKinds.StrictTransitionAdmitted
+                         or NativeActionLifecycleKinds.StrictTransitionInvalidated))
+        {
+            bool admitted = admittedRecordIds.Contains(disposition.RecordId);
+            if (disposition.Kind == NativeActionLifecycleKinds.StrictTransitionAdmitted && !admitted)
+                Add(errors, "native_action_admission_record_missing");
+            if (disposition.Kind == NativeActionLifecycleKinds.StrictTransitionInvalidated && admitted)
+                Add(errors, "native_action_invalidated_record_admitted");
+        }
     }
 
     private static T? ReadOrError<T>(string path, IDictionary<string, long> errors, string error)

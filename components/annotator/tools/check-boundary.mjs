@@ -33,8 +33,10 @@ const errors = [];
 for (const [needle, detail] of forbidden) {
   if (sources.includes(needle)) errors.push(detail);
 }
-if (!sources.includes("internal static void Postfix([HarmonyArgument(0)] GameAction action)"))
-  errors.push("accepted native actions must be observed by a void Postfix");
+if (!sources.includes("[HarmonyPatch(typeof(GameAction), nameof(GameAction.OnEnqueued))]"))
+  errors.push("accepted native actions must be observed after exact GameAction enqueue");
+if (!sources.includes("NativeActionLifecycleSubscription"))
+  errors.push("accepted native actions require a bounded process-local lifecycle witness");
 if (!sources.includes("PlayerEnvironmentNativeWitness.Capture()"))
   errors.push("the recorder must consume the process-local Connector witness");
 if (!sources.includes("reference_equality_to_frozen_host_binding"))
@@ -57,8 +59,14 @@ if (!recorderRuntime.includes("RecordingLifecycleSnapshot.Ready(now)"))
   errors.push("runtime initialization must stop at Ready without creating a session");
 if (!recorderRuntime.includes("RecordingCommandKind.StartNewSession"))
   errors.push("recording session creation must be an explicit typed command");
-if (!recorderRuntime.includes("if (_lifecycle.State != RecordingLifecycleState.Closing || _pending != null)"))
-  errors.push("close must wait for an admitted pending decision before disposing the session");
+if (!recorderRuntime.includes("|| HasPendingRecordingWorkUnsafe())"))
+  errors.push("close must wait for strict candidates and unresolved native lifecycle witnesses");
+if (!recorderRuntime.includes("NativeActionLedger.CanAdmitStrictTransition"))
+  errors.push("strict V2 settlement must require exact native terminal lifecycle");
+if (!recorderRuntime.includes("displaced != null && displaced.NativeActionWitnessId == null"))
+  errors.push("a missing prior pending action must not be treated as an overlapping UI causal window");
+if (recorderRuntime.includes("overlapping_action_before_successor"))
+  errors.push("overlap must be accounted in the native ledger rather than dropped");
 
 console.log(JSON.stringify({ status: errors.length === 0 ? "pass" : "fail", errors }, null, 2));
 if (errors.length) process.exit(1);

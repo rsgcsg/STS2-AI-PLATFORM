@@ -43,6 +43,11 @@ so stale loaded-state evidence cannot silently authorize a new process.
 - `pre_frame_not_complete_interactive`: no authoritative decision frame;
 - `mapping_zero` / `mapping_ambiguous`: do not recover by name or coordinates;
 - `stable_successor_timeout`: the transition boundary was not observed;
+- `rapid_input_transition_unproven`: every accepted action remains accounted in
+  the native ledger, but none receives a strict successor claim;
+- `native_action_cancelled`: STS2 cancelled an accepted action; lifecycle only;
+- `native_lifecycle_persistence_unknown`: the append result is unknown, is not
+  retried, and the session must fail audit rather than admit a transition;
 - `runtime_identity_changed`: preserve the invalidation and start a new session;
 - `runtime_process_executable_mismatch`: the status PID is not the discovered
   exact game executable;

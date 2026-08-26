@@ -126,3 +126,18 @@ test("capture failures become invalidations only after the native action is acce
   assert.match(patches, /RecorderRuntime\.ExitNativeUiScope/u);
   assert.doesNotMatch(runtime, /if \(selected == null\)[\s\S]{0,500}Quarantine\(/u);
 });
+
+test("rapid accepted actions use one exact lifecycle ledger and never fabricate V2 successors", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+  const ledger = read("components/annotator/src/STS2HumanAnnotator.Core/NativeActionLedger.cs");
+
+  assert.match(patches, /HarmonyPatch\(typeof\(GameAction\), nameof\(GameAction\.OnEnqueued\)\)/u);
+  assert.match(runtime, /NativeActionLedger\.CanAdmitStrictTransition/u);
+  assert.match(runtime, /displaced != null && displaced\.NativeActionWitnessId == null/u);
+  assert.match(runtime, /rapid_input_transition_unproven/u);
+  assert.match(runtime, /NativeActionLifecycleKinds\.StrictTransitionAdmitted/u);
+  assert.doesNotMatch(runtime, /overlapping_action_before_successor/u);
+  assert.match(ledger, /AcceptedHumanActionLedger/u);
+  assert.match(ledger, /ObserveRecoveryBoundary/u);
+});

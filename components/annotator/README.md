@@ -35,6 +35,12 @@ or expose native references on a wire.
   supported-not-observed, and declared out of scope. A family may have both
   successful records and accepted failures, but a rejected native UI attempt is
   never counted as either a HumanDecision or a recording failure.
+- Accepted `GameAction` roots now enter a bounded additive native-action ledger
+  at exact `GameAction.OnEnqueued`. The ledger records native started,
+  player-choice pause/resume, cancelled and finished facts. Rapid overlap
+  accounts every accepted root but invalidates strict transition admission for
+  every action in the causal window; it never treats a later decision frame as
+  an earlier action's successor. `HumanDecisionRecordV2` remains unchanged.
 - Builds from the exact local STS2 `v0.111.0` assembly on macOS arm64 and
   Windows x64. Windows discovery and process inspection use the Platform Host
   Runtime component.
@@ -72,8 +78,9 @@ Implementation or build evidence is not human-origin evidence. See
 ```text
 shipped STS2 UI
   -> observer freezes Connector S + complete A(S) at native selection start
-  -> game accepts a semantic action
+  -> game accepts a semantic action and assigns an exact GameAction ID
   -> exact native references match exactly one frozen BoundAction
+  -> additive ledger observes the game-owned action lifecycle
   -> Connector observes a different stable S' with required same-frame Reads
   -> append-only HumanDecisionRecord V2 + RunJournal + content-addressed blobs
   -> audit/export
@@ -83,8 +90,9 @@ shipped STS2 UI
 ```
 
 Zero or multiple matches, no current or same-card staged stable pre-frame,
-runtime drift, overlapping actions, or a missing stable successor are
-quarantined rather than guessed.
+runtime drift, an unproven overlapping causal window, or a missing stable
+successor are quarantined rather than guessed. Overlap still retains accepted
+action identity and lifecycle evidence; it does not emit a strict V2 record.
 
 ## Prerequisites
 
@@ -154,6 +162,8 @@ recording-manifest.json
 run-0001.jsonl
 run-0002.jsonl
 invalidations.jsonl
+native-action-ledger.jsonl
+run-journal.jsonl
 coverage.json
 ```
 

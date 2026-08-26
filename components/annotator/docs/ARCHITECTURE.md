@@ -15,7 +15,8 @@ The only production correlation path is:
 native `StartCardPlay` stages the exact complete Connector frame while the card
 is still in the hand -> final UI Prefix selects current or same-card staged frame
 -> game native validation/Commit
--> RequestEnqueue Postfix -> exact reference match -> wait for stable S'
+-> GameAction.OnEnqueued Postfix -> exact reference match and lifecycle witness
+-> wait for a provably action-local stable S'
 -> append record
 ```
 
@@ -69,12 +70,22 @@ decision to settle or invalidate before the RunJournal and evidence streams are
 flushed and disposed. Audit/pack/verify/store/transfer remain offline Evidence
 operations.
 
-Only a complete interactive pre-frame is eligible. One accepted root action may
-be pending at a time. Native actions caused by that root are outside the human
-decision boundary and are ignored. A different complete interactive snapshot in
-the same runtime and environment is recorded as S'. Timeout, overlap, runtime
-drift, root-contract error, or mapping failure is appended to
-`invalidations.jsonl`.
+Only a complete interactive pre-frame is eligible. One non-overlapping accepted
+root may remain a strict transition candidate. Every exact-correlated native
+root enters a bounded ledger at `GameAction.OnEnqueued`, after STS2 assigns its
+queue ID and before queue notification or execution. The observer subscribes to
+the action's game-owned started, player-choice pause/resume, cancelled and
+finished events without changing the action.
+
+If another Human root is accepted before the first candidate has both finished
+and reached an action-local stable successor, every action in that causal window
+is explicitly accounted but loses strict transition eligibility. The next
+decision pre-frame is not evidence of the prior action's successor. Recovery is
+allowed only after every tracked action is terminal and a fresh complete
+interactive boundary is observed. Timeout, overlap, cancellation, runtime
+drift, lifecycle persistence uncertainty, root-contract error, or mapping
+failure is fail-closed. Native lifecycle facts are additive evidence;
+`HumanDecisionRecordV2` bytes and meaning are unchanged.
 
 The application event stream is typed, process-local and bounded. A consumer
 queries current status, then requests events after sequence N. A gap means the

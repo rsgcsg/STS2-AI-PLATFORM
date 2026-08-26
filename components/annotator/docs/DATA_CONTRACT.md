@@ -1,9 +1,11 @@
 # Data Contract
 
-Schema version 1 is defined by
-`src/STS2HumanAnnotator.Core/Contracts.cs`. A session directory contains one
+Decision V1/V2 schemas are defined by
+`src/STS2HumanAnnotator.Core/Contracts.cs` and `V2Contracts.cs`. A session directory contains one
 immutable manifest, one append-only file per observed run, one append-only
-invalidation stream, and an atomically replaced coverage summary.
+invalidation stream, an additive native-action lifecycle ledger, a minimal run
+journal, content-addressed Read blobs, and an atomically replaced coverage
+summary.
 
 Each admitted `HumanDecisionRecord` contains:
 
@@ -19,6 +21,17 @@ Each admitted `HumanDecisionRecord` contains:
 digest/count, chosen-action uniqueness, runtime continuity, sequence monotonicity,
 and exact identities. `export` refuses a failed audit and concatenates run files
 in deterministic order.
+
+`native-action-ledger.jsonl` uses
+`sts2.human-annotator/native-action-ledger-event-1`. Each exact-correlated
+accepted root has one process-local action witness ID, native queue ID, ordered
+lifecycle facts and exactly one recorder disposition:
+`strict_transition_admitted` or `strict_transition_invalidated`. Admission
+requires native `finished` plus the existing stable-successor gates. Cancellation
+or overlap preserves decision/lifecycle accounting but produces no strict V2
+transition. Missing or unknown ledger persistence makes audit fail; it is never
+retried or repaired from a later frame. Sessions sealed before this additive
+sidecar remain readable, so historical V2 bytes and meaning are not redefined.
 
 `pack-session` creates `sts2.human-annotator/session-bundle-1`. A bundle contains
 the untouched raw session, independent audit, deterministic export, the exact

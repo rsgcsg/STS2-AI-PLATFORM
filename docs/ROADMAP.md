@@ -131,6 +131,15 @@ action-family expansion remain outside this bounded baseline.
   explicitly separated accepted failures. First-click Close completed in
   5.153 ms. The owner-observed cancelled/rejected attempt emitted no evidence;
   absence of an intentionally unrecorded attempt is not machine-attributable.
+- Complete at source/test: replace the single-pending overlap drop with an
+  additive exact `GameAction` lifecycle ledger. Every accepted root receives a
+  durable disposition; overlapping causal windows cannot emit strict V2 S'.
+  V2 remains byte/meaning compatible and old sessions remain readable.
+- Pending exact runtime: cold-load the rapid-input artifact and exercise
+  two/three-action bursts, targeted/untargeted play, queued cards followed by
+  end turn, natural player-choice pause/resume, cancellation, Pause/Close and
+  session reset. Audit must prove one disposition per accepted action and zero
+  false strict transitions.
 
 Next phase, not part of this slice: **Live Workspace Window Kernel -> Human
 Recorder Window**.

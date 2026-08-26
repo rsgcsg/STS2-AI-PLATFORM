@@ -22,6 +22,16 @@ MVID `57785517-0b16-42b9-8b36-bad6fb28384b`.
   shows that a same-type game-owned `PlayCardAction` can be observed during the
   short native UI scope, so native type cannot claim the human root; exact
   frozen card/target matching must happen first.
+- `ActionQueueSet.EnqueueWithoutSynchronizing` calls
+  `GameAction.OnEnqueued(PopAction, GetAndIncrementActionId())` before
+  `ActionEnqueued`, native queue cancellation checks, queue insertion and
+  `ActionQueueChanged`. A Postfix on `OnEnqueued` therefore observes the exact
+  assigned ID/state early enough to subscribe before started/cancelled/finished
+  events can occur.
+- `GameAction` exposes game-owned `BeforeExecuted`, player-choice
+  pause/ready/resume, `BeforeCancelled` and `AfterFinished` events. These facts
+  prove native lifecycle, not business completion. `ActionExecutor` remains
+  unpatched; no transpiler, scheduler change, sleep or timing heuristic is used.
 
 These are implementation evidence, not current Live evidence. Decompiled source
 and proprietary assemblies are not committed.

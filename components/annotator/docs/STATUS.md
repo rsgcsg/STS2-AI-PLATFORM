@@ -7,6 +7,11 @@ audited generated-card select. Generated-card skip and the current unified
 artifact's Human path remain `not exercised`. Root `../../../docs/STATUS.md` is
 authoritative for the current runtime boundary.
 
+Current source adds an exact accepted-action lifecycle ledger for rapid input.
+It is source/test/build evidence only until a new unified artifact is
+cold-loaded. The loaded `887630f4... / 14761ed4...` artifact and its 19-record
+session are predecessor evidence and cannot validate this native change.
+
 The Recording Application Plane starts Ready, creates explicit repeatable
 sessions, and exposes typed status/events plus idempotent lifecycle commands.
 Unified Modset admission and unknown/no-retry persistence are now Live-proved by
@@ -25,7 +30,9 @@ audits 19/19 records and explicitly separates 16 native-accepted failures.
   finite BoundAction catalog with exact Host-local references;
 - native STS2 UI scope around card play and end-turn callbacks;
 - observation of accepted `PlayCardAction` and `EndPlayerTurnAction` at the
-  game-owned action queue;
+  exact game-owned `GameAction.OnEnqueued` boundary;
+- bounded per-action native lifecycle accounting with explicit strict-admitted
+  or strict-invalidated disposition and no fabricated overlap successor;
 - exact card/target reference mapping with zero/ambiguous fail closed;
 - different complete interactive successor settlement;
 - append-only per-run JSONL, invalidations, coverage, audit, and export;
@@ -56,7 +63,10 @@ tests cover duplicate-looking native objects,
 target disambiguation, incomplete frames, and exact observer fingerprinting.
 V2 tests additionally cover required-Read fail-closed admission, blob/content
 identity, RunJournal/bundle portability, selector transition precision and
-version-aware external verification.
+version-aware external verification. Rapid-input tests cover A1->A2 and
+A1->A2->A3 accounting, targeted/untargeted/end-turn combinations, cancellation,
+player-choice pause/resume, unresolved Pause/Close, bounded overflow/reset,
+lifecycle ordering and additive sidecar audit/tamper.
 
 ## Exact Runtime Findings
 

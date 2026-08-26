@@ -121,6 +121,100 @@ public sealed class V2EvidenceTests
     }
 
     [Fact]
+    public void AdditiveNativeLedgerIsAuditedAndCopiedWithoutRedefiningV2Records()
+    {
+        string root = Temp("v2-native-ledger");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            string session;
+            using (var store = V2RecordingStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                HumanDecisionRecord v1 = RecordValidationTests.ValidRecord();
+                store.AppendDecision(V2Record(v1, (
+                    PersistReads(store, v1.Pre.SnapshotId),
+                    PersistReads(store, v1.Successor.SnapshotId))));
+                var accepted = new NativeActionLedgerEvent(
+                    NativeActionLedgerContract.SchemaVersion,
+                    NativeActionLedgerContract.EventSchema,
+                    "native-event-1",
+                    manifest.SessionId,
+                    manifest.TimelineId,
+                    "run-0001",
+                    1,
+                    "game-action-1",
+                    1,
+                    v1.RecordId,
+                    DateTimeOffset.UnixEpoch,
+                    NativeActionLifecycleKinds.Accepted,
+                    "PlayCardAction",
+                    7,
+                    "waiting_for_execution",
+                    Array.Empty<string>(),
+                    "strict_candidate",
+                    null);
+                store.AppendNativeActionEvent(accepted);
+                store.AppendNativeActionEvent(accepted with
+                {
+                    EventId = "native-event-2",
+                    Sequence = 2,
+                    Kind = NativeActionLifecycleKinds.Started,
+                    NativeState = "executing",
+                    TransitionEvidence = "lifecycle_observed"
+                });
+                store.AppendNativeActionEvent(accepted with
+                {
+                    EventId = "native-event-3",
+                    Sequence = 3,
+                    Kind = NativeActionLifecycleKinds.Finished,
+                    NativeState = "finished",
+                    TransitionEvidence = "lifecycle_observed"
+                });
+                store.AppendNativeActionEvent(accepted with
+                {
+                    EventId = "native-event-4",
+                    Sequence = 4,
+                    Kind = NativeActionLifecycleKinds.StrictTransitionAdmitted,
+                    NativeState = "finished",
+                    TransitionEvidence = "strict_v2_admitted"
+                });
+            }
+
+            Assert.Equal("pass", V2RecordingAuditor.Audit(session).Status);
+            string output = Path.Combine(root, "bundle");
+            V2SessionBundlePacker.Pack(
+                session,
+                "human-001",
+                "human-read-rich-2026-08",
+                output,
+                new string('c', 40),
+                true);
+            Assert.True(File.Exists(Path.Combine(
+                output,
+                "raw",
+                "native-action-ledger.jsonl")));
+
+            string ledgerPath = Path.Combine(session, "native-action-ledger.jsonl");
+            File.WriteAllText(
+                ledgerPath,
+                File.ReadAllText(ledgerPath).Replace(
+                    NativeActionLedgerContract.EventSchema,
+                    "tampered",
+                    StringComparison.Ordinal));
+            RecordingAuditResult failed = V2RecordingAuditor.Audit(session);
+            Assert.Equal("fail", failed.Status);
+            Assert.Contains("native_action_schema_invalid", failed.Errors);
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
     public void V2BundleIsPortableDeterministicAndImmutable()
     {
         string root = Temp("v2-bundle");

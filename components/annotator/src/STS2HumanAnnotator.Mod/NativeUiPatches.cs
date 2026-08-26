@@ -2,7 +2,6 @@ using System.Reflection;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.GameActions;
-using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.Core.Nodes.Combat;
@@ -79,11 +78,14 @@ internal static class NativeFtueEndTurnPatch
     }
 }
 
-[HarmonyPatch(typeof(ActionQueueSynchronizer), nameof(ActionQueueSynchronizer.RequestEnqueue))]
+[HarmonyPatch(typeof(GameAction), nameof(GameAction.OnEnqueued))]
 internal static class AcceptedGameActionPatch
 {
-    internal static void Postfix([HarmonyArgument(0)] GameAction action) =>
-        RecorderRuntime.ObserveAcceptedAction(action);
+    // OnEnqueued has assigned the exact queue ID and state, while the caller has
+    // not yet notified ActionExecutor. This is the earliest accepted-action seam
+    // where no started/cancelled/finished lifecycle event can already be lost.
+    internal static void Postfix(GameAction __instance) =>
+        RecorderRuntime.ObserveAcceptedAction(__instance);
 }
 
 [HarmonyPatch]

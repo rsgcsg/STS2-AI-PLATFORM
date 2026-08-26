@@ -11,6 +11,7 @@ public sealed class V2RecordingStore : IDisposable
     private readonly Dictionary<string, FileStream> _decisionFiles = new(StringComparer.Ordinal);
     private readonly FileStream _invalidations;
     private readonly FileStream _journal;
+    private readonly FileStream _nativeActionLedger;
     private readonly Dictionary<string, long> _families = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _readsByKind = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _invalidationsByReason = new(StringComparer.Ordinal);
@@ -44,6 +45,7 @@ public sealed class V2RecordingStore : IDisposable
             JsonSerializer.Serialize(captureProfile, EvidenceJson.IndentedOptions));
         _invalidations = OpenAppend(Path.Combine(directory, "invalidations.jsonl"));
         _journal = OpenAppend(Path.Combine(directory, "run-journal.jsonl"));
+        _nativeActionLedger = OpenAppend(Path.Combine(directory, "native-action-ledger.jsonl"));
         WriteCoverage();
     }
 
@@ -212,6 +214,24 @@ public sealed class V2RecordingStore : IDisposable
         ExecuteWrite(() => AppendLine(_journal, value));
     }
 
+    public void AppendNativeActionEvent(NativeActionLedgerEvent value)
+    {
+        if (value.SchemaVersion != NativeActionLedgerContract.SchemaVersion
+            || value.Schema != NativeActionLedgerContract.EventSchema
+            || value.SessionId != Manifest.SessionId
+            || value.TimelineId != Manifest.TimelineId
+            || value.Sequence <= 0
+            || value.ActionSequence <= 0
+            || string.IsNullOrWhiteSpace(value.EventId)
+            || string.IsNullOrWhiteSpace(value.ActionWitnessId)
+            || string.IsNullOrWhiteSpace(value.RecordId)
+            || string.IsNullOrWhiteSpace(value.Kind)
+            || string.IsNullOrWhiteSpace(value.NativeActionType))
+            throw new InvalidDataException("Native action ledger event is invalid for this recording.");
+        EnsureOpen();
+        ExecuteWrite(() => AppendLine(_nativeActionLedger, value));
+    }
+
     public void AppendInvalidation(InvalidationRecord invalidation)
     {
         EnsureOpen();
@@ -248,6 +268,7 @@ public sealed class V2RecordingStore : IDisposable
                 stream.Dispose();
             _invalidations.Dispose();
             _journal.Dispose();
+            _nativeActionLedger.Dispose();
             _closed = true;
             _appendHealth = "closed";
         }

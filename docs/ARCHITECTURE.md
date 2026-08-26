@@ -27,10 +27,10 @@ The native recorder correlation kernel owns one process-local recording state.
 It starts `Ready`, and a typed `RecordingService` is the only application
 boundary used to query status, issue lifecycle commands, or follow ordered
 events. `StartNewSession` creates a fresh session, timeline and append store;
-`Pause` blocks new witnesses without discarding an already admitted pending
-decision; `Close` waits for that pending decision to settle or invalidate,
-flushes the store, and permits another isolated session in the same STS2
-process.
+`Pause` blocks new witnesses without discarding already accepted native
+lifecycle witnesses; `Close` waits for the strict candidate and every tracked
+native action to settle, invalidate, cancel or finish, flushes the store, and
+permits another isolated session in the same STS2 process.
 
 `RecordingStatus` is a current projection. Its scope section derives from the
 active CaptureProfile and store counters, and separately reports recorded,
@@ -40,7 +40,8 @@ HumanDecision and no capture-failure invalidation. The bounded event stream
 supports status-first reconnect followed by events after sequence N; a
 retention gap requires a new status query. These
 operational events are not durable Human Evidence. RunJournal, decisions,
-invalidations, Reads and bundles remain the durable Evidence Plane. Audit,
+invalidations, the additive native-action ledger, Reads and bundles remain the
+durable Evidence Plane. Audit,
 pack, verify, store and transfer never run on the game main thread.
 
 ## Hard Shell
