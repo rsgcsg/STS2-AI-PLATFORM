@@ -10,6 +10,7 @@ import {
   loadHostRuntimeWorkstationApi,
   resolveWorkstationInstallation
 } from "../../components/annotator/tools/workstation-platform.mjs";
+import { waitForLoadedReadiness } from "./loaded-readiness.mjs";
 import { sourceSetIdentity, sourceSetMatches } from "./source-identity.mjs";
 
 const appRoot = import.meta.dirname;
@@ -327,16 +328,31 @@ function latestIdentity(log, prefix) {
 async function verifyLoaded() {
   if (!gameRunning()) throw new Error("Slay the Spire 2 is not running.");
   if (!fs.existsSync(installedProvenance)) throw new Error("Game Mod installed provenance is unavailable.");
-  if (!fs.existsSync(runtimeStatus)) throw new Error("Annotator runtime status is unavailable.");
   if (!installation.log_file || !fs.existsSync(installation.log_file)) throw new Error("STS2 runtime log is unavailable.");
   const installed = readJson(installedProvenance);
-  const status = readJson(runtimeStatus);
-  const capabilities = await fetchJson("api/player-environment/capabilities");
-  const log = fs.readFileSync(installation.log_file, "utf8");
-  const platformIdentity = latestIdentity(log, "[STS2 Platform] identity ");
-  const liveUiIdentity = latestIdentity(log, "[STS2 Platform Live UI] identity ");
-  const errors = [];
   const expected = installed.artifact;
+  const loaded = await waitForLoadedReadiness(async () => {
+    if (!fs.existsSync(runtimeStatus)) throw new Error("Annotator runtime status is unavailable.");
+    const status = readJson(runtimeStatus);
+    const capabilities = await fetchJson("api/player-environment/capabilities");
+    const log = fs.readFileSync(installation.log_file, "utf8");
+    const platformIdentity = latestIdentity(log, "[STS2 Platform] identity ");
+    const liveUiIdentity = latestIdentity(log, "[STS2 Platform Live UI] identity ");
+    const latestUiIdentityIndex = log.lastIndexOf("[STS2 Platform Live UI] identity ");
+    const uiLog = log.slice(Math.max(0, latestUiIdentityIndex));
+    const ready = sameIdentity(status.environment?.connector, expected)
+      && sameIdentity(status.environment?.annotator, expected)
+      && sameHostIdentity(capabilities.host?.implementation, expected)
+      && platformIdentity?.artifact_sha256 === expected.sha256
+      && platformIdentity?.module_version_id === expected.module_version_id
+      && liveUiIdentity?.artifact_sha256 === expected.sha256
+      && liveUiIdentity?.module_version_id === expected.module_version_id
+      && latestUiIdentityIndex >= 0
+      && uiLog.includes("[STS2 Platform Live UI] panel ready; input=K");
+    return { ready, status, capabilities, platformIdentity, liveUiIdentity, log, uiLog };
+  });
+  const { status, capabilities, platformIdentity, liveUiIdentity, log, uiLog } = loaded;
+  const errors = [];
   const ageMs = Date.now() - Date.parse(status.observed_at);
   if (ageMs > 5000) errors.push("runtime_status_not_fresh");
   if (!sameIdentity(status.environment?.connector, expected)) errors.push("connector_not_loaded_from_unified_artifact");
@@ -357,7 +373,6 @@ async function verifyLoaded() {
   if (liveUiIdentity?.module_version_id !== expected.module_version_id) errors.push("live_ui_loaded_mvid_mismatch");
   if (liveUiIdentity?.source_revision !== installed.source.components.live_ui.source_revision) errors.push("live_ui_source_revision_mismatch");
   const latestUiIdentityIndex = log.lastIndexOf("[STS2 Platform Live UI] identity ");
-  const uiLog = log.slice(Math.max(0, latestUiIdentityIndex));
   if (latestUiIdentityIndex < 0 || !log.slice(latestUiIdentityIndex).includes("[STS2 Platform Live UI] panel ready; input=K")) {
     errors.push("live_ui_panel_ready_absent");
   }

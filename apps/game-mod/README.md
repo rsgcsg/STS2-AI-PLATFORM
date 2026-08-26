@@ -36,6 +36,8 @@ After cold load, press `K` to open/close the five-page Platform UI; `Escape`
 also closes it. Verification requires one exact `STS2_PLATFORM` Modset, one
 common loaded SHA/MVID for Connector/Annotator/UI, component-specific embedded
 source provenance, a ready UI node, and Connector execution availability.
+`verify-loaded` polls this exact readiness envelope for a bounded startup
+window; timeout still fails closed with the latest observed identity state.
 
 The UI is composed from built-in Godot nodes and driven by SceneTree signals.
 Do not replace it with a custom `Node` callback unless the package explicitly
