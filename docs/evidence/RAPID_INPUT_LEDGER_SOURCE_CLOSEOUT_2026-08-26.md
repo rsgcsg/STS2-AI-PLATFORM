@@ -1,8 +1,8 @@
 # Rapid Input Ledger Source Closeout
 
 Evidence level: **ledger v1 source/test/build/install/load/Live behavior;
-ledger v2 source + automated test**. The v2 decision payload needs a new exact
-build/cold-load/owner canary.
+ledger v2 source/test/build/install/load**. The v2 decision payload needs an
+owner rapid-input canary.
 
 ## Root Cause
 
@@ -62,9 +62,16 @@ invalidated roots, so targeted/untargeted classification of those rows is a
 non-claim. Ledger v2 closes that source-level evidence gap and needs a new Live
 canary.
 
+Ledger v2 artifact
+`df5d2c61304be5dfbbfe8f608a5832539a723f0330c93e7330f48fc97d0a3d0e /
+9072e515-69f2-4131-957b-417d80008b04` is clean-built from Annotator source
+`de5e55fc...`, safely installed and cold-loaded in runtime `ebe7a9fc...` with
+exact Modset `20b2de1a...`. It reached Ready/no-session. This proves exact
+identity and initialization, not that an owner action wrote a v2 ledger event.
+
 ## Non-Claims
 
 Native `finished` is not business completion. The ledger does not prove an
 action-local S' for overlapping actions, reconstruct legality/effects, or make
-the Annotator an executor. Automated fixtures do not prove ledger v2 loaded or
-Live. The v1 Live artifact cannot transfer evidence to bytes it did not contain.
+the Annotator an executor. Load does not prove ledger v2 mutation behavior. The
+v1 Live artifact cannot transfer evidence to bytes it did not contain.

@@ -70,6 +70,8 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   candidate.owner_ui_visibility = "pass";
   candidate.rapid_input_ledger_v1_owner_validation.valid_records = 13;
   candidate.rapid_input_ledger_v1_owner_validation.evidence_transfer_to_ledger_v2 = true;
+  candidate.rapid_input_ledger_v2_loaded_candidate.owner_rapid_input = "pass";
+  candidate.rapid_input_ledger_v2_loaded_candidate.evidence_transfer_from_ledger_v1 = true;
   candidate.recording_application_decision_gate.human_origin = "machine_proven";
   candidate.predecessor_human_session.evidence_transfer_to_unified_artifact = true;
   candidate.external_policy.checkpoint_status = "present";
@@ -89,6 +91,8 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   assert.ok(errors.some((error) => error.startsWith("candidate owner UI visibility:")));
   assert.ok(errors.some((error) => error.startsWith("rapid ledger valid records:")));
   assert.ok(errors.some((error) => error.startsWith("rapid ledger evidence transfer:")));
+  assert.ok(errors.some((error) => error.startsWith("rapid ledger v2 owner canary:")));
+  assert.ok(errors.some((error) => error.startsWith("rapid ledger v2 evidence transfer:")));
   assert.ok(errors.some((error) => error.startsWith("accepted-only Human origin:")));
   assert.ok(errors.some((error) => error.startsWith("predecessor evidence transfer:")));
   assert.ok(errors.some((error) => error.startsWith("candidate policy checkpoint:")));

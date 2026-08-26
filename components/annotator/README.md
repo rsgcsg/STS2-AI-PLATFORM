@@ -80,8 +80,9 @@ ledger contains 35 accepted, started and finished roots: 12 strict-admitted and
 23 strict-invalidated, with zero unresolved lifecycle. This proves accounting
 and no false strict successor for the observed bursts. Current ledger v2 source
 adds frozen decision/BoundAction evidence for invalidated roots; that additive
-evidence revision still requires a new cold-load and does not inherit this
-predecessor Live claim.
+revision does not inherit this predecessor Live claim. It is now cold-loaded as
+`df5d2c61... / 9072e515...` in runtime `ebe7a9fc...`; owner rapid-input
+validation remains pending.
 
 Implementation or build evidence is not human-origin evidence. See
 [Status](docs/STATUS.md) and [Evidence](docs/EVIDENCE.md).

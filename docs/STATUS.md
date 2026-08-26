@@ -1,8 +1,8 @@
 # Current Status
 
 Phase: **rapid accepted-action lifecycle accounting is Live-proved; ledger v2
-decision-bound invalidation evidence is source/test complete and awaits a new
-exact runtime**.
+decision-bound invalidation evidence is built, installed and loaded, pending an
+owner rapid-input canary**.
 
 ## Implemented
 
@@ -46,7 +46,8 @@ exact runtime**.
   admissions, 23 explicit invalidations and zero unresolved lifecycle. Current
   ledger v2 source additionally stores each accepted root's frozen pre-frame,
   exact mapping and BoundAction so invalidated decisions are independently
-  classifiable. That evidence-only native revision remains pending cold-load.
+  classifiable. That evidence-only native revision is now cold-loaded and
+  awaits owner action evidence.
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.
 - Workbench `0.1.0-rc.1` provides Environment, Policy, Human Data, Evidence,
@@ -251,16 +252,21 @@ roots as targeted or untargeted because it persisted identity/lifecycle but not
 the frozen decision payload. Current source revises only the additive ledger to
 v2: accepted events carry frozen Decision V2 pre, native witness, exact mapping
 and BoundAction; lifecycle rows cannot repeat them; audit cross-checks admitted
-payloads against Decision V2. Historical v1 ledgers remain readable. This native
-evidence revision requires a new artifact and has no loaded/Live claim yet.
+payloads against Decision V2. Historical v1 ledgers remain readable. The
+revision is clean-built, installed and cold-loaded as
+`df5d2c61... / 9072e515...` in runtime `ebe7a9fc...`, exact Modset
+`20b2de1a...`, with rollback at
+`apps/game-mod/.local/deployments/2026-08-26T06-50-54.021Z`. Ready/no-session
+proves identity and lifecycle initialization only; ledger v2 mutation evidence
+is still `not exercised`.
 
 ## Non-claims
 
 - Human origin is owner-attested and cannot be independently machine-proven.
   Unstable pre-frames still fail closed. Ledger v1 now has exact-runtime evidence
   for lossless accounting in the observed rapid windows; it does not claim a
-  strict successor for overlap. Ledger v2 decision payloads remain pending exact
-  runtime evidence.
+  strict successor for overlap. Ledger v2 is loaded but its decision payloads
+  remain pending owner rapid-input evidence.
 - H0/H1/H2 are automated real-runtime evidence, not human validation, a full
   game journey, durable qualification, semantic parity or long-soak proof.
 - The optional noninteractive Host execution profile was not implemented by the

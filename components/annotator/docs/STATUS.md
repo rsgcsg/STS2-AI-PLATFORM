@@ -18,9 +18,10 @@ claiming an action-local successor for overlap.
 That canary also exposed an evidence-fidelity gap: v1 invalidated ledger rows did
 not independently retain their frozen decision pre-frame and exact BoundAction.
 Current ledger v2 source adds those accepted-action facts, rejects repetition on
-lifecycle rows and cross-checks admitted facts against Decision V2. It remains
-source/test evidence pending a new exact-runtime cold-load; the v1 canary cannot
-prove bytes that its artifact did not write.
+lifecycle rows and cross-checks admitted facts against Decision V2. It is
+cold-loaded as `df5d2c61... / 9072e515...` in runtime `ebe7a9fc...`, Ready with
+no session. The v1 canary cannot prove bytes that its artifact did not write, so
+v2 rapid-input mutation remains `not exercised` pending owner validation.
 
 The Recording Application Plane starts Ready, creates explicit repeatable
 sessions, and exposes typed status/events plus idempotent lifecycle commands.

@@ -237,7 +237,7 @@
     }
   },
   "unified_platform_runtime_candidate": {
-    "status": "rapid_input_ledger_v1_live_v2_source_test_pending_runtime",
+    "status": "rapid_input_ledger_v2_loaded_pending_owner_validation",
     "platform": "darwin",
     "architecture": "arm64",
     "game": {
@@ -252,8 +252,8 @@
       "current_component_source_revision": "0592ce790ab36340bf43908f2d993e4b32bed1b1",
       "current_component_source_digest_sha256": "566043ab1821c29c1a0d429e2938de0b6024f5089b6a17947599d1b2fcbeb595",
       "source_relation": "loaded_native_source_scope_matches_current_component",
-      "artifact_sha256": "080701b3bf787c6055504678f5acf426141d4c65f33f4c94098db4d8e7f1d50e",
-      "artifact_mvid": "142054a5-267c-40ad-b254-6989aa40ef8d",
+      "artifact_sha256": "df5d2c61304be5dfbbfe8f608a5832539a723f0330c93e7330f48fc97d0a3d0e",
+      "artifact_mvid": "9072e515-69f2-4131-957b-417d80008b04",
       "protocol": "1.0.0"
     },
     "policy_runtime": {
@@ -262,13 +262,13 @@
       "version": "0.1.0-rc.1"
     },
     "annotator": {
-      "source_revision": "806d8f798287590b15cbc327b12118d750bb6f21",
-      "source_digest_sha256": "6666d0f3c935c8b854f770de34f95232f298ccbebeb68a44ac8dee7964d11da0",
+      "source_revision": "de5e55fcf1bd8f17af3d1a3c871781b1702b99cf",
+      "source_digest_sha256": "c8f12204c45519c007ee0c2b6b890e5f1fe705510150978ffa8a37426d233780",
       "current_component_source_revision": "de5e55fcf1bd8f17af3d1a3c871781b1702b99cf",
       "current_component_source_digest_sha256": "57ff1182067e0aa2cc2601de4c0c4fe73200d14f32ac8fdc040d0236015a804d",
-      "source_relation": "loaded_ledger_v1_precedes_decision_bound_ledger_v2_source",
-      "artifact_sha256": "080701b3bf787c6055504678f5acf426141d4c65f33f4c94098db4d8e7f1d50e",
-      "artifact_mvid": "142054a5-267c-40ad-b254-6989aa40ef8d"
+      "source_relation": "loaded_native_source_scope_matches_current_component",
+      "artifact_sha256": "df5d2c61304be5dfbbfe8f608a5832539a723f0330c93e7330f48fc97d0a3d0e",
+      "artifact_mvid": "9072e515-69f2-4131-957b-417d80008b04"
     },
     "live_ui": {
       "source_revision": "305a2cac80f0bd3126d66cfc5818477c583a8ce5",
@@ -276,28 +276,28 @@
       "current_component_source_revision": "305a2cac80f0bd3126d66cfc5818477c583a8ce5",
       "current_component_source_digest_sha256": "9e2675d9c7429817d329770b6a395e9d4b9aa8593aae05f463cf118c2486650a",
       "source_relation": "loaded_native_source_scope_matches_current_component",
-      "artifact_sha256": "080701b3bf787c6055504678f5acf426141d4c65f33f4c94098db4d8e7f1d50e",
-      "artifact_mvid": "142054a5-267c-40ad-b254-6989aa40ef8d"
+      "artifact_sha256": "df5d2c61304be5dfbbfe8f608a5832539a723f0330c93e7330f48fc97d0a3d0e",
+      "artifact_mvid": "9072e515-69f2-4131-957b-417d80008b04"
     },
     "game_mod": {
       "version": "0.2.0-rc.1",
       "platform_source_revision": "b5389a0b4a1bbed37e6a9718776fdf38f06f50c9",
-      "platform_source_digest_sha256": "253e994156cc21b2d62d7509ff8be411dbc5713b5c52acc788c75719e35008f6",
+      "platform_source_digest_sha256": "92d107a8c4e958b64ed25625927dd12a3e6766c4384b74d7b34f4384e35b765f",
       "current_component_source_revision": "806d8f798287590b15cbc327b12118d750bb6f21",
       "current_component_source_digest_sha256": "bfb9a0ba44a0a27cb884af8d7dd183ed120fbe4e3b2378b9b935b396474da8ca",
-      "artifact_sha256": "080701b3bf787c6055504678f5acf426141d4c65f33f4c94098db4d8e7f1d50e",
-      "artifact_mvid": "142054a5-267c-40ad-b254-6989aa40ef8d",
+      "artifact_sha256": "df5d2c61304be5dfbbfe8f608a5832539a723f0330c93e7330f48fc97d0a3d0e",
+      "artifact_mvid": "9072e515-69f2-4131-957b-417d80008b04",
       "installed": "pass",
       "loaded": "pass",
       "rollback_available": true,
-      "rollback": "apps/game-mod/.local/deployments/2026-08-26T06-23-54.234Z"
+      "rollback": "apps/game-mod/.local/deployments/2026-08-26T06-50-54.021Z"
     },
     "runtime": {
-      "runtime_instance_id": "39fa2d2e388c4ce798bdd291148fcce9",
-      "environment_fingerprint": "9e705d8cacc3b218e9b22d17c02398d91d2641b75113519ba4adeed267d87a9e",
+      "runtime_instance_id": "ebe7a9fc27c344baa82980825895081d",
+      "environment_fingerprint": "a7171bb99ab28f686f65b8dbe2a1d4c2b0440f0f83abc0adfc025d0ffa69ada7",
       "compatibility_status": "canary_exact",
       "modset_status": "exact_platform_modset",
-      "modset_fingerprint": "f456cac64d120b7651e55dbdbe3f9227eb7709298957ca0b53d4f5909e6dcaaa",
+      "modset_fingerprint": "20b2de1a468fcc24d9f1e61037e5d3f72271d11821016f5ace68fe05c8afae51",
       "loaded_mod_ids": ["STS2_PLATFORM"],
       "execution_available": true
     },
@@ -322,9 +322,9 @@
       "checkpoint_status": "absent"
     },
     "ui_panel_ready": "pass",
-    "ui_toggle_runtime_canary": "observed",
-    "owner_ui_visibility": "pass_owner_attested_on_current_artifact",
-    "human_recording_controls_exercised": "card_play_end_turn_rapid_close_scope_ui_live_pass",
+    "ui_toggle_runtime_canary": "not_observed",
+    "owner_ui_visibility": "pending_human_runtime_evidence",
+    "human_recording_controls_exercised": "not_exercised_on_current_ledger_v2_artifact",
     "policy_shadow_one_step_auto_exercised": "not_exercised_checkpoint_absent",
     "recording_application_owner_validation": {
       "predecessor_runtime_instance_id": "bd6b73e7c2744680848539f96b6cae6d",
@@ -436,6 +436,25 @@
       "decision_payload_scope": "ledger_v1_does_not_retain_invalidated_frozen_decision",
       "evidence_transfer_to_ledger_v2": false
     },
+    "rapid_input_ledger_v2_loaded_candidate": {
+      "status": "loaded_pending_owner_validation",
+      "artifact_sha256": "df5d2c61304be5dfbbfe8f608a5832539a723f0330c93e7330f48fc97d0a3d0e",
+      "artifact_mvid": "9072e515-69f2-4131-957b-417d80008b04",
+      "annotator_source_revision": "de5e55fcf1bd8f17af3d1a3c871781b1702b99cf",
+      "annotator_source_digest_sha256": "c8f12204c45519c007ee0c2b6b890e5f1fe705510150978ffa8a37426d233780",
+      "workspace_revision": "d47654dc1e05d2d17f05524450f67aed760eaa98",
+      "runtime_instance_id": "ebe7a9fc27c344baa82980825895081d",
+      "environment_fingerprint": "a7171bb99ab28f686f65b8dbe2a1d4c2b0440f0f83abc0adfc025d0ffa69ada7",
+      "modset_fingerprint": "20b2de1a468fcc24d9f1e61037e5d3f72271d11821016f5ace68fe05c8afae51",
+      "ledger_schema": "sts2.human-annotator/native-action-ledger-event-2",
+      "build": "pass",
+      "installed": "pass",
+      "loaded": "pass",
+      "runtime_status": "ready_no_session",
+      "owner_rapid_input": "not_exercised",
+      "evidence_transfer_from_ledger_v1": false,
+      "rollback": "apps/game-mod/.local/deployments/2026-08-26T06-50-54.021Z"
+    },
     "predecessor_human_session": {
       "artifact_generation": "three_mod_predecessor",
       "runtime_instance_id": "7c5e7f1602e3482b8278cba4532f4df8",
@@ -450,7 +469,7 @@
     }
   },
   "migration_sources": "migration/source-manifest.json",
-  "support_level": "human_evidence_v2_rapid_accounting_live_ledger_v2_source_test",
+  "support_level": "human_evidence_v2_rapid_accounting_live_ledger_v2_loaded_pending_owner",
   "non_claims": [
     "human_origin_owner_attested_not_machine_proven",
     "annotator_invalidated_actions_not_admitted",
@@ -462,7 +481,7 @@
     "v2_corpus_and_training_not_authorized",
     "native_rejected_cancelled_attempt_absence_owner_attested_not_machine_attributable",
     "rapid_ledger_v1_invalidated_targeting_classification_unavailable",
-    "rapid_ledger_v2_decision_payload_pending_exact_runtime_evidence",
+    "rapid_ledger_v2_decision_payload_not_exercised",
     "rapid_cancel_and_player_choice_lifecycle_not_exercised",
     "automated_input_canary_is_not_owner_visibility_evidence",
     "s1_checkpoint_absent_shadow_one_step_auto_not_exercised"

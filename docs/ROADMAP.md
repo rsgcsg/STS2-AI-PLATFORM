@@ -139,7 +139,7 @@ action-family expansion remain outside this bounded baseline.
   decision pre-frame, exact witness/mapping and BoundAction without changing
   Decision V2; admitted payloads are cross-checked and ledger v1 remains
   readable.
-- Pending exact runtime: cold-load ledger v2 and verify the new decision payload
+- Pending owner runtime: exercise ledger v2 and verify the new decision payload
   on rapid targeted/untargeted/end-turn windows. Natural cancellation and
   player-choice pause/resume remain `not exercised` rather than inferred from
   fixtures.
