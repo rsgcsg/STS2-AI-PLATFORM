@@ -5,20 +5,37 @@
 ```text
 STS2 native UI and action queue  game truth and accepted action
 STS2-Connector                  stable S, complete A(S), exact Host bindings
-Human Annotator                 correlation, successor capture, raw evidence
+Human Annotator                 correlation, lifecycle/boundary observation, raw evidence
 STPD                            research projection and dataset admission
 ```
 
-The only production correlation path is:
+The only production Human-action correlation path is:
 
 ```text
 native `StartCardPlay` stages the exact complete Connector frame while the card
 is still in the hand -> final UI Prefix selects current or same-card staged frame
 -> game native validation/Commit
 -> GameAction.OnEnqueued Postfix -> exact reference match and lifecycle witness
--> wait for a provably action-local stable S'
+-> legacy V2 waits for a provably action-local stable interactive S'
 -> append record
 ```
+
+An additive semantic-boundary observer consumes the same exact accepted-action
+identity without changing that path:
+
+```text
+frozen Human observation H + exact accepted action
+-> game-owned started / choice pause-resume / cancelled / finished lifecycle
+-> authoritative complete Player Environment capture immediately before the
+   next tracked Human action executes, or at the next complete decision surface
+-> proved S -> A -> S', cancelled/not-successful, or unknown
+```
+
+`SemanticBoundaryTracker` never publishes or executes actions. It does not use
+the next Human decision pre-frame as the prior successor and does not treat
+`GameAction.Finished` as universal business completion. The legacy V2 adapter
+and the semantic trace share action identity, but neither is authority for the
+other.
 
 The observer uses Harmony Prefix/Finalizer only to establish a thread-local UI
 scope and a Postfix to observe an action already accepted by STS2. It does not
@@ -85,8 +102,20 @@ evidence of the prior action's successor. Recovery is allowed only after every
 tracked action is terminal and a fresh complete interactive boundary is
 observed. Timeout, overlap, cancellation, runtime drift, lifecycle persistence
 uncertainty, root-contract error, or mapping failure is fail-closed. Native
-lifecycle and invalidated-decision facts are additive sidecar evidence;
-`HumanDecisionRecordV2` bytes and meaning are unchanged.
+lifecycle, invalidated-decision facts and `semantic-boundary-trace.jsonl` are
+additive sidecar evidence; `HumanDecisionRecordV2` bytes and meaning are
+unchanged. The semantic trace is observation-only and audited independently.
+Persistence failure disables that trace for the session, surfaces
+`semantic_boundary_trace_unavailable` in RecordingStatus, and never retries or
+invents a later boundary.
+
+The current combat implementation uses existing typed `GameAction` lifecycle
+events and `ActionExecutor.BeforeActionExecuted`. One exact-build read-only
+Prefix observes `NCardPlayQueue.RemoveCardFromQueueForCancellation(PlayCardAction)`
+because the pile-missing execution branch returns with native state `Finished`
+without spending resources or running `OnPlay`; this is classified as
+`not_a_successful_action`. No scheduler, argument, result or gameplay behavior
+is changed.
 
 The application event stream is typed, process-local and bounded. A consumer
 queries current status, then requests events after sequence N. A gap means the

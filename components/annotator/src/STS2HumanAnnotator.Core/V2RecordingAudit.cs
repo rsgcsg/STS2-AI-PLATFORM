@@ -93,6 +93,7 @@ public static class V2RecordingAuditor
 
         ValidateJournal(directory, manifest, errors);
         ValidateNativeActionLedger(directory, manifest, recordsById, errors);
+        ValidateSemanticBoundaryTrace(directory, manifest, errors);
         long invalidations = File.Exists(Path.Combine(directory, "invalidations.jsonl"))
             ? Lines(Path.Combine(directory, "invalidations.jsonl")).LongCount()
             : 0;
@@ -243,6 +244,46 @@ public static class V2RecordingAuditor
                 || EvidenceIdentity.Sha256Json(accepted.BoundAction) != EvidenceIdentity.Sha256Json(record.Action))
                 Add(errors, "native_action_decision_record_mismatch");
         }
+    }
+
+    private static void ValidateSemanticBoundaryTrace(
+        string directory,
+        RecordingManifestV2? manifest,
+        IDictionary<string, long> errors)
+    {
+        string path = Path.Combine(directory, "semantic-boundary-trace.jsonl");
+        // The observation-only trace is additive; predecessor V2 sessions do
+        // not gain or lose validity based on its absence.
+        if (!File.Exists(path))
+            return;
+
+        var events = new List<SemanticBoundaryTraceEvent>();
+        foreach ((string line, _) in Lines(path))
+        {
+            SemanticBoundaryTraceEvent? value;
+            try
+            {
+                value = JsonSerializer.Deserialize<SemanticBoundaryTraceEvent>(
+                    line,
+                    EvidenceJson.Options);
+            }
+            catch (JsonException)
+            {
+                Add(errors, "semantic_boundary_trace_json_invalid");
+                continue;
+            }
+            if (value == null
+                || manifest == null
+                || value.SessionId != manifest.SessionId
+                || value.TimelineId != manifest.TimelineId)
+            {
+                Add(errors, "semantic_boundary_trace_session_mismatch");
+                continue;
+            }
+            events.Add(value);
+        }
+        foreach (string error in SemanticBoundaryTraceValidator.Validate(events))
+            Add(errors, error);
     }
 
     private static T? ReadOrError<T>(string path, IDictionary<string, long> errors, string error)

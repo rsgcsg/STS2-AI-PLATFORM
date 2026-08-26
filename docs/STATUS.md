@@ -1,8 +1,8 @@
 # Current Status
 
-Phase: **rapid accepted-action lifecycle accounting is Live-proved; ledger v2
-decision-bound invalidation evidence is built, installed and loaded, pending an
-owner rapid-input canary**.
+Phase: **rapid accepted-action lifecycle accounting and ledger v2 decision
+payloads are Live-proved; the additive semantic S -> A -> S' boundary observer
+is source/test complete and pending a new exact-artifact owner canary**.
 
 ## Implemented
 
@@ -46,8 +46,17 @@ owner rapid-input canary**.
   admissions, 23 explicit invalidations and zero unresolved lifecycle. Current
   ledger v2 source additionally stores each accepted root's frozen pre-frame,
   exact mapping and BoundAction so invalidated decisions are independently
-  classifiable. That evidence-only native revision is now cold-loaded and
-  awaits owner action evidence.
+  classifiable. Ledger v2 is now exercised by the later owner session described
+  below; its evidence does not transfer to the new semantic-boundary source.
+- The semantic-boundary observer keeps Decision V2 unchanged and adds an
+  independently audited observation sidecar. Exact accepted/started/choice/
+  cancelled/finished facts are coordinated with a complete authoritative
+  Player Environment capture before the next tracked Human action executes or
+  at the next complete decision surface. Queued cancellation before start is
+  not a successful A; cancellation after start and incomplete capture remain
+  unknown. One exact-build read-only PlayCard abort witness prevents native
+  `Finished` without resource/OnPlay Commit from becoming a false transition.
+  This source/test claim is not loaded or Live evidence.
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.
 - Workbench `0.1.0-rc.1` provides Environment, Policy, Human Data, Evidence,
@@ -257,16 +266,23 @@ revision is clean-built, installed and cold-loaded as
 `df5d2c61... / 9072e515...` in runtime `ebe7a9fc...`, exact Modset
 `20b2de1a...`, with rollback at
 `apps/game-mod/.local/deployments/2026-08-26T06-50-54.021Z`. Ready/no-session
-proves identity and lifecycle initialization only; ledger v2 mutation evidence
-is still `not exercised`.
+proves identity and lifecycle initialization only. A later same-artifact owner
+session `session-20260826T075502Z-9fe1ac91c78a48f9a8f4eeef204a3665`
+independently audits 8/8 strict records, 26 invalidations and a ledger v2 with
+33 accepted, 31 started, 28 finished, five cancelled, eight strict admissions
+and 25 strict invalidations. Two cancellations occurred before start and three
+after start. This is exact-runtime evidence for ledger v2 payload/lifecycle
+accounting and cancellation observation; player-choice pause/resume did not
+naturally occur. The new semantic sidecar did not exist in that artifact.
 
 ## Non-claims
 
 - Human origin is owner-attested and cannot be independently machine-proven.
-  Unstable pre-frames still fail closed. Ledger v1 now has exact-runtime evidence
-  for lossless accounting in the observed rapid windows; it does not claim a
-  strict successor for overlap. Ledger v2 is loaded but its decision payloads
-  remain pending owner rapid-input evidence.
+  Unstable pre-frames still fail closed. Ledger v1 and v2 have exact-runtime
+  evidence for bounded accounting in their observed rapid windows; neither
+  retroactively proves a strict successor for overlap. The semantic-boundary
+  sidecar is source/test only until a newly built artifact is cold-loaded and
+  owner-operated.
 - H0/H1/H2 are automated real-runtime evidence, not human validation, a full
   game journey, durable qualification, semantic parity or long-soak proof.
 - The optional noninteractive Host execution profile was not implemented by the

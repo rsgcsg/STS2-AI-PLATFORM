@@ -139,10 +139,17 @@ action-family expansion remain outside this bounded baseline.
   decision pre-frame, exact witness/mapping and BoundAction without changing
   Decision V2; admitted payloads are cross-checked and ledger v1 remains
   readable.
-- Pending owner runtime: exercise ledger v2 and verify the new decision payload
-  on rapid targeted/untargeted/end-turn windows. Natural cancellation and
-  player-choice pause/resume remain `not exercised` rather than inferred from
-  fixtures.
+- Complete owner runtime: ledger v2 retained exact decision payloads for 33
+  accepted roots, including two cancel-before-start and three cancel-after-start
+  facts; player-choice pause/resume remains `not exercised`.
+- Complete at source/test: additive semantic-boundary trace separates Human H
+  from transition S, captures a complete authoritative boundary before the next
+  tracked Human action effect, and classifies proved/cancelled/non-Commit abort/
+  unknown without changing Decision V2.
+- Pending exact-runtime: cold-load the new artifact and exercise slow and rapid
+  card play, targeted/untargeted chains, card-to-EndTurn full cycle, lethal
+  queued cancellation, natural player choice and combat-to-next-surface. No
+  semantic-transition admission or training authority exists before that gate.
 
 Next phase, not part of this slice: **Live Workspace Window Kernel -> Human
 Recorder Window**.

@@ -38,6 +38,22 @@ audit fail; it is never retried or repaired from a later frame. Historical
 `native-action-ledger-event-1` sidecars remain readable, but do not retroactively
 gain frozen decision payloads. Decision V1/V2 bytes and meaning are unchanged.
 
+`semantic-boundary-trace.jsonl` is an additive schema-1 observation sidecar. It
+keeps Human observation provenance separate from transition provenance and
+records exact action identity, accepted/started/choice/cancelled/finished facts,
+authoritative boundary captures, and exactly one semantic disposition:
+`transition_proved`, `transition_unknown`, cancelled before/after start, or
+aborted before native Commit. A proved transition requires a complete current
+Player Environment boundary before the next tracked Human action effect. A
+queued action cancelled before `started` is retained as Human/native evidence
+but is not a successful A. A cancellation after start remains unknown. Audit
+rejects contradictory lifecycle/disposition combinations and duplicate
+dispositions.
+
+This sidecar is not `HumanDecisionRecordV2`, corpus admission, or durable
+training authority. Predecessor sessions without it remain valid, and existing
+V1/V2 bytes are never reinterpreted.
+
 `pack-session` creates `sts2.human-annotator/session-bundle-1`. A bundle contains
 the untouched raw session, independent audit, deterministic export, the exact
 versioned `CollectionProfile`, a human-origin attestation, a content-identity

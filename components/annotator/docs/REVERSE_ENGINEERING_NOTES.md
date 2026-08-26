@@ -30,8 +30,29 @@ MVID `57785517-0b16-42b9-8b36-bad6fb28384b`.
   events can occur.
 - `GameAction` exposes game-owned `BeforeExecuted`, player-choice
   pause/ready/resume, `BeforeCancelled` and `AfterFinished` events. These facts
-  prove native lifecycle, not business completion. `ActionExecutor` remains
-  unpatched; no transpiler, scheduler change, sleep or timing heuristic is used.
+  prove native lifecycle, not business completion.
+- `ActionExecutor` executes ready actions serially and emits
+  `BeforeActionExecuted` immediately before the selected action's `Execute`. It
+  performs game-owned win-condition handling after each action before selecting
+  another. Capturing immediately before the next tracked Human action therefore
+  excludes that next action's effect while retaining prior continuation.
+- `EndPlayerTurnAction.ExecuteAction` only invokes `PlayerCmd.EndTurn`; its
+  `Finished` event does not prove enemy-turn and next-turn settlement. A valid
+  End Turn successor must be a later complete player decision boundary.
+- `GenericHookGameAction` can carry player-choice work inside a parent action.
+  A complete choice surface may therefore be a semantic decision boundary even
+  while the parent native action is paused rather than finished.
+- `PlayCardAction.ExecuteAction` has one exact no-Commit branch: if its card is
+  no longer in a pile/hand, it calls
+  `NCardPlayQueue.RemoveCardFromQueueForCancellation(this)` and returns without
+  `GameAction.Cancel()`, resource spending or `OnPlay`. The action later reports
+  `Finished`. A narrow read-only Prefix on that exact overload distinguishes
+  this abort from successful execution; explicit native Cancel is ignored
+  because its state is already `Canceled`.
+- The semantic observer subscribes to `ActionExecutor.BeforeActionExecuted` and
+  uses the single narrow Prefix above. No transpiler, scheduler change, sleep,
+  timing heuristic, argument/result mutation or reconstructed gameplay rule is
+  used.
 
 These are implementation evidence, not current Live evidence. Decompiled source
 and proprietary assemblies are not committed.

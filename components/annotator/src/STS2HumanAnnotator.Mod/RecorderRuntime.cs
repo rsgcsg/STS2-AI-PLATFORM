@@ -44,6 +44,7 @@ internal static class RecorderRuntime
     private static V2RecordingStore? _store;
     private static PendingDecision? _pending;
     private static readonly AcceptedHumanActionLedger NativeActionLedger = new();
+    private static readonly SemanticBoundaryTracker BoundaryTracker = new();
     private static readonly Dictionary<GameAction, NativeActionLifecycleSubscription>
         NativeActionSubscriptions = new(ReferenceEqualityComparer.Instance);
     private static readonly Dictionary<string, PendingDecision> NativeActionEvidence =
@@ -52,8 +53,12 @@ internal static class RecorderRuntime
     private static long _sequence;
     private static long _journalSequence;
     private static long _nativeActionEventSequence;
+    private static long _semanticBoundaryEventSequence;
     private static DateTimeOffset _lastIdleStatusAt;
     private static DateTimeOffset _lastFrameProbeAt;
+    private static DateTimeOffset _lastSemanticBoundaryProbeAt;
+    private static ActionExecutor? _observedActionExecutor;
+    private static bool _semanticBoundaryTraceHealthy = true;
     private static string _runtimeState = "initializing";
     private static string? _detail;
     private static RecorderEnvironmentIdentity? _lastEnvironment;
@@ -352,11 +357,13 @@ internal static class RecorderRuntime
         _sequence = 0;
         _journalSequence = 0;
         _nativeActionEventSequence = 0;
+        _semanticBoundaryEventSequence = 0;
         _runSequence = 0;
         _runActive = false;
         _currentRunId = "run-unassigned";
         _pending = null;
         ResetNativeActionTrackingUnsafe();
+        _semanticBoundaryTraceHealthy = true;
         _stagedCardFrame = null;
         _lastStoreSnapshot = store.GetSnapshot();
         _requiredReadsHealth = "not_checked";
@@ -440,6 +447,23 @@ internal static class RecorderRuntime
 
     private static void FinalizeClose()
     {
+        IReadOnlyList<SemanticBoundaryTraceDraft> closeDrafts;
+        lock (Gate)
+        {
+            if (_lifecycle.State != RecordingLifecycleState.Closing
+                || HasPendingRecordingWorkUnsafe())
+                return;
+            closeDrafts = BoundaryTracker.CloseUnknown("recording_closed_before_semantic_boundary");
+        }
+        try
+        {
+            PersistSemanticBoundaryDrafts(closeDrafts);
+        }
+        catch (Exception exception)
+        {
+            DisableSemanticBoundaryTrace(exception);
+        }
+
         RecordingStoreSnapshot snapshot;
         lock (Gate)
         {
@@ -478,6 +502,7 @@ internal static class RecorderRuntime
         NativeActionSubscriptions.Clear();
         NativeActionEvidence.Clear();
         NativeActionLedger.Reset();
+        BoundaryTracker.Reset();
     }
 
     private static IReadOnlyList<string> LifecycleBlockers(RecordingLifecycleState state) =>
@@ -716,6 +741,28 @@ internal static class RecorderRuntime
         }
     }
 
+    internal static void ObservePlayCardExecutionAborted(PlayCardAction action)
+    {
+        if (!_semanticBoundaryTraceHealthy)
+            return;
+        string actionWitnessId = NativeWitnessIdentity.Get(action, "game_action");
+        try
+        {
+            IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
+            lock (Gate)
+            {
+                if (!BoundaryTracker.Contains(actionWitnessId))
+                    return;
+                drafts = BoundaryTracker.AbortedBeforeCommit(actionWitnessId);
+            }
+            PersistSemanticBoundaryDrafts(drafts);
+        }
+        catch (Exception exception)
+        {
+            DisableSemanticBoundaryTrace(exception);
+        }
+    }
+
     internal static void ObserveAcceptedUiAction(
         string nativeActionType,
         ProcessLocalObservedAction observed,
@@ -766,14 +813,18 @@ internal static class RecorderRuntime
         {
             if (_store != null)
                 UpdateRunLifecycle();
+            EnsureActionExecutorObservation();
             PendingDecision? pending;
             lock (Gate)
                 pending = _pending;
             if (pending != null)
             {
                 TrySettle(pending);
+                TryObserveSemanticDecisionBoundary();
                 return;
             }
+
+            TryObserveSemanticDecisionBoundary();
 
             DateTimeOffset now = DateTimeOffset.UtcNow;
             if (now - _lastFrameProbeAt < TimeSpan.FromMilliseconds(50))
@@ -841,6 +892,282 @@ internal static class RecorderRuntime
             _detail = exception.Message;
             WriteStatus(null, null, new[] { "player_environment_capture_failed" });
         }
+    }
+
+    private static void EnsureActionExecutorObservation()
+    {
+        ActionExecutor? current = null;
+        try
+        {
+            if (RunManager.Instance.IsInProgress)
+                current = RunManager.Instance.ActionExecutor;
+        }
+        catch
+        {
+            // RunManager is not mounted during menus and run transitions.
+        }
+        if (ReferenceEquals(current, _observedActionExecutor))
+            return;
+        if (_observedActionExecutor != null)
+            _observedActionExecutor.BeforeActionExecuted -= ObserveBeforeActionExecution;
+        _observedActionExecutor = current;
+        if (_observedActionExecutor != null)
+            _observedActionExecutor.BeforeActionExecuted += ObserveBeforeActionExecution;
+    }
+
+    private static void ObserveBeforeActionExecution(GameAction action)
+    {
+        if (!_semanticBoundaryTraceHealthy || _store == null)
+            return;
+        string actionWitnessId = NativeWitnessIdentity.Get(action, "game_action");
+        lock (Gate)
+        {
+            if (!BoundaryTracker.Contains(actionWitnessId))
+                return;
+        }
+
+        try
+        {
+            ProcessLocalNativeWitnessFrame frame = CaptureReadRichFrame();
+            SemanticBoundaryObservation boundary = CreateSemanticBoundaryObservation(
+                frame,
+                "before_next_human_action_execution",
+                actionWitnessId);
+            IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
+            lock (Gate)
+                drafts = BoundaryTracker.ObserveBeforeActionExecution(actionWitnessId, boundary);
+            PersistSemanticBoundaryDrafts(drafts);
+        }
+        catch (Exception exception)
+        {
+            DisableSemanticBoundaryTrace(exception);
+        }
+    }
+
+    private static void TryObserveSemanticDecisionBoundary()
+    {
+        if (!_semanticBoundaryTraceHealthy || _store == null)
+            return;
+        bool needsBoundary;
+        lock (Gate)
+            needsBoundary = BoundaryTracker.NeedsBoundaryObservation;
+        if (!needsBoundary)
+            return;
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        if (now - _lastSemanticBoundaryProbeAt < TimeSpan.FromMilliseconds(50))
+            return;
+        _lastSemanticBoundaryProbeAt = now;
+
+        try
+        {
+            ProcessLocalNativeWitnessFrame frame = CaptureReadRichFrame();
+            ObserveSemanticDecisionBoundary(frame, "complete_interactive_observation");
+        }
+        catch (Exception exception)
+        {
+            DisableSemanticBoundaryTrace(exception);
+        }
+    }
+
+    private static void ObserveSemanticDecisionBoundary(
+        ProcessLocalNativeWitnessFrame frame,
+        string witnessKind)
+    {
+        if (!_semanticBoundaryTraceHealthy)
+            return;
+        SemanticBoundaryObservation boundary = CreateSemanticBoundaryObservation(
+            frame,
+            witnessKind,
+            null);
+        if (!boundary.IsCompleteDecisionBoundary)
+            return;
+        IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
+        lock (Gate)
+            drafts = BoundaryTracker.ObserveDecisionBoundary(boundary);
+        PersistSemanticBoundaryDrafts(drafts);
+    }
+
+    private static SemanticBoundaryObservation CreateSemanticBoundaryObservation(
+        ProcessLocalNativeWitnessFrame frame,
+        string witnessKind,
+        string? immediatelyConsumedByActionWitnessId)
+    {
+        RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
+        bool complete = EligibilityBlockers(
+            frame,
+            environment,
+            requireReads: true,
+            includeRecordingLifecycle: false).Count == 0;
+        PlayerEnvironmentSnapshot snapshot = frame.Snapshot;
+        return new SemanticBoundaryObservation(
+            witnessKind,
+            DateTimeOffset.UtcNow,
+            snapshot.SnapshotId,
+            snapshot.Status,
+            snapshot.BoundActions.Status,
+            snapshot.Interaction.InteractionId,
+            snapshot.Interaction.Kind,
+            complete ? FreezeSemanticBoundary(frame) : null,
+            immediatelyConsumedByActionWitnessId);
+    }
+
+    private static FrozenDecisionFrameV2 FreezeSemanticBoundary(
+        ProcessLocalNativeWitnessFrame frame)
+    {
+        PlayerEnvironmentSnapshot snapshot = frame.Snapshot;
+        return new FrozenDecisionFrameV2(
+            snapshot.SnapshotId,
+            snapshot.Interaction.InteractionId,
+            snapshot.Interaction.Kind,
+            snapshot.Interaction.ContentSchema,
+            EvidenceIdentity.Sha256Json(snapshot.BoundActions),
+            snapshot.BoundActions.Actions.Count,
+            ToNode(snapshot),
+            Array.Empty<ReadEvidence>());
+    }
+
+    private static void ObserveSemanticAccepted(PendingDecision pending, GameAction action)
+    {
+        if (!_semanticBoundaryTraceHealthy)
+            return;
+        try
+        {
+            IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
+            lock (Gate)
+            {
+                drafts = BoundaryTracker.Accept(
+                    new SemanticActionReference(
+                        pending.NativeActionWitnessId!,
+                        pending.Sequence,
+                        pending.RecordId,
+                        pending.RunId,
+                        action.GetType().Name,
+                        action.Id,
+                        pending.Pre.SnapshotId),
+                    pending.Pre);
+            }
+            PersistSemanticBoundaryDrafts(drafts);
+        }
+        catch (Exception exception)
+        {
+            DisableSemanticBoundaryTrace(exception);
+        }
+    }
+
+    private static void ObserveSemanticUiAction(PendingDecision pending)
+    {
+        if (!_semanticBoundaryTraceHealthy)
+            return;
+        try
+        {
+            string actionWitnessId = $"ui_action_{pending.RecordId}";
+            var boundary = new SemanticBoundaryObservation(
+                "human_choice_decision_pre",
+                DateTimeOffset.UtcNow,
+                pending.Pre.SnapshotId,
+                "interactive",
+                "complete",
+                pending.Pre.InteractionId,
+                pending.Pre.InteractionKind,
+                pending.Pre,
+                actionWitnessId);
+            var action = new SemanticActionReference(
+                actionWitnessId,
+                pending.Sequence,
+                pending.RecordId,
+                pending.RunId,
+                pending.NativeWitness.NativeActionType,
+                null,
+                pending.Pre.SnapshotId);
+            var drafts = new List<SemanticBoundaryTraceDraft>();
+            lock (Gate)
+            {
+                drafts.AddRange(BoundaryTracker.ObserveDecisionBoundary(boundary));
+                drafts.AddRange(BoundaryTracker.Accept(action, pending.Pre));
+                drafts.AddRange(BoundaryTracker.Started(actionWitnessId));
+                drafts.AddRange(BoundaryTracker.Finished(actionWitnessId));
+            }
+            PersistSemanticBoundaryDrafts(drafts);
+        }
+        catch (Exception exception)
+        {
+            DisableSemanticBoundaryTrace(exception);
+        }
+    }
+
+    private static void ObserveSemanticLifecycle(
+        NativeActionLifecycleSubscription subscription,
+        string kind)
+    {
+        if (!_semanticBoundaryTraceHealthy)
+            return;
+        try
+        {
+            IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
+            lock (Gate)
+            {
+                drafts = kind switch
+                {
+                    NativeActionLifecycleKinds.Started =>
+                        BoundaryTracker.Started(subscription.ActionWitnessId),
+                    NativeActionLifecycleKinds.PausedForPlayerChoice =>
+                        BoundaryTracker.PausedForPlayerChoice(subscription.ActionWitnessId),
+                    NativeActionLifecycleKinds.ReadyToResume =>
+                        BoundaryTracker.ReadyToResume(subscription.ActionWitnessId),
+                    NativeActionLifecycleKinds.Resumed =>
+                        BoundaryTracker.Resumed(subscription.ActionWitnessId),
+                    NativeActionLifecycleKinds.Cancelled =>
+                        BoundaryTracker.Cancelled(subscription.ActionWitnessId),
+                    NativeActionLifecycleKinds.Finished =>
+                        BoundaryTracker.Finished(subscription.ActionWitnessId),
+                    _ => Array.Empty<SemanticBoundaryTraceDraft>()
+                };
+            }
+            PersistSemanticBoundaryDrafts(drafts);
+        }
+        catch (Exception exception)
+        {
+            DisableSemanticBoundaryTrace(exception);
+        }
+    }
+
+    private static void PersistSemanticBoundaryDrafts(
+        IReadOnlyList<SemanticBoundaryTraceDraft> drafts)
+    {
+        if (drafts.Count == 0 || !_semanticBoundaryTraceHealthy)
+            return;
+        V2RecordingStore store = _store
+            ?? throw new InvalidOperationException("No open recording store for semantic boundary evidence.");
+        foreach (SemanticBoundaryTraceDraft draft in drafts)
+        {
+            long sequence = Interlocked.Increment(ref _semanticBoundaryEventSequence);
+            store.AppendSemanticBoundaryEvent(new SemanticBoundaryTraceEvent(
+                SemanticBoundaryTraceContract.SchemaVersion,
+                SemanticBoundaryTraceContract.EventSchema,
+                $"semantic-event-{Guid.NewGuid():N}",
+                SessionId!,
+                TimelineId!,
+                draft.Action.RunId,
+                sequence,
+                DateTimeOffset.UtcNow,
+                draft.Kind,
+                draft.Action,
+                draft.ProofStatus,
+                draft.RelatedActionWitnessId,
+                draft.Boundary,
+                draft.SemanticPre,
+                draft.SemanticSuccessor,
+                draft.Detail,
+                draft.NonClaims ?? Array.Empty<string>()));
+        }
+    }
+
+    private static void DisableSemanticBoundaryTrace(Exception exception)
+    {
+        _semanticBoundaryTraceHealthy = false;
+        _runtimeState = "semantic_boundary_trace_unknown";
+        _detail = exception.Message;
+        GD.PrintErr($"[STS2 Human Annotator] semantic boundary trace disabled: {exception}");
     }
 
     private static bool TryDescribeAction(
@@ -1011,6 +1338,9 @@ internal static class RecorderRuntime
             return;
         }
 
+        if (admission.Accounted)
+            ObserveSemanticAccepted(pending, nativeAction);
+
         if (!admission.Accounted)
         {
             AppendNativeActionEvent(
@@ -1067,6 +1397,7 @@ internal static class RecorderRuntime
 
     private static void StartUiPending(PendingDecision pending)
     {
+        ObserveSemanticUiAction(pending);
         PendingDecision? displaced;
         bool ambiguous;
         lock (Gate)
@@ -1168,6 +1499,8 @@ internal static class RecorderRuntime
             null);
         if (!lifecyclePersisted)
             InvalidateForNativeLifecyclePersistenceUnknown(evidence, kind);
+        else
+            ObserveSemanticLifecycle(subscription, kind);
         if (cancelledPending != null)
         {
             AppendNativeActionEvent(
@@ -1305,6 +1638,15 @@ internal static class RecorderRuntime
 
         if (!HasRequiredReads(successorFrame))
             return;
+
+        try
+        {
+            ObserveSemanticDecisionBoundary(successorFrame, "legacy_v2_successor");
+        }
+        catch (Exception exception)
+        {
+            DisableSemanticBoundaryTrace(exception);
+        }
 
         HumanDecisionRecordV2 record;
         try
@@ -1691,11 +2033,13 @@ internal static class RecorderRuntime
             string? pendingRecordId;
             string runtimeState;
             string? runtimeDetail;
+            bool semanticBoundaryTraceHealthy;
             RecordingLifecycleSnapshot lifecycle;
             lock (Gate)
             {
                 runtimeState = _runtimeState;
                 runtimeDetail = _detail;
+                semanticBoundaryTraceHealthy = _semanticBoundaryTraceHealthy;
                 lifecycle = _lifecycle;
                 pendingRecordId = _pending?.RecordId;
             }
@@ -1705,6 +2049,9 @@ internal static class RecorderRuntime
                 : lifecycle.Detail;
             IReadOnlyList<string> effectiveBlockers = blockers
                 .Concat(LifecycleBlockers(lifecycle.State))
+                .Concat(semanticBoundaryTraceHealthy
+                    ? Array.Empty<string>()
+                    : new[] { "semantic_boundary_trace_unavailable" })
                 .Distinct(StringComparer.Ordinal)
                 .ToArray();
             lock (Gate)
@@ -1717,6 +2064,7 @@ internal static class RecorderRuntime
             string health = string.Join('|', new[]
             {
                 RequiredReadHealth(),
+                semanticBoundaryTraceHealthy ? "semantic_boundary_trace_healthy" : "semantic_boundary_trace_unavailable",
                 storeStatus.AppendHealth,
                 storeStatus.DiskHealth,
                 storeStatus.LastError ?? string.Empty

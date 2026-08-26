@@ -19,9 +19,19 @@ That canary also exposed an evidence-fidelity gap: v1 invalidated ledger rows di
 not independently retain their frozen decision pre-frame and exact BoundAction.
 Current ledger v2 source adds those accepted-action facts, rejects repetition on
 lifecycle rows and cross-checks admitted facts against Decision V2. It is
-cold-loaded as `df5d2c61... / 9072e515...` in runtime `ebe7a9fc...`, Ready with
-no session. The v1 canary cannot prove bytes that its artifact did not write, so
-v2 rapid-input mutation remains `not exercised` pending owner validation.
+cold-loaded as `df5d2c61... / 9072e515...` in runtime `ebe7a9fc...`. Owner
+session `session-20260826T075502Z-9fe1ac91c78a48f9a8f4eeef204a3665`
+audits 8/8 records, 26 invalidations and 33 accepted roots: 31 started, 28
+finished, five cancelled, eight strict-admitted and 25 strict-invalidated. Two
+cancelled before start and three cancelled after start. Ledger v2 mutation is
+therefore Live-exercised; player-choice pause/resume remains `not exercised`.
+
+Current source adds an observation-only semantic-boundary trace without changing
+Decision V2. It can prove an authoritative S' immediately before the next
+tracked Human action effect or at a complete decision surface, classify
+cancel-before-start/non-Commit abort as unsuccessful, and retain unknown when
+ordering or completeness is not proved. This source has automated evidence
+only; no predecessor artifact or session proves the new sidecar.
 
 The Recording Application Plane starts Ready, creates explicit repeatable
 sessions, and exposes typed status/events plus idempotent lifecycle commands.
@@ -44,6 +54,8 @@ audits 19/19 records and explicitly separates 16 native-accepted failures.
   exact game-owned `GameAction.OnEnqueued` boundary;
 - bounded per-action native lifecycle accounting with explicit strict-admitted
   or strict-invalidated disposition and no fabricated overlap successor;
+- additive semantic boundary coordination with separate Human observation H,
+  transition S, exact A lifecycle and proved/cancelled/unknown S';
 - ledger v2 accepted-action evidence containing the frozen decision pre-frame,
   exact witness/mapping and BoundAction while keeping Decision V2 unchanged;
 - exact card/target reference mapping with zero/ambiguous fail closed;

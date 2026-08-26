@@ -11,9 +11,10 @@ Read current Platform truth in this order:
 7. [Current handoff](memory/CURRENT.md)
 8. [Policy Runtime](POLICY_RUNTIME.md)
 9. [Platform Live UI](LIVE_UI.md)
-10. [Rapid-input ledger source closeout](evidence/RAPID_INPUT_LEDGER_SOURCE_CLOSEOUT_2026-08-26.md)
-11. [V2 Read-Rich Combat closeout](evidence/HUMAN_EVIDENCE_V2_READ_RICH_COMBAT_CLOSEOUT_2026-08-25.md)
-12. [V1 runtime-seal predecessor evidence](evidence/RUNTIME_SEAL_CANDIDATE_2026-08-24.md)
+10. [Semantic boundary source closeout](evidence/SEMANTIC_BOUNDARY_SOURCE_CLOSEOUT_2026-08-26.md)
+11. [Rapid-input ledger source closeout](evidence/RAPID_INPUT_LEDGER_SOURCE_CLOSEOUT_2026-08-26.md)
+12. [V2 Read-Rich Combat closeout](evidence/HUMAN_EVIDENCE_V2_READ_RICH_COMBAT_CLOSEOUT_2026-08-25.md)
+13. [V1 runtime-seal predecessor evidence](evidence/RUNTIME_SEAL_CANDIDATE_2026-08-24.md)
 
 Then read the component entry points:
 

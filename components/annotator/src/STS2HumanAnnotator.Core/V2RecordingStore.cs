@@ -12,6 +12,7 @@ public sealed class V2RecordingStore : IDisposable
     private readonly FileStream _invalidations;
     private readonly FileStream _journal;
     private readonly FileStream _nativeActionLedger;
+    private readonly FileStream _semanticBoundaryTrace;
     private readonly Dictionary<string, long> _families = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _readsByKind = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _invalidationsByReason = new(StringComparer.Ordinal);
@@ -46,6 +47,7 @@ public sealed class V2RecordingStore : IDisposable
         _invalidations = OpenAppend(Path.Combine(directory, "invalidations.jsonl"));
         _journal = OpenAppend(Path.Combine(directory, "run-journal.jsonl"));
         _nativeActionLedger = OpenAppend(Path.Combine(directory, "native-action-ledger.jsonl"));
+        _semanticBoundaryTrace = OpenAppend(Path.Combine(directory, "semantic-boundary-trace.jsonl"));
         WriteCoverage();
     }
 
@@ -231,6 +233,21 @@ public sealed class V2RecordingStore : IDisposable
         ExecuteWrite(() => AppendLine(_nativeActionLedger, value));
     }
 
+    public void AppendSemanticBoundaryEvent(SemanticBoundaryTraceEvent value)
+    {
+        if (value.SchemaVersion != SemanticBoundaryTraceContract.SchemaVersion
+            || value.Schema != SemanticBoundaryTraceContract.EventSchema
+            || value.SessionId != Manifest.SessionId
+            || value.TimelineId != Manifest.TimelineId
+            || value.Sequence <= 0
+            || string.IsNullOrWhiteSpace(value.EventId)
+            || string.IsNullOrWhiteSpace(value.Kind)
+            || string.IsNullOrWhiteSpace(value.Action.ActionWitnessId))
+            throw new InvalidDataException("Semantic boundary trace event is invalid for this recording.");
+        EnsureOpen();
+        ExecuteWrite(() => AppendLine(_semanticBoundaryTrace, value));
+    }
+
     public void AppendInvalidation(InvalidationRecord invalidation)
     {
         EnsureOpen();
@@ -268,6 +285,7 @@ public sealed class V2RecordingStore : IDisposable
             _invalidations.Dispose();
             _journal.Dispose();
             _nativeActionLedger.Dispose();
+            _semanticBoundaryTrace.Dispose();
             _closed = true;
             _appendHealth = "closed";
         }

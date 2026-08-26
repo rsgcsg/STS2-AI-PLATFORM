@@ -88,6 +88,22 @@ internal static class AcceptedGameActionPatch
         RecorderRuntime.ObserveAcceptedAction(__instance);
 }
 
+[HarmonyPatch(
+    typeof(NCardPlayQueue),
+    nameof(NCardPlayQueue.RemoveCardFromQueueForCancellation),
+    new[] { typeof(PlayCardAction) })]
+internal static class PlayCardExecutionAbortPatch
+{
+    // In exact v0.111.0 PlayCardAction returns without Cancel() when its card
+    // is no longer in hand. This read-only seam distinguishes that native no-op
+    // from a finished play; it does not change queue or card behavior.
+    internal static void Prefix(PlayCardAction action)
+    {
+        if (action.State == MegaCrit.Sts2.Core.Entities.Actions.GameActionState.Executing)
+            RecorderRuntime.ObservePlayCardExecutionAborted(action);
+    }
+}
+
 [HarmonyPatch]
 internal static class NativeGeneratedChoiceCardPatch
 {
