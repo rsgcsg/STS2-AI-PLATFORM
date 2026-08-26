@@ -163,7 +163,7 @@ export function validatePlatformBom(bom, authorities) {
 
   const policyCandidate = bom.unified_platform_runtime_candidate;
   expectEqual(errors, "unified Platform candidate status", policyCandidate?.status,
-    "rapid_input_ledger_v2_loaded_pending_owner_validation");
+    "semantic_execution_order_loaded_pending_owner_validation");
   expectEqual(errors, "candidate STPD source", policyCandidate?.external_policy?.stpd_source_revision,
     bom.external_consumer_cutovers?.stpd);
   expectEqual(errors, "candidate policy checkpoint", policyCandidate?.external_policy?.checkpoint_status,
@@ -190,7 +190,7 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "candidate Connector source relation", policyCandidate?.connector?.source_relation,
     "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Annotator source relation", policyCandidate?.annotator?.source_relation,
-    "loaded_native_source_precedes_docs_only_closeout");
+    "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Live UI source relation", policyCandidate?.live_ui?.source_relation,
     "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Connector protocol", policyCandidate?.connector?.protocol,
@@ -379,20 +379,20 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "rapid ledger v2 status", rapidV2?.status,
     "loaded_pending_owner_validation");
   expectEqual(errors, "rapid ledger v2 artifact", rapidV2?.artifact_sha256,
-    policyCandidate?.game_mod?.artifact_sha256);
+    "df5d2c61304be5dfbbfe8f608a5832539a723f0330c93e7330f48fc97d0a3d0e");
   expectEqual(errors, "rapid ledger v2 MVID", rapidV2?.artifact_mvid,
-    policyCandidate?.game_mod?.artifact_mvid);
+    "9072e515-69f2-4131-957b-417d80008b04");
   expectEqual(errors, "rapid ledger v2 source", rapidV2?.annotator_source_revision,
-    policyCandidate?.annotator?.source_revision);
+    "de5e55fcf1bd8f17af3d1a3c871781b1702b99cf");
   expectEqual(errors, "rapid ledger v2 source digest", rapidV2?.annotator_source_digest_sha256,
-    policyCandidate?.annotator?.source_digest_sha256);
+    "c8f12204c45519c007ee0c2b6b890e5f1fe705510150978ffa8a37426d233780");
   expectPattern(errors, "rapid ledger v2 workspace", rapidV2?.workspace_revision, COMMIT);
   expectEqual(errors, "rapid ledger v2 runtime", rapidV2?.runtime_instance_id,
-    policyCandidate?.runtime?.runtime_instance_id);
+    "ebe7a9fc27c344baa82980825895081d");
   expectEqual(errors, "rapid ledger v2 environment", rapidV2?.environment_fingerprint,
-    policyCandidate?.runtime?.environment_fingerprint);
+    "a7171bb99ab28f686f65b8dbe2a1d4c2b0440f0f83abc0adfc025d0ffa69ada7");
   expectEqual(errors, "rapid ledger v2 Modset", rapidV2?.modset_fingerprint,
-    policyCandidate?.runtime?.modset_fingerprint);
+    "20b2de1a468fcc24d9f1e61037e5d3f72271d11821016f5ace68fe05c8afae51");
   expectEqual(errors, "rapid ledger v2 schema", rapidV2?.ledger_schema,
     "sts2.human-annotator/native-action-ledger-event-2");
   for (const level of ["build", "installed", "loaded"])
@@ -404,9 +404,42 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "rapid ledger v2 evidence transfer",
     rapidV2?.evidence_transfer_from_ledger_v1, false);
   expectEqual(errors, "rapid ledger v2 rollback", rapidV2?.rollback,
-    policyCandidate?.game_mod?.rollback);
+    "apps/game-mod/.local/deployments/2026-08-26T06-50-54.021Z");
   if (rapidGate?.artifact_sha256 === rapidV2?.artifact_sha256)
     errors.push("Ledger v1 Live evidence must not transfer to the ledger v2 artifact");
+  const semanticCandidate = policyCandidate?.semantic_execution_order_loaded_candidate;
+  expectEqual(errors, "semantic execution candidate status", semanticCandidate?.status,
+    "loaded_pending_owner_validation");
+  expectEqual(errors, "semantic execution candidate artifact", semanticCandidate?.artifact_sha256,
+    policyCandidate?.game_mod?.artifact_sha256);
+  expectEqual(errors, "semantic execution candidate MVID", semanticCandidate?.artifact_mvid,
+    policyCandidate?.game_mod?.artifact_mvid);
+  expectEqual(errors, "semantic execution candidate source", semanticCandidate?.annotator_source_revision,
+    policyCandidate?.annotator?.source_revision);
+  expectEqual(errors, "semantic execution candidate source digest",
+    semanticCandidate?.annotator_source_digest_sha256,
+    policyCandidate?.annotator?.source_digest_sha256);
+  expectPattern(errors, "semantic execution candidate workspace",
+    semanticCandidate?.workspace_revision, COMMIT);
+  expectEqual(errors, "semantic execution candidate runtime", semanticCandidate?.runtime_instance_id,
+    policyCandidate?.runtime?.runtime_instance_id);
+  expectEqual(errors, "semantic execution candidate environment",
+    semanticCandidate?.environment_fingerprint,
+    policyCandidate?.runtime?.environment_fingerprint);
+  expectEqual(errors, "semantic execution candidate Modset", semanticCandidate?.modset_fingerprint,
+    policyCandidate?.runtime?.modset_fingerprint);
+  for (const level of ["build", "installed", "loaded"])
+    expectEqual(errors, `semantic execution candidate ${level}`, semanticCandidate?.[level], "pass");
+  expectEqual(errors, "semantic execution candidate runtime status",
+    semanticCandidate?.runtime_status, "ready_no_session");
+  expectEqual(errors, "semantic execution candidate owner canary",
+    semanticCandidate?.owner_semantic_execution_order, "not_exercised");
+  expectEqual(errors, "semantic execution candidate evidence transfer",
+    semanticCandidate?.evidence_transfer_from_predecessor, false);
+  expectEqual(errors, "semantic execution candidate rollback", semanticCandidate?.rollback,
+    policyCandidate?.game_mod?.rollback);
+  if (rapidV2?.artifact_sha256 === semanticCandidate?.artifact_sha256)
+    errors.push("Rapid ledger v2 evidence must not transfer to the semantic execution artifact");
   expectEqual(errors, "candidate compatibility", policyCandidate?.runtime?.compatibility_status, "canary_exact");
   expectEqual(errors, "candidate Modset status", policyCandidate?.runtime?.modset_status,
     "exact_platform_modset");
@@ -499,7 +532,7 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "human origin boundary", humanGate?.human_origin,
     "owner_attested_not_machine_proven");
   expectEqual(errors, "support level", bom.support_level,
-    "human_evidence_v2_rapid_accounting_live_ledger_v2_loaded_pending_owner");
+    "human_evidence_v2_semantic_execution_order_loaded_pending_owner");
   if (!bom.non_claims?.includes("human_origin_owner_attested_not_machine_proven"))
     errors.push("human-origin epistemic-boundary non-claim is missing");
   if (!bom.non_claims?.includes("current_v2_candidate_generated_card_choice_not_exercised"))
@@ -517,6 +550,9 @@ export function validatePlatformBom(bom, authorities) {
     errors.push("Rapid ledger v2 owner-canary non-claim is missing");
   if (!bom.non_claims?.includes("rapid_cancel_and_player_choice_lifecycle_not_exercised"))
     errors.push("Rapid cancellation/player-choice non-claim is missing");
+  if (!bom.non_claims?.includes(
+    "semantic_execution_order_corrected_artifact_human_canary_not_exercised"))
+    errors.push("Semantic execution-order Human-canary non-claim is missing");
   if (!bom.non_claims?.includes("automated_input_canary_is_not_owner_visibility_evidence"))
     errors.push("Automated-input epistemic-boundary non-claim is missing");
   if (!bom.non_claims?.includes("s1_checkpoint_absent_shadow_one_step_auto_not_exercised"))

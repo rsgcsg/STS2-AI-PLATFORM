@@ -156,10 +156,13 @@ action-family expansion remain outside this bounded baseline.
 - Complete at corrected source/test: causal settlement follows exact execution
   order; a precommit is rebound only from a complete boundary immediately before
   native execution. Audit rejects mismatched pre-state and interleaved effects.
-- Pending corrected-artifact exact-runtime: repeat generated choice before a
-  queued action plus ordinary rapid chains and End Turn. Lethal cancellation and
-  combat-to-next-surface remain opportunistic. No semantic-transition admission
-  or training authority exists before that gate.
+- Complete corrected build/install/cold-load: artifact
+  `04104ca5... / 7408a183...` is Ready in runtime `97829317...` with exact STS2
+  and the sole `STS2_PLATFORM` Mod.
+- Pending corrected-artifact Human runtime: repeat generated choice before a
+  queued action plus ordinary rapid chains and End Turn. Lethal cancellation
+  and combat-to-next-surface remain opportunistic. No semantic-transition
+  admission or training authority exists before that gate.
 
 Next phase, not part of this slice: **Live Workspace Window Kernel -> Human
 Recorder Window**.

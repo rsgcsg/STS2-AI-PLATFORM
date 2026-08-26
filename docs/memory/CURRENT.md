@@ -1,8 +1,8 @@
 # Current Context
 
 Phase: **Human Evidence V2 remains verified; semantic-boundary owner canary
-found acceptance/execution reordering and corrected Native source is pending a
-new exact-artifact canary.**
+found acceptance/execution reordering; corrected Native source is exact-loaded
+and pending a Human semantic canary.**
 
 `STS2-AI-PLATFORM` is the only forward-development source authority for the
 Platform components. The root BOM and component release manifests are the
@@ -36,8 +36,9 @@ identity registry.
   accepted actions and exercised generated-card select, but stronger audit
   rejects one End Turn proof because a later accepted choice executed first.
 - Current source coordinates by exact execution order and requires a complete
-  boundary to rebind a precommit before execution. It is source/test evidence
-  until rebuilt, installed, cold-loaded and owner-operated.
+  boundary to rebind a precommit before execution. Artifact
+  `04104ca5... / 7408a183...` is installed and loaded in runtime `97829317...`;
+  corrected semantic behavior remains unexercised until owner operation.
 - The S1 checkpoint named by the current Policy Manifest is unavailable on this
   Mac. Policy model modes and owner operation of the new UI remain unexercised.
 

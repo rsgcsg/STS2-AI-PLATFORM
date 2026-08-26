@@ -2,7 +2,7 @@
 
 Phase: **rapid accepted-action lifecycle accounting is Live-proved; the first
 semantic S -> A -> S' owner canary found an execution-order defect, now repaired
-at source/test and pending a new exact-artifact canary**.
+and exact-loaded in a new artifact pending a Human semantic canary**.
 
 ## Implemented
 
@@ -64,7 +64,10 @@ at source/test and pending a new exact-artifact canary**.
   a complete authoritative boundary immediately before its execution. The old
   sidecar now fails strengthened audit with
   `semantic_transition_pre_not_execution_boundary`; its two Decision V2 records
-  remain readable. Corrected Native source requires a new artifact canary.
+  remain readable. Corrected source `cb20bfa...` is now built, installed and
+  cold-loaded as `04104ca5... / 7408a183...` in runtime `97829317...` with the
+  sole exact `STS2_PLATFORM` Mod. This proves the corrected code is loaded and
+  Ready, not that any corrected semantic transition has been Human-exercised.
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.
 - Workbench `0.1.0-rc.1` provides Environment, Policy, Human Data, Evidence,
