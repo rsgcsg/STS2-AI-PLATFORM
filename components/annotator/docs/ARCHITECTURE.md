@@ -37,6 +37,13 @@ the next Human decision pre-frame as the prior successor and does not treat
 and the semantic trace share action identity, but neither is authority for the
 other.
 
+Acceptance sequence is evidence order, not causal execution order. The tracker
+orders predecessors by observed native start. If a later accepted source-local
+choice executes before an earlier queued action, the choice is settled first.
+The queued precommit can consume the resulting S only when the complete
+authoritative frame captured immediately before its own execution is available;
+that frame replaces its earlier observation. An incomplete rebind is unknown.
+
 The observer uses Harmony Prefix/Finalizer only to establish a thread-local UI
 scope and a Postfix to observe an action already accepted by STS2. It does not
 skip a method, alter an argument/result, transpile game code, or enqueue an
@@ -105,6 +112,9 @@ uncertainty, root-contract error, or mapping failure is fail-closed. Native
 lifecycle, invalidated-decision facts and `semantic-boundary-trace.jsonl` are
 additive sidecar evidence; `HumanDecisionRecordV2` bytes and meaning are
 unchanged. The semantic trace is observation-only and audited independently.
+Audit rejects a proved transition whose semantic pre does not match its complete
+pre-execution boundary, or whose causal window contains another Human action
+start after A begins and before S'.
 Persistence failure disables that trace for the session, surfaces
 `semantic_boundary_trace_unavailable` in RecordingStatus, and never retries or
 invents a later boundary.

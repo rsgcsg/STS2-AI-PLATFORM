@@ -101,11 +101,16 @@ public sealed class SemanticBoundaryTracker
         public bool Cancelled { get; set; }
         public bool Disposed { get; set; }
         public string? Disposition { get; set; }
+        public long? ExecutionOrder { get; set; }
+        public bool RequiresExecutionBoundaryRebind { get; set; }
+        public string? SemanticPreUnknownReason { get; set; }
+        public string? InterveningActionWitnessId { get; set; }
     }
 
     private readonly int _capacity;
     private readonly Dictionary<string, Entry> _entries = new(StringComparer.Ordinal);
     private readonly List<string> _order = new();
+    private long _executionSequence;
 
     public SemanticBoundaryTracker(int capacity = 128)
     {
@@ -154,19 +159,59 @@ public sealed class SemanticBoundaryTracker
     {
         Entry next = Required(nextActionWitnessId);
         var drafts = new List<SemanticBoundaryTraceDraft>();
-        Entry? predecessor = WaitingForBoundaryBefore(next.Action.ActionSequence);
-        if (predecessor != null)
-            drafts.AddRange(Settle(predecessor, boundary, next.Action.ActionWitnessId));
+        Entry[] predecessors = WaitingForBoundaryInExecutionOrder();
+        for (int index = 0; index < predecessors.Length; index++)
+        {
+            Entry predecessor = predecessors[index];
+            drafts.AddRange(index == predecessors.Length - 1
+                ? Settle(predecessor, boundary, next.Action.ActionWitnessId)
+                : DisposeUnknown(
+                    predecessor,
+                    "intervening_human_action_before_boundary",
+                    next.Action.ActionWitnessId,
+                    "Another Human action began execution before a causal boundary for this action was captured."));
+        }
 
-        if (boundary.IsCompleteDecisionBoundary && next.SemanticPre == null)
+        foreach (Entry preempted in _order
+                     .Select(id => _entries[id])
+                     .Where(entry => !entry.Disposed
+                         && !entry.Started
+                         && entry.Action.ActionSequence < next.Action.ActionSequence))
+        {
+            preempted.SemanticPre = null;
+            preempted.RequiresExecutionBoundaryRebind = true;
+            preempted.SemanticPreUnknownReason = "intervening_human_action_before_execution";
+            preempted.InterveningActionWitnessId = next.Action.ActionWitnessId;
+        }
+
+        bool rebound = next.RequiresExecutionBoundaryRebind;
+        string? interveningActionWitnessId = next.InterveningActionWitnessId;
+        if (boundary.IsCompleteDecisionBoundary)
+        {
             next.SemanticPre = boundary.State;
+            next.RequiresExecutionBoundaryRebind = false;
+            next.SemanticPreUnknownReason = null;
+        }
+        else if (next.RequiresExecutionBoundaryRebind || next.SemanticPre == null)
+        {
+            next.SemanticPre = null;
+            next.SemanticPreUnknownReason ??= "execution_boundary_incomplete";
+        }
         drafts.Add(Draft(
             SemanticBoundaryTraceKinds.BoundaryObserved,
             next,
-            boundary.IsCompleteDecisionBoundary ? "complete" : "incomplete",
+            rebound && boundary.IsCompleteDecisionBoundary
+                ? "complete_rebound_after_intervening_human_action"
+                : next.SemanticPreUnknownReason
+                    ?? (boundary.IsCompleteDecisionBoundary ? "complete" : "incomplete"),
+            relatedActionWitnessId: interveningActionWitnessId,
             boundary: boundary,
             semanticPre: next.SemanticPre,
-            detail: "Captured synchronously before the next tracked Human GameAction begins execution."));
+            detail: rebound && boundary.IsCompleteDecisionBoundary
+                ? "A different accepted Human action executed first; this complete authoritative execution boundary safely rebinds the precommit to the S it immediately consumes."
+                : next.SemanticPreUnknownReason == null
+                    ? "Captured synchronously before the next tracked Human action begins execution."
+                    : "No complete authoritative semantic pre-state was available before this Human action began execution."));
         return drafts;
     }
 
@@ -174,6 +219,7 @@ public sealed class SemanticBoundaryTracker
     {
         Entry entry = Required(actionWitnessId);
         entry.Started = true;
+        entry.ExecutionOrder ??= ++_executionSequence;
         return new[]
         {
             Draft(
@@ -275,10 +321,22 @@ public sealed class SemanticBoundaryTracker
     public IReadOnlyList<SemanticBoundaryTraceDraft> ObserveDecisionBoundary(
         SemanticBoundaryObservation boundary)
     {
-        Entry? entry = WaitingForBoundaryBefore(long.MaxValue);
-        return entry == null
-            ? Array.Empty<SemanticBoundaryTraceDraft>()
-            : Settle(entry, boundary, null);
+        Entry[] entries = WaitingForBoundaryInExecutionOrder();
+        if (entries.Length == 0)
+            return Array.Empty<SemanticBoundaryTraceDraft>();
+        var drafts = new List<SemanticBoundaryTraceDraft>();
+        for (int index = 0; index < entries.Length; index++)
+        {
+            Entry entry = entries[index];
+            drafts.AddRange(index == entries.Length - 1
+                ? Settle(entry, boundary, null)
+                : DisposeUnknown(
+                    entry,
+                    "intervening_human_action_before_boundary",
+                    entries[index + 1].Action.ActionWitnessId,
+                    "Another Human action executed before a causal boundary for this action was observed."));
+        }
+        return drafts;
     }
 
     public IReadOnlyList<SemanticBoundaryTraceDraft> CloseUnknown(string proofStatus)
@@ -303,6 +361,7 @@ public sealed class SemanticBoundaryTracker
     {
         _entries.Clear();
         _order.Clear();
+        _executionSequence = 0;
     }
 
     private IReadOnlyList<SemanticBoundaryTraceDraft> Settle(
@@ -338,11 +397,12 @@ public sealed class SemanticBoundaryTracker
                 Draft(
                     SemanticBoundaryTraceKinds.TransitionUnknown,
                     entry,
-                    "semantic_pre_unknown",
-                    relatedActionWitnessId: nextActionWitnessId,
+                    entry.SemanticPreUnknownReason ?? "semantic_pre_unknown",
+                    relatedActionWitnessId: entry.InterveningActionWitnessId ?? nextActionWitnessId,
                     boundary: boundary,
-                    semanticSuccessor: boundary.State,
-                    detail: "A successor boundary was observed, but the action's semantic pre-state was not proved.",
+                    detail: entry.SemanticPreUnknownReason == null
+                        ? "A successor boundary was observed, but the action's semantic pre-state was not proved."
+                        : "Another Human action executed after this precommit and before its native execution; a sequential S to A to S-prime sample cannot be proved.",
                 nonClaims: new[] { "no_complete_s_a_s_prime" })
             };
         }
@@ -387,10 +447,32 @@ public sealed class SemanticBoundaryTracker
         };
     }
 
-    private Entry? WaitingForBoundaryBefore(long actionSequence) => _order
+    private Entry[] WaitingForBoundaryInExecutionOrder() => _order
         .Select(id => _entries[id])
-        .Where(entry => entry.Action.ActionSequence < actionSequence)
-        .FirstOrDefault(IsWaitingForBoundary);
+        .Where(IsWaitingForBoundary)
+        .OrderBy(entry => entry.ExecutionOrder)
+        .ToArray();
+
+    private static IReadOnlyList<SemanticBoundaryTraceDraft> DisposeUnknown(
+        Entry entry,
+        string proofStatus,
+        string relatedActionWitnessId,
+        string detail)
+    {
+        entry.Disposed = true;
+        entry.Disposition = SemanticBoundaryTraceKinds.TransitionUnknown;
+        return new[]
+        {
+            Draft(
+                SemanticBoundaryTraceKinds.TransitionUnknown,
+                entry,
+                proofStatus,
+                relatedActionWitnessId: relatedActionWitnessId,
+                semanticPre: entry.SemanticPre,
+                detail: detail,
+                nonClaims: new[] { "no_semantic_successor", "intervening_human_effect" })
+        };
+    }
 
     private static bool IsWaitingForBoundary(Entry entry) =>
         !entry.Disposed
@@ -551,6 +633,32 @@ public static class SemanticBoundaryTraceValidator
                     or SemanticBoundaryTraceKinds.ActionCancelledAfterStart
                     or SemanticBoundaryTraceKinds.ActionAbortedBeforeCommit) != 1)
                 errors.Add("semantic_action_disposition_not_exactly_one");
+
+            SemanticBoundaryTraceEvent? provedEvent = actionEvents.FirstOrDefault(
+                value => value.Kind == SemanticBoundaryTraceKinds.TransitionProved);
+            if (provedEvent != null)
+            {
+                SemanticBoundaryTraceEvent? startedEvent = actionEvents.FirstOrDefault(
+                    value => value.Kind == SemanticBoundaryTraceKinds.ActionStarted);
+                bool interveningHumanExecution = events.Any(value =>
+                    value.Action.ActionWitnessId != accepted.Action.ActionWitnessId
+                    && value.Kind == SemanticBoundaryTraceKinds.ActionStarted
+                    && startedEvent != null
+                    && value.Sequence > startedEvent.Sequence
+                    && value.Sequence < provedEvent.Sequence);
+                if (interveningHumanExecution)
+                    errors.Add("semantic_transition_contains_intervening_human_action");
+
+                SemanticBoundaryTraceEvent? executionBoundary = actionEvents
+                    .Where(value => value.Kind == SemanticBoundaryTraceKinds.BoundaryObserved
+                        && value.Sequence < (startedEvent?.Sequence ?? long.MaxValue)
+                        && value.Boundary?.IsCompleteDecisionBoundary == true)
+                    .LastOrDefault();
+                if (executionBoundary?.Boundary?.State != null
+                    && provedEvent.SemanticPre?.SnapshotId
+                        != executionBoundary.Boundary.State.SnapshotId)
+                    errors.Add("semantic_transition_pre_not_execution_boundary");
+            }
         }
         return errors.Distinct(StringComparer.Ordinal).ToArray();
     }

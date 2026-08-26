@@ -1,8 +1,8 @@
 # Current Status
 
-Phase: **rapid accepted-action lifecycle accounting and ledger v2 decision
-payloads are Live-proved; the additive semantic S -> A -> S' boundary observer
-is source/test complete and pending a new exact-artifact owner canary**.
+Phase: **rapid accepted-action lifecycle accounting is Live-proved; the first
+semantic S -> A -> S' owner canary found an execution-order defect, now repaired
+at source/test and pending a new exact-artifact canary**.
 
 ## Implemented
 
@@ -56,9 +56,15 @@ is source/test complete and pending a new exact-artifact owner canary**.
   not a successful A; cancellation after start and incomplete capture remain
   unknown. One exact-build read-only PlayCard abort witness prevents native
   `Finished` without resource/OnPlay Commit from becoming a false transition.
-  Clean artifact `2cb46ead... / 66ed1396...` is installed and cold-loaded in
-  runtime `af2e7370...`; Ready/no-session proves only identity and initialization,
-  not Human semantic-boundary mutation.
+  Predecessor artifact `2cb46ead... / 66ed1396...` was installed and cold-loaded
+  in runtime `af2e7370...`. Its owner canary retained all 22 accepted actions,
+  including one real generated-card choice, but exposed acceptance/execution
+  reordering: the choice executed before an earlier queued End Turn. Current
+  source orders causal settlement by execution and rebinds a precommit only to
+  a complete authoritative boundary immediately before its execution. The old
+  sidecar now fails strengthened audit with
+  `semantic_transition_pre_not_execution_boundary`; its two Decision V2 records
+  remain readable. Corrected Native source requires a new artifact canary.
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.
 - Workbench `0.1.0-rc.1` provides Environment, Policy, Human Data, Evidence,
@@ -275,7 +281,18 @@ independently audits 8/8 strict records, 26 invalidations and a ledger v2 with
 and 25 strict invalidations. Two cancellations occurred before start and three
 after start. This is exact-runtime evidence for ledger v2 payload/lifecycle
 accounting and cancellation observation; player-choice pause/resume did not
-naturally occur. The new semantic sidecar did not exist in that artifact.
+  naturally occur. The new semantic sidecar did not exist in that artifact.
+
+The first semantic-sidecar owner session
+`session-20260826T141755Z-0f4b31b20ac14b75a1ea3deaeed65caa` ran on exact
+artifact `2cb46ead... / 66ed1396...` in runtime `af2e7370...`. It retained 22/22
+accepted and started actions: 13 plays, eight End Turns and one generated-card
+select. Twenty finished and two plays cancelled after start; every action has
+one disposition. The run initially reported seven proved, 13 unknown and two
+cancelled dispositions, but stronger causal audit rejects one proof because the
+generated choice executed before an earlier accepted queued End Turn and the
+End Turn was not rebound to its execution boundary. This is Live defect evidence,
+not a semantic seal. See the dated owner-canary report.
 
 ## Non-claims
 
@@ -283,8 +300,9 @@ naturally occur. The new semantic sidecar did not exist in that artifact.
   Unstable pre-frames still fail closed. Ledger v1 and v2 have exact-runtime
   evidence for bounded accounting in their observed rapid windows; neither
   retroactively proves a strict successor for overlap. The semantic-boundary
-  sidecar is source/test only until a newly built artifact is cold-loaded and
-  owner-operated.
+  sidecar predecessor run proves action accounting but contains one rejected
+  semantic proof. Corrected execution-order source is source/test only until a
+  newly built artifact is cold-loaded and owner-operated.
 - H0/H1/H2 are automated real-runtime evidence, not human validation, a full
   game journey, durable qualification, semantic parity or long-soak proof.
 - The optional noninteractive Host execution profile was not implemented by the

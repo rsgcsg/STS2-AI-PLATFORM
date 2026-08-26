@@ -26,15 +26,16 @@ finished, five cancelled, eight strict-admitted and 25 strict-invalidated. Two
 cancelled before start and three cancelled after start. Ledger v2 mutation is
 therefore Live-exercised; player-choice pause/resume remains `not exercised`.
 
-Current source adds an observation-only semantic-boundary trace without changing
-Decision V2. It can prove an authoritative S' immediately before the next
-tracked Human action effect or at a complete decision surface, classify
-cancel-before-start/non-Commit abort as unsuccessful, and retain unknown when
-ordering or completeness is not proved. This source has automated evidence
-plus exact build/install/load evidence. Unified artifact
-`2cb46ead... / 66ed1396...` is loaded in runtime `af2e7370...`, Ready with no
-session. No predecessor session and no startup-only canary proves the new
-sidecar's Human mutation semantics.
+The first observation-only semantic-boundary artifact
+`2cb46ead... / 66ed1396...` ran owner session `session-20260826T141755Z-...` in
+runtime `af2e7370...`. It accounted 22/22 accepted actions, including one real
+generated-card select, but exposed a causal bug: the choice executed before an
+earlier accepted queued End Turn and the End Turn retained its older semantic
+pre. Strengthened audit rejects that one proof with
+`semantic_transition_pre_not_execution_boundary`; two Decision V2 records stay
+valid. Current source settles by execution order and rebinds a precommit only
+from a complete authoritative pre-execution frame. It has source/test evidence
+only until a corrected artifact is cold-loaded and owner-operated.
 
 The Recording Application Plane starts Ready, creates explicit repeatable
 sessions, and exposes typed status/events plus idempotent lifecycle commands.

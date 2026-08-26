@@ -2,6 +2,12 @@
 
 Date: 2026-08-26
 
+> Superseded for runtime verdict by the
+> [2026-08-27 owner canary](SEMANTIC_BOUNDARY_OWNER_CANARY_2026-08-27.md).
+> That canary proved action accounting but found that acceptance and execution
+> order can differ around player choice. The artifact below is not a semantic
+> seal.
+
 ## Evidence baseline
 
 The implementation started from Platform source

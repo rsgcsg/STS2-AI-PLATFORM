@@ -1082,8 +1082,10 @@ internal static class RecorderRuntime
             var drafts = new List<SemanticBoundaryTraceDraft>();
             lock (Gate)
             {
-                drafts.AddRange(BoundaryTracker.ObserveDecisionBoundary(boundary));
                 drafts.AddRange(BoundaryTracker.Accept(action, pending.Pre));
+                drafts.AddRange(BoundaryTracker.ObserveBeforeActionExecution(
+                    actionWitnessId,
+                    boundary));
                 drafts.AddRange(BoundaryTracker.Started(actionWitnessId));
                 drafts.AddRange(BoundaryTracker.Finished(actionWitnessId));
             }

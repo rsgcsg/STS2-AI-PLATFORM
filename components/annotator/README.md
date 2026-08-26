@@ -84,6 +84,14 @@ revision does not inherit this predecessor Live claim. It is now cold-loaded as
 `df5d2c61... / 9072e515...` in runtime `ebe7a9fc...`; owner rapid-input
 validation remains pending.
 
+Semantic-boundary artifact `2cb46ead... / 66ed1396...` then produced owner
+session `session-20260826T141755Z-...`: all 22 accepted actions were accounted,
+including a real generated-card choice, but the run disproved acceptance-order
+settlement. The strengthened audit rejects one End Turn proof whose earlier pre
+frame crossed the choice effect. Current source uses execution-order settlement
+and requires a complete pre-execution rebind; it needs a new exact artifact
+canary and does not inherit that predecessor sidecar claim.
+
 Implementation or build evidence is not human-origin evidence. See
 [Status](docs/STATUS.md) and [Evidence](docs/EVIDENCE.md).
 

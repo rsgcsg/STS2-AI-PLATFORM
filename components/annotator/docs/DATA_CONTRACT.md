@@ -44,8 +44,13 @@ records exact action identity, accepted/started/choice/cancelled/finished facts,
 authoritative boundary captures, and exactly one semantic disposition:
 `transition_proved`, `transition_unknown`, cancelled before/after start, or
 aborted before native Commit. A proved transition requires a complete current
-Player Environment boundary before the next tracked Human action effect. A
-queued action cancelled before `started` is retained as Human/native evidence
+Player Environment boundary before the next tracked Human action effect. Native
+acceptance order is not assumed to equal execution order. A precommitted action
+may consume a later S only when the complete authoritative boundary immediately
+before its execution is captured and stored as its semantic pre-state. Audit
+rejects a mismatched execution pre-state or another Human action effect between
+that action's start and successor boundary. A queued action cancelled before
+`started` is retained as Human/native evidence
 but is not a successful A. A cancellation after start remains unknown. Audit
 rejects contradictory lifecycle/disposition combinations and duplicate
 dispositions.

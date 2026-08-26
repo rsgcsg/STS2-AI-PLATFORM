@@ -36,6 +36,13 @@ MVID `57785517-0b16-42b9-8b36-bad6fb28384b`.
   performs game-owned win-condition handling after each action before selecting
   another. Capturing immediately before the next tracked Human action therefore
   excludes that next action's effect while retaining prior continuation.
+- Exact owner evidence shows that acceptance and execution order can differ
+  around player-choice pause: a later accepted source-local choice can execute
+  before an earlier queued `GameAction`. Semantic coordination must therefore
+  use observed execution order. A precommit can be rebound only from the
+  complete authoritative capture immediately before its own execution; its
+  earlier Human observation cannot remain semantic S across an intervening
+  Human effect.
 - `EndPlayerTurnAction.ExecuteAction` only invokes `PlayerCmd.EndTurn`; its
   `Finished` event does not prove enemy-turn and next-turn settlement. A valid
   End Turn successor must be a later complete player decision boundary.

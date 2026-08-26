@@ -41,6 +41,38 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
+    public void LaterAcceptedChoiceExecutingFirstRebindsQueuedPrecommitAtExecutionBoundary()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        tracker.Accept(Action("queued-end-turn", 1), State("turn-before-choice"));
+        tracker.Accept(Action("choice", 2), State("choice-pre"));
+
+        tracker.ObserveBeforeActionExecution("choice", Boundary("choice-pre", "choice"));
+        tracker.Started("choice");
+        tracker.Finished("choice");
+        IReadOnlyList<SemanticBoundaryTraceDraft> beforeQueued =
+            tracker.ObserveBeforeActionExecution(
+                "queued-end-turn",
+                Boundary("after-choice", "queued-end-turn"));
+        tracker.Started("queued-end-turn");
+        tracker.Finished("queued-end-turn");
+        SemanticBoundaryTraceDraft queued = Assert.Single(
+            tracker.ObserveDecisionBoundary(Boundary("next-turn")));
+
+        SemanticBoundaryTraceDraft choice = Assert.Single(
+            beforeQueued,
+            value => value.Kind == SemanticBoundaryTraceKinds.TransitionProved);
+        Assert.Equal(("choice-pre", "after-choice"), TransitionIds(choice));
+        Assert.Equal(SemanticBoundaryTraceKinds.TransitionProved, queued.Kind);
+        Assert.Equal(("after-choice", "next-turn"), TransitionIds(queued));
+        SemanticBoundaryTraceDraft rebound = Assert.Single(
+            beforeQueued,
+            value => value.Kind == SemanticBoundaryTraceKinds.BoundaryObserved);
+        Assert.Equal("complete_rebound_after_intervening_human_action", rebound.ProofStatus);
+        Assert.Equal("choice", rebound.RelatedActionWitnessId);
+    }
+
+    [Fact]
     public void RapidLethalKeepsCancelledPrecommitButOnlySettlesExecutedAction()
     {
         var tracker = new SemanticBoundaryTracker();
@@ -135,7 +167,7 @@ public sealed class SemanticBoundaryTrackerTests
 
         Assert.Equal("boundary_incomplete_before_next_action", unknown.ProofStatus);
         Assert.Null(unknown.SemanticSuccessor);
-        Assert.Equal("semantic_pre_unknown", a2Unknown.ProofStatus);
+        Assert.Equal("execution_boundary_incomplete", a2Unknown.ProofStatus);
     }
 
     [Fact]
@@ -233,6 +265,65 @@ public sealed class SemanticBoundaryTrackerTests
             new[] { accepted, aborted });
 
         Assert.Contains("semantic_abort_before_commit_disposition_invalid", errors);
+    }
+
+    [Fact]
+    public void TraceValidatorRejectsProofContainingAnotherHumanExecution()
+    {
+        SemanticActionReference queued = Action("queued", 1);
+        SemanticActionReference choice = Action("choice", 2);
+        SemanticBoundaryTraceEvent[] events =
+        {
+            Event(1, SemanticBoundaryTraceKinds.ActionAccepted, queued),
+            Event(2, SemanticBoundaryTraceKinds.ActionStarted, queued),
+            Event(3, SemanticBoundaryTraceKinds.ActionAccepted, choice),
+            Event(4, SemanticBoundaryTraceKinds.ActionStarted, choice),
+            Event(5, SemanticBoundaryTraceKinds.ActionFinished, choice),
+            Event(6, SemanticBoundaryTraceKinds.TransitionUnknown, choice),
+            Event(7, SemanticBoundaryTraceKinds.ActionFinished, queued),
+            Event(8, SemanticBoundaryTraceKinds.TransitionProved, queued) with
+            {
+                Boundary = Boundary("next"),
+                SemanticPre = State("before"),
+                SemanticSuccessor = State("next")
+            }
+        };
+
+        IReadOnlyList<string> errors = SemanticBoundaryTraceValidator.Validate(events);
+
+        Assert.Contains("semantic_transition_contains_intervening_human_action", errors);
+    }
+
+    [Fact]
+    public void TraceValidatorRejectsPrecommitNotReboundToCompleteExecutionBoundary()
+    {
+        SemanticActionReference queued = Action("queued", 1);
+        SemanticActionReference choice = Action("choice", 2);
+        SemanticBoundaryTraceEvent[] events =
+        {
+            Event(1, SemanticBoundaryTraceKinds.ActionAccepted, queued),
+            Event(2, SemanticBoundaryTraceKinds.ActionAccepted, choice),
+            Event(3, SemanticBoundaryTraceKinds.ActionStarted, choice),
+            Event(4, SemanticBoundaryTraceKinds.ActionFinished, choice),
+            Event(5, SemanticBoundaryTraceKinds.TransitionUnknown, choice),
+            Event(6, SemanticBoundaryTraceKinds.BoundaryObserved, queued) with
+            {
+                Boundary = Boundary("after-choice"),
+                SemanticPre = State("after-choice")
+            },
+            Event(7, SemanticBoundaryTraceKinds.ActionStarted, queued),
+            Event(8, SemanticBoundaryTraceKinds.ActionFinished, queued),
+            Event(9, SemanticBoundaryTraceKinds.TransitionProved, queued) with
+            {
+                Boundary = Boundary("next"),
+                SemanticPre = State("before-choice"),
+                SemanticSuccessor = State("next")
+            }
+        };
+
+        IReadOnlyList<string> errors = SemanticBoundaryTraceValidator.Validate(events);
+
+        Assert.Contains("semantic_transition_pre_not_execution_boundary", errors);
     }
 
     [Fact]

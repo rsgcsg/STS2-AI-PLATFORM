@@ -146,13 +146,20 @@ action-family expansion remain outside this bounded baseline.
   from transition S, captures a complete authoritative boundary before the next
   tracked Human action effect, and classifies proved/cancelled/non-Commit abort/
   unknown without changing Decision V2.
-- Complete exact build/install/cold-load: unified artifact
+- Complete predecessor build/install/cold-load: unified artifact
   `2cb46ead... / 66ed1396...` initialized Ready in runtime `af2e7370...` with
   exact STS2 and sole `STS2_PLATFORM` Mod.
-- Pending owner exact-runtime: exercise slow and rapid card play,
-  targeted/untargeted chains, card-to-EndTurn full cycle, lethal
-  queued cancellation, natural player choice and combat-to-next-surface. No
-  semantic-transition admission or training authority exists before that gate.
+- Complete Live defect discovery: owner session `session-20260826T141755Z-...`
+  retained 22/22 accepted actions and exercised a generated-card select, but
+  proved that acceptance and execution order can differ across player-choice
+  pause. One predecessor End Turn proof is rejected rather than transferred.
+- Complete at corrected source/test: causal settlement follows exact execution
+  order; a precommit is rebound only from a complete boundary immediately before
+  native execution. Audit rejects mismatched pre-state and interleaved effects.
+- Pending corrected-artifact exact-runtime: repeat generated choice before a
+  queued action plus ordinary rapid chains and End Turn. Lethal cancellation and
+  combat-to-next-surface remain opportunistic. No semantic-transition admission
+  or training authority exists before that gate.
 
 Next phase, not part of this slice: **Live Workspace Window Kernel -> Human
 Recorder Window**.

@@ -1,7 +1,8 @@
 # Current Context
 
-Phase: **Human Evidence V2 verified; one-Mod Policy Runtime/Live UI exact
-artifact loaded and K input-canary verified, awaiting owner interaction.**
+Phase: **Human Evidence V2 remains verified; semantic-boundary owner canary
+found acceptance/execution reordering and corrected Native source is pending a
+new exact-artifact canary.**
 
 `STS2-AI-PLATFORM` is the only forward-development source authority for the
 Platform components. The root BOM and component release manifests are the
@@ -30,11 +31,13 @@ identity registry.
   STPD owns only checkpoint/Qwen/projection/scoring support.
 - Workbench and the in-game Live UI consume typed Runtime status and commands.
   Neither can submit a BoundAction directly or write Human records.
-- One `STS2_PLATFORM` artifact `65498489... / c280d226...` is installed and
-  cold-loaded under runtime `f3195698...`; exact unified Modset execution
-  admission and automated K open/close canaries pass.
-- Owner-visible UI, recording controls, unified-artifact Human decisions and
-  model modes remain pending; no Native evidence is transferred.
+- Predecessor semantic artifact `2cb46ead... / 66ed1396...` ran owner session
+  `session-20260826T141755Z-...` in runtime `af2e7370...`. It retained 22/22
+  accepted actions and exercised generated-card select, but stronger audit
+  rejects one End Turn proof because a later accepted choice executed first.
+- Current source coordinates by exact execution order and requires a complete
+  boundary to rebind a precommit before execution. It is source/test evidence
+  until rebuilt, installed, cold-loaded and owner-operated.
 - The S1 checkpoint named by the current Policy Manifest is unavailable on this
   Mac. Policy model modes and owner operation of the new UI remain unexercised.
 
