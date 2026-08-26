@@ -1227,7 +1227,11 @@ internal static class RecorderRuntime
                 action.State.ToString().ToLowerInvariant(),
                 priorOpenActionIds,
                 transitionEvidence,
-                detail));
+                detail,
+                kind == NativeActionLifecycleKinds.Accepted ? pending.Pre : null,
+                kind == NativeActionLifecycleKinds.Accepted ? pending.NativeWitness : null,
+                kind == NativeActionLifecycleKinds.Accepted ? pending.Mapping : null,
+                kind == NativeActionLifecycleKinds.Accepted ? pending.Action : null));
             return true;
         }
         catch (Exception exception)

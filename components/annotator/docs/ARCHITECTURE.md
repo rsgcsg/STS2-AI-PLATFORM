@@ -79,12 +79,13 @@ finished events without changing the action.
 
 If another Human root is accepted before the first candidate has both finished
 and reached an action-local stable successor, every action in that causal window
-is explicitly accounted but loses strict transition eligibility. The next
-decision pre-frame is not evidence of the prior action's successor. Recovery is
-allowed only after every tracked action is terminal and a fresh complete
-interactive boundary is observed. Timeout, overlap, cancellation, runtime
-drift, lifecycle persistence uncertainty, root-contract error, or mapping
-failure is fail-closed. Native lifecycle facts are additive evidence;
+is explicitly accounted with its own frozen decision pre-frame and BoundAction,
+but loses strict transition eligibility. The next decision pre-frame is not
+evidence of the prior action's successor. Recovery is allowed only after every
+tracked action is terminal and a fresh complete interactive boundary is
+observed. Timeout, overlap, cancellation, runtime drift, lifecycle persistence
+uncertainty, root-contract error, or mapping failure is fail-closed. Native
+lifecycle and invalidated-decision facts are additive sidecar evidence;
 `HumanDecisionRecordV2` bytes and meaning are unchanged.
 
 The application event stream is typed, process-local and bounded. A consumer

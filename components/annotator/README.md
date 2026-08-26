@@ -37,10 +37,13 @@ or expose native references on a wire.
   never counted as either a HumanDecision or a recording failure.
 - Accepted `GameAction` roots now enter a bounded additive native-action ledger
   at exact `GameAction.OnEnqueued`. The ledger records native started,
-  player-choice pause/resume, cancelled and finished facts. Rapid overlap
-  accounts every accepted root but invalidates strict transition admission for
-  every action in the causal window; it never treats a later decision frame as
-  an earlier action's successor. `HumanDecisionRecordV2` remains unchanged.
+  player-choice pause/resume, cancelled and finished facts. Its v2 accepted
+  event also retains that action's frozen pre-frame, exact mapping and
+  BoundAction. Rapid overlap accounts every accepted root but invalidates strict
+  transition admission for every action in the causal window; it never treats a
+  later decision frame as an earlier action's successor.
+  `HumanDecisionRecordV2` remains unchanged and v1 ledger sidecars remain
+  readable.
 - Builds from the exact local STS2 `v0.111.0` assembly on macOS arm64 and
   Windows x64. Windows discovery and process inspection use the Platform Host
   Runtime component.
@@ -69,6 +72,16 @@ Owner session `session-20260826T025703Z-...` on that exact artifact now audits
 native-accepted card actions failed closed and remained outside admitted
 records. One owner-observed cancelled attempt emitted no evidence, as designed;
 that negative-action attribution is owner-attested rather than machine-proven.
+
+Rapid-input artifact `080701b3... / 142054a5...` was subsequently cold-loaded
+and owner-operated in runtime `39fa2d2e...`. Closed session
+`session-20260826T062916Z-...` audits 12/12 strict records and its additive v1
+ledger contains 35 accepted, started and finished roots: 12 strict-admitted and
+23 strict-invalidated, with zero unresolved lifecycle. This proves accounting
+and no false strict successor for the observed bursts. Current ledger v2 source
+adds frozen decision/BoundAction evidence for invalidated roots; that additive
+evidence revision still requires a new cold-load and does not inherit this
+predecessor Live claim.
 
 Implementation or build evidence is not human-origin evidence. See
 [Status](docs/STATUS.md) and [Evidence](docs/EVIDENCE.md).

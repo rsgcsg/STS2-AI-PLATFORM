@@ -2,8 +2,14 @@ namespace STS2HumanAnnotator.Core;
 
 public static class NativeActionLedgerContract
 {
-    public const int SchemaVersion = 1;
-    public const string EventSchema = "sts2.human-annotator/native-action-ledger-event-1";
+    public const int SchemaVersion = 2;
+    public const string EventSchema = "sts2.human-annotator/native-action-ledger-event-2";
+    public const int LegacySchemaVersion = 1;
+    public const string LegacyEventSchema = "sts2.human-annotator/native-action-ledger-event-1";
+
+    public static bool IsSupported(int version, string schema) =>
+        (version == SchemaVersion && schema == EventSchema)
+        || (version == LegacySchemaVersion && schema == LegacyEventSchema);
 }
 
 public static class NativeActionLifecycleKinds
@@ -40,7 +46,11 @@ public sealed record NativeActionLedgerEvent(
     string NativeState,
     IReadOnlyList<string> PriorOpenActionIds,
     string TransitionEvidence,
-    string? Detail);
+    string? Detail,
+    FrozenDecisionFrameV2? DecisionPre = null,
+    NativeWitnessEvidence? NativeWitness = null,
+    ExactMappingEvidence? Mapping = null,
+    RecordedBoundAction? BoundAction = null);
 
 public sealed record AcceptedActionAdmission(
     bool Accounted,
@@ -221,8 +231,7 @@ public static class NativeActionLedgerValidator
 
         foreach (NativeActionLedgerEvent value in events)
         {
-            if (value.SchemaVersion != NativeActionLedgerContract.SchemaVersion
-                || value.Schema != NativeActionLedgerContract.EventSchema)
+            if (!NativeActionLedgerContract.IsSupported(value.SchemaVersion, value.Schema))
                 errors.Add("native_action_schema_invalid");
             if (previousSequence == 0 && value.Sequence != 1)
                 errors.Add("native_action_sequence_does_not_start_at_one");
@@ -244,8 +253,14 @@ public static class NativeActionLedgerValidator
                     errors.Add("native_action_accepted_duplicate");
                 else
                     lastLifecycleKind.Add(value.ActionWitnessId, value.Kind);
+                if (value.SchemaVersion == NativeActionLedgerContract.SchemaVersion
+                    && !HasExactDecisionEvidence(value))
+                    errors.Add("native_action_decision_evidence_invalid");
                 continue;
             }
+            if (value.SchemaVersion == NativeActionLedgerContract.SchemaVersion
+                && HasAnyDecisionEvidence(value))
+                errors.Add("native_action_decision_evidence_repeated");
             if (!accepted.TryGetValue(value.ActionWitnessId, out NativeActionLedgerEvent? first))
             {
                 errors.Add("native_action_event_before_accepted");
@@ -287,6 +302,24 @@ public static class NativeActionLedgerValidator
 
         return errors;
     }
+
+    private static bool HasExactDecisionEvidence(NativeActionLedgerEvent value) =>
+        value.DecisionPre != null
+        && value.NativeWitness != null
+        && value.Mapping is { Status: "exact_unique", MatchCount: 1 }
+        && value.BoundAction != null
+        && !string.IsNullOrWhiteSpace(value.DecisionPre.SnapshotId)
+        && !string.IsNullOrWhiteSpace(value.DecisionPre.InteractionId)
+        && value.DecisionPre.CatalogCount > 0
+        && !string.IsNullOrWhiteSpace(value.DecisionPre.CatalogDigest)
+        && !string.IsNullOrWhiteSpace(value.BoundAction.BoundActionId)
+        && !string.IsNullOrWhiteSpace(value.BoundAction.Verb);
+
+    private static bool HasAnyDecisionEvidence(NativeActionLedgerEvent value) =>
+        value.DecisionPre != null
+        || value.NativeWitness != null
+        || value.Mapping != null
+        || value.BoundAction != null;
 
     private static bool IsLifecycleKind(string kind) =>
         kind is NativeActionLifecycleKinds.Started

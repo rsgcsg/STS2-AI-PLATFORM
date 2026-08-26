@@ -1,8 +1,8 @@
 # Current Status
 
-Phase: **Recording Application card-play and Close are Live-proved on the
-predecessor artifact; rapid accepted-action lifecycle accounting is source/test
-complete and awaits a new exact runtime**.
+Phase: **rapid accepted-action lifecycle accounting is Live-proved; ledger v2
+decision-bound invalidation evidence is source/test complete and awaits a new
+exact runtime**.
 
 ## Implemented
 
@@ -41,6 +41,12 @@ complete and awaits a new exact runtime**.
   any accepted overlap explicitly invalidates every action in that causal
   window. The next decision pre-frame is never reused as the prior action's S'.
   Decision V2 is unchanged, and persistence uncertainty remains no-retry.
+- Exact artifact `080701b3... / 142054a5...` proved that repair in runtime
+  `39fa2d2e...`: 35 accepted roots all started and finished, with 12 strict
+  admissions, 23 explicit invalidations and zero unresolved lifecycle. Current
+  ledger v2 source additionally stores each accepted root's frozen pre-frame,
+  exact mapping and BoundAction so invalidated decisions are independently
+  classifiable. That evidence-only native revision remains pending cold-load.
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.
 - Workbench `0.1.0-rc.1` provides Environment, Policy, Human Data, Evidence,
@@ -229,23 +235,32 @@ did not change record or invalidation counts; because an intentionally
 unrecorded attempt has no machine event, that absence is not independently
 machine-attributable.
 
-That exact run exposed the remaining correctness gap: its one overlap recorded
-only a failed current attempt while the previous accepted action had no durable
-native lifecycle accounting. Current source replaces the single-pending drop
-path with an additive accepted-action ledger bound to exact STS2 `GameAction`
-identity and lifecycle. Automated tests cover two/three-action bursts,
-targeted/untargeted/end-turn combinations, cancellation, player-choice
-pause/resume, pending Pause/Close, bounded overflow, reset isolation, event
-ordering, sidecar audit/tamper and no false V2 admission. This changes native
-runtime source, so `887630f4... / 14761ed4... / bcf2b3f1...` is predecessor
-Live evidence only. The new candidate is not yet loaded or exercised.
+The subsequent exact artifact `080701b3bf... / 142054a5...` loaded in runtime
+`39fa2d2e...`. Owner session
+`session-20260826T062916Z-957f201043a4456a89d13407682f0541` independently
+audits 12/12 strict records and 94 materialized Reads. Its additive ledger has
+140 events: 35 accepted roots, all 35 started and finished, 12 strict-admitted,
+23 strict-invalidated and zero unresolved. The 23 card plays and 12 end turns
+include rapid windows up to five actions; no invalidated row was admitted and no
+admitted action had a prior overlap. This is Live evidence for accounting and
+no-false-S' behavior, not for cancellation or player-choice lifecycle, which did
+not naturally occur.
+
+The same audit found that ledger v1 could not independently classify invalidated
+roots as targeted or untargeted because it persisted identity/lifecycle but not
+the frozen decision payload. Current source revises only the additive ledger to
+v2: accepted events carry frozen Decision V2 pre, native witness, exact mapping
+and BoundAction; lifecycle rows cannot repeat them; audit cross-checks admitted
+payloads against Decision V2. Historical v1 ledgers remain readable. This native
+evidence revision requires a new artifact and has no loaded/Live claim yet.
 
 ## Non-claims
 
 - Human origin is owner-attested and cannot be independently machine-proven.
-  Unstable pre-frames still fail closed. The new ledger claims lossless durable
-  accounting only after its exact-runtime rapid-input canary and successful
-  session audit; it does not claim a strict successor for overlapping actions.
+  Unstable pre-frames still fail closed. Ledger v1 now has exact-runtime evidence
+  for lossless accounting in the observed rapid windows; it does not claim a
+  strict successor for overlap. Ledger v2 decision payloads remain pending exact
+  runtime evidence.
 - H0/H1/H2 are automated real-runtime evidence, not human validation, a full
   game journey, durable qualification, semantic parity or long-soak proof.
 - The optional noninteractive Host execution profile was not implemented by the

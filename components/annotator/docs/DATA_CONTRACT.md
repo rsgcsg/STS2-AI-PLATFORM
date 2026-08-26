@@ -22,16 +22,21 @@ digest/count, chosen-action uniqueness, runtime continuity, sequence monotonicit
 and exact identities. `export` refuses a failed audit and concatenates run files
 in deterministic order.
 
-`native-action-ledger.jsonl` uses
-`sts2.human-annotator/native-action-ledger-event-1`. Each exact-correlated
-accepted root has one process-local action witness ID, native queue ID, ordered
-lifecycle facts and exactly one recorder disposition:
-`strict_transition_admitted` or `strict_transition_invalidated`. Admission
-requires native `finished` plus the existing stable-successor gates. Cancellation
-or overlap preserves decision/lifecycle accounting but produces no strict V2
-transition. Missing or unknown ledger persistence makes audit fail; it is never
-retried or repaired from a later frame. Sessions sealed before this additive
-sidecar remain readable, so historical V2 bytes and meaning are not redefined.
+`native-action-ledger.jsonl` now uses
+`sts2.human-annotator/native-action-ledger-event-2`. Each exact-correlated
+accepted root has one process-local action witness ID, native queue ID, frozen
+Decision V2 pre-frame, native witness, exact-unique mapping and selected
+BoundAction. Later entries contain only ordered lifecycle facts and exactly one
+recorder disposition: `strict_transition_admitted` or
+`strict_transition_invalidated`; decision evidence is not repeated or rewritten.
+
+Admission requires native `finished` plus the existing stable-successor gates.
+Audit verifies that an admitted ledger decision exactly matches its Decision V2
+record. Cancellation or overlap preserves decision/lifecycle accounting but
+produces no strict V2 transition. Missing or unknown ledger persistence makes
+audit fail; it is never retried or repaired from a later frame. Historical
+`native-action-ledger-event-1` sidecars remain readable, but do not retroactively
+gain frozen decision payloads. Decision V1/V2 bytes and meaning are unchanged.
 
 `pack-session` creates `sts2.human-annotator/session-bundle-1`. A bundle contains
 the untouched raw session, independent audit, deterministic export, the exact

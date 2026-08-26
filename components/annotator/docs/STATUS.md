@@ -7,10 +7,20 @@ audited generated-card select. Generated-card skip and the current unified
 artifact's Human path remain `not exercised`. Root `../../../docs/STATUS.md` is
 authoritative for the current runtime boundary.
 
-Current source adds an exact accepted-action lifecycle ledger for rapid input.
-It is source/test/build evidence only until a new unified artifact is
-cold-loaded. The loaded `887630f4... / 14761ed4...` artifact and its 19-record
-session are predecessor evidence and cannot validate this native change.
+Rapid-input artifact `080701b3... / 142054a5...` is cold-loaded and Live-proved
+in runtime `39fa2d2e...`. Its closed owner session
+`session-20260826T062916Z-957f201043a4456a89d13407682f0541` audits 12/12 strict
+records; ledger v1 records 35 accepted, started and finished roots, 12 strict
+admissions, 23 strict invalidations and zero unresolved lifecycle. This proves
+the bounded exact lifecycle/accounting behavior for observed bursts without
+claiming an action-local successor for overlap.
+
+That canary also exposed an evidence-fidelity gap: v1 invalidated ledger rows did
+not independently retain their frozen decision pre-frame and exact BoundAction.
+Current ledger v2 source adds those accepted-action facts, rejects repetition on
+lifecycle rows and cross-checks admitted facts against Decision V2. It remains
+source/test evidence pending a new exact-runtime cold-load; the v1 canary cannot
+prove bytes that its artifact did not write.
 
 The Recording Application Plane starts Ready, creates explicit repeatable
 sessions, and exposes typed status/events plus idempotent lifecycle commands.
@@ -33,6 +43,8 @@ audits 19/19 records and explicitly separates 16 native-accepted failures.
   exact game-owned `GameAction.OnEnqueued` boundary;
 - bounded per-action native lifecycle accounting with explicit strict-admitted
   or strict-invalidated disposition and no fabricated overlap successor;
+- ledger v2 accepted-action evidence containing the frozen decision pre-frame,
+  exact witness/mapping and BoundAction while keeping Decision V2 unchanged;
 - exact card/target reference mapping with zero/ambiguous fail closed;
 - different complete interactive successor settlement;
 - append-only per-run JSONL, invalidations, coverage, audit, and export;
@@ -66,7 +78,8 @@ identity, RunJournal/bundle portability, selector transition precision and
 version-aware external verification. Rapid-input tests cover A1->A2 and
 A1->A2->A3 accounting, targeted/untargeted/end-turn combinations, cancellation,
 player-choice pause/resume, unresolved Pause/Close, bounded overflow/reset,
-lifecycle ordering and additive sidecar audit/tamper.
+lifecycle ordering, legacy v1 readability, v2 accepted-evidence shape and
+admitted-record identity mismatch/tamper.
 
 ## Exact Runtime Findings
 

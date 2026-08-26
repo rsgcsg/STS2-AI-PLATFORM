@@ -11,7 +11,7 @@ public static class V2RecordingAuditor
         var errors = new Dictionary<string, long>(StringComparer.Ordinal);
         long valid = 0;
         long invalid = 0;
-        var recordIds = new HashSet<string>(StringComparer.Ordinal);
+        var recordsById = new Dictionary<string, HumanDecisionRecordV2>(StringComparer.Ordinal);
         long previousSequence = 0;
         RecordingManifestV2? manifest = ReadOrError<RecordingManifestV2>(
             Path.Combine(directory, "recording-manifest.json"), errors, "manifest_invalid");
@@ -65,7 +65,7 @@ public static class V2RecordingAuditor
                             Add(errors, error);
                         continue;
                     }
-                    if (!recordIds.Add(record!.RecordId))
+                    if (!recordsById.TryAdd(record!.RecordId, record))
                     {
                         invalid++;
                         Add(errors, "duplicate_record_id");
@@ -92,7 +92,7 @@ public static class V2RecordingAuditor
         }
 
         ValidateJournal(directory, manifest, errors);
-        ValidateNativeActionLedger(directory, manifest, recordIds, errors);
+        ValidateNativeActionLedger(directory, manifest, recordsById, errors);
         long invalidations = File.Exists(Path.Combine(directory, "invalidations.jsonl"))
             ? Lines(Path.Combine(directory, "invalidations.jsonl")).LongCount()
             : 0;
@@ -184,7 +184,7 @@ public static class V2RecordingAuditor
     private static void ValidateNativeActionLedger(
         string directory,
         RecordingManifestV2? manifest,
-        IReadOnlySet<string> admittedRecordIds,
+        IReadOnlyDictionary<string, HumanDecisionRecordV2> admittedRecords,
         IDictionary<string, long> errors)
     {
         string path = Path.Combine(directory, "native-action-ledger.jsonl");
@@ -221,11 +221,27 @@ public static class V2RecordingAuditor
                      value.Kind is NativeActionLifecycleKinds.StrictTransitionAdmitted
                          or NativeActionLifecycleKinds.StrictTransitionInvalidated))
         {
-            bool admitted = admittedRecordIds.Contains(disposition.RecordId);
+            bool admitted = admittedRecords.ContainsKey(disposition.RecordId);
             if (disposition.Kind == NativeActionLifecycleKinds.StrictTransitionAdmitted && !admitted)
                 Add(errors, "native_action_admission_record_missing");
             if (disposition.Kind == NativeActionLifecycleKinds.StrictTransitionInvalidated && admitted)
                 Add(errors, "native_action_invalidated_record_admitted");
+        }
+        foreach (NativeActionLedgerEvent accepted in events.Where(value =>
+                     value.Kind == NativeActionLifecycleKinds.Accepted
+                     && value.SchemaVersion == NativeActionLedgerContract.SchemaVersion
+                     && admittedRecords.ContainsKey(value.RecordId)))
+        {
+            HumanDecisionRecordV2 record = admittedRecords[accepted.RecordId];
+            if (accepted.DecisionPre == null
+                || accepted.NativeWitness == null
+                || accepted.Mapping == null
+                || accepted.BoundAction == null
+                || EvidenceIdentity.Sha256Json(accepted.DecisionPre) != EvidenceIdentity.Sha256Json(record.Pre)
+                || EvidenceIdentity.Sha256Json(accepted.NativeWitness) != EvidenceIdentity.Sha256Json(record.NativeWitness)
+                || EvidenceIdentity.Sha256Json(accepted.Mapping) != EvidenceIdentity.Sha256Json(record.Mapping)
+                || EvidenceIdentity.Sha256Json(accepted.BoundAction) != EvidenceIdentity.Sha256Json(record.Action))
+                Add(errors, "native_action_decision_record_mismatch");
         }
     }
 

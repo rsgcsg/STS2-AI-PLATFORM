@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using STS2HumanAnnotator.Core;
 using Xunit;
 
@@ -176,6 +177,53 @@ public sealed class NativeActionLedgerTests
     }
 
     [Fact]
+    public void CurrentAcceptedEventRequiresDecisionEvidenceAndDoesNotRepeatIt()
+    {
+        NativeActionLedgerEvent accepted = Event(1, "accepted", "waiting_for_execution") with
+        {
+            DecisionPre = null
+        };
+        NativeActionLedgerEvent started = Event(2, "started", "executing") with
+        {
+            DecisionPre = DecisionPre()
+        };
+
+        IReadOnlyList<string> errors = NativeActionLedgerValidator.Validate(
+            new[] { accepted, started });
+
+        Assert.Contains("native_action_decision_evidence_invalid", errors);
+        Assert.Contains("native_action_decision_evidence_repeated", errors);
+    }
+
+    [Fact]
+    public void LegacyV1LedgerRemainsReadableWithoutDecisionEvidence()
+    {
+        NativeActionLedgerEvent accepted = Event(
+            1,
+            "accepted",
+            "waiting_for_execution",
+            legacy: true);
+        NativeActionLedgerEvent started = Event(
+            2,
+            "started",
+            "executing",
+            legacy: true);
+        NativeActionLedgerEvent finished = Event(
+            3,
+            "finished",
+            "finished",
+            legacy: true);
+        NativeActionLedgerEvent invalidated = Event(
+            4,
+            "strict_transition_invalidated",
+            "finished",
+            legacy: true);
+
+        Assert.Empty(NativeActionLedgerValidator.Validate(
+            new[] { accepted, started, finished, invalidated }));
+    }
+
+    [Fact]
     public void StorePersistsAdditiveLedgerWithoutChangingDecisionSchema()
     {
         string root = Path.Combine(Path.GetTempPath(), $"sts2-native-ledger-{Guid.NewGuid():N}");
@@ -215,9 +263,14 @@ public sealed class NativeActionLedgerTests
         long sequence,
         string kind,
         string nativeState,
-        uint? queueId = 1) => new(
-            NativeActionLedgerContract.SchemaVersion,
-            NativeActionLedgerContract.EventSchema,
+        uint? queueId = 1,
+        bool legacy = false) => new(
+            legacy
+                ? NativeActionLedgerContract.LegacySchemaVersion
+                : NativeActionLedgerContract.SchemaVersion,
+            legacy
+                ? NativeActionLedgerContract.LegacyEventSchema
+                : NativeActionLedgerContract.EventSchema,
             $"event-{sequence}",
             "session-test",
             "timeline-test",
@@ -233,5 +286,35 @@ public sealed class NativeActionLedgerTests
             nativeState,
             Array.Empty<string>(),
             "strict_candidate",
-            null);
+            null,
+            !legacy && kind == NativeActionLifecycleKinds.Accepted ? DecisionPre() : null,
+            !legacy && kind == NativeActionLifecycleKinds.Accepted
+                ? new NativeWitnessEvidence(
+                    "native_human_action",
+                    "PlayCardAction",
+                    "card-a1",
+                    new Dictionary<string, string>(),
+                    T0)
+                : null,
+            !legacy && kind == NativeActionLifecycleKinds.Accepted
+                ? new ExactMappingEvidence("exact_unique", 1, "native_witness", null)
+                : null,
+            !legacy && kind == NativeActionLifecycleKinds.Accepted
+                ? new RecordedBoundAction(
+                    "bound-action-a1",
+                    "play",
+                    "card-a1",
+                    new Dictionary<string, string>(),
+                    "Play card")
+                : null);
+
+    private static FrozenDecisionFrameV2 DecisionPre() => new(
+        "snapshot-a1",
+        "interaction-a1",
+        "combat",
+        "sts2.player-environment/snapshot-1",
+        new string('a', 64),
+        1,
+        JsonNode.Parse("{\"surface\":{\"kind\":\"combat\"}}")!,
+        Array.Empty<ReadEvidence>());
 }

@@ -216,8 +216,7 @@ public sealed class V2RecordingStore : IDisposable
 
     public void AppendNativeActionEvent(NativeActionLedgerEvent value)
     {
-        if (value.SchemaVersion != NativeActionLedgerContract.SchemaVersion
-            || value.Schema != NativeActionLedgerContract.EventSchema
+        if (!NativeActionLedgerContract.IsSupported(value.SchemaVersion, value.Schema)
             || value.SessionId != Manifest.SessionId
             || value.TimelineId != Manifest.TimelineId
             || value.Sequence <= 0

@@ -134,9 +134,10 @@ public sealed class V2EvidenceTests
                 session = store.DirectoryPath;
                 AppendJournal(store, manifest);
                 HumanDecisionRecord v1 = RecordValidationTests.ValidRecord();
-                store.AppendDecision(V2Record(v1, (
+                HumanDecisionRecordV2 v2 = V2Record(v1, (
                     PersistReads(store, v1.Pre.SnapshotId),
-                    PersistReads(store, v1.Successor.SnapshotId))));
+                    PersistReads(store, v1.Successor.SnapshotId)));
+                store.AppendDecision(v2);
                 var accepted = new NativeActionLedgerEvent(
                     NativeActionLedgerContract.SchemaVersion,
                     NativeActionLedgerContract.EventSchema,
@@ -155,7 +156,11 @@ public sealed class V2EvidenceTests
                     "waiting_for_execution",
                     Array.Empty<string>(),
                     "strict_candidate",
-                    null);
+                    null,
+                    v2.Pre,
+                    v2.NativeWitness,
+                    v2.Mapping,
+                    v2.Action);
                 store.AppendNativeActionEvent(accepted);
                 store.AppendNativeActionEvent(accepted with
                 {
@@ -163,7 +168,11 @@ public sealed class V2EvidenceTests
                     Sequence = 2,
                     Kind = NativeActionLifecycleKinds.Started,
                     NativeState = "executing",
-                    TransitionEvidence = "lifecycle_observed"
+                    TransitionEvidence = "lifecycle_observed",
+                    DecisionPre = null,
+                    NativeWitness = null,
+                    Mapping = null,
+                    BoundAction = null
                 });
                 store.AppendNativeActionEvent(accepted with
                 {
@@ -171,7 +180,11 @@ public sealed class V2EvidenceTests
                     Sequence = 3,
                     Kind = NativeActionLifecycleKinds.Finished,
                     NativeState = "finished",
-                    TransitionEvidence = "lifecycle_observed"
+                    TransitionEvidence = "lifecycle_observed",
+                    DecisionPre = null,
+                    NativeWitness = null,
+                    Mapping = null,
+                    BoundAction = null
                 });
                 store.AppendNativeActionEvent(accepted with
                 {
@@ -179,7 +192,11 @@ public sealed class V2EvidenceTests
                     Sequence = 4,
                     Kind = NativeActionLifecycleKinds.StrictTransitionAdmitted,
                     NativeState = "finished",
-                    TransitionEvidence = "strict_v2_admitted"
+                    TransitionEvidence = "strict_v2_admitted",
+                    DecisionPre = null,
+                    NativeWitness = null,
+                    Mapping = null,
+                    BoundAction = null
                 });
             }
 
@@ -198,9 +215,25 @@ public sealed class V2EvidenceTests
                 "native-action-ledger.jsonl")));
 
             string ledgerPath = Path.Combine(session, "native-action-ledger.jsonl");
+            string originalLedger = File.ReadAllText(ledgerPath);
+            string[] ledgerLines = File.ReadAllLines(ledgerPath);
+            NativeActionLedgerEvent first = JsonSerializer.Deserialize<NativeActionLedgerEvent>(
+                ledgerLines[0],
+                EvidenceJson.Options)!;
+            ledgerLines[0] = JsonSerializer.Serialize(
+                first with
+                {
+                    BoundAction = first.BoundAction! with { Label = "tampered label" }
+                },
+                EvidenceJson.Options);
+            File.WriteAllLines(ledgerPath, ledgerLines);
+            RecordingAuditResult mismatch = V2RecordingAuditor.Audit(session);
+            Assert.Equal("fail", mismatch.Status);
+            Assert.Contains("native_action_decision_record_mismatch", mismatch.Errors);
+
             File.WriteAllText(
                 ledgerPath,
-                File.ReadAllText(ledgerPath).Replace(
+                originalLedger.Replace(
                     NativeActionLedgerContract.EventSchema,
                     "tampered",
                     StringComparison.Ordinal));
