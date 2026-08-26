@@ -31,7 +31,10 @@ Decision V2. It can prove an authoritative S' immediately before the next
 tracked Human action effect or at a complete decision surface, classify
 cancel-before-start/non-Commit abort as unsuccessful, and retain unknown when
 ordering or completeness is not proved. This source has automated evidence
-only; no predecessor artifact or session proves the new sidecar.
+plus exact build/install/load evidence. Unified artifact
+`2cb46ead... / 66ed1396...` is loaded in runtime `af2e7370...`, Ready with no
+session. No predecessor session and no startup-only canary proves the new
+sidecar's Human mutation semantics.
 
 The Recording Application Plane starts Ready, creates explicit repeatable
 sessions, and exposes typed status/events plus idempotent lifecycle commands.

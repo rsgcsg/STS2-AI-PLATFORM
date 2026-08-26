@@ -56,7 +56,9 @@ is source/test complete and pending a new exact-artifact owner canary**.
   not a successful A; cancellation after start and incomplete capture remain
   unknown. One exact-build read-only PlayCard abort witness prevents native
   `Finished` without resource/OnPlay Commit from becoming a false transition.
-  This source/test claim is not loaded or Live evidence.
+  Clean artifact `2cb46ead... / 66ed1396...` is installed and cold-loaded in
+  runtime `af2e7370...`; Ready/no-session proves only identity and initialization,
+  not Human semantic-boundary mutation.
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.
 - Workbench `0.1.0-rc.1` provides Environment, Policy, Human Data, Evidence,

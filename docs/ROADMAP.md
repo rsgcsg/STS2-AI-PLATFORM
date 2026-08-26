@@ -146,8 +146,11 @@ action-family expansion remain outside this bounded baseline.
   from transition S, captures a complete authoritative boundary before the next
   tracked Human action effect, and classifies proved/cancelled/non-Commit abort/
   unknown without changing Decision V2.
-- Pending exact-runtime: cold-load the new artifact and exercise slow and rapid
-  card play, targeted/untargeted chains, card-to-EndTurn full cycle, lethal
+- Complete exact build/install/cold-load: unified artifact
+  `2cb46ead... / 66ed1396...` initialized Ready in runtime `af2e7370...` with
+  exact STS2 and sole `STS2_PLATFORM` Mod.
+- Pending owner exact-runtime: exercise slow and rapid card play,
+  targeted/untargeted chains, card-to-EndTurn full cycle, lethal
   queued cancellation, natural player choice and combat-to-next-surface. No
   semantic-transition admission or training authority exists before that gate.
 

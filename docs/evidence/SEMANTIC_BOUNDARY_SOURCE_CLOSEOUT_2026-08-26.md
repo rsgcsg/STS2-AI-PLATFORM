@@ -59,6 +59,24 @@ qualification or training authority. EndTurn full-cycle, natural player choice,
 rapid lethal/cross-surface and all Full-Run surfaces require exact-runtime
 evidence from the new artifact.
 
+## Final artifact boundary
+
+The source was committed as `d97c89858352a370cf6952d67ee6879b2c2d2f0a`;
+BOM alignment is `61d9b36e3f390d54708c5011956fcc405b14961a`.
+The clean unified Release artifact is SHA-256
+`2cb46ead44ea8d906e7abf834da917f9504bfdc0c6e1a577d152ec3049a5118e`,
+MVID `66ed1396-2186-46b0-9fbf-7260c2a2a177`. Built and installed identities
+match. Deployment rollback is
+`apps/game-mod/.local/deployments/2026-08-26T14-06-26.561Z`.
+
+The artifact cold-loaded in runtime
+`af2e7370136549ddbc547a2c9cd3cb13`, exact Modset fingerprint
+`3a317ca773d9ddda086019597e11cdecd5785b40bca38554bda339a6525773aa`,
+with Player Environment protocol `1.0.0`. RecordingStatus reached Ready with no
+implicit session and the startup log contained no patch/Annotator exception.
+This proves load and initialization only. Human mutation of the new semantic
+trace remains `not exercised`.
+
 ## Full-Run seam audit
 
 The Connector already has source-local observations and exact native controls
