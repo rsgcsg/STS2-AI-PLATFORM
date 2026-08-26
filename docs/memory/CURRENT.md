@@ -1,8 +1,8 @@
 # Current Context
 
-Phase: **Human Evidence V2 remains verified; semantic-boundary owner canary
-found acceptance/execution reordering; corrected Native source is exact-loaded
-and pending a Human semantic canary.**
+Phase: **Human Evidence V2 remains verified; corrected semantic-boundary source
+has bounded exact-artifact Human evidence, while the predecessor's precise
+choice-before-queued-action rebind remains pending natural exercise.**
 
 `STS2-AI-PLATFORM` is the only forward-development source authority for the
 Platform components. The root BOM and component release manifests are the
@@ -23,9 +23,9 @@ identity registry.
 - Runtime `abb6b2d8...` produced 30 audited native-human V2 decisions with 120
   materialized pre/successor Reads. Bundle `b92778be...` passed immutable
   store/transfer/receiver, STPD imported 30/30, and Workbench HTTP status passed.
-- Generated-card select has one audited predecessor native-human record;
-  generated-card skip and current unified-artifact Human execution remain
-  `not exercised`. Corpus and training authorization remain separate and absent.
+- Generated-card select and player-choice pause/resume are exercised on the
+  current unified artifact; generated-card skip remains `not exercised`.
+  Corpus and training authorization remain separate and absent.
 - Policy Runtime and the STPD decision-only adapter are source/test complete.
   The Runtime owns generic controller/mode/stale/Receipt/successor lifecycle;
   STPD owns only checkpoint/Qwen/projection/scoring support.
@@ -38,7 +38,10 @@ identity registry.
 - Current source coordinates by exact execution order and requires a complete
   boundary to rebind a precommit before execution. Artifact
   `04104ca5... / 7408a183...` is installed and loaded in runtime `97829317...`;
-  corrected semantic behavior remains unexercised until owner operation.
+  owner session `session-20260826T150700Z-...` accounted for 35/35 accepted
+  actions with 24 proved, six unknown, four cancelled and one pre-Commit abort.
+  It did not reproduce a later accepted choice executing before an earlier
+  queued action, so the exact rebind branch remains pending Live evidence.
 - The S1 checkpoint named by the current Policy Manifest is unavailable on this
   Mac. Policy model modes and owner operation of the new UI remain unexercised.
 

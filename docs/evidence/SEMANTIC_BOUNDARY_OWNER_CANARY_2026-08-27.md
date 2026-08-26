@@ -69,13 +69,54 @@ Connector execution available. Rollback is
 `apps/game-mod/.local/deployments/2026-08-26T14-37-45.145Z`.
 
 This proves build, install, cold-load, identity publication and Ready state.
-No Human action has exercised the corrected semantic coordinator on this
-artifact yet, so corrected S -> A -> S' remains pending owner runtime evidence.
+
+## Corrected-artifact owner canary
+
+Owner session
+`session-20260826T150700Z-9ffa61b45dc64cb3b5c2ec2373853129`
+then ran on that exact artifact and closed normally in the same runtime. The
+portable Annotator audit passed with nine valid Decision V2 records, zero
+invalid records, 29 explicit invalidations, 88 materialized Reads and zero Read
+failures. The immutable local evidence digests are:
+
+```text
+Decision V2       a308b8f146523db973e49fd00ff1f264064ae58585ba424e300f95694286a95c
+invalidations     edd10f85429213cfcc9183b107794c1b47a4c2a465bfe26dfa5f3c5bcc278818
+native ledger v2  6038593f9c73007abde261bc01c80833f7e82ac852eddf158a033ad5ac26062f
+semantic trace    1fc6e1a9d7b69aaf55b35eae939536c92d697895b0b807109180f5a53fe09d2e
+run journal       9c0ea6e5895b4b74ef524530fad20551b781edfd3a4c2c268b6fdf2b3595e12b
+```
+
+The semantic trace accounts for all 35 accepted Human actions: 25 native card
+plays, nine native End Turns and one source-local generated-card selection.
+Every acceptance has exactly one terminal semantic disposition: 24 proved
+transitions, six explicit unknowns, two cancellations before start, two
+cancellations after start and one PlayCard abort before native Commit. The
+proved set contains 23 ordinary next-decision boundaries and one real
+player-choice boundary. No proved transition contains an intervening Human
+`action_started`, and every proved pre-state equals the complete authoritative
+boundary captured immediately before that action's execution.
+
+Native ledger v2 independently accounts for all 34 GameAction roots with zero
+unresolved actions: 32 started, 30 finished, four cancelled, one
+pause/ready/resume lifecycle, nine strict Decision V2 admissions and 25 strict
+invalidations. The generated-card UI action is represented by the semantic
+trace rather than by the GameAction-only ledger.
+
+This is strong corrected-artifact Live evidence for ordinary execution-order
+coordination, player-choice lifecycle, cancellation/abort accounting and
+fail-closed unknown handling. It did **not** reproduce the predecessor's exact
+counterexample: no later accepted Human action started before an earlier queued
+action, so
+`complete_rebound_after_intervening_human_action = 0`. The exact rebind branch
+therefore remains source/test-proved and pending a narrow owner canary; it is not
+promoted by inference from the other rapid chains.
 
 ## Non-claims
 
 - The predecessor sidecar is not corpus or training authority.
-- Loaded readiness is not corrected semantic-transition evidence.
-- The canary does not prove cancel-before-start, non-Commit PlayCard abort,
-  lethal cross-surface settlement, or Full-Run surfaces.
+- Loaded readiness alone is not corrected semantic-transition evidence; the
+  corrected-artifact session above is the bounded Human evidence.
+- The current canary does not prove the exact acceptance/execution reorder
+  rebind, lethal cross-surface settlement or Full-Run surfaces.
 - Automated replay does not replace a corrected-artifact Human canary.

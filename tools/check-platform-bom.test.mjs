@@ -74,6 +74,8 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   candidate.rapid_input_ledger_v2_loaded_candidate.evidence_transfer_from_ledger_v1 = true;
   candidate.semantic_execution_order_loaded_candidate.artifact_sha256 = "1".repeat(64);
   candidate.semantic_execution_order_loaded_candidate.owner_semantic_execution_order = "pass";
+  candidate.semantic_execution_order_loaded_candidate.owner_canary.semantic_proved = 25;
+  candidate.semantic_execution_order_loaded_candidate.owner_canary.exact_reorder_rebind = "pass";
   candidate.semantic_execution_order_loaded_candidate.evidence_transfer_from_predecessor = true;
   candidate.recording_application_decision_gate.human_origin = "machine_proven";
   candidate.predecessor_human_session.evidence_transfer_to_unified_artifact = true;
@@ -87,7 +89,7 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   );
   bom.non_claims = bom.non_claims.filter(
     (claim) => claim !==
-      "semantic_execution_order_corrected_artifact_human_canary_not_exercised"
+      "semantic_execution_order_exact_rebind_not_exercised"
   );
   const errors = validatePlatformBom(bom, await readBomAuthorities(root));
   assert.ok(errors.some((error) => error.startsWith("candidate current Live UI source:")));
@@ -102,11 +104,13 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   assert.ok(errors.some((error) => error.startsWith("rapid ledger v2 evidence transfer:")));
   assert.ok(errors.some((error) => error.startsWith("semantic execution candidate artifact:")));
   assert.ok(errors.some((error) => error.startsWith("semantic execution candidate owner canary:")));
+  assert.ok(errors.some((error) => error.startsWith("semantic execution proved:")));
+  assert.ok(errors.some((error) => error.startsWith("semantic execution exact reorder claim:")));
   assert.ok(errors.some((error) => error.startsWith("semantic execution candidate evidence transfer:")));
   assert.ok(errors.some((error) => error.startsWith("accepted-only Human origin:")));
   assert.ok(errors.some((error) => error.startsWith("predecessor evidence transfer:")));
   assert.ok(errors.some((error) => error.startsWith("candidate policy checkpoint:")));
   assert.ok(errors.includes("S1 checkpoint/model-mode non-claim is missing"));
   assert.ok(errors.includes("Native-rejected attempt attribution non-claim is missing"));
-  assert.ok(errors.includes("Semantic execution-order Human-canary non-claim is missing"));
+  assert.ok(errors.includes("Semantic execution-order exact-rebind non-claim is missing"));
 });

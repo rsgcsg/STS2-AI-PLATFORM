@@ -1,8 +1,8 @@
 # Current Status
 
-Phase: **rapid accepted-action lifecycle accounting is Live-proved; the first
-semantic S -> A -> S' owner canary found an execution-order defect, now repaired
-and exact-loaded in a new artifact pending a Human semantic canary**.
+Phase: **rapid accepted-action lifecycle accounting is Live-proved; corrected
+semantic S -> A -> S' coordination has bounded Human evidence, with the exact
+choice-before-earlier-queued-action rebind still pending natural exercise**.
 
 ## Implemented
 
@@ -66,8 +66,15 @@ and exact-loaded in a new artifact pending a Human semantic canary**.
   `semantic_transition_pre_not_execution_boundary`; its two Decision V2 records
   remain readable. Corrected source `cb20bfa...` is now built, installed and
   cold-loaded as `04104ca5... / 7408a183...` in runtime `97829317...` with the
-  sole exact `STS2_PLATFORM` Mod. This proves the corrected code is loaded and
-  Ready, not that any corrected semantic transition has been Human-exercised.
+  sole exact `STS2_PLATFORM` Mod. Owner session
+  `session-20260826T150700Z-...` then accounted for all 35 accepted Human
+  actions: 24 proved transitions, six explicit unknowns, four native
+  cancellations and one PlayCard abort before Commit. It exercised rapid
+  chains, End Turn, generated-card select and player-choice pause/resume; every
+  acceptance has one disposition, all proved pre-states match their exact
+  execution boundary, and no proof crosses another Human action start. The
+  predecessor's exact acceptance/execution reorder did not recur, so the
+  complete rebind branch remains source/test-proved rather than Live-proved.
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.
 - Workbench `0.1.0-rc.1` provides Environment, Policy, Human Data, Evidence,
@@ -304,8 +311,9 @@ not a semantic seal. See the dated owner-canary report.
   evidence for bounded accounting in their observed rapid windows; neither
   retroactively proves a strict successor for overlap. The semantic-boundary
   sidecar predecessor run proves action accounting but contains one rejected
-  semantic proof. Corrected execution-order source is source/test only until a
-  newly built artifact is cold-loaded and owner-operated.
+  semantic proof. The corrected artifact is now owner-operated and proves the
+  bounded paths listed above, but not the exact reorder/rebind branch, lethal
+  cross-surface settlement, Full Run, corpus admission or training authority.
 - H0/H1/H2 are automated real-runtime evidence, not human validation, a full
   game journey, durable qualification, semantic parity or long-soak proof.
 - The optional noninteractive Host execution profile was not implemented by the

@@ -237,7 +237,7 @@
     }
   },
   "unified_platform_runtime_candidate": {
-    "status": "semantic_execution_order_loaded_pending_owner_validation",
+    "status": "semantic_execution_order_human_canary_partial_exact_rebind_pending",
     "platform": "darwin",
     "architecture": "arm64",
     "game": {
@@ -456,7 +456,7 @@
       "rollback": "apps/game-mod/.local/deployments/2026-08-26T06-50-54.021Z"
     },
     "semantic_execution_order_loaded_candidate": {
-      "status": "loaded_pending_owner_validation",
+      "status": "human_canary_partial_exact_rebind_pending",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b",
       "annotator_source_revision": "cb20bfa6e4e0e64b3ee8fdf0e1d472e8a668450b",
@@ -468,8 +468,43 @@
       "build": "pass",
       "installed": "pass",
       "loaded": "pass",
-      "runtime_status": "ready_no_session",
-      "owner_semantic_execution_order": "not_exercised",
+      "runtime_status": "recording_closed",
+      "owner_semantic_execution_order": "partial_pass_exact_reorder_not_exercised",
+      "owner_canary": {
+        "session_id": "session-20260826T150700Z-9ffa61b45dc64cb3b5c2ec2373853129",
+        "audit_status": "pass",
+        "human_origin": "owner_attested_not_machine_proven",
+        "valid_records": 9,
+        "invalid_records": 0,
+        "invalidations": 29,
+        "reads_materialized": 88,
+        "reads_failed": 0,
+        "decision_v2_sha256": "a308b8f146523db973e49fd00ff1f264064ae58585ba424e300f95694286a95c",
+        "invalidations_sha256": "edd10f85429213cfcc9183b107794c1b47a4c2a465bfe26dfa5f3c5bcc278818",
+        "ledger_schema": "sts2.human-annotator/native-action-ledger-event-2",
+        "ledger_sha256": "6038593f9c73007abde261bc01c80833f7e82ac852eddf158a033ad5ac26062f",
+        "ledger_accepted": 34,
+        "ledger_started": 32,
+        "ledger_finished": 30,
+        "ledger_cancelled": 4,
+        "ledger_strict_admitted": 9,
+        "ledger_strict_invalidated": 25,
+        "ledger_unresolved": 0,
+        "player_choice_pause_resume": "pass",
+        "semantic_trace_sha256": "1fc6e1a9d7b69aaf55b35eae939536c92d697895b0b807109180f5a53fe09d2e",
+        "semantic_accepted": 35,
+        "semantic_proved": 24,
+        "semantic_unknown": 6,
+        "semantic_cancelled_before_start": 2,
+        "semantic_cancelled_after_start": 2,
+        "semantic_aborted_before_commit": 1,
+        "semantic_unresolved": 0,
+        "proved_with_intervening_human_start": 0,
+        "proved_pre_execution_boundary_mismatch": 0,
+        "exact_execution_order_rebinds": 0,
+        "generated_card_select": "pass",
+        "exact_reorder_rebind": "not_exercised"
+      },
       "evidence_transfer_from_predecessor": false,
       "rollback": "apps/game-mod/.local/deployments/2026-08-26T14-37-45.145Z"
     },
@@ -487,7 +522,7 @@
     }
   },
   "migration_sources": "migration/source-manifest.json",
-  "support_level": "human_evidence_v2_semantic_execution_order_loaded_pending_owner",
+  "support_level": "human_evidence_v2_semantic_canary_partial_exact_rebind_pending",
   "non_claims": [
     "human_origin_owner_attested_not_machine_proven",
     "annotator_invalidated_actions_not_admitted",
@@ -499,9 +534,7 @@
     "v2_corpus_and_training_not_authorized",
     "native_rejected_cancelled_attempt_absence_owner_attested_not_machine_attributable",
     "rapid_ledger_v1_invalidated_targeting_classification_unavailable",
-    "rapid_ledger_v2_decision_payload_not_exercised",
-    "rapid_cancel_and_player_choice_lifecycle_not_exercised",
-    "semantic_execution_order_corrected_artifact_human_canary_not_exercised",
+    "semantic_execution_order_exact_rebind_not_exercised",
     "automated_input_canary_is_not_owner_visibility_evidence",
     "s1_checkpoint_absent_shadow_one_step_auto_not_exercised"
   ]
