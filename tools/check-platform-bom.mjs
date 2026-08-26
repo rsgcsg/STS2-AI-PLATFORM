@@ -163,7 +163,7 @@ export function validatePlatformBom(bom, authorities) {
 
   const policyCandidate = bom.unified_platform_runtime_candidate;
   expectEqual(errors, "unified Platform candidate status", policyCandidate?.status,
-    "rapid_input_ledger_source_test_candidate_loaded_predecessor");
+    "rapid_input_ledger_v1_live_v2_source_test_pending_runtime");
   expectEqual(errors, "candidate STPD source", policyCandidate?.external_policy?.stpd_source_revision,
     bom.external_consumer_cutovers?.stpd);
   expectEqual(errors, "candidate policy checkpoint", policyCandidate?.external_policy?.checkpoint_status,
@@ -190,7 +190,7 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "candidate Connector source relation", policyCandidate?.connector?.source_relation,
     "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Annotator source relation", policyCandidate?.annotator?.source_relation,
-    "loaded_native_source_precedes_rapid_input_ledger_source");
+    "loaded_ledger_v1_precedes_decision_bound_ledger_v2_source");
   expectEqual(errors, "candidate Live UI source relation", policyCandidate?.live_ui?.source_relation,
     "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Connector protocol", policyCandidate?.connector?.protocol,
@@ -214,12 +214,12 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "candidate rollback", policyCandidate?.game_mod?.rollback_available, true);
   expectEqual(errors, "candidate UI panel", policyCandidate?.ui_panel_ready, "pass");
   expectEqual(errors, "candidate UI input canary", policyCandidate?.ui_toggle_runtime_canary,
-    "not_observed");
+    "observed");
   expectEqual(errors, "candidate owner UI visibility", policyCandidate?.owner_ui_visibility,
     "pass_owner_attested_on_current_artifact");
   expectEqual(errors, "candidate recording controls",
     policyCandidate?.human_recording_controls_exercised,
-    "card_play_end_turn_cancel_close_scope_ui_live_pass");
+    "card_play_end_turn_rapid_close_scope_ui_live_pass");
   const recordingValidation = policyCandidate?.recording_application_owner_validation;
   expectPattern(errors, "recording predecessor lifecycle runtime",
     recordingValidation?.predecessor_runtime_instance_id, /^[0-9a-f]{32}$/u);
@@ -289,15 +289,12 @@ export function validatePlatformBom(bom, authorities) {
     decisionGate?.current_repair_pending_close, "closed_after_bounded_successor_timeout");
   expectEqual(errors, "accepted-only failure accounting loaded",
     decisionGate?.accepted_failure_accounting_loaded, true);
-  expectEqual(errors, "accepted-only artifact",
-    decisionGate?.accepted_failure_accounting_artifact_sha256,
-    policyCandidate?.game_mod?.artifact_sha256);
-  expectEqual(errors, "accepted-only MVID",
-    decisionGate?.accepted_failure_accounting_artifact_mvid,
-    policyCandidate?.game_mod?.artifact_mvid);
-  expectEqual(errors, "accepted-only runtime",
-    decisionGate?.accepted_failure_accounting_runtime_instance_id,
-    policyCandidate?.runtime?.runtime_instance_id);
+  expectPattern(errors, "accepted-only artifact",
+    decisionGate?.accepted_failure_accounting_artifact_sha256, SHA256);
+  expectPattern(errors, "accepted-only MVID",
+    decisionGate?.accepted_failure_accounting_artifact_mvid, MVID);
+  expectPattern(errors, "accepted-only runtime",
+    decisionGate?.accepted_failure_accounting_runtime_instance_id, /^[0-9a-f]{32}$/u);
   expectEqual(errors, "accepted-only owner validation",
     decisionGate?.accepted_failure_accounting_owner_validation,
     "pass_owner_attested_card_play_end_turn_cancel_close_scope_ui");
@@ -341,6 +338,45 @@ export function validatePlatformBom(bom, authorities) {
     errors.push("Predecessor recording evidence must not transfer to accepted-only accounting");
   expectEqual(errors, "recording current repair evidence transfer",
     decisionGate?.evidence_transfer_to_current_repair, false);
+  const rapidGate = policyCandidate?.rapid_input_ledger_v1_owner_validation;
+  expectEqual(errors, "rapid ledger artifact", rapidGate?.artifact_sha256,
+    policyCandidate?.game_mod?.artifact_sha256);
+  expectEqual(errors, "rapid ledger MVID", rapidGate?.artifact_mvid,
+    policyCandidate?.game_mod?.artifact_mvid);
+  expectEqual(errors, "rapid ledger loaded Annotator source",
+    rapidGate?.annotator_source_revision, policyCandidate?.annotator?.source_revision);
+  expectEqual(errors, "rapid ledger runtime", rapidGate?.runtime_instance_id,
+    policyCandidate?.runtime?.runtime_instance_id);
+  expectPattern(errors, "rapid ledger session", rapidGate?.session_id,
+    /^session-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{32}$/u);
+  expectEqual(errors, "rapid ledger audit", rapidGate?.audit_status, "pass");
+  expectEqual(errors, "rapid ledger valid records", rapidGate?.valid_records, 12);
+  expectEqual(errors, "rapid ledger invalid records", rapidGate?.invalid_records, 0);
+  expectEqual(errors, "rapid ledger invalidations", rapidGate?.invalidations, 29);
+  expectEqual(errors, "rapid ledger Reads", rapidGate?.reads_materialized, 94);
+  expectEqual(errors, "rapid ledger Read failures", rapidGate?.reads_failed, 0);
+  expectEqual(errors, "rapid ledger schema", rapidGate?.ledger_schema,
+    "sts2.human-annotator/native-action-ledger-event-1");
+  expectEqual(errors, "rapid ledger event count", rapidGate?.ledger_events, 140);
+  expectEqual(errors, "rapid ledger accepted", rapidGate?.accepted, 35);
+  expectEqual(errors, "rapid ledger started", rapidGate?.started, 35);
+  expectEqual(errors, "rapid ledger finished", rapidGate?.finished, 35);
+  expectEqual(errors, "rapid ledger cancelled", rapidGate?.cancelled, 0);
+  expectEqual(errors, "rapid ledger player-choice pause",
+    rapidGate?.paused_for_player_choice, 0);
+  expectEqual(errors, "rapid ledger strict admitted", rapidGate?.strict_admitted, 12);
+  expectEqual(errors, "rapid ledger strict invalidated", rapidGate?.strict_invalidated, 23);
+  expectEqual(errors, "rapid ledger unresolved", rapidGate?.unresolved, 0);
+  expectEqual(errors, "rapid ledger play-card actions", rapidGate?.play_card_actions, 23);
+  expectEqual(errors, "rapid ledger end-turn actions", rapidGate?.end_turn_actions, 12);
+  expectEqual(errors, "rapid ledger Human origin", rapidGate?.human_origin,
+    "owner_attested_not_machine_proven");
+  expectEqual(errors, "rapid ledger decision payload scope", rapidGate?.decision_payload_scope,
+    "ledger_v1_does_not_retain_invalidated_frozen_decision");
+  expectEqual(errors, "rapid ledger evidence transfer", rapidGate?.evidence_transfer_to_ledger_v2,
+    false);
+  if (decisionGate?.accepted_failure_accounting_artifact_sha256 === rapidGate?.artifact_sha256)
+    errors.push("Accepted-only predecessor evidence must not replace rapid ledger evidence");
   expectEqual(errors, "candidate compatibility", policyCandidate?.runtime?.compatibility_status, "canary_exact");
   expectEqual(errors, "candidate Modset status", policyCandidate?.runtime?.modset_status,
     "exact_platform_modset");
@@ -433,7 +469,7 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "human origin boundary", humanGate?.human_origin,
     "owner_attested_not_machine_proven");
   expectEqual(errors, "support level", bom.support_level,
-    "human_evidence_v2_accepted_failure_accounting_live_pass");
+    "human_evidence_v2_rapid_accounting_live_ledger_v2_source_test");
   if (!bom.non_claims?.includes("human_origin_owner_attested_not_machine_proven"))
     errors.push("human-origin epistemic-boundary non-claim is missing");
   if (!bom.non_claims?.includes("current_v2_candidate_generated_card_choice_not_exercised"))
@@ -445,6 +481,12 @@ export function validatePlatformBom(bom, authorities) {
   if (!bom.non_claims?.includes(
     "native_rejected_cancelled_attempt_absence_owner_attested_not_machine_attributable"))
     errors.push("Native-rejected attempt attribution non-claim is missing");
+  if (!bom.non_claims?.includes("rapid_ledger_v1_invalidated_targeting_classification_unavailable"))
+    errors.push("Rapid ledger v1 decision-payload non-claim is missing");
+  if (!bom.non_claims?.includes("rapid_ledger_v2_decision_payload_pending_exact_runtime_evidence"))
+    errors.push("Rapid ledger v2 runtime non-claim is missing");
+  if (!bom.non_claims?.includes("rapid_cancel_and_player_choice_lifecycle_not_exercised"))
+    errors.push("Rapid cancellation/player-choice non-claim is missing");
   if (!bom.non_claims?.includes("automated_input_canary_is_not_owner_visibility_evidence"))
     errors.push("Automated-input epistemic-boundary non-claim is missing");
   if (!bom.non_claims?.includes("s1_checkpoint_absent_shadow_one_step_auto_not_exercised"))

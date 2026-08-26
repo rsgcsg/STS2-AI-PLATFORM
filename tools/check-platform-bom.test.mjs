@@ -68,7 +68,8 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   candidate.game_mod.installed = "pending";
   candidate.runtime.execution_available = false;
   candidate.owner_ui_visibility = "pass";
-  candidate.recording_application_decision_gate.accepted_failure_accounting_valid_records = 20;
+  candidate.rapid_input_ledger_v1_owner_validation.valid_records = 13;
+  candidate.rapid_input_ledger_v1_owner_validation.evidence_transfer_to_ledger_v2 = true;
   candidate.recording_application_decision_gate.human_origin = "machine_proven";
   candidate.predecessor_human_session.evidence_transfer_to_unified_artifact = true;
   candidate.external_policy.checkpoint_status = "present";
@@ -86,7 +87,8 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   assert.ok(errors.some((error) => error.startsWith("candidate Game Mod installed:")));
   assert.ok(errors.some((error) => error.startsWith("candidate execution:")));
   assert.ok(errors.some((error) => error.startsWith("candidate owner UI visibility:")));
-  assert.ok(errors.some((error) => error.startsWith("accepted-only valid records:")));
+  assert.ok(errors.some((error) => error.startsWith("rapid ledger valid records:")));
+  assert.ok(errors.some((error) => error.startsWith("rapid ledger evidence transfer:")));
   assert.ok(errors.some((error) => error.startsWith("accepted-only Human origin:")));
   assert.ok(errors.some((error) => error.startsWith("predecessor evidence transfer:")));
   assert.ok(errors.some((error) => error.startsWith("candidate policy checkpoint:")));

@@ -16,9 +16,9 @@
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "806d8f798287590b15cbc327b12118d750bb6f21",
-      "component_tree_revision": "f5217fb8afceb34a49d417b455d7810f1f5ccf9a",
-      "component_source_digest_sha256": "52f497dd77f622f0ba4ba9e6aa48db3103d7952593ebdf3b6f57663789ac5697"
+      "source_revision": "de5e55fcf1bd8f17af3d1a3c871781b1702b99cf",
+      "component_tree_revision": "94472b58a7815a3879004595db2ce25913c4a4ab",
+      "component_source_digest_sha256": "57ff1182067e0aa2cc2601de4c0c4fe73200d14f32ac8fdc040d0236015a804d"
     },
     "evidence": {
       "version": "0.1.0-rc.1",
@@ -161,8 +161,8 @@
     "annotator": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
       "source_digest_sha256": "8d23f1015a7b0df800f78a7545da5c86bfee521131c4391b398c884ff917918f",
-      "current_component_source_revision": "806d8f798287590b15cbc327b12118d750bb6f21",
-      "current_component_source_digest_sha256": "52f497dd77f622f0ba4ba9e6aa48db3103d7952593ebdf3b6f57663789ac5697",
+      "current_component_source_revision": "de5e55fcf1bd8f17af3d1a3c871781b1702b99cf",
+      "current_component_source_digest_sha256": "57ff1182067e0aa2cc2601de4c0c4fe73200d14f32ac8fdc040d0236015a804d",
       "source_relation": "loaded_human_v2_artifact_precedes_unified_platform_source",
       "artifact_sha256": "4e911dd616afa55753a5320a42c11ce0cebe9d4d10fefd66c8f8a431884cf105",
       "artifact_mvid": "692e9dd9-4bc7-4203-ae12-511ef95a5331",
@@ -237,7 +237,7 @@
     }
   },
   "unified_platform_runtime_candidate": {
-    "status": "rapid_input_ledger_source_test_candidate_loaded_predecessor",
+    "status": "rapid_input_ledger_v1_live_v2_source_test_pending_runtime",
     "platform": "darwin",
     "architecture": "arm64",
     "game": {
@@ -252,8 +252,8 @@
       "current_component_source_revision": "0592ce790ab36340bf43908f2d993e4b32bed1b1",
       "current_component_source_digest_sha256": "566043ab1821c29c1a0d429e2938de0b6024f5089b6a17947599d1b2fcbeb595",
       "source_relation": "loaded_native_source_scope_matches_current_component",
-      "artifact_sha256": "887630f4f4505f7ce7889e855c64dd4593aa061d22ffb00a80dfaed0bbf3c342",
-      "artifact_mvid": "14761ed4-fed3-4a50-8dd7-d731b2a8b94b",
+      "artifact_sha256": "080701b3bf787c6055504678f5acf426141d4c65f33f4c94098db4d8e7f1d50e",
+      "artifact_mvid": "142054a5-267c-40ad-b254-6989aa40ef8d",
       "protocol": "1.0.0"
     },
     "policy_runtime": {
@@ -262,13 +262,13 @@
       "version": "0.1.0-rc.1"
     },
     "annotator": {
-      "source_revision": "305a2cac80f0bd3126d66cfc5818477c583a8ce5",
-      "source_digest_sha256": "e7dabe5457a46a839918c7469be17cb7e5564fd3e912396f83dd4c84d4c5a035",
-      "current_component_source_revision": "806d8f798287590b15cbc327b12118d750bb6f21",
-      "current_component_source_digest_sha256": "52f497dd77f622f0ba4ba9e6aa48db3103d7952593ebdf3b6f57663789ac5697",
-      "source_relation": "loaded_native_source_precedes_rapid_input_ledger_source",
-      "artifact_sha256": "887630f4f4505f7ce7889e855c64dd4593aa061d22ffb00a80dfaed0bbf3c342",
-      "artifact_mvid": "14761ed4-fed3-4a50-8dd7-d731b2a8b94b"
+      "source_revision": "806d8f798287590b15cbc327b12118d750bb6f21",
+      "source_digest_sha256": "6666d0f3c935c8b854f770de34f95232f298ccbebeb68a44ac8dee7964d11da0",
+      "current_component_source_revision": "de5e55fcf1bd8f17af3d1a3c871781b1702b99cf",
+      "current_component_source_digest_sha256": "57ff1182067e0aa2cc2601de4c0c4fe73200d14f32ac8fdc040d0236015a804d",
+      "source_relation": "loaded_ledger_v1_precedes_decision_bound_ledger_v2_source",
+      "artifact_sha256": "080701b3bf787c6055504678f5acf426141d4c65f33f4c94098db4d8e7f1d50e",
+      "artifact_mvid": "142054a5-267c-40ad-b254-6989aa40ef8d"
     },
     "live_ui": {
       "source_revision": "305a2cac80f0bd3126d66cfc5818477c583a8ce5",
@@ -276,35 +276,35 @@
       "current_component_source_revision": "305a2cac80f0bd3126d66cfc5818477c583a8ce5",
       "current_component_source_digest_sha256": "9e2675d9c7429817d329770b6a395e9d4b9aa8593aae05f463cf118c2486650a",
       "source_relation": "loaded_native_source_scope_matches_current_component",
-      "artifact_sha256": "887630f4f4505f7ce7889e855c64dd4593aa061d22ffb00a80dfaed0bbf3c342",
-      "artifact_mvid": "14761ed4-fed3-4a50-8dd7-d731b2a8b94b"
+      "artifact_sha256": "080701b3bf787c6055504678f5acf426141d4c65f33f4c94098db4d8e7f1d50e",
+      "artifact_mvid": "142054a5-267c-40ad-b254-6989aa40ef8d"
     },
     "game_mod": {
       "version": "0.2.0-rc.1",
       "platform_source_revision": "b5389a0b4a1bbed37e6a9718776fdf38f06f50c9",
-      "platform_source_digest_sha256": "a92175af3c9d650f06de84a2b2f6a1f8d0ada7bda18efd55678c93d2ede716ef",
+      "platform_source_digest_sha256": "253e994156cc21b2d62d7509ff8be411dbc5713b5c52acc788c75719e35008f6",
       "current_component_source_revision": "806d8f798287590b15cbc327b12118d750bb6f21",
       "current_component_source_digest_sha256": "bfb9a0ba44a0a27cb884af8d7dd183ed120fbe4e3b2378b9b935b396474da8ca",
-      "artifact_sha256": "887630f4f4505f7ce7889e855c64dd4593aa061d22ffb00a80dfaed0bbf3c342",
-      "artifact_mvid": "14761ed4-fed3-4a50-8dd7-d731b2a8b94b",
+      "artifact_sha256": "080701b3bf787c6055504678f5acf426141d4c65f33f4c94098db4d8e7f1d50e",
+      "artifact_mvid": "142054a5-267c-40ad-b254-6989aa40ef8d",
       "installed": "pass",
       "loaded": "pass",
       "rollback_available": true,
-      "rollback": "apps/game-mod/.local/deployments/2026-08-25T12-37-06.961Z"
+      "rollback": "apps/game-mod/.local/deployments/2026-08-26T06-23-54.234Z"
     },
     "runtime": {
-      "runtime_instance_id": "bcf2b3f1dc0545b8ba1867c4a6357fec",
-      "environment_fingerprint": "a1bd553e5bedfa1701a10acaa62f19536467d030f157431d02368e99d8b27548",
+      "runtime_instance_id": "39fa2d2e388c4ce798bdd291148fcce9",
+      "environment_fingerprint": "9e705d8cacc3b218e9b22d17c02398d91d2641b75113519ba4adeed267d87a9e",
       "compatibility_status": "canary_exact",
       "modset_status": "exact_platform_modset",
-      "modset_fingerprint": "977c56a6ad7faffe7c291a959ef7cbe4cc18e3b21d4bb06fd8e0404f9b5cc6b7",
+      "modset_fingerprint": "f456cac64d120b7651e55dbdbe3f9227eb7709298957ca0b53d4f5909e6dcaaa",
       "loaded_mod_ids": ["STS2_PLATFORM"],
       "execution_available": true
     },
     "automated_gates": {
       "connector_sdk_tests": 7,
       "host_runtime_tests": 158,
-      "annotator_core_tests": 44,
+      "annotator_core_tests": 46,
       "annotator_cli_tests": 12,
       "evidence_tests": 22,
       "policy_runtime_tests": 42,
@@ -322,9 +322,9 @@
       "checkpoint_status": "absent"
     },
     "ui_panel_ready": "pass",
-    "ui_toggle_runtime_canary": "not_observed",
+    "ui_toggle_runtime_canary": "observed",
     "owner_ui_visibility": "pass_owner_attested_on_current_artifact",
-    "human_recording_controls_exercised": "card_play_end_turn_cancel_close_scope_ui_live_pass",
+    "human_recording_controls_exercised": "card_play_end_turn_rapid_close_scope_ui_live_pass",
     "policy_shadow_one_step_auto_exercised": "not_exercised_checkpoint_absent",
     "recording_application_owner_validation": {
       "predecessor_runtime_instance_id": "bd6b73e7c2744680848539f96b6cae6d",
@@ -408,6 +408,34 @@
       "evidence_transfer_to_accepted_failure_accounting": false,
       "evidence_transfer_to_current_repair": false
     },
+    "rapid_input_ledger_v1_owner_validation": {
+      "artifact_sha256": "080701b3bf787c6055504678f5acf426141d4c65f33f4c94098db4d8e7f1d50e",
+      "artifact_mvid": "142054a5-267c-40ad-b254-6989aa40ef8d",
+      "annotator_source_revision": "806d8f798287590b15cbc327b12118d750bb6f21",
+      "runtime_instance_id": "39fa2d2e388c4ce798bdd291148fcce9",
+      "session_id": "session-20260826T062916Z-957f201043a4456a89d13407682f0541",
+      "audit_status": "pass",
+      "valid_records": 12,
+      "invalid_records": 0,
+      "invalidations": 29,
+      "reads_materialized": 94,
+      "reads_failed": 0,
+      "ledger_schema": "sts2.human-annotator/native-action-ledger-event-1",
+      "ledger_events": 140,
+      "accepted": 35,
+      "started": 35,
+      "finished": 35,
+      "cancelled": 0,
+      "paused_for_player_choice": 0,
+      "strict_admitted": 12,
+      "strict_invalidated": 23,
+      "unresolved": 0,
+      "play_card_actions": 23,
+      "end_turn_actions": 12,
+      "human_origin": "owner_attested_not_machine_proven",
+      "decision_payload_scope": "ledger_v1_does_not_retain_invalidated_frozen_decision",
+      "evidence_transfer_to_ledger_v2": false
+    },
     "predecessor_human_session": {
       "artifact_generation": "three_mod_predecessor",
       "runtime_instance_id": "7c5e7f1602e3482b8278cba4532f4df8",
@@ -422,7 +450,7 @@
     }
   },
   "migration_sources": "migration/source-manifest.json",
-  "support_level": "human_evidence_v2_accepted_failure_accounting_live_pass",
+  "support_level": "human_evidence_v2_rapid_accounting_live_ledger_v2_source_test",
   "non_claims": [
     "human_origin_owner_attested_not_machine_proven",
     "annotator_invalidated_actions_not_admitted",
@@ -433,6 +461,9 @@
     "generated_card_skip_not_exercised",
     "v2_corpus_and_training_not_authorized",
     "native_rejected_cancelled_attempt_absence_owner_attested_not_machine_attributable",
+    "rapid_ledger_v1_invalidated_targeting_classification_unavailable",
+    "rapid_ledger_v2_decision_payload_pending_exact_runtime_evidence",
+    "rapid_cancel_and_player_choice_lifecycle_not_exercised",
     "automated_input_canary_is_not_owner_visibility_evidence",
     "s1_checkpoint_absent_shadow_one_step_auto_not_exercised"
   ]
