@@ -16,9 +16,9 @@
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "6189e0e8e376c180ae54a16a3070d4dcdce960a3",
-      "component_tree_revision": "c0fbbd8399ddb927d7448d75a5807ada2b07d8d7",
-      "component_source_digest_sha256": "27f6368ad42988523c30e8010da67fac858a02c9b311b684e1e5805a95dc264a"
+      "source_revision": "4a62d08122c24438438e02b4ccf6802a33750dba",
+      "component_tree_revision": "25f3ec8e6cdba42be39b9b93dea4383e0353fc53",
+      "component_source_digest_sha256": "9d0263dbc0966bfb86ff17cb54e967269a104346ecefd37432aafd0bf5e48238"
     },
     "evidence": {
       "version": "0.1.0-rc.1",
@@ -161,8 +161,8 @@
     "annotator": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
       "source_digest_sha256": "8d23f1015a7b0df800f78a7545da5c86bfee521131c4391b398c884ff917918f",
-      "current_component_source_revision": "6189e0e8e376c180ae54a16a3070d4dcdce960a3",
-      "current_component_source_digest_sha256": "27f6368ad42988523c30e8010da67fac858a02c9b311b684e1e5805a95dc264a",
+      "current_component_source_revision": "4a62d08122c24438438e02b4ccf6802a33750dba",
+      "current_component_source_digest_sha256": "9d0263dbc0966bfb86ff17cb54e967269a104346ecefd37432aafd0bf5e48238",
       "source_relation": "loaded_human_v2_artifact_precedes_unified_platform_source",
       "artifact_sha256": "4e911dd616afa55753a5320a42c11ce0cebe9d4d10fefd66c8f8a431884cf105",
       "artifact_mvid": "692e9dd9-4bc7-4203-ae12-511ef95a5331",
@@ -237,7 +237,7 @@
     }
   },
   "unified_platform_runtime_candidate": {
-    "status": "recording_accepted_failure_accounting_loaded_owner_validation_pending",
+    "status": "recording_accepted_failure_accounting_live_pass",
     "platform": "darwin",
     "architecture": "arm64",
     "game": {
@@ -264,8 +264,8 @@
     "annotator": {
       "source_revision": "305a2cac80f0bd3126d66cfc5818477c583a8ce5",
       "source_digest_sha256": "e7dabe5457a46a839918c7469be17cb7e5564fd3e912396f83dd4c84d4c5a035",
-      "current_component_source_revision": "6189e0e8e376c180ae54a16a3070d4dcdce960a3",
-      "current_component_source_digest_sha256": "27f6368ad42988523c30e8010da67fac858a02c9b311b684e1e5805a95dc264a",
+      "current_component_source_revision": "4a62d08122c24438438e02b4ccf6802a33750dba",
+      "current_component_source_digest_sha256": "9d0263dbc0966bfb86ff17cb54e967269a104346ecefd37432aafd0bf5e48238",
       "source_relation": "loaded_native_source_scope_matches_current_component",
       "artifact_sha256": "887630f4f4505f7ce7889e855c64dd4593aa061d22ffb00a80dfaed0bbf3c342",
       "artifact_mvid": "14761ed4-fed3-4a50-8dd7-d731b2a8b94b"
@@ -323,8 +323,8 @@
     },
     "ui_panel_ready": "pass",
     "ui_toggle_runtime_canary": "not_observed",
-    "owner_ui_visibility": "predecessor_pass_current_artifact_pending",
-    "human_recording_controls_exercised": "predecessor_card_play_end_turn_close_pass_current_accepted_accounting_pending",
+    "owner_ui_visibility": "pass_owner_attested_on_current_artifact",
+    "human_recording_controls_exercised": "card_play_end_turn_cancel_close_scope_ui_live_pass",
     "policy_shadow_one_step_auto_exercised": "not_exercised_checkpoint_absent",
     "recording_application_owner_validation": {
       "predecessor_runtime_instance_id": "bd6b73e7c2744680848539f96b6cae6d",
@@ -387,8 +387,24 @@
       "accepted_failure_accounting_artifact_sha256": "887630f4f4505f7ce7889e855c64dd4593aa061d22ffb00a80dfaed0bbf3c342",
       "accepted_failure_accounting_artifact_mvid": "14761ed4-fed3-4a50-8dd7-d731b2a8b94b",
       "accepted_failure_accounting_runtime_instance_id": "bcf2b3f1dc0545b8ba1867c4a6357fec",
-      "accepted_failure_accounting_owner_validation": "pending_no_recording_session_observed",
-      "accepted_failure_accounting_session_ids": [],
+      "accepted_failure_accounting_owner_validation": "pass_owner_attested_card_play_end_turn_cancel_close_scope_ui",
+      "accepted_failure_accounting_session_ids": [
+        "session-20260826T025703Z-d499a75e9e484cbda2fa64f7bb1f552f"
+      ],
+      "accepted_failure_accounting_audit_status": "pass",
+      "accepted_failure_accounting_valid_records": 19,
+      "accepted_failure_accounting_invalid_records": 0,
+      "accepted_failure_accounting_play_card": 10,
+      "accepted_failure_accounting_end_turn": 9,
+      "accepted_failure_accounting_invalidations": 16,
+      "accepted_failure_accounting_pre_frame_failures": 15,
+      "accepted_failure_accounting_overlapping_actions": 1,
+      "accepted_failure_accounting_reads_materialized": 78,
+      "accepted_failure_accounting_reads_failed": 0,
+      "accepted_failure_accounting_close_status": "closed_on_first_request",
+      "accepted_failure_accounting_close_ms": 5.153,
+      "native_rejected_cancelled_attempt": "owner_attested_no_record_or_invalidation_not_machine_attributable",
+      "human_origin": "owner_attested_not_machine_proven",
       "evidence_transfer_to_accepted_failure_accounting": false,
       "evidence_transfer_to_current_repair": false
     },
@@ -406,7 +422,7 @@
     }
   },
   "migration_sources": "migration/source-manifest.json",
-  "support_level": "human_evidence_v2_accepted_failure_accounting_loaded_owner_validation_pending",
+  "support_level": "human_evidence_v2_accepted_failure_accounting_live_pass",
   "non_claims": [
     "human_origin_owner_attested_not_machine_proven",
     "annotator_invalidated_actions_not_admitted",
@@ -416,7 +432,7 @@
     "current_v2_candidate_generated_card_choice_not_exercised",
     "generated_card_skip_not_exercised",
     "v2_corpus_and_training_not_authorized",
-    "accepted_failure_accounting_loaded_not_live_exercised",
+    "native_rejected_cancelled_attempt_absence_owner_attested_not_machine_attributable",
     "automated_input_canary_is_not_owner_visibility_evidence",
     "s1_checkpoint_absent_shadow_one_step_auto_not_exercised"
   ]

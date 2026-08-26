@@ -68,10 +68,16 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   candidate.game_mod.installed = "pending";
   candidate.runtime.execution_available = false;
   candidate.owner_ui_visibility = "pass";
+  candidate.recording_application_decision_gate.accepted_failure_accounting_valid_records = 20;
+  candidate.recording_application_decision_gate.human_origin = "machine_proven";
   candidate.predecessor_human_session.evidence_transfer_to_unified_artifact = true;
   candidate.external_policy.checkpoint_status = "present";
   bom.non_claims = bom.non_claims.filter(
     (claim) => claim !== "s1_checkpoint_absent_shadow_one_step_auto_not_exercised"
+  );
+  bom.non_claims = bom.non_claims.filter(
+    (claim) => claim !==
+      "native_rejected_cancelled_attempt_absence_owner_attested_not_machine_attributable"
   );
   const errors = validatePlatformBom(bom, await readBomAuthorities(root));
   assert.ok(errors.some((error) => error.startsWith("candidate current Live UI source:")));
@@ -80,7 +86,10 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   assert.ok(errors.some((error) => error.startsWith("candidate Game Mod installed:")));
   assert.ok(errors.some((error) => error.startsWith("candidate execution:")));
   assert.ok(errors.some((error) => error.startsWith("candidate owner UI visibility:")));
+  assert.ok(errors.some((error) => error.startsWith("accepted-only valid records:")));
+  assert.ok(errors.some((error) => error.startsWith("accepted-only Human origin:")));
   assert.ok(errors.some((error) => error.startsWith("predecessor evidence transfer:")));
   assert.ok(errors.some((error) => error.startsWith("candidate policy checkpoint:")));
   assert.ok(errors.includes("S1 checkpoint/model-mode non-claim is missing"));
+  assert.ok(errors.includes("Native-rejected attempt attribution non-claim is missing"));
 });
