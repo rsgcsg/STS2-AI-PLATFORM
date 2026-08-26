@@ -126,9 +126,11 @@ action-family expansion remain outside this bounded baseline.
 - Complete exact runtime: accepted-only accounting is clean-built, installed and
   cold-loaded as `887630f4... / 14761ed4...` in runtime `bcf2b3f1...` with
   Ready/no-session and rollback available.
-- Pending owner runtime: create a session on that exact artifact, verify a
-  native-rejected/cancelled card attempt does not increment the accepted-failure
-  category, and verify successful card play/end-turn plus first-click Close.
+- Complete owner runtime: exact session `session-20260826T025703Z-...` audited
+  19/19 records (10 play, nine end-turn), 78 Reads, zero Read failures, and 16
+  explicitly separated accepted failures. First-click Close completed in
+  5.153 ms. The owner-observed cancelled/rejected attempt emitted no evidence;
+  absence of an intentionally unrecorded attempt is not machine-attributable.
 
 Next phase, not part of this slice: **Live Workspace Window Kernel -> Human
 Recorder Window**.

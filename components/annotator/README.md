@@ -57,7 +57,12 @@ cancelled, invalid-target and otherwise rejected UI attempts are not decisions.
 That final status-semantics change requires a new exact-runtime validation and
 does not inherit the 39-record evidence. It is now loaded as
 `887630f4... / 14761ed4...`, but its current runtime remains Ready/no-session;
-accepted-only accounting is therefore not yet Human-exercised.
+accepted-only accounting is therefore not inherited from predecessor evidence.
+Owner session `session-20260826T025703Z-...` on that exact artifact now audits
+19/19 records (10 play, nine end-turn), 78 Reads and zero Read failures. Sixteen
+native-accepted card actions failed closed and remained outside admitted
+records. One owner-observed cancelled attempt emitted no evidence, as designed;
+that negative-action attribution is owner-attested rather than machine-proven.
 
 Implementation or build evidence is not human-origin evidence. See
 [Status](docs/STATUS.md) and [Evidence](docs/EVIDENCE.md).

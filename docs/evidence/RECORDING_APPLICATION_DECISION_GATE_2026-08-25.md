@@ -89,6 +89,26 @@ loaded with these exact identities:
 
 `verify:loaded` passes and Recorder reports Ready/no-session. No new session
 directory, HumanDecision, invalidation or recording event was produced by the
-latest owner interaction, so this is load evidence only. Accepted-only
-accounting, generated-card skip and Human origin on this artifact remain
-unproven; predecessor evidence is not transferred.
+first owner interaction, so that interaction was load evidence only.
+
+The owner subsequently created and closed
+`session-20260826T025703Z-d499a75e9e484cbda2fa64f7bb1f552f` on the same
+runtime. Independent V2 audit reports:
+
+- 19 valid records and zero invalid records;
+- 10 `play` and nine `end_turn` records;
+- 78 materialized Reads and zero Read failures;
+- 15 `pre_frame_capture_failed` invalidations for native-accepted
+  `PlayCardAction`s;
+- one `overlapping_action_before_successor` invalidation for a second accepted
+  card action;
+- `session_closed` 5.153 ms after the first Close request.
+
+The owner attests that the requested cancelled/rejected card attempt changed
+neither the record nor invalidation count, while successful card play and end
+turn did record. Since the intended behavior produces no event for a native-
+rejected attempt, the machine evidence cannot independently identify that click.
+Human origin and this negative-action attribution remain owner-attested. The
+session does prove that accepted failures are separately counted and excluded
+from admitted records on the exact artifact. Generated-card skip remains not
+exercised; predecessor evidence is not transferred.

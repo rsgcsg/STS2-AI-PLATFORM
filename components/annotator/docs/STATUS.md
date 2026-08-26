@@ -15,8 +15,9 @@ supported card-play misses: staged and transient snapshots were incorrectly
 required to be identical. Current source repairs that bounded native transition,
 reports per-family recorded/failed/not-observed/out-of-scope status, and displays
 authoritative Closed state after the first Close. Those latest changes are
-cold-loaded as `887630f4... / 14761ed4...`; the current runtime has no new
-recording session, so owner card-play/accounting validation remains pending.
+cold-loaded as `887630f4... / 14761ed4...` and do not inherit predecessor
+evidence. Exact owner session `session-20260826T025703Z-...` now
+audits 19/19 records and explicitly separates 16 native-accepted failures.
 
 ## Implemented
 
@@ -113,7 +114,12 @@ STS2 accepted or rejected the attempted input. Current source defers such an
 invalidation until the expected game-owned action is observed and reports it as
 native-accepted-but-failed-closed. This follow-up source is loaded as
 `887630f4... / 14761ed4...` in runtime `bcf2b3f1...`, but Ready/no-session is
-not Human evidence and does not inherit the 39 records.
+not Human evidence and does not inherit the 39 records. A later same-runtime
+session admitted 10 plays and nine end turns with 78 Reads and zero Read
+failures. It separately invalidated 15 accepted card actions without a complete
+pre-frame and one overlapping accepted action. Close completed 5.153 ms after
+its first request. The owner-observed rejected/cancelled attempt produced no
+event; its attribution remains owner-attested.
 
 ## V1 Predecessor Evidence
 
@@ -152,5 +158,5 @@ recorded only after the corresponding cold loads and owner-operated actions.
 Potions, event/reward/shop/rest/map/menu actions, arbitrary selectors,
 multiplayer, and gameplay-affecting Modsets are not admitted by version
 `0.3.0-rc.1`. Generated-card select has one predecessor Live record; skip and
-the current accepted-only accounting source still require exact native-human
+the current artifact's generated-card paths still require exact native-human
 runtime evidence.

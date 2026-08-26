@@ -206,9 +206,22 @@ That source is now built, safely installed and cold-loaded as
 `977c56a6...`. Loaded Annotator and Live UI both bind source `305a2cac...`;
 rollback is `apps/game-mod/.local/deployments/2026-08-25T12-37-06.961Z`.
 The runtime is healthy at Ready/no-session, but no recording session was
-created during the latest owner interaction. The 39 predecessor Live records
-do not transfer, so accepted-only failure accounting remains pending Human
-runtime evidence.
+created during the first owner interaction. The 39 predecessor Live records do
+not transfer.
+
+Owner-operated session
+`session-20260826T025703Z-d499a75e9e484cbda2fa64f7bb1f552f`
+then exercised the exact `887630f4... / 14761ed4... / bcf2b3f1...` runtime.
+Independent V2 audit passed 19/19 records with zero invalid records: 10 card
+plays and nine end turns, with 78 materialized Reads and zero Read failures.
+Sixteen accepted card actions failed closed instead of becoming records: 15
+lacked a complete same-context pre-frame and one overlapped a pending
+successor. They were kept out of admitted evidence and are now visible in the
+accepted-failure category. Close reached `session_closed` 5.153 ms after its
+first request. The owner also attests that one cancelled/rejected card attempt
+did not change record or invalidation counts; because an intentionally
+unrecorded attempt has no machine event, that absence is not independently
+machine-attributable.
 
 ## Non-claims
 
@@ -233,7 +246,9 @@ runtime evidence.
   repair was loaded as `06f62285... / 17981f40...`; its two owner sessions prove
   card-play and Close. They do not prove accepted-only invalidation accounting
   introduced by the later source. The later `887630f4... / 14761ed4...`
-  artifact is loaded, but Ready/no-session is not Human action evidence.
+  artifact now has 19 audited owner-operated records and explicit accepted-
+  failure accounting. This does not prove lossless rapid-input capture or
+  independently identify the cancelled/rejected attempt.
 - The current S1 Policy Manifest is validated, but its exact checkpoint is not
   present on this Mac. Real-model Shadow, One-Step, Auto, policy Agent evidence
   and legacy/new path parity are therefore `not exercised`.
