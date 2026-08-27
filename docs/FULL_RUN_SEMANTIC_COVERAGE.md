@@ -72,10 +72,11 @@ qualification.
 Subsequent source adds the bounded potion witness and removes per-event
 physical flushes from the additive semantic trace. Primary Decision and native
 ledger streams retain their existing per-event durability; semantic events are
-written in causal batches and physically flushed on safe Close. This source has
-automated evidence only. It has not inherited the repair artifact's loaded or
-Human runtime evidence, and the observed 8 ms-class boundary-to-start delay is
-only a credible trace-I/O hotspot, not a completed performance diagnosis.
+written in causal batches and physically flushed on safe Close. Its clean
+unified artifact is built, installed and cold-loaded, but has no Human action
+evidence and has not inherited the repair artifact's Human runtime evidence.
+The observed 8 ms-class boundary-to-start delay is only a credible trace-I/O
+hotspot, not a completed performance diagnosis.
 
 Current repair source is `c8775e1066137c1a7e00993a7ab74493a11717f7`.
 Its clean unified build is `8d2f7d2a8e95eac424aa7fed7f22e825821609b83526d38605e813b6a9692c35 /

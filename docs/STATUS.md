@@ -395,9 +395,11 @@ not a semantic seal. See the dated owner-canary report.
 - Generated-card select is audited on the current schema-2 unified artifact;
   generated-card skip remains `not exercised`.
 - Subsequent source/test adds exact native Human potion correlation and removes
-  per-event physical flush from the additive semantic trace. It is not loaded
-  and has no Human potion or performance evidence; the repair canary identity
-  and claims remain bound to `8d2f7d2a... / 3043f4f4...`.
+  per-event physical flush from the additive semantic trace. Its clean artifact
+  `be1a96ec... / 79354979...` is installed and cold-loaded in runtime
+  `1ad1e3f8...` under the sole exact Platform Modset. It has no Human potion or
+  performance evidence; the repair canary claims remain bound to
+  `8d2f7d2a... / 3043f4f4...`.
 - The V2 bundle/store/receiver/STPD path is verified, but this does not authorize
   corpus inclusion or training and does not qualify unexercised action families.
 - Platform Evidence is a focused evidence-integrity package, not a

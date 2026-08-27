@@ -344,7 +344,19 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "Full-Run subsequent tests", subsequent?.annotator_core_tests, 80);
   expectEqual(errors, "Full-Run subsequent slices", JSON.stringify(subsequent?.implemented_slices),
     JSON.stringify(["potion_use_target_cancel"]));
-  expectEqual(errors, "Full-Run subsequent loaded", subsequent?.loaded, "not_exercised");
+  for (const level of ["built", "installed", "loaded"])
+    expectEqual(errors, `Full-Run subsequent ${level}`, subsequent?.[level], "pass");
+  expectPattern(errors, "Full-Run subsequent artifact", subsequent?.artifact_sha256, SHA256);
+  expectPattern(errors, "Full-Run subsequent MVID", subsequent?.artifact_mvid, MVID);
+  expectPattern(errors, "Full-Run subsequent runtime", subsequent?.runtime_instance_id,
+    /^[0-9a-f]{32}$/u);
+  expectPattern(errors, "Full-Run subsequent environment", subsequent?.environment_fingerprint,
+    SHA256);
+  expectEqual(errors, "Full-Run subsequent Modset status", subsequent?.modset_status,
+    "exact_platform_modset");
+  expectPattern(errors, "Full-Run subsequent Modset", subsequent?.modset_fingerprint, SHA256);
+  expectPattern(errors, "Full-Run subsequent rollback", subsequent?.rollback,
+    /^apps\/game-mod\/\.local\/deployments\//u);
   expectEqual(errors, "Full-Run subsequent Human", subsequent?.human_runtime, "not_exercised");
   expectEqual(errors, "Full-Run subsequent evidence transfer",
     subsequent?.evidence_transfer_from_repair_artifact, false);

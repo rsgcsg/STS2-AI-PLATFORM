@@ -120,3 +120,13 @@ semantic events in causal batches and physically flushes that sidecar at safe
 Close; Decision and native-ledger durability are unchanged. No load, Human
 runtime, potion, or performance claim transfers from the repair artifact to
 this subsequent source.
+
+The subsequent source was then built, safely installed and cold-loaded as
+`be1a96ec762139de7bcda8ec5f4898a482c6dc03cf4fd18e20be41585eb22380 /
+79354979-0488-42c3-bd83-8b90d6bbf9e4` in runtime
+`1ad1e3f83e9545ab911bd75f85262a96`, environment
+`94b59c951d4b0004d85bba9de2a35c3fd28b12d35b9ed2e996c8b81fc8c3fafc`,
+with sole exact Modset
+`35c367613f6caf041842a02850582477edd1dfba018316dbf599f2f79aa81915`.
+Rollback is `apps/game-mod/.local/deployments/2026-08-27T16-03-47.774Z`.
+Load evidence does not prove Human potion capture or reduced perceived lag.
