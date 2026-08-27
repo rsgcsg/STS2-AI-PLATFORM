@@ -13,6 +13,11 @@ the authorities of its components.
 4. `docs/COMPONENTS.md`
 5. the relevant component guide and exact code/tests
 
+Before ordinary development, also read `docs/DEVELOPMENT_WORKFLOW.md`. Normal
+work starts from current `origin/develop`, uses one short-lived topic branch and
+targets `develop` by pull request. Do not direct-push `main` or `develop`, share
+a writable branch between agents, or create permanent component develop lines.
+
 ## Hard Shell
 
 - STS2 owns rules, RNG, effects, native legality and Commit.
@@ -24,6 +29,11 @@ the authorities of its components.
   evidence, not action authority or research admission.
 - External consumers own strategy, research projection, training and
   evaluation.
+
+Platform is the upper-level, model-neutral foundation. STPD is an independent
+research project that consumes versioned Platform contracts; repository
+independence does not make it a peer platform. Platform must not import STPD
+model, reward, training or research semantics.
 
 Never add hidden-state leakage, coordinate/index mutation, arbitrary reflection,
 a second legality engine, consumer-created native operands, silent fallback or
@@ -42,3 +52,7 @@ Identify the owning component, preserve dependency direction, add fail-closed
 tests, run the component check and root check, then report evidence at its exact
 level. Never commit game files, decompiled source, raw human data, `.local/`,
 credentials, model weights or installed artifacts.
+
+Record the base branch/SHA, workstream, cross-repository pin, evidence level,
+rollback and non-claims in every PR. A merge never promotes source/test evidence
+to build, loaded, runtime, Human or qualification evidence.
