@@ -282,12 +282,13 @@ export function validatePlatformBom(bom, authorities) {
     errors.push("Semantic timeline source candidate must not reuse predecessor artifact identity");
   const fullRun = policyCandidate?.full_run_semantic_source_candidate;
   expectEqual(errors, "Full-Run source status", fullRun?.status,
-    "source_test_build_complete_pending_exact_runtime");
-  expectEqual(errors, "Full-Run current Annotator source",
-    fullRun?.annotator_source_revision, bom.components?.annotator?.source_revision);
-  expectEqual(errors, "Full-Run current Annotator component digest",
-    fullRun?.annotator_component_source_digest_sha256,
-    bom.components?.annotator?.component_source_digest_sha256);
+    "repair_source_test_build_complete_pending_exact_runtime");
+  expectPattern(errors, "Full-Run build Annotator source",
+    fullRun?.annotator_source_revision, COMMIT);
+  expectPattern(errors, "Full-Run build Annotator component digest",
+    fullRun?.annotator_component_source_digest_sha256, SHA256);
+  expectEqual(errors, "Full-Run workspace/source identity",
+    fullRun?.workspace_revision_at_build, fullRun?.annotator_source_revision);
   expectPattern(errors, "Full-Run build source digest",
     fullRun?.annotator_build_source_digest_sha256, SHA256);
   expectEqual(errors, "Full-Run trace schema", fullRun?.trace_schema,
@@ -304,16 +305,23 @@ export function validatePlatformBom(bom, authorities) {
       "reward_claim",
       "reward_proceed",
       "card_reward_select",
-      "map_travel"
+      "map_travel",
+      "combat_hand_select",
+      "combat_hand_deselect",
+      "combat_hand_confirm"
     ]));
-  expectEqual(errors, "Full-Run tests", fullRun?.annotator_core_tests, 74);
+  expectEqual(errors, "Full-Run tests", fullRun?.annotator_core_tests, 77);
   expectEqual(errors, "Full-Run build", fullRun?.built, "pass");
-  expectEqual(errors, "Full-Run install", fullRun?.installed, "pending_game_exit");
+  expectEqual(errors, "Full-Run install", fullRun?.installed, "pending_safe_deploy");
   expectEqual(errors, "Full-Run loaded", fullRun?.loaded, "non_claim");
   expectEqual(errors, "Full-Run Human runtime", fullRun?.human_runtime,
     "pending_exact_runtime_evidence");
   expectEqual(errors, "Full-Run predecessor evidence transfer",
     fullRun?.evidence_transfer_from_schema2_predecessor, false);
+  expectEqual(errors, "Full-Run predecessor canary",
+    fullRun?.predecessor_owner_canary, "failed_semantic_accounting");
+  expectEqual(errors, "Full-Run predecessor missing semantic roots",
+    fullRun?.predecessor_missing_semantic_native_roots, 546);
   if (fullRun?.annotator_source_revision === semanticTimeline?.annotator_source_revision)
     errors.push("Full-Run source candidate must not reuse the proved schema-2 source identity");
   if (fullRun?.artifact_sha256 === semanticTimeline?.artifact_sha256)
