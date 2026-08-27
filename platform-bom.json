@@ -10,9 +10,9 @@
     },
     "host_runtime": {
       "version": "1.1.0-rc.7",
-      "source_revision": "dce2c26c0accb0bbbe435191ca371aee9725fa48",
-      "component_tree_revision": "c5a0beb062a2f402a64c26ed21eb3a01b2613688",
-      "component_source_digest_sha256": "9ef893001895e955f8f5efce7cf9d73f8528dcb602685b4bc38acac150f2f149"
+      "source_revision": "6ecd8d5fcb27fd12793493f769e9a8ab4bb9a386",
+      "component_tree_revision": "72b200861f089234a4c55c75fa4448aa0efc5872",
+      "component_source_digest_sha256": "8191c4a986cd10fcd626df91bc7cea4bbb16e16283dc39dbec08026445af9b3d"
     },
     "annotator": {
       "version": "0.3.0-rc.1",
@@ -46,9 +46,9 @@
     },
     "game_mod": {
       "version": "0.2.0-rc.1",
-      "source_revision": "a1c1f2fd0cacdbc4f0a0de75219dc220b72a2c73",
-      "component_tree_revision": "b7aceaea8229786d5da6217fdfcfb731dabe018c",
-      "component_source_digest_sha256": "f2f3d0584ba9a3e499aba601ec6d37091767672750acdcff27c2369d5d45cfcc"
+      "source_revision": "6ecd8d5fcb27fd12793493f769e9a8ab4bb9a386",
+      "component_tree_revision": "18b09760301ebe52c0a34c5776db2a98d5f56eef",
+      "component_source_digest_sha256": "be99fc091052d02d544a6745fcd545216e15cf9f9609614d6194e847a644172c"
     },
     "player_environment_protocol": "1.0.0",
     "typescript_sdk": "1.1.0-rc.1"
@@ -298,8 +298,8 @@
       "version": "0.2.0-rc.1",
       "platform_source_revision": "b5389a0b4a1bbed37e6a9718776fdf38f06f50c9",
       "platform_source_digest_sha256": "dbcd6ec1df10cad5ad011eb61a2f2ca533d7a110cd3f1296efa9c154b98d0cea",
-      "current_component_source_revision": "a1c1f2fd0cacdbc4f0a0de75219dc220b72a2c73",
-      "current_component_source_digest_sha256": "f2f3d0584ba9a3e499aba601ec6d37091767672750acdcff27c2369d5d45cfcc",
+      "current_component_source_revision": "6ecd8d5fcb27fd12793493f769e9a8ab4bb9a386",
+      "current_component_source_digest_sha256": "be99fc091052d02d544a6745fcd545216e15cf9f9609614d6194e847a644172c",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b",
       "installed": "pass",
