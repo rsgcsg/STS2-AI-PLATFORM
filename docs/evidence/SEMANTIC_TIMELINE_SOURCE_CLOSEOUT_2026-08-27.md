@@ -84,6 +84,22 @@ missing-state recovery at the next action, End Turn continuity, player-choice
 pause/resume, cancel/abort, same-state unknown, Close unresolved accounting,
 schema-1 readability and schema-2 audit invariants.
 
+The exact schema-2 source candidate was built and safely installed while the
+game was stopped:
+
+- build workspace: `246eb6ab81b2174f7257f7df87668e3de6eda934`;
+- Annotator source: `fed721c7b5131cf35d71025a3dd877266b5332fc`;
+- unified artifact SHA-256:
+  `eb7ed0728f0b908d3f82826fc7f8f63ec7d1d7b9ce9d2968bf423ca925fc872b`;
+- unified artifact MVID: `34a36a2b-6ffa-4951-b53c-3fe72d37dd85`;
+- built/installed parity: pass;
+- rollback:
+  `apps/game-mod/.local/deployments/2026-08-27T03-41-37.869Z`.
+
+The game was not running during installation. Therefore `loaded = non-claim`,
+schema-2 Human runtime is `pending exact-runtime evidence`, and none of the
+predecessor artifact's Live authority transfers to this candidate.
+
 The next owner canary must cold-load the final artifact and exercise:
 
 - ordinary play followed rapidly by another play;

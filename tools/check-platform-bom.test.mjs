@@ -66,6 +66,8 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   candidate.live_ui.artifact_sha256 = "0".repeat(64);
   candidate.connector.current_component_source_revision = "0".repeat(40);
   candidate.annotator.source_relation = "loaded_native_source_scope_matches_current_component";
+  candidate.semantic_timeline_source_candidate.loaded = "pass";
+  candidate.semantic_timeline_source_candidate.evidence_transfer_from_predecessor = true;
   candidate.game_mod.installed = "pending";
   candidate.runtime.execution_available = false;
   candidate.owner_ui_visibility = "pass";
@@ -94,6 +96,9 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   assert.ok(errors.some((error) => error.startsWith("candidate common artifact SHA (live_ui):")));
   assert.ok(errors.some((error) => error.startsWith("candidate current Connector source:")));
   assert.ok(errors.some((error) => error.startsWith("candidate Annotator source relation:")));
+  assert.ok(errors.some((error) => error.startsWith("semantic timeline loaded:")));
+  assert.ok(errors.some((error) =>
+    error.startsWith("semantic timeline predecessor evidence transfer:")));
   assert.ok(errors.some((error) => error.startsWith("candidate Game Mod installed:")));
   assert.ok(errors.some((error) => error.startsWith("candidate execution:")));
   assert.ok(errors.some((error) => error.startsWith("candidate owner UI visibility:")));

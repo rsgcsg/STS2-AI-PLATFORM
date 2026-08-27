@@ -270,6 +270,21 @@
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b"
     },
+    "semantic_timeline_source_candidate": {
+      "status": "source_test_built_installed_pending_cold_load",
+      "workspace_revision_at_build": "246eb6ab81b2174f7257f7df87668e3de6eda934",
+      "annotator_source_revision": "fed721c7b5131cf35d71025a3dd877266b5332fc",
+      "annotator_source_digest_sha256": "b5830e4f301dd1bb996583dd595410cf14fc05cc63dabad6d84d429475839720",
+      "trace_schema": "sts2.human-annotator/semantic-boundary-trace-event-2",
+      "artifact_sha256": "eb7ed0728f0b908d3f82826fc7f8f63ec7d1d7b9ce9d2968bf423ca925fc872b",
+      "artifact_mvid": "34a36a2b-6ffa-4951-b53c-3fe72d37dd85",
+      "built": "pass",
+      "installed": "pass",
+      "loaded": "non_claim",
+      "human_runtime": "pending_exact_runtime_evidence",
+      "evidence_transfer_from_predecessor": false,
+      "rollback": "apps/game-mod/.local/deployments/2026-08-27T03-41-37.869Z"
+    },
     "live_ui": {
       "source_revision": "305a2cac80f0bd3126d66cfc5818477c583a8ce5",
       "source_digest_sha256": "c2a75214cb69678913fceb965ae4d41784a6cb1580311b53a2cc5b4c0c4cb1c4",

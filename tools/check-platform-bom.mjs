@@ -191,6 +191,30 @@ export function validatePlatformBom(bom, authorities) {
     "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Annotator source relation", policyCandidate?.annotator?.source_relation,
     "loaded_native_source_precedes_current_semantic_timeline_source");
+  const semanticTimeline = policyCandidate?.semantic_timeline_source_candidate;
+  expectEqual(errors, "semantic timeline source status", semanticTimeline?.status,
+    "source_test_built_installed_pending_cold_load");
+  expectEqual(errors, "semantic timeline current Annotator source",
+    semanticTimeline?.annotator_source_revision, bom.components?.annotator?.source_revision);
+  expectEqual(errors, "semantic timeline trace schema", semanticTimeline?.trace_schema,
+    "sts2.human-annotator/semantic-boundary-trace-event-2");
+  expectPattern(errors, "semantic timeline workspace at build",
+    semanticTimeline?.workspace_revision_at_build, COMMIT);
+  expectPattern(errors, "semantic timeline source digest",
+    semanticTimeline?.annotator_source_digest_sha256, SHA256);
+  expectPattern(errors, "semantic timeline artifact", semanticTimeline?.artifact_sha256, SHA256);
+  expectPattern(errors, "semantic timeline MVID", semanticTimeline?.artifact_mvid, MVID);
+  expectEqual(errors, "semantic timeline built", semanticTimeline?.built, "pass");
+  expectEqual(errors, "semantic timeline installed", semanticTimeline?.installed, "pass");
+  expectEqual(errors, "semantic timeline loaded", semanticTimeline?.loaded, "non_claim");
+  expectEqual(errors, "semantic timeline Human runtime", semanticTimeline?.human_runtime,
+    "pending_exact_runtime_evidence");
+  expectEqual(errors, "semantic timeline predecessor evidence transfer",
+    semanticTimeline?.evidence_transfer_from_predecessor, false);
+  expectPattern(errors, "semantic timeline rollback", semanticTimeline?.rollback,
+    /^apps\/game-mod\/\.local\/deployments\//u);
+  if (semanticTimeline?.artifact_sha256 === policyCandidate?.annotator?.artifact_sha256)
+    errors.push("Semantic timeline source candidate must not reuse predecessor artifact identity");
   expectEqual(errors, "candidate Live UI source relation", policyCandidate?.live_ui?.source_relation,
     "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Connector protocol", policyCandidate?.connector?.protocol,
