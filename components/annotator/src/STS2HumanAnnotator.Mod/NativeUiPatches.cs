@@ -188,6 +188,159 @@ internal static class NativeGeneratedChoiceSkipPatch
     }
 }
 
+[HarmonyPatch]
+internal static class NativeCombatHandSelectPatch
+{
+    internal static IEnumerable<MethodBase> TargetMethods()
+    {
+        yield return AccessTools.Method(typeof(NPlayerHand), "SelectCardInSimpleMode")
+            ?? throw new MissingMethodException(typeof(NPlayerHand).FullName, "SelectCardInSimpleMode");
+        yield return AccessTools.Method(typeof(NPlayerHand), "SelectCardInUpgradeMode")
+            ?? throw new MissingMethodException(typeof(NPlayerHand).FullName, "SelectCardInUpgradeMode");
+    }
+
+    private static void Prefix(
+        MethodBase __originalMethod,
+        [HarmonyArgument(0)] NHandCardHolder holder,
+        out NativeUiScopeEntry __state)
+    {
+        string nativeActionType = $"NPlayerHand.{__originalMethod.Name}";
+        __state = holder.CardModel is { } card
+            ? RecorderRuntime.TryEnterSemanticScope(
+                "native_combat_hand_selection_ui",
+                nativeActionType,
+                new ProcessLocalObservedAction(
+                    "select",
+                    card,
+                    new Dictionary<string, object>(StringComparer.Ordinal)))
+            : default;
+    }
+
+    private static void Postfix(
+        MethodBase __originalMethod,
+        [HarmonyArgument(0)] NHandCardHolder holder,
+        NativeUiScopeEntry __state)
+    {
+        if (!__state.Entered || holder.CardModel is not { } card)
+            return;
+        string nativeActionType = $"NPlayerHand.{__originalMethod.Name}";
+        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            nativeActionType,
+            new ProcessLocalObservedAction(
+                "select",
+                card,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativeWitnessEvidence(
+                "native_combat_hand_selection_ui",
+                nativeActionType,
+                NativeWitnessIdentity.Get(card, "card"),
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                DateTimeOffset.UtcNow));
+    }
+
+    private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state);
+        return __exception;
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeCombatHandDeselectPatch
+{
+    private const string NativeActionType = "NSelectedHandCardContainer.DeselectHolder";
+
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(typeof(NSelectedHandCardContainer), "DeselectHolder")
+        ?? throw new MissingMethodException(
+            typeof(NSelectedHandCardContainer).FullName,
+            "DeselectHolder");
+
+    private static void Prefix(
+        [HarmonyArgument(0)] NCardHolder holder,
+        out NativeUiScopeEntry __state) =>
+        __state = holder.CardModel is { } card
+            ? RecorderRuntime.TryEnterSemanticScope(
+                "native_combat_hand_deselect_ui",
+                NativeActionType,
+                new ProcessLocalObservedAction(
+                    "deselect",
+                    card,
+                    new Dictionary<string, object>(StringComparer.Ordinal)))
+            : default;
+
+    private static void Postfix(
+        [HarmonyArgument(0)] NCardHolder holder,
+        NativeUiScopeEntry __state)
+    {
+        if (!__state.Entered || holder.CardModel is not { } card)
+            return;
+        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            NativeActionType,
+            new ProcessLocalObservedAction(
+                "deselect",
+                card,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativeWitnessEvidence(
+                "native_combat_hand_deselect_ui",
+                NativeActionType,
+                NativeWitnessIdentity.Get(card, "card"),
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                DateTimeOffset.UtcNow));
+    }
+
+    private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state);
+        return __exception;
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeCombatHandConfirmPatch
+{
+    private const string NativeActionType = "NPlayerHand.OnSelectModeConfirmButtonPressed";
+
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(typeof(NPlayerHand), "OnSelectModeConfirmButtonPressed")
+        ?? throw new MissingMethodException(
+            typeof(NPlayerHand).FullName,
+            "OnSelectModeConfirmButtonPressed");
+
+    private static void Prefix(out NativeUiScopeEntry __state) =>
+        __state = RecorderRuntime.TryEnterSemanticScope(
+            "native_combat_hand_confirm_ui",
+            NativeActionType,
+            new ProcessLocalObservedAction(
+                "confirm",
+                null,
+                new Dictionary<string, object>(StringComparer.Ordinal)));
+
+    private static void Postfix(NativeUiScopeEntry __state)
+    {
+        if (!__state.Entered)
+            return;
+        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            NativeActionType,
+            new ProcessLocalObservedAction(
+                "confirm",
+                null,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativeWitnessEvidence(
+                "native_combat_hand_confirm_ui",
+                NativeActionType,
+                null,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                DateTimeOffset.UtcNow));
+    }
+
+    private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state);
+        return __exception;
+    }
+}
+
 [HarmonyPatch(typeof(NMapScreen), nameof(NMapScreen.OnMapPointSelectedLocally))]
 internal static class NativeMapChoicePatch
 {

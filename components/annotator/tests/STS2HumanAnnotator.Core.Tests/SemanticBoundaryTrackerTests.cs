@@ -541,6 +541,67 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
+    public void DirectUiCommitUsesTheCanonicalExecutionBoundary()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference action = Action(
+            "direct-ui",
+            1,
+            "NPlayerHand.OnSelectModeConfirmButtonPressed") with
+        {
+            NativeMechanism = "direct_ui_commit"
+        };
+        var boundary = new SemanticBoundaryObservation(
+            SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
+            T0,
+            "selection-s0",
+            "interactive",
+            "complete",
+            "interaction-selection-s0",
+            "combat_hand_card_selection",
+            State("selection-s0", "combat_hand_card_selection"),
+            action.ActionWitnessId);
+
+        tracker.Accept(action, State("human-selection"));
+        SemanticBoundaryTraceDraft bound = Assert.Single(
+            tracker.ObserveBeforeActionExecution(action.ActionWitnessId, boundary));
+        tracker.Started(action.ActionWitnessId);
+        tracker.Finished(action.ActionWitnessId);
+        SemanticBoundaryTraceDraft proved = Assert.Single(
+            tracker.ObserveDecisionBoundary(Boundary("combat-s1")));
+
+        Assert.Equal("execution_boundary_bound", bound.ProofStatus);
+        Assert.Equal(SemanticBoundaryTraceKinds.TransitionProved, proved.Kind);
+        Assert.Equal("selection-s0", proved.SemanticPre!.SnapshotId);
+        Assert.Equal("combat-s1", proved.SemanticSuccessor!.SnapshotId);
+    }
+
+    [Fact]
+    public void PlayerChoiceParentSurvivesChildAcceptanceUntilNativeFinish()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        tracker.Accept(Action("parent", 1), State("human-parent"));
+        tracker.ObserveBeforeActionExecution("parent", Boundary("s0", "parent"));
+        tracker.Started("parent");
+        tracker.PausedForPlayerChoice("parent");
+        tracker.ObserveDecisionBoundary(Boundary("choice-s1", interactionKind: "generated_card_choice"));
+
+        tracker.Accept(Action("child", 2, "NChooseACardSelectionScreen.SelectHolder"), State("choice-s1"));
+
+        Assert.True(tracker.Contains("parent"));
+        Assert.Equal(
+            "player_choice_supplied",
+            Assert.Single(tracker.ReadyToResume("parent")).ProofStatus);
+        tracker.Resumed("parent");
+        Assert.Equal(
+            "lifecycle_finished_after_semantic_disposition",
+            Assert.Single(tracker.Finished("parent")).ProofStatus);
+
+        tracker.Accept(Action("later", 3), State("human-later"));
+        Assert.False(tracker.Contains("parent"));
+    }
+
+    [Fact]
     public void LegacySchemaOneTraceRemainsReadableWithoutChangingItsMeaning()
     {
         SemanticActionReference action = Action("legacy", 1);
@@ -582,8 +643,8 @@ public sealed class SemanticBoundaryTrackerTests
         string? nextAction = null,
         string interactionKind = "combat_turn") => new(
             nextAction == null
-                ? "complete_interactive_observation"
-                : "before_next_human_action_execution",
+                ? SemanticBoundaryWitnessKinds.CompleteInteractiveObservation
+                : SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
             T0,
             snapshotId,
             "interactive",
@@ -596,7 +657,7 @@ public sealed class SemanticBoundaryTrackerTests
     private static SemanticBoundaryObservation IncompleteBoundary(
         string snapshotId,
         string nextAction) => new(
-            "before_next_human_action_execution",
+            SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
             T0,
             snapshotId,
             "settling",
@@ -609,7 +670,7 @@ public sealed class SemanticBoundaryTrackerTests
     private static SemanticBoundaryObservation StateOnlyExecutionBoundary(
         string snapshotId,
         string nextAction) => new(
-            "before_next_human_action_execution",
+            SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
             T0,
             snapshotId,
             "settling",

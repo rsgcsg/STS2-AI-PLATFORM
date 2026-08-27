@@ -160,3 +160,20 @@ test("rapid accepted actions use one exact lifecycle ledger and never fabricate 
   assert.match(ledger, /AcceptedHumanActionLedger/u);
   assert.match(ledger, /ObserveRecoveryBoundary/u);
 });
+
+test("semantic direct UI commits share one execution boundary and scoped selector path", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+
+  assert.match(runtime, /SemanticBoundaryWitnessKinds\.BeforeHumanActionExecution/u);
+  assert.doesNotMatch(runtime, /before_direct_ui_commit/u);
+  assert.match(runtime, /HumanActionScope\.Current != null/u);
+  assert.match(patches, /class NativeCombatHandSelectPatch/u);
+  assert.match(patches, /SelectCardInSimpleMode/u);
+  assert.match(patches, /SelectCardInUpgradeMode/u);
+  assert.match(patches, /class NativeCombatHandDeselectPatch/u);
+  assert.match(patches, /DeselectHolder/u);
+  assert.match(patches, /class NativeCombatHandConfirmPatch/u);
+  assert.match(patches, /OnSelectModeConfirmButtonPressed/u);
+  assert.match(patches, /RecorderRuntime\.TryEnterSemanticScope/u);
+});

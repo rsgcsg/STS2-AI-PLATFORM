@@ -92,8 +92,16 @@ public static class V2RecordingAuditor
         }
 
         ValidateJournal(directory, manifest, errors);
-        ValidateNativeActionLedger(directory, manifest, recordsById, errors);
-        ValidateSemanticBoundaryTrace(directory, manifest, errors);
+        IReadOnlyList<NativeActionLedgerEvent> nativeEvents = ValidateNativeActionLedger(
+            directory,
+            manifest,
+            recordsById,
+            errors);
+        IReadOnlyList<SemanticBoundaryTraceEvent> semanticEvents = ValidateSemanticBoundaryTrace(
+            directory,
+            manifest,
+            errors);
+        ValidateSchemaTwoSemanticAccounting(nativeEvents, semanticEvents, errors);
         long invalidations = File.Exists(Path.Combine(directory, "invalidations.jsonl"))
             ? Lines(Path.Combine(directory, "invalidations.jsonl")).LongCount()
             : 0;
@@ -182,7 +190,7 @@ public static class V2RecordingAuditor
             Add(errors, "run_journal_empty");
     }
 
-    private static void ValidateNativeActionLedger(
+    private static IReadOnlyList<NativeActionLedgerEvent> ValidateNativeActionLedger(
         string directory,
         RecordingManifestV2? manifest,
         IReadOnlyDictionary<string, HumanDecisionRecordV2> admittedRecords,
@@ -191,7 +199,7 @@ public static class V2RecordingAuditor
         string path = Path.Combine(directory, "native-action-ledger.jsonl");
         // V2 recordings sealed before the additive ledger remain readable.
         if (!File.Exists(path))
-            return;
+            return Array.Empty<NativeActionLedgerEvent>();
 
         var events = new List<NativeActionLedgerEvent>();
         foreach ((string line, _) in Lines(path))
@@ -244,9 +252,10 @@ public static class V2RecordingAuditor
                 || EvidenceIdentity.Sha256Json(accepted.BoundAction) != EvidenceIdentity.Sha256Json(record.Action))
                 Add(errors, "native_action_decision_record_mismatch");
         }
+        return events;
     }
 
-    private static void ValidateSemanticBoundaryTrace(
+    private static IReadOnlyList<SemanticBoundaryTraceEvent> ValidateSemanticBoundaryTrace(
         string directory,
         RecordingManifestV2? manifest,
         IDictionary<string, long> errors)
@@ -255,7 +264,7 @@ public static class V2RecordingAuditor
         // The observation-only trace is additive; predecessor V2 sessions do
         // not gain or lose validity based on its absence.
         if (!File.Exists(path))
-            return;
+            return Array.Empty<SemanticBoundaryTraceEvent>();
 
         var events = new List<SemanticBoundaryTraceEvent>();
         foreach ((string line, _) in Lines(path))
@@ -284,6 +293,35 @@ public static class V2RecordingAuditor
         }
         foreach (string error in SemanticBoundaryTraceValidator.Validate(events))
             Add(errors, error);
+        return events;
+    }
+
+    private static void ValidateSchemaTwoSemanticAccounting(
+        IReadOnlyList<NativeActionLedgerEvent> nativeEvents,
+        IReadOnlyList<SemanticBoundaryTraceEvent> semanticEvents,
+        IDictionary<string, long> errors)
+    {
+        // Semantic trace schema 2 promises one accounting path for every exact
+        // accepted Human root. Older sessions with no trace or only schema 1
+        // retain their original meaning and remain readable.
+        if (!semanticEvents.Any(value =>
+                value.SchemaVersion == SemanticBoundaryTraceContract.SchemaVersion
+                && value.Schema == SemanticBoundaryTraceContract.EventSchema))
+            return;
+
+        HashSet<string> semanticAcceptedRecordIds = semanticEvents
+            .Where(value =>
+                value.SchemaVersion == SemanticBoundaryTraceContract.SchemaVersion
+                && value.Kind == SemanticBoundaryTraceKinds.ActionAccepted)
+            .Select(value => value.Action.RecordId)
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (NativeActionLedgerEvent accepted in nativeEvents.Where(value =>
+                     value.SchemaVersion == NativeActionLedgerContract.SchemaVersion
+                     && value.Kind == NativeActionLifecycleKinds.Accepted))
+        {
+            if (!semanticAcceptedRecordIds.Contains(accepted.RecordId))
+                Add(errors, "semantic_trace_missing_accepted_native_action");
+        }
     }
 
     private static T? ReadOrError<T>(string path, IDictionary<string, long> errors, string error)

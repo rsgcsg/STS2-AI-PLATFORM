@@ -717,7 +717,10 @@ internal static class RecorderRuntime
         string nativeActionType,
         ProcessLocalObservedAction observed)
     {
-        if (!AcceptingNewWitnesses())
+        // A source-local callback may invoke another patched UI helper as part
+        // of the same Human input. Only the outer exact callback owns that
+        // input; nested mechanics must not manufacture a second Human action.
+        if (!AcceptingNewWitnesses() || HumanActionScope.Current != null)
             return default;
         try
         {
@@ -1025,7 +1028,7 @@ internal static class RecorderRuntime
             ProcessLocalNativeWitnessFrame frame = CaptureSemanticFrame();
             SemanticBoundaryObservation boundary = CreateSemanticBoundaryObservation(
                 frame,
-                "before_next_human_action_execution",
+                SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
                 actionWitnessId);
             IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
             lock (Gate)
@@ -1055,7 +1058,9 @@ internal static class RecorderRuntime
         try
         {
             ProcessLocalNativeWitnessFrame frame = CaptureSemanticFrame();
-            ObserveSemanticDecisionBoundary(frame, "complete_interactive_observation");
+            ObserveSemanticDecisionBoundary(
+                frame,
+                SemanticBoundaryWitnessKinds.CompleteInteractiveObservation);
         }
         catch (Exception exception)
         {
@@ -1186,7 +1191,7 @@ internal static class RecorderRuntime
             match);
         SemanticBoundaryObservation executionBoundary = CreateSemanticBoundaryObservation(
             frame,
-            "before_direct_ui_commit",
+            SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
             actionWitnessId,
             humanObservation);
         IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
@@ -1341,7 +1346,7 @@ internal static class RecorderRuntime
         {
             string actionWitnessId = $"ui_action_{pending.RecordId}";
             var boundary = new SemanticBoundaryObservation(
-                "before_next_human_action_execution",
+                SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
                 DateTimeOffset.UtcNow,
                 pending.Pre.SnapshotId,
                 "interactive",

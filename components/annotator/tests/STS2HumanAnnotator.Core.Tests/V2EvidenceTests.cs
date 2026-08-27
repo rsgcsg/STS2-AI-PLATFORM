@@ -248,6 +248,97 @@ public sealed class V2EvidenceTests
     }
 
     [Fact]
+    public void SchemaTwoAuditRejectsNativeAcceptedActionMissingFromSemanticTrace()
+    {
+        string root = Temp("v2-semantic-accounting");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            string session;
+            using (var store = V2RecordingStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                HumanDecisionRecord v1 = RecordValidationTests.ValidRecord();
+                HumanDecisionRecordV2 v2 = V2Record(v1, (
+                    PersistReads(store, v1.Pre.SnapshotId),
+                    PersistReads(store, v1.Successor.SnapshotId)));
+                store.AppendDecision(v2);
+
+                var nativeAccepted = new NativeActionLedgerEvent(
+                    NativeActionLedgerContract.SchemaVersion,
+                    NativeActionLedgerContract.EventSchema,
+                    "native-event-1",
+                    manifest.SessionId,
+                    manifest.TimelineId,
+                    "run-0001",
+                    1,
+                    "game-action-missing",
+                    1,
+                    v1.RecordId,
+                    DateTimeOffset.UnixEpoch,
+                    NativeActionLifecycleKinds.Accepted,
+                    "PlayCardAction",
+                    7,
+                    "waiting_for_execution",
+                    Array.Empty<string>(),
+                    "strict_candidate",
+                    null,
+                    v2.Pre,
+                    v2.NativeWitness,
+                    v2.Mapping,
+                    v2.Action);
+                store.AppendNativeActionEvent(nativeAccepted);
+                store.AppendNativeActionEvent(nativeAccepted with
+                {
+                    EventId = "native-event-2",
+                    Sequence = 2,
+                    Kind = NativeActionLifecycleKinds.Cancelled,
+                    NativeState = "cancelled",
+                    TransitionEvidence = "native_cancelled",
+                    DecisionPre = null,
+                    NativeWitness = null,
+                    Mapping = null,
+                    BoundAction = null
+                });
+
+                var directAction = new SemanticActionReference(
+                    "direct-action-accounted",
+                    2,
+                    "direct-record",
+                    "run-0001",
+                    "NPlayerHand.OnSelectModeConfirmButtonPressed",
+                    null,
+                    v2.Pre.SnapshotId)
+                {
+                    NativeMechanism = "direct_ui_commit"
+                };
+                store.AppendSemanticBoundaryEvent(SemanticEvent(
+                    manifest,
+                    1,
+                    SemanticBoundaryTraceKinds.ActionAccepted,
+                    directAction,
+                    v2.Pre));
+                store.AppendSemanticBoundaryEvent(SemanticEvent(
+                    manifest,
+                    2,
+                    SemanticBoundaryTraceKinds.ActionCancelledBeforeStart,
+                    directAction));
+            }
+
+            RecordingAuditResult audit = V2RecordingAuditor.Audit(session);
+
+            Assert.Equal("fail", audit.Status);
+            Assert.Equal(1, audit.Errors["semantic_trace_missing_accepted_native_action"]);
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
     public void V2BundleIsPortableDeterministicAndImmutable()
     {
         string root = Temp("v2-bundle");
@@ -519,6 +610,35 @@ public sealed class V2EvidenceTests
         value.DecisionFamily,
         value.Surface,
         value.Eligibility);
+
+    private static SemanticBoundaryTraceEvent SemanticEvent(
+        RecordingManifestV2 manifest,
+        long sequence,
+        string kind,
+        SemanticActionReference action,
+        FrozenDecisionFrameV2? humanObservation = null) => new(
+            SemanticBoundaryTraceContract.SchemaVersion,
+            SemanticBoundaryTraceContract.EventSchema,
+            $"semantic-event-{sequence}",
+            manifest.SessionId,
+            manifest.TimelineId,
+            action.RunId,
+            sequence,
+            DateTimeOffset.UnixEpoch.AddMilliseconds(sequence),
+            kind,
+            action,
+            kind == SemanticBoundaryTraceKinds.ActionAccepted
+                ? "human_observation_recorded"
+                : "not_a_successful_action",
+            null,
+            null,
+            null,
+            null,
+            null,
+            Array.Empty<string>())
+        {
+            HumanObservation = humanObservation
+        };
 
     private static string Temp(string name) =>
         Path.Combine(Path.GetTempPath(), $"sts2-{name}-{Guid.NewGuid():N}");
