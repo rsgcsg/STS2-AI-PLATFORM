@@ -40,7 +40,9 @@ controller acquisition and never submits a fallback action.
 Before the HTTP service or automatic drive starts, the adapter child emits a
 strict startup attestation containing its Manifest-pinned id, version, protocol
 and complete code digest. Parent Runtime rejects any drift before observation or
-controller activity.
+controller activity. The child has a bounded 30-second startup window so a
+resident model can cold-load before attestation; timeout still closes the child
+and fails before the HTTP service starts.
 
 The current STPD S1 Manifest requests no Reads because its frozen training
 projection used none. Future policies may request advertised Read kinds without

@@ -4,6 +4,8 @@ import { createInterface } from "node:readline";
 import type { Policy, AdapterDecision, PolicyDecisionInput, PolicyManifest, PolicyPortDecisionRequest, PolicyPortDecisionResponse, PolicyPortErrorResponse, PolicyPortReadyResponse } from "./contracts.js";
 import { POLICY_PORT_SCHEMA, assertAdapterDecision, validateAdapterDecision, validatePolicyManifest } from "./contracts.js";
 
+export const DEFAULT_POLICY_ADAPTER_STARTUP_TIMEOUT_MS = 30_000;
+
 export class NdjsonPolicyPort {
   private readonly pending = new Map<string, { expectedDigest: string; expectedCount: number; resolve: (choice: AdapterDecision) => void; reject: (error: Error) => void }>();
   private closed = false;
@@ -50,7 +52,9 @@ export class NdjsonPolicyPort {
     });
   }
 
-  async ready(timeoutMs = 5_000): Promise<PolicyManifest["adapter"]> {
+  async ready(
+    timeoutMs = DEFAULT_POLICY_ADAPTER_STARTUP_TIMEOUT_MS
+  ): Promise<PolicyManifest["adapter"]> {
     if (this.readyAdapter) return this.readyAdapter;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<never>((_resolve, reject) => {
@@ -63,7 +67,10 @@ export class NdjsonPolicyPort {
     }
   }
 
-  async attest(expected: PolicyManifest["adapter"], timeoutMs = 5_000): Promise<PolicyManifest["adapter"]> {
+  async attest(
+    expected: PolicyManifest["adapter"],
+    timeoutMs = DEFAULT_POLICY_ADAPTER_STARTUP_TIMEOUT_MS
+  ): Promise<PolicyManifest["adapter"]> {
     const actual = await this.ready(timeoutMs);
     if (actual.id !== expected.id
         || actual.version !== expected.version

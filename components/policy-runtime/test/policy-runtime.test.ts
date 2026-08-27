@@ -7,7 +7,7 @@ import { admitWholeDecision } from "../src/admission.js";
 import { candidateOrderDigest } from "../src/digest.js";
 import { PolicyRuntime, admitWholeDecisionBundle } from "../src/runtime.js";
 import { ConnectorPolicyClient } from "../src/connector.js";
-import { NdjsonPolicyPort } from "../src/policy-port.js";
+import { DEFAULT_POLICY_ADAPTER_STARTUP_TIMEOUT_MS, NdjsonPolicyPort } from "../src/policy-port.js";
 import { validateAdapterDecision, validatePolicyDecision, validatePolicyManifest, type ConnectorAdapterClient, type DecisionBundle, type PolicyConnector, type PolicyManifest } from "../src/contracts.js";
 import { startPolicyRuntimeHttpServer } from "../src/server.js";
 import { AgentRunEvidence, verifyEvidenceDirectory } from "../src/evidence.js";
@@ -173,6 +173,10 @@ describe("Connector Read materialization", () => {
 });
 
 describe("decision-only process boundary", () => {
+  it("allows a bounded model startup window without weakening attestation", () => {
+    expect(DEFAULT_POLICY_ADAPTER_STARTUP_TIMEOUT_MS).toBe(30_000);
+  });
+
   it("drains bounded child diagnostics without blocking a decision", async () => {
     const script = [
       "process.stderr.write('x'.repeat(100000));",
