@@ -163,7 +163,7 @@ export function validatePlatformBom(bom, authorities) {
 
   const policyCandidate = bom.unified_platform_runtime_candidate;
   expectEqual(errors, "unified Platform candidate status", policyCandidate?.status,
-    "semantic_execution_order_human_canary_partial_exact_rebind_pending");
+    "semantic_execution_order_exact_rebind_live_proved");
   expectEqual(errors, "candidate STPD source", policyCandidate?.external_policy?.stpd_source_revision,
     bom.external_consumer_cutovers?.stpd);
   expectEqual(errors, "candidate policy checkpoint", policyCandidate?.external_policy?.checkpoint_status,
@@ -409,7 +409,7 @@ export function validatePlatformBom(bom, authorities) {
     errors.push("Ledger v1 Live evidence must not transfer to the ledger v2 artifact");
   const semanticCandidate = policyCandidate?.semantic_execution_order_loaded_candidate;
   expectEqual(errors, "semantic execution candidate status", semanticCandidate?.status,
-    "human_canary_partial_exact_rebind_pending");
+    "human_canary_exact_rebind_live_proved");
   expectEqual(errors, "semantic execution candidate artifact", semanticCandidate?.artifact_sha256,
     policyCandidate?.game_mod?.artifact_sha256);
   expectEqual(errors, "semantic execution candidate MVID", semanticCandidate?.artifact_mvid,
@@ -434,56 +434,68 @@ export function validatePlatformBom(bom, authorities) {
     semanticCandidate?.runtime_status, "recording_closed");
   expectEqual(errors, "semantic execution candidate owner canary",
     semanticCandidate?.owner_semantic_execution_order,
-    "partial_pass_exact_reorder_not_exercised");
+    "pass_exact_reorder_rebind_live_proved");
   const semanticCanary = semanticCandidate?.owner_canary;
   expectPattern(errors, "semantic execution owner session", semanticCanary?.session_id,
     /^session-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{32}$/u);
   expectEqual(errors, "semantic execution owner audit", semanticCanary?.audit_status, "pass");
   expectEqual(errors, "semantic execution Human origin", semanticCanary?.human_origin,
     "owner_attested_not_machine_proven");
-  expectEqual(errors, "semantic execution valid records", semanticCanary?.valid_records, 9);
+  expectEqual(errors, "semantic execution valid records", semanticCanary?.valid_records, 3);
   expectEqual(errors, "semantic execution invalid records", semanticCanary?.invalid_records, 0);
-  expectEqual(errors, "semantic execution invalidations", semanticCanary?.invalidations, 29);
-  expectEqual(errors, "semantic execution Reads", semanticCanary?.reads_materialized, 88);
+  expectEqual(errors, "semantic execution invalidations", semanticCanary?.invalidations, 32);
+  expectEqual(errors, "semantic execution Reads", semanticCanary?.reads_materialized, 64);
   expectEqual(errors, "semantic execution Read failures", semanticCanary?.reads_failed, 0);
   for (const [label, value] of [
     ["semantic execution Decision V2 SHA", semanticCanary?.decision_v2_sha256],
     ["semantic execution invalidations SHA", semanticCanary?.invalidations_sha256],
     ["semantic execution ledger SHA", semanticCanary?.ledger_sha256],
-    ["semantic execution trace SHA", semanticCanary?.semantic_trace_sha256]
+    ["semantic execution trace SHA", semanticCanary?.semantic_trace_sha256],
+    ["semantic execution RunJournal SHA", semanticCanary?.run_journal_sha256]
   ]) expectPattern(errors, label, value, SHA256);
   expectEqual(errors, "semantic execution ledger schema", semanticCanary?.ledger_schema,
     "sts2.human-annotator/native-action-ledger-event-2");
-  expectEqual(errors, "semantic execution ledger accepted", semanticCanary?.ledger_accepted, 34);
-  expectEqual(errors, "semantic execution ledger started", semanticCanary?.ledger_started, 32);
-  expectEqual(errors, "semantic execution ledger finished", semanticCanary?.ledger_finished, 30);
-  expectEqual(errors, "semantic execution ledger cancelled", semanticCanary?.ledger_cancelled, 4);
-  expectEqual(errors, "semantic execution ledger admitted", semanticCanary?.ledger_strict_admitted, 9);
+  expectEqual(errors, "semantic execution ledger accepted", semanticCanary?.ledger_accepted, 28);
+  expectEqual(errors, "semantic execution ledger started", semanticCanary?.ledger_started, 24);
+  expectEqual(errors, "semantic execution ledger finished", semanticCanary?.ledger_finished, 16);
+  expectEqual(errors, "semantic execution ledger cancelled", semanticCanary?.ledger_cancelled, 12);
+  expectEqual(errors, "semantic execution ledger admitted", semanticCanary?.ledger_strict_admitted, 3);
   expectEqual(errors, "semantic execution ledger invalidated",
     semanticCanary?.ledger_strict_invalidated, 25);
   expectEqual(errors, "semantic execution ledger unresolved", semanticCanary?.ledger_unresolved, 0);
   expectEqual(errors, "semantic execution player-choice lifecycle",
     semanticCanary?.player_choice_pause_resume, "pass");
-  expectEqual(errors, "semantic execution accepted", semanticCanary?.semantic_accepted, 35);
-  expectEqual(errors, "semantic execution proved", semanticCanary?.semantic_proved, 24);
-  expectEqual(errors, "semantic execution unknown", semanticCanary?.semantic_unknown, 6);
+  expectEqual(errors, "semantic execution accepted", semanticCanary?.semantic_accepted, 29);
+  expectEqual(errors, "semantic execution started", semanticCanary?.semantic_started, 25);
+  expectEqual(errors, "semantic execution proved", semanticCanary?.semantic_proved, 6);
+  expectEqual(errors, "semantic execution unknown", semanticCanary?.semantic_unknown, 11);
+  expectEqual(errors, "semantic execution unknown incomplete execution boundary",
+    semanticCanary?.semantic_unknown_execution_boundary_incomplete, 6);
+  expectEqual(errors, "semantic execution unknown incomplete successor boundary",
+    semanticCanary?.semantic_unknown_successor_boundary_incomplete, 4);
+  expectEqual(errors, "semantic execution unknown Close before boundary",
+    semanticCanary?.semantic_unknown_recording_closed_before_boundary, 1);
   expectEqual(errors, "semantic execution cancel before start",
-    semanticCanary?.semantic_cancelled_before_start, 2);
+    semanticCanary?.semantic_cancelled_before_start, 4);
   expectEqual(errors, "semantic execution cancel after start",
-    semanticCanary?.semantic_cancelled_after_start, 2);
+    semanticCanary?.semantic_cancelled_after_start, 8);
   expectEqual(errors, "semantic execution abort before Commit",
-    semanticCanary?.semantic_aborted_before_commit, 1);
+    semanticCanary?.semantic_aborted_before_commit, 0);
   expectEqual(errors, "semantic execution unresolved", semanticCanary?.semantic_unresolved, 0);
   expectEqual(errors, "semantic execution intervening-start proofs",
     semanticCanary?.proved_with_intervening_human_start, 0);
   expectEqual(errors, "semantic execution pre-boundary mismatches",
     semanticCanary?.proved_pre_execution_boundary_mismatch, 0);
   expectEqual(errors, "semantic execution exact rebind count",
-    semanticCanary?.exact_execution_order_rebinds, 0);
+    semanticCanary?.exact_execution_order_rebinds, 2);
+  expectEqual(errors, "semantic execution exact rebind proved transitions",
+    semanticCanary?.exact_rebind_proved_transitions, 1);
+  expectEqual(errors, "semantic execution exact rebind native cancellations",
+    semanticCanary?.exact_rebind_native_cancellations, 1);
   expectEqual(errors, "semantic execution generated-card select",
     semanticCanary?.generated_card_select, "pass");
   expectEqual(errors, "semantic execution exact reorder claim",
-    semanticCanary?.exact_reorder_rebind, "not_exercised");
+    semanticCanary?.exact_reorder_rebind, "pass_live_proved");
   expectEqual(errors, "semantic execution candidate evidence transfer",
     semanticCandidate?.evidence_transfer_from_predecessor, false);
   expectEqual(errors, "semantic execution candidate rollback", semanticCandidate?.rollback,
@@ -582,7 +594,7 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "human origin boundary", humanGate?.human_origin,
     "owner_attested_not_machine_proven");
   expectEqual(errors, "support level", bom.support_level,
-    "human_evidence_v2_semantic_canary_partial_exact_rebind_pending");
+    "human_evidence_v2_semantic_exact_rebind_live_proved");
   if (!bom.non_claims?.includes("human_origin_owner_attested_not_machine_proven"))
     errors.push("human-origin epistemic-boundary non-claim is missing");
   if (!bom.non_claims?.includes("current_v2_candidate_generated_card_choice_not_exercised"))
@@ -596,9 +608,8 @@ export function validatePlatformBom(bom, authorities) {
     errors.push("Native-rejected attempt attribution non-claim is missing");
   if (!bom.non_claims?.includes("rapid_ledger_v1_invalidated_targeting_classification_unavailable"))
     errors.push("Rapid ledger v1 decision-payload non-claim is missing");
-  if (!bom.non_claims?.includes(
-    "semantic_execution_order_exact_rebind_not_exercised"))
-    errors.push("Semantic execution-order exact-rebind non-claim is missing");
+  if (bom.non_claims?.includes("semantic_execution_order_exact_rebind_not_exercised"))
+    errors.push("Live-proved semantic execution-order rebind retains a stale non-claim");
   if (!bom.non_claims?.includes("automated_input_canary_is_not_owner_visibility_evidence"))
     errors.push("Automated-input epistemic-boundary non-claim is missing");
   if (!bom.non_claims?.includes("s1_checkpoint_absent_shadow_one_step_auto_not_exercised"))

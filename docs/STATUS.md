@@ -1,8 +1,8 @@
 # Current Status
 
-Phase: **rapid accepted-action lifecycle accounting is Live-proved; corrected
-semantic S -> A -> S' coordination has bounded Human evidence, with the exact
-choice-before-earlier-queued-action rebind still pending natural exercise**.
+Phase: **rapid accepted-action lifecycle accounting and the corrected semantic
+S -> A -> S' execution-order rebind are Live-proved on the current exact
+artifact; lethal cross-surface and Full-Run settlement remain out of claim**.
 
 ## Implemented
 
@@ -66,15 +66,24 @@ choice-before-earlier-queued-action rebind still pending natural exercise**.
   `semantic_transition_pre_not_execution_boundary`; its two Decision V2 records
   remain readable. Corrected source `cb20bfa...` is now built, installed and
   cold-loaded as `04104ca5... / 7408a183...` in runtime `97829317...` with the
-  sole exact `STS2_PLATFORM` Mod. Owner session
-  `session-20260826T150700Z-...` then accounted for all 35 accepted Human
+  sole exact `STS2_PLATFORM` Mod. Initial owner session
+  `session-20260826T150700Z-...` accounted for all 35 accepted Human
   actions: 24 proved transitions, six explicit unknowns, four native
   cancellations and one PlayCard abort before Commit. It exercised rapid
   chains, End Turn, generated-card select and player-choice pause/resume; every
   acceptance has one disposition, all proved pre-states match their exact
   execution boundary, and no proof crosses another Human action start. The
-  predecessor's exact acceptance/execution reorder did not recur, so the
-  complete rebind branch remains source/test-proved rather than Live-proved.
+  predecessor's exact acceptance/execution reorder did not recur in that run.
+  Latest closed owner session `session-20260827T014202Z-...`, runtime
+  `2388aba0...`, then exercised two complete execution-order rebinds after a
+  later accepted generated-card selection started first. One rebound action was
+  natively cancelled without a false S', and the other proved a transition
+  whose semantic pre exactly equals its complete execution boundary. All 29
+  acceptances have one disposition: six proved, eleven explicit unknown, four
+  cancelled before start and eight cancelled after start. The eleven unknowns
+  are individually audited as six incomplete execution boundaries, four
+  incomplete successors before the next Human start and one owner Close before
+  successor; none is an unaccounted cancellation or implementation defect.
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.
 - Workbench `0.1.0-rc.1` provides Environment, Policy, Human Data, Evidence,
@@ -312,7 +321,7 @@ not a semantic seal. See the dated owner-canary report.
   retroactively proves a strict successor for overlap. The semantic-boundary
   sidecar predecessor run proves action accounting but contains one rejected
   semantic proof. The corrected artifact is now owner-operated and proves the
-  bounded paths listed above, but not the exact reorder/rebind branch, lethal
+  bounded paths and exact reorder/rebind branch listed above, but not lethal
   cross-surface settlement, Full Run, corpus admission or training authority.
 - H0/H1/H2 are automated real-runtime evidence, not human validation, a full
   game journey, durable qualification, semantic parity or long-soak proof.

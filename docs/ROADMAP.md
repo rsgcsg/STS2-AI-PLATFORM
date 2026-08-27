@@ -159,18 +159,20 @@ action-family expansion remain outside this bounded baseline.
 - Complete corrected build/install/cold-load: artifact
   `04104ca5... / 7408a183...` is Ready in runtime `97829317...` with exact STS2
   and the sole `STS2_PLATFORM` Mod.
-- Complete corrected-artifact bounded Human runtime: session
+- Complete corrected-artifact initial bounded Human runtime: session
   `session-20260826T150700Z-...` accounted for all 35 accepted Human actions
   with 24 proved, six unknown, four cancelled and one pre-Commit abort. It
   exercised native ledger v2, rapid chains, End Turn, player-choice
   pause/resume and generated-card select; the audit passed with no false
   transition finding.
-- Pending narrow exact-reorder runtime: reproduce a later accepted generated
-  choice executing before an earlier queued action and observe either a
-  complete execution-boundary rebind or an explicit unknown. This canary had
-  zero such reorder/rebind events. Lethal cross-surface settlement and
-  Full-Run surfaces remain opportunistic. No corpus or training authority is
-  implied.
+- Complete narrow exact-reorder runtime: latest closed owner session
+  `session-20260827T014202Z-...` exercised two complete execution-boundary
+  rebinds after a later accepted generated-card choice executed first. One
+  rebound action was natively cancelled without a false successor; the other
+  proved from its rebound boundary with no intervening Human start. All eleven
+  transition unknowns were individually audited and remain correct fail-closed
+  outcomes. Lethal cross-surface settlement and Full-Run surfaces remain
+  opportunistic. No corpus or training authority is implied.
 
 Next phase, not part of this slice: **Live Workspace Window Kernel -> Human
 Recorder Window**.

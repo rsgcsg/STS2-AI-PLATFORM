@@ -87,10 +87,7 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
     (claim) => claim !==
       "native_rejected_cancelled_attempt_absence_owner_attested_not_machine_attributable"
   );
-  bom.non_claims = bom.non_claims.filter(
-    (claim) => claim !==
-      "semantic_execution_order_exact_rebind_not_exercised"
-  );
+  bom.non_claims.push("semantic_execution_order_exact_rebind_not_exercised");
   const errors = validatePlatformBom(bom, await readBomAuthorities(root));
   assert.ok(errors.some((error) => error.startsWith("candidate current Live UI source:")));
   assert.ok(errors.some((error) => error.startsWith("candidate common artifact SHA (live_ui):")));
@@ -112,5 +109,7 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   assert.ok(errors.some((error) => error.startsWith("candidate policy checkpoint:")));
   assert.ok(errors.includes("S1 checkpoint/model-mode non-claim is missing"));
   assert.ok(errors.includes("Native-rejected attempt attribution non-claim is missing"));
-  assert.ok(errors.includes("Semantic execution-order exact-rebind non-claim is missing"));
+  assert.ok(errors.includes(
+    "Live-proved semantic execution-order rebind retains a stale non-claim"
+  ));
 });

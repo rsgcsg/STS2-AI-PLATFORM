@@ -1,8 +1,8 @@
 # Current Context
 
 Phase: **Human Evidence V2 remains verified; corrected semantic-boundary source
-has bounded exact-artifact Human evidence, while the predecessor's precise
-choice-before-queued-action rebind remains pending natural exercise.**
+has exact-artifact Human evidence for execution-order rebind. Lethal
+cross-surface and Full-Run settlement remain outside the current claim.**
 
 `STS2-AI-PLATFORM` is the only forward-development source authority for the
 Platform components. The root BOM and component release manifests are the
@@ -40,8 +40,13 @@ identity registry.
   `04104ca5... / 7408a183...` is installed and loaded in runtime `97829317...`;
   owner session `session-20260826T150700Z-...` accounted for 35/35 accepted
   actions with 24 proved, six unknown, four cancelled and one pre-Commit abort.
-  It did not reproduce a later accepted choice executing before an earlier
-  queued action, so the exact rebind branch remains pending Live evidence.
+  Latest closed owner session `session-20260827T014202Z-...` on the same Native
+  artifact, runtime `2388aba0...`, then reproduced a later accepted generated
+  choice executing first. It exercised two complete pre-execution rebinds: one
+  action was subsequently cancelled without a false S', while the other proved
+  from the rebound boundary. Eleven explicit unknowns were audited as missing
+  complete execution/successor boundaries or owner Close before successor;
+  none is silent loss.
 - The S1 checkpoint named by the current Policy Manifest is unavailable on this
   Mac. Policy model modes and owner operation of the new UI remain unexercised.
 
