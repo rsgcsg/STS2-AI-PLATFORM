@@ -1,13 +1,14 @@
 # Current Context
 
-Phase: **Human Evidence V2 remains verified; corrected semantic-boundary source
-has exact-artifact Human evidence for execution-order rebind. Lethal
-cross-surface and Full-Run settlement remain outside the current claim.**
+Phase: **Human Evidence V2 remains verified; semantic trace schema 2 is a
+bounded Human-proved freeze candidate for ordinary combat and generated-card
+select. Exact schema-2 reorder, lethal cross-surface and Full-Run settlement
+remain outside the current claim.**
 
 The current working source introduces semantic trace schema 2 and a continuous
-execution-owned S timeline. It has automated evidence only until its final
-artifact is cold-loaded and owner-operated; schema-1 owner evidence remains a
-predecessor baseline.
+execution-owned S timeline. Its final artifact is cold-loaded and owner-
+operated; schema-1 owner evidence remains a predecessor baseline and is not
+promoted.
 
 `STS2-AI-PLATFORM` is the only forward-development source authority for the
 Platform components. The root BOM and component release manifests are the
@@ -52,6 +53,14 @@ identity registry.
   from the rebound boundary. Eleven explicit unknowns were audited as missing
   complete execution/successor boundaries or owner Close before successor;
   none is silent loss.
+- Schema-2 artifact `eb7ed072... / 34a36a2b...`, Annotator source `fed721c...`,
+  is loaded in runtime `b24a9d44...`. Latest owner session
+  `session-20260827T042832Z-...` accounts for 31/31 accepted roots: 19 proved,
+  nine cancelled before start and three cancelled after start with explicit
+  unknown transition. It proves generated-card select and a Play -> End Turn
+  execution handoff with `A.S' == next S`; all proved pre-states match exact
+  execution boundaries and none crosses another Human start. Exact execution
+  reorder did not recur on this schema-2 artifact.
 - The S1 checkpoint named by the current Policy Manifest is unavailable on this
   Mac. Policy model modes and owner operation of the new UI remain unexercised.
 

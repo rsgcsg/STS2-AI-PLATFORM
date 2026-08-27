@@ -177,8 +177,14 @@ action-family expansion remain outside this bounded baseline.
   exact execution consumes a state-complete boundary, action-catalog readiness
   is independent, unknown does not cascade into the next proved execution
   boundary, and Close drains semantic work before bounded unknown disposition.
-  The final artifact still requires a new cold-load and ordinary/rapid/A11
-  owner canary; predecessor schema-1 evidence is not transferred.
+  Exact artifact `eb7ed072... / 34a36a2b...` is cold-loaded in runtime
+  `b24a9d44...`; latest owner session `session-20260827T042832Z-...` proves 19
+  transitions, including rapid Play, generated-card select and a direct Play ->
+  End Turn execution handoff, with zero false/interleaved proof and complete
+  accounting for all 31 accepted roots. Exact schema-2 execution reorder,
+  catalog-incomplete Live handoff and successful pending-edge Close drain remain
+  targeted evidence gaps; predecessor schema-1 evidence is not transferred.
 
-Next phase, not part of this slice: **Live Workspace Window Kernel -> Human
-Recorder Window**.
+Next semantic phase, on a separate topic branch: structural-only Annotator
+cleanup without changing frozen bounded behavior. Rapid lethal and combat ->
+reward are later independent feature branches, not this closeout.

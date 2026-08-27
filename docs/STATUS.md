@@ -13,15 +13,16 @@ GitHub enforcement is an operational fact separate from this source document;
 the workflow records intended rules, while repository settings must be checked
 directly before claiming protection.
 
-Phase: **rapid accepted-action lifecycle accounting and the corrected semantic
-S -> A -> S' execution-order rebind are Live-proved on the current exact
-artifact; lethal cross-surface and Full-Run settlement remain out of claim**.
+Phase: **semantic trace schema 2 is a bounded Human-proved freeze candidate for
+ordinary combat and generated-card select; exact schema-2 execution reorder,
+lethal cross-surface and Full-Run settlement remain out of claim**.
 
-Current source advances that proved predecessor into semantic trace schema 2:
+Current source advances the proved predecessor into semantic trace schema 2:
 H is observation-only, execution binds S, state/Read/catalog completeness are
 orthogonal, and Close drains an unresolved semantic edge before classifying it
-unknown. Portable tests pass for the focused slice; build/install/load/Live
-claims remain separate and the schema-1 runtime evidence below is not promoted.
+unknown. Artifact `eb7ed072... / 34a36a2b...` is built, installed and loaded;
+latest owner session `session-20260827T042832Z-...` supplies bounded Human
+evidence without promoting any schema-1 row.
 
 ## Implemented
 
@@ -103,6 +104,17 @@ claims remain separate and the schema-1 runtime evidence below is not promoted.
   are individually audited as six incomplete execution boundaries, four
   incomplete successors before the next Human start and one owner Close before
   successor; none is an unaccounted cancellation or implementation defect.
+- Semantic trace schema 2 is loaded from exact Annotator source `fed721c...` as
+  unified artifact `eb7ed072... / 34a36a2b...` in runtime `b24a9d44...`, STS2
+  `v0.111.0 / 41cef1ea`, with the sole exact `STS2_PLATFORM` Mod. Latest owner
+  session `session-20260827T042832Z-...` has 31 accepted roots and exactly one
+  disposition each: 19 proved, nine cancelled before start and three cancelled
+  after start with unknown transition; there are no standalone boundary
+  unknowns or unresolved roots. All proved pre-states match their exact
+  execution boundary, no proof crosses another Human start, generated-card
+  select is proved, and a direct Play -> End Turn handoff has `A.S' == next S`.
+  Acceptance/execution reorder did not recur on this artifact. See the
+  [schema-2 owner closeout](evidence/SEMANTIC_TIMELINE_OWNER_CLOSEOUT_2026-08-27.md).
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.
 - Workbench `0.1.0-rc.1` provides Environment, Policy, Human Data, Evidence,
@@ -339,16 +351,17 @@ not a semantic seal. See the dated owner-canary report.
   evidence for bounded accounting in their observed rapid windows; neither
   retroactively proves a strict successor for overlap. The semantic-boundary
   sidecar predecessor run proves action accounting but contains one rejected
-  semantic proof. The corrected artifact is now owner-operated and proves the
-  bounded paths and exact reorder/rebind branch listed above, but not lethal
-  cross-surface settlement, Full Run, corpus admission or training authority.
+  semantic proof. Schema 2 is now owner-operated and proves bounded ordinary
+  combat, generated-card select and direct execution handoff. Exact reorder on
+  the schema-2 artifact, catalog-incomplete Live handoff, successful pending-
+  edge Close drain, lethal cross-surface settlement, Full Run, corpus admission
+  and training authority remain non-claims.
 - H0/H1/H2 are automated real-runtime evidence, not human validation, a full
   game journey, durable qualification, semantic parity or long-soak proof.
 - The optional noninteractive Host execution profile was not implemented by the
   current Connector and remains a non-claim; shipped-default semantics passed.
-- Generated-card select has one audited native-human predecessor record;
-  generated-card skip remains `not exercised`. Neither claim transfers to the
-  current unified artifact.
+- Generated-card select is audited on the current schema-2 unified artifact;
+  generated-card skip remains `not exercised`.
 - The V2 bundle/store/receiver/STPD path is verified, but this does not authorize
   corpus inclusion or training and does not qualify unexercised action families.
 - Platform Evidence is a focused evidence-integrity package, not a

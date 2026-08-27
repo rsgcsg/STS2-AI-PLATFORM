@@ -193,7 +193,7 @@ export function validatePlatformBom(bom, authorities) {
     "loaded_native_source_precedes_current_semantic_timeline_source");
   const semanticTimeline = policyCandidate?.semantic_timeline_source_candidate;
   expectEqual(errors, "semantic timeline source status", semanticTimeline?.status,
-    "source_test_built_installed_pending_cold_load");
+    "human_canary_bounded_live_proved");
   expectEqual(errors, "semantic timeline current Annotator source",
     semanticTimeline?.annotator_source_revision, bom.components?.annotator?.source_revision);
   expectEqual(errors, "semantic timeline trace schema", semanticTimeline?.trace_schema,
@@ -206,9 +206,74 @@ export function validatePlatformBom(bom, authorities) {
   expectPattern(errors, "semantic timeline MVID", semanticTimeline?.artifact_mvid, MVID);
   expectEqual(errors, "semantic timeline built", semanticTimeline?.built, "pass");
   expectEqual(errors, "semantic timeline installed", semanticTimeline?.installed, "pass");
-  expectEqual(errors, "semantic timeline loaded", semanticTimeline?.loaded, "non_claim");
+  expectEqual(errors, "semantic timeline loaded", semanticTimeline?.loaded, "pass");
   expectEqual(errors, "semantic timeline Human runtime", semanticTimeline?.human_runtime,
-    "pending_exact_runtime_evidence");
+    "pass_bounded_owner_canary");
+  expectEqual(errors, "semantic timeline protocol", semanticTimeline?.player_environment_protocol,
+    bom.components?.player_environment_protocol);
+  expectPattern(errors, "semantic timeline runtime", semanticTimeline?.runtime_instance_id,
+    /^[0-9a-f]{32}$/u);
+  expectPattern(errors, "semantic timeline environment", semanticTimeline?.environment_fingerprint,
+    SHA256);
+  expectEqual(errors, "semantic timeline Modset status", semanticTimeline?.modset_status,
+    "exact_platform_modset");
+  expectPattern(errors, "semantic timeline Modset", semanticTimeline?.modset_fingerprint, SHA256);
+  expectEqual(errors, "semantic timeline loaded Mods",
+    JSON.stringify(semanticTimeline?.loaded_mod_ids), JSON.stringify(["STS2_PLATFORM"]));
+  const timelineCanary = semanticTimeline?.owner_canary;
+  expectPattern(errors, "semantic timeline owner session", timelineCanary?.session_id,
+    /^session-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{32}$/u);
+  expectPattern(errors, "semantic timeline owner timeline", timelineCanary?.timeline_id,
+    /^timeline-[0-9a-f]{32}$/u);
+  expectEqual(errors, "semantic timeline owner audit", timelineCanary?.audit_status, "pass");
+  expectEqual(errors, "semantic timeline owner origin", timelineCanary?.human_origin,
+    "owner_attested_not_machine_proven");
+  for (const [label, actual, expected] of [
+    ["valid records", timelineCanary?.valid_records, 11],
+    ["invalid records", timelineCanary?.invalid_records, 0],
+    ["invalidations", timelineCanary?.invalidations, 38],
+    ["Reads", timelineCanary?.reads_materialized, 3116],
+    ["Read failures", timelineCanary?.reads_failed, 0],
+    ["ledger accepted", timelineCanary?.ledger_accepted, 30],
+    ["ledger started", timelineCanary?.ledger_started, 21],
+    ["ledger finished", timelineCanary?.ledger_finished, 18],
+    ["ledger cancelled", timelineCanary?.ledger_cancelled, 12],
+    ["ledger admitted", timelineCanary?.ledger_strict_admitted, 10],
+    ["ledger invalidated", timelineCanary?.ledger_strict_invalidated, 20],
+    ["ledger unresolved", timelineCanary?.ledger_unresolved, 0],
+    ["semantic accepted", timelineCanary?.semantic_accepted, 31],
+    ["semantic started", timelineCanary?.semantic_started, 22],
+    ["semantic proved", timelineCanary?.semantic_proved, 19],
+    ["semantic standalone unknown", timelineCanary?.semantic_standalone_unknown, 0],
+    ["semantic cancelled before start", timelineCanary?.semantic_cancelled_before_start, 9],
+    ["semantic cancelled after start", timelineCanary?.semantic_cancelled_after_start_unknown, 3],
+    ["semantic abort", timelineCanary?.semantic_aborted_before_commit, 0],
+    ["semantic unresolved", timelineCanary?.semantic_unresolved, 0],
+    ["intervening Human start", timelineCanary?.proved_with_intervening_human_start, 0],
+    ["pre/execution mismatch", timelineCanary?.proved_pre_execution_boundary_mismatch, 0],
+    ["execution handoff proved", timelineCanary?.execution_handoff_proved, 1],
+    ["execution handoff mismatch", timelineCanary?.execution_handoff_mismatch, 0],
+    ["complete execution boundaries", timelineCanary?.execution_boundary_complete_state_reads, 22]
+  ]) expectEqual(errors, `semantic timeline ${label}`, actual, expected);
+  for (const [label, value] of [
+    ["Decision V2 SHA", timelineCanary?.decision_v2_sha256],
+    ["invalidations SHA", timelineCanary?.invalidations_sha256],
+    ["ledger SHA", timelineCanary?.ledger_sha256],
+    ["trace SHA", timelineCanary?.semantic_trace_sha256],
+    ["RunJournal SHA", timelineCanary?.run_journal_sha256]
+  ]) expectPattern(errors, `semantic timeline ${label}`, value, SHA256);
+  expectEqual(errors, "semantic timeline ledger schema", timelineCanary?.ledger_schema,
+    "sts2.human-annotator/native-action-ledger-event-2");
+  expectEqual(errors, "semantic timeline generated choice", timelineCanary?.generated_card_select,
+    "pass");
+  expectEqual(errors, "semantic timeline generated skip", timelineCanary?.generated_card_skip,
+    "not_exercised");
+  expectEqual(errors, "semantic timeline current exact reorder",
+    timelineCanary?.exact_execution_order_rebind, "not_exercised_on_schema2_artifact");
+  expectEqual(errors, "semantic timeline catalog-incomplete handoff",
+    timelineCanary?.catalog_incomplete_handoff, "not_exercised");
+  expectEqual(errors, "semantic timeline pending Close",
+    timelineCanary?.close_pending_edge_to_proof, "not_exercised");
   expectEqual(errors, "semantic timeline predecessor evidence transfer",
     semanticTimeline?.evidence_transfer_from_predecessor, false);
   expectPattern(errors, "semantic timeline rollback", semanticTimeline?.rollback,
@@ -618,11 +683,19 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "human origin boundary", humanGate?.human_origin,
     "owner_attested_not_machine_proven");
   expectEqual(errors, "support level", bom.support_level,
-    "human_evidence_v2_semantic_exact_rebind_live_proved");
+    "human_evidence_v2_semantic_timeline_bounded_live_proved");
   if (!bom.non_claims?.includes("human_origin_owner_attested_not_machine_proven"))
     errors.push("human-origin epistemic-boundary non-claim is missing");
-  if (!bom.non_claims?.includes("current_v2_candidate_generated_card_choice_not_exercised"))
-    errors.push("Current V2 candidate generated-card-choice non-claim is missing");
+  if (!bom.non_claims?.includes("read_rich_v2_candidate_generated_card_choice_not_exercised"))
+    errors.push("Read-rich V2 predecessor generated-card-choice non-claim is missing");
+  for (const value of [
+    "schema2_exact_execution_order_rebind_not_exercised",
+    "schema2_catalog_incomplete_handoff_not_exercised",
+    "schema2_close_pending_edge_to_proof_not_exercised"
+  ]) {
+    if (!bom.non_claims?.includes(value))
+      errors.push(`Schema-2 semantic timeline non-claim is missing: ${value}`);
+  }
   if (!bom.non_claims?.includes("generated_card_skip_not_exercised"))
     errors.push("Generated-card skip non-claim is missing");
   if (!bom.non_claims?.includes("v2_corpus_and_training_not_authorized"))

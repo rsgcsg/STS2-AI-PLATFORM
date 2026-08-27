@@ -50,13 +50,13 @@ test("BOM check rejects V2 evidence and selector-claim drift", async () => {
   bom.current_v2_candidate.native_human_gate.transfer.retry_status = "promoted";
   bom.current_v2_candidate.native_human_gate.generated_card_choice.runtime_status = "pass";
   bom.non_claims = bom.non_claims.filter(
-    (claim) => claim !== "current_v2_candidate_generated_card_choice_not_exercised"
+    (claim) => claim !== "read_rich_v2_candidate_generated_card_choice_not_exercised"
   );
   const errors = validatePlatformBom(bom, await readBomAuthorities(root));
   assert.ok(errors.some((error) => error.startsWith("V2 run-deck Reads:")));
   assert.ok(errors.some((error) => error.startsWith("V2 transfer retry:")));
   assert.ok(errors.some((error) => error.startsWith("V2 selector runtime:")));
-  assert.ok(errors.includes("Current V2 candidate generated-card-choice non-claim is missing"));
+  assert.ok(errors.includes("Read-rich V2 predecessor generated-card-choice non-claim is missing"));
 });
 
 test("BOM check rejects unified artifact, identity and evidence promotion", async () => {
@@ -66,7 +66,8 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   candidate.live_ui.artifact_sha256 = "0".repeat(64);
   candidate.connector.current_component_source_revision = "0".repeat(40);
   candidate.annotator.source_relation = "loaded_native_source_scope_matches_current_component";
-  candidate.semantic_timeline_source_candidate.loaded = "pass";
+  candidate.semantic_timeline_source_candidate.loaded = "non_claim";
+  candidate.semantic_timeline_source_candidate.owner_canary.semantic_proved = 18;
   candidate.semantic_timeline_source_candidate.evidence_transfer_from_predecessor = true;
   candidate.game_mod.installed = "pending";
   candidate.runtime.execution_available = false;
@@ -97,6 +98,7 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   assert.ok(errors.some((error) => error.startsWith("candidate current Connector source:")));
   assert.ok(errors.some((error) => error.startsWith("candidate Annotator source relation:")));
   assert.ok(errors.some((error) => error.startsWith("semantic timeline loaded:")));
+  assert.ok(errors.some((error) => error.startsWith("semantic timeline semantic proved:")));
   assert.ok(errors.some((error) =>
     error.startsWith("semantic timeline predecessor evidence transfer:")));
   assert.ok(errors.some((error) => error.startsWith("candidate Game Mod installed:")));
