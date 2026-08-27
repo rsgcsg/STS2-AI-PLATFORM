@@ -28,9 +28,9 @@
     },
     "policy_runtime": {
       "version": "0.1.0-rc.1",
-      "source_revision": "4799f0cbf6028ed39ba03648db680115359f667a",
-      "component_tree_revision": "605dc5806a462b910487fd94e1710ec483d1f7e6",
-      "component_source_digest_sha256": "b798ec425e2651359702a3d1ceb8e765d5e9889f65fac92ac62be3abd5015620"
+      "source_revision": "e19b30315015664a5647ab351cdcefb09417f275",
+      "component_tree_revision": "4abdd055564119c039099eccdedfa3758aba4ad1",
+      "component_source_digest_sha256": "d227321727d07edd2d4c67928edec439c26f156494dd9cfab98d2bac4debf346"
     },
     "workbench": {
       "version": "0.1.0-rc.1",
@@ -257,8 +257,8 @@
       "protocol": "1.0.0"
     },
     "policy_runtime": {
-      "source_revision": "4799f0cbf6028ed39ba03648db680115359f667a",
-      "source_digest_sha256": "b798ec425e2651359702a3d1ceb8e765d5e9889f65fac92ac62be3abd5015620",
+      "source_revision": "e19b30315015664a5647ab351cdcefb09417f275",
+      "source_digest_sha256": "d227321727d07edd2d4c67928edec439c26f156494dd9cfab98d2bac4debf346",
       "version": "0.1.0-rc.1"
     },
     "annotator": {
