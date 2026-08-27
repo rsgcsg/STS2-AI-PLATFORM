@@ -65,5 +65,6 @@ non-claims until separately encountered or implemented.
 
 Current repair source is `c8775e1066137c1a7e00993a7ab74493a11717f7`.
 Its clean unified build is `8d2f7d2a8e95eac424aa7fed7f22e825821609b83526d38605e813b6a9692c35 /
-3043f4f4-63c8-4058-8f4e-44b60801d3d5`. Installed, loaded and Human runtime are
-pending; no predecessor Live evidence transfers.
+3043f4f4-63c8-4058-8f4e-44b60801d3d5`. Safe install passed with rollback
+`apps/game-mod/.local/deployments/2026-08-27T15-04-13.434Z`; loaded and Human
+runtime remain pending, and no predecessor Live evidence transfers.

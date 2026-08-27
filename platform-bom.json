@@ -359,9 +359,10 @@
       ],
       "annotator_core_tests": 77,
       "built": "pass",
-      "installed": "pending_safe_deploy",
+      "installed": "pass",
       "loaded": "non_claim",
       "human_runtime": "pending_exact_runtime_evidence",
+      "rollback": "apps/game-mod/.local/deployments/2026-08-27T15-04-13.434Z",
       "predecessor_owner_canary": "failed_semantic_accounting",
       "predecessor_missing_semantic_native_roots": 546,
       "evidence_transfer_from_schema2_predecessor": false

@@ -312,7 +312,7 @@ export function validatePlatformBom(bom, authorities) {
     ]));
   expectEqual(errors, "Full-Run tests", fullRun?.annotator_core_tests, 77);
   expectEqual(errors, "Full-Run build", fullRun?.built, "pass");
-  expectEqual(errors, "Full-Run install", fullRun?.installed, "pending_safe_deploy");
+  expectEqual(errors, "Full-Run install", fullRun?.installed, "pass");
   expectEqual(errors, "Full-Run loaded", fullRun?.loaded, "non_claim");
   expectEqual(errors, "Full-Run Human runtime", fullRun?.human_runtime,
     "pending_exact_runtime_evidence");
@@ -322,6 +322,8 @@ export function validatePlatformBom(bom, authorities) {
     fullRun?.predecessor_owner_canary, "failed_semantic_accounting");
   expectEqual(errors, "Full-Run predecessor missing semantic roots",
     fullRun?.predecessor_missing_semantic_native_roots, 546);
+  expectPattern(errors, "Full-Run rollback", fullRun?.rollback,
+    /^apps\/game-mod\/\.local\/deployments\//u);
   if (fullRun?.annotator_source_revision === semanticTimeline?.annotator_source_revision)
     errors.push("Full-Run source candidate must not reuse the proved schema-2 source identity");
   if (fullRun?.artifact_sha256 === semanticTimeline?.artifact_sha256)
