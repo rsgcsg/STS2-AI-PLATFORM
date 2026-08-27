@@ -13,16 +13,18 @@ GitHub enforcement is an operational fact separate from this source document;
 the workflow records intended rules, while repository settings must be checked
 directly before claiming protection.
 
-Phase: **semantic trace schema 2 is a bounded Human-proved freeze candidate for
-ordinary combat and generated-card select; exact schema-2 execution reorder,
-lethal cross-surface and Full-Run settlement remain out of claim**.
+Phase: **Full-Run Human Semantic Timeline is the active Platform objective.
+Ordinary-combat schema 2 remains the bounded Human-proved regression oracle;
+the first combat -> reward -> card reward -> map batch is source/test complete
+and pending exact-runtime Human evidence**.
 
 Current source advances the proved predecessor into semantic trace schema 2:
 H is observation-only, execution binds S, state/Read/catalog completeness are
 orthogonal, and Close drains an unresolved semantic edge before classifying it
 unknown. Artifact `eb7ed072... / 34a36a2b...` is built, installed and loaded;
 latest owner session `session-20260827T042832Z-...` supplies bounded Human
-evidence without promoting any schema-1 row.
+evidence without promoting any schema-1 row. Current source adds a new artifact
+candidate and does not inherit that loaded or Human evidence.
 
 ## Implemented
 
@@ -115,6 +117,15 @@ evidence without promoting any schema-1 row.
   select is proved, and a direct Play -> End Turn handoff has `A.S' == next S`.
   Acceptance/execution reorder did not recur on this artifact. See the
   [schema-2 owner closeout](evidence/SEMANTIC_TIMELINE_OWNER_CLOSEOUT_2026-08-27.md).
+- Full-Run batch 1 keeps the same `SemanticBoundaryTracker` and adds only two
+  native witness mechanisms: existing typed `GameAction` lifecycle for map
+  travel, and exact source-local UI delivery callbacks for reward claim,
+  reward proceed and card-reward select. Interaction-specific semantic Read
+  policy removes the accidental combat-only `combat_piles` requirement from
+  reward/map boundaries without weakening state completeness. Deterministic
+  tests prove a continuous lethal -> reward -> card choice -> map timeline.
+  This is source/test/build evidence only; see
+  [Full-Run semantic coverage](FULL_RUN_SEMANTIC_COVERAGE.md).
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.
 - Workbench `0.1.0-rc.1` provides Environment, Policy, Human Data, Evidence,
@@ -354,8 +365,9 @@ not a semantic seal. See the dated owner-canary report.
   semantic proof. Schema 2 is now owner-operated and proves bounded ordinary
   combat, generated-card select and direct execution handoff. Exact reorder on
   the schema-2 artifact, catalog-incomplete Live handoff, successful pending-
-  edge Close drain, lethal cross-surface settlement, Full Run, corpus admission
-  and training authority remain non-claims.
+  edge Close drain, the new artifact's lethal/reward/card-reward/map path,
+  continuous Full Run, corpus admission and training authority remain
+  non-claims.
 - H0/H1/H2 are automated real-runtime evidence, not human validation, a full
   game journey, durable qualification, semantic parity or long-soak proof.
 - The optional noninteractive Host execution profile was not implemented by the

@@ -35,7 +35,13 @@ public sealed record SemanticActionReference(
     string RunId,
     string NativeActionType,
     uint? NativeQueueId,
-    string HumanObservationSnapshotId);
+    string HumanObservationSnapshotId)
+{
+    public string NativeMechanism { get; init; } = "game_action";
+    public NativeWitnessEvidence? NativeWitness { get; init; }
+    public ExactMappingEvidence? Mapping { get; init; }
+    public RecordedBoundAction? BoundAction { get; init; }
+}
 
 /// <summary>
 /// One read-only state capture. State completeness, action-catalog completeness,

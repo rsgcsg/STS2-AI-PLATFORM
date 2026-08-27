@@ -6,7 +6,12 @@ using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.Core.Nodes.Combat;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Nodes.Rewards;
+using MegaCrit.Sts2.Core.Nodes.Screens;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
+using MegaCrit.Sts2.Core.Nodes.Screens.Map;
+using STS2Connector.PlayerEnvironment.Witness;
+using STS2HumanAnnotator.Core;
 
 namespace STS2HumanAnnotator.Mod;
 
@@ -179,6 +184,160 @@ internal static class NativeGeneratedChoiceSkipPatch
     private static Exception? Finalizer(PatchState __state, Exception? __exception)
     {
         RecorderRuntime.ExitNativeUiScope(__state.Scope);
+        return __exception;
+    }
+}
+
+[HarmonyPatch(typeof(NMapScreen), nameof(NMapScreen.OnMapPointSelectedLocally))]
+internal static class NativeMapChoicePatch
+{
+    private static void Prefix(
+        [HarmonyArgument(0)] NMapPoint point,
+        out NativeUiScopeEntry __state) =>
+        __state = RecorderRuntime.TryEnterSemanticScope(
+            "native_map_choice_ui",
+            nameof(VoteForMapCoordAction),
+            new ProcessLocalObservedAction(
+                "activate",
+                point,
+                new Dictionary<string, object>(StringComparer.Ordinal)));
+
+    private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state);
+        return __exception;
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeRewardClaimStartPatch
+{
+    private const string NativeActionType = "NRewardButton.OnRelease";
+
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(typeof(NRewardButton), "OnRelease")
+        ?? throw new MissingMethodException(typeof(NRewardButton).FullName, "OnRelease");
+
+    private static void Prefix(NRewardButton __instance, out NativeUiScopeEntry __state) =>
+        __state = __instance.Reward == null
+            ? default
+            : RecorderRuntime.TryEnterSemanticScope(
+                "native_reward_claim_ui",
+                NativeActionType,
+                new ProcessLocalObservedAction(
+                    "activate",
+                    __instance,
+                    new Dictionary<string, object>(StringComparer.Ordinal)));
+
+    private static void Postfix(NRewardButton __instance)
+    {
+        if (__instance.Reward == null)
+            return;
+        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            NativeActionType,
+            new ProcessLocalObservedAction(
+                "activate",
+                __instance,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativeWitnessEvidence(
+                "native_reward_claim_ui",
+                NativeActionType,
+                NativeWitnessIdentity.Get(__instance, "reward_button"),
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                DateTimeOffset.UtcNow));
+    }
+
+    private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state);
+        return __exception;
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeRewardProceedPatch
+{
+    private const string NativeActionType = "NRewardsScreen.OnProceedButtonPressed";
+
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(typeof(NRewardsScreen), "OnProceedButtonPressed")
+        ?? throw new MissingMethodException(typeof(NRewardsScreen).FullName, "OnProceedButtonPressed");
+
+    private static void Prefix(out NativeUiScopeEntry __state) =>
+        __state = RecorderRuntime.TryEnterSemanticScope(
+            "native_reward_proceed_ui",
+            NativeActionType,
+            new ProcessLocalObservedAction(
+                "activate",
+                null,
+                new Dictionary<string, object>(StringComparer.Ordinal)));
+
+    private static void Postfix() =>
+        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            NativeActionType,
+            new ProcessLocalObservedAction(
+                "activate",
+                null,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativeWitnessEvidence(
+                "native_reward_proceed_ui",
+                NativeActionType,
+                null,
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                DateTimeOffset.UtcNow));
+
+    private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state);
+        return __exception;
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeCardRewardSelectionPatch
+{
+    private const string NativeActionType = "NCardRewardSelectionScreen.SelectCard";
+
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(typeof(NCardRewardSelectionScreen), "SelectCard")
+        ?? throw new MissingMethodException(
+            typeof(NCardRewardSelectionScreen).FullName,
+            "SelectCard");
+
+    private static void Prefix(
+        [HarmonyArgument(0)] NCardHolder cardHolder,
+        out NativeUiScopeEntry __state) =>
+        __state = cardHolder.CardModel is { } card
+            ? RecorderRuntime.TryEnterSemanticScope(
+                "native_card_reward_selection_ui",
+                NativeActionType,
+                new ProcessLocalObservedAction(
+                    "select",
+                    card,
+                    new Dictionary<string, object>(StringComparer.Ordinal)))
+            : default;
+
+    private static void Postfix([HarmonyArgument(0)] NCardHolder cardHolder)
+    {
+        if (cardHolder.CardModel is not { } card)
+            return;
+        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            NativeActionType,
+            new ProcessLocalObservedAction(
+                "select",
+                card,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativeWitnessEvidence(
+                "native_card_reward_selection_ui",
+                NativeActionType,
+                NativeWitnessIdentity.Get(card, "card"),
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                DateTimeOffset.UtcNow));
+    }
+
+    private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state);
         return __exception;
     }
 }

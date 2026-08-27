@@ -185,6 +185,19 @@ action-family expansion remain outside this bounded baseline.
   catalog-incomplete Live handoff and successful pending-edge Close drain remain
   targeted evidence gaps; predecessor schema-1 evidence is not transferred.
 
-Next semantic phase, on a separate topic branch: structural-only Annotator
-cleanup without changing frozen bounded behavior. Rapid lethal and combat ->
-reward are later independent feature branches, not this closeout.
+## Full-Run Human Semantic Timeline
+
+- Active on a short-lived topic branch from `develop`; ordinary combat schema 2
+  is frozen as the regression oracle rather than tuned to reduce unknowns.
+- Complete at source/test: semantic state Reads are interaction-specific instead
+  of inheriting the combat-only profile.
+- Complete at source/test: lethal combat may settle at the first complete reward
+  boundary; reward claim/proceed and card reward select use exact direct UI
+  delivery witnesses; map travel reuses the game-owned
+  `VoteForMapCoordAction` lifecycle.
+- Pending exact-runtime gate: one owner-operated continuous
+  `lethal -> reward -> card reward/proceed -> map` canary on the final artifact.
+- Next batch after that gate: one related room-mechanism family chosen from
+  event, shop, rest and treasure according to the first causal gap observed.
+- Later: run entry/terminal, representative long-act run, then continuous Full
+  Run. Rare content remains targeted evidence and does not block the mainline.

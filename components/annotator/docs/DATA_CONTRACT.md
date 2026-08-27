@@ -61,6 +61,12 @@ This sidecar is not `HumanDecisionRecordV2`, corpus admission, or durable
 training authority. Predecessor sessions without it remain valid, and existing
 V1/V2 bytes are never reinterpreted.
 
+`SemanticActionReference` may add exact process-local witness, mapping,
+BoundAction and native-mechanism metadata. Missing metadata on historical rows
+retains its prior meaning. The current `game_action` and `direct_ui_commit`
+mechanisms both resolve one already-published frozen BoundAction and converge on
+the same tracker and disposition rules; neither is a second execution API.
+
 `pack-session` creates `sts2.human-annotator/session-bundle-1`. A bundle contains
 the untouched raw session, independent audit, deterministic export, the exact
 versioned `CollectionProfile`, a human-origin attestation, a content-identity

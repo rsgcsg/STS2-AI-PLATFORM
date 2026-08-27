@@ -132,6 +132,16 @@ without spending resources or running `OnPlay`; this is classified as
 `not_a_successful_action`. No scheduler, argument, result or gameplay behavior
 is changed.
 
+Full-Run expansion does not add a surface switch to the causal tracker. Map
+selection enters the same lifecycle path through STS2's
+`VoteForMapCoordAction`. Reward claim/proceed and card-reward selection have no
+equivalent root `GameAction`, so narrow source-local Prefix/Postfix observers
+record their exact native UI delivery while Connector still supplies the frozen
+complete BoundAction. These observers neither await business reward completion
+nor create legality. Semantic state Reads are selected by interaction kind and
+remain information completeness only; they cannot publish or authorize an
+action.
+
 The application event stream is typed, process-local and bounded. A consumer
 queries current status, then requests events after sequence N. A gap means the
 consumer must query status again. Application events are operational state, not

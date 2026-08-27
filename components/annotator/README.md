@@ -24,6 +24,11 @@ or expose native references on a wire.
   choice select/skip observation. Ordinary-combat V2 is exact native-human
   verified; generated-card select has one audited predecessor record while skip
   and the unified artifact remain `not exercised`.
+- The additive schema-2 semantic timeline is bounded Human-proved for ordinary
+  combat and generated-card select. Current Full-Run source/test coverage adds
+  lethal-to-reward settlement, reward claim/proceed, card reward select and map
+  travel without expanding Decision V2. Pending exact native-human evidence,
+  the new artifact paths remain outside the Live claim.
 - A typed RecordingService exposes Query/Status, Command and ordered Event
   contracts to Platform views. Runtime startup is `Ready`; `StartNewSession`
   opens an isolated session, Pause/Resume gate new witness admission, and Close
@@ -54,9 +59,8 @@ or expose native references on a wire.
   same-artifact 20-record run independently passed audit/export and strict STPD
   B0 with zero rejected records and no `mapping_zero`.
   Earlier exact artifacts contribute 170 predecessor records but do not lend
-  identity or authority to the current artifact. Pending scope remains explicit:
-  potions and non-Combat UI actions are unsupported by this recorder slice.
-- Unsupported by this first slice: potions and non-Combat UI actions.
+  identity or authority to the current artifact. Decision V2 remains a narrow
+  combat profile; broader semantic-sidecar coverage is tracked separately.
 
 Unified artifact `06f62285... / 17981f40...` has two owner-operated sessions
 that independently audit 39/39 records: 25 card plays and 14 end turns, with 158
@@ -99,12 +103,12 @@ Implementation or build evidence is not human-origin evidence. See
 
 ```text
 shipped STS2 UI
-  -> observer freezes Connector S + complete A(S) at native selection start
-  -> game accepts a semantic action and assigns an exact GameAction ID
+  -> observer freezes Human observation H + complete Connector A(H)
+  -> game accepts an exact GameAction or source-local UI Commit
   -> exact native references match exactly one frozen BoundAction
-  -> additive ledger observes the game-owned action lifecycle
-  -> Connector observes a different stable S' with required same-frame Reads
-  -> append-only HumanDecisionRecord V2 + RunJournal + content-addressed blobs
+  -> execution binds semantic S; lifecycle/direct delivery is observed
+  -> Connector supplies the next complete authoritative S'
+  -> additive semantic timeline + unchanged narrow Decision V2 evidence
   -> audit/export
   -> immutable HumanSessionBundle V2
   -> Platform Evidence verify/store/transfer/receive

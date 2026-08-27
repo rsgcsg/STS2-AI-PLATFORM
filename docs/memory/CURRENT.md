@@ -1,9 +1,9 @@
 # Current Context
 
-Phase: **Human Evidence V2 remains verified; semantic trace schema 2 is a
-bounded Human-proved freeze candidate for ordinary combat and generated-card
-select. Exact schema-2 reorder, lethal cross-surface and Full-Run settlement
-remain outside the current claim.**
+Phase: **Full-Run Human Semantic Timeline is active. Human Evidence V2 remains
+verified and semantic trace schema 2 remains the bounded Human-proved ordinary-
+combat oracle. The first lethal/reward/card-reward/map batch is source/test
+complete but not loaded or Human-proved.**
 
 The current working source introduces semantic trace schema 2 and a continuous
 execution-owned S timeline. Its final artifact is cold-loaded and owner-
@@ -61,6 +61,11 @@ identity registry.
   execution handoff with `A.S' == next S`; all proved pre-states match exact
   execution boundaries and none crosses another Human start. Exact execution
   reorder did not recur on this schema-2 artifact.
+- Current topic source preserves that tracker and adds interaction-specific
+  semantic Reads, exact direct UI delivery witnesses for reward claim/proceed
+  and card reward selection, plus game-owned `VoteForMapCoordAction` lifecycle
+  correlation for map travel. Deterministic cross-surface tests pass; the new
+  artifact has no loaded or Human runtime claim yet.
 - The S1 checkpoint named by the current Policy Manifest is unavailable on this
   Mac. Policy model modes and owner operation of the new UI remain unexercised.
 

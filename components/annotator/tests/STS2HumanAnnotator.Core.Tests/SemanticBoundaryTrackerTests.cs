@@ -319,6 +319,70 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
+    public void LethalRewardCardChoiceAndMapRemainOneContinuousTimeline()
+    {
+        var tracker = new SemanticBoundaryTracker();
+
+        tracker.Accept(Action("lethal", 1), State("combat-s0", "combat_turn"));
+        tracker.ObserveBeforeActionExecution(
+            "lethal",
+            Boundary("combat-s0", "lethal", "combat_turn"));
+        tracker.Started("lethal");
+        tracker.Finished("lethal");
+        SemanticBoundaryTraceDraft lethal = Assert.Single(
+            tracker.ObserveDecisionBoundary(Boundary("reward-s1", interactionKind: "reward_claim")));
+
+        tracker.Accept(Action("claim", 2, "NRewardButton.OnRelease"), State("reward-s1", "reward_claim"));
+        tracker.ObserveBeforeActionExecution(
+            "claim",
+            Boundary("reward-s1", "claim", "reward_claim"));
+        tracker.Started("claim");
+        tracker.Finished("claim");
+        SemanticBoundaryTraceDraft claim = Assert.Single(
+            tracker.ObserveDecisionBoundary(Boundary("cards-s2", interactionKind: "card_reward_selection")));
+
+        tracker.Accept(
+            Action("select", 3, "NCardRewardSelectionScreen.SelectCard"),
+            State("cards-s2", "card_reward_selection"));
+        tracker.ObserveBeforeActionExecution(
+            "select",
+            Boundary("cards-s2", "select", "card_reward_selection"));
+        tracker.Started("select");
+        tracker.Finished("select");
+        SemanticBoundaryTraceDraft select = Assert.Single(
+            tracker.ObserveDecisionBoundary(Boundary("map-s3", interactionKind: "map_route")));
+
+        tracker.Accept(Action("map", 4, "VoteForMapCoordAction"), State("map-s3", "map_route"));
+        tracker.ObserveBeforeActionExecution("map", Boundary("map-s3", "map", "map_route"));
+        tracker.Started("map");
+        tracker.Finished("map");
+        SemanticBoundaryTraceDraft map = Assert.Single(
+            tracker.ObserveDecisionBoundary(Boundary("event-s4", interactionKind: "event_option")));
+
+        Assert.Equal(("combat-s0", "reward-s1"), TransitionIds(lethal));
+        Assert.Equal(("reward-s1", "cards-s2"), TransitionIds(claim));
+        Assert.Equal(("cards-s2", "map-s3"), TransitionIds(select));
+        Assert.Equal(("map-s3", "event-s4"), TransitionIds(map));
+        Assert.False(tracker.HasUnresolvedActions);
+    }
+
+    [Theory]
+    [InlineData("combat_turn", "run_deck,combat_piles")]
+    [InlineData("generated_card_choice", "run_deck,combat_piles")]
+    [InlineData("reward_claim", "run_deck")]
+    [InlineData("card_reward_selection", "run_deck")]
+    [InlineData("map_route", "run_deck")]
+    [InlineData("shop_inventory", "run_deck,shop_catalog")]
+    public void SemanticReadCompletenessIsInteractionSpecific(
+        string interactionKind,
+        string expectedKinds)
+    {
+        Assert.Equal(
+            expectedKinds.Split(','),
+            SemanticBoundaryReadPolicy.RequiredKinds(interactionKind));
+    }
+
+    [Fact]
     public void TraceValidatorRejectsFalseOrDuplicateTransitionDisposition()
     {
         SemanticActionReference action = Action("a1", 1);
@@ -515,7 +579,8 @@ public sealed class SemanticBoundaryTrackerTests
 
     private static SemanticBoundaryObservation Boundary(
         string snapshotId,
-        string? nextAction = null) => new(
+        string? nextAction = null,
+        string interactionKind = "combat_turn") => new(
             nextAction == null
                 ? "complete_interactive_observation"
                 : "before_next_human_action_execution",
@@ -524,8 +589,8 @@ public sealed class SemanticBoundaryTrackerTests
             "interactive",
             "complete",
             $"interaction-{snapshotId}",
-            "combat_turn",
-            State(snapshotId),
+            interactionKind,
+            State(snapshotId, interactionKind),
             nextAction);
 
     private static SemanticBoundaryObservation IncompleteBoundary(
@@ -558,11 +623,13 @@ public sealed class SemanticBoundaryTrackerTests
             RequiredReadsStatus = "complete"
         };
 
-    private static FrozenDecisionFrameV2 State(string snapshotId) => new(
+    private static FrozenDecisionFrameV2 State(
+        string snapshotId,
+        string interactionKind = "combat_turn") => new(
         snapshotId,
         $"interaction-{snapshotId}",
-        "combat_turn",
-        "sts2.player-environment/surface/combat_turn-1",
+        interactionKind,
+        $"sts2.player-environment/surface/{interactionKind}-1",
         new string('a', 64),
         2,
         JsonNode.Parse($"{{\"snapshot_id\":\"{snapshotId}\"}}")!,

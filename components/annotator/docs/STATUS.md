@@ -7,13 +7,12 @@ audited generated-card select. Generated-card skip and the current unified
 artifact's Human path remain `not exercised`. Root `../../../docs/STATUS.md` is
 authoritative for the current runtime boundary.
 
-Current schema-2 source refactors the semantic observer into an execution-owned
-continuous timeline. Human H, semantic state completeness, required Reads,
-finite catalog completeness and causal proof are independent. Deterministic
-regressions cover settling-but-state-complete handoff, rapid chains, End Turn,
-choice reorder, cancellation/abort and Close draining. This is source/test/build
-evidence only; the schema-1 owner sessions below remain immutable predecessor
-evidence and do not prove the new artifact Live.
+Schema 2 is bounded Human-proved for ordinary combat and generated-card select.
+Current Full-Run topic source preserves that execution-owned continuous timeline
+and adds interaction-specific semantic Reads, reward claim/proceed, card reward
+select and map travel witnesses. Deterministic regressions cover a continuous
+lethal -> reward -> card choice -> map path. These additions are source/test/
+build evidence only and do not inherit the loaded predecessor's Human evidence.
 
 Rapid-input artifact `080701b3... / 142054a5...` is cold-loaded and Live-proved
 in runtime `39fa2d2e...`. Its closed owner session
@@ -89,6 +88,9 @@ audits 19/19 records and explicitly separates 16 native-accepted failures.
   authoritative Connector frame;
 - exact generated-card choice select/skip witness using shipped native UI
   callbacks and the same frozen BoundAction authority.
+- additive Full-Run semantic witnesses for reward claim/proceed and card reward
+  select through exact direct UI delivery callbacks, plus map travel through the
+  native `VoteForMapCoordAction` lifecycle; Decision V2 remains unchanged.
 
 ## Automated Evidence
 
@@ -203,8 +205,9 @@ recorded only after the corresponding cold loads and owner-operated actions.
 
 ## Declared Unsupported
 
-Potions, event/reward/shop/rest/map/menu actions, arbitrary selectors,
-multiplayer, and gameplay-affecting Modsets are not admitted by version
-`0.3.0-rc.1`. Generated-card select has one predecessor Live record; skip and
-the current artifact's generated-card paths still require exact native-human
-runtime evidence.
+Decision V2 remains the narrow combat capture profile: potion, non-combat,
+arbitrary-selector, multiplayer and gameplay-affecting-Modset records are not
+admitted by version `0.3.0-rc.1`. The additive semantic sidecar now has source/
+test coverage for reward claim/proceed, card reward select and map travel, but
+those paths remain pending exact native-human runtime evidence. Event, shop,
+rest, treasure, run entry and terminal Human witnesses are not implemented.
