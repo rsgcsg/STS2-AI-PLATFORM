@@ -51,3 +51,8 @@ semantic disposition, no proof to cross another Human start, and each proved
 `A.S'` to equal the next real execution's `S` when such an execution follows.
 Generated-card skip, event, shop, rest, treasure, run entry and terminal remain
 non-claims until separately encountered or implemented.
+
+Current canary source is `509e5c6f51a7c68353673a189b7f480d78aa11f7`.
+Its clean unified build is `fe3e3a82cdf84cdaa30dea9f5ed0d65fc856099b8391fc165f833b5a57831796 /
+b1284288-3a82-4369-b548-a0220793b80e`. It is not installed or loaded while an
+older STS2 process is running, and no predecessor Live evidence transfers.

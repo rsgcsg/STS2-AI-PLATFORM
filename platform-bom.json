@@ -16,9 +16,9 @@
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "fed721c7b5131cf35d71025a3dd877266b5332fc",
-      "component_tree_revision": "a677d099ec5c67c0cb9ada636d30fd95587a8ebf",
-      "component_source_digest_sha256": "d8229d8721d9da073ab78cb9d1f3db5957895fbaca91db341219489dd5b405c9"
+      "source_revision": "509e5c6f51a7c68353673a189b7f480d78aa11f7",
+      "component_tree_revision": "65174e036d69f416cbbe86b1e34e0327dd8fc66f",
+      "component_source_digest_sha256": "f4d5e653fde4536f26418059e21a2fe33c62b8f19a78c53d7b49d306ff20e3f8"
     },
     "evidence": {
       "version": "0.1.0-rc.1",
@@ -161,8 +161,8 @@
     "annotator": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
       "source_digest_sha256": "8d23f1015a7b0df800f78a7545da5c86bfee521131c4391b398c884ff917918f",
-      "current_component_source_revision": "fed721c7b5131cf35d71025a3dd877266b5332fc",
-      "current_component_source_digest_sha256": "d8229d8721d9da073ab78cb9d1f3db5957895fbaca91db341219489dd5b405c9",
+      "current_component_source_revision": "509e5c6f51a7c68353673a189b7f480d78aa11f7",
+      "current_component_source_digest_sha256": "f4d5e653fde4536f26418059e21a2fe33c62b8f19a78c53d7b49d306ff20e3f8",
       "source_relation": "loaded_human_v2_artifact_precedes_unified_platform_source",
       "artifact_sha256": "4e911dd616afa55753a5320a42c11ce0cebe9d4d10fefd66c8f8a431884cf105",
       "artifact_mvid": "692e9dd9-4bc7-4203-ae12-511ef95a5331",
@@ -264,9 +264,9 @@
     "annotator": {
       "source_revision": "cb20bfa6e4e0e64b3ee8fdf0e1d472e8a668450b",
       "source_digest_sha256": "3910bcbc71599610b125c91c62e9860541ce9edea9b2c0a9f41842eb53651071",
-      "current_component_source_revision": "fed721c7b5131cf35d71025a3dd877266b5332fc",
-      "current_component_source_digest_sha256": "d8229d8721d9da073ab78cb9d1f3db5957895fbaca91db341219489dd5b405c9",
-      "source_relation": "loaded_native_source_precedes_current_semantic_timeline_source",
+      "current_component_source_revision": "509e5c6f51a7c68353673a189b7f480d78aa11f7",
+      "current_component_source_digest_sha256": "f4d5e653fde4536f26418059e21a2fe33c62b8f19a78c53d7b49d306ff20e3f8",
+      "source_relation": "loaded_native_source_precedes_current_full_run_source",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b"
     },
@@ -337,6 +337,30 @@
       "evidence_transfer_from_predecessor": false,
       "rollback": "apps/game-mod/.local/deployments/2026-08-27T03-41-37.869Z"
     },
+    "full_run_semantic_source_candidate": {
+      "status": "source_test_build_complete_pending_exact_runtime",
+      "workspace_revision_at_build": "509e5c6f51a7c68353673a189b7f480d78aa11f7",
+      "annotator_source_revision": "509e5c6f51a7c68353673a189b7f480d78aa11f7",
+      "annotator_component_source_digest_sha256": "f4d5e653fde4536f26418059e21a2fe33c62b8f19a78c53d7b49d306ff20e3f8",
+      "annotator_build_source_digest_sha256": "9f01d1ded470ef6ccbc17809d07a19c3f35abb6e0bf4dc9d552ae49214a71a5b",
+      "trace_schema": "sts2.human-annotator/semantic-boundary-trace-event-2",
+      "artifact_sha256": "fe3e3a82cdf84cdaa30dea9f5ed0d65fc856099b8391fc165f833b5a57831796",
+      "artifact_mvid": "b1284288-3a82-4369-b548-a0220793b80e",
+      "player_environment_protocol": "1.0.0",
+      "implemented_slices": [
+        "lethal_combat_to_reward",
+        "reward_claim",
+        "reward_proceed",
+        "card_reward_select",
+        "map_travel"
+      ],
+      "annotator_core_tests": 74,
+      "built": "pass",
+      "installed": "pending_game_exit",
+      "loaded": "non_claim",
+      "human_runtime": "pending_exact_runtime_evidence",
+      "evidence_transfer_from_schema2_predecessor": false
+    },
     "live_ui": {
       "source_revision": "305a2cac80f0bd3126d66cfc5818477c583a8ce5",
       "source_digest_sha256": "c2a75214cb69678913fceb965ae4d41784a6cb1580311b53a2cc5b4c0c4cb1c4",
@@ -371,7 +395,7 @@
     "automated_gates": {
       "connector_sdk_tests": 7,
       "host_runtime_tests": 158,
-      "annotator_core_tests": 67,
+      "annotator_core_tests": 74,
       "annotator_cli_tests": 12,
       "evidence_tests": 22,
       "policy_runtime_tests": 42,

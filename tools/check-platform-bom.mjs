@@ -190,12 +190,12 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "candidate Connector source relation", policyCandidate?.connector?.source_relation,
     "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Annotator source relation", policyCandidate?.annotator?.source_relation,
-    "loaded_native_source_precedes_current_semantic_timeline_source");
+    "loaded_native_source_precedes_current_full_run_source");
   const semanticTimeline = policyCandidate?.semantic_timeline_source_candidate;
   expectEqual(errors, "semantic timeline source status", semanticTimeline?.status,
     "human_canary_bounded_live_proved");
-  expectEqual(errors, "semantic timeline current Annotator source",
-    semanticTimeline?.annotator_source_revision, bom.components?.annotator?.source_revision);
+  expectPattern(errors, "semantic timeline proved Annotator source",
+    semanticTimeline?.annotator_source_revision, COMMIT);
   expectEqual(errors, "semantic timeline trace schema", semanticTimeline?.trace_schema,
     "sts2.human-annotator/semantic-boundary-trace-event-2");
   expectPattern(errors, "semantic timeline workspace at build",
@@ -280,6 +280,44 @@ export function validatePlatformBom(bom, authorities) {
     /^apps\/game-mod\/\.local\/deployments\//u);
   if (semanticTimeline?.artifact_sha256 === policyCandidate?.annotator?.artifact_sha256)
     errors.push("Semantic timeline source candidate must not reuse predecessor artifact identity");
+  const fullRun = policyCandidate?.full_run_semantic_source_candidate;
+  expectEqual(errors, "Full-Run source status", fullRun?.status,
+    "source_test_build_complete_pending_exact_runtime");
+  expectEqual(errors, "Full-Run current Annotator source",
+    fullRun?.annotator_source_revision, bom.components?.annotator?.source_revision);
+  expectEqual(errors, "Full-Run current Annotator component digest",
+    fullRun?.annotator_component_source_digest_sha256,
+    bom.components?.annotator?.component_source_digest_sha256);
+  expectPattern(errors, "Full-Run build source digest",
+    fullRun?.annotator_build_source_digest_sha256, SHA256);
+  expectEqual(errors, "Full-Run trace schema", fullRun?.trace_schema,
+    "sts2.human-annotator/semantic-boundary-trace-event-2");
+  expectPattern(errors, "Full-Run workspace at build",
+    fullRun?.workspace_revision_at_build, COMMIT);
+  expectPattern(errors, "Full-Run artifact", fullRun?.artifact_sha256, SHA256);
+  expectPattern(errors, "Full-Run MVID", fullRun?.artifact_mvid, MVID);
+  expectEqual(errors, "Full-Run protocol", fullRun?.player_environment_protocol,
+    bom.components?.player_environment_protocol);
+  expectEqual(errors, "Full-Run slices", JSON.stringify(fullRun?.implemented_slices),
+    JSON.stringify([
+      "lethal_combat_to_reward",
+      "reward_claim",
+      "reward_proceed",
+      "card_reward_select",
+      "map_travel"
+    ]));
+  expectEqual(errors, "Full-Run tests", fullRun?.annotator_core_tests, 74);
+  expectEqual(errors, "Full-Run build", fullRun?.built, "pass");
+  expectEqual(errors, "Full-Run install", fullRun?.installed, "pending_game_exit");
+  expectEqual(errors, "Full-Run loaded", fullRun?.loaded, "non_claim");
+  expectEqual(errors, "Full-Run Human runtime", fullRun?.human_runtime,
+    "pending_exact_runtime_evidence");
+  expectEqual(errors, "Full-Run predecessor evidence transfer",
+    fullRun?.evidence_transfer_from_schema2_predecessor, false);
+  if (fullRun?.annotator_source_revision === semanticTimeline?.annotator_source_revision)
+    errors.push("Full-Run source candidate must not reuse the proved schema-2 source identity");
+  if (fullRun?.artifact_sha256 === semanticTimeline?.artifact_sha256)
+    errors.push("Full-Run source candidate must not reuse the proved schema-2 artifact identity");
   expectEqual(errors, "candidate Live UI source relation", policyCandidate?.live_ui?.source_relation,
     "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Connector protocol", policyCandidate?.connector?.protocol,

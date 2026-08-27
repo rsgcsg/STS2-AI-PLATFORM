@@ -126,6 +126,10 @@ candidate and does not inherit that loaded or Human evidence.
   tests prove a continuous lethal -> reward -> card choice -> map timeline.
   This is source/test/build evidence only; see
   [Full-Run semantic coverage](FULL_RUN_SEMANTIC_COVERAGE.md).
+  Exact source `509e5c6...` built unified artifact
+  `fe3e3a82... / b1284288...` against STS2 `v0.111.0 / 41cef1ea`.
+  The game process was still running, so safe install was not attempted;
+  installed/loaded/Human runtime remain explicit non-claims.
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.
 - Workbench `0.1.0-rc.1` provides Environment, Policy, Human Data, Evidence,
