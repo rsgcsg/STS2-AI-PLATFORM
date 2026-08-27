@@ -282,7 +282,7 @@ export function validatePlatformBom(bom, authorities) {
     errors.push("Semantic timeline source candidate must not reuse predecessor artifact identity");
   const fullRun = policyCandidate?.full_run_semantic_source_candidate;
   expectEqual(errors, "Full-Run source status", fullRun?.status,
-    "repair_source_test_build_complete_pending_exact_runtime");
+    "repair_human_canary_pass_subsequent_source_test_complete");
   expectPattern(errors, "Full-Run build Annotator source",
     fullRun?.annotator_source_revision, COMMIT);
   expectPattern(errors, "Full-Run build Annotator component digest",
@@ -315,7 +315,7 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "Full-Run install", fullRun?.installed, "pass");
   expectEqual(errors, "Full-Run loaded", fullRun?.loaded, "pass");
   expectEqual(errors, "Full-Run Human runtime", fullRun?.human_runtime,
-    "pending_exact_runtime_evidence");
+    "pass_bounded_owner_canary");
   expectPattern(errors, "Full-Run runtime", fullRun?.runtime_instance_id,
     /^[0-9a-f]{32}$/u);
   expectPattern(errors, "Full-Run environment", fullRun?.environment_fingerprint, SHA256);
@@ -324,6 +324,30 @@ export function validatePlatformBom(bom, authorities) {
   expectPattern(errors, "Full-Run Modset", fullRun?.modset_fingerprint, SHA256);
   expectEqual(errors, "Full-Run loaded Mods", JSON.stringify(fullRun?.loaded_mod_ids),
     JSON.stringify(["STS2_PLATFORM"]));
+  const fullRunCanary = fullRun?.owner_canary;
+  expectEqual(errors, "Full-Run owner audit", fullRunCanary?.audit_status, "pass");
+  expectEqual(errors, "Full-Run owner origin", fullRunCanary?.human_origin,
+    "owner_attested_not_machine_proven");
+  expectEqual(errors, "Full-Run accepted", fullRunCanary?.semantic_accepted, 250);
+  expectEqual(errors, "Full-Run proved", fullRunCanary?.semantic_proved, 248);
+  expectEqual(errors, "Full-Run cancelled", fullRunCanary?.semantic_cancelled_before_start, 2);
+  expectEqual(errors, "Full-Run unknown", fullRunCanary?.semantic_unknown, 0);
+  expectEqual(errors, "Full-Run unresolved", fullRunCanary?.semantic_unresolved, 0);
+  expectEqual(errors, "Full-Run native accounting", fullRunCanary?.native_accounting, "pass");
+  const subsequent = fullRun?.subsequent_source;
+  expectEqual(errors, "Full-Run subsequent source", subsequent?.annotator_source_revision,
+    bom.components?.annotator?.source_revision);
+  expectEqual(errors, "Full-Run subsequent digest",
+    subsequent?.annotator_component_source_digest_sha256,
+    bom.components?.annotator?.component_source_digest_sha256);
+  expectEqual(errors, "Full-Run subsequent source/test", subsequent?.source_test_status, "pass");
+  expectEqual(errors, "Full-Run subsequent tests", subsequent?.annotator_core_tests, 80);
+  expectEqual(errors, "Full-Run subsequent slices", JSON.stringify(subsequent?.implemented_slices),
+    JSON.stringify(["potion_use_target_cancel"]));
+  expectEqual(errors, "Full-Run subsequent loaded", subsequent?.loaded, "not_exercised");
+  expectEqual(errors, "Full-Run subsequent Human", subsequent?.human_runtime, "not_exercised");
+  expectEqual(errors, "Full-Run subsequent evidence transfer",
+    subsequent?.evidence_transfer_from_repair_artifact, false);
   expectEqual(errors, "Full-Run predecessor evidence transfer",
     fullRun?.evidence_transfer_from_schema2_predecessor, false);
   expectEqual(errors, "Full-Run predecessor canary",
