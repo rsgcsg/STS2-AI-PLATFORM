@@ -1,5 +1,18 @@
 # Current Status
 
+## Repository governance
+
+Public `main` commit `5604050ef0e0f55f13bf2fdb720e5c215d774fd5`
+is preserved as the non-release
+`baseline/pre-governance-platform-20260827`. It is the frozen historical
+integration baseline, not yet a stable-release claim. `develop` was created
+from that exact commit and is now the only normal integration target. No public
+history was rewritten. See [Development Workflow](DEVELOPMENT_WORKFLOW.md).
+
+GitHub enforcement is an operational fact separate from this source document;
+the workflow records intended rules, while repository settings must be checked
+directly before claiming protection.
+
 Phase: **rapid accepted-action lifecycle accounting and the corrected semantic
 S -> A -> S' execution-order rebind are Live-proved on the current exact
 artifact; lethal cross-surface and Full-Run settlement remain out of claim**.

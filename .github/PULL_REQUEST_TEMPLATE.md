@@ -1,14 +1,38 @@
-## Ownership
+## Change identity
 
-- Component:
-- Public contract change: yes/no
+- Repository: `rsgcsg/STS2-AI-PLATFORM`
+- Base branch:
+- Base SHA:
+- Workstream:
+- Primary owner:
+- Change category:
+- Owning component/layer:
+
+## Scope
+
+- Problem:
+- Implemented change:
+- Non-goals:
+- Affected public contracts:
 - Component identity impact:
-- Artifact/runtime evidence required:
+- Cross-repository dependency and exact pin:
 
-## Change
+## Evidence
 
-Explain why this layer owns the change and how authority boundaries remain intact.
+- Source/test commands and results:
+- Exact build/artifact/runtime identities:
+- Evidence level (`source/test/build/installed/loaded/runtime/Human/qualification`):
+- Remaining non-claims:
 
-## Verification
+## Rollback
 
-List exact commands, results, evidence level, non-claims and rollback.
+Describe the revert, artifact rollback or evidence quarantine path.
+
+## Checklist
+
+- [ ] This branch was based on current `origin/develop` (or the documented release/hotfix base).
+- [ ] The change has one primary responsibility and does not mix independent workstreams.
+- [ ] Authority and dependency direction remain intact.
+- [ ] CI and owning-component checks pass.
+- [ ] Runtime claims bind exact identities and do not inherit predecessor evidence.
+- [ ] No proprietary files, raw evidence, secrets, local artifacts or model weights are committed.

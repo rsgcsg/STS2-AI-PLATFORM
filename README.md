@@ -3,6 +3,11 @@
 STS2 AI Platform is the shared environment foundation for programs that use the
 real Slay the Spire 2 runtime.
 
+It is the upper-level foundation of the wider project system. Independently
+versioned research projects such as STPD are consumers beneath it, not peer
+platforms. Git repository separation isolates research and release lifecycles;
+it does not transfer game, legality, execution or evidence authority to STPD.
+
 ```text
 STS2 game truth
   -> Host Runtime lifecycle and identity
@@ -65,6 +70,11 @@ STPD remains the independent research consumer.
 Read [the consolidation ADR](docs/adr/0001-consolidate-environment-platform.md)
 and [migration provenance](migration/source-manifest.json) before changing a
 component boundary.
+
+Contributors and agents must follow the
+[development workflow](docs/DEVELOPMENT_WORKFLOW.md): normal work targets the
+single `develop` integration line through short-lived topic branches and pull
+requests; `main` is reserved for governed releases and hotfixes.
 
 ## Quick Start
 
