@@ -4,6 +4,12 @@ Phase: **rapid accepted-action lifecycle accounting and the corrected semantic
 S -> A -> S' execution-order rebind are Live-proved on the current exact
 artifact; lethal cross-surface and Full-Run settlement remain out of claim**.
 
+Current source advances that proved predecessor into semantic trace schema 2:
+H is observation-only, execution binds S, state/Read/catalog completeness are
+orthogonal, and Close drains an unresolved semantic edge before classifying it
+unknown. Portable tests pass for the focused slice; build/install/load/Live
+claims remain separate and the schema-1 runtime evidence below is not promoted.
+
 ## Implemented
 
 - Connector, Host Runtime, and Human Annotator histories are preserved under

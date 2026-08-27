@@ -7,6 +7,14 @@ audited generated-card select. Generated-card skip and the current unified
 artifact's Human path remain `not exercised`. Root `../../../docs/STATUS.md` is
 authoritative for the current runtime boundary.
 
+Current schema-2 source refactors the semantic observer into an execution-owned
+continuous timeline. Human H, semantic state completeness, required Reads,
+finite catalog completeness and causal proof are independent. Deterministic
+regressions cover settling-but-state-complete handoff, rapid chains, End Turn,
+choice reorder, cancellation/abort and Close draining. This is source/test/build
+evidence only; the schema-1 owner sessions below remain immutable predecessor
+evidence and do not prove the new artifact Live.
+
 Rapid-input artifact `080701b3... / 142054a5...` is cold-loaded and Live-proved
 in runtime `39fa2d2e...`. Its closed owner session
 `session-20260826T062916Z-957f201043a4456a89d13407682f0541` audits 12/12 strict

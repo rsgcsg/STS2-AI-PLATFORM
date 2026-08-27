@@ -20,29 +20,33 @@ is still in the hand -> final UI Prefix selects current or same-card staged fram
 -> append record
 ```
 
-An additive semantic-boundary observer consumes the same exact accepted-action
-identity without changing that path:
+An additive semantic timeline consumes the same exact accepted-action identity
+without changing that path:
 
 ```text
-frozen Human observation H + exact accepted action
+frozen Human observation H (observation evidence only) + exact accepted action
 -> game-owned started / choice pause-resume / cancelled / finished lifecycle
--> authoritative complete Player Environment capture immediately before the
-   next tracked Human action executes, or at the next complete decision surface
+-> exact execution consumes S captured immediately before that Human effect
+-> state-complete execution handoff or complete interactive decision boundary
 -> proved S -> A -> S', cancelled/not-successful, or unknown
 ```
 
-`SemanticBoundaryTracker` never publishes or executes actions. It does not use
-the next Human decision pre-frame as the prior successor and does not treat
-`GameAction.Finished` as universal business completion. The legacy V2 adapter
-and the semantic trace share action identity, but neither is authority for the
-other.
+`SemanticBoundaryTracker` never publishes or executes actions. Human H is not
+silently promoted to semantic S. A complete execution boundary can establish S
+even while the UI is settling and its finite action catalog has not republished;
+state completeness, required-Read completeness and catalog completeness are
+recorded independently. An arbitrary settling poll cannot prove a boundary.
+`GameAction.Finished` is lifecycle evidence, not universal completion. The
+legacy V2 adapter and semantic timeline share action identity, but neither is
+authority for the other.
 
-Acceptance sequence is evidence order, not causal execution order. The tracker
-orders predecessors by observed native start. If a later accepted source-local
-choice executes before an earlier queued action, the choice is settled first.
-The queued precommit can consume the resulting S only when the complete
-authoritative frame captured immediately before its own execution is available;
-that frame replaces its earlier observation. An incomplete rebind is unknown.
+Acceptance sequence is evidence order, not causal execution order. Every action
+binds S only at its real execution boundary, so a later accepted source-local
+choice executing first naturally consumes the then-current S. The same complete
+state captured before the following queued action both closes the prior causal
+edge and becomes that action's S. There is no separate rebind exception. An
+incomplete state capture remains unknown and cannot be repaired from a later
+frame.
 
 The observer uses Harmony Prefix/Finalizer only to establish a thread-local UI
 scope and a Postfix to observe an action already accepted by STS2. It does not
@@ -82,16 +86,17 @@ Runtime initialization stops at `Ready`; it does not create evidence or bind a
 session. `RecordingService` owns the application contract:
 
 ```text
-Ready -> StartNewSession -> Recording <-> Paused -> Closing -> Closed
+Ready -> StartNewSession -> Recording <-> Paused -> Closing/Draining -> Closed
   ^                                                            |
   +--------------------- StartNewSession -----------------------+
 ```
 
 Every session receives a new session ID, timeline, store, counters and run
-sequence. Pause blocks new witness scopes while an already admitted pending
-decision still settles. Close blocks new scopes and waits for that pending
-decision to settle or invalidate before the RunJournal and evidence streams are
-flushed and disposed. Audit/pack/verify/store/transfer remain offline Evidence
+sequence. Pause blocks new witness scopes while already admitted work settles.
+Close blocks new scopes, drains native lifecycle and semantic-boundary work, and
+only then flushes and disposes the RunJournal/evidence streams. A five-second
+drain limit may classify a still-unproved semantic edge unknown; elapsed time
+never proves S'. Audit/pack/verify/store/transfer remain offline Evidence
 operations.
 
 Only a complete interactive pre-frame is eligible. One non-overlapping accepted

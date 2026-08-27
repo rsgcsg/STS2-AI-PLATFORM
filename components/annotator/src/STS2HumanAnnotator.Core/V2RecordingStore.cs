@@ -235,8 +235,7 @@ public sealed class V2RecordingStore : IDisposable
 
     public void AppendSemanticBoundaryEvent(SemanticBoundaryTraceEvent value)
     {
-        if (value.SchemaVersion != SemanticBoundaryTraceContract.SchemaVersion
-            || value.Schema != SemanticBoundaryTraceContract.EventSchema
+        if (!SemanticBoundaryTraceContract.IsSupported(value.SchemaVersion, value.Schema)
             || value.SessionId != Manifest.SessionId
             || value.TimelineId != Manifest.TimelineId
             || value.Sequence <= 0

@@ -57,6 +57,7 @@ internal static class RecorderRuntime
     private static DateTimeOffset _lastIdleStatusAt;
     private static DateTimeOffset _lastFrameProbeAt;
     private static DateTimeOffset _lastSemanticBoundaryProbeAt;
+    private static DateTimeOffset? _semanticCloseDrainDeadline;
     private static ActionExecutor? _observedActionExecutor;
     private static bool _semanticBoundaryTraceHealthy = true;
     private static string _runtimeState = "initializing";
@@ -272,8 +273,9 @@ internal static class RecorderRuntime
                         _stagedCardFrame = null;
                     if (command.Kind == RecordingCommandKind.Close && result.Accepted)
                     {
+                        _semanticCloseDrainDeadline = DateTimeOffset.UtcNow.AddSeconds(5);
                         _closeout = new RecordingCloseoutStatus(
-                            "closing",
+                            HasPendingRecordingWorkUnsafe() ? "draining" : "closing",
                             DateTimeOffset.UtcNow,
                             null,
                             result.Detail);
@@ -368,6 +370,7 @@ internal static class RecorderRuntime
         _lastStoreSnapshot = store.GetSnapshot();
         _requiredReadsHealth = "not_checked";
         _lastPublishedHealth = null;
+        _semanticCloseDrainDeadline = null;
         _closeout = RecordingCloseoutStatus.Idle;
         _lifecycle = lifecycle;
         _runtimeState = "waiting_for_player_environment";
@@ -451,9 +454,12 @@ internal static class RecorderRuntime
         lock (Gate)
         {
             if (_lifecycle.State != RecordingLifecycleState.Closing
-                || HasPendingRecordingWorkUnsafe())
+                || HasNativePendingRecordingWorkUnsafe())
                 return;
-            closeDrafts = BoundaryTracker.CloseUnknown("recording_closed_before_semantic_boundary");
+            if (BoundaryTracker.HasUnresolvedActions
+                && DateTimeOffset.UtcNow < _semanticCloseDrainDeadline.GetValueOrDefault(DateTimeOffset.MinValue))
+                return;
+            closeDrafts = BoundaryTracker.CloseUnknown("recording_close_drain_timeout");
         }
         try
         {
@@ -487,12 +493,16 @@ internal static class RecorderRuntime
             _detail = _closeout.Detail;
             _stagedCardFrame = null;
             _requiredReadsHealth = "not_active";
+            _semanticCloseDrainDeadline = null;
             ResetNativeActionTrackingUnsafe();
         }
         PublishApplicationEvent(RecordingEventKind.SessionClosed, detail: _closeout.Detail);
     }
 
     private static bool HasPendingRecordingWorkUnsafe() =>
+        HasNativePendingRecordingWorkUnsafe() || BoundaryTracker.HasUnresolvedActions;
+
+    private static bool HasNativePendingRecordingWorkUnsafe() =>
         _pending != null || NativeActionLedger.HasUnresolvedLifecycle;
 
     private static void ResetNativeActionTrackingUnsafe()
@@ -821,10 +831,12 @@ internal static class RecorderRuntime
             {
                 TrySettle(pending);
                 TryObserveSemanticDecisionBoundary();
+                FinalizeClose();
                 return;
             }
 
             TryObserveSemanticDecisionBoundary();
+            FinalizeClose();
 
             DateTimeOffset now = DateTimeOffset.UtcNow;
             if (now - _lastFrameProbeAt < TimeSpan.FromMilliseconds(50))
@@ -993,11 +1005,8 @@ internal static class RecorderRuntime
         string? immediatelyConsumedByActionWitnessId)
     {
         RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
-        bool complete = EligibilityBlockers(
-            frame,
-            environment,
-            requireReads: true,
-            includeRecordingLifecycle: false).Count == 0;
+        IReadOnlyList<string> stateBlockers = SemanticStateBlockers(frame, environment);
+        bool stateComplete = stateBlockers.Count == 0;
         PlayerEnvironmentSnapshot snapshot = frame.Snapshot;
         return new SemanticBoundaryObservation(
             witnessKind,
@@ -1007,12 +1016,18 @@ internal static class RecorderRuntime
             snapshot.BoundActions.Status,
             snapshot.Interaction.InteractionId,
             snapshot.Interaction.Kind,
-            complete ? FreezeSemanticBoundary(frame) : null,
-            immediatelyConsumedByActionWitnessId);
+            stateComplete ? FreezeSemanticBoundary(frame, environment) : null,
+            immediatelyConsumedByActionWitnessId)
+        {
+            StateCompleteness = stateComplete ? "complete" : "partial",
+            RequiredReadsStatus = HasRequiredReads(frame) ? "complete" : "unavailable",
+            StateBlockers = stateBlockers
+        };
     }
 
     private static FrozenDecisionFrameV2 FreezeSemanticBoundary(
-        ProcessLocalNativeWitnessFrame frame)
+        ProcessLocalNativeWitnessFrame frame,
+        RecorderEnvironmentIdentity environment)
     {
         PlayerEnvironmentSnapshot snapshot = frame.Snapshot;
         return new FrozenDecisionFrameV2(
@@ -1023,7 +1038,32 @@ internal static class RecorderRuntime
             EvidenceIdentity.Sha256Json(snapshot.BoundActions),
             snapshot.BoundActions.Actions.Count,
             ToNode(snapshot),
-            Array.Empty<ReadEvidence>());
+            PersistReads(frame, "semantic", environment));
+    }
+
+    private static IReadOnlyList<string> SemanticStateBlockers(
+        ProcessLocalNativeWitnessFrame frame,
+        RecorderEnvironmentIdentity environment)
+    {
+        var blockers = new List<string>();
+        if (!RunManager.Instance.IsInProgress
+            || RunManager.Instance.NetService?.Type != NetGameType.Singleplayer)
+            blockers.Add("not_singleplayer_run");
+        if (frame.ExternalControllerActive)
+            blockers.Add("external_controller_active");
+        blockers.AddRange(frame.Snapshot.Completeness.Missing.Where(
+            value => !string.Equals(
+                value,
+                "finite_bound_action_projection_incomplete",
+                StringComparison.Ordinal)));
+        if (!RecordingEnvironmentAdmission.IsExactModset(environment.ModsetStatus))
+            blockers.Add("exact_recording_modset_missing");
+        if (!IsCommit(environment.Connector.SourceRevision)
+            || !IsCommit(environment.Annotator.SourceRevision))
+            blockers.Add("source_revision_not_exact");
+        if (!HasRequiredReads(frame))
+            blockers.Add("required_read_evidence_unavailable");
+        return blockers.Distinct(StringComparer.Ordinal).ToArray();
     }
 
     private static void ObserveSemanticAccepted(PendingDecision pending, GameAction action)
@@ -1062,7 +1102,7 @@ internal static class RecorderRuntime
         {
             string actionWitnessId = $"ui_action_{pending.RecordId}";
             var boundary = new SemanticBoundaryObservation(
-                "human_choice_decision_pre",
+                "before_next_human_action_execution",
                 DateTimeOffset.UtcNow,
                 pending.Pre.SnapshotId,
                 "interactive",
@@ -1160,7 +1200,10 @@ internal static class RecorderRuntime
                 draft.SemanticPre,
                 draft.SemanticSuccessor,
                 draft.Detail,
-                draft.NonClaims ?? Array.Empty<string>()));
+                draft.NonClaims ?? Array.Empty<string>())
+            {
+                HumanObservation = draft.HumanObservation
+            });
         }
     }
 
@@ -1823,8 +1866,13 @@ internal static class RecorderRuntime
         if (_store == null)
             throw new InvalidOperationException("The V2 recording store is unavailable.");
         var result = new List<ReadEvidence>();
-        foreach (CaptureReadRequirement requirement in CaptureProfile.Reads
-                     .Where(read => string.Equals(read.Phase, phase, StringComparison.Ordinal))
+        IEnumerable<CaptureReadRequirement> requirements = string.Equals(
+                phase,
+                "semantic",
+                StringComparison.Ordinal)
+            ? RequiredReadKinds.Select(kind => new CaptureReadRequirement(phase, kind, true))
+            : CaptureProfile.Reads.Where(read => string.Equals(read.Phase, phase, StringComparison.Ordinal));
+        foreach (CaptureReadRequirement requirement in requirements
                      .OrderBy(read => read.Kind, StringComparer.Ordinal))
         {
             if (!frame.Reads.TryGetValue(requirement.Kind, out ProcessLocalReadCapture? captured)

@@ -41,7 +41,7 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
-    public void LaterAcceptedChoiceExecutingFirstRebindsQueuedPrecommitAtExecutionBoundary()
+    public void LaterAcceptedChoiceExecutingFirstBindsEachActionFromExecutionOrder()
     {
         var tracker = new SemanticBoundaryTracker();
         tracker.Accept(Action("queued-end-turn", 1), State("turn-before-choice"));
@@ -68,8 +68,8 @@ public sealed class SemanticBoundaryTrackerTests
         SemanticBoundaryTraceDraft rebound = Assert.Single(
             beforeQueued,
             value => value.Kind == SemanticBoundaryTraceKinds.BoundaryObserved);
-        Assert.Equal("complete_rebound_after_intervening_human_action", rebound.ProofStatus);
-        Assert.Equal("choice", rebound.RelatedActionWitnessId);
+        Assert.Equal("execution_boundary_bound", rebound.ProofStatus);
+        Assert.Null(rebound.RelatedActionWitnessId);
     }
 
     [Fact]
@@ -165,9 +165,101 @@ public sealed class SemanticBoundaryTrackerTests
         SemanticBoundaryTraceDraft a2Unknown = Assert.Single(
             tracker.ObserveDecisionBoundary(Boundary("s2")));
 
-        Assert.Equal("boundary_incomplete_before_next_action", unknown.ProofStatus);
+        Assert.Equal("semantic_state_incomplete_before_next_action", unknown.ProofStatus);
         Assert.Null(unknown.SemanticSuccessor);
-        Assert.Equal("execution_boundary_incomplete", a2Unknown.ProofStatus);
+        Assert.Equal("semantic_pre_unknown", a2Unknown.ProofStatus);
+    }
+
+    [Fact]
+    public void CompleteStateAtExecutionBoundaryDoesNotRequireRepublishedActionCatalog()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        tracker.Accept(Action("a1", 1), State("human-s0"));
+        tracker.ObserveBeforeActionExecution("a1", Boundary("s0", "a1"));
+        tracker.Started("a1");
+        tracker.Finished("a1");
+        tracker.Accept(Action("a2", 2), State("human-precommit"));
+
+        IReadOnlyList<SemanticBoundaryTraceDraft> handoff =
+            tracker.ObserveBeforeActionExecution("a2", StateOnlyExecutionBoundary("s1", "a2"));
+        tracker.Started("a2");
+        tracker.Finished("a2");
+        SemanticBoundaryTraceDraft a2 = Assert.Single(
+            tracker.ObserveDecisionBoundary(Boundary("s2")));
+
+        SemanticBoundaryTraceDraft a1 = Assert.Single(
+            handoff,
+            value => value.Kind == SemanticBoundaryTraceKinds.TransitionProved);
+        Assert.Equal("proved_execution_handoff_boundary", a1.ProofStatus);
+        Assert.Equal(("s0", "s1"), TransitionIds(a1));
+        Assert.Equal(("s1", "s2"), TransitionIds(a2));
+        SemanticBoundaryTraceDraft executionBoundary = Assert.Single(
+            handoff,
+            value => value.Kind == SemanticBoundaryTraceKinds.BoundaryObserved);
+        Assert.Equal("execution_boundary_bound", executionBoundary.ProofStatus);
+        Assert.Equal("s1", executionBoundary.SemanticPre!.SnapshotId);
+        Assert.Same(a1.SemanticSuccessor, executionBoundary.SemanticPre);
+    }
+
+    [Fact]
+    public void HumanObservationIsEvidenceButNeverImplicitSemanticPre()
+    {
+        var tracker = new SemanticBoundaryTracker();
+
+        SemanticBoundaryTraceDraft accepted = Assert.Single(
+            tracker.Accept(Action("a1", 1), State("human-s0")));
+
+        Assert.Equal("human-s0", accepted.HumanObservation!.SnapshotId);
+        Assert.Null(accepted.SemanticPre);
+        Assert.Equal("human_observation_recorded", accepted.ProofStatus);
+    }
+
+    [Fact]
+    public void UnknownPreDoesNotPoisonACompleteLaterExecutionBoundary()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        tracker.Accept(Action("a1", 1), State("human-s0"));
+        tracker.ObserveBeforeActionExecution("a1", IncompleteBoundary("incomplete-s0", "a1"));
+        tracker.Started("a1");
+        tracker.Finished("a1");
+        tracker.Accept(Action("a2", 2), State("human-a2"));
+
+        IReadOnlyList<SemanticBoundaryTraceDraft> handoff =
+            tracker.ObserveBeforeActionExecution("a2", StateOnlyExecutionBoundary("s1", "a2"));
+        tracker.Started("a2");
+        tracker.Finished("a2");
+        SemanticBoundaryTraceDraft a2 = Assert.Single(
+            tracker.ObserveDecisionBoundary(Boundary("s2")));
+
+        SemanticBoundaryTraceDraft a1 = Assert.Single(
+            handoff,
+            value => value.Kind == SemanticBoundaryTraceKinds.TransitionUnknown);
+        Assert.Equal("semantic_pre_unknown", a1.ProofStatus);
+        Assert.Equal(("s1", "s2"), TransitionIds(a2));
+    }
+
+    [Fact]
+    public void EndTurnConsumesTheSameCurrentStateProducedByPriorActionHandoff()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        tracker.Accept(Action("play", 1), State("human-s0"));
+        tracker.ObserveBeforeActionExecution("play", Boundary("s0", "play"));
+        tracker.Started("play");
+        tracker.Finished("play");
+        tracker.Accept(Action("end-turn", 2, "EndPlayerTurnAction"), State("human-end-turn"));
+
+        IReadOnlyList<SemanticBoundaryTraceDraft> handoff = tracker.ObserveBeforeActionExecution(
+            "end-turn",
+            StateOnlyExecutionBoundary("s1", "end-turn"));
+        tracker.Started("end-turn");
+        tracker.Finished("end-turn");
+        SemanticBoundaryTraceDraft endTurn = Assert.Single(
+            tracker.ObserveDecisionBoundary(Boundary("next-turn")));
+
+        Assert.Equal(("s0", "s1"), TransitionIds(Assert.Single(
+            handoff,
+            value => value.Kind == SemanticBoundaryTraceKinds.TransitionProved)));
+        Assert.Equal(("s1", "next-turn"), TransitionIds(endTurn));
     }
 
     [Fact]
@@ -247,7 +339,6 @@ public sealed class SemanticBoundaryTrackerTests
             new[] { accepted, started, proved, cancelled });
 
         Assert.Contains("semantic_transition_successor_not_different", errors);
-        Assert.Contains("semantic_cancel_after_start_disposition_invalid", errors);
         Assert.Contains("semantic_action_has_multiple_dispositions", errors);
     }
 
@@ -367,12 +458,58 @@ public sealed class SemanticBoundaryTrackerTests
         }
     }
 
-    private static SemanticActionReference Action(string id, long sequence) => new(
+    [Fact]
+    public void CurrentTimelineEventsValidateAsOneExecutionBoundTransition()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        var drafts = new List<SemanticBoundaryTraceDraft>();
+        drafts.AddRange(tracker.Accept(Action("a1", 1), State("human-s0")));
+        drafts.AddRange(tracker.ObserveBeforeActionExecution("a1", Boundary("s0", "a1")));
+        drafts.AddRange(tracker.Started("a1"));
+        drafts.AddRange(tracker.Finished("a1"));
+        drafts.AddRange(tracker.ObserveDecisionBoundary(Boundary("s1")));
+
+        IReadOnlyList<string> errors = SemanticBoundaryTraceValidator.Validate(
+            drafts.Select((draft, index) => Event(index + 1, draft)).ToArray());
+
+        Assert.Empty(errors);
+        Assert.False(tracker.HasUnresolvedActions);
+    }
+
+    [Fact]
+    public void LegacySchemaOneTraceRemainsReadableWithoutChangingItsMeaning()
+    {
+        SemanticActionReference action = Action("legacy", 1);
+        SemanticBoundaryTraceEvent accepted = Event(
+            1,
+            SemanticBoundaryTraceKinds.ActionAccepted,
+            action) with
+        {
+            SchemaVersion = SemanticBoundaryTraceContract.LegacySchemaVersion,
+            Schema = SemanticBoundaryTraceContract.LegacyEventSchema,
+            SemanticPre = State("legacy-s0")
+        };
+        SemanticBoundaryTraceEvent cancelled = Event(
+            2,
+            SemanticBoundaryTraceKinds.ActionCancelledBeforeStart,
+            action) with
+        {
+            SchemaVersion = SemanticBoundaryTraceContract.LegacySchemaVersion,
+            Schema = SemanticBoundaryTraceContract.LegacyEventSchema
+        };
+
+        Assert.Empty(SemanticBoundaryTraceValidator.Validate(new[] { accepted, cancelled }));
+    }
+
+    private static SemanticActionReference Action(
+        string id,
+        long sequence,
+        string nativeActionType = "PlayCardAction") => new(
         id,
         sequence,
         $"record-{id}",
         "run-0001",
-        "PlayCardAction",
+        nativeActionType,
         (uint)sequence,
         $"human-{id}");
 
@@ -403,6 +540,23 @@ public sealed class SemanticBoundaryTrackerTests
             "combat_turn",
             null,
             nextAction);
+
+    private static SemanticBoundaryObservation StateOnlyExecutionBoundary(
+        string snapshotId,
+        string nextAction) => new(
+            "before_next_human_action_execution",
+            T0,
+            snapshotId,
+            "settling",
+            "unavailable",
+            $"interaction-{snapshotId}",
+            "combat_turn",
+            State(snapshotId),
+            nextAction)
+        {
+            StateCompleteness = "complete",
+            RequiredReadsStatus = "complete"
+        };
 
     private static FrozenDecisionFrameV2 State(string snapshotId) => new(
         snapshotId,
@@ -440,4 +594,28 @@ public sealed class SemanticBoundaryTrackerTests
             null,
             null,
             Array.Empty<string>());
+
+    private static SemanticBoundaryTraceEvent Event(
+        int sequence,
+        SemanticBoundaryTraceDraft draft) => new(
+            SemanticBoundaryTraceContract.SchemaVersion,
+            SemanticBoundaryTraceContract.EventSchema,
+            $"event-{sequence}",
+            "session-test",
+            "timeline-test",
+            "run-0001",
+            sequence,
+            T0.AddMilliseconds(sequence),
+            draft.Kind,
+            draft.Action,
+            draft.ProofStatus,
+            draft.RelatedActionWitnessId,
+            draft.Boundary,
+            draft.SemanticPre,
+            draft.SemanticSuccessor,
+            draft.Detail,
+            draft.NonClaims ?? Array.Empty<string>())
+        {
+            HumanObservation = draft.HumanObservation
+        };
 }

@@ -4,6 +4,11 @@ Phase: **Human Evidence V2 remains verified; corrected semantic-boundary source
 has exact-artifact Human evidence for execution-order rebind. Lethal
 cross-surface and Full-Run settlement remain outside the current claim.**
 
+The current working source introduces semantic trace schema 2 and a continuous
+execution-owned S timeline. It has automated evidence only until its final
+artifact is cold-loaded and owner-operated; schema-1 owner evidence remains a
+predecessor baseline.
+
 `STS2-AI-PLATFORM` is the only forward-development source authority for the
 Platform components. The root BOM and component release manifests are the
 machine-readable authorities for component revisions, package identities,

@@ -173,6 +173,12 @@ action-family expansion remain outside this bounded baseline.
   transition unknowns were individually audited and remain correct fail-closed
   outcomes. Lethal cross-surface settlement and Full-Run surfaces remain
   opportunistic. No corpus or training authority is implied.
+- Complete at schema-2 source/test: acceptance no longer assigns semantic S;
+  exact execution consumes a state-complete boundary, action-catalog readiness
+  is independent, unknown does not cascade into the next proved execution
+  boundary, and Close drains semantic work before bounded unknown disposition.
+  The final artifact still requires a new cold-load and ordinary/rapid/A11
+  owner canary; predecessor schema-1 evidence is not transferred.
 
 Next phase, not part of this slice: **Live Workspace Window Kernel -> Human
 Recorder Window**.

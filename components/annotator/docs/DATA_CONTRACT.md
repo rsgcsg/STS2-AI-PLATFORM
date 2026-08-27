@@ -38,16 +38,18 @@ audit fail; it is never retried or repaired from a later frame. Historical
 `native-action-ledger-event-1` sidecars remain readable, but do not retroactively
 gain frozen decision payloads. Decision V1/V2 bytes and meaning are unchanged.
 
-`semantic-boundary-trace.jsonl` is an additive schema-1 observation sidecar. It
-keeps Human observation provenance separate from transition provenance and
+`semantic-boundary-trace.jsonl` is an additive schema-2 observation sidecar.
+Historical schema-1 rows remain readable with their original meaning. Schema 2
+stores Human observation H separately from semantic pre S and
 records exact action identity, accepted/started/choice/cancelled/finished facts,
-authoritative boundary captures, and exactly one semantic disposition:
+state/Read/catalog completeness, authoritative boundary captures, and exactly
+one semantic disposition:
 `transition_proved`, `transition_unknown`, cancelled before/after start, or
-aborted before native Commit. A proved transition requires a complete current
-Player Environment boundary before the next tracked Human action effect. Native
-acceptance order is not assumed to equal execution order. A precommitted action
-may consume a later S only when the complete authoritative boundary immediately
-before its execution is captured and stored as its semantic pre-state. Audit
+aborted before native Commit. A proved transition requires either a complete
+interactive decision boundary or a state-complete capture synchronously before
+the next tracked Human effect. The latter does not require a republished action
+catalog. Native acceptance order is not assumed to equal execution order; every
+successful action's S must equal its own exact pre-execution boundary. Audit
 rejects a mismatched execution pre-state or another Human action effect between
 that action's start and successor boundary. A queued action cancelled before
 `started` is retained as Human/native evidence
