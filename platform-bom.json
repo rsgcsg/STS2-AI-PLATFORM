@@ -16,9 +16,9 @@
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "509e5c6f51a7c68353673a189b7f480d78aa11f7",
-      "component_tree_revision": "65174e036d69f416cbbe86b1e34e0327dd8fc66f",
-      "component_source_digest_sha256": "f4d5e653fde4536f26418059e21a2fe33c62b8f19a78c53d7b49d306ff20e3f8"
+      "source_revision": "c8775e1066137c1a7e00993a7ab74493a11717f7",
+      "component_tree_revision": "7145b52c8bc075d802ec58bc21d00b9e12bf518e",
+      "component_source_digest_sha256": "da34cf5bf5d20cb7adfd0021cdf8e7c3dbbaa5d29e1168fe8ed4eb2cedf95756"
     },
     "evidence": {
       "version": "0.1.0-rc.1",
@@ -46,9 +46,9 @@
     },
     "game_mod": {
       "version": "0.2.0-rc.1",
-      "source_revision": "6555e30d36c91c688769aa985177717b090635cd",
-      "component_tree_revision": "a32322e51f97e5f97be11d313fbce5dfc40d4113",
-      "component_source_digest_sha256": "5890a3db09796ece94b7ff4164439196dff91b49db09b3c381b687f659f38b78"
+      "source_revision": "c8775e1066137c1a7e00993a7ab74493a11717f7",
+      "component_tree_revision": "e95b5719142f507ce7f4fa77d3a0f4872a8b7287",
+      "component_source_digest_sha256": "ca1a116f94222ebf5d495c17ec96dfa0142f2c4c612d64749b2ffea1c2fb0198"
     },
     "player_environment_protocol": "1.0.0",
     "typescript_sdk": "1.1.0-rc.1"
@@ -338,27 +338,32 @@
       "rollback": "apps/game-mod/.local/deployments/2026-08-27T03-41-37.869Z"
     },
     "full_run_semantic_source_candidate": {
-      "status": "source_test_build_complete_pending_exact_runtime",
-      "workspace_revision_at_build": "509e5c6f51a7c68353673a189b7f480d78aa11f7",
-      "annotator_source_revision": "509e5c6f51a7c68353673a189b7f480d78aa11f7",
-      "annotator_component_source_digest_sha256": "f4d5e653fde4536f26418059e21a2fe33c62b8f19a78c53d7b49d306ff20e3f8",
-      "annotator_build_source_digest_sha256": "9f01d1ded470ef6ccbc17809d07a19c3f35abb6e0bf4dc9d552ae49214a71a5b",
+      "status": "repair_source_test_build_complete_pending_exact_runtime",
+      "workspace_revision_at_build": "c8775e1066137c1a7e00993a7ab74493a11717f7",
+      "annotator_source_revision": "c8775e1066137c1a7e00993a7ab74493a11717f7",
+      "annotator_component_source_digest_sha256": "da34cf5bf5d20cb7adfd0021cdf8e7c3dbbaa5d29e1168fe8ed4eb2cedf95756",
+      "annotator_build_source_digest_sha256": "925733e19c7e1312345eeec9f0e329e00699719f3de5ef3cd2c4174762078438",
       "trace_schema": "sts2.human-annotator/semantic-boundary-trace-event-2",
-      "artifact_sha256": "fe3e3a82cdf84cdaa30dea9f5ed0d65fc856099b8391fc165f833b5a57831796",
-      "artifact_mvid": "b1284288-3a82-4369-b548-a0220793b80e",
+      "artifact_sha256": "8d2f7d2a8e95eac424aa7fed7f22e825821609b83526d38605e813b6a9692c35",
+      "artifact_mvid": "3043f4f4-63c8-4058-8f4e-44b60801d3d5",
       "player_environment_protocol": "1.0.0",
       "implemented_slices": [
         "lethal_combat_to_reward",
         "reward_claim",
         "reward_proceed",
         "card_reward_select",
-        "map_travel"
+        "map_travel",
+        "combat_hand_select",
+        "combat_hand_deselect",
+        "combat_hand_confirm"
       ],
-      "annotator_core_tests": 74,
+      "annotator_core_tests": 77,
       "built": "pass",
-      "installed": "pending_game_exit",
+      "installed": "pending_safe_deploy",
       "loaded": "non_claim",
       "human_runtime": "pending_exact_runtime_evidence",
+      "predecessor_owner_canary": "failed_semantic_accounting",
+      "predecessor_missing_semantic_native_roots": 546,
       "evidence_transfer_from_schema2_predecessor": false
     },
     "live_ui": {

@@ -14,8 +14,9 @@ the workflow records intended rules, while repository settings must be checked
 directly before claiming protection.
 
 Phase: **Full-Run Human Semantic Timeline is the active Platform objective.
-Ordinary-combat schema 2 remains the bounded Human-proved regression oracle;
-the first combat -> reward -> card reward -> map batch is source/test complete
+Ordinary-combat schema 2 remains the bounded Human-proved regression oracle.
+The first combat -> reward -> card reward -> map canary exposed two correctness
+defects; the repair plus Combat hand-selector batch is source/test/build complete
 and pending exact-runtime Human evidence**.
 
 Current source advances the proved predecessor into semantic trace schema 2:
@@ -128,8 +129,15 @@ candidate and does not inherit that loaded or Human evidence.
   [Full-Run semantic coverage](FULL_RUN_SEMANTIC_COVERAGE.md).
   Exact source `509e5c6...` built unified artifact
   `fe3e3a82... / b1284288...` against STS2 `v0.111.0 / 41cef1ea`.
-  The game process was still running, so safe install was not attempted;
-  installed/loaded/Human runtime remain explicit non-claims.
+  Its owner canary exercised combat, generated choice, reward/card reward and
+  map, but failed semantic accounting: direct UI commits used a non-canonical
+  execution witness, and a paused parent was pruned before native finish,
+  disabling the trace. Strengthened audit now reports 546 missing accepted
+  roots instead of the former false PASS. Repair source `c8775e1...` retains
+  parents through native terminal lifecycle, canonicalizes direct UI execution,
+  and adds exact Combat hand select/deselect/confirm witnesses. Clean artifact
+  `8d2f7d2a... / 3043f4f4...` has source/test/build evidence only. See the
+  [batch canary](evidence/FULL_RUN_BATCH1_OWNER_CANARY_2026-08-28.md).
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.
 - Workbench `0.1.0-rc.1` provides Environment, Policy, Human Data, Evidence,

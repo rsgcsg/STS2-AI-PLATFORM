@@ -10,9 +10,11 @@ authoritative for the current runtime boundary.
 Schema 2 is bounded Human-proved for ordinary combat and generated-card select.
 Current Full-Run topic source preserves that execution-owned continuous timeline
 and adds interaction-specific semantic Reads, reward claim/proceed, card reward
-select and map travel witnesses. Deterministic regressions cover a continuous
-lethal -> reward -> card choice -> map path. These additions are source/test/
-build evidence only and do not inherit the loaded predecessor's Human evidence.
+select, map travel and Combat hand selector witnesses. The first owner canary
+found that a paused parent could be pruned before native finish and direct UI
+commits used a non-canonical boundary name. Current source repairs both and
+strengthens audit so a stopped schema-2 trace cannot pass beside a continuing
+native ledger. The repair is source/test/build evidence only.
 
 Rapid-input artifact `080701b3... / 142054a5...` is cold-loaded and Live-proved
 in runtime `39fa2d2e...`. Its closed owner session
@@ -91,6 +93,9 @@ audits 19/19 records and explicitly separates 16 native-accepted failures.
 - additive Full-Run semantic witnesses for reward claim/proceed and card reward
   select through exact direct UI delivery callbacks, plus map travel through the
   native `VoteForMapCoordAction` lifecycle; Decision V2 remains unchanged.
+- exact Combat hand select/replace/deselect/confirm witnesses through native
+  hand/container callbacks and the same direct UI mechanism; nested native
+  helper calls cannot manufacture a second Human action.
 
 ## Automated Evidence
 
@@ -208,6 +213,7 @@ recorded only after the corresponding cold loads and owner-operated actions.
 Decision V2 remains the narrow combat capture profile: potion, non-combat,
 arbitrary-selector, multiplayer and gameplay-affecting-Modset records are not
 admitted by version `0.3.0-rc.1`. The additive semantic sidecar now has source/
-test coverage for reward claim/proceed, card reward select and map travel, but
-those paths remain pending exact native-human runtime evidence. Event, shop,
-rest, treasure, run entry and terminal Human witnesses are not implemented.
+test coverage for reward claim/proceed, card reward select, map travel and
+Combat hand selection, but the repaired paths remain pending exact native-human
+runtime evidence. Potion, event, shop, rest, treasure, run entry and terminal
+Human witnesses are not implemented.

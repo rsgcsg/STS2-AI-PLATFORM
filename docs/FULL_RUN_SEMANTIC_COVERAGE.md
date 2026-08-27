@@ -25,11 +25,14 @@ from a later Human effect.
 |---|---|---:|---:|
 | ordinary combat play / End Turn | `GameAction.OnEnqueued` + typed lifecycle + `ActionExecutor.BeforeActionExecuted` | complete | bounded Human-proved predecessor |
 | generated-card select | exact selection callback + direct UI delivery | complete | bounded Human-proved predecessor |
-| lethal combat -> reward | existing combat lifecycle + reward Player Environment boundary | complete | pending exact-runtime evidence |
-| reward claim | `NRewardButton.OnRelease` direct UI delivery | complete | pending exact-runtime evidence |
-| reward proceed | `NRewardsScreen.OnProceedButtonPressed` direct UI delivery | complete | pending exact-runtime evidence |
-| card reward select | `NCardRewardSelectionScreen.SelectCard` direct UI delivery | complete | pending exact-runtime evidence |
-| map travel | `NMapScreen.OnMapPointSelectedLocally` -> `VoteForMapCoordAction` lifecycle | complete | pending exact-runtime evidence |
+| generated-card skip | exact skip callback + direct UI delivery | complete | not exercised |
+| Combat hand selector select / replace / deselect / confirm | exact hand/container callbacks + direct UI delivery | complete | pending repair-artifact Live |
+| potion use / target / cancel | Connector BoundActions; `UsePotionAction` lifecycle is distinct | not implemented as Human witness | not exercised |
+| lethal combat -> reward | existing combat lifecycle + reward Player Environment boundary | complete | encountered on failed predecessor canary; repair pending |
+| reward claim | `NRewardButton.OnRelease` direct UI delivery | complete | predecessor exposed boundary-name defect; repair pending |
+| reward proceed | `NRewardsScreen.OnProceedButtonPressed` direct UI delivery | complete | predecessor exposed boundary-name defect; repair pending |
+| card reward select | `NCardRewardSelectionScreen.SelectCard` direct UI delivery | complete | predecessor exposed boundary-name defect; repair pending |
+| map travel | `NMapScreen.OnMapPointSelectedLocally` -> `VoteForMapCoordAction` lifecycle | complete | encountered before predecessor trace failure; repair pending |
 | event / shop / rest / treasure | Connector observation coverage only | not implemented as Human witnesses | not exercised |
 | run entry / game terminal | observation coverage varies | not implemented as Human witnesses | not exercised |
 
@@ -38,9 +41,15 @@ Semantic state Read requirements are interaction-specific: combat requires
 the current ordinary non-combat surfaces require `run_deck`. A failed Read makes
 that boundary partial; it never changes action publication or native execution.
 
-## First Canary Gate
+## Repair Canary Gate
 
-The first new-artifact canary must exercise one continuous path:
+The first batch canary on artifact `fe3e3a82... / b1284288...` is not a PASS.
+It exposed one direct-UI boundary defect and one parent-lifecycle pruning defect
+that disabled semantic tracing while native accounting continued. Strengthened
+audit now rejects that session with 546 missing accepted-root findings. See the
+[batch evidence](evidence/FULL_RUN_BATCH1_OWNER_CANARY_2026-08-28.md).
+
+The repair artifact must exercise one continuous path:
 
 ```text
 lethal combat -> reward claim -> card reward select or skip/proceed -> map node
@@ -49,10 +58,12 @@ lethal combat -> reward claim -> card reward select or skip/proceed -> map node
 Pass requires every encountered accepted Human action to have exactly one
 semantic disposition, no proof to cross another Human start, and each proved
 `A.S'` to equal the next real execution's `S` when such an execution follows.
-Generated-card skip, event, shop, rest, treasure, run entry and terminal remain
+It should additionally exercise one Combat hand selection with select,
+replacement or deselect, and confirm when naturally available. Generated-card
+skip, potion, event, shop, rest, treasure, run entry and terminal remain
 non-claims until separately encountered or implemented.
 
-Current canary source is `509e5c6f51a7c68353673a189b7f480d78aa11f7`.
-Its clean unified build is `fe3e3a82cdf84cdaa30dea9f5ed0d65fc856099b8391fc165f833b5a57831796 /
-b1284288-3a82-4369-b548-a0220793b80e`. It is not installed or loaded while an
-older STS2 process is running, and no predecessor Live evidence transfers.
+Current repair source is `c8775e1066137c1a7e00993a7ab74493a11717f7`.
+Its clean unified build is `8d2f7d2a8e95eac424aa7fed7f22e825821609b83526d38605e813b6a9692c35 /
+3043f4f4-63c8-4058-8f4e-44b60801d3d5`. Installed, loaded and Human runtime are
+pending; no predecessor Live evidence transfers.

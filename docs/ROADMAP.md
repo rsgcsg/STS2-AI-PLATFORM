@@ -195,9 +195,17 @@ action-family expansion remain outside this bounded baseline.
   boundary; reward claim/proceed and card reward select use exact direct UI
   delivery witnesses; map travel reuses the game-owned
   `VoteForMapCoordAction` lifecycle.
+- Failed predecessor runtime gate: the first owner canary exposed direct-UI
+  execution binding and paused-parent lifecycle defects; strengthened audit
+  rejects its truncated trace rather than transferring its evidence.
+- Complete at source/test/build: the repair preserves parent lifecycle through
+  native finish, uses one canonical direct-UI boundary, and adds Combat hand
+  select/replace/deselect/confirm through the same bounded UI-commit mechanism.
 - Pending exact-runtime gate: one owner-operated continuous
-  `lethal -> reward -> card reward/proceed -> map` canary on the final artifact.
-- Next batch after that gate: one related room-mechanism family chosen from
-  event, shop, rest and treasure according to the first causal gap observed.
+  `combat selector -> lethal -> reward -> card reward/proceed -> map` canary on
+  the repair artifact.
+- Next Combat batch after that gate: potion use/target/cancel through its typed
+  `UsePotionAction` mechanism, then remaining source-evidenced Combat gaps.
+- Non-combat room expansion follows a clean Combat mechanism canary.
 - Later: run entry/terminal, representative long-act run, then continuous Full
   Run. Rare content remains targeted evidence and does not block the mainline.
