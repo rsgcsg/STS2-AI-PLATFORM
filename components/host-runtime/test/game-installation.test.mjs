@@ -32,6 +32,18 @@ test("resolves the macOS shipped executable and architecture data directory", ()
   assert.match(result.data_dir, /data_sts2_macos_arm64$/u);
 });
 
+test("resolves the Windows runtime log under the exact user profile", () => {
+  const result = resolveInstallation("E:\\SteamLibrary\\steamapps\\common\\Slay the Spire 2", {
+    platform: "win32",
+    arch: "x64",
+    home: "C:\\Users\\player"
+  });
+  assert.equal(
+    result.log_file,
+    "C:\\Users\\player\\AppData\\Roaming\\SlayTheSpire2\\logs\\godot.log"
+  );
+});
+
 test("admits an installed Connector identity only when it matches the DLL", () => {
   const directory = mkdtempSync(path.join(os.tmpdir(), "sts2-headless-connector-"));
   const modsDir = path.join(directory, "mods");

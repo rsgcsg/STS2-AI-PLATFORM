@@ -40,7 +40,8 @@ export function discoverGameDirectory({
 
 export function resolveInstallation(gameDirectory, {
   platform = process.platform,
-  arch = process.arch
+  arch = process.arch,
+  home = os.homedir()
 } = {}) {
   if (!gameDirectory) return null;
   const platformPath = platform === "win32" ? path.win32 : path.posix;
@@ -55,7 +56,7 @@ export function resolveInstallation(gameDirectory, {
       mods_dir: platformPath.join(app, "MacOS", "mods"),
       data_dir: platformPath.join(app, "Resources", `data_sts2_macos_${runtimeArch}`),
       release_info: platformPath.join(app, "Resources", "release_info.json"),
-      log_file: platformPath.join(os.homedir(), "Library/Application Support/SlayTheSpire2/logs/godot.log")
+      log_file: platformPath.join(home, "Library/Application Support/SlayTheSpire2/logs/godot.log")
     };
   }
   if (platform === "win32") {
@@ -66,7 +67,7 @@ export function resolveInstallation(gameDirectory, {
       mods_dir: platformPath.join(gameDir, "mods"),
       data_dir: platformPath.join(gameDir, "data_sts2_windows_x86_64"),
       release_info: platformPath.join(gameDir, "release_info.json"),
-      log_file: null
+      log_file: platformPath.join(home, "AppData", "Roaming", "SlayTheSpire2", "logs", "godot.log")
     };
   }
   const executable = ["SlayTheSpire2", "Slay the Spire 2"]
@@ -79,7 +80,7 @@ export function resolveInstallation(gameDirectory, {
     mods_dir: platformPath.join(gameDir, "mods"),
     data_dir: platformPath.join(gameDir, "data_sts2_linuxbsd_x86_64"),
     release_info: platformPath.join(gameDir, "release_info.json"),
-    log_file: platformPath.join(os.homedir(), ".local/share/SlayTheSpire2/logs/godot.log")
+    log_file: platformPath.join(home, ".local/share/SlayTheSpire2/logs/godot.log")
   };
 }
 

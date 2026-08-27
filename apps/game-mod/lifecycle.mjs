@@ -8,6 +8,7 @@ import process from "node:process";
 
 import {
   loadHostRuntimeWorkstationApi,
+  resolveConnectorCanaryEnvironment,
   resolveWorkstationInstallation
 } from "../../components/annotator/tools/workstation-platform.mjs";
 import { waitForLoadedReadiness } from "./loaded-readiness.mjs";
@@ -276,10 +277,18 @@ function launch() {
   if (!sameIdentity(currentInstalled, installed.artifact)) {
     throw new Error("Installed Game Mod drifted from installed provenance.");
   }
+  const connectorCanary = resolveConnectorCanaryEnvironment({
+    compatibility: readJson(path.join(
+      platformRoot,
+      "components/connector/contracts/host-compatibility.json"
+    )),
+    connectorBuild: installed.source.components.connector,
+    gameRelease: installed.game.release,
+    gameIdentity: installed.game.sts2
+  });
   const env = {
     ...process.env,
-    STS2_CONNECTOR_EXPERIMENTAL_SOURCE_REVISION:
-      installed.source.components.connector.source_revision
+    ...connectorCanary.environment
   };
   env.SteamAppId ??= "2868840";
   env.SteamGameId ??= "2868840";
@@ -297,7 +306,8 @@ function launch() {
     launched_at: new Date().toISOString(),
     pid: child.pid,
     executable: installation.executable,
-    source_revision_canary: installed.source.components.connector.source_revision,
+    connector_runtime: connectorCanary.runtime,
+    connector_environment: connectorCanary.environment,
     expected_artifact: installed.artifact,
     expected_modset_status: "exact_platform_modset"
   };

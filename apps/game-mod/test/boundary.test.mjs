@@ -82,6 +82,17 @@ test("single-Mod deploy retires every legacy production manifest and DLL", () =>
   ]) assert.match(lifecycle, new RegExp(name.replace(".", "\\."), "u"));
 });
 
+test("cold launch derives exact Connector canaries from compatibility authority", () => {
+  const lifecycle = read("apps/game-mod/lifecycle.mjs");
+  assert.match(lifecycle, /resolveConnectorCanaryEnvironment/u);
+  assert.match(lifecycle, /components\/connector\/contracts\/host-compatibility\.json/u);
+  assert.match(lifecycle, /\.\.\.connectorCanary\.environment/u);
+  assert.doesNotMatch(
+    lifecycle,
+    /STS2_CONNECTOR_EXPERIMENTAL_SOURCE_REVISION:\s*installed\.source\.components\.connector/u
+  );
+});
+
 test("loaded verification never promotes an input canary to owner evidence", () => {
   const lifecycle = read("apps/game-mod/lifecycle.mjs");
   assert.match(lifecycle, /ui_toggle_runtime_canary/u);
