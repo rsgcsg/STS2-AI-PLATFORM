@@ -70,7 +70,7 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   candidate.semantic_timeline_source_candidate.owner_canary.semantic_proved = 18;
   candidate.semantic_timeline_source_candidate.evidence_transfer_from_predecessor = true;
   candidate.full_run_semantic_source_candidate.annotator_source_revision = "0".repeat(40);
-  candidate.full_run_semantic_source_candidate.loaded = "pass";
+  candidate.full_run_semantic_source_candidate.loaded = "non_claim";
   candidate.full_run_semantic_source_candidate.evidence_transfer_from_schema2_predecessor = true;
   candidate.full_run_semantic_source_candidate.predecessor_missing_semantic_native_roots = 0;
   candidate.game_mod.installed = "pending";

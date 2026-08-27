@@ -136,7 +136,9 @@ candidate and does not inherit that loaded or Human evidence.
   roots instead of the former false PASS. Repair source `c8775e1...` retains
   parents through native terminal lifecycle, canonicalizes direct UI execution,
   and adds exact Combat hand select/deselect/confirm witnesses. Clean artifact
-  `8d2f7d2a... / 3043f4f4...` has source/test/build evidence only. See the
+  `8d2f7d2a... / 3043f4f4...` is safely installed and cold-loaded in runtime
+  `fb5a82ea...` with the sole exact `STS2_PLATFORM` Mod. Human action evidence
+  remains pending. See the
   [batch canary](evidence/FULL_RUN_BATCH1_OWNER_CANARY_2026-08-28.md).
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.

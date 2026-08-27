@@ -60,6 +60,10 @@ Clean unified artifact:
 - SHA-256: `8d2f7d2a8e95eac424aa7fed7f22e825821609b83526d38605e813b6a9692c35`
 - MVID: `3043f4f4-63c8-4058-8f4e-44b60801d3d5`
 
-This repair has source/test/build/install evidence. Safe install created
-rollback `apps/game-mod/.local/deployments/2026-08-27T15-04-13.434Z`. Loaded and
-Human runtime evidence are pending and no predecessor evidence transfers.
+This repair has source/test/build/install/load evidence. Safe install created
+rollback `apps/game-mod/.local/deployments/2026-08-27T15-04-13.434Z`. Cold-load
+verification passed in runtime `fb5a82ea198140aebfcdbe92b654fce1`, environment
+`4866d18435e47f10970999ce4111dc51e575b1b9696b5ddf1b4dced04d4ff259`,
+with sole exact Modset fingerprint
+`a66aef087216f2ffdf4e5e87d849f1ffa3df2adc073b1b1651801886dabc3281`.
+Human runtime evidence is pending and no predecessor evidence transfers.

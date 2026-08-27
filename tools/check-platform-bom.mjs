@@ -313,9 +313,17 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "Full-Run tests", fullRun?.annotator_core_tests, 77);
   expectEqual(errors, "Full-Run build", fullRun?.built, "pass");
   expectEqual(errors, "Full-Run install", fullRun?.installed, "pass");
-  expectEqual(errors, "Full-Run loaded", fullRun?.loaded, "non_claim");
+  expectEqual(errors, "Full-Run loaded", fullRun?.loaded, "pass");
   expectEqual(errors, "Full-Run Human runtime", fullRun?.human_runtime,
     "pending_exact_runtime_evidence");
+  expectPattern(errors, "Full-Run runtime", fullRun?.runtime_instance_id,
+    /^[0-9a-f]{32}$/u);
+  expectPattern(errors, "Full-Run environment", fullRun?.environment_fingerprint, SHA256);
+  expectEqual(errors, "Full-Run Modset status", fullRun?.modset_status,
+    "exact_platform_modset");
+  expectPattern(errors, "Full-Run Modset", fullRun?.modset_fingerprint, SHA256);
+  expectEqual(errors, "Full-Run loaded Mods", JSON.stringify(fullRun?.loaded_mod_ids),
+    JSON.stringify(["STS2_PLATFORM"]));
   expectEqual(errors, "Full-Run predecessor evidence transfer",
     fullRun?.evidence_transfer_from_schema2_predecessor, false);
   expectEqual(errors, "Full-Run predecessor canary",
