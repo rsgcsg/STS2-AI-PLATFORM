@@ -47,8 +47,9 @@
   audit/bundle/store/receive/STPD and Workbench closeout.
 - Complete on predecessor exact artifact: one naturally occurring generated-
   card select mapped exact-unique and reached an interactive successor.
-- Pending exact-runtime evidence: generated-card skip and the unified artifact's
-  Human action path remain `not exercised`; evidence is not transferred.
+- Complete bounded exact-runtime Human evidence: the latest repair canary passes
+  semantic accounting on the unified artifact. Generated-card skip remains
+  `not exercised`, and the bounded canary does not qualify exhaustive Full Run.
 
 Cloud storage, broad action-family capture and a full Workbench remain later
 work; they are not reasons to weaken the component boundaries.
@@ -201,11 +202,19 @@ action-family expansion remain outside this bounded baseline.
 - Complete at source/test/build: the repair preserves parent lifecycle through
   native finish, uses one canonical direct-UI boundary, and adds Combat hand
   select/replace/deselect/confirm through the same bounded UI-commit mechanism.
-- Pending exact-runtime gate: one owner-operated continuous
-  `combat selector -> lethal -> reward -> card reward/proceed -> map` canary on
-  the repair artifact.
-- Next Combat batch after that gate: potion use/target/cancel through its typed
-  `UsePotionAction` mechanism, then remaining source-evidenced Combat gaps.
+- Complete bounded exact-runtime gate: owner session
+  `session-20260827T151912Z-4c7f26e56b954b498cfa0c3213e4b488` passes the repair
+  canary for semantic accounting, including repaired canonical direct-UI
+  binding and parent-lifecycle retention.
+- Remaining Live gaps: hand select/replace/deselect, generated skip, potion,
+  room-internal event/shop/rest/treasure actions and run entry.
+- Complete at subsequent source/test: Human potion use arms from the native
+  holder, binds only at `EnqueueManualUse`, and then reuses the typed
+  `UsePotionAction` lifecycle. Target-picker cancel produces no accepted action;
+  programmatic Connector use has no Human arm and is not recorded.
+- Next Combat gate: targeted and untargeted potion use, target-picker cancel,
+  generated skip, and representative hand select/deselect/confirm on one exact
+  cold-loaded artifact. If clean, proceed to non-combat room families.
 - Non-combat room expansion follows a clean Combat mechanism canary.
 - Later: run entry/terminal, representative long-act run, then continuous Full
   Run. Rare content remains targeted evidence and does not block the mainline.

@@ -47,7 +47,8 @@ public sealed class V2RecordingStore : IDisposable
         _invalidations = OpenAppend(Path.Combine(directory, "invalidations.jsonl"));
         _journal = OpenAppend(Path.Combine(directory, "run-journal.jsonl"));
         _nativeActionLedger = OpenAppend(Path.Combine(directory, "native-action-ledger.jsonl"));
-        _semanticBoundaryTrace = OpenAppend(Path.Combine(directory, "semantic-boundary-trace.jsonl"));
+        _semanticBoundaryTrace = OpenBufferedAppend(
+            Path.Combine(directory, "semantic-boundary-trace.jsonl"));
         WriteCoverage();
     }
 
@@ -233,18 +234,23 @@ public sealed class V2RecordingStore : IDisposable
         ExecuteWrite(() => AppendLine(_nativeActionLedger, value));
     }
 
-    public void AppendSemanticBoundaryEvent(SemanticBoundaryTraceEvent value)
+    public void AppendSemanticBoundaryEvent(SemanticBoundaryTraceEvent value) =>
+        AppendSemanticBoundaryEvents(new[] { value });
+
+    public void AppendSemanticBoundaryEvents(
+        IReadOnlyList<SemanticBoundaryTraceEvent> values)
     {
-        if (!SemanticBoundaryTraceContract.IsSupported(value.SchemaVersion, value.Schema)
-            || value.SessionId != Manifest.SessionId
-            || value.TimelineId != Manifest.TimelineId
-            || value.Sequence <= 0
-            || string.IsNullOrWhiteSpace(value.EventId)
-            || string.IsNullOrWhiteSpace(value.Kind)
-            || string.IsNullOrWhiteSpace(value.Action.ActionWitnessId))
-            throw new InvalidDataException("Semantic boundary trace event is invalid for this recording.");
+        foreach (SemanticBoundaryTraceEvent value in values)
+            ValidateSemanticBoundaryEvent(value);
+        if (values.Count == 0)
+            return;
         EnsureOpen();
-        ExecuteWrite(() => AppendLine(_semanticBoundaryTrace, value));
+        ExecuteWrite(() =>
+        {
+            foreach (SemanticBoundaryTraceEvent value in values)
+                AppendLine(_semanticBoundaryTrace, value, flushToDisk: false);
+            _semanticBoundaryTrace.Flush();
+        });
     }
 
     public void AppendInvalidation(InvalidationRecord invalidation)
@@ -279,6 +285,7 @@ public sealed class V2RecordingStore : IDisposable
         {
             if (_closed)
                 return;
+            _semanticBoundaryTrace.Flush(flushToDisk: true);
             foreach (FileStream stream in _decisionFiles.Values)
                 stream.Dispose();
             _invalidations.Dispose();
@@ -408,12 +415,36 @@ public sealed class V2RecordingStore : IDisposable
         4096,
         FileOptions.WriteThrough);
 
-    private static void AppendLine<T>(FileStream stream, T value)
+    private static FileStream OpenBufferedAppend(string path) => new(
+        path,
+        FileMode.Append,
+        FileAccess.Write,
+        FileShare.Read,
+        64 * 1024,
+        FileOptions.SequentialScan);
+
+    private static void AppendLine<T>(
+        FileStream stream,
+        T value,
+        bool flushToDisk = true)
     {
         byte[] json = JsonSerializer.SerializeToUtf8Bytes(value, EvidenceJson.Options);
         stream.Write(json);
         stream.WriteByte((byte)'\n');
-        stream.Flush(true);
+        if (flushToDisk)
+            stream.Flush(flushToDisk: true);
+    }
+
+    private void ValidateSemanticBoundaryEvent(SemanticBoundaryTraceEvent value)
+    {
+        if (!SemanticBoundaryTraceContract.IsSupported(value.SchemaVersion, value.Schema)
+            || value.SessionId != Manifest.SessionId
+            || value.TimelineId != Manifest.TimelineId
+            || value.Sequence <= 0
+            || string.IsNullOrWhiteSpace(value.EventId)
+            || string.IsNullOrWhiteSpace(value.Kind)
+            || string.IsNullOrWhiteSpace(value.Action.ActionWitnessId))
+            throw new InvalidDataException("Semantic boundary trace event is invalid for this recording.");
     }
 
     private static void WriteCreateNew(string path, string content)

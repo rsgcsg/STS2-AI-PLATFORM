@@ -11,6 +11,7 @@ public static class HumanCaptureProfiles
         {
             "ordinary_combat.play_card",
             "ordinary_combat.end_turn",
+            "ordinary_combat.use_potion",
             "native_generated_card_choice.select",
             "native_generated_card_choice.skip"
         },
@@ -24,7 +25,7 @@ public static class HumanCaptureProfiles
         new[]
         {
             "not_full_run_journal",
-            "potion_use_root_action_not_recorded",
+            "potion_target_cancel_before_enqueue_has_no_action_record",
             "selector_live_validation_pending",
             "receipt_is_recording_evidence_not_business_completion"
         });

@@ -10,6 +10,7 @@ public sealed class V2EvidenceTests
     [Theory]
     [InlineData("ordinary_combat", "play", "ordinary_combat.play_card")]
     [InlineData("ordinary_combat", "end_turn", "ordinary_combat.end_turn")]
+    [InlineData("ordinary_combat", "use", "ordinary_combat.use_potion")]
     [InlineData("native_generated_card_choice", "select", "native_generated_card_choice.select")]
     public void ActionFamilyNormalizationIsSharedByAdmissionAndStatus(
         string decisionFamily,
@@ -331,6 +332,90 @@ public sealed class V2EvidenceTests
 
             Assert.Equal("fail", audit.Status);
             Assert.Equal(1, audit.Errors["semantic_trace_missing_accepted_native_action"]);
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
+    public void SemanticBoundaryBatchIsVisibleInOrderAndReadableAfterClose()
+    {
+        string root = Temp("v2-semantic-batch");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            string session;
+            using (V2RecordingStore store = V2RecordingStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                SemanticActionReference action = new(
+                    "action-batch",
+                    1,
+                    "record-batch",
+                    "run-0001",
+                    "PlayCardAction",
+                    1,
+                    "snapshot-a");
+                store.AppendSemanticBoundaryEvents(new[]
+                {
+                    SemanticEvent(manifest, 1, SemanticBoundaryTraceKinds.ActionAccepted, action),
+                    SemanticEvent(manifest, 2, SemanticBoundaryTraceKinds.ActionStarted, action)
+                });
+
+                Assert.Equal(
+                    new[] { 1L, 2L },
+                    File.ReadLines(Path.Combine(session, "semantic-boundary-trace.jsonl"))
+                        .Select(line => JsonSerializer.Deserialize<SemanticBoundaryTraceEvent>(
+                            line,
+                            EvidenceJson.Options)!.Sequence));
+            }
+
+            Assert.Equal(
+                new[] { 1L, 2L },
+                File.ReadLines(Path.Combine(session, "semantic-boundary-trace.jsonl"))
+                    .Select(line => JsonSerializer.Deserialize<SemanticBoundaryTraceEvent>(
+                        line,
+                        EvidenceJson.Options)!.Sequence));
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
+    public void SemanticBoundaryBatchValidatesBeforeWritingAndRejectsClosedStore()
+    {
+        string root = Temp("v2-semantic-batch-failure");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            using V2RecordingStore store = V2RecordingStore.Create(root, manifest, profile);
+            SemanticActionReference action = new(
+                "action-batch",
+                1,
+                "record-batch",
+                "run-0001",
+                "PlayCardAction",
+                1,
+                "snapshot-a");
+            string tracePath = Path.Combine(store.DirectoryPath, "semantic-boundary-trace.jsonl");
+
+            Assert.Throws<InvalidDataException>(() => store.AppendSemanticBoundaryEvents(new[]
+            {
+                SemanticEvent(manifest, 1, SemanticBoundaryTraceKinds.ActionAccepted, action),
+                SemanticEvent(manifest with { TimelineId = "timeline-other" }, 2,
+                    SemanticBoundaryTraceKinds.ActionStarted, action)
+            }));
+            Assert.Empty(File.ReadLines(tracePath));
+
+            store.Dispose();
+            Assert.Throws<ObjectDisposedException>(() => store.AppendSemanticBoundaryEvents(
+                new[] { SemanticEvent(manifest, 1, SemanticBoundaryTraceKinds.ActionAccepted, action) }));
         }
         finally
         {

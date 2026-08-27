@@ -66,4 +66,57 @@ verification passed in runtime `fb5a82ea198140aebfcdbe92b654fce1`, environment
 `4866d18435e47f10970999ce4111dc51e575b1b9696b5ddf1b4dced04d4ff259`,
 with sole exact Modset fingerprint
 `a66aef087216f2ffdf4e5e87d849f1ffa3df2adc073b1b1651801886dabc3281`.
-Human runtime evidence is pending and no predecessor evidence transfers.
+At the time of this repair-candidate entry, owner Human runtime evidence was
+pending; the failed predecessor evidence does not transfer.
+
+## Repair Canary Result
+
+The latest closed owner canary on branch
+`feature/annotator/full-run-semantic-mainline` is **PASS for bounded semantic
+accounting**. It does not qualify a game outcome or an exhaustive Full Run.
+
+- Session: `session-20260827T151912Z-4c7f26e56b954b498cfa0c3213e4b488`
+- Timeline: `timeline-43913dee384646d5a9f390da136e909b`
+- Loaded artifact SHA-256: `8d2f7d2a8e95eac424aa7fed7f22e825821609b83526d38605e813b6a9692c35`
+- Loaded artifact MVID: `3043f4f4-63c8-4058-8f4e-44b60801d3d5`
+- Annotator source: `c8775e1066137c1a7e00993a7ab74493a11717f7`
+- Runtime: `fb5a82ea198140aebfcdbe92b654fce1`
+- Environment: `4866d18435e47f10970999ce4111dc51e575b1b9696b5ddf1b4dced04d4ff259`
+- STS2: `v0.111.0 / 41cef1ea`
+- Sole Modset: `a66aef087216f2ffdf4e5e87d849f1ffa3df2adc073b1b1651801886dabc3281`
+
+Independent Annotator audit: **PASS**, with 80 valid Decision V2 records, 0
+invalid records and 127 explicit legacy invalidations. Semantic schema 2
+accepted 250 actions: 248 proved and two cancelled before start, with 0
+semantic unknown or unresolved records. The native ledger accepted 193 roots,
+comprising 161 `PlayCard` and 32 `EndTurn`, and all were accounted for.
+
+The trace also recorded 14 `VoteForMapCoordAction` actions, 11 generated-choice
+selects, 13 hand-selector confirms, 11 reward claims, five reward proceeds and
+three card-reward selects. Proved transitions include reward, card reward and
+map transitions; map successors reached event (5), combat (5), rest (2),
+treasure (1) and shop (1), including a final `EndTurn -> game_over`.
+
+This proves the repaired canonical direct-UI binding and parent-lifecycle
+retention. It does not prove hand select/replace/deselect, generated skip,
+potion use, room-internal event/shop/rest/treasure actions, run entry,
+exhaustive Full Run, semantic-free performance, game outcome success or
+qualification.
+
+## Subsequent Source Boundary
+
+The next source revision adds a source/test-only potion witness and a bounded
+semantic-trace persistence optimization. Human potion intent is armed only by
+the native holder UI, consumed only when the exact `PotionModel` reaches
+`EnqueueManualUse`, and then follows the game-owned `UsePotionAction` lifecycle.
+Closing the target picker before enqueue produces no Human action. Connector
+execution does not carry this Human arm.
+
+The 45 MiB session contained a 34 MiB semantic trace with 1,336 events, and its
+boundary-to-native-start timestamps were about 8 ms at the median. Per-event
+physical trace flush was therefore identified as a credible low-risk hotspot,
+not as a complete explanation of perceived lag. The subsequent source writes
+semantic events in causal batches and physically flushes that sidecar at safe
+Close; Decision and native-ledger durability are unchanged. No load, Human
+runtime, potion, or performance claim transfers from the repair artifact to
+this subsequent source.

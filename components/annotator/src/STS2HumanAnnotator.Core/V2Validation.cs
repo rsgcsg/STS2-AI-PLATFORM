@@ -55,6 +55,8 @@ public static class HumanCaptureProfileValidator
     public static string ResolveActionFamily(string decisionFamily, string verb) =>
         decisionFamily == "ordinary_combat" && verb == "play"
             ? "ordinary_combat.play_card"
+            : decisionFamily == "ordinary_combat" && verb == "use"
+                ? "ordinary_combat.use_potion"
             : $"{decisionFamily}.{verb}";
 
     private static void ValidateRequiredReads(

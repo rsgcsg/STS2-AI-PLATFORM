@@ -3,9 +3,11 @@ using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.GameActions;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Models.Potions;
 using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.Core.Nodes.Combat;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Nodes.Potions;
 using MegaCrit.Sts2.Core.Nodes.Rewards;
 using MegaCrit.Sts2.Core.Nodes.Screens;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
@@ -45,6 +47,40 @@ internal static class NativeCardPlayPatch
             ? RecorderRuntime.TryEnterCardScope(card, target)
             : default;
     }
+
+    internal static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state);
+        return __exception;
+    }
+}
+
+[HarmonyPatch(typeof(NPotionHolder), nameof(NPotionHolder.UsePotion))]
+internal static class NativePotionUseStartPatch
+{
+    internal static void Prefix(NPotionHolder __instance, out PotionModel? __state) =>
+        __state = RecorderRuntime.ArmPotionUse(__instance.Potion?.Model);
+
+    internal static void Postfix(PotionModel? __state, Task __result)
+    {
+        if (__state == null)
+            return;
+        _ = __result.ContinueWith(
+            _ => RecorderRuntime.ClearPotionUseArm(__state),
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+}
+
+[HarmonyPatch(typeof(PotionModel), nameof(PotionModel.EnqueueManualUse))]
+internal static class NativePotionEnqueuePatch
+{
+    internal static void Prefix(
+        PotionModel __instance,
+        [HarmonyArgument(0)] Creature? target,
+        out NativeUiScopeEntry __state) =>
+        __state = RecorderRuntime.TryEnterPotionUseScope(__instance, target);
 
     internal static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
     {

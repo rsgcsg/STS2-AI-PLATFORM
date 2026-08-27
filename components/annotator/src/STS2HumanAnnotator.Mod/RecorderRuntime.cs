@@ -6,6 +6,7 @@ using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Multiplayer;
 using MegaCrit.Sts2.Core.GameActions;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Models.Potions;
 using MegaCrit.Sts2.Core.Multiplayer.Game;
 using MegaCrit.Sts2.Core.Runs;
 using STS2Connector.PlayerEnvironment.Protocol;
@@ -24,6 +25,11 @@ internal static class RecorderRuntime
         ExactDecisionFrame Decision,
         CardModel Card,
         DateTimeOffset StagedAt);
+
+    private sealed record ArmedPotionUse(
+        ExactDecisionFrame Decision,
+        string SessionId,
+        string TimelineId);
 
     private sealed record PendingDecision(
         string RecordId,
@@ -52,6 +58,8 @@ internal static class RecorderRuntime
     private static readonly HashSet<string> SemanticOnlyNativeActionIds =
         new(StringComparer.Ordinal);
     private static StagedCardFrame? _stagedCardFrame;
+    private static readonly Dictionary<PotionModel, ArmedPotionUse> ArmedPotionUses =
+        new(ReferenceEqualityComparer.Instance);
     private static long _sequence;
     private static long _journalSequence;
     private static long _nativeActionEventSequence;
@@ -103,7 +111,6 @@ internal static class RecorderRuntime
         .ToArray();
     private static readonly string[] DeclaredOutOfScopeActionFamilies =
     {
-        "ordinary_combat.use_potion",
         "navigation_and_non_combat",
         "selectors_other_than_native_generated_card_choice"
     };
@@ -516,6 +523,7 @@ internal static class RecorderRuntime
         NativeActionSubscriptions.Clear();
         NativeActionEvidence.Clear();
         SemanticOnlyNativeActionIds.Clear();
+        ArmedPotionUses.Clear();
         NativeActionLedger.Reset();
         BoundaryTracker.Reset();
     }
@@ -580,6 +588,88 @@ internal static class RecorderRuntime
             nameof(PlayCardAction),
             new ProcessLocalObservedAction("play", card, arguments),
             card);
+    }
+
+    internal static PotionModel? ArmPotionUse(PotionModel? potion)
+    {
+        if (potion == null || !AcceptingNewWitnesses() || HumanActionScope.Current != null)
+            return null;
+        try
+        {
+            ProcessLocalNativeWitnessFrame frame = CaptureReadRichFrame();
+            RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
+            if (EligibilityBlockers(frame, environment, requireReads: true).Count > 0)
+                return null;
+            lock (Gate)
+            {
+                if (!_initialized
+                    || _lifecycle.State != RecordingLifecycleState.Recording
+                    || SessionId == null
+                    || TimelineId == null)
+                    return null;
+                ArmedPotionUses[potion] = new ArmedPotionUse(
+                    new ExactDecisionFrame(frame, environment),
+                    SessionId,
+                    TimelineId);
+            }
+            return potion;
+        }
+        catch (Exception exception)
+        {
+            Quarantine(
+                "potion_pre_frame_capture_failed",
+                exception.Message,
+                null,
+                nameof(UsePotionAction),
+                "implemented_runtime_error");
+            return null;
+        }
+    }
+
+    internal static NativeUiScopeEntry TryEnterPotionUseScope(
+        PotionModel potion,
+        Creature? target)
+    {
+        ArmedPotionUse? armed;
+        lock (Gate)
+        {
+            if (!ArmedPotionUses.Remove(potion, out armed)
+                || !_initialized
+                || _lifecycle.State != RecordingLifecycleState.Recording
+                || armed.SessionId != SessionId
+                || armed.TimelineId != TimelineId)
+                return default;
+        }
+
+        var arguments = new Dictionary<string, object>(StringComparer.Ordinal);
+        if (target != null)
+            arguments["target"] = target;
+        var observed = new ProcessLocalObservedAction("use", potion, arguments);
+        if (!IsExact(armed.Decision.Frame.Resolve(observed)))
+        {
+            Quarantine(
+                "potion_exact_mapping_failed",
+                "The exact potion and target no longer match the BoundAction captured when Human potion use began.",
+                armed.Decision.Frame.Snapshot.SnapshotId,
+                nameof(UsePotionAction),
+                "fail_closed");
+            return default;
+        }
+
+        HumanActionScope.Enter(
+            "native_potion_use_ui",
+            nameof(UsePotionAction),
+            observed,
+            armed.Decision.Frame);
+        return new NativeUiScopeEntry(true, false);
+    }
+
+    internal static void ClearPotionUseArm(PotionModel? potion)
+    {
+        if (potion == null)
+            return;
+        lock (Gate)
+            ArmedPotionUses.Remove(potion);
     }
 
     internal static NativeUiScopeEntry TryEnterGeneratedChoiceCardScope(CardModel card) =>
@@ -1454,10 +1544,11 @@ internal static class RecorderRuntime
             return;
         V2RecordingStore store = _store
             ?? throw new InvalidOperationException("No open recording store for semantic boundary evidence.");
+        var events = new List<SemanticBoundaryTraceEvent>(drafts.Count);
         foreach (SemanticBoundaryTraceDraft draft in drafts)
         {
             long sequence = Interlocked.Increment(ref _semanticBoundaryEventSequence);
-            store.AppendSemanticBoundaryEvent(new SemanticBoundaryTraceEvent(
+            events.Add(new SemanticBoundaryTraceEvent(
                 SemanticBoundaryTraceContract.SchemaVersion,
                 SemanticBoundaryTraceContract.EventSchema,
                 $"semantic-event-{Guid.NewGuid():N}",
@@ -1479,6 +1570,7 @@ internal static class RecorderRuntime
                 HumanObservation = draft.HumanObservation
             });
         }
+        store.AppendSemanticBoundaryEvents(events);
     }
 
     private static void DisableSemanticBoundaryTrace(Exception exception)
@@ -2306,6 +2398,7 @@ internal static class RecorderRuntime
         {
             nameof(PlayCardAction) => "ordinary_combat.play_card",
             nameof(EndPlayerTurnAction) => "ordinary_combat.end_turn",
+            nameof(UsePotionAction) => "ordinary_combat.use_potion",
             "NChooseACardSelectionScreen.SelectHolder" => "native_generated_card_choice.select",
             "NChooseACardSelectionScreen.OnSkipButtonReleased" => "native_generated_card_choice.skip",
             _ => null

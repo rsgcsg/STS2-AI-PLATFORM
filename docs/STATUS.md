@@ -16,16 +16,19 @@ directly before claiming protection.
 Phase: **Full-Run Human Semantic Timeline is the active Platform objective.
 Ordinary-combat schema 2 remains the bounded Human-proved regression oracle.
 The first combat -> reward -> card reward -> map canary exposed two correctness
-defects; the repair plus Combat hand-selector batch is source/test/build complete
-and pending exact-runtime Human evidence**.
+defects; the repair plus Combat hand-selector batch is source/test/build
+complete, and the latest bounded owner canary passes semantic accounting**.
 
 Current source advances the proved predecessor into semantic trace schema 2:
 H is observation-only, execution binds S, state/Read/catalog completeness are
 orthogonal, and Close drains an unresolved semantic edge before classifying it
-unknown. Artifact `eb7ed072... / 34a36a2b...` is built, installed and loaded;
-latest owner session `session-20260827T042832Z-...` supplies bounded Human
-evidence without promoting any schema-1 row. Current source adds a new artifact
-candidate and does not inherit that loaded or Human evidence.
+unknown. The loaded repair artifact is SHA-256
+`8d2f7d2a8e95eac424aa7fed7f22e825821609b83526d38605e813b6a9692c35`, MVID
+`3043f4f4-63c8-4058-8f4e-44b60801d3d5`, from Annotator source
+`c8775e1066137c1a7e00993a7ab74493a11717f7`, in runtime
+`fb5a82ea198140aebfcdbe92b654fce1`. Latest owner session
+`session-20260827T151912Z-4c7f26e56b954b498cfa0c3213e4b488` passes bounded
+semantic accounting; it does not qualify exhaustive Full Run or game outcome.
 
 ## Implemented
 
@@ -137,8 +140,10 @@ candidate and does not inherit that loaded or Human evidence.
   parents through native terminal lifecycle, canonicalizes direct UI execution,
   and adds exact Combat hand select/deselect/confirm witnesses. Clean artifact
   `8d2f7d2a... / 3043f4f4...` is safely installed and cold-loaded in runtime
-  `fb5a82ea...` with the sole exact `STS2_PLATFORM` Mod. Human action evidence
-  remains pending. See the
+  `fb5a82ea...` with the sole exact `STS2_PLATFORM` Mod. The latest repair
+  canary passes bounded semantic accounting: 250 schema-2 accepted actions,
+  248 proved, two cancelled before start and 0 semantic unknown/unresolved; its
+  193 native accepted roots are all accounted for. See the
   [batch canary](evidence/FULL_RUN_BATCH1_OWNER_CANARY_2026-08-28.md).
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.
@@ -379,15 +384,20 @@ not a semantic seal. See the dated owner-canary report.
   semantic proof. Schema 2 is now owner-operated and proves bounded ordinary
   combat, generated-card select and direct execution handoff. Exact reorder on
   the schema-2 artifact, catalog-incomplete Live handoff, successful pending-
-  edge Close drain, the new artifact's lethal/reward/card-reward/map path,
-  continuous Full Run, corpus admission and training authority remain
-  non-claims.
+  edge Close drain, hand select/replace/deselect, generated skip, potion Live use,
+  room-internal event/shop/rest/treasure actions, run entry, exhaustive Full
+  Run, semantic-free performance, game outcome success, corpus admission and
+  training authority remain non-claims.
 - H0/H1/H2 are automated real-runtime evidence, not human validation, a full
   game journey, durable qualification, semantic parity or long-soak proof.
 - The optional noninteractive Host execution profile was not implemented by the
   current Connector and remains a non-claim; shipped-default semantics passed.
 - Generated-card select is audited on the current schema-2 unified artifact;
   generated-card skip remains `not exercised`.
+- Subsequent source/test adds exact native Human potion correlation and removes
+  per-event physical flush from the additive semantic trace. It is not loaded
+  and has no Human potion or performance evidence; the repair canary identity
+  and claims remain bound to `8d2f7d2a... / 3043f4f4...`.
 - The V2 bundle/store/receiver/STPD path is verified, but this does not authorize
   corpus inclusion or training and does not qualify unexercised action families.
 - Platform Evidence is a focused evidence-integrity package, not a

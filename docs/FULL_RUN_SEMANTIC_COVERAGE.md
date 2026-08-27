@@ -23,18 +23,18 @@ from a later Human effect.
 
 | Slice | Native witness | Source/test | Current-artifact Live |
 |---|---|---:|---:|
-| ordinary combat play / End Turn | `GameAction.OnEnqueued` + typed lifecycle + `ActionExecutor.BeforeActionExecuted` | complete | bounded Human-proved predecessor |
-| generated-card select | exact selection callback + direct UI delivery | complete | bounded Human-proved predecessor |
+| ordinary combat play / End Turn | `GameAction.OnEnqueued` + typed lifecycle + `ActionExecutor.BeforeActionExecuted` | complete | repair canary PASS for bounded accounting: 161 `PlayCard`, 32 `EndTurn` native roots |
+| generated-card select | exact selection callback + direct UI delivery | complete | repair canary: 11 selects recorded |
 | generated-card skip | exact skip callback + direct UI delivery | complete | not exercised |
-| Combat hand selector select / replace / deselect / confirm | exact hand/container callbacks + direct UI delivery | complete | pending repair-artifact Live |
-| potion use / target / cancel | Connector BoundActions; `UsePotionAction` lifecycle is distinct | not implemented as Human witness | not exercised |
-| lethal combat -> reward | existing combat lifecycle + reward Player Environment boundary | complete | encountered on failed predecessor canary; repair pending |
-| reward claim | `NRewardButton.OnRelease` direct UI delivery | complete | predecessor exposed boundary-name defect; repair pending |
-| reward proceed | `NRewardsScreen.OnProceedButtonPressed` direct UI delivery | complete | predecessor exposed boundary-name defect; repair pending |
-| card reward select | `NCardRewardSelectionScreen.SelectCard` direct UI delivery | complete | predecessor exposed boundary-name defect; repair pending |
-| map travel | `NMapScreen.OnMapPointSelectedLocally` -> `VoteForMapCoordAction` lifecycle | complete | encountered before predecessor trace failure; repair pending |
-| event / shop / rest / treasure | Connector observation coverage only | not implemented as Human witnesses | not exercised |
-| run entry / game terminal | observation coverage varies | not implemented as Human witnesses | not exercised |
+| Combat hand selector select / replace / deselect / confirm | exact hand/container callbacks + direct UI delivery | complete | repair canary: 13 confirms; select/replace/deselect not proved |
+| potion use / target / cancel | Human `NPotionHolder.UsePotion` arm -> exact `PotionModel.EnqueueManualUse` commit -> `UsePotionAction` lifecycle; target-picker cancel never enqueues | complete at subsequent source/test only | not exercised on the subsequent artifact |
+| lethal combat -> reward | existing combat lifecycle + reward Player Environment boundary | complete | repair canary PASS |
+| reward claim | `NRewardButton.OnRelease` direct UI delivery | complete | repair canary PASS: 11 claims |
+| reward proceed | `NRewardsScreen.OnProceedButtonPressed` direct UI delivery | complete | repair canary PASS: five proceeds |
+| card reward select | `NCardRewardSelectionScreen.SelectCard` direct UI delivery | complete | repair canary PASS: three selects |
+| map travel | `NMapScreen.OnMapPointSelectedLocally` -> `VoteForMapCoordAction` lifecycle | complete | repair canary PASS: 14 actions |
+| event / shop / rest / treasure | Connector observation coverage only | not implemented as Human witnesses | map successors only: event (5), shop (1), rest (2), treasure (1); room-internal actions not exercised |
+| run entry / game terminal | observation coverage varies | not implemented as Human witnesses | final `EndTurn -> game_over` observed; run entry and exhaustive Full Run not exercised |
 
 Semantic state Read requirements are interaction-specific: combat requires
 `run_deck` and `combat_piles`, shop requires `run_deck` and `shop_catalog`, and
@@ -49,24 +49,39 @@ that disabled semantic tracing while native accounting continued. Strengthened
 audit now rejects that session with 546 missing accepted-root findings. See the
 [batch evidence](evidence/FULL_RUN_BATCH1_OWNER_CANARY_2026-08-28.md).
 
-The repair artifact must exercise one continuous path:
+The repair artifact exercised the bounded cross-surface path:
 
 ```text
 lethal combat -> reward claim -> card reward select or skip/proceed -> map node
 ```
 
-Pass requires every encountered accepted Human action to have exactly one
-semantic disposition, no proof to cross another Human start, and each proved
-`A.S'` to equal the next real execution's `S` when such an execution follows.
-It should additionally exercise one Combat hand selection with select,
-replacement or deselect, and confirm when naturally available. Generated-card
-skip, potion, event, shop, rest, treasure, run entry and terminal remain
-non-claims until separately encountered or implemented.
+The latest closed owner session
+`session-20260827T151912Z-4c7f26e56b954b498cfa0c3213e4b488`, timeline
+`timeline-43913dee384646d5a9f390da136e909b`, passes with 250 accepted schema-2
+actions, 248 proved, two cancelled before start and 0 semantic unknown or
+unresolved. Its independent Annotator audit passes 80 valid Decision V2
+records, 0 invalid records and 127 explicit legacy invalidations. The native
+ledger accounts for 193 accepted roots: 161 `PlayCard` and 32 `EndTurn`.
+
+The canary proves repaired canonical direct-UI binding and parent-lifecycle
+retention. It does not prove hand select/replace/deselect, generated skip,
+potion use, room-internal event/shop/rest/treasure actions, run entry,
+exhaustive Full Run, semantic-free performance, game outcome success or
+qualification.
+
+Subsequent source adds the bounded potion witness and removes per-event
+physical flushes from the additive semantic trace. Primary Decision and native
+ledger streams retain their existing per-event durability; semantic events are
+written in causal batches and physically flushed on safe Close. This source has
+automated evidence only. It has not inherited the repair artifact's loaded or
+Human runtime evidence, and the observed 8 ms-class boundary-to-start delay is
+only a credible trace-I/O hotspot, not a completed performance diagnosis.
 
 Current repair source is `c8775e1066137c1a7e00993a7ab74493a11717f7`.
 Its clean unified build is `8d2f7d2a8e95eac424aa7fed7f22e825821609b83526d38605e813b6a9692c35 /
 3043f4f4-63c8-4058-8f4e-44b60801d3d5`. Safe install passed with rollback
 `apps/game-mod/.local/deployments/2026-08-27T15-04-13.434Z`. It is cold-loaded
-in runtime `fb5a82ea198140aebfcdbe92b654fce1` under the sole exact Platform
-Modset. Human runtime remains pending, and no predecessor Live evidence
-transfers.
+in runtime `fb5a82ea198140aebfcdbe92b654fce1`, environment
+`4866d18435e47f10970999ce4111dc51e575b1b9696b5ddf1b4dced04d4ff259`, under
+the sole exact Modset
+`a66aef087216f2ffdf4e5e87d849f1ffa3df2adc073b1b1651801886dabc3281`.
