@@ -221,20 +221,16 @@ function deploy() {
     fs.copyFileSync(builtDll, installedDll);
     fs.copyFileSync(manifestSource, installedManifest);
     const connectorConfig = path.join(installation.mods_dir, "STS2_MCP.conf");
-    if (!fs.existsSync(connectorConfig)) {
-      writeJson(connectorConfig, {
-        port: 15526,
-        player_environment_native_page_evidence_enabled: false
-      });
-    }
+    writeJson(connectorConfig, {
+      port: 15526,
+      player_environment_native_page_evidence_enabled: false
+    });
     const annotatorConfig = path.join(installation.mods_dir, "STS2_HUMAN_ANNOTATOR.conf");
-    if (!fs.existsSync(annotatorConfig)) {
-      writeJson(annotatorConfig, {
-        recording_root: path.join(annotatorRoot, ".local/recordings"),
-        runtime_status_path: runtimeStatus,
-        successor_timeout_ms: 20000
-      });
-    }
+    writeJson(annotatorConfig, {
+      recording_root: path.join(annotatorRoot, ".local/recordings"),
+      runtime_status_path: runtimeStatus,
+      successor_timeout_ms: 20000
+    });
     const installed = {
       schema: "sts2.platform/game-mod-installed-provenance-1",
       installed_at: new Date().toISOString(),

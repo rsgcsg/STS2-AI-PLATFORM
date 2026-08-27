@@ -82,6 +82,14 @@ test("single-Mod deploy retires every legacy production manifest and DLL", () =>
   ]) assert.match(lifecycle, new RegExp(name.replace(".", "\\."), "u"));
 });
 
+test("single-Mod deploy replaces archived predecessor component configuration", () => {
+  const lifecycle = read("apps/game-mod/lifecycle.mjs");
+  assert.match(lifecycle, /managedConfigFiles\.map\([\s\S]*archiveTarget/u);
+  assert.match(lifecycle, /writeJson\(connectorConfig,/u);
+  assert.match(lifecycle, /writeJson\(annotatorConfig,/u);
+  assert.doesNotMatch(lifecycle, /if \(!fs\.existsSync\((?:connector|annotator)Config\)\)/u);
+});
+
 test("cold launch derives exact Connector canaries from compatibility authority", () => {
   const lifecycle = read("apps/game-mod/lifecycle.mjs");
   assert.match(lifecycle, /resolveConnectorCanaryEnvironment/u);
