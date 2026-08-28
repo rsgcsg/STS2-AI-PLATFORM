@@ -85,15 +85,8 @@ risks. Never overwrite a changed `develop`, BOM, manifest or contract merely to
 make a stale branch pass. Rebase or merge only after understanding the new
 facts.
 
-Current independent Platform workstreams include:
-
-```text
-evidence/annotator/schema2-human-closeout
-fix/policy-runtime/stable-successor-deadline
-refactor/annotator/semantic-structure-cleanup
-```
-
-They must not share a branch or transfer evidence.
+Active workstreams belong in pull requests and the bounded
+[Current Context](memory/CURRENT.md), not in this durable workflow.
 
 ## Cross-repository dependencies
 
@@ -118,6 +111,7 @@ The owning component determines checks. At minimum:
 ```bash
 npm ci
 npm run check
+npm run project:closeout
 git diff --check
 ```
 

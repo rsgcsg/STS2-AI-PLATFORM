@@ -1,8 +1,9 @@
 # Contributing
 
-Read `AGENTS.md`, the current architecture and the owning component guide before
+Start with the [New Engineer Guide](docs/NEW_ENGINEER_GUIDE.md). Read
+`AGENTS.md`, the current architecture, and the owning component guide before
 editing. Keep changes inside the narrowest owning component and state public
-contract, component identity, artifact and runtime-evidence impact explicitly.
+contract, component identity, artifact, and runtime-evidence impact explicitly.
 
 Read the [development workflow](docs/DEVELOPMENT_WORKFLOW.md). Ordinary changes
 start from current `origin/develop` on a short-lived topic branch and enter
@@ -13,6 +14,7 @@ branch/worktree.
 ```bash
 npm ci
 npm run check
+npm run project:closeout
 git diff --check
 ```
 
