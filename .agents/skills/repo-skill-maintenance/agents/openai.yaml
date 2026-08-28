@@ -1,0 +1,5 @@
+interface:
+  display_name: "Repo Skill Maintenance"
+  short_description: "Govern repository Skill lifecycle changes"
+policy:
+  allow_implicit_invocation: false
