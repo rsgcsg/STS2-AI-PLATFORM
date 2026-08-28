@@ -9,6 +9,17 @@ npm ci
 npm run check
 ```
 
+Repository-system checks and routing can also be run directly:
+
+```bash
+npm run project:context
+npm run project:check
+npm run project:closeout
+```
+
+`project:check` is part of the root portable gate. `project:closeout` reports
+path-based review signals and never rewrites semantic truth.
+
 Focused checks:
 
 ```bash

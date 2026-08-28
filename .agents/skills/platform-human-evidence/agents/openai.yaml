@@ -1,0 +1,5 @@
+interface:
+  display_name: "Platform Human Evidence"
+  short_description: "Capture and audit native-Human evidence"
+policy:
+  allow_implicit_invocation: true
