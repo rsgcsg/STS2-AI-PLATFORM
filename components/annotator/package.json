@@ -16,9 +16,11 @@
   "scripts": {
     "doctor": "node tools/annotator.mjs doctor",
     "build": "node tools/annotator.mjs build",
-    "test": "node tools/annotator.mjs test",
+    "test": "node tools/annotator.mjs test && node --test tools/analyze-semantic-evidence.test.mjs",
+    "test:semantic-analysis": "node --test tools/analyze-semantic-evidence.test.mjs",
     "check:docs": "node tools/check-docs.mjs",
-    "check": "node tools/annotator.mjs check",
+    "check": "node tools/annotator.mjs check && node --test tools/analyze-semantic-evidence.test.mjs",
+    "analyze:semantic-evidence": "node tools/analyze-semantic-evidence.mjs",
     "deploy": "node tools/annotator.mjs deploy",
     "prepare:mods": "node tools/annotator.mjs prepare-mod-settings",
     "prepare:live-connector": "node tools/annotator.mjs prepare-live-connector-settings",

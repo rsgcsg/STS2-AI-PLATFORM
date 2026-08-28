@@ -17,6 +17,8 @@ Use the smallest route that answers the task.
 ## Finding technical truth
 
 - Current claims and evidence pointers: [Status](STATUS.md).
+- Semantic evidence storage and measured predecessor baseline:
+  [Semantic Evidence Storage Baseline](evidence/SEMANTIC_EVIDENCE_STORAGE_BASELINE_2026-08-29.md).
 - Bounded active context and next gate: [Current Context](memory/CURRENT.md).
 - Product boundary and dependency direction: [Architecture](ARCHITECTURE.md).
 - Ownership matrix: [Components](COMPONENTS.md).

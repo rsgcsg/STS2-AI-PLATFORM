@@ -424,6 +424,117 @@ public sealed class V2EvidenceTests
     }
 
     [Fact]
+    public void SemanticEvidenceStoresAnExactFrameOnceAndAuditsTampering()
+    {
+        string root = Temp("v2-semantic-evidence");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            string session;
+            string framePath;
+            using (V2RecordingStore store = V2RecordingStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                FrozenDecisionFrameV2 frame = V2Record(
+                    RecordValidationTests.ValidRecord(),
+                    (PersistReads(store, "snapshot-a"), PersistReads(store, "snapshot-b"))).Pre;
+                SemanticFrameReference first = store.PersistSemanticFrame(frame);
+                SemanticFrameReference second = store.PersistSemanticFrame(frame);
+                Assert.Equal(first, second);
+                Assert.Single(Directory.GetFiles(
+                    Path.Combine(session, "semantic-frames"),
+                    "*.json",
+                    SearchOption.AllDirectories));
+
+                var action = new SemanticActionReference(
+                    "action-ref",
+                    1,
+                    "record-ref",
+                    "run-0001",
+                    "PlayCardAction",
+                    1,
+                    frame.SnapshotId);
+                store.AppendSemanticEvidenceEvents(new[]
+                {
+                    SemanticEvidenceEvent(manifest, 1, SemanticBoundaryTraceKinds.ActionAccepted, action)
+                        with { HumanObservationRef = first },
+                    SemanticEvidenceEvent(
+                        manifest,
+                        2,
+                        SemanticBoundaryTraceKinds.ActionCancelledBeforeStart,
+                        action)
+                });
+                SemanticEvidenceEvent persisted = JsonSerializer.Deserialize<SemanticEvidenceEvent>(
+                    File.ReadLines(Path.Combine(session, "semantic-boundary-trace.jsonl")).First(),
+                    EvidenceJson.Options)!;
+                Assert.Equal(SemanticEvidenceContract.EventSchema, persisted.Schema);
+                Assert.Equal(first, persisted.HumanObservationRef);
+                framePath = Path.Combine(session, first.ObjectRef);
+            }
+
+            RecordingAuditResult beforeTamper = V2RecordingAuditor.Audit(session);
+            Assert.DoesNotContain(
+                beforeTamper.Errors.Keys,
+                key => key.StartsWith("semantic_", StringComparison.Ordinal));
+            File.AppendAllText(framePath, "tampered");
+            RecordingAuditResult audit = V2RecordingAuditor.Audit(session);
+            Assert.Equal("fail", audit.Status);
+            Assert.True(audit.Errors.ContainsKey("semantic_frame_missing_or_changed"));
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
+    public void ReadBatchPreservesCountsAndPayloads()
+    {
+        string root = Temp("v2-read-batch");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            using V2RecordingStore store = V2RecordingStore.Create(root, manifest, profile);
+            JsonNode content = JsonNode.Parse("{\"cards\":[\"Strike\"]}")!;
+            JsonNode completeness = JsonNode.Parse("{\"status\":\"complete\",\"missing\":[]}")!;
+            IReadOnlyList<ReadEvidence> reads = store.PersistReads(new[]
+            {
+                CapturedRead("run_deck", content, completeness),
+                CapturedRead("combat_piles", content, completeness)
+            });
+
+            Assert.Equal(2, reads.Count);
+            RecordingStoreSnapshot snapshot = store.GetSnapshot();
+            Assert.Equal(2, snapshot.Counters.ReadsMaterialized);
+            Assert.Equal(0, snapshot.Counters.ReadsFailed);
+            Assert.All(reads, read => Assert.True(File.Exists(Path.Combine(store.DirectoryPath, read.PayloadRef!))));
+        }
+        finally
+        {
+            Delete(root);
+        }
+
+        static CapturedReadPayload CapturedRead(
+            string kind,
+            JsonNode content,
+            JsonNode completeness) => new(
+            $"read-{kind}",
+            kind,
+            "snapshot-a",
+            "runtime-1",
+            "environment-1",
+            "materialized",
+            $"sts2.player-environment/read/{kind}-1",
+            content.DeepClone(),
+            completeness.DeepClone(),
+            DateTimeOffset.UnixEpoch,
+            null,
+            null);
+    }
+
+    [Fact]
     public void V2BundleIsPortableDeterministicAndImmutable()
     {
         string root = Temp("v2-bundle");
@@ -724,6 +835,31 @@ public sealed class V2EvidenceTests
         {
             HumanObservation = humanObservation
         };
+
+    private static SemanticEvidenceEvent SemanticEvidenceEvent(
+        RecordingManifestV2 manifest,
+        long sequence,
+        string kind,
+        SemanticActionReference action) => new(
+            SemanticEvidenceContract.SchemaVersion,
+            SemanticEvidenceContract.EventSchema,
+            $"semantic-evidence-event-{sequence}",
+            manifest.SessionId,
+            manifest.TimelineId,
+            action.RunId,
+            sequence,
+            DateTimeOffset.UnixEpoch.AddMilliseconds(sequence),
+            kind,
+            action,
+            kind == SemanticBoundaryTraceKinds.ActionAccepted
+                ? "human_observation_recorded"
+                : "not_a_successful_action",
+            null,
+            null,
+            null,
+            null,
+            null,
+            Array.Empty<string>());
 
     private static string Temp(string name) =>
         Path.Combine(Path.GetTempPath(), $"sts2-{name}-{Guid.NewGuid():N}");

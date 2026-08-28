@@ -116,7 +116,10 @@ observed. Timeout, overlap, cancellation, runtime drift, lifecycle persistence
 uncertainty, root-contract error, or mapping failure is fail-closed. Native
 lifecycle, invalidated-decision facts and `semantic-boundary-trace.jsonl` are
 additive sidecar evidence; `HumanDecisionRecordV2` bytes and meaning are
-unchanged. The semantic trace is observation-only and audited independently.
+unchanged. Schema-3 events reference exact content-addressed frozen frames by
+H/S/S' role, eliminating repeated inline frames without normalizing away
+snapshot or Read provenance. The semantic trace is observation-only and audited
+independently; historical schema-1/2 rows remain readable.
 Audit rejects a proved transition whose semantic pre does not match its complete
 pre-execution boundary, or whose causal window contains another Human action
 start after A begins and before S'.

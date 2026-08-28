@@ -206,21 +206,32 @@ action-family expansion remain outside this bounded baseline.
   `session-20260827T151912Z-4c7f26e56b954b498cfa0c3213e4b488` passes the repair
   canary for semantic accounting, including repaired canonical direct-UI
   binding and parent-lifecycle retention.
-- Latest long owner run proves one enemy-targeted potion and clean overall
-  accounting, but exposed self-target operand normalization and accepted-action
-  accounting defects in the Annotator witness. Repair source/test/build/load is
-  complete; its exact Human gate is pending.
-- Remaining Live gaps: repaired self-target potion, potion target-picker cancel,
-  hand select/replace/deselect, generated skip, room-internal
+- The predecessor long owner run proved one enemy-targeted potion and exposed
+  self-target operand normalization and accepted-action accounting defects in
+  the Annotator witness; the subsequent bounded repair-artifact gate below
+  closes those defects.
+- Complete bounded repair-artifact gate: the latest closed owner session proves
+  233 accepted/233 semantic transitions, including enemy-target, no-target and
+  self-target potion use, with zero unresolved. Target-picker cancel remains
+  unexercised.
+- Complete at source/test/build: semantic evidence schema 3 stores exact
+  content-addressed H/S/S' frames behind role references; legacy schema-1/2
+  remains auditable. Snapshot-only candidate probes, interaction-specific Reads,
+  batched coverage writes and successor capture reuse remove measured duplicate
+  work without creating a new boundary proof. A new exact-artifact Human canary
+  is required before resuming room-family expansion.
+- Remaining Live gaps: potion target-picker cancel, hand
+  select/replace/deselect, generated skip, room-internal
   event/shop/rest/treasure actions and run entry.
 - Complete at subsequent source/test: Human potion use arms from the native
   holder, binds only at `EnqueueManualUse`, and then reuses the typed
   `UsePotionAction` lifecycle. Target-picker cancel produces no accepted action;
   programmatic Connector use has no Human arm and is not recorded.
-- Next Combat gate: self-target and enemy-target potion use, target-picker
-  cancel, and a rapid potion attempt on the exact repair artifact. If clean,
-  close the remaining representative generated-skip/hand-selector gates and
-  proceed to Event options.
+- Next gate: a short normalized-evidence canary covering rapid combat,
+  Play -> End Turn, one potion, generated choice and Close. It must prove
+  schema-3 audit/accounting, no false transition, bounded file/Read growth and
+  no material interaction regression. Then close target-picker cancel and the
+  representative generated-skip/hand-selector gaps before Event options.
 - Non-combat room expansion follows a clean Combat mechanism canary.
 - Later: run entry/terminal, representative long-act run, then continuous Full
   Run. Rare content remains targeted evidence and does not block the mainline.

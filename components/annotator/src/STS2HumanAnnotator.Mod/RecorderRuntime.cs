@@ -73,6 +73,7 @@ internal static class RecorderRuntime
     private static DateTimeOffset _lastIdleStatusAt;
     private static DateTimeOffset _lastFrameProbeAt;
     private static DateTimeOffset _lastSemanticBoundaryProbeAt;
+    private static DateTimeOffset _lastLegacySuccessorProbeAt;
     private static DateTimeOffset? _semanticCloseDrainDeadline;
     private static ActionExecutor? _observedActionExecutor;
     private static bool _semanticBoundaryTraceHealthy = true;
@@ -375,6 +376,9 @@ internal static class RecorderRuntime
         _journalSequence = 0;
         _nativeActionEventSequence = 0;
         _semanticBoundaryEventSequence = 0;
+        _lastFrameProbeAt = DateTimeOffset.MinValue;
+        _lastSemanticBoundaryProbeAt = DateTimeOffset.MinValue;
+        _lastLegacySuccessorProbeAt = DateTimeOffset.MinValue;
         _runSequence = 0;
         _runActive = false;
         _currentRunId = "run-unassigned";
@@ -1236,6 +1240,15 @@ internal static class RecorderRuntime
 
         try
         {
+            ProcessLocalNativeWitnessFrame probe = PlayerEnvironmentNativeWitness.Capture();
+            if (!string.Equals(probe.Snapshot.Status, "interactive", StringComparison.Ordinal)
+                || !string.Equals(
+                    probe.Snapshot.BoundActions.Status,
+                    "complete",
+                    StringComparison.Ordinal))
+            {
+                return;
+            }
             ProcessLocalNativeWitnessFrame frame = CaptureSemanticFrame();
             ObserveSemanticDecisionBoundary(
                 frame,
@@ -1249,14 +1262,24 @@ internal static class RecorderRuntime
 
     private static void ObserveSemanticDecisionBoundary(
         ProcessLocalNativeWitnessFrame frame,
-        string witnessKind)
+        string witnessKind,
+        FrozenDecisionFrameV2? completeState = null)
     {
         if (!_semanticBoundaryTraceHealthy)
             return;
+        if (!string.Equals(frame.Snapshot.Status, "interactive", StringComparison.Ordinal)
+            || !string.Equals(
+                frame.Snapshot.BoundActions.Status,
+                "complete",
+                StringComparison.Ordinal))
+        {
+            return;
+        }
         SemanticBoundaryObservation boundary = CreateSemanticBoundaryObservation(
             frame,
             witnessKind,
-            null);
+            null,
+            completeState);
         if (!boundary.IsCompleteDecisionBoundary)
             return;
         IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
@@ -1294,7 +1317,8 @@ internal static class RecorderRuntime
 
     private static FrozenDecisionFrameV2 FreezeSemanticBoundary(
         ProcessLocalNativeWitnessFrame frame,
-        RecorderEnvironmentIdentity environment)
+        RecorderEnvironmentIdentity environment,
+        string readPhase = "semantic")
     {
         PlayerEnvironmentSnapshot snapshot = frame.Snapshot;
         return new FrozenDecisionFrameV2(
@@ -1305,7 +1329,7 @@ internal static class RecorderRuntime
             EvidenceIdentity.Sha256Json(snapshot.BoundActions),
             snapshot.BoundActions.Actions.Count,
             ToNode(snapshot),
-            PersistReads(frame, "semantic", environment));
+            PersistReads(frame, readPhase, environment));
     }
 
     private static IReadOnlyList<string> SemanticStateBlockers(
@@ -1633,13 +1657,25 @@ internal static class RecorderRuntime
             return;
         V2RecordingStore store = _store
             ?? throw new InvalidOperationException("No open recording store for semantic boundary evidence.");
-        var events = new List<SemanticBoundaryTraceEvent>(drafts.Count);
+        var events = new List<SemanticEvidenceEvent>(drafts.Count);
         foreach (SemanticBoundaryTraceDraft draft in drafts)
         {
             long sequence = Interlocked.Increment(ref _semanticBoundaryEventSequence);
-            events.Add(new SemanticBoundaryTraceEvent(
-                SemanticBoundaryTraceContract.SchemaVersion,
-                SemanticBoundaryTraceContract.EventSchema,
+            SemanticFrameReference? humanObservationRef = draft.HumanObservation == null
+                ? null
+                : store.PersistSemanticFrame(draft.HumanObservation);
+            SemanticFrameReference? executionPreRef = draft.SemanticPre == null
+                ? null
+                : store.PersistSemanticFrame(draft.SemanticPre);
+            SemanticFrameReference? successorRef = draft.SemanticSuccessor == null
+                ? null
+                : store.PersistSemanticFrame(draft.SemanticSuccessor);
+            SemanticBoundaryObservationReference? boundary = draft.Boundary == null
+                ? null
+                : ToReference(store, draft.Boundary);
+            events.Add(new SemanticEvidenceEvent(
+                SemanticEvidenceContract.SchemaVersion,
+                SemanticEvidenceContract.EventSchema,
                 $"semantic-event-{Guid.NewGuid():N}",
                 SessionId!,
                 TimelineId!,
@@ -1650,17 +1686,36 @@ internal static class RecorderRuntime
                 draft.Action,
                 draft.ProofStatus,
                 draft.RelatedActionWitnessId,
-                draft.Boundary,
-                draft.SemanticPre,
-                draft.SemanticSuccessor,
+                boundary,
+                executionPreRef,
+                successorRef,
                 draft.Detail,
                 draft.NonClaims ?? Array.Empty<string>())
             {
-                HumanObservation = draft.HumanObservation
+                HumanObservationRef = humanObservationRef
             });
         }
-        store.AppendSemanticBoundaryEvents(events);
+        store.AppendSemanticEvidenceEvents(events);
     }
+
+    private static SemanticBoundaryObservationReference ToReference(
+        V2RecordingStore store,
+        SemanticBoundaryObservation boundary) =>
+        new(
+            boundary.WitnessKind,
+            boundary.ObservedAt,
+            boundary.SnapshotId,
+            boundary.Status,
+            boundary.BoundActionsStatus,
+            boundary.InteractionId,
+            boundary.InteractionKind,
+            boundary.State == null ? null : store.PersistSemanticFrame(boundary.State),
+            boundary.ImmediatelyConsumedByActionWitnessId)
+        {
+            StateCompleteness = boundary.StateCompleteness,
+            RequiredReadsStatus = boundary.RequiredReadsStatus,
+            StateBlockers = boundary.StateBlockers
+        };
 
     private static void DisableSemanticBoundaryTrace(Exception exception)
     {
@@ -2130,6 +2185,35 @@ internal static class RecorderRuntime
             && !NativeActionLedger.CanAdmitStrictTransition(pending.NativeActionWitnessId))
             return;
 
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        if (now - _lastLegacySuccessorProbeAt < TimeSpan.FromMilliseconds(50))
+            return;
+        _lastLegacySuccessorProbeAt = now;
+
+        ProcessLocalNativeWitnessFrame probe = PlayerEnvironmentNativeWitness.Capture();
+        if (!string.Equals(
+                probe.Capabilities.Host.RuntimeInstanceId,
+                pending.Environment.RuntimeInstanceId,
+                StringComparison.Ordinal)
+            || !string.Equals(
+                probe.Capabilities.EnvironmentFingerprint,
+                pending.Environment.EnvironmentFingerprint,
+                StringComparison.Ordinal))
+        {
+            ClearPendingWithInvalidation(
+                pending,
+                "runtime_identity_changed",
+                "Runtime or environment identity changed before successor settlement.",
+                "environment_changed");
+            return;
+        }
+        if (!string.Equals(probe.Snapshot.Status, "interactive", StringComparison.Ordinal)
+            || !string.Equals(probe.Snapshot.BoundActions.Status, "complete", StringComparison.Ordinal)
+            || string.Equals(probe.Snapshot.SnapshotId, pending.Pre.SnapshotId, StringComparison.Ordinal))
+        {
+            return;
+        }
+
         ProcessLocalNativeWitnessFrame successorFrame = CaptureReadRichFrame();
         if (!string.Equals(
                 successorFrame.Capabilities.Host.RuntimeInstanceId,
@@ -2157,9 +2241,17 @@ internal static class RecorderRuntime
         if (!HasRequiredReads(successorFrame))
             return;
 
+        FrozenDecisionFrameV2 frozenSuccessor = FreezeSemanticBoundary(
+            successorFrame,
+            pending.Environment,
+            "successor");
+
         try
         {
-            ObserveSemanticDecisionBoundary(successorFrame, "legacy_v2_successor");
+            ObserveSemanticDecisionBoundary(
+                successorFrame,
+                "legacy_v2_successor",
+                frozenSuccessor);
         }
         catch (Exception exception)
         {
@@ -2191,7 +2283,7 @@ internal static class RecorderRuntime
                     successor.Interaction.Kind,
                     successor.ObservedAt,
                     ToNode(successor),
-                    PersistReads(successorFrame, "successor", pending.Environment)),
+                    frozenSuccessor.Reads),
                 DecisionFamily(pending.Pre.InteractionKind),
                 pending.Pre.SurfaceSchema,
                 new RecordEligibility(
@@ -2327,7 +2419,7 @@ internal static class RecorderRuntime
         PlayerEnvironmentNativeWitness.Capture(RequiredReadKinds);
 
     private static ProcessLocalNativeWitnessFrame CaptureSemanticFrame() =>
-        PlayerEnvironmentNativeWitness.Capture(SemanticBoundaryReadPolicy.CaptureKinds);
+        PlayerEnvironmentNativeWitness.Capture(SemanticBoundaryReadPolicy.RequiredKinds);
 
     private static bool HasRequiredReads(ProcessLocalNativeWitnessFrame frame) =>
         RequiredReadKinds.All(kind => frame.Reads.TryGetValue(kind, out ProcessLocalReadCapture? read)
@@ -2362,7 +2454,7 @@ internal static class RecorderRuntime
     {
         if (_store == null)
             throw new InvalidOperationException("The V2 recording store is unavailable.");
-        var result = new List<ReadEvidence>();
+        var captures = new List<CapturedReadPayload>();
         IEnumerable<CaptureReadRequirement> requirements = string.Equals(
                 phase,
                 "semantic",
@@ -2376,7 +2468,7 @@ internal static class RecorderRuntime
             if (!frame.Reads.TryGetValue(requirement.Kind, out ProcessLocalReadCapture? captured)
                 || captured.Read == null)
             {
-                result.Add(_store.PersistRead(new CapturedReadPayload(
+                captures.Add(new CapturedReadPayload(
                     $"read:{requirement.Kind}",
                     requirement.Kind,
                     frame.Snapshot.SnapshotId,
@@ -2388,11 +2480,11 @@ internal static class RecorderRuntime
                     null,
                     DateTimeOffset.UtcNow,
                     captured?.ErrorCode ?? "required_read_missing",
-                    captured?.Detail)));
+                    captured?.Detail));
                 continue;
             }
             PlayerEnvironmentReadResponse read = captured.Read;
-            result.Add(_store.PersistRead(new CapturedReadPayload(
+            captures.Add(new CapturedReadPayload(
                 read.ReadId,
                 read.Kind,
                 read.ObservedSnapshotId,
@@ -2404,9 +2496,9 @@ internal static class RecorderRuntime
                 ToNode(read.Completeness),
                 read.ObservedAt,
                 null,
-                null)));
+                null));
         }
-        return result;
+        return _store.PersistReads(captures);
     }
 
     private static List<string> EligibilityBlockers(

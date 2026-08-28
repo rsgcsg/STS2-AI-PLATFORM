@@ -27,7 +27,7 @@ from a later Human effect.
 | generated-card select | exact selection callback + direct UI delivery | complete | repair canary: 11 selects recorded |
 | generated-card skip | exact skip callback + direct UI delivery | complete | not exercised |
 | Combat hand selector select / replace / deselect / confirm | exact hand/container callbacks + direct UI delivery | complete | repair canary: 13 confirms; select/replace/deselect not proved |
-| potion use / target / cancel | Human `NPotionHolder.UsePotion` arm -> exact `PotionModel.EnqueueManualUse` commit -> `UsePotionAction` lifecycle; target-picker cancel never enqueues | self-target normalization repair source/test/build/load complete | enemy-target use proved once; three self-target mapping failures exposed and fixed; cancel remains unexercised on repair artifact |
+| potion use / target / cancel | Human `NPotionHolder.UsePotion` arm -> exact `PotionModel.EnqueueManualUse` commit -> `UsePotionAction` lifecycle; target-picker cancel never enqueues | complete | latest repair canary proves enemy-target, no-target and two self-target uses; cancel remains unexercised |
 | lethal combat -> reward | existing combat lifecycle + reward Player Environment boundary | complete | repair canary PASS |
 | reward claim | `NRewardButton.OnRelease` direct UI delivery | complete | repair canary PASS: 11 claims |
 | reward proceed | `NRewardsScreen.OnProceedButtonPressed` direct UI delivery | complete | repair canary PASS: five proceeds |
@@ -71,22 +71,28 @@ potion use, room-internal event/shop/rest/treasure actions, run entry,
 exhaustive Full Run, semantic-free performance, game outcome success or
 qualification.
 
+The later repair-artifact session
+`session-20260828T151112Z-a559d80cd88741738f2a902427b10140`
+passes 233 accepted/233 proved semantic dispositions and exercises four exact
+potion mappings across enemy-target, no-target and self-target operands. It is
+the regression and size baseline for the normalized schema-3 source, not Live
+evidence for that new source. See the
+[storage baseline](evidence/SEMANTIC_EVIDENCE_STORAGE_BASELINE_2026-08-29.md).
+
 Source `fba874e8...` repairs the potion witness without changing Connector
 authority: it matches STS2's owner normalization only after the original null
 operand misses the frozen catalog, still requires exact-unique binding, and
 defers arm/mapping failures until native acceptance. Its clean unified artifact
-`b5fbda12... / 1cbcff84...` is installed and cold-loaded, but has no Human
-potion evidence and inherits none from the failing predecessor. Batching cut
-the narrow boundary-to-start median from about 8 ms to 4 ms; repeated read-rich
-capture remains only a plausible, unprofiled source of perceived lag.
+`b5fbda12... / 1cbcff84...` produced the later 233/233 owner session above.
+That session proves the repair artifact's exact potion accounting but not
+target-picker cancel or the subsequent schema-3 storage source. Batching cut
+the predecessor's narrow boundary-to-start median from about 8 ms to 4 ms;
+offline call-count and size analysis now proves repeated Read persistence and
+inline frame storage are architectural duplication, but does not yet prove the
+owner-perceived lag is fixed.
 
 See the [potion canary](evidence/FULL_RUN_POTION_OWNER_CANARY_2026-08-28.md).
 
-Current repair source is `c8775e1066137c1a7e00993a7ab74493a11717f7`.
-Its clean unified build is `8d2f7d2a8e95eac424aa7fed7f22e825821609b83526d38605e813b6a9692c35 /
-3043f4f4-63c8-4058-8f4e-44b60801d3d5`. Safe install passed with rollback
-`apps/game-mod/.local/deployments/2026-08-27T15-04-13.434Z`. It is cold-loaded
-in runtime `fb5a82ea198140aebfcdbe92b654fce1`, environment
-`4866d18435e47f10970999ce4111dc51e575b1b9696b5ddf1b4dced04d4ff259`, under
-the sole exact Modset
-`a66aef087216f2ffdf4e5e87d849f1ffa3df2adc073b1b1651801886dabc3281`.
+The older `c8775e1... / 8d2f7d2a... / 3043f4f4...` batch repair remains
+predecessor evidence in the dated batch report; it is not the current source or
+artifact identity.

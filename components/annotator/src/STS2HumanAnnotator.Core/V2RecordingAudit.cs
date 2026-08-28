@@ -267,8 +267,34 @@ public static class V2RecordingAuditor
             return Array.Empty<SemanticBoundaryTraceEvent>();
 
         var events = new List<SemanticBoundaryTraceEvent>();
+        var semanticFrames = new Dictionary<string, FrozenDecisionFrameV2>(StringComparer.Ordinal);
         foreach ((string line, _) in Lines(path))
         {
+            string? schema;
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(line);
+                schema = document.RootElement.TryGetProperty("schema", out JsonElement property)
+                    ? property.GetString()
+                    : null;
+            }
+            catch (JsonException)
+            {
+                Add(errors, "semantic_boundary_trace_json_invalid");
+                continue;
+            }
+            if (schema == SemanticEvidenceContract.EventSchema)
+            {
+                SemanticBoundaryTraceEvent? materialized = MaterializeSemanticEvidenceEvent(
+                    directory,
+                    manifest,
+                    line,
+                    semanticFrames,
+                    errors);
+                if (materialized != null)
+                    events.Add(materialized);
+                continue;
+            }
             SemanticBoundaryTraceEvent? value;
             try
             {
@@ -294,6 +320,143 @@ public static class V2RecordingAuditor
         foreach (string error in SemanticBoundaryTraceValidator.Validate(events))
             Add(errors, error);
         return events;
+    }
+
+    private static SemanticBoundaryTraceEvent? MaterializeSemanticEvidenceEvent(
+        string directory,
+        RecordingManifestV2? manifest,
+        string line,
+        IDictionary<string, FrozenDecisionFrameV2> semanticFrames,
+        IDictionary<string, long> errors)
+    {
+        SemanticEvidenceEvent? value;
+        try
+        {
+            value = JsonSerializer.Deserialize<SemanticEvidenceEvent>(line, EvidenceJson.Options);
+        }
+        catch (JsonException)
+        {
+            Add(errors, "semantic_evidence_event_json_invalid");
+            return null;
+        }
+        if (value == null
+            || value.SchemaVersion != SemanticEvidenceContract.SchemaVersion
+            || value.Schema != SemanticEvidenceContract.EventSchema
+            || manifest == null
+            || value.SessionId != manifest.SessionId
+            || value.TimelineId != manifest.TimelineId)
+        {
+            Add(errors, "semantic_evidence_event_session_mismatch");
+            return null;
+        }
+
+        FrozenDecisionFrameV2? humanObservation = ResolveSemanticFrame(
+            directory,
+            value.HumanObservationRef,
+            semanticFrames,
+            errors);
+        FrozenDecisionFrameV2? executionPre = ResolveSemanticFrame(
+            directory,
+            value.ExecutionPreRef,
+            semanticFrames,
+            errors);
+        FrozenDecisionFrameV2? successor = ResolveSemanticFrame(
+            directory,
+            value.SuccessorRef,
+            semanticFrames,
+            errors);
+        SemanticBoundaryObservation? boundary = null;
+        if (value.Boundary != null)
+        {
+            FrozenDecisionFrameV2? state = ResolveSemanticFrame(
+                directory,
+                value.Boundary.StateRef,
+                semanticFrames,
+                errors);
+            boundary = new SemanticBoundaryObservation(
+                value.Boundary.WitnessKind,
+                value.Boundary.ObservedAt,
+                value.Boundary.SnapshotId,
+                value.Boundary.Status,
+                value.Boundary.BoundActionsStatus,
+                value.Boundary.InteractionId,
+                value.Boundary.InteractionKind,
+                state,
+                value.Boundary.ImmediatelyConsumedByActionWitnessId)
+            {
+                StateCompleteness = value.Boundary.StateCompleteness,
+                RequiredReadsStatus = value.Boundary.RequiredReadsStatus,
+                StateBlockers = value.Boundary.StateBlockers
+            };
+        }
+
+        return new SemanticBoundaryTraceEvent(
+            SemanticBoundaryTraceContract.SchemaVersion,
+            SemanticBoundaryTraceContract.EventSchema,
+            value.EventId,
+            value.SessionId,
+            value.TimelineId,
+            value.RunId,
+            value.Sequence,
+            value.ObservedAt,
+            value.Kind,
+            value.Action,
+            value.ProofStatus,
+            value.RelatedActionWitnessId,
+            boundary,
+            executionPre,
+            successor,
+            value.Detail,
+            value.NonClaims)
+        {
+            HumanObservation = humanObservation
+        };
+    }
+
+    private static FrozenDecisionFrameV2? ResolveSemanticFrame(
+        string directory,
+        SemanticFrameReference? reference,
+        IDictionary<string, FrozenDecisionFrameV2> semanticFrames,
+        IDictionary<string, long> errors)
+    {
+        if (reference == null)
+            return null;
+        string cacheKey = $"{reference.ContentSha256}\n{reference.ObjectRef}";
+        if (semanticFrames.TryGetValue(cacheKey, out FrozenDecisionFrameV2? cached))
+        {
+            if (cached.SnapshotId != reference.SnapshotId)
+            {
+                Add(errors, "semantic_frame_identity_mismatch");
+                return null;
+            }
+            return cached;
+        }
+        try
+        {
+            string path = ResolveBelow(directory, reference.ObjectRef);
+            if (!File.Exists(path)
+                || EvidenceIdentity.Sha256File(path) != reference.ContentSha256)
+            {
+                Add(errors, "semantic_frame_missing_or_changed");
+                return null;
+            }
+            FrozenDecisionFrameV2? frame = JsonSerializer.Deserialize<FrozenDecisionFrameV2>(
+                File.ReadAllText(path),
+                EvidenceJson.Options);
+            if (frame == null || frame.SnapshotId != reference.SnapshotId)
+            {
+                Add(errors, "semantic_frame_identity_mismatch");
+                return null;
+            }
+            semanticFrames.Add(cacheKey, frame);
+            return frame;
+        }
+        catch (Exception exception) when (
+            exception is IOException or JsonException or InvalidDataException)
+        {
+            Add(errors, "semantic_frame_invalid");
+            return null;
+        }
     }
 
     private static void ValidateSchemaTwoSemanticAccounting(

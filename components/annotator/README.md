@@ -29,6 +29,13 @@ or expose native references on a wire.
   lethal-to-reward settlement, reward claim/proceed, card reward select and map
   travel without expanding Decision V2. Pending exact native-human evidence,
   the new artifact paths remain outside the Live claim.
+- Current source writes semantic evidence schema 3: ordered lifecycle and
+  disposition events reference exact canonical content-addressed H/S/S' frames
+  instead of embedding the same frame repeatedly. The independent auditor
+  resolves and hashes every reference and applies the unchanged causal
+  invariants. Historical schema-1/2 traces remain readable. Snapshot-gated
+  interaction-specific Reads and batched persistence reduce hot-path work; this
+  native change requires a new owner canary.
 - A typed RecordingService exposes Query/Status, Command and ordered Event
   contracts to Platform views. Runtime startup is `Ready`; `StartNewSession`
   opens an isolated session, Pause/Resume gate new witness admission, and Close
@@ -108,7 +115,7 @@ shipped STS2 UI
   -> exact native references match exactly one frozen BoundAction
   -> execution binds semantic S; lifecycle/direct delivery is observed
   -> Connector supplies the next complete authoritative S'
-  -> additive semantic timeline + unchanged narrow Decision V2 evidence
+  -> normalized semantic evidence timeline + unchanged narrow Decision V2 evidence
   -> audit/export
   -> immutable HumanSessionBundle V2
   -> Platform Evidence verify/store/transfer/receive

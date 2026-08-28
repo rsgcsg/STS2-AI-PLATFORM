@@ -16,7 +16,8 @@ internal static partial class PlayerEnvironmentService
 {
     internal static SnapshotBuildResult BuildSnapshot(
         bool suppressNativePageEvidence = true,
-        IReadOnlyCollection<string>? requiredReadKinds = null)
+        IReadOnlyCollection<string>? requiredReadKinds = null,
+        Func<string, IReadOnlyCollection<string>>? requiredReadKindsForInteraction = null)
     {
         GameBuildIdentity game = EnvironmentIdentityRuntime.ReadGame();
         LiveObservation? sourceFreeSurface =
@@ -48,8 +49,10 @@ internal static partial class PlayerEnvironmentService
             ? PersistentVisibleStateReader.Build(Entities)
             : new PersistentVisibleStateBuildResult(false, null, null);
         draft = LiveObservationReader.ApplyMissingPersistentStatePolicy(draft, shared);
+        IReadOnlyCollection<string>? selectedReadKinds = requiredReadKinds
+            ?? requiredReadKindsForInteraction?.Invoke(draft.Surface.Kind);
         IReadOnlyDictionary<string, PlayerReadBuildResult> readBuilds =
-            BuildRequiredReads(requiredReadKinds, draft.Context);
+            BuildRequiredReads(selectedReadKinds, draft.Context);
         bool shopCatalogAvailable = ShopSurfaceFacts.TryGetCurrent(out _, out _, out _);
         PlayerVisibilityProjection information = PlayerVisibilityCatalog.Build(
             draft,

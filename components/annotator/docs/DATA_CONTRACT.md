@@ -38,9 +38,17 @@ audit fail; it is never retried or repaired from a later frame. Historical
 `native-action-ledger-event-1` sidecars remain readable, but do not retroactively
 gain frozen decision payloads. Decision V1/V2 bytes and meaning are unchanged.
 
-`semantic-boundary-trace.jsonl` is an additive schema-2 observation sidecar.
-Historical schema-1 rows remain readable with their original meaning. Schema 2
-stores Human observation H separately from semantic pre S and
+`semantic-boundary-trace.jsonl` is an additive semantic evidence sidecar.
+Historical schema-1/2 rows remain readable with their original meaning. New
+schema-3 rows store ordered lifecycle/disposition facts plus explicit
+`human_observation_ref`, `execution_pre_ref`, `successor_ref` and boundary-state
+references. Each reference resolves below the session's
+`semantic-frames/sha256/` directory to one exact canonical
+`FrozenDecisionFrameV2`; audit verifies path containment, content digest and
+snapshot identity before applying the same causal validator. Roles remain
+distinct even when they reference identical content.
+
+The timeline stores Human observation H separately from semantic pre S and
 records exact action identity, accepted/started/choice/cancelled/finished facts,
 state/Read/catalog completeness, authoritative boundary captures, and exactly
 one semantic disposition:

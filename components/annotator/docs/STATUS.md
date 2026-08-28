@@ -8,6 +8,13 @@ artifact's Human path remain `not exercised`. Root `../../../docs/STATUS.md` is
 authoritative for the current runtime boundary.
 
 Schema 2 is bounded Human-proved for ordinary combat and generated-card select.
+Latest repair-artifact session `session-20260828T151112Z-...` accounts for 233
+accepted/233 proved roots, including enemy-target, no-target and self-target
+potion use. Current source writes normalized schema-3 role references to exact
+content-addressed frames, gates Read-rich capture behind Snapshot-only candidate
+checks, batches Read persistence and reuses the authoritative successor capture.
+Legacy audit stays compatible; the new native artifact has source/test/build
+evidence only and inherits no Human runtime claim.
 Current Full-Run topic source preserves that execution-owned continuous timeline
 and adds interaction-specific semantic Reads, reward claim/proceed, card reward
 select, map travel and Combat hand selector witnesses. The first owner canary

@@ -6,12 +6,12 @@ requests, or dated evidence.
 
 ## Current phase
 
-`develop` retains the bounded Human-proved semantic trace schema-2 baseline for
-ordinary combat and generated-card select. Full-Run Human Semantic Timeline
-work continues in PR #3. Its current architecture work is removing repeated
-full-frame and Read work from raw Human evidence without weakening `H != S`,
-execution-bound `S`, explicit semantic disposition, exact identity, or
-independent audit.
+`develop` retains the bounded Human-proved semantic trace schema-2 baseline.
+Full-Run work continues in PR #3. The topic branch now has a source/test/build
+candidate for schema-3 exact content-addressed frames, role-reference events,
+Snapshot-gated Read capture, batched Read persistence and successor capture
+reuse. It preserves `H != S`, execution-bound `S`, explicit disposition, exact
+identity and independent audit; it has no exact-runtime Human evidence yet.
 
 ## Active workstreams
 
@@ -24,11 +24,11 @@ independent audit.
 
 ## Current blockers and open questions
 
-- The latest local owner session must be audited against its exact loaded
-  artifact before its evidence is added to current claims.
-- Semantic recording currently repeats expensive frame/Read materialization;
-  any replacement must prove offline semantic equivalence before production
-  cutover.
+- Latest owner session `session-20260828T151112Z-...` is audited and retained as
+  immutable schema-2 predecessor evidence: 233 accepted/233 proved roots.
+- Offline streaming comparison preserves event and role counts and projects
+  legacy inline traces to about 39% of their original structural size. This is
+  not runtime proof for schema 3.
 - The S1 checkpoint named by the current Policy Manifest is unavailable on this
   Mac, so real-model Shadow, One-Step, Auto, and Agent-run evidence remain
   unexercised.
@@ -38,11 +38,10 @@ independent audit.
 ## Next meaningful gates
 
 - Keep the required `portable` source/test gate green on latest PR heads.
-- Prove a normalized evidence representation preserves every accepted root,
-  role-specific H/S/S' reference, disposition, and no-cross-Human invariant
-  while materially reducing storage and hot-path work.
-- If native bytes change, build, install, cold-load, and run one short exact
-  Human canary before resuming longer Full-Run surface coverage.
+- Build/install/cold-load the finalized schema-3 artifact and run one short
+  exact Human canary proving accounting, role resolution, tamper detection,
+  bounded growth and no material interaction regression before resuming
+  Full-Run room coverage.
 
 Use `npm run project:context` to start a task and
 `npm run project:closeout` to surface likely documentation, evidence, contract,

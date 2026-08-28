@@ -19,15 +19,21 @@ The first combat -> reward -> card reward -> map canary exposed two correctness
 defects; the repair plus Combat hand-selector batch is source/test/build
 complete, and the latest bounded owner canary passes semantic accounting**.
 
-Current source advances the proved predecessor into semantic trace schema 2:
+The latest closed repair session
+`session-20260828T151112Z-a559d80cd88741738f2a902427b10140`
+binds artifact `b5fbda12... / 1cbcff84...`, runtime `7cfde8d4...`, and passes
+semantic accounting with 233 accepted/233 proved roots and zero unknown or
+unresolved. It exercises enemy-target, no-target and self-target potion use;
+target-picker cancel remains unexercised. Current source then advances that
+proved predecessor into normalized semantic evidence schema 3:
 H is observation-only, execution binds S, state/Read/catalog completeness are
 orthogonal, and Close drains an unresolved semantic edge before classifying it
-unknown. Latest owner session `session-20260828T032151Z-...` passes overall
-semantic accounting with 627 accepted, 625 proved, two explicit native
-cancellations and zero unresolved, but exposes a source-local self-target
-potion correlation defect. Repair source `fba874e8...` is built, installed and
-cold-loaded as `b5fbda12... / 1cbcff84...` in runtime `10eb9301...`; its Human
-potion canary is pending and predecessor evidence does not transfer.
+unknown. Exact content-addressed frames replace repeated inline H/S/S' payloads;
+Snapshot-only probes gate expensive Read-rich capture, Reads persist in batches,
+and one successor capture feeds both semantic and Decision V2 projections.
+Historical schema-1/2 bytes remain auditable. This storage/hot-path candidate is
+source/test/build evidence only and inherits no Human proof from the repair
+artifact. See the [measured baseline](evidence/SEMANTIC_EVIDENCE_STORAGE_BASELINE_2026-08-29.md).
 
 ## Implemented
 
