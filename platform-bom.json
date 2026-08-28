@@ -4,9 +4,9 @@
   "components": {
     "connector": {
       "version": "1.2.0-rc.6",
-      "source_revision": "0592ce790ab36340bf43908f2d993e4b32bed1b1",
-      "component_tree_revision": "d3a3f3e7192fbd858b2a5c140225f6a3b10865c6",
-      "component_source_digest_sha256": "566043ab1821c29c1a0d429e2938de0b6024f5089b6a17947599d1b2fcbeb595"
+      "source_revision": "54efe38d6d2f49051e04248072acb548feddfe9a",
+      "component_tree_revision": "900da9badb96e19d293a09cd37252bf191d1ff32",
+      "component_source_digest_sha256": "dc937807bef60f541f12b2f6bb026a9ca32f7e371c2138d6d06cf63ef00c9093"
     },
     "host_runtime": {
       "version": "1.1.0-rc.7",
@@ -16,9 +16,9 @@
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "fba874e8d7a89b7843c82aea3cd5987bb54b41e3",
-      "component_tree_revision": "747a83b98a8e086150e36bfa160e4fd021cc83ef",
-      "component_source_digest_sha256": "c49f21cb7468ad6f0722c8df3bbb38ea5257abf0d05751ae93ccb441d31da010"
+      "source_revision": "54efe38d6d2f49051e04248072acb548feddfe9a",
+      "component_tree_revision": "e07fa1ad8b4939cbc5e6435d818acacc4565b57d",
+      "component_source_digest_sha256": "b95e8c8e630f793b90f7328c3f1ea8374a6c252c0cfff55560cab43619da3a54"
     },
     "evidence": {
       "version": "0.1.0-rc.1",
