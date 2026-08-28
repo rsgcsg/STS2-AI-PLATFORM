@@ -27,9 +27,14 @@ internal static class RecorderRuntime
         DateTimeOffset StagedAt);
 
     private sealed record ArmedPotionUse(
-        ExactDecisionFrame Decision,
+        long Generation,
+        ExactDecisionFrame? Decision,
         string SessionId,
-        string TimelineId);
+        string TimelineId,
+        string? FailureReason,
+        string? FailureDetail,
+        string? FailureSnapshotId,
+        string? FailureEvidenceLevel);
 
     private sealed record PendingDecision(
         string RecordId,
@@ -60,6 +65,7 @@ internal static class RecorderRuntime
     private static StagedCardFrame? _stagedCardFrame;
     private static readonly Dictionary<PotionModel, ArmedPotionUse> ArmedPotionUses =
         new(ReferenceEqualityComparer.Instance);
+    private static long _potionArmGeneration;
     private static long _sequence;
     private static long _journalSequence;
     private static long _nativeActionEventSequence;
@@ -590,7 +596,9 @@ internal static class RecorderRuntime
             card);
     }
 
-    internal static PotionModel? ArmPotionUse(PotionModel? potion)
+    internal readonly record struct PotionUseArmHandle(PotionModel Potion, long Generation);
+
+    internal static PotionUseArmHandle? ArmPotionUse(PotionModel? potion)
     {
         if (potion == null || !AcceptingNewWitnesses() || HumanActionScope.Current != null)
             return null;
@@ -598,8 +606,10 @@ internal static class RecorderRuntime
         {
             ProcessLocalNativeWitnessFrame frame = CaptureReadRichFrame();
             RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
-            if (EligibilityBlockers(frame, environment, requireReads: true).Count > 0)
-                return null;
+            IReadOnlyList<string> blockers = EligibilityBlockers(
+                frame,
+                environment,
+                requireReads: true);
             lock (Gate)
             {
                 if (!_initialized
@@ -607,22 +617,50 @@ internal static class RecorderRuntime
                     || SessionId == null
                     || TimelineId == null)
                     return null;
-                ArmedPotionUses[potion] = new ArmedPotionUse(
-                    new ExactDecisionFrame(frame, environment),
-                    SessionId,
-                    TimelineId);
+                long generation = ++_potionArmGeneration;
+                ArmedPotionUses[potion] = blockers.Count == 0
+                    ? new ArmedPotionUse(
+                        generation,
+                        new ExactDecisionFrame(frame, environment),
+                        SessionId,
+                        TimelineId,
+                        null,
+                        null,
+                        null,
+                        null)
+                    : new ArmedPotionUse(
+                        generation,
+                        null,
+                        SessionId,
+                        TimelineId,
+                        "potion_pre_frame_capture_failed",
+                        string.Join(",", blockers),
+                        frame.Snapshot.SnapshotId,
+                        "fail_closed");
+                return new PotionUseArmHandle(potion, generation);
             }
-            return potion;
         }
         catch (Exception exception)
         {
-            Quarantine(
-                "potion_pre_frame_capture_failed",
-                exception.Message,
-                null,
-                nameof(UsePotionAction),
-                "implemented_runtime_error");
-            return null;
+            lock (Gate)
+            {
+                if (!_initialized
+                    || _lifecycle.State != RecordingLifecycleState.Recording
+                    || SessionId == null
+                    || TimelineId == null)
+                    return null;
+                long generation = ++_potionArmGeneration;
+                ArmedPotionUses[potion] = new ArmedPotionUse(
+                    generation,
+                    null,
+                    SessionId,
+                    TimelineId,
+                    "potion_pre_frame_capture_failed",
+                    exception.Message,
+                    null,
+                    "implemented_runtime_error");
+                return new PotionUseArmHandle(potion, generation);
+            }
         }
     }
 
@@ -641,35 +679,86 @@ internal static class RecorderRuntime
                 return default;
         }
 
-        var arguments = new Dictionary<string, object>(StringComparer.Ordinal);
-        if (target != null)
-            arguments["target"] = target;
-        var observed = new ProcessLocalObservedAction("use", potion, arguments);
-        if (!IsExact(armed.Decision.Frame.Resolve(observed)))
+        if (armed.FailureReason != null)
         {
-            Quarantine(
+            HumanActionScope.EnterDeferredFailure(
+                nameof(UsePotionAction),
+                armed.FailureReason,
+                armed.FailureDetail ?? "Potion use pre-frame capture was not authoritative.",
+                armed.FailureSnapshotId,
+                armed.FailureEvidenceLevel ?? "fail_closed");
+            return new NativeUiScopeEntry(false, true);
+        }
+
+        if (armed.Decision == null)
+        {
+            HumanActionScope.EnterDeferredFailure(
+                nameof(UsePotionAction),
                 "potion_exact_mapping_failed",
                 "The exact potion and target no longer match the BoundAction captured when Human potion use began.",
-                armed.Decision.Frame.Snapshot.SnapshotId,
-                nameof(UsePotionAction),
+                null,
                 "fail_closed");
-            return default;
+            return new NativeUiScopeEntry(false, true);
+        }
+
+        ExactDecisionFrame decision = armed.Decision;
+        ProcessLocalObservedAction observed = ObservedPotionUse(potion, target);
+        ProcessLocalNativeMatch match = decision.Frame.Resolve(observed);
+        if (!IsExact(match) && target == null && potion.Owner.Creature != null)
+        {
+            // EnqueueManualUse normalizes a null target to the potion owner's
+            // creature in the game. Match that native operand only after the
+            // original pre-normalized observation fails.
+            ProcessLocalObservedAction ownerTarget =
+                ObservedPotionUse(potion, potion.Owner.Creature);
+            ProcessLocalNativeMatch ownerMatch = decision.Frame.Resolve(ownerTarget);
+            if (IsExact(ownerMatch))
+            {
+                observed = ownerTarget;
+                match = ownerMatch;
+            }
+        }
+
+        if (!IsExact(match))
+        {
+            HumanActionScope.EnterDeferredFailure(
+                nameof(UsePotionAction),
+                "potion_exact_mapping_failed",
+                "The exact potion and target no longer match exactly one frozen BoundAction.",
+                decision.Frame.Snapshot.SnapshotId,
+                "fail_closed");
+            return new NativeUiScopeEntry(false, true);
         }
 
         HumanActionScope.Enter(
             "native_potion_use_ui",
             nameof(UsePotionAction),
             observed,
-            armed.Decision.Frame);
+            decision.Frame);
         return new NativeUiScopeEntry(true, false);
     }
 
-    internal static void ClearPotionUseArm(PotionModel? potion)
+    private static ProcessLocalObservedAction ObservedPotionUse(
+        PotionModel potion,
+        Creature? target)
     {
-        if (potion == null)
+        var arguments = new Dictionary<string, object>(StringComparer.Ordinal);
+        if (target != null)
+            arguments["target"] = target;
+        return new ProcessLocalObservedAction("use", potion, arguments);
+    }
+
+    internal static void ClearPotionUseArm(PotionUseArmHandle? handle)
+    {
+        if (!handle.HasValue)
             return;
+        PotionUseArmHandle value = handle.Value;
         lock (Gate)
-            ArmedPotionUses.Remove(potion);
+        {
+            if (ArmedPotionUses.TryGetValue(value.Potion, out ArmedPotionUse? armed)
+                && armed.Generation == value.Generation)
+                ArmedPotionUses.Remove(value.Potion);
+        }
     }
 
     internal static NativeUiScopeEntry TryEnterGeneratedChoiceCardScope(CardModel card) =>

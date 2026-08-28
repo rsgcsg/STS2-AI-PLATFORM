@@ -58,13 +58,22 @@ internal static class NativeCardPlayPatch
 [HarmonyPatch(typeof(NPotionHolder), nameof(NPotionHolder.UsePotion))]
 internal static class NativePotionUseStartPatch
 {
-    internal static void Prefix(NPotionHolder __instance, out PotionModel? __state) =>
+    internal static void Prefix(
+        NPotionHolder __instance,
+        out RecorderRuntime.PotionUseArmHandle? __state) =>
         __state = RecorderRuntime.ArmPotionUse(__instance.Potion?.Model);
 
-    internal static void Postfix(PotionModel? __state, Task __result)
+    internal static void Postfix(
+        RecorderRuntime.PotionUseArmHandle? __state,
+        Task __result)
     {
-        if (__state == null)
+        if (!__state.HasValue)
             return;
+        if (__result == null)
+        {
+            RecorderRuntime.ClearPotionUseArm(__state);
+            return;
+        }
         _ = __result.ContinueWith(
             _ => RecorderRuntime.ClearPotionUseArm(__state),
             CancellationToken.None,
