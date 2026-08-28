@@ -16,9 +16,9 @@
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "e1d88e3582d3d51a383d366d5ede517ca6a98e40",
-      "component_tree_revision": "6b4c315acb27c21e65f8b12c5e3cdd83ac126488",
-      "component_source_digest_sha256": "724aafeb04bdb7980585dc3973e3d4199252b3774b504fc2a1f3cd75074e600b"
+      "source_revision": "fba874e8d7a89b7843c82aea3cd5987bb54b41e3",
+      "component_tree_revision": "747a83b98a8e086150e36bfa160e4fd021cc83ef",
+      "component_source_digest_sha256": "c49f21cb7468ad6f0722c8df3bbb38ea5257abf0d05751ae93ccb441d31da010"
     },
     "evidence": {
       "version": "0.1.0-rc.1",
@@ -161,8 +161,8 @@
     "annotator": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
       "source_digest_sha256": "8d23f1015a7b0df800f78a7545da5c86bfee521131c4391b398c884ff917918f",
-      "current_component_source_revision": "e1d88e3582d3d51a383d366d5ede517ca6a98e40",
-      "current_component_source_digest_sha256": "724aafeb04bdb7980585dc3973e3d4199252b3774b504fc2a1f3cd75074e600b",
+      "current_component_source_revision": "fba874e8d7a89b7843c82aea3cd5987bb54b41e3",
+      "current_component_source_digest_sha256": "c49f21cb7468ad6f0722c8df3bbb38ea5257abf0d05751ae93ccb441d31da010",
       "source_relation": "loaded_human_v2_artifact_precedes_unified_platform_source",
       "artifact_sha256": "4e911dd616afa55753a5320a42c11ce0cebe9d4d10fefd66c8f8a431884cf105",
       "artifact_mvid": "692e9dd9-4bc7-4203-ae12-511ef95a5331",
@@ -264,8 +264,8 @@
     "annotator": {
       "source_revision": "cb20bfa6e4e0e64b3ee8fdf0e1d472e8a668450b",
       "source_digest_sha256": "3910bcbc71599610b125c91c62e9860541ce9edea9b2c0a9f41842eb53651071",
-      "current_component_source_revision": "e1d88e3582d3d51a383d366d5ede517ca6a98e40",
-      "current_component_source_digest_sha256": "724aafeb04bdb7980585dc3973e3d4199252b3774b504fc2a1f3cd75074e600b",
+      "current_component_source_revision": "fba874e8d7a89b7843c82aea3cd5987bb54b41e3",
+      "current_component_source_digest_sha256": "c49f21cb7468ad6f0722c8df3bbb38ea5257abf0d05751ae93ccb441d31da010",
       "source_relation": "loaded_native_source_precedes_current_full_run_source",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b"
@@ -338,14 +338,15 @@
       "rollback": "apps/game-mod/.local/deployments/2026-08-27T03-41-37.869Z"
     },
     "full_run_semantic_source_candidate": {
-      "status": "repair_human_canary_pass_subsequent_source_test_complete",
-      "workspace_revision_at_build": "c8775e1066137c1a7e00993a7ab74493a11717f7",
-      "annotator_source_revision": "c8775e1066137c1a7e00993a7ab74493a11717f7",
-      "annotator_component_source_digest_sha256": "da34cf5bf5d20cb7adfd0021cdf8e7c3dbbaa5d29e1168fe8ed4eb2cedf95756",
-      "annotator_build_source_digest_sha256": "925733e19c7e1312345eeec9f0e329e00699719f3de5ef3cd2c4174762078438",
+      "status": "potion_repair_built_installed_loaded_human_pending",
+      "workspace_revision_at_build": "fba874e8d7a89b7843c82aea3cd5987bb54b41e3",
+      "annotator_source_revision": "fba874e8d7a89b7843c82aea3cd5987bb54b41e3",
+      "annotator_component_tree_revision": "747a83b98a8e086150e36bfa160e4fd021cc83ef",
+      "annotator_component_source_digest_sha256": "c49f21cb7468ad6f0722c8df3bbb38ea5257abf0d05751ae93ccb441d31da010",
+      "annotator_build_source_digest_sha256": "7244b3559f96b8dc23d88106f4cb05ed7e070434a0bd92cf47c3a3b90f4010b4",
       "trace_schema": "sts2.human-annotator/semantic-boundary-trace-event-2",
-      "artifact_sha256": "8d2f7d2a8e95eac424aa7fed7f22e825821609b83526d38605e813b6a9692c35",
-      "artifact_mvid": "3043f4f4-63c8-4058-8f4e-44b60801d3d5",
+      "artifact_sha256": "b5fbda1277404e277eb8871faa4baa126fb92e324dc0dc09c26f7693e9791f02",
+      "artifact_mvid": "1cbcff84-1a35-4f4a-a387-dfdce601f8f1",
       "player_environment_protocol": "1.0.0",
       "implemented_slices": [
         "lethal_combat_to_reward",
@@ -355,20 +356,21 @@
         "map_travel",
         "combat_hand_select",
         "combat_hand_deselect",
-        "combat_hand_confirm"
+        "combat_hand_confirm",
+        "potion_use_target_cancel"
       ],
-      "annotator_core_tests": 77,
+      "annotator_core_tests": 80,
       "built": "pass",
       "installed": "pass",
       "loaded": "pass",
-      "human_runtime": "pass_bounded_owner_canary",
-      "rollback": "apps/game-mod/.local/deployments/2026-08-27T15-04-13.434Z",
-      "runtime_instance_id": "fb5a82ea198140aebfcdbe92b654fce1",
-      "environment_fingerprint": "4866d18435e47f10970999ce4111dc51e575b1b9696b5ddf1b4dced04d4ff259",
+      "human_runtime": "not_exercised",
+      "rollback": "apps/game-mod/.local/deployments/2026-08-28T08-31-33.162Z",
+      "runtime_instance_id": "10eb9301c5624a59a5693d2dfb9b480f",
+      "environment_fingerprint": "575f57f4265242e72434b05ec50dc5f89c4bcdf1e45ff02da630cdcc87de2c0e",
       "modset_status": "exact_platform_modset",
-      "modset_fingerprint": "a66aef087216f2ffdf4e5e87d849f1ffa3df2adc073b1b1651801886dabc3281",
+      "modset_fingerprint": "67f7e0179cba12c2b23342b0144685f7e37ea05d6749b34e1546fa6e1db9162a",
       "loaded_mod_ids": ["STS2_PLATFORM"],
-      "owner_canary": {
+      "prior_full_run_canary": {
         "session_id": "session-20260827T151912Z-4c7f26e56b954b498cfa0c3213e4b488",
         "timeline_id": "timeline-43913dee384646d5a9f390da136e909b",
         "audit_status": "pass",
@@ -384,7 +386,7 @@
         "native_accepted": 193,
         "native_accounting": "pass"
       },
-      "subsequent_source": {
+      "potion_owner_canary": {
         "annotator_source_revision": "e1d88e3582d3d51a383d366d5ede517ca6a98e40",
         "annotator_component_source_digest_sha256": "724aafeb04bdb7980585dc3973e3d4199252b3774b504fc2a1f3cd75074e600b",
         "source_test_status": "pass",
@@ -401,11 +403,32 @@
         "modset_status": "exact_platform_modset",
         "modset_fingerprint": "35c367613f6caf041842a02850582477edd1dfba018316dbf599f2f79aa81915",
         "rollback": "apps/game-mod/.local/deployments/2026-08-27T16-03-47.774Z",
-        "human_runtime": "not_exercised",
+        "human_runtime": "pass_overall_accounting_potion_gate_failed",
+        "owner_canary": {
+          "session_id": "session-20260828T032151Z-43b2f87e65484b8abccccbba71c713c8",
+          "timeline_id": "timeline-31295a4049034cd6bd45d3b7d8fe8304",
+          "audit_status": "pass",
+          "human_origin": "owner_attested_not_machine_proven",
+          "decision_v2_valid": 219,
+          "decision_v2_invalid": 0,
+          "legacy_invalidations": 287,
+          "reads_materialized": 17954,
+          "reads_failed": 0,
+          "semantic_accepted": 627,
+          "semantic_proved": 625,
+          "semantic_cancelled_before_start": 1,
+          "semantic_cancelled_after_start_unknown": 1,
+          "semantic_unresolved": 0,
+          "potion_enemy_target_proved": 1,
+          "potion_self_target_mapping_invalidations": 3,
+          "potion_self_target_unaccounted": 1,
+          "potion_target_picker_cancel": "not_exercised"
+        },
         "evidence_transfer_from_repair_artifact": false
       },
       "predecessor_owner_canary": "failed_semantic_accounting",
       "predecessor_missing_semantic_native_roots": 546,
+      "evidence_transfer_from_potion_owner_canary": false,
       "evidence_transfer_from_schema2_predecessor": false
     },
     "live_ui": {

@@ -9,6 +9,28 @@ const PLATFORM_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 const SHA256 = /^[0-9a-f]{64}$/u;
 const COMMIT = /^[0-9a-f]{40}$/u;
 const MVID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+const CURRENT_ANNOTATOR = Object.freeze({
+  sourceRevision: "fba874e8d7a89b7843c82aea3cd5987bb54b41e3",
+  componentTreeRevision: "747a83b98a8e086150e36bfa160e4fd021cc83ef",
+  componentSourceDigest: "c49f21cb7468ad6f0722c8df3bbb38ea5257abf0d05751ae93ccb441d31da010",
+  buildSourceDigest: "7244b3559f96b8dc23d88106f4cb05ed7e070434a0bd92cf47c3a3b90f4010b4",
+  artifactSha: "b5fbda1277404e277eb8871faa4baa126fb92e324dc0dc09c26f7693e9791f02",
+  artifactMvid: "1cbcff84-1a35-4f4a-a387-dfdce601f8f1",
+  runtimeInstance: "10eb9301c5624a59a5693d2dfb9b480f",
+  environment: "575f57f4265242e72434b05ec50dc5f89c4bcdf1e45ff02da630cdcc87de2c0e",
+  modset: "67f7e0179cba12c2b23342b0144685f7e37ea05d6749b34e1546fa6e1db9162a",
+  rollback: "apps/game-mod/.local/deployments/2026-08-28T08-31-33.162Z"
+});
+const POTION_OWNER_CANARY = Object.freeze({
+  sourceRevision: "e1d88e3582d3d51a383d366d5ede517ca6a98e40",
+  componentSourceDigest: "724aafeb04bdb7980585dc3973e3d4199252b3774b504fc2a1f3cd75074e600b",
+  artifactSha: "be1a96ec762139de7bcda8ec5f4898a482c6dc03cf4fd18e20be41585eb22380",
+  artifactMvid: "79354979-0488-42c3-bd83-8b90d6bbf9e4",
+  runtimeInstance: "1ad1e3f83e9545ab911bd75f85262a96",
+  environment: "94b59c951d4b0004d85bba9de2a35c3fd28b12d35b9ed2e996c8b81fc8c3fafc",
+  modset: "35c367613f6caf041842a02850582477edd1dfba018316dbf599f2f79aa81915",
+  rollback: "apps/game-mod/.local/deployments/2026-08-27T16-03-47.774Z"
+});
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -75,6 +97,13 @@ export function validatePlatformBom(bom, authorities) {
     expectEqual(errors, `${bomKey}.component_tree_revision`, component?.component_tree_revision, identity.component_tree_revision);
     expectEqual(errors, `${bomKey}.component_source_digest_sha256`, component?.component_source_digest_sha256, identity.component_source_digest_sha256);
   }
+  expectEqual(errors, "current Annotator source", bom.components?.annotator?.source_revision,
+    CURRENT_ANNOTATOR.sourceRevision);
+  expectEqual(errors, "current Annotator component tree", bom.components?.annotator?.component_tree_revision,
+    CURRENT_ANNOTATOR.componentTreeRevision);
+  expectEqual(errors, "current Annotator component digest",
+    bom.components?.annotator?.component_source_digest_sha256,
+    CURRENT_ANNOTATOR.componentSourceDigest);
 
   expectEqual(errors, "connector release version", bom.components?.connector?.version, authorities.connectorRelease.release.version);
   expectEqual(errors, "connector Mod version", authorities.connectorManifest.version, authorities.connectorRelease.release.version);
@@ -282,11 +311,20 @@ export function validatePlatformBom(bom, authorities) {
     errors.push("Semantic timeline source candidate must not reuse predecessor artifact identity");
   const fullRun = policyCandidate?.full_run_semantic_source_candidate;
   expectEqual(errors, "Full-Run source status", fullRun?.status,
-    "repair_human_canary_pass_subsequent_source_test_complete");
+    "potion_repair_built_installed_loaded_human_pending");
   expectPattern(errors, "Full-Run build Annotator source",
     fullRun?.annotator_source_revision, COMMIT);
+  expectEqual(errors, "Full-Run current Annotator source",
+    fullRun?.annotator_source_revision, CURRENT_ANNOTATOR.sourceRevision);
+  expectEqual(errors, "Full-Run current Annotator component tree",
+    fullRun?.annotator_component_tree_revision, CURRENT_ANNOTATOR.componentTreeRevision);
   expectPattern(errors, "Full-Run build Annotator component digest",
     fullRun?.annotator_component_source_digest_sha256, SHA256);
+  expectEqual(errors, "Full-Run current Annotator component digest",
+    fullRun?.annotator_component_source_digest_sha256,
+    CURRENT_ANNOTATOR.componentSourceDigest);
+  expectEqual(errors, "Full-Run build Annotator provenance",
+    fullRun?.annotator_build_source_digest_sha256, CURRENT_ANNOTATOR.buildSourceDigest);
   expectEqual(errors, "Full-Run workspace/source identity",
     fullRun?.workspace_revision_at_build, fullRun?.annotator_source_revision);
   expectPattern(errors, "Full-Run build source digest",
@@ -296,7 +334,11 @@ export function validatePlatformBom(bom, authorities) {
   expectPattern(errors, "Full-Run workspace at build",
     fullRun?.workspace_revision_at_build, COMMIT);
   expectPattern(errors, "Full-Run artifact", fullRun?.artifact_sha256, SHA256);
+  expectEqual(errors, "Full-Run current artifact", fullRun?.artifact_sha256,
+    CURRENT_ANNOTATOR.artifactSha);
   expectPattern(errors, "Full-Run MVID", fullRun?.artifact_mvid, MVID);
+  expectEqual(errors, "Full-Run current MVID", fullRun?.artifact_mvid,
+    CURRENT_ANNOTATOR.artifactMvid);
   expectEqual(errors, "Full-Run protocol", fullRun?.player_environment_protocol,
     bom.components?.player_environment_protocol);
   expectEqual(errors, "Full-Run slices", JSON.stringify(fullRun?.implemented_slices),
@@ -308,23 +350,30 @@ export function validatePlatformBom(bom, authorities) {
       "map_travel",
       "combat_hand_select",
       "combat_hand_deselect",
-      "combat_hand_confirm"
+      "combat_hand_confirm",
+      "potion_use_target_cancel"
     ]));
-  expectEqual(errors, "Full-Run tests", fullRun?.annotator_core_tests, 77);
+  expectEqual(errors, "Full-Run tests", fullRun?.annotator_core_tests, 80);
   expectEqual(errors, "Full-Run build", fullRun?.built, "pass");
   expectEqual(errors, "Full-Run install", fullRun?.installed, "pass");
   expectEqual(errors, "Full-Run loaded", fullRun?.loaded, "pass");
   expectEqual(errors, "Full-Run Human runtime", fullRun?.human_runtime,
-    "pass_bounded_owner_canary");
+    "not_exercised");
   expectPattern(errors, "Full-Run runtime", fullRun?.runtime_instance_id,
     /^[0-9a-f]{32}$/u);
+  expectEqual(errors, "Full-Run current runtime", fullRun?.runtime_instance_id,
+    CURRENT_ANNOTATOR.runtimeInstance);
   expectPattern(errors, "Full-Run environment", fullRun?.environment_fingerprint, SHA256);
   expectEqual(errors, "Full-Run Modset status", fullRun?.modset_status,
     "exact_platform_modset");
   expectPattern(errors, "Full-Run Modset", fullRun?.modset_fingerprint, SHA256);
+  expectEqual(errors, "Full-Run current environment", fullRun?.environment_fingerprint,
+    CURRENT_ANNOTATOR.environment);
+  expectEqual(errors, "Full-Run current Modset", fullRun?.modset_fingerprint,
+    CURRENT_ANNOTATOR.modset);
   expectEqual(errors, "Full-Run loaded Mods", JSON.stringify(fullRun?.loaded_mod_ids),
     JSON.stringify(["STS2_PLATFORM"]));
-  const fullRunCanary = fullRun?.owner_canary;
+  const fullRunCanary = fullRun?.prior_full_run_canary;
   expectEqual(errors, "Full-Run owner audit", fullRunCanary?.audit_status, "pass");
   expectEqual(errors, "Full-Run owner origin", fullRunCanary?.human_origin,
     "owner_attested_not_machine_proven");
@@ -334,32 +383,59 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "Full-Run unknown", fullRunCanary?.semantic_unknown, 0);
   expectEqual(errors, "Full-Run unresolved", fullRunCanary?.semantic_unresolved, 0);
   expectEqual(errors, "Full-Run native accounting", fullRunCanary?.native_accounting, "pass");
-  const subsequent = fullRun?.subsequent_source;
-  expectEqual(errors, "Full-Run subsequent source", subsequent?.annotator_source_revision,
-    bom.components?.annotator?.source_revision);
-  expectEqual(errors, "Full-Run subsequent digest",
+  const subsequent = fullRun?.potion_owner_canary;
+  expectEqual(errors, "Full-Run potion canary source", subsequent?.annotator_source_revision,
+    POTION_OWNER_CANARY.sourceRevision);
+  expectEqual(errors, "Full-Run potion canary digest",
     subsequent?.annotator_component_source_digest_sha256,
-    bom.components?.annotator?.component_source_digest_sha256);
+    POTION_OWNER_CANARY.componentSourceDigest);
   expectEqual(errors, "Full-Run subsequent source/test", subsequent?.source_test_status, "pass");
   expectEqual(errors, "Full-Run subsequent tests", subsequent?.annotator_core_tests, 80);
   expectEqual(errors, "Full-Run subsequent slices", JSON.stringify(subsequent?.implemented_slices),
     JSON.stringify(["potion_use_target_cancel"]));
   for (const level of ["built", "installed", "loaded"])
     expectEqual(errors, `Full-Run subsequent ${level}`, subsequent?.[level], "pass");
-  expectPattern(errors, "Full-Run subsequent artifact", subsequent?.artifact_sha256, SHA256);
-  expectPattern(errors, "Full-Run subsequent MVID", subsequent?.artifact_mvid, MVID);
-  expectPattern(errors, "Full-Run subsequent runtime", subsequent?.runtime_instance_id,
-    /^[0-9a-f]{32}$/u);
-  expectPattern(errors, "Full-Run subsequent environment", subsequent?.environment_fingerprint,
-    SHA256);
-  expectEqual(errors, "Full-Run subsequent Modset status", subsequent?.modset_status,
+  expectEqual(errors, "Full-Run potion canary artifact", subsequent?.artifact_sha256,
+    POTION_OWNER_CANARY.artifactSha);
+  expectEqual(errors, "Full-Run potion canary MVID", subsequent?.artifact_mvid,
+    POTION_OWNER_CANARY.artifactMvid);
+  expectEqual(errors, "Full-Run potion canary runtime", subsequent?.runtime_instance_id,
+    POTION_OWNER_CANARY.runtimeInstance);
+  expectEqual(errors, "Full-Run potion canary environment", subsequent?.environment_fingerprint,
+    POTION_OWNER_CANARY.environment);
+  expectEqual(errors, "Full-Run potion canary Modset status", subsequent?.modset_status,
     "exact_platform_modset");
-  expectPattern(errors, "Full-Run subsequent Modset", subsequent?.modset_fingerprint, SHA256);
-  expectPattern(errors, "Full-Run subsequent rollback", subsequent?.rollback,
-    /^apps\/game-mod\/\.local\/deployments\//u);
-  expectEqual(errors, "Full-Run subsequent Human", subsequent?.human_runtime, "not_exercised");
-  expectEqual(errors, "Full-Run subsequent evidence transfer",
+  expectEqual(errors, "Full-Run potion canary Modset", subsequent?.modset_fingerprint,
+    POTION_OWNER_CANARY.modset);
+  expectEqual(errors, "Full-Run potion canary rollback", subsequent?.rollback,
+    POTION_OWNER_CANARY.rollback);
+  expectEqual(errors, "Full-Run potion canary Human", subsequent?.human_runtime,
+    "pass_overall_accounting_potion_gate_failed");
+  const potionCanary = subsequent?.owner_canary;
+  expectEqual(errors, "Full-Run potion canary audit", potionCanary?.audit_status, "pass");
+  expectEqual(errors, "Full-Run potion canary Human origin", potionCanary?.human_origin,
+    "owner_attested_not_machine_proven");
+  for (const [label, actual, expected] of [
+    ["Decision V2 valid", potionCanary?.decision_v2_valid, 219],
+    ["Decision V2 invalid", potionCanary?.decision_v2_invalid, 0],
+    ["legacy invalidations", potionCanary?.legacy_invalidations, 287],
+    ["Reads", potionCanary?.reads_materialized, 17954],
+    ["Read failures", potionCanary?.reads_failed, 0],
+    ["accepted", potionCanary?.semantic_accepted, 627],
+    ["proved", potionCanary?.semantic_proved, 625],
+    ["cancel before start", potionCanary?.semantic_cancelled_before_start, 1],
+    ["cancel after start unknown", potionCanary?.semantic_cancelled_after_start_unknown, 1],
+    ["unresolved", potionCanary?.semantic_unresolved, 0],
+    ["enemy-target potion proved", potionCanary?.potion_enemy_target_proved, 1],
+    ["self-target potion invalidations", potionCanary?.potion_self_target_mapping_invalidations, 3],
+    ["self-target potion unaccounted", potionCanary?.potion_self_target_unaccounted, 1]
+  ]) expectEqual(errors, `Full-Run potion canary ${label}`, actual, expected);
+  expectEqual(errors, "Full-Run potion target cancel",
+    potionCanary?.potion_target_picker_cancel, "not_exercised");
+  expectEqual(errors, "Full-Run potion canary evidence transfer",
     subsequent?.evidence_transfer_from_repair_artifact, false);
+  expectEqual(errors, "Full-Run current evidence transfer from potion canary",
+    fullRun?.evidence_transfer_from_potion_owner_canary, false);
   expectEqual(errors, "Full-Run predecessor evidence transfer",
     fullRun?.evidence_transfer_from_schema2_predecessor, false);
   expectEqual(errors, "Full-Run predecessor canary",

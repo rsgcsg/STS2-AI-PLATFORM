@@ -206,15 +206,21 @@ action-family expansion remain outside this bounded baseline.
   `session-20260827T151912Z-4c7f26e56b954b498cfa0c3213e4b488` passes the repair
   canary for semantic accounting, including repaired canonical direct-UI
   binding and parent-lifecycle retention.
-- Remaining Live gaps: hand select/replace/deselect, generated skip, potion,
-  room-internal event/shop/rest/treasure actions and run entry.
+- Latest long owner run proves one enemy-targeted potion and clean overall
+  accounting, but exposed self-target operand normalization and accepted-action
+  accounting defects in the Annotator witness. Repair source/test/build/load is
+  complete; its exact Human gate is pending.
+- Remaining Live gaps: repaired self-target potion, potion target-picker cancel,
+  hand select/replace/deselect, generated skip, room-internal
+  event/shop/rest/treasure actions and run entry.
 - Complete at subsequent source/test: Human potion use arms from the native
   holder, binds only at `EnqueueManualUse`, and then reuses the typed
   `UsePotionAction` lifecycle. Target-picker cancel produces no accepted action;
   programmatic Connector use has no Human arm and is not recorded.
-- Next Combat gate: targeted and untargeted potion use, target-picker cancel,
-  generated skip, and representative hand select/deselect/confirm on one exact
-  cold-loaded artifact. If clean, proceed to non-combat room families.
+- Next Combat gate: self-target and enemy-target potion use, target-picker
+  cancel, and a rapid potion attempt on the exact repair artifact. If clean,
+  close the remaining representative generated-skip/hand-selector gates and
+  proceed to Event options.
 - Non-combat room expansion follows a clean Combat mechanism canary.
 - Later: run entry/terminal, representative long-act run, then continuous Full
   Run. Rare content remains targeted evidence and does not block the mainline.

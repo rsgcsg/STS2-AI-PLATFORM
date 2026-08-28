@@ -27,7 +27,7 @@ from a later Human effect.
 | generated-card select | exact selection callback + direct UI delivery | complete | repair canary: 11 selects recorded |
 | generated-card skip | exact skip callback + direct UI delivery | complete | not exercised |
 | Combat hand selector select / replace / deselect / confirm | exact hand/container callbacks + direct UI delivery | complete | repair canary: 13 confirms; select/replace/deselect not proved |
-| potion use / target / cancel | Human `NPotionHolder.UsePotion` arm -> exact `PotionModel.EnqueueManualUse` commit -> `UsePotionAction` lifecycle; target-picker cancel never enqueues | complete at subsequent source/test only | not exercised on the subsequent artifact |
+| potion use / target / cancel | Human `NPotionHolder.UsePotion` arm -> exact `PotionModel.EnqueueManualUse` commit -> `UsePotionAction` lifecycle; target-picker cancel never enqueues | self-target normalization repair source/test/build/load complete | enemy-target use proved once; three self-target mapping failures exposed and fixed; cancel remains unexercised on repair artifact |
 | lethal combat -> reward | existing combat lifecycle + reward Player Environment boundary | complete | repair canary PASS |
 | reward claim | `NRewardButton.OnRelease` direct UI delivery | complete | repair canary PASS: 11 claims |
 | reward proceed | `NRewardsScreen.OnProceedButtonPressed` direct UI delivery | complete | repair canary PASS: five proceeds |
@@ -55,13 +55,15 @@ The repair artifact exercised the bounded cross-surface path:
 lethal combat -> reward claim -> card reward select or skip/proceed -> map node
 ```
 
-The latest closed owner session
-`session-20260827T151912Z-4c7f26e56b954b498cfa0c3213e4b488`, timeline
-`timeline-43913dee384646d5a9f390da136e909b`, passes with 250 accepted schema-2
-actions, 248 proved, two cancelled before start and 0 semantic unknown or
-unresolved. Its independent Annotator audit passes 80 valid Decision V2
-records, 0 invalid records and 127 explicit legacy invalidations. The native
-ledger accounts for 193 accepted roots: 161 `PlayCard` and 32 `EndTurn`.
+The later closed owner session
+`session-20260828T032151Z-43b2f87e65484b8abccccbba71c713c8`, timeline
+`timeline-31295a4049034cd6bd45d3b7d8fe8304`, passes overall schema-2 accounting
+with 627 accepted actions, 625 proved, one cancelled before start, one
+cancelled after start and correctly unknown, and zero unresolved. Independent
+audit passes 219 valid Decision V2 records, 0 invalid records and 287 explicit
+legacy invalidations. It exercised a long combat/reward/map path and one
+enemy-targeted potion, but exposed three self-target potion mapping failures
+and one accepted self-target use that lacked explicit accounting.
 
 The canary proves repaired canonical direct-UI binding and parent-lifecycle
 retention. It does not prove hand select/replace/deselect, generated skip,
@@ -69,14 +71,16 @@ potion use, room-internal event/shop/rest/treasure actions, run entry,
 exhaustive Full Run, semantic-free performance, game outcome success or
 qualification.
 
-Subsequent source adds the bounded potion witness and removes per-event
-physical flushes from the additive semantic trace. Primary Decision and native
-ledger streams retain their existing per-event durability; semantic events are
-written in causal batches and physically flushed on safe Close. Its clean
-unified artifact is built, installed and cold-loaded, but has no Human action
-evidence and has not inherited the repair artifact's Human runtime evidence.
-The observed 8 ms-class boundary-to-start delay is only a credible trace-I/O
-hotspot, not a completed performance diagnosis.
+Source `fba874e8...` repairs the potion witness without changing Connector
+authority: it matches STS2's owner normalization only after the original null
+operand misses the frozen catalog, still requires exact-unique binding, and
+defers arm/mapping failures until native acceptance. Its clean unified artifact
+`b5fbda12... / 1cbcff84...` is installed and cold-loaded, but has no Human
+potion evidence and inherits none from the failing predecessor. Batching cut
+the narrow boundary-to-start median from about 8 ms to 4 ms; repeated read-rich
+capture remains only a plausible, unprofiled source of perceived lag.
+
+See the [potion canary](evidence/FULL_RUN_POTION_OWNER_CANARY_2026-08-28.md).
 
 Current repair source is `c8775e1066137c1a7e00993a7ab74493a11717f7`.
 Its clean unified build is `8d2f7d2a8e95eac424aa7fed7f22e825821609b83526d38605e813b6a9692c35 /

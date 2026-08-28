@@ -22,13 +22,12 @@ complete, and the latest bounded owner canary passes semantic accounting**.
 Current source advances the proved predecessor into semantic trace schema 2:
 H is observation-only, execution binds S, state/Read/catalog completeness are
 orthogonal, and Close drains an unresolved semantic edge before classifying it
-unknown. The loaded repair artifact is SHA-256
-`8d2f7d2a8e95eac424aa7fed7f22e825821609b83526d38605e813b6a9692c35`, MVID
-`3043f4f4-63c8-4058-8f4e-44b60801d3d5`, from Annotator source
-`c8775e1066137c1a7e00993a7ab74493a11717f7`, in runtime
-`fb5a82ea198140aebfcdbe92b654fce1`. Latest owner session
-`session-20260827T151912Z-4c7f26e56b954b498cfa0c3213e4b488` passes bounded
-semantic accounting; it does not qualify exhaustive Full Run or game outcome.
+unknown. Latest owner session `session-20260828T032151Z-...` passes overall
+semantic accounting with 627 accepted, 625 proved, two explicit native
+cancellations and zero unresolved, but exposes a source-local self-target
+potion correlation defect. Repair source `fba874e8...` is built, installed and
+cold-loaded as `b5fbda12... / 1cbcff84...` in runtime `10eb9301...`; its Human
+potion canary is pending and predecessor evidence does not transfer.
 
 ## Implemented
 
@@ -384,8 +383,9 @@ not a semantic seal. See the dated owner-canary report.
   semantic proof. Schema 2 is now owner-operated and proves bounded ordinary
   combat, generated-card select and direct execution handoff. Exact reorder on
   the schema-2 artifact, catalog-incomplete Live handoff, successful pending-
-  edge Close drain, hand select/replace/deselect, generated skip, potion Live use,
-  room-internal event/shop/rest/treasure actions, run entry, exhaustive Full
+  edge Close drain, hand select/replace/deselect, generated skip, repaired
+  self-target potion and target-picker cancel, room-internal
+  event/shop/rest/treasure actions, run entry, exhaustive Full
   Run, semantic-free performance, game outcome success, corpus admission and
   training authority remain non-claims.
 - H0/H1/H2 are automated real-runtime evidence, not human validation, a full
@@ -394,12 +394,14 @@ not a semantic seal. See the dated owner-canary report.
   current Connector and remains a non-claim; shipped-default semantics passed.
 - Generated-card select is audited on the current schema-2 unified artifact;
   generated-card skip remains `not exercised`.
-- Subsequent source/test adds exact native Human potion correlation and removes
-  per-event physical flush from the additive semantic trace. Its clean artifact
-  `be1a96ec... / 79354979...` is installed and cold-loaded in runtime
-  `1ad1e3f8...` under the sole exact Platform Modset. It has no Human potion or
-  performance evidence; the repair canary claims remain bound to
-  `8d2f7d2a... / 3043f4f4...`.
+- The first potion owner canary proved one enemy-targeted use but exposed three
+  self-target exact-mapping failures and one accepted self-target use without
+  explicit accounting. Repair source `fba874e8...` follows STS2's owner
+  normalization only through exact frozen-catalog matching and defers failures
+  until native acceptance. Artifact `b5fbda12... / 1cbcff84...` is cold-loaded
+  under the sole exact Platform Modset; Human proof is pending. Trace batching
+  improved the narrow boundary-to-start median from about 8 ms to 4 ms, but
+  perceived-lag elimination remains a non-claim.
 - The V2 bundle/store/receiver/STPD path is verified, but this does not authorize
   corpus inclusion or training and does not qualify unexercised action families.
 - Platform Evidence is a focused evidence-integrity package, not a
