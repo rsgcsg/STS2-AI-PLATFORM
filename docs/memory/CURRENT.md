@@ -11,7 +11,9 @@ Full-Run work continues in PR #3. The topic branch now has a source/test/build
 candidate for schema-3 exact content-addressed frames, role-reference events,
 Snapshot-gated Read capture, batched Read persistence and successor capture
 reuse. It preserves `H != S`, execution-bound `S`, explicit disposition, exact
-identity and independent audit; it has no exact-runtime Human evidence yet.
+identity and independent audit. Artifact `4fa67570... / 51c7c37b...` is now
+installed and exact-loaded in runtime `7bcc19e7...`; it has no Human runtime
+evidence yet.
 
 ## Active workstreams
 
@@ -38,10 +40,10 @@ identity and independent audit; it has no exact-runtime Human evidence yet.
 ## Next meaningful gates
 
 - Keep the required `portable` source/test gate green on latest PR heads.
-- Build/install/cold-load the finalized schema-3 artifact and run one short
-  exact Human canary proving accounting, role resolution, tamper detection,
-  bounded growth and no material interaction regression before resuming
-  Full-Run room coverage.
+- Run one short exact Human canary on the loaded schema-3 artifact, proving
+  accounting, role resolution, bounded growth and no material interaction
+  regression before resuming Full-Run room coverage. Tamper rejection remains
+  an automated audit gate rather than a Human action.
 
 Use `npm run project:context` to start a task and
 `npm run project:closeout` to surface likely documentation, evidence, contract,

@@ -9,17 +9,18 @@ const PLATFORM_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 const SHA256 = /^[0-9a-f]{64}$/u;
 const COMMIT = /^[0-9a-f]{40}$/u;
 const MVID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
-const CURRENT_ANNOTATOR = Object.freeze({
-  sourceRevision: "fba874e8d7a89b7843c82aea3cd5987bb54b41e3",
-  componentTreeRevision: "747a83b98a8e086150e36bfa160e4fd021cc83ef",
-  componentSourceDigest: "c49f21cb7468ad6f0722c8df3bbb38ea5257abf0d05751ae93ccb441d31da010",
-  buildSourceDigest: "7244b3559f96b8dc23d88106f4cb05ed7e070434a0bd92cf47c3a3b90f4010b4",
-  artifactSha: "b5fbda1277404e277eb8871faa4baa126fb92e324dc0dc09c26f7693e9791f02",
-  artifactMvid: "1cbcff84-1a35-4f4a-a387-dfdce601f8f1",
-  runtimeInstance: "10eb9301c5624a59a5693d2dfb9b480f",
-  environment: "575f57f4265242e72434b05ec50dc5f89c4bcdf1e45ff02da630cdcc87de2c0e",
-  modset: "67f7e0179cba12c2b23342b0144685f7e37ea05d6749b34e1546fa6e1db9162a",
-  rollback: "apps/game-mod/.local/deployments/2026-08-28T08-31-33.162Z"
+const LOADED_SCHEMA3_ANNOTATOR = Object.freeze({
+  sourceRevision: "54efe38d6d2f49051e04248072acb548feddfe9a",
+  workspaceRevisionAtBuild: "750315b3b998a04507439869c96ba78d280787fb",
+  componentTreeRevision: "e07fa1ad8b4939cbc5e6435d818acacc4565b57d",
+  componentSourceDigest: "b95e8c8e630f793b90f7328c3f1ea8374a6c252c0cfff55560cab43619da3a54",
+  buildSourceDigest: "a601e6d9ee85c54fbf1841535dc11c59e7d224a20f0d6b003493a7e1b53aa622",
+  artifactSha: "4fa6757045b6d5c2b137e78b1e96e7163c2a5c64372a41955682257d6a6a1056",
+  artifactMvid: "51c7c37b-3305-4286-b2bc-52cd5725ac76",
+  runtimeInstance: "7bcc19e7fb614eedad563db93310adc7",
+  environment: "15177b88c13f87fac1c4b676aee2529a643411952eeda50b82ca67837be1f15f",
+  modset: "2263e3958c03544a5a43ed462be1f85406a9a1c0fba8bf981a0c4c69fe54b544",
+  rollback: "apps/game-mod/.local/deployments/2026-08-28T16-46-50.719Z"
 });
 const POTION_OWNER_CANARY = Object.freeze({
   sourceRevision: "e1d88e3582d3d51a383d366d5ede517ca6a98e40",
@@ -97,14 +98,6 @@ export function validatePlatformBom(bom, authorities) {
     expectEqual(errors, `${bomKey}.component_tree_revision`, component?.component_tree_revision, identity.component_tree_revision);
     expectEqual(errors, `${bomKey}.component_source_digest_sha256`, component?.component_source_digest_sha256, identity.component_source_digest_sha256);
   }
-  expectEqual(errors, "current Annotator source", bom.components?.annotator?.source_revision,
-    CURRENT_ANNOTATOR.sourceRevision);
-  expectEqual(errors, "current Annotator component tree", bom.components?.annotator?.component_tree_revision,
-    CURRENT_ANNOTATOR.componentTreeRevision);
-  expectEqual(errors, "current Annotator component digest",
-    bom.components?.annotator?.component_source_digest_sha256,
-    CURRENT_ANNOTATOR.componentSourceDigest);
-
   expectEqual(errors, "connector release version", bom.components?.connector?.version, authorities.connectorRelease.release.version);
   expectEqual(errors, "connector Mod version", authorities.connectorManifest.version, authorities.connectorRelease.release.version);
   expectEqual(errors, "Player Environment protocol", bom.components?.player_environment_protocol, authorities.connectorRelease.player_environment.protocol);
@@ -311,34 +304,34 @@ export function validatePlatformBom(bom, authorities) {
     errors.push("Semantic timeline source candidate must not reuse predecessor artifact identity");
   const fullRun = policyCandidate?.full_run_semantic_source_candidate;
   expectEqual(errors, "Full-Run source status", fullRun?.status,
-    "potion_repair_built_installed_loaded_human_pending");
+    "semantic_evidence_schema3_built_installed_loaded_human_pending");
   expectPattern(errors, "Full-Run build Annotator source",
     fullRun?.annotator_source_revision, COMMIT);
   expectEqual(errors, "Full-Run current Annotator source",
-    fullRun?.annotator_source_revision, CURRENT_ANNOTATOR.sourceRevision);
+    fullRun?.annotator_source_revision, LOADED_SCHEMA3_ANNOTATOR.sourceRevision);
   expectEqual(errors, "Full-Run current Annotator component tree",
-    fullRun?.annotator_component_tree_revision, CURRENT_ANNOTATOR.componentTreeRevision);
+    fullRun?.annotator_component_tree_revision, LOADED_SCHEMA3_ANNOTATOR.componentTreeRevision);
   expectPattern(errors, "Full-Run build Annotator component digest",
     fullRun?.annotator_component_source_digest_sha256, SHA256);
   expectEqual(errors, "Full-Run current Annotator component digest",
     fullRun?.annotator_component_source_digest_sha256,
-    CURRENT_ANNOTATOR.componentSourceDigest);
+    LOADED_SCHEMA3_ANNOTATOR.componentSourceDigest);
   expectEqual(errors, "Full-Run build Annotator provenance",
-    fullRun?.annotator_build_source_digest_sha256, CURRENT_ANNOTATOR.buildSourceDigest);
-  expectEqual(errors, "Full-Run workspace/source identity",
-    fullRun?.workspace_revision_at_build, fullRun?.annotator_source_revision);
+    fullRun?.annotator_build_source_digest_sha256, LOADED_SCHEMA3_ANNOTATOR.buildSourceDigest);
+  expectEqual(errors, "Full-Run workspace at build",
+    fullRun?.workspace_revision_at_build, LOADED_SCHEMA3_ANNOTATOR.workspaceRevisionAtBuild);
   expectPattern(errors, "Full-Run build source digest",
     fullRun?.annotator_build_source_digest_sha256, SHA256);
   expectEqual(errors, "Full-Run trace schema", fullRun?.trace_schema,
-    "sts2.human-annotator/semantic-boundary-trace-event-2");
+    "sts2.human-annotator/semantic-evidence-event-3");
   expectPattern(errors, "Full-Run workspace at build",
     fullRun?.workspace_revision_at_build, COMMIT);
   expectPattern(errors, "Full-Run artifact", fullRun?.artifact_sha256, SHA256);
   expectEqual(errors, "Full-Run current artifact", fullRun?.artifact_sha256,
-    CURRENT_ANNOTATOR.artifactSha);
+    LOADED_SCHEMA3_ANNOTATOR.artifactSha);
   expectPattern(errors, "Full-Run MVID", fullRun?.artifact_mvid, MVID);
   expectEqual(errors, "Full-Run current MVID", fullRun?.artifact_mvid,
-    CURRENT_ANNOTATOR.artifactMvid);
+    LOADED_SCHEMA3_ANNOTATOR.artifactMvid);
   expectEqual(errors, "Full-Run protocol", fullRun?.player_environment_protocol,
     bom.components?.player_environment_protocol);
   expectEqual(errors, "Full-Run slices", JSON.stringify(fullRun?.implemented_slices),
@@ -353,7 +346,7 @@ export function validatePlatformBom(bom, authorities) {
       "combat_hand_confirm",
       "potion_use_target_cancel"
     ]));
-  expectEqual(errors, "Full-Run tests", fullRun?.annotator_core_tests, 80);
+  expectEqual(errors, "Full-Run tests", fullRun?.annotator_core_tests, 82);
   expectEqual(errors, "Full-Run build", fullRun?.built, "pass");
   expectEqual(errors, "Full-Run install", fullRun?.installed, "pass");
   expectEqual(errors, "Full-Run loaded", fullRun?.loaded, "pass");
@@ -362,15 +355,15 @@ export function validatePlatformBom(bom, authorities) {
   expectPattern(errors, "Full-Run runtime", fullRun?.runtime_instance_id,
     /^[0-9a-f]{32}$/u);
   expectEqual(errors, "Full-Run current runtime", fullRun?.runtime_instance_id,
-    CURRENT_ANNOTATOR.runtimeInstance);
+    LOADED_SCHEMA3_ANNOTATOR.runtimeInstance);
   expectPattern(errors, "Full-Run environment", fullRun?.environment_fingerprint, SHA256);
   expectEqual(errors, "Full-Run Modset status", fullRun?.modset_status,
     "exact_platform_modset");
   expectPattern(errors, "Full-Run Modset", fullRun?.modset_fingerprint, SHA256);
   expectEqual(errors, "Full-Run current environment", fullRun?.environment_fingerprint,
-    CURRENT_ANNOTATOR.environment);
+    LOADED_SCHEMA3_ANNOTATOR.environment);
   expectEqual(errors, "Full-Run current Modset", fullRun?.modset_fingerprint,
-    CURRENT_ANNOTATOR.modset);
+    LOADED_SCHEMA3_ANNOTATOR.modset);
   expectEqual(errors, "Full-Run loaded Mods", JSON.stringify(fullRun?.loaded_mod_ids),
     JSON.stringify(["STS2_PLATFORM"]));
   const fullRunCanary = fullRun?.prior_full_run_canary;

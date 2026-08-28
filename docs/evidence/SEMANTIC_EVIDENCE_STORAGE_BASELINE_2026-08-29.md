@@ -66,6 +66,14 @@ Read coverage updates and reuses one authoritative successor capture across the
 semantic and Decision V2 projections. Snapshot-only checks never establish S
 or S'.
 
-This section is source/test/build evidence. Because native bytes changed, one
-new exact-artifact owner canary is required before any runtime or performance
-claim transfers.
+The finalized candidate was built from workspace `750315b3...` with Annotator
+source `54efe38d...`, installed and cold-loaded as unified artifact
+`4fa6757045b6d5c2b137e78b1e96e7163c2a5c64372a41955682257d6a6a1056 /
+51c7c37b-3305-4286-b2bc-52cd5725ac76`. Runtime `7bcc19e7...` reports exact
+STS2 `v0.111.0 / 41cef1ea`, environment `15177b88...` and exact Platform
+Modset `2263e395...`. Rollback is
+`apps/game-mod/.local/deployments/2026-08-28T16-46-50.719Z`.
+
+This is source/test/build/install/load evidence. Because native bytes changed,
+one new exact-artifact owner canary is required before any Human semantic or
+owner-perceived performance claim transfers.

@@ -32,8 +32,10 @@ unknown. Exact content-addressed frames replace repeated inline H/S/S' payloads;
 Snapshot-only probes gate expensive Read-rich capture, Reads persist in batches,
 and one successor capture feeds both semantic and Decision V2 projections.
 Historical schema-1/2 bytes remain auditable. This storage/hot-path candidate is
-source/test/build evidence only and inherits no Human proof from the repair
-artifact. See the [measured baseline](evidence/SEMANTIC_EVIDENCE_STORAGE_BASELINE_2026-08-29.md).
+source/test/build/install/load complete as artifact `4fa67570... /
+51c7c37b...`, runtime `7bcc19e7...`, exact Modset `2263e395...`. It inherits no
+Human proof or performance claim from the repair artifact. See the
+[measured baseline](evidence/SEMANTIC_EVIDENCE_STORAGE_BASELINE_2026-08-29.md).
 
 ## Implemented
 

@@ -179,6 +179,24 @@ async function* normalizedLines(trace) {
   }
 }
 
+async function* storedRepresentationLines(frameFiles, trace) {
+  for (const file of frameFiles) yield* textLines(file);
+  yield* textLines(trace);
+}
+
+function semanticFormat(value) {
+  return value.schema === "sts2.human-annotator/semantic-evidence-event-3"
+    ? "normalized-v3"
+    : "legacy-inline";
+}
+
+function collectStoredReference(reference, role, counts, digests, snapshotIds) {
+  if (!reference) return;
+  counts[role]++;
+  if (reference.content_sha256) digests.add(reference.content_sha256);
+  if (reference.snapshot_id) snapshotIds.add(reference.snapshot_id);
+}
+
 export async function analyze(recordingDirectory) {
   const root = path.resolve(recordingDirectory);
   const trace = path.join(root, "semantic-boundary-trace.jsonl");
@@ -203,9 +221,22 @@ export async function analyze(recordingDirectory) {
   let lastAt;
   let eventCount = 0;
   let projectedEventBytes = 0;
+  let inputFormat;
+  const storedRoleCounts = {
+    human_observation: 0,
+    boundary_state: 0,
+    semantic_pre: 0,
+    semantic_successor: 0
+  };
+  const storedFrameDigests = new Set();
+  const storedSnapshotIds = new Set();
   const collector = createFrameCollector({ collectRoles: true });
 
   for await (const { line, value } of jsonLines(trace)) {
+    const format = semanticFormat(value);
+    if (inputFormat && inputFormat !== format)
+      throw new Error(`Mixed semantic trace formats are not supported: ${inputFormat} and ${format}`);
+    inputFormat = format;
     eventCount++;
     const rawBytes = Buffer.byteLength(line) + 1;
     increment(eventCounts, value.kind);
@@ -217,7 +248,19 @@ export async function analyze(recordingDirectory) {
     if (value.kind === "action_aborted_before_commit") aborted++;
     if (!firstAt || value.observed_at < firstAt) firstAt = value.observed_at;
     if (!lastAt || value.observed_at > lastAt) lastAt = value.observed_at;
-    projectedEventBytes += Buffer.byteLength(projectEvent(value, collector).eventLine);
+    if (format === "normalized-v3") {
+      projectedEventBytes += rawBytes;
+      collectStoredReference(value.human_observation_ref, "human_observation",
+        storedRoleCounts, storedFrameDigests, storedSnapshotIds);
+      collectStoredReference(value.execution_pre_ref, "semantic_pre",
+        storedRoleCounts, storedFrameDigests, storedSnapshotIds);
+      collectStoredReference(value.successor_ref, "semantic_successor",
+        storedRoleCounts, storedFrameDigests, storedSnapshotIds);
+      collectStoredReference(value.boundary?.state_ref, "boundary_state",
+        storedRoleCounts, storedFrameDigests, storedSnapshotIds);
+    } else {
+      projectedEventBytes += Buffer.byteLength(projectEvent(value, collector).eventLine);
+    }
   }
 
   const blobFiles = files.filter((file) => file.includes(`${path.sep}blobs${path.sep}sha256${path.sep}`));
@@ -229,13 +272,27 @@ export async function analyze(recordingDirectory) {
     : 0;
   const minutes = durationSeconds / 60;
   const semanticTraceBytes = fileBytes["semantic-boundary-trace.jsonl"] ?? 0;
-  const normalizedFrameBytes = collector.uniqueFrameRecordBytes;
+  const semanticFrameFiles = files.filter((file) =>
+    file.includes(`${path.sep}semantic-frames${path.sep}sha256${path.sep}`));
+  const storedFrameBytes = semanticFrameFiles.reduce((sum, file) =>
+    sum + fileBytes[path.relative(root, file)], 0);
+  const normalizedFrameBytes = inputFormat === "normalized-v3"
+    ? storedFrameBytes
+    : collector.uniqueFrameRecordBytes;
   const normalizedTotalBytes = projectedEventBytes + normalizedFrameBytes;
   const existingTraceGzipBytes = await gzipSize(textLines(trace));
-  const normalizedGzipBytes = await gzipSize(normalizedLines(trace));
+  const normalizedGzipBytes = await gzipSize(inputFormat === "normalized-v3"
+    ? storedRepresentationLines(semanticFrameFiles, trace)
+    : normalizedLines(trace));
+  const roleCounts = inputFormat === "normalized-v3" ? storedRoleCounts : collector.roles;
+  const roleCount = Object.values(roleCounts).reduce((sum, value) => sum + value, 0);
+  const uniqueFrameCount = inputFormat === "normalized-v3"
+    ? storedFrameDigests.size
+    : collector.uniqueFrameCount;
 
   return {
     schema: "sts2.human-annotator/semantic-evidence-analysis-1",
+    input_format: inputFormat ?? "empty",
     recording_directory: root,
     files: {
       count: files.length,
@@ -277,16 +334,15 @@ export async function analyze(recordingDirectory) {
     },
     normalized_projection: {
       event_count: eventCount,
-      role_reference_count: Object.values(collector.roles)
-        .reduce((sum, value) => sum + value, 0),
+      role_reference_count: roleCount,
       event_bytes: projectedEventBytes,
       unique_frame_bytes: normalizedFrameBytes,
-      frame_record_count: collector.uniqueFrameCount,
+      frame_record_count: uniqueFrameCount,
       total_bytes: normalizedTotalBytes,
       structural_reduction_ratio: semanticTraceBytes ? normalizedTotalBytes / semanticTraceBytes : 0,
       gzip_bytes: normalizedGzipBytes
     },
-    legacy_to_normalized: {
+    legacy_to_normalized: inputFormat === "normalized-v3" ? null : {
       legacy_event_count: eventCount,
       normalized_event_count: eventCount,
       legacy_inline_frame_occurrences: Object.values(collector.roles)
@@ -308,7 +364,7 @@ export async function analyze(recordingDirectory) {
     processing: {
       input: "jsonl-stream",
       raw_events_retained: false,
-      retained_frame_keys: collector.uniqueFrameCount
+      retained_frame_keys: uniqueFrameCount
     }
   };
 }

@@ -95,3 +95,52 @@ test("streams repeated large frames into deterministic role references", async (
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("measures an already-normalized schema-3 trace without projecting empty frames", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "semantic-analysis-v3-"));
+  try {
+    const digest = "b".repeat(64);
+    const objectRef = `semantic-frames/sha256/bb/${digest}.json`;
+    await mkdir(path.join(root, "semantic-frames", "sha256", "bb"), { recursive: true });
+    await writeFile(path.join(root, objectRef), `${JSON.stringify(frame("s0", 10, "read-0", "card"))}\n`);
+    await writeFile(path.join(root, "coverage.json"), JSON.stringify({ read_materialized: 4 }));
+    const reference = { snapshot_id: "s0", content_sha256: digest, object_ref: objectRef };
+    const events = [{
+      schema_version: 3,
+      schema: "sts2.human-annotator/semantic-evidence-event-3",
+      sequence: 1,
+      observed_at: "2026-01-01T00:00:00Z",
+      kind: "action_accepted",
+      action: { action_witness_id: "a1" },
+      human_observation_ref: reference
+    }, {
+      schema_version: 3,
+      schema: "sts2.human-annotator/semantic-evidence-event-3",
+      sequence: 2,
+      observed_at: "2026-01-01T00:00:01Z",
+      kind: "transition_proved",
+      action: { action_witness_id: "a1" },
+      execution_pre_ref: reference,
+      successor_ref: reference,
+      boundary: { state_ref: reference }
+    }];
+    await writeFile(path.join(root, "semantic-boundary-trace.jsonl"),
+      `${events.map((value) => JSON.stringify(value)).join("\n")}\n`);
+
+    const result = await analyze(root);
+    assert.equal(result.input_format, "normalized-v3");
+    assert.equal(result.normalized_projection.event_count, 2);
+    assert.equal(result.normalized_projection.role_reference_count, 4);
+    assert.equal(result.normalized_projection.frame_record_count, 1);
+    assert.equal(result.legacy_to_normalized, null);
+    assert.deepEqual(result.dispositions, {
+      accepted: 1,
+      proved: 1,
+      unknown: 0,
+      cancelled: 0,
+      aborted: 0
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
