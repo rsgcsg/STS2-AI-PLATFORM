@@ -48,16 +48,17 @@ references. Each reference resolves below the session's
 snapshot identity before applying the same causal validator. Roles remain
 distinct even when they reference identical content.
 
-The timeline stores Human observation H separately from semantic pre S and
-records exact action identity, accepted/started/choice/cancelled/finished facts,
-state/Read/catalog completeness, authoritative boundary captures, and exactly
-one semantic disposition:
+The timeline stores Human observation H separately from execution-adjacent
+state evidence and records exact action identity,
+accepted/started/choice/cancelled/finished facts, state/Read/catalog
+completeness, boundary captures, and exactly one semantic disposition:
 `transition_proved`, `transition_unknown`, cancelled before/after start, or
-aborted before native Commit. A proved transition requires either a complete
-interactive decision boundary or a state-complete capture synchronously before
-the next tracked Human effect. The latter does not require a republished action
-catalog. Native acceptance order is not assumed to equal execution order; every
-successful action's S must equal its own exact pre-execution boundary. Audit
+aborted before native Commit. A trace-level proved transition requires either a
+complete interactive decision boundary or a state-complete capture
+synchronously before the next tracked Human effect. The latter does not require
+a republished action catalog, so it is not by itself canonical one-step
+training eligibility. Native acceptance order is not assumed to equal execution
+order; every trace-level pre-state must equal its own exact pre-execution boundary. Audit
 rejects a mismatched execution pre-state or another Human action effect between
 that action's start and successor boundary. A queued action cancelled before
 `started` is retained as Human/native evidence
@@ -68,6 +69,20 @@ dispositions.
 This sidecar is not `HumanDecisionRecordV2`, corpus admission, or durable
 training authority. Predecessor sessions without it remain valid, and existing
 V1/V2 bytes are never reinterpreted.
+
+Canonical sequential training evidence has the stricter contract:
+
+```text
+S_t + complete A(S_t) -> exact A_t in A(S_t) -> causal S_(t+1)
+```
+
+H proves Human origin/correlation but does not define S. Acceptance does not
+define execution order. An execution-adjacent state is not trainable S unless
+the complete same-state action catalog exists and contains A exactly once. A
+generic later interactive Snapshot is not causal S' merely because it is
+interactive. `calibrate-semantic-training` mechanically enforces these rules,
+joins historical action facts from immutable sidecars, and never promotes a
+legacy V2 admission or schema-3 `transition_proved` label by terminology alone.
 
 `SemanticActionReference` may add exact process-local witness, mapping,
 BoundAction and native-mechanism metadata. Missing metadata on historical rows

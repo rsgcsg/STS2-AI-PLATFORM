@@ -1,5 +1,11 @@
 # Full-Run Semantic Coverage
 
+> This matrix tracks Human/native accounting and trace-level boundary coverage.
+> It is not a canonical one-step training matrix. ADR 0003 and the latest
+> calibration show that schema-3 `transition_proved` does not by itself prove
+> complete same-state A(S), exact A membership and causal S'. Natural-observer
+> expansion is paused at the owner approval gate.
+
 This is the current coverage authority for the additive Human Semantic Timeline.
 It does not expand `HumanDecisionRecordV2`, corpus admission, or Connector
 action authority.
@@ -10,11 +16,11 @@ action authority.
 Human observation H
 -> exact current BoundAction correlation
 -> STS2-owned GameAction lifecycle or exact source-local UI Commit
--> execution-bound semantic S
--> next complete authoritative Player Environment state S'
+-> execution-adjacent state boundary
+-> trace-level successor candidate
 ```
 
-The ordinary-combat schema-2 owner closeout is the regression oracle. New
+The ordinary-combat schema-2 owner closeout is the trace regression oracle. New
 surfaces use the same `SemanticBoundaryTracker`; no surface may invent legality,
 infer completion from time/animation/queue idle, or fill an earlier successor
 from a later Human effect.

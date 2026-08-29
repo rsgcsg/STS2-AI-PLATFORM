@@ -1,5 +1,20 @@
 # Roadmap
 
+## Canonical Human One-Step Evidence
+
+- Complete: mechanically separate Human provenance H, authoritative S,
+  complete same-state A(S), exact A membership and causal S' from legacy V2 and
+  schema-3 trace terminology.
+- Complete: calibrate the latest 933-action exact Human session; 0 rows satisfy
+  the full canonical one-step contract, while 497 retain only legacy V2 use.
+- Complete: bound Tier A/B/C with exact source, runtime, performance and offline
+  parity counterexamples; ADR 0003 selects serialized Human input.
+- Pending explicit owner approval: implement any input gate or unlock state
+  machine. Until approval, no runtime code/build/install/canary is permitted.
+- Paused: further natural-observer Full-Run surface expansion for the canonical
+  one-step lane. Existing trace evidence remains useful for accounting and a
+  separately versioned future action-chain scheme.
+
 ## Consolidation Baseline
 
 - Complete: import all three histories without squashing.
@@ -187,6 +202,11 @@ action-family expansion remain outside this bounded baseline.
   targeted evidence gaps; predecessor schema-1 evidence is not transferred.
 
 ## Full-Run Human Semantic Timeline
+
+- Superseded as canonical one-step authority: existing `transition_proved`
+  counts are trace-level lifecycle/state evidence. They require the mechanical
+  calibration gate and currently yield zero canonical one-step rows in the
+  latest exact session.
 
 - Active on a short-lived topic branch from `develop`; ordinary combat schema 2
   is frozen as the regression oracle rather than tuned to reduce unknowns.

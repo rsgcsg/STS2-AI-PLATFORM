@@ -13,13 +13,15 @@ GitHub enforcement is an operational fact separate from this source document;
 the workflow records intended rules, while repository settings must be checked
 directly before claiming protection.
 
-Phase: **Full-Run Human Semantic Timeline is the active Platform objective.
-Ordinary-combat schema 2 remains the bounded Human-proved regression oracle.
-The first combat -> reward -> card reward -> map canary exposed two correctness
-defects; the repair plus Combat hand-selector batch is source/test/build
-complete, and the latest bounded owner canary passes semantic accounting**.
+Phase: **canonical Human one-step evidence is at an owner approval gate**.
+Full-Run schema 3 remains exact Human accounting/lifecycle evidence, but the
+latest mechanical calibration proves that its `transition_proved` disposition
+is not equivalent to canonical `S + A(S) -> A -> S'` training eligibility.
+ADR 0003 selects serialized Human input as the preferred next collection
+architecture. No input gating or runtime implementation has started.
 
-Normalized semantic evidence schema 3 is now bounded Human-proved on exact
+Normalized semantic evidence schema 3 is now bounded Human-proved for its
+trace-level accounting and storage contract on exact
 artifact `4fa67570... / 51c7c37b...`, runtime `7bcc19e7...`, exact Modset
 `2263e395...`. Closed session
 `session-20260829T052157Z-e549d3601e7640f997b6f475180b2dfe` has 333
@@ -29,8 +31,9 @@ reward claim/proceed, card reward and generated-card selection, Combat hand
 confirm and map travel. Exact role references resolve to 947 immutable frames;
 the event log contains no inline H/S/S' frames and persisted Reads fall to 5.354
 per accepted action from predecessor rates of 23.97-28.63. Independent Decision
-V2 audit passes 188/188. This proves bounded semantics and storage for that exact
-artifact, not exhaustive Full Run or elimination of owner-perceived lag.
+V2 audit passes 188/188. This proves bounded trace semantics and storage for
+that exact artifact, not canonical one-step training, exhaustive Full Run, or
+elimination of owner-perceived lag.
 
 Current source adds a Close-time bounded stage profiler for snapshot/Read capture,
 serialization, hashing, object writes and durable appends. The profiler changes
@@ -54,6 +57,17 @@ Those repairs are source/test/build/install/load complete as exact artifact
 passes in the legal Ready/no-session state; after-repair Human latency and
 semantic evidence remain pending and do not transfer from the predecessor. See the
 [causal performance baseline](evidence/RECORDER_CAUSAL_PERFORMANCE_BASELINE_2026-08-29.md).
+
+The after-repair owner session
+`session-20260829T084437Z-cc4079776c9e417eba53a122e452cab7` is exact evidence
+for the loaded artifact above. It accounts for 933/933 trace-level proved
+actions and 497 valid Decision V2 records, but also records 31,613 synchronous
+full Player Environment captures consuming 628.720 seconds (27.519% of the
+2,284.687-second window), with one call reaching 273.851 ms. Mechanical
+canonical calibration classifies 247 actions as `S + A(S)` with unresolved S',
+682 as execution-time state/action-space unresolved, and 4 rejected; canonical
+`S + A(S) -> A -> S'` is 0. See the
+[canonical causality decision](evidence/RECORDER_CANONICAL_CAUSALITY_DECISION_2026-08-29.md).
 
 ## Implemented
 

@@ -2,7 +2,7 @@
 
 Historical Annotator evidence below remains bound to its original source and
 artifact. Annotator `0.3.0-rc.1` is the current read-rich V2 source. Schema 3 is
-bounded Human-proved on exact artifact `4fa67570... / 51c7c37b...`, runtime
+bounded Human-proved for trace accounting on exact artifact `4fa67570... / 51c7c37b...`, runtime
 `7bcc19e7...`: session `session-20260829T052157Z-...` accounts for 333/333
 proved actions with zero unknown and independently audits 188/188 Decision V2
 records. Exact content-addressed frames, Snapshot-gated Read-rich capture,
@@ -16,6 +16,13 @@ ledger debt, makes status capture lifecycle-requested rather than periodic, and
 buffers append streams until one durable Close seal. The repair remains
 source/test-only. Root `../../../docs/STATUS.md` is authoritative for the
 current runtime boundary.
+Latest exact session `session-20260829T084437Z-...` closes the after-repair
+performance gate but rejects the natural observer as canonical one-step
+training authority: 933 accepted actions mechanically classify as 247
+`S + A(S)` with unresolved S', 682 execution state/action-space unresolved and
+4 rejected, with 0 canonical `S + A(S) -> A -> S'`. ADR 0003 selects serialized
+Human input pending explicit owner approval. Current Native runtime behavior is
+unchanged.
 Current Full-Run topic source preserves that execution-owned continuous timeline
 and adds interaction-specific semantic Reads, reward claim/proceed, card reward
 select, map travel and Combat hand selector witnesses. The first owner canary

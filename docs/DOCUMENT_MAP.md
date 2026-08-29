@@ -23,6 +23,9 @@ Use the smallest route that answers the task.
   [Schema-3 Human and data-lifecycle closeout](evidence/SCHEMA3_HUMAN_DATA_LIFECYCLE_CLOSEOUT_2026-08-29.md).
 - Latest exact recorder-lag attribution and repair boundary:
   [Recorder causal performance baseline](evidence/RECORDER_CAUSAL_PERFORMANCE_BASELINE_2026-08-29.md).
+- Canonical H/S/A(S)/A/S' calibration and bounded architecture decision:
+  [Recorder canonical causality decision](evidence/RECORDER_CANONICAL_CAUSALITY_DECISION_2026-08-29.md)
+  and [ADR 0003](adr/0003-serialize-human-input-for-canonical-one-step-evidence.md).
 - Bounded active context and next gate: [Current Context](memory/CURRENT.md).
 - Product boundary and dependency direction: [Architecture](ARCHITECTURE.md).
 - Ownership matrix: [Components](COMPONENTS.md).

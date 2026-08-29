@@ -4,7 +4,7 @@
 
 ```text
 STS2 native UI and action queue  game truth and accepted action
-STS2-Connector                  stable S, complete A(S), exact Host bindings
+STS2-Connector                  fair-player state, complete A(S), exact Host bindings
 Human Annotator                 correlation, lifecycle/boundary observation, raw evidence
 STPD                            research projection and dataset admission
 ```
@@ -26,16 +26,17 @@ without changing that path:
 ```text
 frozen Human observation H (observation evidence only) + exact accepted action
 -> game-owned started / choice pause-resume / cancelled / finished lifecycle
--> exact execution consumes S captured immediately before that Human effect
--> state-complete execution handoff or complete interactive decision boundary
--> proved S -> A -> S', cancelled/not-successful, or unknown
+-> exact execution captures an adjacent state boundary
+-> state-complete execution handoff or complete interactive observation
+-> trace disposition, followed by independent canonical training calibration
 ```
 
 `SemanticBoundaryTracker` never publishes or executes actions. Human H is not
-silently promoted to semantic S. A complete execution boundary can establish S
-even while the UI is settling and its finite action catalog has not republished;
-state completeness, required-Read completeness and catalog completeness are
-recorded independently. An arbitrary settling poll cannot prove a boundary.
+silently promoted to semantic S. The current tracker can establish a
+state-causal trace boundary while the UI catalog has not republished; state,
+Read and catalog completeness are recorded independently. Such a boundary is
+not canonical sequential S without complete same-state A(S) and exact action
+membership. An arbitrary settling poll cannot prove a causal training boundary.
 `GameAction.Finished` is lifecycle evidence, not universal completion. The
 legacy V2 adapter and semantic timeline share action identity, but neither is
 authority for the other.
@@ -159,6 +160,16 @@ complete BoundAction. These observers neither await business reward completion
 nor create legality. Semantic state Reads are selected by interaction kind and
 remain information completeness only; they cannot publish or authorize an
 action.
+
+## Canonical Sequential Collection Decision
+
+Exact runtime calibration shows that native UI staging removes PlayCard,
+UsePotion and EndTurn affordances before execution, while generic interactive
+polling does not prove causal S'. The natural observer therefore remains useful
+for accounting and future action-chain research but is not canonical one-step
+training authority. ADR 0003 selects serialized Human input as the preferred
+future one-step collection architecture. Implementation is not authorized: no
+input behavior, feature flag, patch, build, install or canary has been added.
 
 The application event stream is typed, process-local and bounded. A consumer
 queries current status, then requests events after sequence N. A gap means the

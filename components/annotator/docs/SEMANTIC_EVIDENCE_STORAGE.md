@@ -11,16 +11,18 @@ For every exact accepted Human root, the recording must retain:
   artifact provenance;
 - the Human observation role `H`, including native witness, exact-unique
   BoundAction mapping and the player-visible frame observed during correlation;
-- the exact native execution or direct Commit that consumes semantic state `S`;
+- the exact native execution or direct Commit and its execution-adjacent
+  authoritative frame candidate;
 - one action identity `A` and its accepted/started/paused/resumed/finished,
   cancelled or aborted lifecycle facts;
-- either a causal authoritative `S'` captured before another Human effect, or
-  one explicit unknown/cancel/abort disposition;
+- either a trace-level successor candidate captured before another Human
+  effect, or one explicit unknown/cancel/abort disposition;
 - enough immutable content and ordering information for an independent auditor
   to verify every reference and reject cross-Human proof.
 
-`H`, `S` and `S'` remain distinct semantic roles even when two roles reference
-the same immutable frame content.
+Human observation, execution boundary, and successor candidate remain distinct
+roles even when two roles reference the same immutable frame content. Storage
+role names do not promote a frame to canonical sequential `S` or `S'`.
 
 ## Canonical layout
 
@@ -59,7 +61,9 @@ actions trigger bounded successor capture; legacy ledger recovery is probed only
 while recovery debt exists. Operational status refresh is explicitly requested
 by session/run lifecycle changes and never authorizes a transition. Only a
 complete Player Environment capture with the interaction-specific required
-Reads can bind execution state or prove a successor.
+Reads can become a trace-level boundary candidate. Canonical one-step use also
+requires complete same-state action membership and causal successor proof from
+the offline calibration contract.
 
 This removes repeated Reads and serialization while preserving fail-closed
 proof. No timing, animation, queue-idle or later-state inference is introduced.
@@ -106,13 +110,18 @@ evidence seal; interrupted sessions remain inspectable partial evidence.
 
 Closed owner session
 `session-20260829T052157Z-e549d3601e7640f997b6f475180b2dfe`
-is exact schema-3 Human evidence for artifact `4fa67570... / 51c7c37b...`.
+is exact schema-3 Human trace evidence for artifact
+`4fa67570... / 51c7c37b...`.
 It independently audits 188 Decision V2 records and accounts for 333 accepted
 roots with 333 proved dispositions and zero unknown. The event log contains no
 inline role frames; 2,724 references resolve to 947 immutable frame objects.
 Persisted Reads are 5.354 per accepted root. A subsequent exact profiler session
 `session-20260829T072035Z-...`, artifact `f1afebd2... / a618ef18...`, accounts
 for 267/267 proved actions and shows that synchronous Player Environment capture
-consumed 50.47% of recording wall time. Current scheduling and buffered-seal
-repairs have source/test evidence only and require a new exact-artifact Human
-canary. See the root causal performance baseline for the full attribution.
+consumed 50.47% of recording wall time. Those repairs were later exercised by
+exact owner session
+`session-20260829T084437Z-cc4079776c9e417eba53a122e452cab7` on artifact
+`bb37d34f... / 3587836e...`. That session accounts for 933 trace dispositions,
+but mechanical canonical calibration yields zero complete
+`S + A(S) -> A -> S'` rows. See the root causal performance baseline and
+canonical causality decision for the full attribution and non-claims.
