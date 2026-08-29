@@ -16,9 +16,9 @@
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "abf890243727c93e0521e3da98b0a2f7acf6713a",
-      "component_tree_revision": "de3c3f4f6590b909a57c9379d55d87c800f34c8c",
-      "component_source_digest_sha256": "40241305b5da6147d70390d68b21aec24bf99c76a8df24a4896789f12a9fb45e"
+      "source_revision": "2a7f7aa4d632c5bd4890df0e82ab8911f41b11d4",
+      "component_tree_revision": "d127d6482b6e7027e67655e8360152c9080750dc",
+      "component_source_digest_sha256": "de3bb8bfb68b2ff441bd8303c51ea19a78a144008b68afbf41d83c5facc27824"
     },
     "evidence": {
       "version": "0.1.0-rc.1",
