@@ -2,8 +2,9 @@
 
 ## Exact identity
 
-The clean serialized-input candidate was built from Platform workspace
-`95acd12f00c0709a8e789d81fc36a559c694029e`. Its Native identity is:
+The clean serialized-input candidate was rebuilt from Platform workspace
+`cbabfac0c27f621f3990961318b2bf48d9b2fa5f`. The Host/deployment integration
+change does not alter the Native bytes. Its Native identity is:
 
 - Platform source `b5389a0b4a1bbed37e6a9718776fdf38f06f50c9` /
   digest `0d01f16685001b0fa02f2ed4ff9cfd0c611fe27bf1258ea63fc715eee442fa58`;
@@ -18,10 +19,14 @@ The clean serialized-input candidate was built from Platform workspace
 
 ## Build, install and load
 
-Portable checks, exact-game checks and both GitHub CI jobs for PR #3 pass on
-the workspace revision above. The artifact was safely installed with rollback
-`apps/game-mod/.local/deployments/2026-08-29T14-43-21.403Z` and cold-loaded at
-`2026-08-29T14:43:32Z`.
+The initial artifact was safely installed and cold-loaded at
+`2026-08-29T14:43:32Z`. Automated Host probing then exposed a stale split-repo
+assumption: Host admission recognized only `STS2_MCP.identity` and
+`exact_player_environment_only`, not the exact unified Platform identity and
+Modset. Workspace `cbabfac...` fixes that owning integration layer. Deployment
+now writes and checksum-verifies `STS2_PLATFORM.identity`, retires the stale
+predecessor sidecar and preserves rollback
+`apps/game-mod/.local/deployments/2026-08-29T15-06-58.805Z`.
 
 Loaded verification reports:
 
@@ -32,10 +37,45 @@ Loaded verification reports:
 - Connector protocol `1.0.0`, single controller and execution available;
 - Recorder `ready`, with no open session.
 
+The runtime ids above belong to the first load of these identical Native
+bytes. They are load evidence, not evidence for a currently running process or
+for the post-sidecar Human canary.
+
+## Automated Host and differential evidence
+
+An isolated shipped profile was created by STS2 itself with settings schema 8;
+the shared player profile filesystem sentinel remained byte-identical. All
+automated runs used exact STS2 `v0.111.0 / 41cef1ea` and local, uncommitted
+evidence directories.
+
+- Two independent shipped runtimes with the same artifact, profile template and
+  seed have a complete semantic match for the first 9 actions.
+- Extending that same scenario to 12 rapid combat actions produces a real
+  semantic mismatch before End Turn: both sides select and deliver the same
+  actions, but the enemy is at 45 HP in one runtime and 39 HP in the other.
+  Both runs independently pass integrity with zero unknown delivery, Read,
+  successor or provenance failure. This is native effect-timing divergence,
+  not an identity or policy-selection mismatch.
+- Managed Exact was rebuilt from upstream `d11aa883...` plus audited patch
+  `8ced088b...`, producing artifact `8dc622b0... / 7228541c...`. A two-episode
+  bounded Player Environment run delivers 80/80 actions and 158 Reads; repeated
+  seed reset, stale rejection and idempotent receipt replay all pass. Its
+  qualification profile measures 293.083 decisions/s on this machine.
+- Reference versus Managed Exact also diverges in the rapid combat prefix:
+  Reference observes the pre-effect enemy at 42 HP while Managed has committed
+  Bash damage and Vulnerable at 34 HP. This directly rejects treating replay
+  from run start as an arbitrary-boundary restore.
+
+The 9-action match proves a bounded differential tool. The two longer
+counterexamples prove that same seed plus same chosen actions is not an exact
+checkpoint/restore primitive. Twin runtime remains differential-only; it is
+not the primary Human collector or a source of canonical S'.
+
 ## Evidence boundary
 
 This proves source, tests, exact build, install and loaded identity only. It does
 not prove Human input admission, canonical rows, first-command Close, blocked
 rapid-input UX, after-latency or after-footprint. No predecessor Human evidence
-transfers to these bytes. The next and only runtime gate is one short owner
-session on this exact artifact.
+transfers to these bytes. The automated runs also do not measure foreground
+Human input latency. The next and only runtime gate is one short owner session
+after a fresh cold load of this exact artifact.

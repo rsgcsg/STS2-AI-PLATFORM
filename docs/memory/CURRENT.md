@@ -13,7 +13,12 @@ performance evidence, and the canonical training calibration. Latest session
 performs 31,613 full captures (628.720 seconds cumulative) and yields zero
 canonical `S + A(S) -> A -> S'` rows. ADR 0003 selects serialized Human input.
 The candidate is implemented and cold-loaded as `b805474d... / 3ab1e10e...`;
-only its owner canary remains.
+Host admission now verifies the unified installed identity. A 9-action
+same-artifact prefix matches, while longer same-artifact and cross-Host rapid
+combat runs expose native effect-timing divergence; twin execution therefore
+remains differential-only. Managed Exact independently passes an 80-action
+bounded authority/performance probe. Only the serialized Human owner canary
+remains.
 
 ## Active workstreams
 

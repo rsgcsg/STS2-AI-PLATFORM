@@ -14,6 +14,11 @@
   independent tamper-detecting audit for the migrated high-frequency families.
 - Complete: clean build/install/cold-load and exact identity verification for
   artifact `b805474d... / 3ab1e10e...`.
+- Complete: unified installed identity and exact-Platform Modset admission;
+  bounded Reference prefix matches, while longer same-artifact and cross-Host
+  rapid combat counterexamples keep twin execution differential-only.
+- Complete: current Managed Exact rebuild plus 80-action/158-Read reset,
+  stale, idempotency and bounded performance measurement.
 - Pending owner canary: blocked rapid input, canonical rows, first-command
   Close and measured after-latency/footprint.
 - Next after the gate: migrate remaining Full-Run semantic-only families to the

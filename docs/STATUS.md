@@ -21,8 +21,14 @@ ADR 0003 selects serialized Human input. The implementation candidate removes
 per-frame successor/recovery polling, shares one authoritative boundary across
 predecessor settlement and next-action admission, and writes independently
 auditable canonical frame references. Source/test/exact-build checks pass, and
-artifact `b805474d... / 3ab1e10e...` is installed and cold-loaded in runtime
-`8fb991be...` with sole-Platform Modset `eb862f21...`. Human behavior,
+artifact `b805474d... / 3ab1e10e...` is installed and has prior exact load
+evidence. Host integration now verifies a unified `STS2_PLATFORM.identity`,
+accepts only the exact sole-Platform Modset and removes the stale predecessor
+identity. A same-artifact 9-action differential matches; a 12-action rapid
+combat extension and Reference/Managed comparison expose native effect-timing
+divergence. Managed Exact separately delivers 80/80 actions and 158 Reads with
+reset, stale and idempotency gates passing. These results retain twin execution
+as differential-only rather than a primary collector. Human behavior,
 canonical rows and after-latency remain unexercised. See the
 [source closeout](evidence/SERIALIZED_HUMAN_INPUT_SOURCE_CLOSEOUT_2026-08-30.md)
 and [runtime candidate](evidence/SERIALIZED_HUMAN_INPUT_RUNTIME_CANDIDATE_2026-08-30.md).

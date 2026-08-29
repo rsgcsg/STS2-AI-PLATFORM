@@ -220,6 +220,8 @@ export function validatePlatformBom(bom, authorities) {
     errors.push("serialized candidate loaded Mods: expected only STS2_PLATFORM");
   for (const level of ["built", "installed", "loaded"])
     expectEqual(errors, `serialized candidate ${level}`, serializedCandidate?.[level], "pass");
+  expectEqual(errors, "serialized candidate installed identity",
+    serializedCandidate?.installed_identity, "verified_unified_platform_sidecar");
   expectEqual(errors, "serialized candidate runtime status", serializedCandidate?.runtime_status,
     "ready_no_session");
   expectEqual(errors, "serialized candidate Human runtime", serializedCandidate?.human_runtime,
@@ -228,6 +230,22 @@ export function validatePlatformBom(bom, authorities) {
     "not_exercised");
   expectEqual(errors, "serialized candidate after latency", serializedCandidate?.after_latency,
     "not_measured");
+  const serializedHost = serializedCandidate?.host_automation;
+  expectEqual(errors, "serialized candidate isolated Host bootstrap",
+    serializedHost?.isolated_profile_bootstrap, "pass_shared_profile_unchanged");
+  expectEqual(errors, "serialized candidate same-artifact prefix",
+    serializedHost?.same_artifact_prefix_9, "semantic_match");
+  expectEqual(errors, "serialized candidate same-artifact rapid trajectory",
+    serializedHost?.same_artifact_rapid_12, "semantic_mismatch_native_effect_timing");
+  expectEqual(errors, "serialized candidate Managed actions", serializedHost?.managed_exact_actions, 80);
+  expectEqual(errors, "serialized candidate Managed reads", serializedHost?.managed_exact_reads, 158);
+  expectEqual(errors, "serialized candidate Managed authority gates",
+    serializedHost?.managed_exact_reset_stale_idempotency, "pass");
+  if (!(serializedHost?.managed_exact_qualification_decisions_per_second > 0))
+    errors.push("serialized candidate Managed performance: expected positive measured throughput");
+  expectEqual(errors, "serialized candidate cross-Host rapid trajectory",
+    serializedHost?.cross_host_rapid_prefix,
+    "semantic_mismatch_reference_pre_effect_vs_managed_post_effect");
   expectEqual(errors, "serialized candidate predecessor transfer",
     serializedCandidate?.evidence_transfer_from_predecessor, false);
   expectPattern(errors, "serialized candidate rollback", serializedCandidate?.rollback,

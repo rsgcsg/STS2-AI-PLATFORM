@@ -89,6 +89,8 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   candidate.semantic_execution_order_loaded_candidate.owner_canary.exact_reorder_rebind = "pass";
   candidate.semantic_execution_order_loaded_candidate.evidence_transfer_from_predecessor = true;
   candidate.serialized_canonical_loaded_candidate.human_runtime = "pass";
+  candidate.serialized_canonical_loaded_candidate.host_automation.same_artifact_prefix_9 =
+    "semantic_mismatch";
   candidate.serialized_canonical_loaded_candidate.evidence_transfer_from_predecessor = true;
   candidate.recording_application_decision_gate.human_origin = "machine_proven";
   candidate.predecessor_human_session.evidence_transfer_to_unified_artifact = true;
