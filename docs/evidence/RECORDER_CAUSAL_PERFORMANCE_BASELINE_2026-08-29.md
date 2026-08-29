@@ -4,8 +4,8 @@
 
 This is exact Human runtime evidence for the predecessor profiler artifact. It
 establishes the lag baseline and the semantic regression oracle. The repair
-described below has source/test evidence only until a new artifact is loaded and
-owner-operated.
+described below is source/test/build/install/load complete; its after-latency
+claim remains pending an owner-operated session.
 
 Latest closed owner session:
 
@@ -85,6 +85,30 @@ The repair keeps all native and semantic authority unchanged:
 No H/S/A/S' role, native lifecycle callback, exact mapping, Read policy,
 BoundAction authority, stale/identity check, disposition rule or audit invariant
 changes. An interrupted/unclosed session is not a durable Human evidence seal.
+
+## Exact repair candidate
+
+The exact Native repair source is Annotator revision `6e404204...`, tree
+`3f03fc72...`, build-source digest `5d0aa34b...`. A clean exact-game Release
+build from workspace `ff6b5678...` reproduced unified artifact
+`bb37d34f... / 3587836e-57e6-4227-8301-5d0f9e25f17f`; this is the same DLL
+content as the immediately preceding installed candidate because the final
+follow-up changed only the external loaded-identity verifier.
+
+The artifact was safely installed with rollback
+`apps/game-mod/.local/deployments/2026-08-29T08-41-25.762Z` and cold-loaded in
+process `22308`, Connector runtime `9a42d54c537d4672b0d724c8bd439482`, exact
+sole-Platform Modset `90f3c7f3...`. `verify:loaded` passes artifact/MVID,
+component revisions, process generation, Connector execution and exact Modset
+checks while the Annotator is legally Ready with no session. This is load
+evidence, not Human action or after-latency evidence.
+
+The verifier itself was corrected to use the unified loaded-identity log and
+Connector capabilities for process-global artifact/source/Modset truth. A
+RecordingStatus environment is session-bound and is now an additional
+consistency gate only when present; Ready/no-session no longer requires a fake
+environment or five-second heartbeat. Current-process PID plus observation at
+or after the loaded generation still rejects stale runtime status.
 
 ## Non-claims and next gate
 

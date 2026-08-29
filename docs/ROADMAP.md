@@ -230,9 +230,12 @@ action-family expansion remain outside this bounded baseline.
   wall time to synchronous Player Environment capture, including an
   unconditional 50 ms legacy recovery/status probe. Current source removes idle
   capture, gates recovery on real debt, buffers hot append streams and durably
-  seals them at Close. Next gate: cold-load this repair and run one short
-  Play/End Turn/rapid-chain canary for quantitative before/after plus semantic
-  audit. Then close target-picker cancel and representative generated-skip/
+  seals them at Close. Complete build/install/cold-load: exact artifact
+  `bb37d34f... / 3587836e...` is Ready in Connector runtime `9a42d54c...` with
+  exact sole-Platform Modset; loaded verification passes without requiring a
+  session environment heartbeat. Next gate: run one short Play/End Turn/rapid-
+  chain canary for quantitative before/after plus semantic audit. Then close
+  target-picker cancel and representative generated-skip/
   hand-selector gaps before Event options.
 - Non-combat room expansion follows a clean Combat mechanism canary.
 - Later: run entry/terminal, representative long-act run, then continuous Full

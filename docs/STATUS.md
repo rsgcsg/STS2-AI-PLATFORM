@@ -48,7 +48,11 @@ recording window. The old combined Snapshot probe alone runs 10,676 times and
 consumes 214.890 seconds. Current source removes idle polling, gates legacy
 recovery capture on actual recovery debt, reuses lifecycle-requested status
 frames, buffers hot evidence appends and durably seals every stream at Close.
-Those repairs have source/test evidence only. See the
+Those repairs are source/test/build/install/load complete as exact artifact
+`bb37d34f... / 3587836e...`, cold-loaded in process `22308` and Connector runtime
+`9a42d54c...` with exact sole-Platform Modset `90f3c7f3...`. Loaded verification
+passes in the legal Ready/no-session state; after-repair Human latency and
+semantic evidence remain pending and do not transfer from the predecessor. See the
 [causal performance baseline](evidence/RECORDER_CAUSAL_PERFORMANCE_BASELINE_2026-08-29.md).
 
 ## Implemented
