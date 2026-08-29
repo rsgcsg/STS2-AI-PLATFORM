@@ -82,12 +82,22 @@ proof. No timing, animation, queue-idle or later-state inference is introduced.
 - Per-surface storage models would duplicate the causal kernel; new surfaces add
   witness adapters, not new H/S/A/S' persistence semantics.
 
+## Operational performance profile
+
+Current source records bounded per-stage counts and latency quantiles at Close
+for Snapshot probes, Read-rich/semantic capture, serialization, hashing, object
+writes, durable append and flush. The profile is diagnostic output, not Human
+evidence; it cannot authorize actions or alter H/S/A/S'. It is absent from older
+sessions and must not be synthesized from event timestamps.
+
 ## Current evidence boundary
 
-The closed owner session
-`session-20260828T151112Z-a559d80cd88741738f2a902427b10140`
-is immutable predecessor evidence for the current repair artifact. Its existing
-audit passes with 77 Decision V2 records, while the semantic trace accounts for
-233 accepted roots and 233 proved dispositions. The session remains schema 2;
-offline normalization can compare representations but cannot rewrite or upgrade
-that raw evidence.
+Closed owner session
+`session-20260829T052157Z-e549d3601e7640f997b6f475180b2dfe`
+is exact schema-3 Human evidence for artifact `4fa67570... / 51c7c37b...`.
+It independently audits 188 Decision V2 records and accounts for 333 accepted
+roots with 333 proved dispositions and zero unknown. The event log contains no
+inline role frames; 2,724 references resolve to 947 immutable frame objects.
+Persisted Reads are 5.354 per accepted root. That artifact predates the stage
+profiler, so no runtime stage timing or lag attribution transfers to current
+source.

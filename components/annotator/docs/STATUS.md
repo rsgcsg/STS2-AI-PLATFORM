@@ -1,20 +1,15 @@
 # Status
 
-Historical Annotator evidence below remains bound to its original
-source/artifact. Annotator `0.3.0-rc.1` is the current read-rich V2 source.
-Its exact predecessor Native artifacts have ordinary-combat V2 evidence and one
-audited generated-card select. Generated-card skip and the current unified
-artifact's Human path remain `not exercised`. Root `../../../docs/STATUS.md` is
-authoritative for the current runtime boundary.
-
-Schema 2 is bounded Human-proved for ordinary combat and generated-card select.
-Latest repair-artifact session `session-20260828T151112Z-...` accounts for 233
-accepted/233 proved roots, including enemy-target, no-target and self-target
-potion use. Current source writes normalized schema-3 role references to exact
-content-addressed frames, gates Read-rich capture behind Snapshot-only candidate
-checks, batches Read persistence and reuses the authoritative successor capture.
-Legacy audit stays compatible; the new native artifact has source/test/build
-evidence only and inherits no Human runtime claim.
+Historical Annotator evidence below remains bound to its original source and
+artifact. Annotator `0.3.0-rc.1` is the current read-rich V2 source. Schema 3 is
+bounded Human-proved on exact artifact `4fa67570... / 51c7c37b...`, runtime
+`7bcc19e7...`: session `session-20260829T052157Z-...` accounts for 333/333
+proved actions with zero unknown and independently audits 188/188 Decision V2
+records. Exact content-addressed frames, Snapshot-gated Read-rich capture,
+batched persistence and successor reuse are therefore exercised. Generated
+skip, target-picker cancel and hand select/replace/deselect remain unexercised.
+The new Close-time stage profiler has source/test evidence only. Root
+`../../../docs/STATUS.md` is authoritative for the current runtime boundary.
 Current Full-Run topic source preserves that execution-owned continuous timeline
 and adds interaction-specific semantic Reads, reward claim/proceed, card reward
 select, map travel and Combat hand selector witnesses. The first owner canary

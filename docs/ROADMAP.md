@@ -214,12 +214,11 @@ action-family expansion remain outside this bounded baseline.
   233 accepted/233 semantic transitions, including enemy-target, no-target and
   self-target potion use, with zero unresolved. Target-picker cancel remains
   unexercised.
-- Complete at source/test/build: semantic evidence schema 3 stores exact
+- Bounded Human-proved on artifact `4fa67570... / 51c7c37b...`: semantic evidence schema 3 stores exact
   content-addressed H/S/S' frames behind role references; legacy schema-1/2
-  remains auditable. Snapshot-only candidate probes, interaction-specific Reads,
-  batched coverage writes and successor capture reuse remove measured duplicate
-  work without creating a new boundary proof. A new exact-artifact Human canary
-  is required before resuming room-family expansion.
+  remains auditable. The latest closed session accounts for 333/333 proved
+  actions with zero unknown and reduces persisted Reads to 5.354 per accepted
+  action without creating a new boundary proof.
 - Remaining Live gaps: potion target-picker cancel, hand
   select/replace/deselect, generated skip, room-internal
   event/shop/rest/treasure actions and run entry.
@@ -227,11 +226,11 @@ action-family expansion remain outside this bounded baseline.
   holder, binds only at `EnqueueManualUse`, and then reuses the typed
   `UsePotionAction` lifecycle. Target-picker cancel produces no accepted action;
   programmatic Connector use has no Human arm and is not recorded.
-- Next gate: a short normalized-evidence canary covering rapid combat,
-  Play -> End Turn, one potion, generated choice and Close. It must prove
-  schema-3 audit/accounting, no false transition, bounded file/Read growth and
-  no material interaction regression. Then close target-picker cancel and the
-  representative generated-skip/hand-selector gaps before Event options.
+- Next gate: cold-load the source/test-only performance-profiler artifact and run
+  one short representative canary to attribute stage latency. Then close
+  target-picker cancel and representative generated-skip/hand-selector gaps
+  before Event options; schema-3 semantics no longer wait on another generic
+  combat canary.
 - Non-combat room expansion follows a clean Combat mechanism canary.
 - Later: run entry/terminal, representative long-act run, then continuous Full
   Run. Rare content remains targeted evidence and does not block the mainline.

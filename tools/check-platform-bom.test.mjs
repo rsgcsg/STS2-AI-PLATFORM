@@ -72,6 +72,8 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   candidate.full_run_semantic_source_candidate.annotator_source_revision = "0".repeat(40);
   candidate.full_run_semantic_source_candidate.workspace_revision_at_build = "0".repeat(40);
   candidate.full_run_semantic_source_candidate.loaded = "non_claim";
+  candidate.full_run_semantic_source_candidate.owner_canary.semantic_proved = 332;
+  candidate.full_run_semantic_source_candidate.owner_canary.performance_profile = "pass";
   candidate.full_run_semantic_source_candidate.evidence_transfer_from_schema2_predecessor = true;
   candidate.full_run_semantic_source_candidate.predecessor_missing_semantic_native_roots = 0;
   candidate.game_mod.installed = "pending";
@@ -108,6 +110,8 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
     error.startsWith("semantic timeline predecessor evidence transfer:")));
   assert.ok(errors.some((error) => error.startsWith("Full-Run workspace at build:")));
   assert.ok(errors.some((error) => error.startsWith("Full-Run loaded:")));
+  assert.ok(errors.some((error) => error.startsWith("schema-3 proved:")));
+  assert.ok(errors.some((error) => error.startsWith("schema-3 performance profile:")));
   assert.ok(errors.some((error) => error.startsWith("Full-Run predecessor evidence transfer:")));
   assert.ok(errors.some((error) => error.startsWith("Full-Run predecessor missing semantic roots:")));
   assert.ok(errors.some((error) => error.startsWith("candidate Game Mod installed:")));

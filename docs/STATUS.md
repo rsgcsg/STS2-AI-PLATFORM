@@ -19,23 +19,24 @@ The first combat -> reward -> card reward -> map canary exposed two correctness
 defects; the repair plus Combat hand-selector batch is source/test/build
 complete, and the latest bounded owner canary passes semantic accounting**.
 
-The latest closed repair session
-`session-20260828T151112Z-a559d80cd88741738f2a902427b10140`
-binds artifact `b5fbda12... / 1cbcff84...`, runtime `7cfde8d4...`, and passes
-semantic accounting with 233 accepted/233 proved roots and zero unknown or
-unresolved. It exercises enemy-target, no-target and self-target potion use;
-target-picker cancel remains unexercised. Current source then advances that
-proved predecessor into normalized semantic evidence schema 3:
-H is observation-only, execution binds S, state/Read/catalog completeness are
-orthogonal, and Close drains an unresolved semantic edge before classifying it
-unknown. Exact content-addressed frames replace repeated inline H/S/S' payloads;
-Snapshot-only probes gate expensive Read-rich capture, Reads persist in batches,
-and one successor capture feeds both semantic and Decision V2 projections.
-Historical schema-1/2 bytes remain auditable. This storage/hot-path candidate is
-source/test/build/install/load complete as artifact `4fa67570... /
-51c7c37b...`, runtime `7bcc19e7...`, exact Modset `2263e395...`. It inherits no
-Human proof or performance claim from the repair artifact. See the
-[measured baseline](evidence/SEMANTIC_EVIDENCE_STORAGE_BASELINE_2026-08-29.md).
+Normalized semantic evidence schema 3 is now bounded Human-proved on exact
+artifact `4fa67570... / 51c7c37b...`, runtime `7bcc19e7...`, exact Modset
+`2263e395...`. Closed session
+`session-20260829T052157Z-e549d3601e7640f997b6f475180b2dfe` has 333
+accepted/started/finished/proved actions with zero unknown, cancellation, abort
+or unresolved disposition. It exercises Play, End Turn, three potion uses,
+reward claim/proceed, card reward and generated-card selection, Combat hand
+confirm and map travel. Exact role references resolve to 947 immutable frames;
+the event log contains no inline H/S/S' frames and persisted Reads fall to 5.354
+per accepted action from predecessor rates of 23.97-28.63. Independent Decision
+V2 audit passes 188/188. This proves bounded semantics and storage for that exact
+artifact, not exhaustive Full Run or elimination of owner-perceived lag.
+
+Current source adds a Close-time bounded stage profiler for snapshot/Read capture,
+serialization, hashing, object writes and durable appends. The profiler changes
+no action or semantic authority and has source/test evidence only; the Human run
+above cannot supply its timings. See the
+[schema-3 closeout](evidence/SCHEMA3_HUMAN_DATA_LIFECYCLE_CLOSEOUT_2026-08-29.md).
 
 ## Implemented
 

@@ -77,3 +77,9 @@ Modset `2263e395...`. Rollback is
 This is source/test/build/install/load evidence. Because native bytes changed,
 one new exact-artifact owner canary is required before any Human semantic or
 owner-perceived performance claim transfers.
+
+That gate was subsequently completed by exact schema-3 session
+`session-20260829T052157Z-e549d3601e7640f997b6f475180b2dfe`. See the
+[schema-3 closeout](SCHEMA3_HUMAN_DATA_LIFECYCLE_CLOSEOUT_2026-08-29.md).
+Only the later stage-profiler source still requires a new artifact for runtime
+latency attribution.

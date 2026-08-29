@@ -19,6 +19,8 @@ Use the smallest route that answers the task.
 - Current claims and evidence pointers: [Status](STATUS.md).
 - Semantic evidence storage and measured predecessor baseline:
   [Semantic Evidence Storage Baseline](evidence/SEMANTIC_EVIDENCE_STORAGE_BASELINE_2026-08-29.md).
+- Latest normalized Human runtime and storage closeout:
+  [Schema-3 Human and data-lifecycle closeout](evidence/SCHEMA3_HUMAN_DATA_LIFECYCLE_CLOSEOUT_2026-08-29.md).
 - Bounded active context and next gate: [Current Context](memory/CURRENT.md).
 - Product boundary and dependency direction: [Architecture](ARCHITECTURE.md).
 - Ownership matrix: [Components](COMPONENTS.md).

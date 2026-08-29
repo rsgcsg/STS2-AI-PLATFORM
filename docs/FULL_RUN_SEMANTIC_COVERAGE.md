@@ -23,16 +23,16 @@ from a later Human effect.
 
 | Slice | Native witness | Source/test | Current-artifact Live |
 |---|---|---:|---:|
-| ordinary combat play / End Turn | `GameAction.OnEnqueued` + typed lifecycle + `ActionExecutor.BeforeActionExecuted` | complete | repair canary PASS for bounded accounting: 161 `PlayCard`, 32 `EndTurn` native roots |
-| generated-card select | exact selection callback + direct UI delivery | complete | repair canary: 11 selects recorded |
+| ordinary combat play / End Turn | `GameAction.OnEnqueued` + typed lifecycle + `ActionExecutor.BeforeActionExecuted` | complete | schema-3 canary: 214 `PlayCard`, 48 `EndTurn` roots proved |
+| generated-card select | exact selection callback + direct UI delivery | complete | schema-3 canary: three selects proved |
 | generated-card skip | exact skip callback + direct UI delivery | complete | not exercised |
-| Combat hand selector select / replace / deselect / confirm | exact hand/container callbacks + direct UI delivery | complete | repair canary: 13 confirms; select/replace/deselect not proved |
-| potion use / target / cancel | Human `NPotionHolder.UsePotion` arm -> exact `PotionModel.EnqueueManualUse` commit -> `UsePotionAction` lifecycle; target-picker cancel never enqueues | complete | latest repair canary proves enemy-target, no-target and two self-target uses; cancel remains unexercised |
+| Combat hand selector select / replace / deselect / confirm | exact hand/container callbacks + direct UI delivery | complete | schema-3 canary: eight confirms; select/replace/deselect not proved |
+| potion use / target / cancel | Human `NPotionHolder.UsePotion` arm -> exact `PotionModel.EnqueueManualUse` commit -> `UsePotionAction` lifecycle; target-picker cancel never enqueues | complete | schema-3 canary: three uses proved; cancel remains unexercised |
 | lethal combat -> reward | existing combat lifecycle + reward Player Environment boundary | complete | repair canary PASS |
-| reward claim | `NRewardButton.OnRelease` direct UI delivery | complete | repair canary PASS: 11 claims |
-| reward proceed | `NRewardsScreen.OnProceedButtonPressed` direct UI delivery | complete | repair canary PASS: five proceeds |
-| card reward select | `NCardRewardSelectionScreen.SelectCard` direct UI delivery | complete | repair canary PASS: three selects |
-| map travel | `NMapScreen.OnMapPointSelectedLocally` -> `VoteForMapCoordAction` lifecycle | complete | repair canary PASS: 14 actions |
+| reward claim | `NRewardButton.OnRelease` direct UI delivery | complete | schema-3 canary: 20 claims proved |
+| reward proceed | `NRewardsScreen.OnProceedButtonPressed` direct UI delivery | complete | schema-3 canary: 10 proceeds proved |
+| card reward select | `NCardRewardSelectionScreen.SelectCard` direct UI delivery | complete | schema-3 canary: three selects proved |
+| map travel | `NMapScreen.OnMapPointSelectedLocally` -> `VoteForMapCoordAction` lifecycle | complete | schema-3 canary: 24 actions proved |
 | event / shop / rest / treasure | Connector observation coverage only | not implemented as Human witnesses | map successors only: event (5), shop (1), rest (2), treasure (1); room-internal actions not exercised |
 | run entry / game terminal | observation coverage varies | not implemented as Human witnesses | final `EndTurn -> game_over` observed; run entry and exhaustive Full Run not exercised |
 
@@ -96,3 +96,15 @@ See the [potion canary](evidence/FULL_RUN_POTION_OWNER_CANARY_2026-08-28.md).
 The older `c8775e1... / 8d2f7d2a... / 3043f4f4...` batch repair remains
 predecessor evidence in the dated batch report; it is not the current source or
 artifact identity.
+
+## Schema-3 Human Gate
+
+Closed session `session-20260829T052157Z-e549d3601e7640f997b6f475180b2dfe`
+on exact artifact `4fa67570... / 51c7c37b...` passes 333 accepted/333 proved
+with zero unknown, cancel, abort or unresolved action. It covers the current
+combat/reward/map mechanisms listed above and proves exact role-reference
+resolution with no inline event frames. This closes the generic schema-3 Human
+gate. It does not close generated skip, target-picker cancel, hand
+select/replace/deselect, room-internal actions or run entry. Current stage
+profiling source is newer than this artifact and requires its own short canary
+only for latency attribution, not to transfer schema-3 semantic proof.

@@ -304,7 +304,7 @@ export function validatePlatformBom(bom, authorities) {
     errors.push("Semantic timeline source candidate must not reuse predecessor artifact identity");
   const fullRun = policyCandidate?.full_run_semantic_source_candidate;
   expectEqual(errors, "Full-Run source status", fullRun?.status,
-    "semantic_evidence_schema3_built_installed_loaded_human_pending");
+    "semantic_evidence_schema3_bounded_human_pass");
   expectPattern(errors, "Full-Run build Annotator source",
     fullRun?.annotator_source_revision, COMMIT);
   expectEqual(errors, "Full-Run current Annotator source",
@@ -351,7 +351,7 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "Full-Run install", fullRun?.installed, "pass");
   expectEqual(errors, "Full-Run loaded", fullRun?.loaded, "pass");
   expectEqual(errors, "Full-Run Human runtime", fullRun?.human_runtime,
-    "not_exercised");
+    "pass_bounded_schema3");
   expectPattern(errors, "Full-Run runtime", fullRun?.runtime_instance_id,
     /^[0-9a-f]{32}$/u);
   expectEqual(errors, "Full-Run current runtime", fullRun?.runtime_instance_id,
@@ -366,6 +366,26 @@ export function validatePlatformBom(bom, authorities) {
     LOADED_SCHEMA3_ANNOTATOR.modset);
   expectEqual(errors, "Full-Run loaded Mods", JSON.stringify(fullRun?.loaded_mod_ids),
     JSON.stringify(["STS2_PLATFORM"]));
+  const schema3Canary = fullRun?.owner_canary;
+  expectEqual(errors, "schema-3 owner session", schema3Canary?.session_id,
+    "session-20260829T052157Z-e549d3601e7640f997b6f475180b2dfe");
+  expectEqual(errors, "schema-3 owner timeline", schema3Canary?.timeline_id,
+    "timeline-53a417ad759941c99a6ba9e138115453");
+  expectEqual(errors, "schema-3 owner audit", schema3Canary?.audit_status, "pass");
+  expectEqual(errors, "schema-3 owner origin", schema3Canary?.human_origin,
+    "owner_attested_not_machine_proven");
+  expectEqual(errors, "schema-3 Decision V2 valid", schema3Canary?.decision_v2_valid, 188);
+  expectEqual(errors, "schema-3 Decision V2 invalid", schema3Canary?.decision_v2_invalid, 0);
+  expectEqual(errors, "schema-3 accepted", schema3Canary?.semantic_accepted, 333);
+  expectEqual(errors, "schema-3 started", schema3Canary?.semantic_started, 333);
+  expectEqual(errors, "schema-3 finished", schema3Canary?.semantic_finished, 333);
+  expectEqual(errors, "schema-3 proved", schema3Canary?.semantic_proved, 333);
+  expectEqual(errors, "schema-3 unknown", schema3Canary?.semantic_unknown, 0);
+  expectEqual(errors, "schema-3 cancelled", schema3Canary?.semantic_cancelled, 0);
+  expectEqual(errors, "schema-3 aborted", schema3Canary?.semantic_aborted, 0);
+  expectEqual(errors, "schema-3 unresolved", schema3Canary?.semantic_unresolved, 0);
+  expectEqual(errors, "schema-3 performance profile", schema3Canary?.performance_profile,
+    "not_present_in_loaded_artifact");
   const fullRunCanary = fullRun?.prior_full_run_canary;
   expectEqual(errors, "Full-Run owner audit", fullRunCanary?.audit_status, "pass");
   expectEqual(errors, "Full-Run owner origin", fullRunCanary?.human_origin,
