@@ -120,17 +120,13 @@ test("record settlement accepts only shared exact Modsets and never retries an u
   assert.match(runtime, /ClearPendingWithInvalidation\([\s\S]*decision_persistence_unknown/u);
 });
 
-test("native card staging permits transient snapshot advance without weakening identity guards", () => {
+test("native card staging reuses one exact pre-frame without a second capture guard", () => {
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
-  const guard = read("components/annotator/src/STS2HumanAnnotator.Core/RecordingApplication.cs");
 
-  assert.match(runtime, /StagedCardPlayGuard\.IsContinuous/u);
+  assert.match(runtime, /StageCardPlay\(CardModel card\)[\s\S]*TryPrepareSerializedMutation\(out ProcessLocalNativeWitnessFrame\? preparedFrame\)[\s\S]*new ExactDecisionFrame\(frame, environment\)/u);
+  assert.match(runtime, /ReferenceEquals\(staged\.Card, stagedCard\)[\s\S]*IsExact\(staged\.Decision\.Frame\.Resolve\(expectedAction\)\)[\s\S]*selected = staged\.Decision\.Frame/u);
+  assert.doesNotMatch(runtime, /StagedCardPlayGuard/u);
   assert.doesNotMatch(runtime, /cached\.Frame\.Snapshot\.SnapshotId,[\s\S]*current\.Snapshot\.SnapshotId/u);
-  assert.match(guard, /currentSequence >= stagedSequence/u);
-  assert.match(guard, /stagedRuntimeInstanceId/u);
-  assert.match(guard, /stagedEnvironmentFingerprint/u);
-  assert.match(guard, /stagedInteractionId/u);
-  assert.match(guard, /externalControllerActive/u);
 });
 
 test("capture failures become invalidations only after the native action is accepted", () => {
