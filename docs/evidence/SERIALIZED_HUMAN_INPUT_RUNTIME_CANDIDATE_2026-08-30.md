@@ -28,18 +28,15 @@ now writes and checksum-verifies `STS2_PLATFORM.identity`, retires the stale
 predecessor sidecar and preserves rollback
 `apps/game-mod/.local/deployments/2026-08-29T15-06-58.805Z`.
 
-Loaded verification reports:
+After all automated probes and the identity repair, the same Native bytes were
+cold-loaded again at `2026-08-29T15:16:49Z`. Final loaded verification reports:
 
-- runtime instance `8fb991bea8d94298b89f3c7d3cc04c6a`;
+- runtime instance `ba5d974f4f9c498a8812f53644be351a`;
 - environment `36ec4fa719d62ed5ab99db3c3026a3120bfac5a8dd17a552c47a2148790cae88`;
 - exact sole-Platform Modset
   `eb862f2123995708937057b6616bc61a790788e2a6015653c9de9fe2455384c8`;
 - Connector protocol `1.0.0`, single controller and execution available;
-- Recorder `ready`, with no open session.
-
-The runtime ids above belong to the first load of these identical Native
-bytes. They are load evidence, not evidence for a currently running process or
-for the post-sidecar Human canary.
+- Recorder `ready`, with no open session, in process `23982`.
 
 ## Automated Host and differential evidence
 
