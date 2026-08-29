@@ -75,7 +75,8 @@ export function evaluateHeadlessCapabilities(
   const errors = [];
   if (capabilities?.protocol_version !== expectedProtocol) errors.push("protocol_mismatch");
   if (capabilities?.host?.host_kind !== "headless") errors.push("host_kind_not_headless");
-  if (capabilities?.game?.modset?.status !== "exact_player_environment_only") {
+  if (!["exact_player_environment_only", "exact_platform_modset"]
+    .includes(capabilities?.game?.modset?.status)) {
     errors.push("unsupported_modset");
   }
   if (capabilities?.execution_available !== true) errors.push("execution_unavailable");

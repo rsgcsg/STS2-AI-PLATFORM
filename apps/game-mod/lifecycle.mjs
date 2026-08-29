@@ -33,9 +33,11 @@ const hostApi = await loadHostRuntimeWorkstationApi(annotatorRoot);
 const installation = resolveWorkstationInstallation({ headlessApi: hostApi });
 const installedDll = path.join(installation.mods_dir, "STS2_PLATFORM.dll");
 const installedManifest = path.join(installation.mods_dir, "STS2_PLATFORM.json");
+const installedIdentity = path.join(installation.mods_dir, "STS2_PLATFORM.identity");
 const retiredProductionFiles = [
   "STS2_MCP.dll",
   "STS2_MCP.json",
+  "STS2_MCP.identity",
   "STS2_HUMAN_ANNOTATOR.dll",
   "STS2_HUMAN_ANNOTATOR.json",
   "STS2_PLATFORM_LIVE_UI.dll",
@@ -44,6 +46,7 @@ const retiredProductionFiles = [
 const managedModFiles = [
   "STS2_PLATFORM.dll",
   "STS2_PLATFORM.json",
+  "STS2_PLATFORM.identity",
   ...retiredProductionFiles
 ];
 const managedConfigFiles = ["STS2_MCP.conf", "STS2_HUMAN_ANNOTATOR.conf"];
@@ -216,6 +219,14 @@ function deploy() {
     }
     fs.copyFileSync(builtDll, installedDll);
     fs.copyFileSync(manifestSource, installedManifest);
+    writeJson(installedIdentity, {
+      schema: "sts2.platform/game-mod-installed-identity-1",
+      source_revision: exact.provenance.source.components.connector.source_revision,
+      workspace_revision: exact.provenance.source.platform.workspace_revision,
+      artifact_sha256: exact.built.sha256,
+      artifact_mvid: exact.built.module_version_id,
+      installed_at: new Date().toISOString()
+    });
     const connectorConfig = path.join(installation.mods_dir, "STS2_MCP.conf");
     writeJson(connectorConfig, {
       port: 15526,
