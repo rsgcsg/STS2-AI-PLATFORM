@@ -201,7 +201,10 @@ public sealed class V2EvidenceTests
                 });
             }
 
-            Assert.Equal("pass", V2RecordingAuditor.Audit(session).Status);
+            RecordingAuditResult pass = V2RecordingAuditor.Audit(session);
+            Assert.True(
+                pass.Status == "pass",
+                JsonSerializer.Serialize(pass.Errors, EvidenceJson.Options));
             string output = Path.Combine(root, "bundle");
             V2SessionBundlePacker.Pack(
                 session,
@@ -653,6 +656,116 @@ public sealed class V2EvidenceTests
             Delete(root);
         }
     }
+
+    [Fact]
+    public void CanonicalTransitionBindsExactDecisionFramesAndDetectsTampering()
+    {
+        string root = Temp("v2-canonical-transition");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            string session;
+            SemanticFrameReference preRef;
+            using (var store = V2RecordingStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                HumanDecisionRecord value = RecordValidationTests.ValidRecord();
+                HumanDecisionRecordV2 record = V2Record(
+                    value,
+                    (PersistReads(store, value.Pre.SnapshotId),
+                        PersistReads(store, value.Successor.SnapshotId)));
+                store.AppendDecision(record);
+                preRef = store.PersistSemanticFrame(record.Pre);
+                var successor = new FrozenDecisionFrameV2(
+                    record.Successor.SnapshotId,
+                    record.Successor.InteractionId,
+                    record.Successor.InteractionKind,
+                    record.Pre.SurfaceSchema,
+                    record.Pre.CatalogDigest,
+                    record.Pre.CatalogCount,
+                    record.Successor.Snapshot.DeepClone(),
+                    record.Successor.Reads);
+                SemanticFrameReference successorRef = store.PersistSemanticFrame(successor);
+                store.AppendCanonicalTransition(Canonical(record, preRef, successorRef));
+            }
+
+            RecordingAuditResult pass = V2RecordingAuditor.Audit(session);
+            Assert.True(
+                pass.Status == "pass",
+                JsonSerializer.Serialize(pass.Errors, EvidenceJson.Options));
+            File.AppendAllText(Path.Combine(session, preRef.ObjectRef), "tampered");
+            RecordingAuditResult tampered = V2RecordingAuditor.Audit(session);
+            Assert.Equal("fail", tampered.Status);
+            Assert.True(tampered.Errors.ContainsKey(
+                "canonical_transition_frame_missing_or_changed"));
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
+    public void PreSerializedRecordingRemainsValidWithoutCanonicalStream()
+    {
+        string root = Temp("v2-pre-serialized-compatibility");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            string session;
+            using (var store = V2RecordingStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                HumanDecisionRecord value = RecordValidationTests.ValidRecord();
+                store.AppendDecision(V2Record(
+                    value,
+                    (PersistReads(store, value.Pre.SnapshotId),
+                        PersistReads(store, value.Successor.SnapshotId))));
+            }
+            File.Delete(Path.Combine(session, "canonical-transitions.jsonl"));
+
+            Assert.Equal("pass", V2RecordingAuditor.Audit(session).Status);
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    private static CanonicalTransitionEvidence Canonical(
+        HumanDecisionRecordV2 record,
+        SemanticFrameReference preRef,
+        SemanticFrameReference successorRef) => new(
+        CanonicalTransitionEvidenceContract.SchemaVersion,
+        CanonicalTransitionEvidenceContract.Schema,
+        $"canonical-{record.RecordId}",
+        record.SessionId,
+        record.TimelineId,
+        record.RunId,
+        record.Sequence,
+        DateTimeOffset.UnixEpoch,
+        CanonicalTransitionEvidenceContract.CollectionMode,
+        $"epoch-{preRef.ContentSha256}",
+        "ui-action-test",
+        "direct_ui_commit",
+        preRef,
+        record.Action,
+        successorRef,
+        "canonical_s_a_s_prime",
+        new[]
+        {
+            "complete_pre_state_and_catalog",
+            "chosen_action_exactly_once_in_pre_catalog",
+            "one_mutation_in_flight",
+            "native_terminal_or_direct_commit_observed",
+            "no_intervening_human_mutation",
+            "complete_authoritative_successor"
+        },
+        new[] { "not_business_completion" });
 
     private static HumanCaptureProfile Profile() => new(
         2,

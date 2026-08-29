@@ -18,6 +18,7 @@ public sealed class V2RecordingStore : IDisposable
     private readonly FileStream _journal;
     private readonly FileStream _nativeActionLedger;
     private readonly FileStream _semanticBoundaryTrace;
+    private readonly FileStream _canonicalTransitions;
     private readonly Dictionary<string, long> _families = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _readsByKind = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _invalidationsByReason = new(StringComparer.Ordinal);
@@ -54,6 +55,8 @@ public sealed class V2RecordingStore : IDisposable
         _nativeActionLedger = OpenBufferedAppend(Path.Combine(directory, "native-action-ledger.jsonl"));
         _semanticBoundaryTrace = OpenBufferedAppend(
             Path.Combine(directory, "semantic-boundary-trace.jsonl"));
+        _canonicalTransitions = OpenBufferedAppend(
+            Path.Combine(directory, "canonical-transitions.jsonl"));
         WriteCoverage();
     }
 
@@ -379,6 +382,23 @@ public sealed class V2RecordingStore : IDisposable
         });
     }
 
+    public void AppendCanonicalTransition(CanonicalTransitionEvidence value)
+    {
+        IReadOnlyList<string> errors = CanonicalTransitionEvidenceValidator.Validate(value);
+        if (errors.Count > 0
+            || value.SessionId != Manifest.SessionId
+            || value.TimelineId != Manifest.TimelineId)
+        {
+            throw new InvalidDataException(
+                $"Canonical transition evidence is invalid: {string.Join(',', errors)}");
+        }
+        EnsureOpen();
+        ExecuteWrite(() =>
+            _performance.Measure(
+                "canonical_transition_append_buffered",
+                () => AppendBufferedLine(_canonicalTransitions, value)));
+    }
+
     public void AppendInvalidation(InvalidationRecord invalidation)
     {
         EnsureOpen();
@@ -421,6 +441,7 @@ public sealed class V2RecordingStore : IDisposable
                 _journal.Flush(flushToDisk: true);
                 _nativeActionLedger.Flush(flushToDisk: true);
                 _semanticBoundaryTrace.Flush(flushToDisk: true);
+                _canonicalTransitions.Flush(flushToDisk: true);
             });
             foreach (FileStream stream in _decisionFiles.Values)
                 stream.Dispose();
@@ -428,6 +449,7 @@ public sealed class V2RecordingStore : IDisposable
             _journal.Dispose();
             _nativeActionLedger.Dispose();
             _semanticBoundaryTrace.Dispose();
+            _canonicalTransitions.Dispose();
             WriteAtomic(
                 Path.Combine(DirectoryPath, "performance-profile.json"),
                 JsonSerializer.Serialize(

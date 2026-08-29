@@ -12,7 +12,7 @@ performance evidence, and the canonical training calibration. Latest session
 `session-20260829T084437Z-...` accounts for 933/933 trace dispositions but
 performs 31,613 full captures (628.720 seconds cumulative) and yields zero
 canonical `S + A(S) -> A -> S'` rows. ADR 0003 selects serialized Human input;
-implementation is intentionally stopped before the explicit owner gate.
+the source/test candidate is implemented and now awaits exact-runtime sealing.
 
 ## Active workstreams
 
@@ -27,9 +27,9 @@ implementation is intentionally stopped before the explicit owner gate.
 
 ## Current blockers and open questions
 
-- Input serialization is design-selected but implementation is not authorized.
-  No feature flag, native gate, build/install or Human canary may begin without
-  a later explicit owner approval.
+- Input serialization is implemented for the migrated canonical families. It
+  has source/test/exact-build evidence only; after-latency, blocked rapid-input
+  behavior and canonical rows require a new exact-artifact owner canary.
 - The S1 checkpoint named by the current Policy Manifest is unavailable on this
   Mac, so real-model Shadow, One-Step, Auto, and Agent-run evidence remain
   unexercised.
@@ -39,9 +39,9 @@ implementation is intentionally stopped before the explicit owner gate.
 ## Next meaningful gates
 
 - Keep the required `portable` source/test gate green on latest PR heads.
-- Await explicit owner approval for the ADR 0003 implementation phase. If
-  approved, begin from the documented gate/unlock contract rather than adding
-  more natural-observer polling or surface-specific parity rules.
+- Build/install/cold-load the final serialized candidate, then run the bounded
+  owner canary documented in its source closeout. Do not add natural-observer
+  polling or transfer predecessor Human evidence.
 
 Use `npm run project:context` to start a task and
 `npm run project:closeout` to surface likely documentation, evidence, contract,

@@ -9,11 +9,14 @@
   the full canonical one-step contract, while 497 retain only legacy V2 use.
 - Complete: bound Tier A/B/C with exact source, runtime, performance and offline
   parity counterexamples; ADR 0003 selects serialized Human input.
-- Pending explicit owner approval: implement any input gate or unlock state
-  machine. Until approval, no runtime code/build/install/canary is permitted.
-- Paused: further natural-observer Full-Run surface expansion for the canonical
-  one-step lane. Existing trace evidence remains useful for accounting and a
-  separately versioned future action-chain scheme.
+- Complete at source/test: serialized mutation admission, shared authoritative
+  boundary capture, canonical content-addressed transition stream and
+  independent tamper-detecting audit for the migrated high-frequency families.
+- Pending exact-runtime gate: clean build/install/cold-load plus owner canary
+  for blocked rapid input, canonical rows, first-command Close and after-latency.
+- Next after the gate: migrate remaining Full-Run semantic-only families to the
+  canonical lane by native mechanism, without restoring natural-observer
+  polling.
 
 ## Consolidation Baseline
 

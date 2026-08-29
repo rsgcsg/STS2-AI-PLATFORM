@@ -70,6 +70,14 @@ This sidecar is not `HumanDecisionRecordV2`, corpus admission, or durable
 training authority. Predecessor sessions without it remain valid, and existing
 V1/V2 bytes are never reinterpreted.
 
+`canonical-transitions.jsonl` is the additive serialized-input contract. A row
+is written only after one complete pre catalog, exact-once selected action,
+native terminal/direct Commit, no intervening admitted mutation and one complete
+authoritative successor are all present. It references immutable semantic frame
+objects and the exact matching Decision V2 record. Audit verifies hashes,
+identity and content binding. Sessions without this stream retain predecessor
+semantics but gain no canonical rows.
+
 Canonical sequential training evidence has the stricter contract:
 
 ```text

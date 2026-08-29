@@ -13,12 +13,16 @@ GitHub enforcement is an operational fact separate from this source document;
 the workflow records intended rules, while repository settings must be checked
 directly before claiming protection.
 
-Phase: **canonical Human one-step evidence is at an owner approval gate**.
+Phase: **serialized canonical Human one-step source is at an exact-runtime gate**.
 Full-Run schema 3 remains exact Human accounting/lifecycle evidence, but the
 latest mechanical calibration proves that its `transition_proved` disposition
 is not equivalent to canonical `S + A(S) -> A -> S'` training eligibility.
-ADR 0003 selects serialized Human input as the preferred next collection
-architecture. No input gating or runtime implementation has started.
+ADR 0003 selects serialized Human input. The implementation candidate removes
+per-frame successor/recovery polling, shares one authoritative boundary across
+predecessor settlement and next-action admission, and writes independently
+auditable canonical frame references. Source/test/exact-build checks pass; no
+new artifact has yet inherited Human or after-latency evidence. See the
+[source closeout](evidence/SERIALIZED_HUMAN_INPUT_SOURCE_CLOSEOUT_2026-08-30.md).
 
 Normalized semantic evidence schema 3 is now bounded Human-proved for its
 trace-level accounting and storage contract on exact

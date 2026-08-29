@@ -3,8 +3,8 @@
 > This matrix tracks Human/native accounting and trace-level boundary coverage.
 > It is not a canonical one-step training matrix. ADR 0003 and the latest
 > calibration show that schema-3 `transition_proved` does not by itself prove
-> complete same-state A(S), exact A membership and causal S'. Natural-observer
-> expansion is paused at the owner approval gate.
+> complete same-state A(S), exact A membership and causal S'. New work migrates
+> mechanisms to the serialized canonical lane rather than expanding polling.
 
 This is the current coverage authority for the additive Human Semantic Timeline.
 It does not expand `HumanDecisionRecordV2`, corpus admission, or Connector
@@ -41,6 +41,13 @@ from a later Human effect.
 | map travel | `NMapScreen.OnMapPointSelectedLocally` -> `VoteForMapCoordAction` lifecycle | complete | schema-3 canary: 24 actions proved |
 | event / shop / rest / treasure | Connector observation coverage only | not implemented as Human witnesses | map successors only: event (5), shop (1), rest (2), treasure (1); room-internal actions not exercised |
 | run entry / game terminal | observation coverage varies | not implemented as Human witnesses | final `EndTurn -> game_over` observed; run entry and exhaustive Full Run not exercised |
+
+Current source migrates ordinary combat Play/End Turn/Potion and generated-card
+select/skip to serialized canonical admission. These families no longer feed a
+parallel schema-3 execution tracker. Map, reward, card reward and Combat-hand
+selectors retain trace-only coverage until their native mechanisms migrate.
+This is source/test evidence; the matrix's Live column remains predecessor
+trace evidence until the new artifact is owner-operated.
 
 Semantic state Read requirements are interaction-specific: combat requires
 `run_deck` and `combat_piles`, shop requires `run_deck` and `shop_catalog`, and

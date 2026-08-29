@@ -24,10 +24,9 @@ internal static class NativeCardStartPatch
         AccessTools.Method(typeof(NPlayerHand), "StartCardPlay")
         ?? throw new MissingMethodException(typeof(NPlayerHand).FullName, "StartCardPlay");
 
-    internal static void Prefix([HarmonyArgument(0)] NHandCardHolder holder)
+    internal static bool Prefix([HarmonyArgument(0)] NHandCardHolder holder)
     {
-        if (holder.CardModel is { } card)
-            RecorderRuntime.StageCardPlay(card);
+        return holder.CardModel is not { } card || RecorderRuntime.StageCardPlay(card);
     }
 }
 
@@ -38,7 +37,7 @@ internal static class NativeCardPlayPatch
         AccessTools.Method(typeof(NCardPlay), "TryPlayCard")
         ?? throw new MissingMethodException(typeof(NCardPlay).FullName, "TryPlayCard");
 
-    private static void Prefix(
+    private static bool Prefix(
         NCardPlay __instance,
         [HarmonyArgument(0)] Creature? target,
         out NativeUiScopeEntry __state)
@@ -46,6 +45,7 @@ internal static class NativeCardPlayPatch
         __state = __instance.Holder.CardModel is { } card
             ? RecorderRuntime.TryEnterCardScope(card, target)
             : default;
+        return __state.AllowMutation;
     }
 
     internal static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
@@ -58,10 +58,13 @@ internal static class NativeCardPlayPatch
 [HarmonyPatch(typeof(NPotionHolder), nameof(NPotionHolder.UsePotion))]
 internal static class NativePotionUseStartPatch
 {
-    internal static void Prefix(
+    internal static bool Prefix(
         NPotionHolder __instance,
-        out RecorderRuntime.PotionUseArmHandle? __state) =>
+        out RecorderRuntime.PotionUseArmHandle? __state)
+    {
         __state = RecorderRuntime.ArmPotionUse(__instance.Potion?.Model);
+        return !__state.GetValueOrDefault().BlockMutation;
+    }
 
     internal static void Postfix(
         RecorderRuntime.PotionUseArmHandle? __state,
@@ -85,11 +88,14 @@ internal static class NativePotionUseStartPatch
 [HarmonyPatch(typeof(PotionModel), nameof(PotionModel.EnqueueManualUse))]
 internal static class NativePotionEnqueuePatch
 {
-    internal static void Prefix(
+    internal static bool Prefix(
         PotionModel __instance,
         [HarmonyArgument(0)] Creature? target,
-        out NativeUiScopeEntry __state) =>
+        out NativeUiScopeEntry __state)
+    {
         __state = RecorderRuntime.TryEnterPotionUseScope(__instance, target);
+        return __state.AllowMutation;
+    }
 
     internal static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
     {
@@ -101,10 +107,13 @@ internal static class NativePotionEnqueuePatch
 [HarmonyPatch(typeof(NEndTurnButton), nameof(NEndTurnButton.CallReleaseLogic))]
 internal static class NativeEndTurnPatch
 {
-    internal static void Prefix(out NativeUiScopeEntry __state) =>
+    internal static bool Prefix(out NativeUiScopeEntry __state)
+    {
         __state = RecorderRuntime.TryEnterScope(
             "native_end_turn_ui",
             nameof(EndPlayerTurnAction));
+        return __state.AllowMutation;
+    }
 
     internal static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
     {
@@ -116,10 +125,13 @@ internal static class NativeEndTurnPatch
 [HarmonyPatch(typeof(NEndTurnButton), nameof(NEndTurnButton.SecretEndTurnLogicViaFtue))]
 internal static class NativeFtueEndTurnPatch
 {
-    internal static void Prefix(out NativeUiScopeEntry __state) =>
+    internal static bool Prefix(out NativeUiScopeEntry __state)
+    {
         __state = RecorderRuntime.TryEnterScope(
             "native_ftue_end_turn_ui",
             nameof(EndPlayerTurnAction));
+        return __state.AllowMutation;
+    }
 
     internal static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
     {
@@ -171,7 +183,7 @@ internal static class NativeGeneratedChoiceCardPatch
             typeof(NChooseACardSelectionScreen).FullName,
             "SelectHolder");
 
-    private static void Prefix(
+    private static bool Prefix(
         NChooseACardSelectionScreen __instance,
         [HarmonyArgument(0)] NCardHolder holder,
         out PatchState __state)
@@ -181,13 +193,15 @@ internal static class NativeGeneratedChoiceCardPatch
             card != null ? RecorderRuntime.TryEnterGeneratedChoiceCardScope(card) : default,
             CardSelected(__instance),
             card);
+        return __state.Scope.AllowMutation;
     }
 
     private static void Postfix(
         NChooseACardSelectionScreen __instance,
         PatchState __state)
     {
-        if (!__state.WasSelected && CardSelected(__instance)
+        if (__state.Scope.Entered
+            && !__state.WasSelected && CardSelected(__instance)
             && __state.Card is { } card)
             RecorderRuntime.ObserveGeneratedChoiceCard(card);
     }
@@ -213,16 +227,19 @@ internal static class NativeGeneratedChoiceSkipPatch
             typeof(NChooseACardSelectionScreen).FullName,
             "OnSkipButtonReleased");
 
-    private static void Prefix(
+    private static bool Prefix(
         NChooseACardSelectionScreen __instance,
-        out PatchState __state) =>
+        out PatchState __state)
+    {
         __state = new PatchState(
             RecorderRuntime.TryEnterGeneratedChoiceSkipScope(),
             ScreenComplete(__instance));
+        return __state.Scope.AllowMutation;
+    }
 
     private static void Postfix(NChooseACardSelectionScreen __instance, PatchState __state)
     {
-        if (!__state.WasComplete && ScreenComplete(__instance))
+        if (__state.Scope.Entered && !__state.WasComplete && ScreenComplete(__instance))
             RecorderRuntime.ObserveGeneratedChoiceSkip();
     }
 
@@ -244,7 +261,7 @@ internal static class NativeCombatHandSelectPatch
             ?? throw new MissingMethodException(typeof(NPlayerHand).FullName, "SelectCardInUpgradeMode");
     }
 
-    private static void Prefix(
+    private static bool Prefix(
         MethodBase __originalMethod,
         [HarmonyArgument(0)] NHandCardHolder holder,
         out NativeUiScopeEntry __state)
@@ -259,6 +276,7 @@ internal static class NativeCombatHandSelectPatch
                     card,
                     new Dictionary<string, object>(StringComparer.Ordinal)))
             : default;
+        return __state.AllowMutation;
     }
 
     private static void Postfix(
@@ -301,9 +319,10 @@ internal static class NativeCombatHandDeselectPatch
             typeof(NSelectedHandCardContainer).FullName,
             "DeselectHolder");
 
-    private static void Prefix(
+    private static bool Prefix(
         [HarmonyArgument(0)] NCardHolder holder,
-        out NativeUiScopeEntry __state) =>
+        out NativeUiScopeEntry __state)
+    {
         __state = holder.CardModel is { } card
             ? RecorderRuntime.TryEnterSemanticScope(
                 "native_combat_hand_deselect_ui",
@@ -313,6 +332,8 @@ internal static class NativeCombatHandDeselectPatch
                     card,
                     new Dictionary<string, object>(StringComparer.Ordinal)))
             : default;
+        return __state.AllowMutation;
+    }
 
     private static void Postfix(
         [HarmonyArgument(0)] NCardHolder holder,
@@ -352,7 +373,8 @@ internal static class NativeCombatHandConfirmPatch
             typeof(NPlayerHand).FullName,
             "OnSelectModeConfirmButtonPressed");
 
-    private static void Prefix(out NativeUiScopeEntry __state) =>
+    private static bool Prefix(out NativeUiScopeEntry __state)
+    {
         __state = RecorderRuntime.TryEnterSemanticScope(
             "native_combat_hand_confirm_ui",
             NativeActionType,
@@ -360,6 +382,8 @@ internal static class NativeCombatHandConfirmPatch
                 "confirm",
                 null,
                 new Dictionary<string, object>(StringComparer.Ordinal)));
+        return __state.AllowMutation;
+    }
 
     private static void Postfix(NativeUiScopeEntry __state)
     {
@@ -389,9 +413,10 @@ internal static class NativeCombatHandConfirmPatch
 [HarmonyPatch(typeof(NMapScreen), nameof(NMapScreen.OnMapPointSelectedLocally))]
 internal static class NativeMapChoicePatch
 {
-    private static void Prefix(
+    private static bool Prefix(
         [HarmonyArgument(0)] NMapPoint point,
-        out NativeUiScopeEntry __state) =>
+        out NativeUiScopeEntry __state)
+    {
         __state = RecorderRuntime.TryEnterSemanticScope(
             "native_map_choice_ui",
             nameof(VoteForMapCoordAction),
@@ -399,6 +424,8 @@ internal static class NativeMapChoicePatch
                 "activate",
                 point,
                 new Dictionary<string, object>(StringComparer.Ordinal)));
+        return __state.AllowMutation;
+    }
 
     private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
     {
@@ -416,7 +443,8 @@ internal static class NativeRewardClaimStartPatch
         AccessTools.Method(typeof(NRewardButton), "OnRelease")
         ?? throw new MissingMethodException(typeof(NRewardButton).FullName, "OnRelease");
 
-    private static void Prefix(NRewardButton __instance, out NativeUiScopeEntry __state) =>
+    private static bool Prefix(NRewardButton __instance, out NativeUiScopeEntry __state)
+    {
         __state = __instance.Reward == null
             ? default
             : RecorderRuntime.TryEnterSemanticScope(
@@ -426,10 +454,12 @@ internal static class NativeRewardClaimStartPatch
                     "activate",
                     __instance,
                     new Dictionary<string, object>(StringComparer.Ordinal)));
+        return __state.AllowMutation;
+    }
 
-    private static void Postfix(NRewardButton __instance)
+    private static void Postfix(NRewardButton __instance, NativeUiScopeEntry __state)
     {
-        if (__instance.Reward == null)
+        if (!__state.Entered || __instance.Reward == null)
             return;
         RecorderRuntime.ObserveAcceptedSemanticUiAction(
             NativeActionType,
@@ -461,7 +491,8 @@ internal static class NativeRewardProceedPatch
         AccessTools.Method(typeof(NRewardsScreen), "OnProceedButtonPressed")
         ?? throw new MissingMethodException(typeof(NRewardsScreen).FullName, "OnProceedButtonPressed");
 
-    private static void Prefix(out NativeUiScopeEntry __state) =>
+    private static bool Prefix(out NativeUiScopeEntry __state)
+    {
         __state = RecorderRuntime.TryEnterSemanticScope(
             "native_reward_proceed_ui",
             NativeActionType,
@@ -469,8 +500,13 @@ internal static class NativeRewardProceedPatch
                 "activate",
                 null,
                 new Dictionary<string, object>(StringComparer.Ordinal)));
+        return __state.AllowMutation;
+    }
 
-    private static void Postfix() =>
+    private static void Postfix(NativeUiScopeEntry __state)
+    {
+        if (!__state.Entered)
+            return;
         RecorderRuntime.ObserveAcceptedSemanticUiAction(
             NativeActionType,
             new ProcessLocalObservedAction(
@@ -483,6 +519,7 @@ internal static class NativeRewardProceedPatch
                 null,
                 new Dictionary<string, string>(StringComparer.Ordinal),
                 DateTimeOffset.UtcNow));
+    }
 
     private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
     {
@@ -502,9 +539,10 @@ internal static class NativeCardRewardSelectionPatch
             typeof(NCardRewardSelectionScreen).FullName,
             "SelectCard");
 
-    private static void Prefix(
+    private static bool Prefix(
         [HarmonyArgument(0)] NCardHolder cardHolder,
-        out NativeUiScopeEntry __state) =>
+        out NativeUiScopeEntry __state)
+    {
         __state = cardHolder.CardModel is { } card
             ? RecorderRuntime.TryEnterSemanticScope(
                 "native_card_reward_selection_ui",
@@ -514,10 +552,14 @@ internal static class NativeCardRewardSelectionPatch
                     card,
                     new Dictionary<string, object>(StringComparer.Ordinal)))
             : default;
+        return __state.AllowMutation;
+    }
 
-    private static void Postfix([HarmonyArgument(0)] NCardHolder cardHolder)
+    private static void Postfix(
+        [HarmonyArgument(0)] NCardHolder cardHolder,
+        NativeUiScopeEntry __state)
     {
-        if (cardHolder.CardModel is not { } card)
+        if (!__state.Entered || cardHolder.CardModel is not { } card)
             return;
         RecorderRuntime.ObserveAcceptedSemanticUiAction(
             NativeActionType,

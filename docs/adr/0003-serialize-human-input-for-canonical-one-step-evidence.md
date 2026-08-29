@@ -1,9 +1,9 @@
 # ADR 0003: Select Serialized Human Input For Canonical One-Step Evidence
 
-- Status: selected, implementation not authorized
+- Status: implementation candidate, exact-runtime Human validation pending
 - Date: 2026-08-29
 - Scope: Human Recorder canonical sequential evidence only
-- Runtime effect: none
+- Runtime effect: serializes mutation-producing Human input while recording
 
 ## Context
 
@@ -29,24 +29,26 @@ See [the causal closeout](../evidence/RECORDER_CANONICAL_CAUSALITY_DECISION_2026
 
 ## Decision
 
-Serialized Human input is the preferred next collection architecture for the
-current one-step model. This decision does not authorize implementation.
+Serialized Human input is the collection architecture for the current one-step
+model. The owner subsequently authorized implementation; the source/test
+candidate is described in the
+[source closeout](../evidence/SERIALIZED_HUMAN_INPUT_SOURCE_CLOSEOUT_2026-08-30.md).
 
-The future recorder design would:
+The recorder:
 
 1. obtain one complete authoritative `S0 + A(S0)`;
 2. permit one Human action attempt and correlate its exact native acceptance;
 3. close only additional mutation-producing Human inputs while STS2 executes
    the accepted action normally;
 4. retain hover, focus, Read and diagnostic access where they cannot mutate;
-5. observe game-owned lifecycle and a cheap owner/readiness signal;
+5. observe game-owned lifecycle without polling Player Environment;
 6. perform one authoritative Player Environment freeze only after the owning
    surface can publish complete `S1 + A(S1)` and all tracked Human work is
    terminal;
 7. validate identity, same action lineage, complete catalog and causal window,
    then publish `(S0, A(S0), A0, S1)` and reopen input;
-8. enter explicit unknown/recovery state, without automatic unlock or retry, if
-   causal settlement cannot be proved.
+8. records explicit unknown and closes or waits for a new owner action; it never
+   retries an unknown mutation.
 
 The future gate must never buffer, replay, synthesize or reorder a Human action;
 alter STS2 scheduling; create legality; or treat elapsed time as completion.
@@ -90,12 +92,13 @@ separate research scheme and cannot weaken this one-step contract.
   not canonical training authority without the offline calibration gate.
 - `calibrate-semantic-training` is the mechanical source for current one-step
   eligibility; legacy admission and trace terminology cannot promote rows.
-- Full-Run surface expansion is paused for the canonical one-step lane until
-  the owner explicitly authorizes serialized-input implementation.
-- The loaded artifact and current recorder behavior remain unchanged.
+- Supported canonical families no longer publish a parallel schema-3 execution
+  path; unported Full-Run families retain that trace temporarily.
+- The implementation changes native Mod bytes and requires a new exact-runtime
+  artifact seal. Predecessor Human evidence does not transfer.
 
-## Owner Gate
+## Runtime Gate
 
-No input-gating code, disabled feature flag, native input patch, diagnostic
-gating build, install/load, or Human canary may begin without a later explicit
-owner approval message.
+The source is not Human-proved. Promotion requires clean build provenance,
+safe install, cold-load identity and a short owner canary covering ordinary and
+rapid input, canonical audit, first-command Close and after-latency profiling.

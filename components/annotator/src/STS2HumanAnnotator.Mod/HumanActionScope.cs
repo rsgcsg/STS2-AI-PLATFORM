@@ -3,7 +3,13 @@ using STS2HumanAnnotator.Core;
 
 namespace STS2HumanAnnotator.Mod;
 
-internal readonly record struct NativeUiScopeEntry(bool Entered, bool DeferredFailure);
+internal readonly record struct NativeUiScopeEntry(
+    bool Entered,
+    bool DeferredFailure,
+    bool BlockMutation = false)
+{
+    internal bool AllowMutation => !BlockMutation;
+}
 
 internal sealed class HumanActionContext
 {

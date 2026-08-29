@@ -60,6 +60,12 @@ MVID `57785517-0b16-42b9-8b36-bad6fb28384b`.
   uses the single narrow Prefix above. No transpiler, scheduler change, sleep,
   timing heuristic, argument/result mutation or reconstructed gameplay rule is
   used.
+- `NetFullCombatState` is a divergence/checksum representation and explicitly
+  omits reward/shop RNG facts. `RunManager.StateDiverged` does not restore it.
+  Combat replay starts from room-initial `SerializableRun`; ordinary save/load
+  rebuilds scenes and re-enters the latest map room. Exact v0.111.0 therefore
+  exposes no complete arbitrary decision-boundary clone/restore primitive for a
+  low-cost twin collector.
 
 These are implementation evidence, not current Live evidence. Decompiled source
 and proprietary assemblies are not committed.

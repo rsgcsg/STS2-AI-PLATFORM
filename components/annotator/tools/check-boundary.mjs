@@ -18,6 +18,10 @@ const recorderRuntime = fs.readFileSync(
   path.join(root, "src", "STS2HumanAnnotator.Mod", "RecorderRuntime.cs"),
   "utf8"
 );
+const nativeUiPatches = fs.readFileSync(
+  path.join(root, "src", "STS2HumanAnnotator.Mod", "NativeUiPatches.cs"),
+  "utf8"
+);
 
 const forbidden = [
   ["HarmonyTranspiler", "transpiler patches are forbidden"],
@@ -37,7 +41,7 @@ if (!sources.includes("[HarmonyPatch(typeof(GameAction), nameof(GameAction.OnEnq
   errors.push("accepted native actions must be observed after exact GameAction enqueue");
 if (!sources.includes("NativeActionLifecycleSubscription"))
   errors.push("accepted native actions require a bounded process-local lifecycle witness");
-if (!sources.includes("PlayerEnvironmentNativeWitness.Capture()"))
+if (!sources.includes("PlayerEnvironmentNativeWitness.Capture("))
   errors.push("the recorder must consume the process-local Connector witness");
 if (!sources.includes("reference_equality_to_frozen_host_binding"))
   errors.push("the record gate must require exact frozen reference mapping");
@@ -67,6 +71,26 @@ if (!recorderRuntime.includes("displaced != null && displaced.NativeActionWitnes
   errors.push("a missing prior pending action must not be treated as an overlapping UI causal window");
 if (recorderRuntime.includes("overlapping_action_before_successor"))
   errors.push("overlap must be accounted in the native ledger rather than dropped");
+if (!recorderRuntime.includes("SerializedInputAdmission.Evaluate"))
+  errors.push("canonical Human collection must use the one-mutation-at-a-time admission policy");
+if (!recorderRuntime.includes("TrySettle(pending, frame)"))
+  errors.push("the next input boundary must reuse one authoritative frame for predecessor settlement");
+if (recorderRuntime.includes("TryObserveSemanticDecisionBoundary();"))
+  errors.push("semantic successor collection must not poll a complete Snapshot every process frame");
+if (recorderRuntime.includes("ObserveSemanticAccepted(pending")
+    || recorderRuntime.includes("ObserveSemanticUiAction(pending")
+    || recorderRuntime.includes("else\n            ObserveSemanticLifecycle(subscription, kind);"))
+  errors.push("canonical mutations must not feed the legacy semantic tracker in parallel");
+if (!recorderRuntime.includes("if (!BoundaryTracker.HasUnresolvedActions)"))
+  errors.push("legacy semantic boundary materialization requires real tracker debt");
+if (!recorderRuntime.includes("_serializedCloseBoundaryRequested = HasPendingRecordingWorkUnsafe();"))
+  errors.push("Close must request one action-local boundary instead of waiting for a second command");
+if (!recorderRuntime.includes("FailClosedCloseDrain(\"serialized_close_boundary_unavailable\")"))
+  errors.push("an unavailable Close boundary must become explicit unknown without retry");
+if (!nativeUiPatches.includes("return __state.AllowMutation;"))
+  errors.push("source-local mutation Prefixes must honor serialized admission");
+if (!nativeUiPatches.includes("return holder.CardModel is not { } card || RecorderRuntime.StageCardPlay(card);"))
+  errors.push("card staging must be blocked before native UI mutation while another action is in flight");
 
 console.log(JSON.stringify({ status: errors.length === 0 ? "pass" : "fail", errors }, null, 2));
 if (errors.length) process.exit(1);

@@ -39,6 +39,11 @@ semantic-boundary-trace.jsonl
 semantic-frames/sha256/<prefix>/<digest>.json
   one canonical uncompressed FrozenDecisionFrame per unique content digest
   -> existing content-addressed Read payloads
+
+canonical-transitions.jsonl
+  serialized-lane S + A(S) -> A -> S' references
+  -> exact Decision V2 action
+  -> exact pre/successor semantic frame objects
 ```
 
 The digest is over canonical uncompressed frame content. Physical compression
@@ -51,19 +56,21 @@ each reference, verifies path containment and content digest, reconstructs the
 semantic timeline, and applies the same causal invariants as the legacy trace
 auditor.
 
+The canonical stream is additive and absent from predecessor sessions. Its
+auditor also binds frame content back to the matching Decision V2 record; a
+valid object from another action cannot be substituted. It does not reinterpret
+schema-3 `transition_proved` as canonical eligibility.
+
 ## Capture boundary
 
 Snapshot-only observation is semantically narrower than Read-rich capture, but
 it is not computationally cheap: both construct the public Snapshot and complete
 BoundAction catalog. It must therefore run only for a concrete causal purpose.
-Exact native execution events trigger execution-pre capture; unresolved semantic
-actions trigger bounded successor capture; legacy ledger recovery is probed only
-while recovery debt exists. Operational status refresh is explicitly requested
-by session/run lifecycle changes and never authorizes a transition. Only a
-complete Player Environment capture with the interaction-specific required
-Reads can become a trace-level boundary candidate. Canonical one-step use also
-requires complete same-state action membership and causal successor proof from
-the offline calibration contract.
+Migrated canonical families do not capture a parallel execution-pre frame or
+poll recovery/successor state. The next mutation edge or Close captures one
+Read-rich boundary and reuses it for settlement and subsequent admission.
+Operational status refresh is explicit and never authorizes a transition.
+Schema-3-only families retain their bounded trace mechanism until migrated.
 
 This removes repeated Reads and serialization while preserving fail-closed
 proof. No timing, animation, queue-idle or later-state inference is introduced.

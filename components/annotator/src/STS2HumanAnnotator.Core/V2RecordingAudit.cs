@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace STS2HumanAnnotator.Core;
 
@@ -102,6 +103,7 @@ public static class V2RecordingAuditor
             manifest,
             errors);
         ValidateSchemaTwoSemanticAccounting(nativeEvents, semanticEvents, errors);
+        ValidateCanonicalTransitions(directory, manifest, recordsById, errors);
         long invalidations = File.Exists(Path.Combine(directory, "invalidations.jsonl"))
             ? Lines(Path.Combine(directory, "invalidations.jsonl")).LongCount()
             : 0;
@@ -119,6 +121,130 @@ public static class V2RecordingAuditor
                 "audit_does_not_qualify_unseen_families",
                 "read_capture_is_player_visible_evidence_not_hidden_state"
             });
+    }
+
+    private static void ValidateCanonicalTransitions(
+        string directory,
+        RecordingManifestV2? manifest,
+        IReadOnlyDictionary<string, HumanDecisionRecordV2> admittedRecords,
+        IDictionary<string, long> errors)
+    {
+        string path = Path.Combine(directory, "canonical-transitions.jsonl");
+        // Pre-serialized recordings remain readable without this additive stream.
+        if (!File.Exists(path))
+            return;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach ((string line, _) in Lines(path))
+        {
+            CanonicalTransitionEvidence? value;
+            try
+            {
+                value = JsonSerializer.Deserialize<CanonicalTransitionEvidence>(
+                    line,
+                    EvidenceJson.Options);
+            }
+            catch (JsonException)
+            {
+                Add(errors, "canonical_transition_json_invalid");
+                continue;
+            }
+            if (value == null)
+            {
+                Add(errors, "canonical_transition_null");
+                continue;
+            }
+            foreach (string error in CanonicalTransitionEvidenceValidator.Validate(value))
+                Add(errors, error);
+            if (manifest == null
+                || value.SessionId != manifest.SessionId
+                || value.TimelineId != manifest.TimelineId)
+                Add(errors, "canonical_transition_manifest_mismatch");
+            if (!seen.Add(value.TransitionId))
+                Add(errors, "canonical_transition_duplicate");
+            string recordId = value.TransitionId.StartsWith("canonical-", StringComparison.Ordinal)
+                ? value.TransitionId["canonical-".Length..]
+                : string.Empty;
+            if (!admittedRecords.TryGetValue(recordId, out HumanDecisionRecordV2? record)
+                || record.Sequence != value.ActionSequence
+                || EvidenceIdentity.Sha256Json(record.Action)
+                    != EvidenceIdentity.Sha256Json(value.Action))
+            {
+                Add(errors, "canonical_transition_decision_mismatch");
+                continue;
+            }
+            FrozenDecisionFrameV2? pre = ReadSemanticFrameReference(
+                directory,
+                value.PreStateRef,
+                errors);
+            FrozenDecisionFrameV2? successor = ReadSemanticFrameReference(
+                directory,
+                value.SuccessorRef,
+                errors);
+            if (pre != null && SemanticFrameDigest(pre) != SemanticFrameDigest(record.Pre))
+                Add(errors, "canonical_transition_pre_mismatch");
+            if (successor == null)
+                continue;
+            if (successor.SnapshotId != record.Successor.SnapshotId
+                || successor.InteractionId != record.Successor.InteractionId
+                || successor.InteractionKind != record.Successor.InteractionKind)
+                Add(errors, "canonical_transition_successor_identity_mismatch");
+            if (!JsonNode.DeepEquals(successor.Snapshot, record.Successor.Snapshot))
+                Add(errors, "canonical_transition_successor_snapshot_mismatch");
+            JsonNode? successorReads = JsonSerializer.SerializeToNode(
+                successor.Reads,
+                EvidenceJson.Options);
+            JsonNode? recordedReads = JsonSerializer.SerializeToNode(
+                record.Successor.Reads,
+                EvidenceJson.Options);
+            if (!JsonNode.DeepEquals(successorReads, recordedReads))
+                Add(errors, "canonical_transition_successor_reads_mismatch");
+        }
+    }
+
+    private static FrozenDecisionFrameV2? ReadSemanticFrameReference(
+        string directory,
+        SemanticFrameReference reference,
+        IDictionary<string, long> errors)
+    {
+        string path;
+        try
+        {
+            path = ResolveBelow(directory, reference.ObjectRef);
+        }
+        catch (InvalidDataException)
+        {
+            Add(errors, "canonical_transition_frame_ref_invalid");
+            return null;
+        }
+        if (!File.Exists(path) || EvidenceIdentity.Sha256File(path) != reference.ContentSha256)
+        {
+            Add(errors, "canonical_transition_frame_missing_or_changed");
+            return null;
+        }
+        try
+        {
+            FrozenDecisionFrameV2? frame = JsonSerializer.Deserialize<FrozenDecisionFrameV2>(
+                File.ReadAllText(path),
+                EvidenceJson.Options);
+            if (frame == null || frame.SnapshotId != reference.SnapshotId)
+            {
+                Add(errors, "canonical_transition_frame_identity_mismatch");
+                return null;
+            }
+            return frame;
+        }
+        catch (JsonException)
+        {
+            Add(errors, "canonical_transition_frame_json_invalid");
+            return null;
+        }
+    }
+
+    private static string SemanticFrameDigest(FrozenDecisionFrameV2 frame)
+    {
+        JsonNode node = JsonSerializer.SerializeToNode(frame, EvidenceJson.Options)
+            ?? throw new InvalidDataException("Semantic frame serialization returned null.");
+        return EvidenceIdentity.Sha256Text(EvidenceCanonicalJson.Serialize(node));
     }
 
     public static IReadOnlyList<HumanDecisionRecordV2> ReadAdmitted(string recordingDirectory)
