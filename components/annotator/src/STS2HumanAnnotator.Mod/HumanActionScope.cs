@@ -5,11 +5,7 @@ namespace STS2HumanAnnotator.Mod;
 
 internal readonly record struct NativeUiScopeEntry(
     bool Entered,
-    bool DeferredFailure,
-    bool BlockMutation = false)
-{
-    internal bool AllowMutation => !BlockMutation;
-}
+    bool DeferredFailure);
 
 internal sealed class HumanActionContext
 {

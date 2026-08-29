@@ -206,7 +206,7 @@ internal static class RecorderRuntime
             return RejectedCommand("invalid_command_id", "Recording command_id is required.");
 
         if (command.Kind == RecordingCommandKind.Close && AcceptingNewWitnesses())
-            TryPrepareSerializedMutation(out _);
+            TryPrepareSerializedEvidence(out _);
 
         RecordingCommandResult result;
         RecorderEnvironmentIdentity? environment;
@@ -569,7 +569,7 @@ internal static class RecorderRuntime
             return _initialized && _lifecycle.State == RecordingLifecycleState.Recording;
     }
 
-    private static bool TryPrepareSerializedMutation(
+    private static bool TryPrepareSerializedEvidence(
         out ProcessLocalNativeWitnessFrame? preparedFrame,
         bool allowClosing = false)
     {
@@ -591,14 +591,14 @@ internal static class RecorderRuntime
             lifecycleOpen = NativeActionLedger.HasUnresolvedLifecycle
                 || SemanticOnlyNativeActionIds.Count > 0;
         }
-        SerializedInputAdmissionDecision decision = SerializedInputAdmission.Evaluate(
+        SerializedEvidenceAdmissionDecision decision = SerializedEvidenceAdmission.Evaluate(
             recording,
             HumanActionScope.Current != null,
             hasDebt,
             lifecycleOpen);
-        if (decision == SerializedInputAdmissionDecision.Allow)
+        if (decision == SerializedEvidenceAdmissionDecision.Capture)
             return true;
-        if (decision == SerializedInputAdmissionDecision.Block)
+        if (decision == SerializedEvidenceAdmissionDecision.Invalidate)
             return false;
 
         try
@@ -648,10 +648,14 @@ internal static class RecorderRuntime
         }
     }
 
-    internal static bool StageCardPlay(CardModel card)
+    internal static void StageCardPlay(CardModel card)
     {
-        if (!TryPrepareSerializedMutation(out ProcessLocalNativeWitnessFrame? preparedFrame))
-            return false;
+        if (!TryPrepareSerializedEvidence(out ProcessLocalNativeWitnessFrame? preparedFrame))
+        {
+            lock (Gate)
+                _stagedCardFrame = null;
+            return;
+        }
         try
         {
             ProcessLocalNativeWitnessFrame frame = preparedFrame ?? CaptureReadRichFrame();
@@ -664,13 +668,11 @@ internal static class RecorderRuntime
                 : null;
             lock (Gate)
                 _stagedCardFrame = staged;
-            return true;
         }
         catch
         {
             lock (Gate)
                 _stagedCardFrame = null;
-            return true;
         }
     }
 
@@ -688,15 +690,34 @@ internal static class RecorderRuntime
 
     internal readonly record struct PotionUseArmHandle(
         PotionModel Potion,
-        long Generation,
-        bool BlockMutation = false);
+        long Generation);
 
     internal static PotionUseArmHandle? ArmPotionUse(PotionModel? potion)
     {
         if (potion == null || !AcceptingNewWitnesses() || HumanActionScope.Current != null)
             return null;
-        if (!TryPrepareSerializedMutation(out ProcessLocalNativeWitnessFrame? preparedFrame))
-            return new PotionUseArmHandle(potion, 0, BlockMutation: true);
+        if (!TryPrepareSerializedEvidence(out ProcessLocalNativeWitnessFrame? preparedFrame))
+        {
+            lock (Gate)
+            {
+                if (!_initialized
+                    || _lifecycle.State != RecordingLifecycleState.Recording
+                    || SessionId == null
+                    || TimelineId == null)
+                    return null;
+                long generation = ++_potionArmGeneration;
+                ArmedPotionUses[potion] = new ArmedPotionUse(
+                    generation,
+                    null,
+                    SessionId,
+                    TimelineId,
+                    "serialized_evidence_overlap",
+                    "Another Human effect is unresolved; potion use continues without strict transition evidence.",
+                    _lastSnapshotId,
+                    "decision_and_lifecycle_only");
+                return new PotionUseArmHandle(potion, generation);
+            }
+        }
         try
         {
             ProcessLocalNativeWitnessFrame frame = preparedFrame ?? CaptureReadRichFrame();
@@ -910,8 +931,16 @@ internal static class RecorderRuntime
     {
         if (!AcceptingNewWitnesses())
             return default;
-        if (!TryPrepareSerializedMutation(out ProcessLocalNativeWitnessFrame? preparedFrame))
-            return new NativeUiScopeEntry(false, false, BlockMutation: true);
+        if (!TryPrepareSerializedEvidence(out ProcessLocalNativeWitnessFrame? preparedFrame))
+        {
+            HumanActionScope.EnterDeferredFailure(
+                expectedNativeActionType,
+                "serialized_evidence_overlap",
+                "Another Human effect is unresolved; native input continues without strict transition evidence.",
+                _lastSnapshotId,
+                "decision_and_lifecycle_only");
+            return new NativeUiScopeEntry(false, true);
+        }
 
         try
         {
@@ -998,8 +1027,16 @@ internal static class RecorderRuntime
         // input; nested mechanics must not manufacture a second Human action.
         if (!AcceptingNewWitnesses() || HumanActionScope.Current != null)
             return default;
-        if (!TryPrepareSerializedMutation(out ProcessLocalNativeWitnessFrame? preparedFrame))
-            return new NativeUiScopeEntry(false, false, BlockMutation: true);
+        if (!TryPrepareSerializedEvidence(out ProcessLocalNativeWitnessFrame? preparedFrame))
+        {
+            HumanActionScope.EnterDeferredFailure(
+                nativeActionType,
+                "serialized_evidence_overlap",
+                "Another Human effect is unresolved; native input continues without strict transition evidence.",
+                _lastSnapshotId,
+                "decision_and_lifecycle_only");
+            return new NativeUiScopeEntry(false, true);
+        }
         try
         {
             ProcessLocalNativeWitnessFrame frame = preparedFrame ?? CaptureSemanticFrame();
@@ -1226,7 +1263,7 @@ internal static class RecorderRuntime
             }
             if (closeBoundaryRequested)
             {
-                bool resolved = TryPrepareSerializedMutation(out _, allowClosing: true);
+                bool resolved = TryPrepareSerializedEvidence(out _, allowClosing: true);
                 if (!resolved && !HasOpenNativeLifecycle())
                     FailClosedCloseDrain("serialized_close_boundary_unavailable");
             }
