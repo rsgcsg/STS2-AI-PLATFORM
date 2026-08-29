@@ -1110,7 +1110,9 @@ internal static class RecorderRuntime
             if (now - _lastFrameProbeAt < TimeSpan.FromMilliseconds(50))
                 return;
             _lastFrameProbeAt = now;
-            ProcessLocalNativeWitnessFrame frame = PlayerEnvironmentNativeWitness.Capture();
+            ProcessLocalNativeWitnessFrame frame = MeasureStore(
+                "snapshot_probe",
+                () => PlayerEnvironmentNativeWitness.Capture());
             RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
             List<string> blockers = EligibilityBlockers(frame, environment, requireReads: false);
             bool recovered = false;
@@ -1240,7 +1242,9 @@ internal static class RecorderRuntime
 
         try
         {
-            ProcessLocalNativeWitnessFrame probe = PlayerEnvironmentNativeWitness.Capture();
+            ProcessLocalNativeWitnessFrame probe = MeasureStore(
+                "snapshot_probe",
+                () => PlayerEnvironmentNativeWitness.Capture());
             if (!string.Equals(probe.Snapshot.Status, "interactive", StringComparison.Ordinal)
                 || !string.Equals(
                     probe.Snapshot.BoundActions.Status,
@@ -1321,15 +1325,17 @@ internal static class RecorderRuntime
         string readPhase = "semantic")
     {
         PlayerEnvironmentSnapshot snapshot = frame.Snapshot;
-        return new FrozenDecisionFrameV2(
-            snapshot.SnapshotId,
-            snapshot.Interaction.InteractionId,
-            snapshot.Interaction.Kind,
-            snapshot.Interaction.ContentSchema,
-            EvidenceIdentity.Sha256Json(snapshot.BoundActions),
-            snapshot.BoundActions.Actions.Count,
-            ToNode(snapshot),
-            PersistReads(frame, readPhase, environment));
+        return MeasureStore(
+            "freeze_semantic_boundary",
+            () => new FrozenDecisionFrameV2(
+                snapshot.SnapshotId,
+                snapshot.Interaction.InteractionId,
+                snapshot.Interaction.Kind,
+                snapshot.Interaction.ContentSchema,
+                EvidenceIdentity.Sha256Json(snapshot.BoundActions),
+                snapshot.BoundActions.Actions.Count,
+                ToNode(snapshot),
+                PersistReads(frame, readPhase, environment)));
     }
 
     private static IReadOnlyList<string> SemanticStateBlockers(
@@ -2190,7 +2196,9 @@ internal static class RecorderRuntime
             return;
         _lastLegacySuccessorProbeAt = now;
 
-        ProcessLocalNativeWitnessFrame probe = PlayerEnvironmentNativeWitness.Capture();
+        ProcessLocalNativeWitnessFrame probe = MeasureStore(
+            "snapshot_probe",
+            () => PlayerEnvironmentNativeWitness.Capture());
         if (!string.Equals(
                 probe.Capabilities.Host.RuntimeInstanceId,
                 pending.Environment.RuntimeInstanceId,
@@ -2371,15 +2379,17 @@ internal static class RecorderRuntime
         RecorderEnvironmentIdentity environment)
     {
         PlayerEnvironmentSnapshot snapshot = frame.Snapshot;
-        return new FrozenDecisionFrameV2(
-            snapshot.SnapshotId,
-            snapshot.Interaction.InteractionId,
-            snapshot.Interaction.Kind,
-            snapshot.Interaction.ContentSchema,
-            EvidenceIdentity.Sha256Json(snapshot.BoundActions),
-            snapshot.BoundActions.Actions.Count,
-            ToNode(snapshot),
-            PersistReads(frame, phase, environment));
+        return MeasureStore(
+            "freeze_legacy_boundary",
+            () => new FrozenDecisionFrameV2(
+                snapshot.SnapshotId,
+                snapshot.Interaction.InteractionId,
+                snapshot.Interaction.Kind,
+                snapshot.Interaction.ContentSchema,
+                EvidenceIdentity.Sha256Json(snapshot.BoundActions),
+                snapshot.BoundActions.Actions.Count,
+                ToNode(snapshot),
+                PersistReads(frame, phase, environment)));
     }
 
     private static RecorderEnvironmentIdentity BuildEnvironment(
@@ -2416,10 +2426,20 @@ internal static class RecorderRuntime
     }
 
     private static ProcessLocalNativeWitnessFrame CaptureReadRichFrame() =>
-        PlayerEnvironmentNativeWitness.Capture(RequiredReadKinds);
+        MeasureStore(
+            "read_rich_snapshot_capture",
+            () => PlayerEnvironmentNativeWitness.Capture(RequiredReadKinds));
 
     private static ProcessLocalNativeWitnessFrame CaptureSemanticFrame() =>
-        PlayerEnvironmentNativeWitness.Capture(SemanticBoundaryReadPolicy.RequiredKinds);
+        MeasureStore(
+            "semantic_snapshot_capture",
+            () => PlayerEnvironmentNativeWitness.Capture(SemanticBoundaryReadPolicy.RequiredKinds));
+
+    private static T MeasureStore<T>(string phase, Func<T> operation)
+    {
+        V2RecordingStore? store = _store;
+        return store == null ? operation() : store.Measure(phase, operation);
+    }
 
     private static bool HasRequiredReads(ProcessLocalNativeWitnessFrame frame) =>
         RequiredReadKinds.All(kind => frame.Reads.TryGetValue(kind, out ProcessLocalReadCapture? read)

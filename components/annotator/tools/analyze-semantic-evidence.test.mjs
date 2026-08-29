@@ -90,6 +90,7 @@ test("streams repeated large frames into deterministic role references", async (
       raw_events_retained: false,
       retained_frame_keys: 3
     });
+    assert.equal(result.performance_profile, null);
     assert.equal(await readFile(tracePath, "utf8"), before);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -126,13 +127,19 @@ test("measures an already-normalized schema-3 trace without projecting empty fra
     }];
     await writeFile(path.join(root, "semantic-boundary-trace.jsonl"),
       `${events.map((value) => JSON.stringify(value)).join("\n")}\n`);
+    await writeFile(path.join(root, "performance-profile.json"), JSON.stringify({
+      schema: "sts2.human-annotator/recording-performance-profile-1",
+      phases: [{ phase: "snapshot_probe", count: 2, p95_us: 1200 }]
+    }));
 
     const result = await analyze(root);
     assert.equal(result.input_format, "normalized-v3");
     assert.equal(result.normalized_projection.event_count, 2);
     assert.equal(result.normalized_projection.role_reference_count, 4);
     assert.equal(result.normalized_projection.frame_record_count, 1);
+    assert.equal(result.normalized_projection.legacy_structural_reduction_ratio, null);
     assert.equal(result.legacy_to_normalized, null);
+    assert.equal(result.performance_profile.phases[0].phase, "snapshot_probe");
     assert.deepEqual(result.dispositions, {
       accepted: 1,
       proved: 1,

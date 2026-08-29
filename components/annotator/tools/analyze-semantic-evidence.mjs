@@ -267,6 +267,10 @@ export async function analyze(recordingDirectory) {
   let uniqueBlobBytes = 0;
   for (const file of blobFiles) uniqueBlobBytes += (await stat(file)).size;
   const coverage = JSON.parse(await readFile(path.join(root, "coverage.json"), "utf8"));
+  const performancePath = path.join(root, "performance-profile.json");
+  const performance = files.includes(performancePath)
+    ? JSON.parse(await readFile(performancePath, "utf8"))
+    : null;
   const durationSeconds = firstAt && lastAt
     ? Math.max(0, (Date.parse(lastAt) - Date.parse(firstAt)) / 1000)
     : 0;
@@ -339,7 +343,9 @@ export async function analyze(recordingDirectory) {
       unique_frame_bytes: normalizedFrameBytes,
       frame_record_count: uniqueFrameCount,
       total_bytes: normalizedTotalBytes,
-      structural_reduction_ratio: semanticTraceBytes ? normalizedTotalBytes / semanticTraceBytes : 0,
+      legacy_structural_reduction_ratio: inputFormat === "normalized-v3"
+        ? null
+        : semanticTraceBytes ? normalizedTotalBytes / semanticTraceBytes : 0,
       gzip_bytes: normalizedGzipBytes
     },
     legacy_to_normalized: inputFormat === "normalized-v3" ? null : {
@@ -365,7 +371,8 @@ export async function analyze(recordingDirectory) {
       input: "jsonl-stream",
       raw_events_retained: false,
       retained_frame_keys: uniqueFrameCount
-    }
+    },
+    performance_profile: performance
   };
 }
 
