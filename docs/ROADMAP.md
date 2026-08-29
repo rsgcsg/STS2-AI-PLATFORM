@@ -12,8 +12,10 @@
 - Complete at source/test: serialized mutation admission, shared authoritative
   boundary capture, canonical content-addressed transition stream and
   independent tamper-detecting audit for the migrated high-frequency families.
-- Pending exact-runtime gate: clean build/install/cold-load plus owner canary
-  for blocked rapid input, canonical rows, first-command Close and after-latency.
+- Complete: clean build/install/cold-load and exact identity verification for
+  artifact `b805474d... / 3ab1e10e...`.
+- Pending owner canary: blocked rapid input, canonical rows, first-command
+  Close and measured after-latency/footprint.
 - Next after the gate: migrate remaining Full-Run semantic-only families to the
   canonical lane by native mechanism, without restoring natural-observer
   polling.

@@ -237,7 +237,7 @@
     }
   },
   "unified_platform_runtime_candidate": {
-    "status": "semantic_execution_order_exact_rebind_live_proved",
+    "status": "serialized_canonical_loaded_pending_human_canary",
     "platform": "darwin",
     "architecture": "arm64",
     "game": {
@@ -269,6 +269,33 @@
       "source_relation": "loaded_native_source_precedes_current_full_run_source",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b"
+    },
+    "serialized_canonical_loaded_candidate": {
+      "status": "loaded_pending_owner_human_canary",
+      "workspace_revision_at_build": "95acd12f00c0709a8e789d81fc36a559c694029e",
+      "platform_source_revision": "b5389a0b4a1bbed37e6a9718776fdf38f06f50c9",
+      "platform_source_digest_sha256": "0d01f16685001b0fa02f2ed4ff9cfd0c611fe27bf1258ea63fc715eee442fa58",
+      "connector_source_revision": "54efe38d6d2f49051e04248072acb548feddfe9a",
+      "connector_source_digest_sha256": "6ee81df970fb4e1a06a26e4895fcb95d5bb4886eea9a01043859d0d5f4b8f73e",
+      "annotator_source_revision": "2a7f7aa4d632c5bd4890df0e82ab8911f41b11d4",
+      "annotator_source_digest_sha256": "a0b93a4f233ca5b4fe1e72ba581c205fffebf0abd7cebb41436551897b569ca5",
+      "artifact_sha256": "b805474d3e99a8a2b1d13a00b0b5b92ea6b8cd06b57d6e65935c7870e54194e1",
+      "artifact_mvid": "3ab1e10e-dda6-472a-83a3-c3b7be1c6f40",
+      "player_environment_protocol": "1.0.0",
+      "runtime_instance_id": "8fb991bea8d94298b89f3c7d3cc04c6a",
+      "environment_fingerprint": "36ec4fa719d62ed5ab99db3c3026a3120bfac5a8dd17a552c47a2148790cae88",
+      "modset_status": "exact_platform_modset",
+      "modset_fingerprint": "eb862f2123995708937057b6616bc61a790788e2a6015653c9de9fe2455384c8",
+      "loaded_mod_ids": ["STS2_PLATFORM"],
+      "built": "pass",
+      "installed": "pass",
+      "loaded": "pass",
+      "runtime_status": "ready_no_session",
+      "human_runtime": "not_exercised",
+      "canonical_stream": "not_exercised",
+      "after_latency": "not_measured",
+      "evidence_transfer_from_predecessor": false,
+      "rollback": "apps/game-mod/.local/deployments/2026-08-29T14-43-21.403Z"
     },
     "semantic_timeline_source_candidate": {
       "status": "human_canary_bounded_live_proved",
@@ -733,6 +760,7 @@
     "native_rejected_cancelled_attempt_absence_owner_attested_not_machine_attributable",
     "rapid_ledger_v1_invalidated_targeting_classification_unavailable",
     "automated_input_canary_is_not_owner_visibility_evidence",
-    "s1_checkpoint_absent_shadow_one_step_auto_not_exercised"
+    "s1_checkpoint_absent_shadow_one_step_auto_not_exercised",
+    "serialized_canonical_candidate_human_runtime_not_exercised"
   ]
 }

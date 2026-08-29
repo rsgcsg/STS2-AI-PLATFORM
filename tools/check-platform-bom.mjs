@@ -185,7 +185,53 @@ export function validatePlatformBom(bom, authorities) {
 
   const policyCandidate = bom.unified_platform_runtime_candidate;
   expectEqual(errors, "unified Platform candidate status", policyCandidate?.status,
-    "semantic_execution_order_exact_rebind_live_proved");
+    "serialized_canonical_loaded_pending_human_canary");
+  const serializedCandidate = policyCandidate?.serialized_canonical_loaded_candidate;
+  expectEqual(errors, "serialized candidate status", serializedCandidate?.status,
+    "loaded_pending_owner_human_canary");
+  expectPattern(errors, "serialized candidate workspace", serializedCandidate?.workspace_revision_at_build,
+    COMMIT);
+  expectPattern(errors, "serialized candidate Platform source", serializedCandidate?.platform_source_revision,
+    COMMIT);
+  expectPattern(errors, "serialized candidate Platform digest",
+    serializedCandidate?.platform_source_digest_sha256, SHA256);
+  expectEqual(errors, "serialized candidate Connector source",
+    serializedCandidate?.connector_source_revision, bom.components?.connector?.source_revision);
+  expectPattern(errors, "serialized candidate Connector digest",
+    serializedCandidate?.connector_source_digest_sha256, SHA256);
+  expectEqual(errors, "serialized candidate Annotator source",
+    serializedCandidate?.annotator_source_revision, bom.components?.annotator?.source_revision);
+  expectPattern(errors, "serialized candidate Annotator digest",
+    serializedCandidate?.annotator_source_digest_sha256, SHA256);
+  expectPattern(errors, "serialized candidate artifact", serializedCandidate?.artifact_sha256, SHA256);
+  expectPattern(errors, "serialized candidate MVID", serializedCandidate?.artifact_mvid, MVID);
+  expectEqual(errors, "serialized candidate protocol", serializedCandidate?.player_environment_protocol,
+    "1.0.0");
+  expectPattern(errors, "serialized candidate runtime", serializedCandidate?.runtime_instance_id,
+    /^[0-9a-f]{32}$/u);
+  expectPattern(errors, "serialized candidate environment", serializedCandidate?.environment_fingerprint,
+    SHA256);
+  expectEqual(errors, "serialized candidate Modset status", serializedCandidate?.modset_status,
+    "exact_platform_modset");
+  expectPattern(errors, "serialized candidate Modset", serializedCandidate?.modset_fingerprint, SHA256);
+  if (!Array.isArray(serializedCandidate?.loaded_mod_ids)
+    || serializedCandidate.loaded_mod_ids.length !== 1
+    || serializedCandidate.loaded_mod_ids[0] !== "STS2_PLATFORM")
+    errors.push("serialized candidate loaded Mods: expected only STS2_PLATFORM");
+  for (const level of ["built", "installed", "loaded"])
+    expectEqual(errors, `serialized candidate ${level}`, serializedCandidate?.[level], "pass");
+  expectEqual(errors, "serialized candidate runtime status", serializedCandidate?.runtime_status,
+    "ready_no_session");
+  expectEqual(errors, "serialized candidate Human runtime", serializedCandidate?.human_runtime,
+    "not_exercised");
+  expectEqual(errors, "serialized candidate canonical stream", serializedCandidate?.canonical_stream,
+    "not_exercised");
+  expectEqual(errors, "serialized candidate after latency", serializedCandidate?.after_latency,
+    "not_measured");
+  expectEqual(errors, "serialized candidate predecessor transfer",
+    serializedCandidate?.evidence_transfer_from_predecessor, false);
+  expectPattern(errors, "serialized candidate rollback", serializedCandidate?.rollback,
+    /^apps\/game-mod\/\.local\/deployments\/[0-9TZ.:-]+$/u);
   expectEqual(errors, "candidate STPD source", policyCandidate?.external_policy?.stpd_source_revision,
     bom.external_consumer_cutovers?.stpd);
   expectEqual(errors, "candidate policy checkpoint", policyCandidate?.external_policy?.checkpoint_status,
@@ -892,6 +938,8 @@ export function validatePlatformBom(bom, authorities) {
     errors.push("Automated-input epistemic-boundary non-claim is missing");
   if (!bom.non_claims?.includes("s1_checkpoint_absent_shadow_one_step_auto_not_exercised"))
     errors.push("S1 checkpoint/model-mode non-claim is missing");
+  if (!bom.non_claims?.includes("serialized_canonical_candidate_human_runtime_not_exercised"))
+    errors.push("Serialized canonical Human-runtime non-claim is missing");
   return errors;
 }
 

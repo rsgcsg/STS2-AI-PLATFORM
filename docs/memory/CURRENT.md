@@ -11,8 +11,9 @@ contains schema-3 content-addressed evidence, exact after-repair Human
 performance evidence, and the canonical training calibration. Latest session
 `session-20260829T084437Z-...` accounts for 933/933 trace dispositions but
 performs 31,613 full captures (628.720 seconds cumulative) and yields zero
-canonical `S + A(S) -> A -> S'` rows. ADR 0003 selects serialized Human input;
-the source/test candidate is implemented and now awaits exact-runtime sealing.
+canonical `S + A(S) -> A -> S'` rows. ADR 0003 selects serialized Human input.
+The candidate is implemented and cold-loaded as `b805474d... / 3ab1e10e...`;
+only its owner canary remains.
 
 ## Active workstreams
 
@@ -27,9 +28,10 @@ the source/test candidate is implemented and now awaits exact-runtime sealing.
 
 ## Current blockers and open questions
 
-- Input serialization is implemented for the migrated canonical families. It
-  has source/test/exact-build evidence only; after-latency, blocked rapid-input
-  behavior and canonical rows require a new exact-artifact owner canary.
+- Input serialization is implemented for the migrated canonical families and
+  has source/test/exact-build/install/load evidence. After-latency, blocked
+  rapid-input behavior and canonical rows require a new exact-artifact owner
+  canary.
 - The S1 checkpoint named by the current Policy Manifest is unavailable on this
   Mac, so real-model Shadow, One-Step, Auto, and Agent-run evidence remain
   unexercised.
@@ -39,9 +41,9 @@ the source/test candidate is implemented and now awaits exact-runtime sealing.
 ## Next meaningful gates
 
 - Keep the required `portable` source/test gate green on latest PR heads.
-- Build/install/cold-load the final serialized candidate, then run the bounded
-  owner canary documented in its source closeout. Do not add natural-observer
-  polling or transfer predecessor Human evidence.
+- Run the bounded owner canary documented in the serialized source/runtime
+  closeouts. Do not add natural-observer polling or transfer predecessor Human
+  evidence.
 
 Use `npm run project:context` to start a task and
 `npm run project:closeout` to surface likely documentation, evidence, contract,

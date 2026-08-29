@@ -78,8 +78,10 @@ source/test evidence, not a measured after-latency result.
 
 ## Remaining gate
 
-A clean final artifact still requires install, cold-load identity verification
-and one owner session. The canary must show canonical rows, no false transition,
+The clean candidate is now built, installed and cold-loaded as artifact
+`b805474d... / 3ab1e10e...`; see the
+[runtime candidate](SERIALIZED_HUMAN_INPUT_RUNTIME_CANDIDATE_2026-08-30.md).
+One owner session remains. It must show canonical rows, no false transition,
 first-command Close, explicit blocked rapid input, and materially lower
 input-adjacent/cumulative capture cost. No predecessor Live claim transfers to
 that artifact.
