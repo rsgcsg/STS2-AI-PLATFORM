@@ -21,6 +21,8 @@ Use the smallest route that answers the task.
   [Semantic Evidence Storage Baseline](evidence/SEMANTIC_EVIDENCE_STORAGE_BASELINE_2026-08-29.md).
 - Latest normalized Human runtime and storage closeout:
   [Schema-3 Human and data-lifecycle closeout](evidence/SCHEMA3_HUMAN_DATA_LIFECYCLE_CLOSEOUT_2026-08-29.md).
+- Latest exact recorder-lag attribution and repair boundary:
+  [Recorder causal performance baseline](evidence/RECORDER_CAUSAL_PERFORMANCE_BASELINE_2026-08-29.md).
 - Bounded active context and next gate: [Current Context](memory/CURRENT.md).
 - Product boundary and dependency direction: [Architecture](ARCHITECTURE.md).
 - Ownership matrix: [Components](COMPONENTS.md).

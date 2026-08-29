@@ -49,9 +49,9 @@ public sealed class V2RecordingStore : IDisposable
         WriteCreateNew(
             Path.Combine(directory, "capture-profile.json"),
             JsonSerializer.Serialize(captureProfile, EvidenceJson.IndentedOptions));
-        _invalidations = OpenAppend(Path.Combine(directory, "invalidations.jsonl"));
-        _journal = OpenAppend(Path.Combine(directory, "run-journal.jsonl"));
-        _nativeActionLedger = OpenAppend(Path.Combine(directory, "native-action-ledger.jsonl"));
+        _invalidations = OpenBufferedAppend(Path.Combine(directory, "invalidations.jsonl"));
+        _journal = OpenBufferedAppend(Path.Combine(directory, "run-journal.jsonl"));
+        _nativeActionLedger = OpenBufferedAppend(Path.Combine(directory, "native-action-ledger.jsonl"));
         _semanticBoundaryTrace = OpenBufferedAppend(
             Path.Combine(directory, "semantic-boundary-trace.jsonl"));
         WriteCoverage();
@@ -119,7 +119,6 @@ public sealed class V2RecordingStore : IDisposable
             {
                 result = PersistReadCore(capture);
                 RecordReadUnsafe(capture.Kind, capture.Status == "materialized");
-                WriteCoverage();
             });
             return result!;
         }
@@ -215,7 +214,6 @@ public sealed class V2RecordingStore : IDisposable
                     result.Add(PersistReadCore(capture));
                     RecordReadUnsafe(capture.Kind, capture.Status == "materialized");
                 }
-                WriteCoverage();
             });
             return result;
         }
@@ -290,8 +288,8 @@ public sealed class V2RecordingStore : IDisposable
         ExecuteWrite(() =>
         {
             _performance.Measure(
-                "decision_append_durable",
-                () => AppendLine(DecisionFile(record.RunId), record));
+                "decision_append_buffered",
+                () => AppendBufferedLine(DecisionFile(record.RunId), record));
             _admittedCount++;
             _families[record.DecisionFamily] = _families.GetValueOrDefault(record.DecisionFamily) + 1;
             string actionFamily = HumanCaptureProfileValidator.ResolveActionFamily(
@@ -304,7 +302,6 @@ public sealed class V2RecordingStore : IDisposable
                 record.Action.Verb,
                 record.RecordedAt,
                 record.DecisionFamily);
-            WriteCoverage();
         });
     }
 
@@ -319,7 +316,7 @@ public sealed class V2RecordingStore : IDisposable
             throw new InvalidDataException("Run journal event is invalid for this recording.");
         EnsureOpen();
         ExecuteWrite(() =>
-            _performance.Measure("journal_append_durable", () => AppendLine(_journal, value)));
+            _performance.Measure("journal_append_buffered", () => AppendBufferedLine(_journal, value)));
     }
 
     public void AppendNativeActionEvent(NativeActionLedgerEvent value)
@@ -338,8 +335,8 @@ public sealed class V2RecordingStore : IDisposable
         EnsureOpen();
         ExecuteWrite(() =>
             _performance.Measure(
-                "native_ledger_append_durable",
-                () => AppendLine(_nativeActionLedger, value)));
+                "native_ledger_append_buffered",
+                () => AppendBufferedLine(_nativeActionLedger, value)));
     }
 
     public void AppendSemanticBoundaryEvent(SemanticBoundaryTraceEvent value) =>
@@ -388,8 +385,8 @@ public sealed class V2RecordingStore : IDisposable
         ExecuteWrite(() =>
         {
             _performance.Measure(
-                "invalidation_append_durable",
-                () => AppendLine(_invalidations, invalidation));
+                "invalidation_append_buffered",
+                () => AppendBufferedLine(_invalidations, invalidation));
             _invalidationCount++;
             _invalidationsByReason[invalidation.ReasonCode] =
                 _invalidationsByReason.GetValueOrDefault(invalidation.ReasonCode) + 1;
@@ -403,7 +400,6 @@ public sealed class V2RecordingStore : IDisposable
                 invalidation.ReasonCode,
                 invalidation.RecordedAt,
                 invalidation.Detail);
-            WriteCoverage();
         });
     }
 
@@ -416,9 +412,16 @@ public sealed class V2RecordingStore : IDisposable
         {
             if (_closed)
                 return;
-            _performance.Measure(
-                "close_semantic_trace_durable_flush",
-                () => _semanticBoundaryTrace.Flush(flushToDisk: true));
+            WriteCoverage();
+            _performance.Measure("close_evidence_durable_flush", () =>
+            {
+                foreach (FileStream stream in _decisionFiles.Values)
+                    stream.Flush(flushToDisk: true);
+                _invalidations.Flush(flushToDisk: true);
+                _journal.Flush(flushToDisk: true);
+                _nativeActionLedger.Flush(flushToDisk: true);
+                _semanticBoundaryTrace.Flush(flushToDisk: true);
+            });
             foreach (FileStream stream in _decisionFiles.Values)
                 stream.Dispose();
             _invalidations.Dispose();
@@ -531,7 +534,7 @@ public sealed class V2RecordingStore : IDisposable
         string safe = SafeId(runId, nameof(runId));
         if (!_decisionFiles.TryGetValue(safe, out FileStream? stream))
         {
-            stream = OpenAppend(Path.Combine(DirectoryPath, $"{safe}.jsonl"));
+            stream = OpenBufferedAppend(Path.Combine(DirectoryPath, $"{safe}.jsonl"));
             _decisionFiles.Add(safe, stream);
         }
         return stream;
@@ -541,14 +544,6 @@ public sealed class V2RecordingStore : IDisposable
         value.All(character => char.IsLetterOrDigit(character) || character is '-' or '_')
             ? value
             : throw new InvalidDataException($"{name} contains unsafe path characters.");
-
-    private static FileStream OpenAppend(string path) => new(
-        path,
-        FileMode.Append,
-        FileAccess.Write,
-        FileShare.Read,
-        4096,
-        FileOptions.WriteThrough);
 
     private static FileStream OpenBufferedAppend(string path) => new(
         path,
@@ -568,6 +563,12 @@ public sealed class V2RecordingStore : IDisposable
         stream.WriteByte((byte)'\n');
         if (flushToDisk)
             stream.Flush(flushToDisk: true);
+    }
+
+    private static void AppendBufferedLine<T>(FileStream stream, T value)
+    {
+        AppendLine(stream, value, flushToDisk: false);
+        stream.Flush();
     }
 
     private void ValidateSemanticBoundaryEvent(SemanticBoundaryTraceEvent value)

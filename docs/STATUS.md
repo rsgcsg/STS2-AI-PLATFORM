@@ -38,6 +38,19 @@ no action or semantic authority and has source/test evidence only; the Human run
 above cannot supply its timings. See the
 [schema-3 closeout](evidence/SCHEMA3_HUMAN_DATA_LIFECYCLE_CLOSEOUT_2026-08-29.md).
 
+The subsequent exact profiler session
+`session-20260829T072035Z-807f6a97b0e8498a828bb25c84e04ae4`, artifact
+`f1afebd2... / a618ef18...`, runtime `74c63f9a...`, independently passes
+102/102 Decision V2 records and accounts for 267/267 proved semantic actions.
+It also causally explains owner-perceived lag: 12,394 synchronous Player
+Environment captures consume 251.633 seconds, 50.47% of its 498.578-second
+recording window. The old combined Snapshot probe alone runs 10,676 times and
+consumes 214.890 seconds. Current source removes idle polling, gates legacy
+recovery capture on actual recovery debt, reuses lifecycle-requested status
+frames, buffers hot evidence appends and durably seals every stream at Close.
+Those repairs have source/test evidence only. See the
+[causal performance baseline](evidence/RECORDER_CAUSAL_PERFORMANCE_BASELINE_2026-08-29.md).
+
 ## Implemented
 
 - Connector, Host Runtime, and Human Annotator histories are preserved under

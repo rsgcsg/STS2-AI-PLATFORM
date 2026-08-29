@@ -129,7 +129,13 @@ test("measures an already-normalized schema-3 trace without projecting empty fra
       `${events.map((value) => JSON.stringify(value)).join("\n")}\n`);
     await writeFile(path.join(root, "performance-profile.json"), JSON.stringify({
       schema: "sts2.human-annotator/recording-performance-profile-1",
-      phases: [{ phase: "snapshot_probe", count: 2, p95_us: 1200 }]
+      phases: [{
+        phase: "snapshot_probe",
+        count: 2,
+        p95_us: 1200,
+        max_us: 1500,
+        total_us: 2000
+      }]
     }));
 
     const result = await analyze(root);
@@ -140,6 +146,14 @@ test("measures an already-normalized schema-3 trace without projecting empty fra
     assert.equal(result.normalized_projection.legacy_structural_reduction_ratio, null);
     assert.equal(result.legacy_to_normalized, null);
     assert.equal(result.performance_profile.phases[0].phase, "snapshot_probe");
+    assert.deepEqual(result.performance_summary.main_thread_capture, {
+      call_count: 2,
+      total_us: 2000,
+      max_single_call_us: 1500,
+      phases: ["snapshot_probe"],
+      calls_per_second: 2,
+      wall_time_ratio: 0.002
+    });
     assert.deepEqual(result.dispositions, {
       accepted: 1,
       proved: 1,

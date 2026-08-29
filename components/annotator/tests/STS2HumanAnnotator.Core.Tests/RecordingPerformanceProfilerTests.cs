@@ -69,7 +69,10 @@ public sealed class RecordingPerformanceProfilerTests
                 document.RootElement.GetProperty("schema").GetString());
             Assert.Contains(
                 document.RootElement.GetProperty("phases").EnumerateArray(),
-                phase => phase.GetProperty("phase").GetString() == "journal_append_durable");
+                phase => phase.GetProperty("phase").GetString() == "journal_append_buffered");
+            Assert.Contains(
+                document.RootElement.GetProperty("phases").EnumerateArray(),
+                phase => phase.GetProperty("phase").GetString() == "close_evidence_durable_flush");
         }
         finally
         {

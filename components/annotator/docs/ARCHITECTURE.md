@@ -99,6 +99,21 @@ drain limit may classify a still-unproved semantic edge unknown; elapsed time
 never proves S'. Audit/pack/verify/store/transfer remain offline Evidence
 operations.
 
+The frame loop is not observation authority. It performs no Player Environment
+capture while an idle recording has no concrete work. Exact lifecycle callbacks
+capture execution state, unresolved semantic actions request bounded successor
+observation, and the legacy ledger requests a 50 ms recovery probe only while it
+has recovery debt. Session/run lifecycle changes request one operational status
+refresh; status does not continuously rebuild game truth. These requests share
+one capture when concurrent and never prove a boundary by elapsed time.
+
+Evidence streams append and flush to the OS on the native callback path so write
+errors remain immediate, but they do not fsync each lifecycle fact. Close is the
+durability boundary: it blocks new witnesses, drains causal work, writes the
+derived coverage summary, then `Flush(true)` seals every stream before Closed is
+published. An interrupted session is partial inspectable evidence, not a durable
+Human evidence seal.
+
 Only a complete interactive pre-frame is eligible. One non-overlapping accepted
 root may remain a strict transition candidate. Every exact-correlated native
 root enters a bounded ledger at `GameAction.OnEnqueued`, after STS2 assigns its

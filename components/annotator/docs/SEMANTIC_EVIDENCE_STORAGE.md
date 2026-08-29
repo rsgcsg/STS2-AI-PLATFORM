@@ -51,11 +51,15 @@ auditor.
 
 ## Capture boundary
 
-Cheap Snapshot-only observation may decide that a Read-rich capture cannot yet
-be a decision boundary. It never establishes `S` or `S'`. Once a candidate is
-possible, one complete Player Environment capture with the interaction-specific
-required Reads is evaluated on its own exact identity. Only that authoritative
-capture can bind execution state or prove a successor.
+Snapshot-only observation is semantically narrower than Read-rich capture, but
+it is not computationally cheap: both construct the public Snapshot and complete
+BoundAction catalog. It must therefore run only for a concrete causal purpose.
+Exact native execution events trigger execution-pre capture; unresolved semantic
+actions trigger bounded successor capture; legacy ledger recovery is probed only
+while recovery debt exists. Operational status refresh is explicitly requested
+by session/run lifecycle changes and never authorizes a transition. Only a
+complete Player Environment capture with the interaction-specific required
+Reads can bind execution state or prove a successor.
 
 This removes repeated Reads and serialization while preserving fail-closed
 proof. No timing, animation, queue-idle or later-state inference is introduced.
@@ -85,10 +89,18 @@ proof. No timing, animation, queue-idle or later-state inference is introduced.
 ## Operational performance profile
 
 Current source records bounded per-stage counts and latency quantiles at Close
-for Snapshot probes, Read-rich/semantic capture, serialization, hashing, object
-writes, durable append and flush. The profile is diagnostic output, not Human
-evidence; it cannot authorize actions or alter H/S/A/S'. It is absent from older
-sessions and must not be synthesized from event timestamps.
+for separately named recovery, semantic and legacy probes, Read-rich/semantic
+capture, serialization, hashing, object writes, buffered append and durable
+Close flush. The profile is diagnostic output, not Human evidence; it cannot
+authorize actions or alter H/S/A/S'. The analyzer derives capture call rate,
+cumulative main-thread stall and append cost from that profile. It is absent
+from older sessions and must not be synthesized from event timestamps.
+
+Hot append-only streams flush bytes to the OS so immediate write failures remain
+visible, but they do not fsync each lifecycle callback. Close flushes every
+Decision, invalidation, RunJournal, native-ledger and semantic stream durably
+before publishing Closed. Only a successfully closed session is a durable
+evidence seal; interrupted sessions remain inspectable partial evidence.
 
 ## Current evidence boundary
 
@@ -98,6 +110,9 @@ is exact schema-3 Human evidence for artifact `4fa67570... / 51c7c37b...`.
 It independently audits 188 Decision V2 records and accounts for 333 accepted
 roots with 333 proved dispositions and zero unknown. The event log contains no
 inline role frames; 2,724 references resolve to 947 immutable frame objects.
-Persisted Reads are 5.354 per accepted root. That artifact predates the stage
-profiler, so no runtime stage timing or lag attribution transfers to current
-source.
+Persisted Reads are 5.354 per accepted root. A subsequent exact profiler session
+`session-20260829T072035Z-...`, artifact `f1afebd2... / a618ef18...`, accounts
+for 267/267 proved actions and shows that synchronous Player Environment capture
+consumed 50.47% of recording wall time. Current scheduling and buffered-seal
+repairs have source/test evidence only and require a new exact-artifact Human
+canary. See the root causal performance baseline for the full attribution.

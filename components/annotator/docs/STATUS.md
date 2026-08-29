@@ -8,8 +8,14 @@ proved actions with zero unknown and independently audits 188/188 Decision V2
 records. Exact content-addressed frames, Snapshot-gated Read-rich capture,
 batched persistence and successor reuse are therefore exercised. Generated
 skip, target-picker cancel and hand select/replace/deselect remain unexercised.
-The new Close-time stage profiler has source/test evidence only. Root
-`../../../docs/STATUS.md` is authoritative for the current runtime boundary.
+The Close-time stage profiler is now Human-exercised by exact session
+`session-20260829T072035Z-...`: semantic accounting passes 267/267, while
+12,394 synchronous Player Environment captures consume 50.47% of the
+498.578-second recording window. Current source gates recovery capture on real
+ledger debt, makes status capture lifecycle-requested rather than periodic, and
+buffers append streams until one durable Close seal. The repair remains
+source/test-only. Root `../../../docs/STATUS.md` is authoritative for the
+current runtime boundary.
 Current Full-Run topic source preserves that execution-owned continuous timeline
 and adds interaction-specific semantic Reads, reward claim/proceed, card reward
 select, map travel and Combat hand selector witnesses. The first owner canary

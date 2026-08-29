@@ -74,6 +74,7 @@ internal static class RecorderRuntime
     private static DateTimeOffset _lastFrameProbeAt;
     private static DateTimeOffset _lastSemanticBoundaryProbeAt;
     private static DateTimeOffset _lastLegacySuccessorProbeAt;
+    private static volatile bool _statusRefreshRequested;
     private static DateTimeOffset? _semanticCloseDrainDeadline;
     private static ActionExecutor? _observedActionExecutor;
     private static bool _semanticBoundaryTraceHealthy = true;
@@ -376,9 +377,11 @@ internal static class RecorderRuntime
         _journalSequence = 0;
         _nativeActionEventSequence = 0;
         _semanticBoundaryEventSequence = 0;
+        _lastIdleStatusAt = DateTimeOffset.MinValue;
         _lastFrameProbeAt = DateTimeOffset.MinValue;
         _lastSemanticBoundaryProbeAt = DateTimeOffset.MinValue;
         _lastLegacySuccessorProbeAt = DateTimeOffset.MinValue;
+        _statusRefreshRequested = true;
         _runSequence = 0;
         _runActive = false;
         _currentRunId = "run-unassigned";
@@ -1107,16 +1110,37 @@ internal static class RecorderRuntime
             FinalizeClose();
 
             DateTimeOffset now = DateTimeOffset.UtcNow;
-            if (now - _lastFrameProbeAt < TimeSpan.FromMilliseconds(50))
+            bool recoveryBoundaryRequired;
+            lock (Gate)
+                recoveryBoundaryRequired = NativeActionLedger.RecoveryBoundaryRequired;
+            RecorderFrameWorkPlan plan = RecorderFrameWorkPlanner.Plan(
+                now,
+                _lastFrameProbeAt,
+                _lastIdleStatusAt,
+                _statusRefreshRequested,
+                recoveryBoundaryRequired);
+            if (!plan.HasWork)
                 return;
-            _lastFrameProbeAt = now;
-            ProcessLocalNativeWitnessFrame frame = MeasureStore(
-                "snapshot_probe",
-                () => PlayerEnvironmentNativeWitness.Capture());
+
+            ProcessLocalNativeWitnessFrame frame;
+            if (plan.RefreshStatus)
+            {
+                _lastIdleStatusAt = now;
+                _statusRefreshRequested = false;
+                frame = MeasureStore("idle_status_refresh", CaptureReadRichFrame);
+            }
+            else
+            {
+                frame = MeasureStore(
+                    "native_recovery_snapshot_probe",
+                    () => PlayerEnvironmentNativeWitness.Capture());
+            }
+            if (plan.ProbeRecoveryBoundary)
+                _lastFrameProbeAt = now;
             RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
             List<string> blockers = EligibilityBlockers(frame, environment, requireReads: false);
             bool recovered = false;
-            if (blockers.Count == 0)
+            if (plan.ProbeRecoveryBoundary && blockers.Count == 0)
             {
                 lock (Gate)
                     recovered = NativeActionLedger.ObserveRecoveryBoundary();
@@ -1138,17 +1162,10 @@ internal static class RecorderRuntime
                     _stagedCardFrame = null;
             }
 
-            if (now - _lastIdleStatusAt < TimeSpan.FromSeconds(1))
+            if (!plan.RefreshStatus)
                 return;
-            _lastIdleStatusAt = now;
-            if (_store != null)
-            {
-                ProcessLocalNativeWitnessFrame readFrame = CaptureReadRichFrame();
-                frame = readFrame;
-                environment = BuildEnvironment(readFrame);
-                blockers = EligibilityBlockers(readFrame, environment, requireReads: true);
-                _requiredReadsHealth = HasRequiredReads(readFrame) ? "healthy" : "unavailable";
-            }
+            blockers = EligibilityBlockers(frame, environment, requireReads: true);
+            _requiredReadsHealth = HasRequiredReads(frame) ? "healthy" : "unavailable";
             RecordingLifecycleSnapshot lifecycle = GetRecordingLifecycle();
             string status = lifecycle.State switch
             {
@@ -1243,7 +1260,7 @@ internal static class RecorderRuntime
         try
         {
             ProcessLocalNativeWitnessFrame probe = MeasureStore(
-                "snapshot_probe",
+                "semantic_boundary_snapshot_probe",
                 () => PlayerEnvironmentNativeWitness.Capture());
             if (!string.Equals(probe.Snapshot.Status, "interactive", StringComparison.Ordinal)
                 || !string.Equals(
@@ -2197,7 +2214,7 @@ internal static class RecorderRuntime
         _lastLegacySuccessorProbeAt = now;
 
         ProcessLocalNativeWitnessFrame probe = MeasureStore(
-            "snapshot_probe",
+            "legacy_successor_snapshot_probe",
             () => PlayerEnvironmentNativeWitness.Capture());
         if (!string.Equals(
                 probe.Capabilities.Host.RuntimeInstanceId,
@@ -2820,6 +2837,7 @@ internal static class RecorderRuntime
             _runSequence++;
             _currentRunId = $"run-{_runSequence:D4}";
             _runActive = true;
+            _statusRefreshRequested = true;
             AppendJournal("run_started", null, null, null);
             PublishApplicationEvent(RecordingEventKind.RunStarted);
         }
@@ -2830,6 +2848,7 @@ internal static class RecorderRuntime
                 RecordingEventKind.RunEnded,
                 detail: "RunManager is no longer in progress.");
             _runActive = false;
+            _statusRefreshRequested = true;
         }
     }
 }

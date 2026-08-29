@@ -35,6 +35,49 @@ function sortedRecord(value) {
     left < right ? -1 : left > right ? 1 : 0));
 }
 
+const CAPTURE_PHASES = new Set([
+  "snapshot_probe",
+  "native_recovery_snapshot_probe",
+  "semantic_boundary_snapshot_probe",
+  "legacy_successor_snapshot_probe",
+  "read_rich_snapshot_capture",
+  "semantic_snapshot_capture"
+]);
+
+function sumPhases(phases, predicate) {
+  const selected = phases.filter(predicate);
+  const totalUs = selected.reduce((sum, phase) => sum + (phase.total_us ?? 0), 0);
+  return {
+    call_count: selected.reduce((sum, phase) => sum + (phase.count ?? 0), 0),
+    total_us: totalUs,
+    max_single_call_us: selected.reduce((maximum, phase) =>
+      Math.max(maximum, phase.max_us ?? 0), 0),
+    phases: selected.map((phase) => phase.phase).sort()
+  };
+}
+
+function summarizePerformance(performance, durationSeconds) {
+  if (!performance) return null;
+  const phases = performance.phases ?? [];
+  const capture = sumPhases(phases, (phase) => CAPTURE_PHASES.has(phase.phase));
+  const append = sumPhases(phases, (phase) =>
+    phase.phase.endsWith("_append_durable") || phase.phase.endsWith("_append_buffered"));
+  return {
+    main_thread_capture: {
+      ...capture,
+      calls_per_second: durationSeconds ? capture.call_count / durationSeconds : 0,
+      wall_time_ratio: durationSeconds ? capture.total_us / (durationSeconds * 1_000_000) : 0
+    },
+    evidence_append: {
+      ...append,
+      wall_time_ratio: durationSeconds ? append.total_us / (durationSeconds * 1_000_000) : 0
+    },
+    close_durable_flush: sumPhases(phases, (phase) =>
+      phase.phase === "close_evidence_durable_flush"
+      || phase.phase === "close_semantic_trace_durable_flush")
+  };
+}
+
 function frameRecordLine(encoded) {
   return `${encoded}\n`;
 }
@@ -372,7 +415,8 @@ export async function analyze(recordingDirectory) {
       raw_events_retained: false,
       retained_frame_keys: uniqueFrameCount
     },
-    performance_profile: performance
+    performance_profile: performance,
+    performance_summary: summarizePerformance(performance, durationSeconds)
   };
 }
 

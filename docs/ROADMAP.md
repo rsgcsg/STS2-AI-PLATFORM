@@ -226,11 +226,14 @@ action-family expansion remain outside this bounded baseline.
   holder, binds only at `EnqueueManualUse`, and then reuses the typed
   `UsePotionAction` lifecycle. Target-picker cancel produces no accepted action;
   programmatic Connector use has no Human arm and is not recorded.
-- Next gate: cold-load the source/test-only performance-profiler artifact and run
-  one short representative canary to attribute stage latency. Then close
-  target-picker cancel and representative generated-skip/hand-selector gaps
-  before Event options; schema-3 semantics no longer wait on another generic
-  combat canary.
+- The profiler artifact is Human-exercised and attributes 50.47% of recording
+  wall time to synchronous Player Environment capture, including an
+  unconditional 50 ms legacy recovery/status probe. Current source removes idle
+  capture, gates recovery on real debt, buffers hot append streams and durably
+  seals them at Close. Next gate: cold-load this repair and run one short
+  Play/End Turn/rapid-chain canary for quantitative before/after plus semantic
+  audit. Then close target-picker cancel and representative generated-skip/
+  hand-selector gaps before Event options.
 - Non-combat room expansion follows a clean Combat mechanism canary.
 - Later: run entry/terminal, representative long-act run, then continuous Full
   Run. Rare content remains targeted evidence and does not block the mainline.
