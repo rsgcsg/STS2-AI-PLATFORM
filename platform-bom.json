@@ -16,9 +16,9 @@
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "a0d86c694d27371574ad4803f1820b4efb2340bc",
-      "component_tree_revision": "957f7b4a3cc5182a0e11b9dedbd315394ff5e677",
-      "component_source_digest_sha256": "f08e50ecc323c42a328d3c9e82bd152f503d622e0c53a78725f19dc802c43be6"
+      "source_revision": "fa1524dd8f20a094827e22d916fe2f288af28d11",
+      "component_tree_revision": "4bf96f72e7211fbfa23692d0877bb28b2f8fbb33",
+      "component_source_digest_sha256": "bd2a80b66a3afafb9852cc67db7bf58e9185a2902848194f609a7ecb860bb53b"
     },
     "evidence": {
       "version": "0.1.0-rc.1",
@@ -161,8 +161,8 @@
     "annotator": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
       "source_digest_sha256": "8d23f1015a7b0df800f78a7545da5c86bfee521131c4391b398c884ff917918f",
-      "current_component_source_revision": "a0d86c694d27371574ad4803f1820b4efb2340bc",
-      "current_component_source_digest_sha256": "f08e50ecc323c42a328d3c9e82bd152f503d622e0c53a78725f19dc802c43be6",
+      "current_component_source_revision": "fa1524dd8f20a094827e22d916fe2f288af28d11",
+      "current_component_source_digest_sha256": "bd2a80b66a3afafb9852cc67db7bf58e9185a2902848194f609a7ecb860bb53b",
       "source_relation": "loaded_human_v2_artifact_precedes_unified_platform_source",
       "artifact_sha256": "4e911dd616afa55753a5320a42c11ce0cebe9d4d10fefd66c8f8a431884cf105",
       "artifact_mvid": "692e9dd9-4bc7-4203-ae12-511ef95a5331",
@@ -264,8 +264,8 @@
     "annotator": {
       "source_revision": "cb20bfa6e4e0e64b3ee8fdf0e1d472e8a668450b",
       "source_digest_sha256": "3910bcbc71599610b125c91c62e9860541ce9edea9b2c0a9f41842eb53651071",
-      "current_component_source_revision": "a0d86c694d27371574ad4803f1820b4efb2340bc",
-      "current_component_source_digest_sha256": "f08e50ecc323c42a328d3c9e82bd152f503d622e0c53a78725f19dc802c43be6",
+      "current_component_source_revision": "fa1524dd8f20a094827e22d916fe2f288af28d11",
+      "current_component_source_digest_sha256": "bd2a80b66a3afafb9852cc67db7bf58e9185a2902848194f609a7ecb860bb53b",
       "source_relation": "loaded_native_source_precedes_current_full_run_source",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b"
@@ -338,7 +338,7 @@
       "rollback": "apps/game-mod/.local/deployments/2026-08-27T03-41-37.869Z"
     },
     "full_run_semantic_source_candidate": {
-      "status": "semantic_evidence_schema3_built_installed_loaded_human_pending",
+      "status": "semantic_evidence_schema3_bounded_human_pass",
       "workspace_revision_at_build": "750315b3b998a04507439869c96ba78d280787fb",
       "annotator_source_revision": "54efe38d6d2f49051e04248072acb548feddfe9a",
       "annotator_component_tree_revision": "e07fa1ad8b4939cbc5e6435d818acacc4565b57d",
@@ -363,7 +363,34 @@
       "built": "pass",
       "installed": "pass",
       "loaded": "pass",
-      "human_runtime": "not_exercised",
+      "human_runtime": "pass_bounded_schema3",
+      "owner_canary": {
+        "session_id": "session-20260829T052157Z-e549d3601e7640f997b6f475180b2dfe",
+        "timeline_id": "timeline-53a417ad759941c99a6ba9e138115453",
+        "audit_status": "pass",
+        "human_origin": "owner_attested_not_machine_proven",
+        "decision_v2_valid": 188,
+        "decision_v2_invalid": 0,
+        "legacy_invalidations": 87,
+        "reads_materialized": 1783,
+        "reads_failed": 0,
+        "semantic_accepted": 333,
+        "semantic_started": 333,
+        "semantic_finished": 333,
+        "semantic_proved": 333,
+        "semantic_unknown": 0,
+        "semantic_cancelled": 0,
+        "semantic_aborted": 0,
+        "semantic_unresolved": 0,
+        "session_files": 1247,
+        "session_measured_bytes": 32463533,
+        "semantic_trace_bytes": 2590104,
+        "semantic_frame_count": 947,
+        "semantic_frame_bytes": 16029783,
+        "role_reference_count": 2724,
+        "persisted_reads_per_accepted": 5.354354354354355,
+        "performance_profile": "not_present_in_loaded_artifact"
+      },
       "rollback": "apps/game-mod/.local/deployments/2026-08-28T16-46-50.719Z",
       "runtime_instance_id": "7bcc19e7fb614eedad563db93310adc7",
       "environment_fingerprint": "15177b88c13f87fac1c4b676aee2529a643411952eeda50b82ca67837be1f15f",
