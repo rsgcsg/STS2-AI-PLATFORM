@@ -32,6 +32,20 @@ const POTION_OWNER_CANARY = Object.freeze({
   modset: "35c367613f6caf041842a02850582477edd1dfba018316dbf599f2f79aa81915",
   rollback: "apps/game-mod/.local/deployments/2026-08-27T16-03-47.774Z"
 });
+const NATIVE_SEMANTIC_DISCRIMINATOR = Object.freeze({
+  sourceRevision: "05d9e8e859a26b306f23ae5de188347d0570781b",
+  connectorTree: "42206612cbb07f18ec048286486534edcde5b4f2",
+  connectorDigest: "7e96c7a8fc31fdf2f198d50bc674b54547b051dd533c8e089b800cad178ef9a9",
+  annotatorTree: "a849c967e0b361cef10a1ee0ea3bb17070d12e85",
+  annotatorDigest: "d0eb10bf40d381fde88fcf5e0cc146aa9429a126c7cce3f9345acebb2d0e6e0b",
+  artifactSha: "d3b59bed5453b62e0f6e7b1efc3d0414748ec354d1205bf06edbd46ee1e301c1",
+  artifactMvid: "04acd691-90f8-4105-93d8-b260f4726315",
+  runtimeInstance: "f015b026a0d043538e4a3f8403476056",
+  environment: "190234e4a3b270d4447e13598c45aa205d40766b98f6efa2b99c3790b77386d2",
+  modset: "968a30c304f7ba8befd459f279a1f36957eb5dbebed94e8016111bce3389288c",
+  sessionId: "session-20260830T064823Z-ed1d683fe0b44e1db312c7489cda7fba",
+  timelineId: "timeline-bc4ee13a1bdd400bbec356e5a0abdbdc"
+});
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -185,54 +199,96 @@ export function validatePlatformBom(bom, authorities) {
 
   const policyCandidate = bom.unified_platform_runtime_candidate;
   expectEqual(errors, "unified Platform candidate status", policyCandidate?.status,
-    "native_semantic_discriminator_loaded_pending_human_canary");
+    "native_semantic_discriminator_bounded_human_pass");
   const discriminatorCandidate = policyCandidate?.native_semantic_discriminator_source_candidate;
   expectEqual(errors, "native discriminator candidate status", discriminatorCandidate?.status,
-    "loaded_pending_human_canary");
+    "human_canary_bounded_semantic_lane_supported");
   expectEqual(errors, "native discriminator workspace",
     discriminatorCandidate?.workspace_revision_at_build,
-    bom.components?.connector?.source_revision);
+    NATIVE_SEMANTIC_DISCRIMINATOR.sourceRevision);
   expectEqual(errors, "native discriminator Connector source",
     discriminatorCandidate?.connector_source_revision,
-    bom.components?.connector?.source_revision);
+    NATIVE_SEMANTIC_DISCRIMINATOR.sourceRevision);
   expectEqual(errors, "native discriminator Connector tree",
     discriminatorCandidate?.connector_component_tree_revision,
-    bom.components?.connector?.component_tree_revision);
+    NATIVE_SEMANTIC_DISCRIMINATOR.connectorTree);
   expectEqual(errors, "native discriminator Connector digest",
     discriminatorCandidate?.connector_component_source_digest_sha256,
-    bom.components?.connector?.component_source_digest_sha256);
+    NATIVE_SEMANTIC_DISCRIMINATOR.connectorDigest);
   expectEqual(errors, "native discriminator Annotator source",
     discriminatorCandidate?.annotator_source_revision,
-    bom.components?.annotator?.source_revision);
+    NATIVE_SEMANTIC_DISCRIMINATOR.sourceRevision);
   expectEqual(errors, "native discriminator Annotator tree",
     discriminatorCandidate?.annotator_component_tree_revision,
-    bom.components?.annotator?.component_tree_revision);
+    NATIVE_SEMANTIC_DISCRIMINATOR.annotatorTree);
   expectEqual(errors, "native discriminator Annotator digest",
     discriminatorCandidate?.annotator_component_source_digest_sha256,
-    bom.components?.annotator?.component_source_digest_sha256);
-  expectPattern(errors, "native discriminator artifact",
-    discriminatorCandidate?.artifact_sha256, SHA256);
-  expectPattern(errors, "native discriminator MVID", discriminatorCandidate?.artifact_mvid, MVID);
+    NATIVE_SEMANTIC_DISCRIMINATOR.annotatorDigest);
+  expectEqual(errors, "native discriminator artifact",
+    discriminatorCandidate?.artifact_sha256, NATIVE_SEMANTIC_DISCRIMINATOR.artifactSha);
+  expectEqual(errors, "native discriminator MVID",
+    discriminatorCandidate?.artifact_mvid, NATIVE_SEMANTIC_DISCRIMINATOR.artifactMvid);
   expectEqual(errors, "native discriminator build", discriminatorCandidate?.built,
     "pass_clean_source");
   expectEqual(errors, "native discriminator install", discriminatorCandidate?.installed, "pass");
   expectEqual(errors, "native discriminator load", discriminatorCandidate?.loaded, "pass");
   expectEqual(errors, "native discriminator Human runtime",
-    discriminatorCandidate?.human_runtime, "pending");
-  expectPattern(errors, "native discriminator runtime",
-    discriminatorCandidate?.runtime_instance_id, /^[0-9a-f]{32}$/u);
-  expectPattern(errors, "native discriminator environment",
-    discriminatorCandidate?.environment_fingerprint, SHA256);
+    discriminatorCandidate?.human_runtime, "pass_bounded_owner_canary");
+  expectEqual(errors, "native discriminator runtime",
+    discriminatorCandidate?.runtime_instance_id, NATIVE_SEMANTIC_DISCRIMINATOR.runtimeInstance);
+  expectEqual(errors, "native discriminator environment",
+    discriminatorCandidate?.environment_fingerprint, NATIVE_SEMANTIC_DISCRIMINATOR.environment);
   expectEqual(errors, "native discriminator Modset status",
     discriminatorCandidate?.modset_status, "exact_platform_modset");
-  expectPattern(errors, "native discriminator Modset",
-    discriminatorCandidate?.modset_fingerprint, SHA256);
+  expectEqual(errors, "native discriminator Modset",
+    discriminatorCandidate?.modset_fingerprint, NATIVE_SEMANTIC_DISCRIMINATOR.modset);
   if (!Array.isArray(discriminatorCandidate?.loaded_mod_ids)
     || discriminatorCandidate.loaded_mod_ids.length !== 1
     || discriminatorCandidate.loaded_mod_ids[0] !== "STS2_PLATFORM")
     errors.push("native discriminator loaded Mods: expected only STS2_PLATFORM");
   expectEqual(errors, "native discriminator runtime status",
-    discriminatorCandidate?.runtime_status, "ready_no_session");
+    discriminatorCandidate?.runtime_status, "recording_closed_process_exited");
+  const discriminatorHuman = discriminatorCandidate?.owner_canary;
+  expectEqual(errors, "native discriminator Human session", discriminatorHuman?.session_id,
+    NATIVE_SEMANTIC_DISCRIMINATOR.sessionId);
+  expectEqual(errors, "native discriminator Human timeline", discriminatorHuman?.timeline_id,
+    NATIVE_SEMANTIC_DISCRIMINATOR.timelineId);
+  expectEqual(errors, "native discriminator Human origin", discriminatorHuman?.human_origin,
+    "owner_attested_not_machine_proven");
+  expectEqual(errors, "native discriminator Human audit", discriminatorHuman?.audit_status,
+    "pass_after_audit_aggregation_fix");
+  expectEqual(errors, "native discriminator audit source",
+    discriminatorHuman?.audit_closeout_source_revision,
+    bom.components?.annotator?.source_revision);
+  for (const field of [
+    "manifest_sha256",
+    "decision_v2_sha256",
+    "native_ledger_sha256",
+    "native_semantic_discriminator_sha256"
+  ]) expectPattern(errors, `native discriminator Human ${field}`, discriminatorHuman?.[field], SHA256);
+  for (const [field, expected] of Object.entries({
+    valid_decision_v2: 40,
+    invalid_decision_v2: 0,
+    native_accepted: 41,
+    native_successful: 41,
+    native_cancelled: 0,
+    native_aborted: 0,
+    native_unknown: 0,
+    semantic_exact_once_membership: 41,
+    play_card: 30,
+    end_turn: 10,
+    use_potion: 1,
+    player_choice_pauses: 2,
+    player_choice_resumes: 2,
+    ordinary_execution_handoff_candidates: 40,
+    overlapping_acceptance: 0,
+    ui_frame_not_authoritative_at_execution: 34,
+    ui_complete_catalog_zero_membership: 7,
+    legacy_strict_transition_admitted: 40,
+    legacy_strict_transition_invalidated_on_close: 1
+  })) expectEqual(errors, `native discriminator Human ${field}`, discriminatorHuman?.[field], expected);
+  expectEqual(errors, "native discriminator route verdict", discriminatorHuman?.route_verdict,
+    "FEASIBLE_FULL_RUN_NATIVE_SEMANTIC_RECORDER_EXISTS");
   expectEqual(errors, "native discriminator predecessor transfer",
     discriminatorCandidate?.evidence_transfer_from_predecessor, false);
   expectPattern(errors, "native discriminator rollback", discriminatorCandidate?.rollback,
@@ -327,7 +383,7 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "candidate Connector source relation", policyCandidate?.connector?.source_relation,
     "loaded_native_source_precedes_current_discriminator_source");
   expectEqual(errors, "candidate Annotator source relation", policyCandidate?.annotator?.source_relation,
-    "loaded_native_source_precedes_current_full_run_source");
+    "loaded_native_source_precedes_current_audit_closeout_source");
   const semanticTimeline = policyCandidate?.semantic_timeline_source_candidate;
   expectEqual(errors, "semantic timeline source status", semanticTimeline?.status,
     "human_canary_bounded_live_proved");
@@ -1009,8 +1065,17 @@ export function validatePlatformBom(bom, authorities) {
     errors.push("S1 checkpoint/model-mode non-claim is missing");
   if (!bom.non_claims?.includes("serialized_canonical_candidate_human_runtime_not_exercised"))
     errors.push("Serialized canonical Human-runtime non-claim is missing");
-  if (!bom.non_claims?.includes("native_semantic_discriminator_human_runtime_pending"))
-    errors.push("Native semantic discriminator Human-runtime non-claim is missing");
+  if (bom.non_claims?.includes("native_semantic_discriminator_human_runtime_pending"))
+    errors.push("Bounded Human-proved native discriminator retains a stale pending non-claim");
+  for (const value of [
+    "native_semantic_discriminator_overlapping_acceptance_not_exercised",
+    "native_semantic_discriminator_cancel_abort_not_exercised",
+    "native_semantic_discriminator_handoff_is_candidate_not_final_successor",
+    "native_semantic_discriminator_full_run_not_implemented"
+  ]) {
+    if (!bom.non_claims?.includes(value))
+      errors.push(`Native semantic discriminator non-claim is missing: ${value}`);
+  }
   return errors;
 }
 

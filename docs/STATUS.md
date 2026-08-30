@@ -13,12 +13,12 @@ GitHub enforcement is an operational fact separate from this source document;
 the workflow records intended rules, while repository settings must be checked
 directly before claiming protection.
 
-Phase: **gameplay-safe native semantic discriminator source candidate**.
+Phase: **bounded Human-proved native semantic sequential lane**.
 Commit `4384a14...` is preserved as the non-release tag
 `baseline/pr3-gameplay-safe-4384a14`; it removed the evidence-dependent global
 UI gate after that gate blocked ordinary unsupported gameplay. ADR 0003 is now
 a historical candidate under re-audit, not active gameplay authority. Current
-source adds an independent read-only stream at the exact native execution seam:
+native source adds an independent read-only stream at the exact execution seam:
 it compares the current UI catalog with `S_sem + A_sem(S)` derived from STS2's
 logical combat state and native card/potion validators. It tracks exact
 accepted action identity, cancellation, pre-Commit abort, player-choice
@@ -26,9 +26,19 @@ pause/resume and terminal lifecycle without changing scheduling, legality or UI
 delivery. Source, deterministic tests and a clean exact build pass as artifact
 `d3b59bed... / 04acd691...`. It is safely installed and cold-loaded in runtime
 `f015b026...`, environment `190234e4...`, exact sole-Platform Modset
-`968a30c3...`; Recorder is Ready with no open session. It is not yet claimed
-Human-exercised. See the
-[discriminator source closeout](evidence/NATIVE_SEMANTIC_RUNTIME_DISCRIMINATOR_SOURCE_CLOSEOUT_2026-08-30.md).
+`968a30c3...`. Closed owner session
+`session-20260830T064823Z-ed1d683fe0b44e1db312c7489cda7fba`
+records 41 accepted and 41 successful roots with 41 exact-once memberships in
+native `A_sem(S)`, zero unknown/cancel/abort, and two complete player-choice
+pause/resume pairs. The UI frame was not authoritative for 34 roots and a
+complete UI catalog omitted the executing root seven times. This supports
+`FEASIBLE_FULL_RUN_NATIVE_SEMANTIC_RECORDER_EXISTS` for the bounded combat
+mechanisms; it does not prove overlapping acceptance, cancel/abort, final
+successor semantics or Full Run. Audit-only source `193861a...` fixes stream
+aggregation for that closed session without changing or inheriting the loaded
+native artifact. The game process was exited after recording Close. See the
+[source closeout](evidence/NATIVE_SEMANTIC_RUNTIME_DISCRIMINATOR_SOURCE_CLOSEOUT_2026-08-30.md)
+and [Human closeout](evidence/NATIVE_SEMANTIC_RUNTIME_DISCRIMINATOR_HUMAN_CLOSEOUT_2026-08-30.md).
 
 Normalized semantic evidence schema 3 is now bounded Human-proved for its
 trace-level accounting and storage contract on exact

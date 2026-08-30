@@ -16,9 +16,9 @@
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "05d9e8e859a26b306f23ae5de188347d0570781b",
-      "component_tree_revision": "a849c967e0b361cef10a1ee0ea3bb17070d12e85",
-      "component_source_digest_sha256": "d0eb10bf40d381fde88fcf5e0cc146aa9429a126c7cce3f9345acebb2d0e6e0b"
+      "source_revision": "193861ad9f8e1e7c058a292942b5cf5729aad413",
+      "component_tree_revision": "b1ecb56bf12d87327191a0a34422ce37ad6e6398",
+      "component_source_digest_sha256": "1c2c8166e928dee4c425f08958a667f4c9fc3f816378a34f2306b0299f29db38"
     },
     "evidence": {
       "version": "0.1.0-rc.1",
@@ -161,8 +161,8 @@
     "annotator": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
       "source_digest_sha256": "8d23f1015a7b0df800f78a7545da5c86bfee521131c4391b398c884ff917918f",
-      "current_component_source_revision": "05d9e8e859a26b306f23ae5de188347d0570781b",
-      "current_component_source_digest_sha256": "d0eb10bf40d381fde88fcf5e0cc146aa9429a126c7cce3f9345acebb2d0e6e0b",
+      "current_component_source_revision": "193861ad9f8e1e7c058a292942b5cf5729aad413",
+      "current_component_source_digest_sha256": "1c2c8166e928dee4c425f08958a667f4c9fc3f816378a34f2306b0299f29db38",
       "source_relation": "loaded_human_v2_artifact_precedes_unified_platform_source",
       "artifact_sha256": "4e911dd616afa55753a5320a42c11ce0cebe9d4d10fefd66c8f8a431884cf105",
       "artifact_mvid": "692e9dd9-4bc7-4203-ae12-511ef95a5331",
@@ -237,7 +237,7 @@
     }
   },
   "unified_platform_runtime_candidate": {
-    "status": "native_semantic_discriminator_loaded_pending_human_canary",
+    "status": "native_semantic_discriminator_bounded_human_pass",
     "platform": "darwin",
     "architecture": "arm64",
     "game": {
@@ -264,14 +264,14 @@
     "annotator": {
       "source_revision": "cb20bfa6e4e0e64b3ee8fdf0e1d472e8a668450b",
       "source_digest_sha256": "3910bcbc71599610b125c91c62e9860541ce9edea9b2c0a9f41842eb53651071",
-      "current_component_source_revision": "05d9e8e859a26b306f23ae5de188347d0570781b",
-      "current_component_source_digest_sha256": "d0eb10bf40d381fde88fcf5e0cc146aa9429a126c7cce3f9345acebb2d0e6e0b",
-      "source_relation": "loaded_native_source_precedes_current_full_run_source",
+      "current_component_source_revision": "193861ad9f8e1e7c058a292942b5cf5729aad413",
+      "current_component_source_digest_sha256": "1c2c8166e928dee4c425f08958a667f4c9fc3f816378a34f2306b0299f29db38",
+      "source_relation": "loaded_native_source_precedes_current_audit_closeout_source",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b"
     },
     "native_semantic_discriminator_source_candidate": {
-      "status": "loaded_pending_human_canary",
+      "status": "human_canary_bounded_semantic_lane_supported",
       "workspace_revision_at_build": "05d9e8e859a26b306f23ae5de188347d0570781b",
       "connector_source_revision": "05d9e8e859a26b306f23ae5de188347d0570781b",
       "connector_component_tree_revision": "42206612cbb07f18ec048286486534edcde5b4f2",
@@ -284,7 +284,7 @@
       "built": "pass_clean_source",
       "installed": "pass",
       "loaded": "pass",
-      "human_runtime": "pending",
+      "human_runtime": "pass_bounded_owner_canary",
       "installed_at": "2026-08-30T06:43:57.795Z",
       "loaded_at": "2026-08-30T06:44:03.9342740+00:00",
       "runtime_instance_id": "f015b026a0d043538e4a3f8403476056",
@@ -292,7 +292,38 @@
       "modset_status": "exact_platform_modset",
       "modset_fingerprint": "968a30c304f7ba8befd459f279a1f36957eb5dbebed94e8016111bce3389288c",
       "loaded_mod_ids": ["STS2_PLATFORM"],
-      "runtime_status": "ready_no_session",
+      "runtime_status": "recording_closed_process_exited",
+      "owner_canary": {
+        "session_id": "session-20260830T064823Z-ed1d683fe0b44e1db312c7489cda7fba",
+        "timeline_id": "timeline-bc4ee13a1bdd400bbec356e5a0abdbdc",
+        "human_origin": "owner_attested_not_machine_proven",
+        "audit_status": "pass_after_audit_aggregation_fix",
+        "audit_closeout_source_revision": "193861ad9f8e1e7c058a292942b5cf5729aad413",
+        "manifest_sha256": "f8a5197954478a6d127578a4fdc72b549abd07669520e6caf0a66c70d61a947f",
+        "decision_v2_sha256": "e8a55b674060ca1a7f4a96b932a0ebed4596e2704b5a620956e6a826daa63020",
+        "native_ledger_sha256": "3a77a8b370d73a9d309b4ef7b64a374f7cb0df12610cfb8f7ad7775ee6a9f8c3",
+        "native_semantic_discriminator_sha256": "3accf85cf040c0ba6076a210a7d7cf47954fcf289d07b5c62eebb3c07a2e6049",
+        "valid_decision_v2": 40,
+        "invalid_decision_v2": 0,
+        "native_accepted": 41,
+        "native_successful": 41,
+        "native_cancelled": 0,
+        "native_aborted": 0,
+        "native_unknown": 0,
+        "semantic_exact_once_membership": 41,
+        "play_card": 30,
+        "end_turn": 10,
+        "use_potion": 1,
+        "player_choice_pauses": 2,
+        "player_choice_resumes": 2,
+        "ordinary_execution_handoff_candidates": 40,
+        "overlapping_acceptance": 0,
+        "ui_frame_not_authoritative_at_execution": 34,
+        "ui_complete_catalog_zero_membership": 7,
+        "legacy_strict_transition_admitted": 40,
+        "legacy_strict_transition_invalidated_on_close": 1,
+        "route_verdict": "FEASIBLE_FULL_RUN_NATIVE_SEMANTIC_RECORDER_EXISTS"
+      },
       "evidence_transfer_from_predecessor": false,
       "rollback": "apps/game-mod/.local/deployments/2026-08-30T06-43-57.781Z"
     },
@@ -799,6 +830,9 @@
     "automated_input_canary_is_not_owner_visibility_evidence",
     "s1_checkpoint_absent_shadow_one_step_auto_not_exercised",
     "serialized_canonical_candidate_human_runtime_not_exercised",
-    "native_semantic_discriminator_human_runtime_pending"
+    "native_semantic_discriminator_overlapping_acceptance_not_exercised",
+    "native_semantic_discriminator_cancel_abort_not_exercised",
+    "native_semantic_discriminator_handoff_is_candidate_not_final_successor",
+    "native_semantic_discriminator_full_run_not_implemented"
   ]
 }

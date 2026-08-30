@@ -6,16 +6,18 @@ requests, or dated evidence.
 
 ## Current phase
 
-`develop` retains the bounded Human-proved schema-2 trace baseline. PR #3 now
-preserves gameplay-safe commit `4384a14...` as a non-release tag and tests a
-read-only native semantic sequential lane. The discriminator records `A(UI)`
-beside STS2-owned logical `S_sem + A_sem(S)` at first native execution, plus
-exact accepted identity, cancellation, pre-Commit abort and player-choice
-lineage. It cannot authorize, block or execute UI. Source/tests/build pass; the
-clean artifact `d3b59bed... / 04acd691...` is installed and cold-loaded in
-runtime `f015b026...` with exact sole-Platform Modset `968a30c3...`; it is not
-yet Human-exercised. ADR 0003 is a
-historical candidate under re-audit, not active gameplay authority.
+`develop` retains the bounded Human-proved schema-2 trace baseline. PR #3
+preserves gameplay-safe commit `4384a14...` as a non-release tag and now has a
+bounded Human-proved read-only native semantic sequential lane. Exact session
+`session-20260830T064823Z-...` records 41/41 successful roots as exact-once in
+STS2-owned logical `A_sem(S)` at first native execution; it includes PlayCard,
+EndTurn, potion and player-choice pause/resume. The same run proves that
+execution-time `A(UI)` is not the semantic action authority. The discriminator
+cannot authorize, block or execute UI. Loaded native artifact
+`d3b59bed... / 04acd691...`, runtime `f015b026...`, and Modset `968a30c3...`
+remain exact; audit-only source `193861a...` repaired cross-stream accounting
+without changing that artifact. ADR 0003 remains a historical candidate, not
+active gameplay authority.
 
 ## Active workstreams
 
@@ -30,9 +32,11 @@ historical candidate under re-audit, not active gameplay authority.
 
 ## Current blockers and open questions
 
-- The native semantic lane requires one exact-artifact owner canary covering
-  rapid roots, native cancellation, potion, End Turn and player-choice
-  pause/resume before an engineering verdict.
+- True overlapping accepted roots/execution reorder and native cancel/abort did
+  not occur in the bounded discriminator canary and remain targeted Live gates.
+- Adjacent first-execution digests are causal handoff candidates, not proof of
+  final successor/business outcome semantics; non-combat Full-Run native
+  adapters remain to be implemented.
 - The S1 checkpoint named by the current Policy Manifest is unavailable on this
   Mac, so real-model Shadow, One-Step, Auto, and Agent-run evidence remain
   unexercised.
@@ -42,9 +46,10 @@ historical candidate under re-audit, not active gameplay authority.
 ## Next meaningful gates
 
 - Keep the required `portable` source/test gate green on latest PR heads.
-- Run the native discriminator candidate's bounded owner canary. Do not restore
-  global UI serialization, add natural-
-  observer polling or transfer predecessor Human evidence.
+- Extend the execution-bound native semantic lane to the next narrow non-combat
+  Full-Run mechanisms. Keep unknown UI playable and fail evidence closed; do
+  not restore global UI serialization, add natural-observer polling or transfer
+  predecessor Human evidence.
 
 Use `npm run project:context` to start a task and
 `npm run project:closeout` to surface likely documentation, evidence, contract,

@@ -18,11 +18,15 @@
   choice accounting.
 - Complete: current Managed Exact rebuild plus 80-action/158-Read reset,
   stale, idempotency and bounded performance measurement.
-- Pending exact-runtime canary: rapid root chains, an earlier effect cancelling
-  a later queued root, potion, End Turn and player-choice pause/resume.
-- Next after the gate: choose the native semantic sequential architecture only
-  from exact Human evidence. Do not restore global UI serialization, natural-
-  observer polling or a second legality model.
+- Complete bounded exact-runtime canary: 41/41 successful roots are exact-once
+  in STS2-owned native `A_sem(S)`, across 30 PlayCard, ten EndTurn, one potion
+  use and two player-choice pause/resume pairs. The same run disproves current
+  `A(UI)` as sequential semantic authority. See the
+  [Human closeout](evidence/NATIVE_SEMANTIC_RUNTIME_DISCRIMINATOR_HUMAN_CLOSEOUT_2026-08-30.md).
+- Next: extend the same execution-bound native semantic adapters to non-combat
+  Full-Run mechanisms. Keep separate targeted gates for true overlapping
+  acceptance/execution reorder and native cancel/abort; do not restore global
+  UI serialization, natural-observer polling or a second legality model.
 
 ## Consolidation Baseline
 

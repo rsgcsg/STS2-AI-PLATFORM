@@ -49,8 +49,14 @@ process-local discriminator for ordinary combat Play/End Turn/Potion. At native
 first execution it records both `A(UI)` and `S_sem + A_sem(S)` from logical hand,
 current potion slots, combat phase and STS2 validators. Generated choice remains
 linked to its paused parent lifecycle rather than becoming a replacement root.
-This is source/test evidence; the matrix's Live column remains predecessor
-trace evidence until the new artifact is owner-operated.
+Exact owner session `session-20260830T064823Z-...` exercises 30 PlayCard, ten
+EndTurn and one potion root plus two player-choice pause/resume pairs. All 41
+successful roots have complete first-execution captures and exact-once native
+semantic membership. The UI frame is non-authoritative for 34 roots and a
+complete UI catalog omits the executing root seven times. This is bounded Human
+support for the native semantic lane, not proof of true overlapping acceptance,
+cancel/abort, final successor semantics or non-combat Full Run. See the
+[Human closeout](evidence/NATIVE_SEMANTIC_RUNTIME_DISCRIMINATOR_HUMAN_CLOSEOUT_2026-08-30.md).
 
 Semantic state Read requirements are interaction-specific: combat requires
 `run_deck` and `combat_piles`, shop requires `run_deck` and `shop_catalog`, and

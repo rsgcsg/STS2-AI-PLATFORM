@@ -92,7 +92,10 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   candidate.serialized_canonical_loaded_candidate.host_automation.same_artifact_prefix_9 =
     "semantic_mismatch";
   candidate.serialized_canonical_loaded_candidate.evidence_transfer_from_predecessor = true;
-  candidate.native_semantic_discriminator_source_candidate.human_runtime = "pass";
+  candidate.native_semantic_discriminator_source_candidate.human_runtime = "pending";
+  candidate.native_semantic_discriminator_source_candidate.owner_canary.native_successful = 40;
+  candidate.native_semantic_discriminator_source_candidate.owner_canary.route_verdict =
+    "PRACTICALLY_IMPOSSIBLE_TRIANGLE";
   candidate.native_semantic_discriminator_source_candidate.evidence_transfer_from_predecessor = true;
   candidate.recording_application_decision_gate.human_origin = "machine_proven";
   candidate.predecessor_human_session.evidence_transfer_to_unified_artifact = true;
@@ -108,8 +111,9 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
     (claim) => claim !== "serialized_canonical_candidate_human_runtime_not_exercised"
   );
   bom.non_claims = bom.non_claims.filter(
-    (claim) => claim !== "native_semantic_discriminator_human_runtime_pending"
+    (claim) => claim !== "native_semantic_discriminator_cancel_abort_not_exercised"
   );
+  bom.non_claims.push("native_semantic_discriminator_human_runtime_pending");
   bom.non_claims.push("semantic_execution_order_exact_rebind_not_exercised");
   const errors = validatePlatformBom(bom, await readBomAuthorities(root));
   assert.ok(errors.some((error) => error.startsWith("candidate current Live UI source:")));
@@ -141,6 +145,9 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   assert.ok(errors.some((error) => error.startsWith("serialized candidate Human runtime:")));
   assert.ok(errors.some((error) => error.startsWith("serialized candidate predecessor transfer:")));
   assert.ok(errors.some((error) => error.startsWith("native discriminator Human runtime:")));
+  assert.ok(errors.some((error) =>
+    error.startsWith("native discriminator Human native_successful:")));
+  assert.ok(errors.some((error) => error.startsWith("native discriminator route verdict:")));
   assert.ok(errors.some((error) => error.startsWith("native discriminator predecessor transfer:")));
   assert.ok(errors.some((error) => error.startsWith("accepted-only Human origin:")));
   assert.ok(errors.some((error) => error.startsWith("predecessor evidence transfer:")));
@@ -148,7 +155,11 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   assert.ok(errors.includes("S1 checkpoint/model-mode non-claim is missing"));
   assert.ok(errors.includes("Native-rejected attempt attribution non-claim is missing"));
   assert.ok(errors.includes("Serialized canonical Human-runtime non-claim is missing"));
-  assert.ok(errors.includes("Native semantic discriminator Human-runtime non-claim is missing"));
+  assert.ok(errors.includes(
+    "Bounded Human-proved native discriminator retains a stale pending non-claim"));
+  assert.ok(errors.includes(
+    "Native semantic discriminator non-claim is missing: "
+      + "native_semantic_discriminator_cancel_abort_not_exercised"));
   assert.ok(errors.includes(
     "Live-proved semantic execution-order rebind retains a stale non-claim"
   ));
