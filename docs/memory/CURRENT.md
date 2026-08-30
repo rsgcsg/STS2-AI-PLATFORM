@@ -12,8 +12,9 @@ read-only native semantic sequential lane. The discriminator records `A(UI)`
 beside STS2-owned logical `S_sem + A_sem(S)` at first native execution, plus
 exact accepted identity, cancellation, pre-Commit abort and player-choice
 lineage. It cannot authorize, block or execute UI. Source/tests/build pass; the
-clean artifact `d3b59bed... / 04acd691...` is built but not yet installed,
-loaded or Human-exercised. ADR 0003 is a
+clean artifact `d3b59bed... / 04acd691...` is installed and cold-loaded in
+runtime `f015b026...` with exact sole-Platform Modset `968a30c3...`; it is not
+yet Human-exercised. ADR 0003 is a
 historical candidate under re-audit, not active gameplay authority.
 
 ## Active workstreams
@@ -41,8 +42,8 @@ historical candidate under re-audit, not active gameplay authority.
 ## Next meaningful gates
 
 - Keep the required `portable` source/test gate green on latest PR heads.
-- Install and cold-load the native discriminator candidate, then run its
-  bounded owner canary. Do not restore global UI serialization, add natural-
+- Run the native discriminator candidate's bounded owner canary. Do not restore
+  global UI serialization, add natural-
   observer polling or transfer predecessor Human evidence.
 
 Use `npm run project:context` to start a task and

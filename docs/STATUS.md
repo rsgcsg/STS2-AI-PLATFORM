@@ -24,7 +24,9 @@ logical combat state and native card/potion validators. It tracks exact
 accepted action identity, cancellation, pre-Commit abort, player-choice
 pause/resume and terminal lifecycle without changing scheduling, legality or UI
 delivery. Source, deterministic tests and a clean exact build pass as artifact
-`d3b59bed... / 04acd691...`. It is not yet claimed installed, loaded or
+`d3b59bed... / 04acd691...`. It is safely installed and cold-loaded in runtime
+`f015b026...`, environment `190234e4...`, exact sole-Platform Modset
+`968a30c3...`; Recorder is Ready with no open session. It is not yet claimed
 Human-exercised. See the
 [discriminator source closeout](evidence/NATIVE_SEMANTIC_RUNTIME_DISCRIMINATOR_SOURCE_CLOSEOUT_2026-08-30.md).
 

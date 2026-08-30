@@ -237,7 +237,7 @@
     }
   },
   "unified_platform_runtime_candidate": {
-    "status": "native_semantic_discriminator_built_pending_install",
+    "status": "native_semantic_discriminator_loaded_pending_human_canary",
     "platform": "darwin",
     "architecture": "arm64",
     "game": {
@@ -271,7 +271,7 @@
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b"
     },
     "native_semantic_discriminator_source_candidate": {
-      "status": "built_pending_install_load_human_canary",
+      "status": "loaded_pending_human_canary",
       "workspace_revision_at_build": "05d9e8e859a26b306f23ae5de188347d0570781b",
       "connector_source_revision": "05d9e8e859a26b306f23ae5de188347d0570781b",
       "connector_component_tree_revision": "42206612cbb07f18ec048286486534edcde5b4f2",
@@ -282,10 +282,19 @@
       "artifact_sha256": "d3b59bed5453b62e0f6e7b1efc3d0414748ec354d1205bf06edbd46ee1e301c1",
       "artifact_mvid": "04acd691-90f8-4105-93d8-b260f4726315",
       "built": "pass_clean_source",
-      "installed": "pending",
-      "loaded": "pending",
+      "installed": "pass",
+      "loaded": "pass",
       "human_runtime": "pending",
-      "evidence_transfer_from_predecessor": false
+      "installed_at": "2026-08-30T06:43:57.795Z",
+      "loaded_at": "2026-08-30T06:44:03.9342740+00:00",
+      "runtime_instance_id": "f015b026a0d043538e4a3f8403476056",
+      "environment_fingerprint": "190234e4a3b270d4447e13598c45aa205d40766b98f6efa2b99c3790b77386d2",
+      "modset_status": "exact_platform_modset",
+      "modset_fingerprint": "968a30c304f7ba8befd459f279a1f36957eb5dbebed94e8016111bce3389288c",
+      "loaded_mod_ids": ["STS2_PLATFORM"],
+      "runtime_status": "ready_no_session",
+      "evidence_transfer_from_predecessor": false,
+      "rollback": "apps/game-mod/.local/deployments/2026-08-30T06-43-57.781Z"
     },
     "serialized_canonical_loaded_candidate": {
       "status": "loaded_pending_owner_human_canary",

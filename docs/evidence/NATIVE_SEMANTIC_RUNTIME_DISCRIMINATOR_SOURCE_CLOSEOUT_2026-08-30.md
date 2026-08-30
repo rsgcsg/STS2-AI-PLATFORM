@@ -2,8 +2,8 @@
 
 ## Evidence boundary
 
-This report binds source, exact-source audit, deterministic tests and a clean
-exact build. It does not claim install, load, Human gameplay, canonical rows or
+This report binds source, exact-source audit, deterministic tests, clean exact
+build, install and load. It does not claim Human gameplay, canonical rows or
 Full-Run qualification. Gameplay-safe commit `4384a14...` is preserved by the
 non-release tag `baseline/pr3-gameplay-safe-4384a14` and remains the rollback
 baseline.
@@ -56,8 +56,11 @@ fails audit rather than affecting gameplay.
 - clean workspace `05d9e8e...` builds unified artifact
   `d3b59bed... / 04acd691...`.
 
-This artifact is only a build candidate until safe install and cold-load bind
-its exact runtime identity.
+Safe install records rollback
+`apps/game-mod/.local/deployments/2026-08-30T06-43-57.781Z`. Cold-load verifies
+artifact `d3b59bed... / 04acd691...`, Connector runtime `f015b026...`,
+environment `190234e4...`, sole-Platform Modset `968a30c3...`, protocol `1.0.0`
+and Recorder Ready/no-session. Loaded is not Human action evidence.
 
 ## Runtime discriminator gate
 

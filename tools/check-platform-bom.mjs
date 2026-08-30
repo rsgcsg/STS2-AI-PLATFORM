@@ -185,10 +185,10 @@ export function validatePlatformBom(bom, authorities) {
 
   const policyCandidate = bom.unified_platform_runtime_candidate;
   expectEqual(errors, "unified Platform candidate status", policyCandidate?.status,
-    "native_semantic_discriminator_built_pending_install");
+    "native_semantic_discriminator_loaded_pending_human_canary");
   const discriminatorCandidate = policyCandidate?.native_semantic_discriminator_source_candidate;
   expectEqual(errors, "native discriminator candidate status", discriminatorCandidate?.status,
-    "built_pending_install_load_human_canary");
+    "loaded_pending_human_canary");
   expectEqual(errors, "native discriminator workspace",
     discriminatorCandidate?.workspace_revision_at_build,
     bom.components?.connector?.source_revision);
@@ -215,12 +215,28 @@ export function validatePlatformBom(bom, authorities) {
   expectPattern(errors, "native discriminator MVID", discriminatorCandidate?.artifact_mvid, MVID);
   expectEqual(errors, "native discriminator build", discriminatorCandidate?.built,
     "pass_clean_source");
-  expectEqual(errors, "native discriminator install", discriminatorCandidate?.installed, "pending");
-  expectEqual(errors, "native discriminator load", discriminatorCandidate?.loaded, "pending");
+  expectEqual(errors, "native discriminator install", discriminatorCandidate?.installed, "pass");
+  expectEqual(errors, "native discriminator load", discriminatorCandidate?.loaded, "pass");
   expectEqual(errors, "native discriminator Human runtime",
     discriminatorCandidate?.human_runtime, "pending");
+  expectPattern(errors, "native discriminator runtime",
+    discriminatorCandidate?.runtime_instance_id, /^[0-9a-f]{32}$/u);
+  expectPattern(errors, "native discriminator environment",
+    discriminatorCandidate?.environment_fingerprint, SHA256);
+  expectEqual(errors, "native discriminator Modset status",
+    discriminatorCandidate?.modset_status, "exact_platform_modset");
+  expectPattern(errors, "native discriminator Modset",
+    discriminatorCandidate?.modset_fingerprint, SHA256);
+  if (!Array.isArray(discriminatorCandidate?.loaded_mod_ids)
+    || discriminatorCandidate.loaded_mod_ids.length !== 1
+    || discriminatorCandidate.loaded_mod_ids[0] !== "STS2_PLATFORM")
+    errors.push("native discriminator loaded Mods: expected only STS2_PLATFORM");
+  expectEqual(errors, "native discriminator runtime status",
+    discriminatorCandidate?.runtime_status, "ready_no_session");
   expectEqual(errors, "native discriminator predecessor transfer",
     discriminatorCandidate?.evidence_transfer_from_predecessor, false);
+  expectPattern(errors, "native discriminator rollback", discriminatorCandidate?.rollback,
+    /^apps\/game-mod\/\.local\/deployments\/[0-9TZ.:-]+$/u);
   const serializedCandidate = policyCandidate?.serialized_canonical_loaded_candidate;
   expectEqual(errors, "serialized candidate status", serializedCandidate?.status,
     "loaded_pending_owner_human_canary");
