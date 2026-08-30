@@ -19,10 +19,23 @@ An isolated refactor branch, stacked from PR #3 head `72e54f9...`, now contains
 the first Platform-wide Native Foundation vertical slice. Direct Combat cards,
 potions, targets, and End Turn use one STS2-owned semantic catalog consumed by
 Connector and Annotator. PlayerChoice parent lineage and `GameAction` lifecycle
-use one read-only adapter. Reward/CardReward/Map have a source/test owner
-discriminator that creates no action authority. Public protocol 1.0.0 remains
-compatible; `Receipt.Successor` is clarified as an immediate post-delivery
-observation, not canonical causal `S'`.
+use one read-only adapter. PR #5 remains frozen at `79191a1...` with its exact
+Windows Human gate pending.
+
+Stacked continuation source `47dacf9...` deepens Map, Reward and CardReward
+from owner discrimination to three typed Native Foundation decision adapters.
+The providers read `RunState`/`MapTravel`, the exact `RewardsSet`, and exact
+card-reward option arrays. Connector now intersects those native catalogs with
+current delivery controls and revalidates native membership at execution;
+Annotator consumes the same catalog without gaining legality or mutation
+authority. UI-derived reachability/reward/option publication is demoted from
+semantic authority. Targeted tests and an exact clean macOS build pass as
+artifact `3e3ebc3c... / 53568805...` against STS2
+`v0.111.0 / 41cef1ea / 9cb4f1ad... / 57785517...`. This is source/test/build
+evidence only: that artifact is not yet installed, loaded or Human-exercised.
+Public protocol 1.0.0 remains compatible; `Receipt.Successor` is still an
+immediate post-delivery observation, not canonical causal `S'`. See the
+[continuation source closeout](evidence/NATIVE_FOUNDATION_FULL_RUN_SOURCE_CLOSEOUT_2026-08-31.md).
 
 Connector, Annotator, unified-Mod targeted checks and the full portable suite
 pass for component source commit `a3bcd37...`. Clean build, safe install and

@@ -14,8 +14,15 @@ Current bounded ownership:
 - `NativeCombatDecisionProvider`: logical combat decision and native legality;
 - `NativeActionLifecycleObserver`: exact read-only `GameAction` lifecycle;
 - `NativePlayerChoiceLineage`: current parent/continuation identity;
-- `NativeDomainOwnerProbe`: Reward/CardReward/Map owner discriminator only.
+- `NativeMapDecisionProvider`: game-owned map destinations from `RunState` and
+  `MapTravel`;
+- `NativeRewardDecisionProvider`: exact `RewardsSet` membership, potion-belt
+  alternatives and native proceed policy;
+- `NativeCardRewardDecisionProvider`: exact card and alternative option lists;
+- `NativeDomainOwnerProbe`: cross-domain owner discriminator only.
 
-The final item deliberately does not enumerate actions. A domain enters this
-component only when its STS2 semantic owner and lifecycle can be expressed
-without importing UI timing, transport, evidence, or a second game-rules model.
+The owner probe deliberately does not enumerate actions. Each typed provider
+reads a real STS2 owner; visible screens and controls only bind current input
+delivery. A domain enters this component only when its semantic owner can be
+expressed without importing UI timing, transport, evidence, or a second
+game-rules model.

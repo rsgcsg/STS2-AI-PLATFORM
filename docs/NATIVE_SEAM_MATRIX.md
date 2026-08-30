@@ -55,22 +55,22 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 
 | Field | Exact-version conclusion |
 |---|---|
-| Semantic owner | `RunState` map graph/current coordinate/visited coordinates and native map point state |
-| State source | current act map, `CurrentMapCoord`, reachable `MapPoint` graph and visited history |
-| Semantic action source | native travelable destinations; current Platform still derives the list through bound `NMapPoint` nodes plus `RunState` checks |
-| Native validator | map-point travelable state, run destination membership and tutorial/travel state |
+| Semantic owner | `RunState` map graph, current `MapPoint`, visited coordinates and native `MapTravel` rule |
+| State source | current `ActMap`, `CurrentMapPoint`, `VisitedMapCoords`, starting/boss points and graph children |
+| Semantic action source | `NativeMapDecisionProvider` calls `MapTravel.GetTravelablePointsFrom` or selects the game-owned starting/boss transition point |
+| Native validator | game-owned destination membership; Connector separately rechecks current `NMapPoint.State` and input readiness before delivery |
 | Decision boundary | map is open, travel is enabled, no travel is active and no annotation mode owns input |
 | Presentation owner | `NMapScreen`, `NMapPoint`, `NMapDrawingInput` and current controller mode |
 | Delivery seam | `NMapScreen.OnMapPointSelectedLocally`; annotation stop on the exact drawing input |
-| Exact binding | map-screen identity plus exact `NMapPoint`/coordinate object |
+| Exact binding | public referent binds the process-local `MapPoint`; Connector resolves one current `NMapPoint` only for delivery |
 | Lifecycle | route vote/travel and room transition; annotation is presentation-only |
 | Next-decision seam | entered room's native decision owner or another explicit map decision |
 | Root/continuation | route selection is a root; annotation is a non-gameplay UI continuation |
-| Current workaround | private `_isInputDisabled`/`_drawingInput`, controller on-screen filtering and bound UI nodes |
-| Heuristic debt | semantic reachability and UI deliverability remain mixed in `MapNavigationSurfaceReader` |
+| Current workaround | private `_isInputDisabled`/`_drawingInput`, FTUE and controller on-screen filtering remain delivery readiness only |
+| Heuristic debt | causal room-entry completion remains outside the decision provider; map annotation is presentation-only |
 | Ritsu support | map-generation and room lifecycle helpers, not exact route-choice authority |
-| Missing evidence | native destination provider T1 and final artifact map T2/T3 |
-| Migration verdict | owner discriminator implemented; native decision adapter is the next migration step |
+| Missing evidence | continuation artifact install/load and representative map T2/T3 |
+| Migration verdict | typed native decision adapter implemented; old UI reachability authority removed |
 
 ## Merchant / Shop
 
@@ -99,20 +99,20 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 |---|---|
 | Semantic owner | current room reward set and each native `Reward` object |
 | State source | unclaimed rewards, potion capacity, linked reward sets and reward-screen progression |
-| Semantic action source | native reward collection; current Platform discovers ordinary choices through `NRewardButton` |
-| Native validator | reward-specific selection/procure logic and player capacity; linked sets require their own contract |
+| Semantic action source | `NativeRewardDecisionProvider` projects unselected native rewards, full-belt potion discard operands and native proceed policy from the exact `RewardsSet` |
+| Native validator | `Reward.SuccessfullySelected`, potion slots/`CanUseOrRemovePotions`, `RewardsSet.DisallowSkipping`/`AllRewardsSuccessfullySelected`, and `Hook.ShouldProceedToNextMapPoint`; linked sets remain explicit unsupported |
 | Decision boundary | rewards overlay owns input and has at least one exact claim/discard/proceed operation |
 | Presentation owner | `NRewardsScreen`, `NRewardButton`, potion popup and `NProceedButton` |
 | Delivery seam | exact reward button callback, `DiscardPotionGameAction`, or Proceed control |
-| Exact binding | reward-screen plus exact `Reward`/button or potion slot |
+| Exact binding | public referent binds the process-local `Reward` or `PotionModel`; Connector resolves one current button/slot only for delivery |
 | Lifecycle | claim may open CardReward or another nested selection; proceed starts room/map transition |
 | Next-decision seam | CardReward owner, remaining reward set, or Map owner after room transition |
 | Root/continuation | claim/proceed are roots; nested reward choices are continuations |
-| Current workaround | visible buttons are the publication source; linked sets fail closed |
-| Heuristic debt | reward model membership is not yet isolated from screen controls |
+| Current workaround | visible/enabled buttons and popup slots remain current delivery readiness; linked sets fail closed |
+| Heuristic debt | reward-specific `OnSelect` may still return false at native Commit; Receipt remains delivery-only and no business Outcome is inferred |
 | Ritsu support | reward-taken and rewards-screen continuation events, not complete action enumeration/binding |
-| Missing evidence | shared reward provider T0/T1 and final `lethal -> Reward` T3 |
-| Migration verdict | cross-domain owner discriminator implemented; decision adapter pending |
+| Missing evidence | continuation artifact install/load and final `lethal -> Reward` T2/T3 |
+| Migration verdict | typed native decision adapter implemented; visible reward buttons no longer create semantic membership |
 
 ## CardReward
 
@@ -120,20 +120,20 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 |---|---|
 | Semantic owner | native card-reward option collection and alternative reward choices |
 | State source | offered cards, alternatives and skip/proceed policy of the active reward |
-| Semantic action source | current selectable native options; Platform presently reads exact holders/buttons |
-| Native validator | active option membership and reward-specific select/alternative callback |
+| Semantic action source | `NativeCardRewardDecisionProvider` projects the exact `CardCreationResult` and `CardRewardAlternative` arrays supplied to `ShowScreen`/`RefreshOptions` |
+| Native validator | exact current native option membership; current holder/button remains a delivery check only |
 | Decision boundary | `NCardRewardSelectionScreen` is current and one exact option is actionable |
 | Presentation owner | card-reward screen, `NCardHolder` and alternative buttons |
 | Delivery seam | holder `Pressed` signal or exact alternative button callback |
-| Exact binding | screen plus exact card model/holder or alternative control |
+| Exact binding | public referent binds the exact `CardModel` or `CardRewardAlternative`; Connector maps it to one current holder/button for delivery |
 | Lifecycle | selection resolves the reward continuation and returns to rewards/map flow |
 | Next-decision seam | remaining Reward owner or Map after native transition |
 | Root/continuation | continuation of the reward claim that opened it |
-| Current workaround | private `_isClickable` and UI controls define current publication |
-| Heuristic debt | native option owner/validator is not yet a Foundation adapter |
+| Current workaround | private `_isClickable` and enabled alternative buttons remain temporary delivery readiness |
+| Heuristic debt | parent reward root identity is not yet a generic Foundation lineage contract; the typed continuation owner is exact |
 | Ritsu support | no exact card-reward option catalog/parent lineage replacement found |
-| Missing evidence | shared option provider T0/T1 and final artifact T3 |
-| Migration verdict | owner discriminator implemented; typed continuation adapter pending |
+| Missing evidence | continuation artifact install/load and representative CardReward T2/T3 |
+| Migration verdict | typed continuation adapter implemented; holders/buttons no longer create semantic membership |
 
 ## Event
 

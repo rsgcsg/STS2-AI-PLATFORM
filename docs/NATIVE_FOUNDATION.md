@@ -54,9 +54,21 @@ lineage neither enumerates choices nor authorizes input.
 
 `NativeDomainOwnerProbe` distinguishes semantic owner from presentation/input
 owner using `RunState.CurrentRoom`, `NOverlayStack.Peek`, and
-`NMapScreen.IsOpen`. It is a cross-domain discriminator, not an action catalog.
-Existing Connector adapters continue to own fair-player publication and exact
-delivery until each domain receives a proven native decision adapter.
+`NMapScreen.IsOpen`. Three typed decision providers now supply the action
+catalogs behind that route:
+
+- `NativeMapDecisionProvider` reads destinations from `RunState.Map`, the
+  current point and `MapTravel.GetTravelablePointsFrom`;
+- `NativeRewardDecisionProvider` observes the exact `RewardsSet` supplied to
+  `NRewardsScreen.ShowScreen` and projects unclaimed rewards, full-belt potion
+  discard choices and native proceed policy;
+- `NativeCardRewardDecisionProvider` observes the exact option arrays supplied
+  to `NCardRewardSelectionScreen.ShowScreen` and `RefreshOptions`.
+
+The unified Mod registers those exact owner arguments through three bounded,
+read-only Postfix seams. Connector intersects each catalog with current visible
+controls, retains Host-local delivery operands and re-captures native membership
+at execution. Annotator consumes the same catalog without gaining authority.
 
 ## Seam Matrix And Example Suite
 
@@ -78,20 +90,22 @@ T2/T3 rows are non-claims, not implied support.
 | UI catalog as execution-time semantic authority | forbidden | exact Human evidence disproved it for bounded combat |
 | animation, elapsed time, queue-idle completion | forbidden | cannot prove causal settlement |
 | generic `interactive` as canonical next decision | forbidden | interactivity is presentation readiness, not causal S' |
-| per-surface owner detection | temporarily retained | needed for current delivery; owner probe makes duplication visible |
+| Map reachability from `NMapPoint.State` | removed as semantic authority | `RunState` and `MapTravel` own destinations; map nodes only bind delivery |
+| Reward publication from `NRewardButton` | removed as semantic authority | exact `RewardsSet` membership and proceed policy now own the catalog |
+| CardReward options from holders/buttons | removed as semantic authority | exact native option arrays own membership; controls only bind delivery |
+| per-surface owner detection | retained for presentation routing only | semantic owner and action source now come from typed Foundation providers |
 | duplicated Describe/Start dispatch in source adapters | migration debt | consolidate only when a native domain adapter is proved |
 | SnapshotBuilder source-specific special paths | migration debt | move facts before actions when owning domains migrate |
 
 ## Migration Map
 
 1. Keep Direct Combat and PlayerChoice as regression oracles.
-2. Validate the Reward/CardReward/Map owner discriminator in one exact-runtime
-   journey without changing authority.
-3. Add native decision adapters only where STS2 exposes a stable semantic
-   owner and validator/command seam; retain source-local delivery adapters.
-4. Use Treasure as the next lifecycle discriminator, then migrate Shop,
+2. Keep Map/Reward/CardReward typed decision adapters source-local and validate
+   their exact owner registration, presentation intersection and execution-time
+   revalidation on a new artifact.
+3. Use Treasure as the next lifecycle discriminator, then migrate Shop,
    Event, Rest, run entry, and terminal by native mechanism rather than screen.
-5. Remove old owner/publication branches only after their Connector consumer
+4. Remove old owner/publication branches only after their Connector consumer
    and Annotator witness both use the shared adapter.
 
 No migration may introduce a second legality model, UI allowlist, arbitrary
