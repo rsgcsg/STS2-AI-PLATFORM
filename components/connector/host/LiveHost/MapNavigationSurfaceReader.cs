@@ -10,6 +10,7 @@ using MegaCrit.Sts2.Core.Nodes.Screens.Map;
 using MegaCrit.Sts2.Core.Runs;
 using MegaCrit.Sts2.Core.Saves;
 using STS2Connector.LiveHost.Contracts;
+using STS2Platform.NativeFoundation;
 
 namespace STS2Connector.LiveHost;
 
@@ -63,6 +64,16 @@ internal sealed class MapNavigationSurfaceReader : ILiveSurfaceReader
         if (InputDisabledField?.GetValue(screen) is not bool inputDisabled)
             return BindingUnavailable(game, "The exact map input-readiness binding is unavailable.");
 
+        NativeMapDecision nativeDecision =
+            NativeMapDecisionProvider.Capture(runState, entities);
+        if (nativeDecision.Status != "captured")
+        {
+            return BindingUnavailable(
+                game,
+                nativeDecision.Detail
+                ?? "The game-owned map destination catalog is unavailable.");
+        }
+
         NMapPoint[] pointNodes = ConnectorMod.FindAll<NMapPoint>(screen)
             .Where(node => ConnectorMod.IsLiveNode(node) && node.Point != null)
             .OrderBy(node => node.Point.coord.row)
@@ -80,6 +91,18 @@ internal sealed class MapNavigationSurfaceReader : ILiveSurfaceReader
             return BindingUnavailable(game, "The open map contains ambiguous UI nodes for one or more coordinates.");
 
         var byCoord = pointNodes.ToDictionary(node => node.Point.coord);
+        MapPoint[] semanticDestinations = nativeDecision.Actions
+            .Where(action => action.Verb == "travel")
+            .Select(action => action.NativeSubject)
+            .OfType<MapPoint>()
+            .ToArray();
+        if (semanticDestinations.Any(destination =>
+                pointNodes.Count(node => ReferenceEquals(node.Point, destination)) != 1))
+        {
+            return BindingUnavailable(
+                game,
+                "A native map destination does not have one exact presentation binding.");
+        }
         VisibleMapNode[] nodes = pointNodes.Select(node => BuildNode(node, entities)).ToArray();
         VisibleMapCoordinate[] visited = runState.VisitedMapCoords
             .Select(coord => BuildCoordinate(coord, byCoord))
@@ -126,21 +149,21 @@ internal sealed class MapNavigationSurfaceReader : ILiveSurfaceReader
             inputDisabled,
             drawingMode == DrawingMode.None);
         if (routeInputReady && pointNodes.Any(node =>
-                IsExactUiTravelChoice(screen, node, usingDirectionalNavigation)
-                && runState.VisitedMapCoords.Contains(node.Point.coord)))
+                node.State == MapPointState.Travelable
+                != semanticDestinations.Any(destination =>
+                    ReferenceEquals(destination, node.Point))))
         {
             return ContradictoryRouteState(game, context);
         }
 
         NMapPoint[] travelable = routeInputReady
-            ? pointNodes.Where(node => IsExactMapTravelChoice(
-                screen,
-                runState,
-                node,
-                usingDirectionalNavigation)).ToArray()
+            ? pointNodes.Where(node =>
+                semanticDestinations.Any(destination =>
+                    ReferenceEquals(destination, node.Point))
+                && IsExactUiTravelChoice(screen, node, usingDirectionalNavigation)).ToArray()
             : Array.Empty<NMapPoint>();
         VisibleMapChoice[] options = travelable.Select(node => new VisibleMapChoice(
-            entities.GetId(node, "map_node"),
+            entities.GetId(node.Point, "map_point"),
             node.Point.coord.col,
             node.Point.coord.row,
             PointType(node.Point))).ToArray();
@@ -173,7 +196,7 @@ internal sealed class MapNavigationSurfaceReader : ILiveSurfaceReader
             "contract_complete_for_visible_singleplayer_map_navigation",
             hasActionableControl
                 ? drawingMode == DrawingMode.None
-                    ? "derived_from_exact_current_travelable_map_point_controls"
+                    ? "native_map_destinations_intersected_with_exact_current_delivery_controls"
                     : "derived_from_exact_active_map_annotation_input_stop_control"
                 : "temporarily_empty_while_map_input_is_not_route_ready",
             new[]
@@ -182,7 +205,8 @@ internal sealed class MapNavigationSurfaceReader : ILiveSurfaceReader
                 "NMapScreen._isInputDisabled exact-version binding",
                 "NMapDrawings.GetLocalDrawingMode",
                 "NControllerManager.IsUsingDirectionalNavigation exact current binding",
-                "NMapPoint.Point+State+IsEnabled+IsTravelable",
+                "RunState.Map+MapTravel.GetTravelablePointsFrom native destinations",
+                "NMapPoint.Point+State+IsEnabled presentation binding",
                 "RunState.CurrentMapCoord+VisitedMapCoords",
                 "MapPoint.PointType+Children"
             },
@@ -225,17 +249,13 @@ internal sealed class MapNavigationSurfaceReader : ILiveSurfaceReader
         && drawingInputAvailable;
 
     internal static bool CanAdvertiseMapChoice(
-        bool stateTravelable,
         bool enabled,
         bool ftueSatisfied,
         bool usingDirectionalNavigation,
-        bool nodeOnScreen,
-        bool targetAlreadyVisited = false) =>
-        stateTravelable
-        && enabled
+        bool nodeOnScreen) =>
+        enabled
         && ftueSatisfied
-        && (!usingDirectionalNavigation || nodeOnScreen)
-        && !targetAlreadyVisited;
+        && (!usingDirectionalNavigation || nodeOnScreen);
 
     internal static bool IsCompatibleLocalDrawingModeSignature(
         IReadOnlyList<Type> parameterTypes) =>
@@ -255,35 +275,15 @@ internal sealed class MapNavigationSurfaceReader : ILiveSurfaceReader
     {
         return node.Point != null
                && CanAdvertiseMapChoice(
-                   node.State == MapPointState.Travelable,
                    node.IsEnabled,
                    node.Point.coord.row != 0 || SaveManager.Instance.SeenFtue("map_select_ftue"),
                    usingDirectionalNavigation,
                    screen.IsNodeOnScreen(node));
     }
 
-    private static bool IsExactMapTravelChoice(
-        NMapScreen screen,
-        RunState runState,
-        NMapPoint node,
-        bool usingDirectionalNavigation)
-    {
-        return node.Point != null
-               && CanAdvertiseMapChoice(
-                   node.State == MapPointState.Travelable,
-                   node.IsEnabled,
-                   node.Point.coord.row != 0 || SaveManager.Instance.SeenFtue("map_select_ftue"),
-                   usingDirectionalNavigation,
-                   screen.IsNodeOnScreen(node),
-                   targetAlreadyVisited: !IsExactRunStateDestination(runState, node.Point.coord));
-    }
-
-    private static bool IsExactRunStateDestination(RunState runState, MapCoord coord) =>
-        !runState.VisitedMapCoords.Contains(coord);
-
     private static VisibleMapNode BuildNode(NMapPoint node, NativeEntityRegistry entities) =>
         new(
-            entities.GetId(node, "map_node"),
+            entities.GetId(node.Point, "map_point"),
             node.Point.coord.col,
             node.Point.coord.row,
             PointType(node.Point),
@@ -319,17 +319,25 @@ internal sealed class MapNavigationSurfaceReader : ILiveSurfaceReader
                 entities.GetId(screen, "screen"),
                 expectedScreenId,
                 StringComparison.Ordinal)
-            || !entities.TryResolve(expectedNodeId, out NMapPoint? node)
-            || node == null
-            || !ConnectorMod.FindAll<NMapPoint>(screen).Any(candidate => ReferenceEquals(candidate, node))
-            || node.Point == null)
+            || !entities.TryResolve(expectedNodeId, out MapPoint? point)
+            || point == null)
         {
             return NativeInputResult.Rejected(
                 "map_choice_changed",
                 "The exact map screen or destination entity is no longer current.");
         }
 
-        return StartTravel(screen, runState, node, node.Point.coord);
+        NMapPoint[] matches = ConnectorMod.FindAll<NMapPoint>(screen)
+            .Where(node => ReferenceEquals(node.Point, point))
+            .ToArray();
+        if (matches.Length != 1)
+        {
+            return NativeInputResult.Rejected(
+                "map_choice_changed",
+                "The native map destination no longer has one exact presentation binding.");
+        }
+
+        return StartTravel(entities, screen, runState, matches[0], point);
     }
 
     internal static NativeInputResult StopAnnotation(
@@ -386,11 +394,14 @@ internal sealed class MapNavigationSurfaceReader : ILiveSurfaceReader
     }
 
     private static NativeInputResult StartTravel(
+        NativeEntityRegistry entities,
         NMapScreen expectedScreen,
         RunState expectedRunState,
         NMapPoint expectedNode,
-        MapCoord expectedCoord)
+        MapPoint expectedPoint)
     {
+        NativeMapDecision decision =
+            NativeMapDecisionProvider.Capture(expectedRunState, entities);
         if (!ReferenceEquals(NMapScreen.Instance, expectedScreen)
             || !expectedScreen.IsOpen
             || expectedScreen.IsTraveling
@@ -402,13 +413,10 @@ internal sealed class MapNavigationSurfaceReader : ILiveSurfaceReader
             || inputDisabled
             || !ReferenceEquals(RunManager.Instance.DebugOnlyGetState(), expectedRunState)
             || !ConnectorMod.FindAll<NMapPoint>(expectedScreen).Any(node => ReferenceEquals(node, expectedNode))
-            || expectedNode.Point == null
-            || !expectedNode.Point.coord.Equals(expectedCoord)
-            || !IsExactMapTravelChoice(
-                expectedScreen,
-                expectedRunState,
-                expectedNode,
-                usingDirectionalNavigation))
+            || !ReferenceEquals(expectedNode.Point, expectedPoint)
+            || !NativeMapDecisionProvider.ContainsDestination(decision, expectedPoint)
+            || expectedNode.State != MapPointState.Travelable
+            || !IsExactUiTravelChoice(expectedScreen, expectedNode, usingDirectionalNavigation))
         {
             return NativeInputResult.Rejected(
                 "map_choice_changed",
@@ -477,16 +485,16 @@ internal sealed class MapNavigationSurfaceReader : ILiveSurfaceReader
         GameBuildIdentity game,
         MapLiveContext context)
     {
-        const string reason = "The map UI marks a coordinate travelable even though the active run records it as visited.";
+        const string reason = "The map presentation travelable set disagrees with the game-owned native destination catalog.";
         var surface = new UnsupportedSurface("unsupported", SurfaceKind, reason);
         var completeness = new StateCompleteness(
             "partial",
-            "empty_fail_closed_due_to_ui_run_state_contradiction",
+            "empty_fail_closed_due_to_native_presentation_contradiction",
             new[]
             {
                 "NMapScreen.IsOpen+IsTravelEnabled+IsTraveling",
-                "NMapPoint.State+IsEnabled",
-                "RunState.VisitedMapCoords"
+                "NMapPoint.State+IsEnabled presentation binding",
+                "RunState.Map+MapTravel.GetTravelablePointsFrom native destinations"
             },
             new[] { "legal_actions" });
         string signature = StableIdentityHash.Object(new { game.Version, context, reason });

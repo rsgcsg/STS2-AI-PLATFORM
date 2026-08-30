@@ -13,6 +13,10 @@ using MegaCrit.Sts2.Core.Entities.Potions;
 using MegaCrit.Sts2.Core.Extensions;
 using MegaCrit.Sts2.Core.GameActions;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Nodes.Screens;
+using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
+using MegaCrit.Sts2.Core.Nodes.Screens.Map;
+using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
 using STS2Connector.LiveHost;
@@ -87,7 +91,12 @@ public static class PlayerEnvironmentNativeSemanticWitness
                 || !CombatManager.Instance.IsInProgress)
             {
                 NativeDomainOwnerObservation domain = NativeDomainOwnerProbe.Capture();
-                return DomainOwnerCapture(phase, observedAction, ui, domain);
+                return DomainOwnerCapture(
+                    phase,
+                    observedAction,
+                    ui,
+                    domain,
+                    NativeUiRuntime.Entities);
             }
 
             Player? player = LocalContext.GetMe(run);
@@ -290,32 +299,89 @@ public static class PlayerEnvironmentNativeSemanticWitness
         string phase,
         GameAction? observedAction,
         ProcessLocalUiCatalogObservation ui,
-        NativeDomainOwnerObservation domain)
+        NativeDomainOwnerObservation domain,
+        NativeEntityRegistry entities)
     {
-        JsonNode state = JsonSerializer.SerializeToNode(domain, ConnectorMod._jsonOptions)
+        (string status, IReadOnlyList<NativeSemanticAction> nativeActions,
+            IReadOnlyList<string> nativeEvidence, string? nativeDetail) =
+            CaptureDomainDecision(domain, entities);
+        IReadOnlyList<ProcessLocalSemanticAction> actions = nativeActions
+            .Select(action => new ProcessLocalSemanticAction(
+                action.Key,
+                action.Verb,
+                action.SubjectReferentId,
+                action.Operands.ToDictionary(
+                    operand => operand.Role,
+                    operand => operand.ReferentId,
+                    StringComparer.Ordinal),
+                action.NativeLegalityBasis))
+            .ToArray();
+        var semanticState = new
+        {
+            domain,
+            native_decision_status = status,
+            action_keys = actions.Select(action => action.Key).ToArray()
+        };
+        JsonNode state = JsonSerializer.SerializeToNode(
+                semanticState,
+                ConnectorMod._jsonOptions)
             ?? new JsonObject();
         return new ProcessLocalNativeSemanticCapture(
             Schema,
-            domain.Status,
+            status,
             domain.SemanticDomain,
             phase,
-            StableIdentityHash.Object(domain),
+            StableIdentityHash.Object(semanticState),
             state,
-            CatalogDigest(Array.Empty<ProcessLocalSemanticAction>()),
-            Array.Empty<ProcessLocalSemanticAction>(),
+            CatalogDigest(actions),
+            actions,
             observedAction == null
                 ? null
                 : new ProcessLocalObservedSemanticAction(
                     observedAction.GetType().Name,
                     null,
-                    "outside_combat_catalog",
+                    "outside_direct_native_catalog",
                     0,
                     "not_applicable",
-                    "Cross-domain owner capture does not create a legality catalog."),
+                    "The current non-combat adapter does not describe this GameAction lifecycle."),
             ui,
-            domain.Evidence,
+            domain.Evidence.Concat(nativeEvidence).Distinct(StringComparer.Ordinal).ToArray(),
             domain.NonClaims,
-            $"semantic_owner={domain.SemanticDomain};input_owner={domain.InputDomain}");
+            nativeDetail
+            ?? $"semantic_owner={domain.SemanticDomain};input_owner={domain.InputDomain}");
+    }
+
+    private static (
+        string Status,
+        IReadOnlyList<NativeSemanticAction> Actions,
+        IReadOnlyList<string> Evidence,
+        string? Detail) CaptureDomainDecision(
+        NativeDomainOwnerObservation domain,
+        NativeEntityRegistry entities)
+    {
+        object? overlay = NOverlayStack.Instance?.Peek();
+        if (overlay is NRewardsScreen rewards)
+        {
+            NativeRewardDecision decision =
+                NativeRewardDecisionProvider.Capture(rewards, entities);
+            return (decision.Status, decision.Actions, decision.Evidence, decision.Detail);
+        }
+        if (overlay is NCardRewardSelectionScreen cardReward)
+        {
+            NativeCardRewardDecision decision =
+                NativeCardRewardDecisionProvider.Capture(cardReward, entities);
+            return (decision.Status, decision.Actions, decision.Evidence, decision.Detail);
+        }
+        if (NMapScreen.Instance?.IsOpen == true)
+        {
+            NativeMapDecision decision = NativeMapDecisionProvider.Capture(entities);
+            return (decision.Status, decision.Actions, decision.Evidence, decision.Detail);
+        }
+        return (
+            domain.Status,
+            Array.Empty<NativeSemanticAction>(),
+            Array.Empty<string>(),
+            "No migrated native decision adapter owns the current domain.");
     }
 
     private static ProcessLocalUiCatalogObservation BuildUiCatalog(

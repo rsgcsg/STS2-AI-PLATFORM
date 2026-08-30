@@ -53,15 +53,46 @@ public sealed record NativeCombatDecision(
         NativeCombatDecisionProvider.Describe(action, this, identities);
 }
 
+public sealed record NativeMapDecision(
+    string Status,
+    string Scope,
+    bool IsDecisionOpen,
+    IReadOnlyList<NativeSemanticAction> Actions,
+    IReadOnlyList<string> Evidence,
+    string? Detail);
+
+public sealed record NativeRewardDecision(
+    string Status,
+    string Scope,
+    bool IsDecisionOpen,
+    bool IsTerminal,
+    IReadOnlyList<NativeSemanticAction> Actions,
+    IReadOnlyList<string> Evidence,
+    string? Detail);
+
+public sealed record NativeCardRewardDecision(
+    string Status,
+    string Scope,
+    bool IsDecisionOpen,
+    IReadOnlyList<NativeSemanticAction> Actions,
+    IReadOnlyList<string> Evidence,
+    string? Detail);
+
 public static class NativeDecisionProjection
 {
     public static IReadOnlyList<NativeSemanticAction> VisibleSubjects(
         NativeCombatDecision decision,
         string verb,
+        IEnumerable<object> visibleSubjects) =>
+        VisibleSubjects(decision.Actions, verb, visibleSubjects);
+
+    public static IReadOnlyList<NativeSemanticAction> VisibleSubjects(
+        IEnumerable<NativeSemanticAction> actions,
+        string verb,
         IEnumerable<object> visibleSubjects)
     {
         object[] visible = visibleSubjects.ToArray();
-        return decision.Actions
+        return actions
             .Where(action => action.Verb == verb
                 && action.NativeSubject != null
                 && visible.Any(subject => ReferenceEquals(subject, action.NativeSubject)))
