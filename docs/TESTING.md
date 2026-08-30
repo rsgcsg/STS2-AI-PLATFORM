@@ -58,6 +58,10 @@ lifecycle tests. Neither job requires proprietary game assemblies. Exact-game
 checks are local and must record the game, platform, Modset, source, artifact,
 and runtime identities from the current manifests and reports.
 
+Root Host wrappers retain an explicit nested-npm `--` boundary so profile,
+endpoint, and experimental-evidence arguments reach the owning Host CLI on
+Windows and POSIX shells.
+
 ## Evidence Ladder
 
 Evidence levels are ordered but never implied:
