@@ -74,6 +74,41 @@ test("BOM check keeps closed Human audit provenance independent from current sou
   assert.ok(errors.some((error) => error.startsWith("native discriminator audit source:")));
 });
 
+test("BOM check rejects Windows Native Foundation identity and claim drift", async () => {
+  const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
+  const candidate =
+    bom.unified_platform_runtime_candidate.native_foundation_windows_runtime_candidate;
+  candidate.game.main_assembly_sha256 = "0".repeat(64);
+  candidate.artifact_mvid = "00000000-0000-0000-0000-000000000000";
+  candidate.loaded_mod_ids = ["STS2_PLATFORM", "STS2-RitsuLib"];
+  candidate.automated_live_ui.reads = "filtered";
+  candidate.automated_live_ui.action_delivered = true;
+  candidate.recorder_lifecycle.owner_new_pause_resume_close = "pass";
+  candidate.visible_headless_semantic_invariance.scope = "full_run";
+  candidate.human_runtime = "pass";
+  candidate.evidence_transfer_from_predecessor = true;
+  bom.non_claims = bom.non_claims.filter(
+    (claim) => claim !== "native_foundation_windows_candidate_human_runtime_not_exercised"
+  );
+  const errors = validatePlatformBom(bom, await readBomAuthorities(root));
+  assert.ok(errors.some((error) =>
+    error.startsWith("Windows Native Foundation main assembly:")));
+  assert.ok(errors.some((error) => error.startsWith("Windows Native Foundation artifact MVID:")));
+  assert.ok(errors.includes("Windows Native Foundation loaded Mods: expected only STS2_PLATFORM"));
+  assert.ok(errors.some((error) => error.startsWith("Windows Native Foundation live reads:")));
+  assert.ok(errors.some((error) => error.startsWith("Windows Native Foundation live mutation:")));
+  assert.ok(errors.some((error) =>
+    error.startsWith("Windows Native Foundation Recorder owner lifecycle:")));
+  assert.ok(errors.some((error) => error.startsWith("Windows Native Foundation parity scope:")));
+  assert.ok(errors.some((error) => error.startsWith("Windows Native Foundation human_runtime:")));
+  assert.ok(errors.some((error) =>
+    error.startsWith("Windows Native Foundation predecessor evidence transfer:")));
+  assert.ok(errors.includes(
+    "Native Foundation non-claim is missing: "
+      + "native_foundation_windows_candidate_human_runtime_not_exercised"
+  ));
+});
+
 test("BOM check rejects unified artifact, identity and evidence promotion", async () => {
   const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
   const candidate = bom.unified_platform_runtime_candidate;

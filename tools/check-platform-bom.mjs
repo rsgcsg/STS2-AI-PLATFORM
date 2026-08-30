@@ -61,6 +61,24 @@ const NATIVE_FOUNDATION_RUNTIME_CANDIDATE = Object.freeze({
   headlessRuntime: "efd022e91c7e4f0287494707b423d700",
   canonicalDigest: "71e246abad05c8a9a805bb6e041cef526ea54645ebc71bb68d103a4c490ab3d7"
 });
+const NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE = Object.freeze({
+  workspaceRevision: "c667122ee35853f6a4a315871cb4e70383363c8f",
+  sourceRevision: "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+  nativeFoundationTree: "981c4667384905b6c359d1bd39ddc8b8f352a968",
+  nativeFoundationDigest: "098f7215512199e825dbbb910d78f4c9e61b7b0ea7a1a742052e91ffa75dac52",
+  nativeFoundationBuildDigest: "d2018cad13b1f904ac7b8e8cd6928491ed819470e7107e757455c34a179c9ee4",
+  executableSha: "8602c26bffd2937e3841835fd8360ef8e974624a543e05977229fd3d062be231",
+  mainAssemblySha: "0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9",
+  mainAssemblyMvid: "73b63ee0-6c0a-47bb-b0d1-b21f6d94222e",
+  artifactSha: "a681f8b1b516376a26823114ca42d2dca4c2981c2930e5770872777c3e3bc3a9",
+  artifactMvid: "7c42c4c3-02fb-46c9-ac90-dfb1cf516fdd",
+  runtimeInstance: "7a1942b652da47d29baf6852f427f924",
+  environment: "a52b5cc5f903bd1583af6463f098123226a1abf6fd74ca0b2a99b1ef3cd24889",
+  modset: "e5693d19c7571c1a30a07c2bca584eeced6b64e675bc5fb37acbb1638a1cb86c",
+  headlessRuntime: "49f34fbfbbbc429393be52ce66625d65",
+  canonicalDigest: "eaf8516dc290509ca8b2a33f098b0d6582842c9be2635accd4c217c2d3dd58e4",
+  rollback: "apps/game-mod/.local/deployments/2026-08-30T14-44-51.829Z"
+});
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -375,6 +393,133 @@ export function validatePlatformBom(bom, authorities) {
     "not_exercised");
   expectEqual(errors, "Native Foundation predecessor evidence transfer",
     nativeFoundationCandidate?.evidence_transfer_from_predecessor, false);
+
+  const windowsFoundation = policyCandidate?.native_foundation_windows_runtime_candidate;
+  expectEqual(errors, "Windows Native Foundation candidate status", windowsFoundation?.status,
+    "loaded_automated_gates_pass_human_pending");
+  expectEqual(errors, "Windows Native Foundation platform", windowsFoundation?.platform, "win32");
+  expectEqual(errors, "Windows Native Foundation architecture", windowsFoundation?.architecture,
+    "x64");
+  expectEqual(errors, "Windows Native Foundation workspace at build",
+    windowsFoundation?.workspace_revision_at_build,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.workspaceRevision);
+  for (const [label, actual] of [
+    ["implementation", windowsFoundation?.implementation_source_revision],
+    ["Native Foundation", windowsFoundation?.native_foundation?.source_revision],
+    ["Connector", windowsFoundation?.connector_source_revision],
+    ["Annotator", windowsFoundation?.annotator_source_revision],
+    ["Game Mod", windowsFoundation?.game_mod_source_revision]
+  ]) expectEqual(errors, `Windows Native Foundation ${label} source`, actual,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.sourceRevision);
+  expectEqual(errors, "Windows Native Foundation component tree",
+    windowsFoundation?.native_foundation?.component_tree_revision,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.nativeFoundationTree);
+  expectEqual(errors, "Windows Native Foundation component digest",
+    windowsFoundation?.native_foundation?.component_source_digest_sha256,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.nativeFoundationDigest);
+  expectEqual(errors, "Windows Native Foundation build digest",
+    windowsFoundation?.native_foundation?.build_source_digest_sha256,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.nativeFoundationBuildDigest);
+  for (const [label, actual, expected] of [
+    ["executable", windowsFoundation?.game?.executable_sha256,
+      NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.executableSha],
+    ["main assembly", windowsFoundation?.game?.main_assembly_sha256,
+      NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.mainAssemblySha],
+    ["main assembly MVID", windowsFoundation?.game?.main_assembly_mvid,
+      NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.mainAssemblyMvid],
+    ["artifact", windowsFoundation?.artifact_sha256,
+      NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.artifactSha],
+    ["artifact MVID", windowsFoundation?.artifact_mvid,
+      NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.artifactMvid]
+  ]) expectEqual(errors, `Windows Native Foundation ${label}`, actual, expected);
+  expectEqual(errors, "Windows Native Foundation game version", windowsFoundation?.game?.version,
+    "v0.111.0");
+  expectEqual(errors, "Windows Native Foundation game commit", windowsFoundation?.game?.commit,
+    "41cef1ea");
+  expectEqual(errors, "Windows Native Foundation game assembly hash",
+    windowsFoundation?.game?.main_assembly_hash, 222455745);
+  for (const [field, expected] of Object.entries({
+    built: "pass_clean_source",
+    installed: "pass",
+    loaded: "pass",
+    player_environment_protocol: "1.0.0",
+    host_kind: "live_ui",
+    modset_status: "exact_platform_modset",
+    human_runtime: "not_exercised"
+  })) expectEqual(errors, `Windows Native Foundation ${field}`, windowsFoundation?.[field], expected);
+  expectEqual(errors, "Windows Native Foundation installed/loaded equality",
+    windowsFoundation?.installed_equals_loaded, true);
+  expectEqual(errors, "Windows Native Foundation runtime", windowsFoundation?.runtime_instance_id,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.runtimeInstance);
+  expectEqual(errors, "Windows Native Foundation environment",
+    windowsFoundation?.environment_fingerprint,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.environment);
+  expectEqual(errors, "Windows Native Foundation Modset", windowsFoundation?.modset_fingerprint,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.modset);
+  if (!Array.isArray(windowsFoundation?.loaded_mod_ids)
+      || windowsFoundation.loaded_mod_ids.length !== 1
+      || windowsFoundation.loaded_mod_ids[0] !== "STS2_PLATFORM") {
+    errors.push("Windows Native Foundation loaded Mods: expected only STS2_PLATFORM");
+  }
+  for (const [field, expected] of Object.entries({
+    loaded_identity: "pass",
+    interactive_snapshot: "pass_main_menu_complete",
+    bound_actions: "pass_complete_one",
+    reads: "pass_none_advertised_none_completed",
+    controller_conflict: "pass_http_409",
+    stale_rejection: "pass_not_delivered",
+    request_idempotency: "pass_same_receipt"
+  })) expectEqual(errors, `Windows Native Foundation live ${field}`,
+    windowsFoundation?.automated_live_ui?.[field], expected);
+  expectEqual(errors, "Windows Native Foundation live mutation",
+    windowsFoundation?.automated_live_ui?.action_delivered, false);
+  expectEqual(errors, "Windows Native Foundation settings transaction",
+    windowsFoundation?.windows_mod_settings?.transaction, "pass_backup_restore_redeploy");
+  expectEqual(errors, "Windows Native Foundation sole enabled Mod",
+    windowsFoundation?.windows_mod_settings?.sole_platform_enabled, true);
+  expectEqual(errors, "Windows Native Foundation preserved Mod settings",
+    windowsFoundation?.windows_mod_settings?.other_entries_preserved_disabled, true);
+  expectEqual(errors, "Windows Native Foundation Recorder initial status",
+    windowsFoundation?.recorder_lifecycle?.initial_status, "ready_no_session");
+  expectEqual(errors, "Windows Native Foundation Recorder portable checks",
+    windowsFoundation?.recorder_lifecycle?.automated_portable_checks, "pass");
+  expectEqual(errors, "Windows Native Foundation Recorder owner lifecycle",
+    windowsFoundation?.recorder_lifecycle?.owner_new_pause_resume_close,
+    "pending_human_runtime");
+  for (const [field, expected] of Object.entries({
+    status: "h0_pass_canary_exact",
+    runtime_instance_id: NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.headlessRuntime,
+    host_kind: "headless",
+    snapshot_status: "interactive",
+    interaction_kind: "main_menu",
+    process_exit: "pass_graceful_code_0"
+  })) expectEqual(errors, `Windows Native Foundation headless ${field}`,
+    windowsFoundation?.automated_headless?.[field], expected);
+  expectPattern(errors, "Windows Native Foundation headless report",
+    windowsFoundation?.automated_headless?.report,
+    /^components\/host-runtime\/\.local\/evidence\/shipped-h0-[^/]+\/report\.json$/u);
+  expectEqual(errors, "Windows Native Foundation visible/headless parity",
+    windowsFoundation?.visible_headless_semantic_invariance?.status, "pass");
+  expectEqual(errors, "Windows Native Foundation parity scope",
+    windowsFoundation?.visible_headless_semantic_invariance?.scope, "main_menu_only");
+  expectEqual(errors, "Windows Native Foundation parity digest",
+    windowsFoundation?.visible_headless_semantic_invariance?.canonical_digest_sha256,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.canonicalDigest);
+  expectEqual(errors, "Windows Native Foundation parity visible runtime",
+    windowsFoundation?.visible_headless_semantic_invariance?.visible_runtime_instance_id,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.runtimeInstance);
+  expectEqual(errors, "Windows Native Foundation parity headless runtime",
+    windowsFoundation?.visible_headless_semantic_invariance?.headless_runtime_instance_id,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.headlessRuntime);
+  expectEqual(errors, "Windows Native Foundation receipt successor contract",
+    windowsFoundation?.receipt_successor_contract,
+    "immediate_post_delivery_observation_not_causal_s_prime");
+  expectEqual(errors, "Windows Native Foundation Ritsu route", windowsFoundation?.ritsu_route,
+    "RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY");
+  expectEqual(errors, "Windows Native Foundation predecessor evidence transfer",
+    windowsFoundation?.evidence_transfer_from_predecessor, false);
+  expectEqual(errors, "Windows Native Foundation rollback", windowsFoundation?.rollback,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.rollback);
   for (const [field, expected] of Object.entries({
     valid_decision_v2: 40,
     invalid_decision_v2: 0,
@@ -1187,7 +1332,9 @@ export function validatePlatformBom(bom, authorities) {
   }
   for (const value of [
     "native_foundation_candidate_human_runtime_not_exercised",
-    "native_foundation_visible_headless_parity_main_menu_only"
+    "native_foundation_visible_headless_parity_main_menu_only",
+    "native_foundation_windows_candidate_human_runtime_not_exercised",
+    "native_foundation_windows_visible_headless_parity_main_menu_only"
   ]) {
     if (!bom.non_claims?.includes(value))
       errors.push(`Native Foundation non-claim is missing: ${value}`);

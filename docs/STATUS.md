@@ -33,6 +33,17 @@ and request idempotency pass without gameplay mutation. Shipped headless H0
 passes in runtime `efd022e9...`; live/headless main-menu canonical digests are
 equal (`71e246ab...`). This parity claim is menu-only. Human exercise remains
 pending, and predecessor PR #3 evidence does not transfer.
+
+Fresh Windows evidence is independently bound to artifact
+`a681f8b1... / 7c42c4c3...` and shipped STS2
+`v0.111.0 / 41cef1ea / 0861bfa1...`. Artifact-plus-native-settings rollback,
+cold-load, sole `STS2_PLATFORM` Modset `e5693d19...`, Connector controller/
+stale/idempotency checks, and shipped-headless H0 pass. Visible runtime
+`7a1942b6...` and headless runtime `49f34fbf...` agree on the main-menu-only
+canonical digest `eaf8516d...`. Recorder initializes Ready/no-session and its
+portable lifecycle checks pass; owner-visible New/Pause/Resume/Close and the
+Combat/PlayerChoice/cross-domain canary remain the exact Human gate. See the
+[Windows pre-Human gate](evidence/NATIVE_FOUNDATION_WINDOWS_PRE_HUMAN_GATE_2026-08-31.md).
 RitsuLib was audited at upstream v0.5.18/main `f224961...` and development
 `c466809...`; [ADR 0004](adr/0004-native-foundation-and-ritsu-route.md) records
 the no-runtime-dependency route. See the

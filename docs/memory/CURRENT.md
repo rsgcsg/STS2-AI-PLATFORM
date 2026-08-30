@@ -30,6 +30,16 @@ H0 pass for `9a89f1fe... / b1c34f90...`. Live/headless canonical parity is
 proved only at the main menu. The next gate is one short exact-artifact Human
 canary; no predecessor Human evidence transfers.
 
+The independent Windows candidate is now built and loaded as
+`a681f8b1... / 7c42c4c3...` against shipped STS2
+`v0.111.0 / 41cef1ea / 0861bfa1...`. Safe artifact/native-settings rollback,
+sole `STS2_PLATFORM` Modset `e5693d19...`, bounded visible Connector gates, and
+root-invoked shipped-headless H0 pass. Visible runtime `7a1942b6...` and
+headless runtime `49f34fbf...` have equal main-menu-only canonical digest
+`eaf8516d...`. Human gameplay and Recorder owner lifecycle remain unexercised;
+the macOS and PR #3 Human evidence do not transfer. See the
+[Windows pre-Human gate](../evidence/NATIVE_FOUNDATION_WINDOWS_PRE_HUMAN_GATE_2026-08-31.md).
+
 ## Active workstreams
 
 - Full-Run Human Semantic Timeline and evidence representation: PR #3. Keep its
@@ -59,7 +69,8 @@ canary; no predecessor Human evidence transfers.
 
 ## Next meaningful gates
 
-- Run one bounded Human canary on exact artifact `9a89f1fe... / b1c34f90...`:
+- Run one bounded Windows Human canary on exact artifact
+  `a681f8b1... / 7c42c4c3...`:
   Direct Combat/PlayerChoice, then `lethal -> Reward -> CardReward -> Map`.
 - After that evidence is audited, extend the execution-bound native semantic
   lane to the next narrow Full-Run mechanisms. Keep unknown UI playable and

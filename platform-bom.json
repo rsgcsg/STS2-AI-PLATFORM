@@ -386,6 +386,86 @@
       "evidence_transfer_from_predecessor": false,
       "rollback": "apps/game-mod/.local/deployments/2026-08-30T13-23-42.253Z"
     },
+    "native_foundation_windows_runtime_candidate": {
+      "status": "loaded_automated_gates_pass_human_pending",
+      "platform": "win32",
+      "architecture": "x64",
+      "workspace_revision_at_build": "c667122ee35853f6a4a315871cb4e70383363c8f",
+      "implementation_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "native_foundation": {
+        "source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+        "component_tree_revision": "981c4667384905b6c359d1bd39ddc8b8f352a968",
+        "component_source_digest_sha256": "098f7215512199e825dbbb910d78f4c9e61b7b0ea7a1a742052e91ffa75dac52",
+        "build_source_digest_sha256": "d2018cad13b1f904ac7b8e8cd6928491ed819470e7107e757455c34a179c9ee4"
+      },
+      "connector_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "annotator_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "game_mod_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "game": {
+        "version": "v0.111.0",
+        "commit": "41cef1ea",
+        "main_assembly_hash": 222455745,
+        "executable_sha256": "8602c26bffd2937e3841835fd8360ef8e974624a543e05977229fd3d062be231",
+        "main_assembly_sha256": "0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9",
+        "main_assembly_mvid": "73b63ee0-6c0a-47bb-b0d1-b21f6d94222e"
+      },
+      "artifact_sha256": "a681f8b1b516376a26823114ca42d2dca4c2981c2930e5770872777c3e3bc3a9",
+      "artifact_mvid": "7c42c4c3-02fb-46c9-ac90-dfb1cf516fdd",
+      "built": "pass_clean_source",
+      "installed": "pass",
+      "loaded": "pass",
+      "installed_equals_loaded": true,
+      "installed_at": "2026-08-30T14:44:51.848Z",
+      "loaded_at": "2026-08-30T14:45:02.9331357Z",
+      "windows_mod_settings": {
+        "transaction": "pass_backup_restore_redeploy",
+        "sole_platform_enabled": true,
+        "other_entries_preserved_disabled": true
+      },
+      "player_environment_protocol": "1.0.0",
+      "host_kind": "live_ui",
+      "runtime_instance_id": "7a1942b652da47d29baf6852f427f924",
+      "environment_fingerprint": "a52b5cc5f903bd1583af6463f098123226a1abf6fd74ca0b2a99b1ef3cd24889",
+      "modset_status": "exact_platform_modset",
+      "modset_fingerprint": "e5693d19c7571c1a30a07c2bca584eeced6b64e675bc5fb37acbb1638a1cb86c",
+      "loaded_mod_ids": ["STS2_PLATFORM"],
+      "automated_live_ui": {
+        "loaded_identity": "pass",
+        "interactive_snapshot": "pass_main_menu_complete",
+        "bound_actions": "pass_complete_one",
+        "reads": "pass_none_advertised_none_completed",
+        "controller_conflict": "pass_http_409",
+        "stale_rejection": "pass_not_delivered",
+        "request_idempotency": "pass_same_receipt",
+        "action_delivered": false
+      },
+      "recorder_lifecycle": {
+        "initial_status": "ready_no_session",
+        "automated_portable_checks": "pass",
+        "owner_new_pause_resume_close": "pending_human_runtime"
+      },
+      "automated_headless": {
+        "status": "h0_pass_canary_exact",
+        "runtime_instance_id": "49f34fbfbbbc429393be52ce66625d65",
+        "host_kind": "headless",
+        "snapshot_status": "interactive",
+        "interaction_kind": "main_menu",
+        "process_exit": "pass_graceful_code_0",
+        "report": "components/host-runtime/.local/evidence/shipped-h0-2026-08-30T14-50-02-025Z/report.json"
+      },
+      "visible_headless_semantic_invariance": {
+        "status": "pass",
+        "scope": "main_menu_only",
+        "canonical_digest_sha256": "eaf8516dc290509ca8b2a33f098b0d6582842c9be2635accd4c217c2d3dd58e4",
+        "visible_runtime_instance_id": "7a1942b652da47d29baf6852f427f924",
+        "headless_runtime_instance_id": "49f34fbfbbbc429393be52ce66625d65"
+      },
+      "receipt_successor_contract": "immediate_post_delivery_observation_not_causal_s_prime",
+      "ritsu_route": "RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY",
+      "human_runtime": "not_exercised",
+      "evidence_transfer_from_predecessor": false,
+      "rollback": "apps/game-mod/.local/deployments/2026-08-30T14-44-51.829Z"
+    },
     "serialized_canonical_loaded_candidate": {
       "status": "loaded_pending_owner_human_canary",
       "workspace_revision_at_build": "cbabfac0c27f621f3990961318b2bf48d9b2fa5f",
@@ -894,6 +974,8 @@
     "native_semantic_discriminator_handoff_is_candidate_not_final_successor",
     "native_semantic_discriminator_full_run_not_implemented",
     "native_foundation_candidate_human_runtime_not_exercised",
-    "native_foundation_visible_headless_parity_main_menu_only"
+    "native_foundation_visible_headless_parity_main_menu_only",
+    "native_foundation_windows_candidate_human_runtime_not_exercised",
+    "native_foundation_windows_visible_headless_parity_main_menu_only"
   ]
 }
