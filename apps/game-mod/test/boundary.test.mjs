@@ -101,6 +101,16 @@ test("cold launch derives exact Connector canaries from compatibility authority"
   );
 });
 
+test("exact build uses shared Host Runtime installation discovery", () => {
+  const build = read("apps/game-mod/build.mjs");
+
+  assert.match(build, /loadHostRuntimeWorkstationApi/u);
+  assert.match(build, /resolveWorkstationInstallation/u);
+  assert.match(build, /installation\.data_dir/u);
+  assert.match(build, /installation\.release_info/u);
+  assert.doesNotMatch(build, /defaultGameDirectory/u);
+});
+
 test("loaded verification never promotes an input canary to owner evidence", () => {
   const lifecycle = read("apps/game-mod/lifecycle.mjs");
   assert.match(lifecycle, /ui_toggle_runtime_canary/u);
