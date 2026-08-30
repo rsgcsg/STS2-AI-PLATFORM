@@ -120,13 +120,20 @@ test("record settlement accepts only shared exact Modsets and never retries an u
   assert.match(runtime, /ClearPendingWithInvalidation\([\s\S]*decision_persistence_unknown/u);
 });
 
-test("native card staging reuses one exact pre-frame without a second capture guard", () => {
+test("native card staging reuses one exact evidence frame without a second capture guard", () => {
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
 
-  assert.match(runtime, /StageCardPlay\(CardModel card\)[\s\S]*TryPrepareSerializedMutation\(out ProcessLocalNativeWitnessFrame\? preparedFrame\)[\s\S]*new ExactDecisionFrame\(frame, environment\)/u);
+  assert.match(runtime, /StageCardPlay\(CardModel card\)[\s\S]*TryPrepareSerializedEvidence\(out ProcessLocalNativeWitnessFrame\? preparedFrame\)[\s\S]*new ExactDecisionFrame\(frame, environment\)/u);
   assert.match(runtime, /ReferenceEquals\(staged\.Card, stagedCard\)[\s\S]*IsExact\(staged\.Decision\.Frame\.Resolve\(expectedAction\)\)[\s\S]*selected = staged\.Decision\.Frame/u);
   assert.doesNotMatch(runtime, /StagedCardPlayGuard/u);
   assert.doesNotMatch(runtime, /cached\.Frame\.Snapshot\.SnapshotId,[\s\S]*current\.Snapshot\.SnapshotId/u);
+});
+
+test("annotator evidence prefixes never become generic STS2 gameplay gates", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+
+  assert.doesNotMatch(patches, /(?:private|internal|public)\s+static\s+bool\s+Prefix\s*\(/u);
+  assert.doesNotMatch(patches, /BlockMutation|AllowMutation/u);
 });
 
 test("capture failures become invalidations only after the native action is accepted", () => {
