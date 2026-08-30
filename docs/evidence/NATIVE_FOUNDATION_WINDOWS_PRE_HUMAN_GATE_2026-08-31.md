@@ -142,4 +142,3 @@ closed session to pass the repository native-semantic audits. Any gameplay
 block, false root, missing/duplicate disposition, fabricated catalog, incorrect
 domain owner, recorder lifecycle failure, or audit failure is fail-closed and
 must be assigned to its owning layer before another canary.
-
