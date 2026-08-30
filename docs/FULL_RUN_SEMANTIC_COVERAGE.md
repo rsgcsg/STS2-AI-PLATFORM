@@ -60,10 +60,12 @@ cancel/abort, final successor semantics or non-combat Full Run. See the
 
 The stacked Native Foundation candidate moves that bounded combat catalog and
 exact lifecycle observation into one neutral game-side owner consumed by both
-Connector and Annotator. It also adds a non-authorizing
-Reward/CardReward/Map owner discriminator. This is source/test evidence only
-until the new artifact is cold-loaded and exercised; the matrix above retains
-the predecessor artifact's exact Live claims.
+Connector and Annotator. Stacked continuation `47dacf9...` adds typed native
+decision providers for Map, Reward and CardReward: game-owned route/reward/
+option membership now precedes presentation intersection, and execute-time
+binding re-captures the same provider. The matrix above retains predecessor
+Live claims because the continuation artifact has source/test/build evidence
+only; no PR #5 or schema-3 Human evidence transfers.
 
 Semantic state Read requirements are interaction-specific: combat requires
 `run_deck` and `combat_piles`, shop requires `run_deck` and `shop_catalog`, and

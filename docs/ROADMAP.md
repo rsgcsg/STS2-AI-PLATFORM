@@ -7,8 +7,10 @@
   logical/native catalog.
 - Complete at source/test: route Annotator action lifecycle and PlayerChoice
   parent lineage through one read-only Foundation adapter.
-- Complete at source/test: distinguish Reward/CardReward/Map semantic owner
-  from input owner without adding legality or execution.
+- Complete at source/test/build on PR #6: route
+  Map destinations, Reward choices/proceed and CardReward options through
+  typed shared Native Foundation decision providers. Connector intersects
+  presentation/delivery and Annotator consumes the same catalog.
 - Complete and frozen: PR #7/#8 retrofit and Ritsu-first evidence preserve the
   `RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY` route in ADR 0004; useful
   findings are retained without merging research runtime code.
@@ -24,7 +26,10 @@
   accounting, potion, three PlayerChoice pause/resume pairs, repeated
   `lethal -> Reward -> CardReward -> Map`, and Recorder New/Pause/Resume/Close.
   See the [Human closeout](evidence/NATIVE_FOUNDATION_WINDOWS_HUMAN_CLOSEOUT_2026-08-31.md).
-- Next: Treasure lifecycle discriminator, then migrate Shop,
+- Independently pending for the continuation artifact: exact install/load and
+  representative runtime exercise of the new Map/Reward/CardReward adapters;
+  no PR #5 Human evidence transfers.
+- Next after PR #6 requalification: migrate Shop,
   Event, Rest, run entry, and terminal by native mechanism. Remove each old
   publication/witness path only after both consumers use the shared adapter.
 

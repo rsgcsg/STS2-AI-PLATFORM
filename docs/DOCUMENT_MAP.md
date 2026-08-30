@@ -40,6 +40,8 @@ Use the smallest route that answers the task.
   [Native Seam Matrix](NATIVE_SEAM_MATRIX.md),
   [Architecture Example Suite](NATIVE_FOUNDATION_EXAMPLE_SUITE.md), and
   [ADR 0004](adr/0004-native-foundation-and-ritsu-route.md).
+- Current Map/Reward/CardReward adapter source and build evidence:
+  [Native Foundation Full-Run source closeout](evidence/NATIVE_FOUNDATION_FULL_RUN_SOURCE_CLOSEOUT_2026-08-31.md).
 - Ownership matrix: [Components](COMPONENTS.md).
 - Portable/runtime evidence meanings: [Testing and Evidence](TESTING.md).
 - Component and composition identity: [Versioning](VERSIONING.md) and `platform-bom.json`.
