@@ -225,6 +225,21 @@ test("Native Foundation is the single combat semantic and lifecycle seam", () =>
   assert.doesNotMatch(lifecycle, /\.BeforeExecuted \+=/u);
 });
 
+test("non-combat native owners are observed by explicit read-only seams", () => {
+  const initializer = read("apps/game-mod/UnifiedPlatformMod.cs");
+  const patches = read("apps/game-mod/NativeFoundationOwnerPatches.cs");
+
+  assert.match(
+    initializer,
+    /NativeFoundationOwnerPatches\.Initialize\(\);[\s\S]*ConnectorMod\.Initialize\(\);[\s\S]*RecorderMod\.Initialize\(\);/u
+  );
+  assert.match(patches, /typeof\(NRewardsScreen\), nameof\(NRewardsScreen\.ShowScreen\)/u);
+  assert.match(patches, /typeof\(NCardRewardSelectionScreen\),[\s\S]*nameof\(NCardRewardSelectionScreen\.ShowScreen\)/u);
+  assert.match(patches, /typeof\(NCardRewardSelectionScreen\),[\s\S]*nameof\(NCardRewardSelectionScreen\.RefreshOptions\)/u);
+  assert.equal((patches.match(/harmony\.Patch\(original, postfix:/gu) ?? []).length, 1);
+  assert.doesNotMatch(patches, /PatchAll|prefix:|finalizer:|transpiler:|static\s+bool\s+Prefix/u);
+});
+
 test("Native Foundation remains semantic-only and Ritsu-free", () => {
   const foundationFiles = [
     "components/native-foundation/src/NativeDecisionContracts.cs",

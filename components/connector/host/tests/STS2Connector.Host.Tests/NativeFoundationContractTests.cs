@@ -1,5 +1,6 @@
 using STS2Connector.LiveHost;
 using STS2Platform.NativeFoundation;
+using MegaCrit.Sts2.Core.Map;
 
 namespace STS2Connector.Host.Tests;
 
@@ -54,6 +55,86 @@ public sealed class NativeFoundationContractTests
         Assert.Equal("first", Assert.Single(visibleHost).Key);
         Assert.Equal(new[] { "first", "second" }, headlessHost.Select(action => action.Key));
         Assert.Equal(new[] { "first", "second" }, decision.Actions.Select(action => action.Key));
+    }
+
+    [Fact]
+    public void MapDestinationMechanicsUseTheNativeMapTopology()
+    {
+        var start = new MapPoint(0, -1) { PointType = MapPointType.Ancient };
+        var boss = new MapPoint(0, 2) { PointType = MapPointType.Boss };
+        var map = new MockCraftedActMap(2, 2, start, boss);
+        map.Put(0, 0);
+        map.Put(1, 0);
+        map.Put(0, 1);
+        MapPoint left = map.GetPoint(0, 0)!;
+        MapPoint right = map.GetPoint(1, 0)!;
+        MapPoint last = map.GetPoint(0, 1)!;
+        start.AddChildPoint(left);
+        start.AddChildPoint(right);
+        left.AddChildPoint(last);
+
+        Assert.Same(start, Assert.Single(NativeMapDecisionProvider.GetDestinations(
+            map,
+            Array.Empty<MapCoord>(),
+            null,
+            point => point.Children)));
+        Assert.Equal(
+            new[] { left, right },
+            NativeMapDecisionProvider.GetDestinations(
+                map,
+                new[] { start.coord },
+                start,
+                point => point.Children));
+        Assert.Same(boss, Assert.Single(NativeMapDecisionProvider.GetDestinations(
+            map,
+            new[] { start.coord, left.coord, last.coord },
+            last,
+            _ => throw new InvalidOperationException("Last-row travel bypassed the boss."))));
+    }
+
+    [Fact]
+    public void NonCombatPresentationCannotCreateOrDuplicateNativeActions()
+    {
+        var nativeReward = new object();
+        var presentationOnly = new object();
+        var actions = new[]
+        {
+            Action("claim-native", nativeReward, "claim")
+        };
+
+        Assert.Empty(NativeDecisionProjection.VisibleSubjects(
+            actions,
+            "claim",
+            new[] { presentationOnly }));
+        Assert.Equal(
+            "claim-native",
+            Assert.Single(NativeDecisionProjection.VisibleSubjects(
+                actions,
+                "claim",
+                new[] { nativeReward, nativeReward })).Key);
+    }
+
+    [Fact]
+    public void NativeMembershipRequiresOneExactSubjectReference()
+    {
+        var reward = new object();
+        var duplicate = new NativeRewardDecision(
+            "captured",
+            "room_rewards",
+            true,
+            true,
+            new[]
+            {
+                Action("first", reward, "claim"),
+                Action("second", reward, "claim")
+            },
+            Array.Empty<string>(),
+            null);
+        var exact = duplicate with { Actions = new[] { Action("only", reward, "claim") } };
+
+        Assert.False(NativeRewardDecisionProvider.Contains(duplicate, "claim", reward));
+        Assert.True(NativeRewardDecisionProvider.Contains(exact, "claim", reward));
+        Assert.False(NativeRewardDecisionProvider.Contains(exact, "claim", new object()));
     }
 
     [Theory]
