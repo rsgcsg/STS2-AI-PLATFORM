@@ -2,9 +2,9 @@
 
 ## Evidence Level
 
-This report covers source, deterministic tests, and exact-game build only until
-the final committed candidate is installed and cold-loaded. It does not transfer
-the predecessor PR #3 Human evidence to rebuilt bytes.
+This report currently covers committed source and deterministic tests. Exact
+build/install/load fields are added only after those gates complete. It does
+not transfer predecessor PR #3 Human evidence to rebuilt bytes.
 
 Exact game baseline:
 
@@ -16,6 +16,12 @@ Exact game baseline:
 The refactor branch is intentionally stacked from PR #3 head
 `72e54f92c8ade16a1fed02f5a0bb9966b49d52e2`; PR #3 remains independent and
 unchanged.
+
+Native Foundation, Connector, Annotator and unified-Mod component source is
+anchored by implementation commit
+`a3bcd373e156fb354a6b4947b72c15236457c4b0`. Their component tree and digest
+identities are recorded in `platform-bom.json`; the later BOM/docs closeout
+commit does not change those component sources.
 
 ## Vertical Slices
 

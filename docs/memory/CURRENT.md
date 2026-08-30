@@ -19,13 +19,14 @@ remain exact; audit-only source `193861a...` repaired cross-stream accounting
 without changing that artifact. ADR 0003 remains a historical candidate, not
 active gameplay authority.
 
-An independent stacked worktree now carries a source/test Native Foundation
-candidate: one bounded combat semantic catalog, one exact lifecycle adapter,
-one PlayerChoice lineage adapter, and a non-authorizing
+An independent stacked worktree now carries Native Foundation component source
+commit `a3bcd37...`: one bounded combat semantic catalog, one exact lifecycle
+adapter, one PlayerChoice lineage adapter, and a non-authorizing
 Reward/CardReward/Map owner discriminator. It changes native bytes, so no PR #3
 Human evidence transfers. ADR 0004 keeps RitsuLib as an external reference and
-adds no runtime dependency. The next gate is final commit/build/install/load
-followed by one short exact-artifact Human canary.
+adds no runtime dependency. Portable source/tests pass; the next gate is final
+provenance closeout, build/install/load, then one short exact-artifact Human
+canary.
 
 ## Active workstreams
 

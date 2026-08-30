@@ -24,9 +24,10 @@ discriminator that creates no action authority. Public protocol 1.0.0 remains
 compatible; `Receipt.Successor` is clarified as an immediate post-delivery
 observation, not canonical causal `S'`.
 
-Connector, Annotator, and unified-Mod targeted checks pass for the uncommitted
-source candidate. The final committed artifact has not yet been installed,
-cold-loaded, or Human exercised; predecessor PR #3 evidence does not transfer.
+Connector, Annotator, unified-Mod targeted checks and the full portable suite
+pass for component source commit `a3bcd37...`. The final artifact has not yet
+been built, installed, cold-loaded, or Human exercised; predecessor PR #3
+evidence does not transfer.
 RitsuLib was audited at upstream v0.5.18/main `f224961...` and development
 `c466809...`; [ADR 0004](adr/0004-native-foundation-and-ritsu-route.md) records
 the no-runtime-dependency route. See the

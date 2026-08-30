@@ -59,6 +59,21 @@ test("BOM check rejects V2 evidence and selector-claim drift", async () => {
   assert.ok(errors.includes("Read-rich V2 predecessor generated-card-choice non-claim is missing"));
 });
 
+test("BOM check keeps closed Human audit provenance independent from current source", async () => {
+  const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
+  const candidate = bom.unified_platform_runtime_candidate.native_semantic_discriminator_source_candidate;
+
+  assert.notEqual(
+    candidate.owner_canary.audit_closeout_source_revision,
+    bom.components.annotator.source_revision
+  );
+  assert.deepEqual(validatePlatformBom(bom, await readBomAuthorities(root)), []);
+
+  candidate.owner_canary.audit_closeout_source_revision = "0".repeat(40);
+  const errors = validatePlatformBom(bom, await readBomAuthorities(root));
+  assert.ok(errors.some((error) => error.startsWith("native discriminator audit source:")));
+});
+
 test("BOM check rejects unified artifact, identity and evidence promotion", async () => {
   const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
   const candidate = bom.unified_platform_runtime_candidate;

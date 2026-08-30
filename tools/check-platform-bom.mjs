@@ -44,7 +44,8 @@ const NATIVE_SEMANTIC_DISCRIMINATOR = Object.freeze({
   environment: "190234e4a3b270d4447e13598c45aa205d40766b98f6efa2b99c3790b77386d2",
   modset: "968a30c304f7ba8befd459f279a1f36957eb5dbebed94e8016111bce3389288c",
   sessionId: "session-20260830T064823Z-ed1d683fe0b44e1db312c7489cda7fba",
-  timelineId: "timeline-bc4ee13a1bdd400bbec356e5a0abdbdc"
+  timelineId: "timeline-bc4ee13a1bdd400bbec356e5a0abdbdc",
+  auditCloseoutSourceRevision: "193861ad9f8e1e7c058a292942b5cf5729aad413"
 });
 
 function readJson(file) {
@@ -264,7 +265,7 @@ export function validatePlatformBom(bom, authorities) {
     "pass_after_audit_aggregation_fix");
   expectEqual(errors, "native discriminator audit source",
     discriminatorHuman?.audit_closeout_source_revision,
-    bom.components?.annotator?.source_revision);
+    NATIVE_SEMANTIC_DISCRIMINATOR.auditCloseoutSourceRevision);
   for (const field of [
     "manifest_sha256",
     "decision_v2_sha256",
