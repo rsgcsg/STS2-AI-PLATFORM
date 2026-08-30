@@ -102,7 +102,13 @@ public static class V2RecordingAuditor
             directory,
             manifest,
             errors);
-        ValidateSchemaTwoSemanticAccounting(nativeEvents, semanticEvents, errors);
+        IReadOnlyList<NativeSemanticDiscriminatorEvent> discriminatorEvents =
+            ValidateNativeSemanticDiscriminator(directory, manifest, errors);
+        ValidateSchemaTwoSemanticAccounting(
+            nativeEvents,
+            semanticEvents,
+            discriminatorEvents,
+            errors);
         ValidateCanonicalTransitions(directory, manifest, recordsById, errors);
         long invalidations = File.Exists(Path.Combine(directory, "invalidations.jsonl"))
             ? Lines(Path.Combine(directory, "invalidations.jsonl")).LongCount()
@@ -588,14 +594,16 @@ public static class V2RecordingAuditor
     private static void ValidateSchemaTwoSemanticAccounting(
         IReadOnlyList<NativeActionLedgerEvent> nativeEvents,
         IReadOnlyList<SemanticBoundaryTraceEvent> semanticEvents,
+        IReadOnlyList<NativeSemanticDiscriminatorEvent> discriminatorEvents,
         IDictionary<string, long> errors)
     {
-        // Semantic trace schema 2 promises one accounting path for every exact
-        // accepted Human root. Older sessions with no trace or only schema 1
-        // retain their original meaning and remain readable.
-        if (!semanticEvents.Any(value =>
-                value.SchemaVersion == SemanticBoundaryTraceContract.SchemaVersion
-                && value.Schema == SemanticBoundaryTraceContract.EventSchema))
+        // Current evidence can account a native root through either the
+        // semantic timeline or the execution-bound discriminator. Older
+        // sessions with neither stream retain their original meaning.
+        bool hasSchemaTwoTrace = semanticEvents.Any(value =>
+            value.SchemaVersion == SemanticBoundaryTraceContract.SchemaVersion
+            && value.Schema == SemanticBoundaryTraceContract.EventSchema);
+        if (!hasSchemaTwoTrace && discriminatorEvents.Count == 0)
             return;
 
         HashSet<string> semanticAcceptedRecordIds = semanticEvents
@@ -604,13 +612,76 @@ public static class V2RecordingAuditor
                 && value.Kind == SemanticBoundaryTraceKinds.ActionAccepted)
             .Select(value => value.Action.RecordId)
             .ToHashSet(StringComparer.Ordinal);
+        HashSet<string> discriminatorAcceptedActionIds = discriminatorEvents
+            .Where(value => value.Phase == "accepted")
+            .Select(value => value.ActionWitnessId)
+            .ToHashSet(StringComparer.Ordinal);
+        HashSet<string> nativeAcceptedActionIds = nativeEvents
+            .Where(value =>
+                value.SchemaVersion == NativeActionLedgerContract.SchemaVersion
+                && value.Kind == NativeActionLifecycleKinds.Accepted)
+            .Select(value => value.ActionWitnessId)
+            .ToHashSet(StringComparer.Ordinal);
         foreach (NativeActionLedgerEvent accepted in nativeEvents.Where(value =>
                      value.SchemaVersion == NativeActionLedgerContract.SchemaVersion
                      && value.Kind == NativeActionLifecycleKinds.Accepted))
         {
-            if (!semanticAcceptedRecordIds.Contains(accepted.RecordId))
+            if (!semanticAcceptedRecordIds.Contains(accepted.RecordId)
+                && !discriminatorAcceptedActionIds.Contains(accepted.ActionWitnessId))
                 Add(errors, "semantic_trace_missing_accepted_native_action");
         }
+        foreach (string discriminatorActionId in discriminatorAcceptedActionIds)
+        {
+            if (!nativeAcceptedActionIds.Contains(discriminatorActionId))
+                Add(errors, "native_semantic_discriminator_accepted_without_native_ledger");
+        }
+    }
+
+    private static IReadOnlyList<NativeSemanticDiscriminatorEvent>
+        ValidateNativeSemanticDiscriminator(
+            string directory,
+            RecordingManifestV2? manifest,
+            IDictionary<string, long> errors)
+    {
+        string path = Path.Combine(directory, "native-semantic-discriminator.jsonl");
+        // The stream is additive. Historical recordings remain valid without it.
+        if (!File.Exists(path))
+            return Array.Empty<NativeSemanticDiscriminatorEvent>();
+
+        var events = new List<NativeSemanticDiscriminatorEvent>();
+        foreach ((string line, _) in Lines(path))
+        {
+            NativeSemanticDiscriminatorEvent? value;
+            try
+            {
+                value = JsonSerializer.Deserialize<NativeSemanticDiscriminatorEvent>(
+                    line,
+                    EvidenceJson.Options);
+            }
+            catch (JsonException)
+            {
+                Add(errors, "native_semantic_discriminator_json_invalid");
+                continue;
+            }
+            if (value == null)
+            {
+                Add(errors, "native_semantic_discriminator_null");
+                continue;
+            }
+            if (manifest == null
+                || value.SessionId != manifest.SessionId
+                || value.TimelineId != manifest.TimelineId)
+                Add(errors, "native_semantic_discriminator_manifest_mismatch");
+            events.Add(value);
+        }
+        if (events.Count == 0)
+            return events;
+
+        NativeSemanticDiscriminatorReport report =
+            NativeSemanticDiscriminatorAnalyzer.Analyze(events);
+        foreach (string _ in report.Errors)
+            Add(errors, "native_semantic_discriminator_analysis_failed");
+        return events;
     }
 
     private static T? ReadOrError<T>(string path, IDictionary<string, long> errors, string error)

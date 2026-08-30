@@ -343,6 +343,148 @@ public sealed class V2EvidenceTests
     }
 
     [Fact]
+    public void SchemaTwoAuditAcceptsNativeActionAccountedByValidDiscriminatorStream()
+    {
+        string root = Temp("v2-semantic-discriminator-accounting");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            string session;
+            using (var store = V2RecordingStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                HumanDecisionRecord v1 = RecordValidationTests.ValidRecord();
+                HumanDecisionRecordV2 v2 = V2Record(v1, (
+                    PersistReads(store, v1.Pre.SnapshotId),
+                    PersistReads(store, v1.Successor.SnapshotId)));
+                store.AppendDecision(v2);
+
+                var accepted = new NativeActionLedgerEvent(
+                    NativeActionLedgerContract.SchemaVersion,
+                    NativeActionLedgerContract.EventSchema,
+                    "native-event-1",
+                    manifest.SessionId,
+                    manifest.TimelineId,
+                    "run-0001",
+                    1,
+                    "game-action-accounted",
+                    1,
+                    v1.RecordId,
+                    DateTimeOffset.UnixEpoch,
+                    NativeActionLifecycleKinds.Accepted,
+                    "PlayCardAction",
+                    7,
+                    "waiting_for_execution",
+                    Array.Empty<string>(),
+                    "strict_candidate",
+                    null,
+                    v2.Pre,
+                    v2.NativeWitness,
+                    v2.Mapping,
+                    v2.Action);
+                store.AppendNativeActionEvent(accepted);
+                store.AppendNativeActionEvent(accepted with
+                {
+                    EventId = "native-event-2",
+                    Sequence = 2,
+                    Kind = NativeActionLifecycleKinds.Started,
+                    NativeState = "executing",
+                    TransitionEvidence = "lifecycle_observed",
+                    DecisionPre = null,
+                    NativeWitness = null,
+                    Mapping = null,
+                    BoundAction = null
+                });
+                store.AppendNativeActionEvent(accepted with
+                {
+                    EventId = "native-event-3",
+                    Sequence = 3,
+                    Kind = NativeActionLifecycleKinds.Finished,
+                    NativeState = "finished",
+                    TransitionEvidence = "lifecycle_observed",
+                    DecisionPre = null,
+                    NativeWitness = null,
+                    Mapping = null,
+                    BoundAction = null
+                });
+                store.AppendNativeActionEvent(accepted with
+                {
+                    EventId = "native-event-4",
+                    Sequence = 4,
+                    Kind = NativeActionLifecycleKinds.StrictTransitionAdmitted,
+                    NativeState = "finished",
+                    TransitionEvidence = "strict_v2_admitted",
+                    DecisionPre = null,
+                    NativeWitness = null,
+                    Mapping = null,
+                    BoundAction = null
+                });
+
+                store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(
+                    manifest,
+                    1,
+                    "accepted",
+                    "game-action-accounted"));
+                store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(
+                    manifest,
+                    2,
+                    "before_execution",
+                    "game-action-accounted") with
+                {
+                    SemanticStateDigest = "semantic-state",
+                    SemanticState = JsonNode.Parse("{\"energy\":3}"),
+                    SemanticActionKeys = new[] { "play|card" },
+                    ObservedActionKey = "play|card",
+                    SemanticMembership = "exact_once",
+                    SemanticMatchCount = 1
+                });
+                store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(
+                    manifest,
+                    3,
+                    "started",
+                    "game-action-accounted"));
+                store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(
+                    manifest,
+                    4,
+                    "finished",
+                    "game-action-accounted"));
+            }
+
+            RecordingAuditResult audit = V2RecordingAuditor.Audit(session);
+
+            Assert.True(
+                audit.Status == "pass",
+                JsonSerializer.Serialize(audit.Errors));
+            Assert.Empty(audit.Errors);
+
+            string discriminator = Path.Combine(
+                session,
+                "native-semantic-discriminator.jsonl");
+            File.WriteAllText(
+                discriminator,
+                File.ReadAllText(discriminator).Replace(
+                    "game-action-accounted",
+                    "game-action-orphan",
+                    StringComparison.Ordinal));
+            RecordingAuditResult tampered = V2RecordingAuditor.Audit(session);
+            Assert.Equal("fail", tampered.Status);
+            Assert.Equal(
+                1,
+                tampered.Errors["semantic_trace_missing_accepted_native_action"]);
+            Assert.Equal(
+                1,
+                tampered.Errors[
+                    "native_semantic_discriminator_accepted_without_native_ledger"]);
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
     public void SemanticBoundaryBatchIsVisibleInOrderAndReadableAfterClose()
     {
         string root = Temp("v2-semantic-batch");
@@ -948,6 +1090,45 @@ public sealed class V2EvidenceTests
         {
             HumanObservation = humanObservation
         };
+
+    private static NativeSemanticDiscriminatorEvent DiscriminatorEvent(
+        RecordingManifestV2 manifest,
+        long sequence,
+        string phase,
+        string actionWitnessId) => new(
+            NativeSemanticDiscriminatorContract.SchemaVersion,
+            NativeSemanticDiscriminatorContract.EventSchema,
+            $"discriminator-event-{sequence}",
+            manifest.SessionId,
+            manifest.TimelineId,
+            "run-0001",
+            sequence,
+            DateTimeOffset.UnixEpoch.AddMilliseconds(sequence),
+            phase,
+            actionWitnessId,
+            "PlayCardAction",
+            7,
+            phase,
+            "captured",
+            "combat_play_phase",
+            null,
+            null,
+            "semantic-catalog",
+            Array.Empty<string>(),
+            null,
+            null,
+            null,
+            "snapshot-test",
+            "interactive",
+            "combat_turn",
+            "complete",
+            1,
+            "ui-catalog",
+            null,
+            null,
+            null,
+            null,
+            Array.Empty<string>());
 
     private static SemanticEvidenceEvent SemanticEvidenceEvent(
         RecordingManifestV2 manifest,
