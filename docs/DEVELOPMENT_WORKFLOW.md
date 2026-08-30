@@ -52,7 +52,7 @@ Only after that merge does `main` acquire stable-only meaning.
 - `hotfix/<name>`: urgent stable-line fix from `main`; merge the same fix back
   into `develop` and any active release branch.
 
-Scopes normally name an owning component: `connector`, `host-runtime`,
+Scopes normally name an owning component: `native-foundation`, `connector`, `host-runtime`,
 `annotator`, `evidence`, `policy-runtime`, `game-mod`, `live-ui`, `workbench` or
 `platform`. Do not create permanent component develop branches.
 

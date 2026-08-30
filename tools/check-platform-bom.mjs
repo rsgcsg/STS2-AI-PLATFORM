@@ -60,6 +60,7 @@ function expectPattern(errors, label, value, pattern) {
 }
 
 export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
+  const nativeFoundationComponent = readJson(path.join(platformRoot, "components", "native-foundation", "component.json"));
   const connectorRelease = readJson(path.join(platformRoot, "components", "connector", "release-manifest.json"));
   const connectorManifest = readJson(path.join(platformRoot, "components", "connector", "host", "mod_manifest.json"));
   const connectorSdk = readJson(path.join(platformRoot, "components", "connector", "sdk", "typescript", "package.json"));
@@ -76,6 +77,7 @@ export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
   ));
   return {
     identities: readIdentityReport(platformRoot),
+    nativeFoundationComponent,
     connectorRelease,
     connectorManifest,
     connectorSdk,
@@ -95,6 +97,7 @@ export function validatePlatformBom(bom, authorities) {
   const errors = [];
   expectEqual(errors, "schema", bom.schema, "sts2.ai-platform/bom-1");
   const componentMap = {
+    native_foundation: "native-foundation",
     connector: "connector",
     host_runtime: "host-runtime",
     annotator: "annotator",
@@ -112,6 +115,8 @@ export function validatePlatformBom(bom, authorities) {
     expectEqual(errors, `${bomKey}.component_tree_revision`, component?.component_tree_revision, identity.component_tree_revision);
     expectEqual(errors, `${bomKey}.component_source_digest_sha256`, component?.component_source_digest_sha256, identity.component_source_digest_sha256);
   }
+  expectEqual(errors, "Native Foundation version", bom.components?.native_foundation?.version,
+    authorities.nativeFoundationComponent.version);
   expectEqual(errors, "connector release version", bom.components?.connector?.version, authorities.connectorRelease.release.version);
   expectEqual(errors, "connector Mod version", authorities.connectorManifest.version, authorities.connectorRelease.release.version);
   expectEqual(errors, "Player Environment protocol", bom.components?.player_environment_protocol, authorities.connectorRelease.player_environment.protocol);

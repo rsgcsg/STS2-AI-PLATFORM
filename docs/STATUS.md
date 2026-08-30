@@ -13,6 +13,25 @@ GitHub enforcement is an operational fact separate from this source document;
 the workflow records intended rules, while repository settings must be checked
 directly before claiming protection.
 
+## Native Foundation candidate
+
+An isolated refactor branch, stacked from PR #3 head `72e54f9...`, now contains
+the first Platform-wide Native Foundation vertical slice. Direct Combat cards,
+potions, targets, and End Turn use one STS2-owned semantic catalog consumed by
+Connector and Annotator. PlayerChoice parent lineage and `GameAction` lifecycle
+use one read-only adapter. Reward/CardReward/Map have a source/test owner
+discriminator that creates no action authority. Public protocol 1.0.0 remains
+compatible; `Receipt.Successor` is clarified as an immediate post-delivery
+observation, not canonical causal `S'`.
+
+Connector, Annotator, and unified-Mod targeted checks pass for the uncommitted
+source candidate. The final committed artifact has not yet been installed,
+cold-loaded, or Human exercised; predecessor PR #3 evidence does not transfer.
+RitsuLib was audited at upstream v0.5.18/main `f224961...` and development
+`c466809...`; [ADR 0004](adr/0004-native-foundation-and-ritsu-route.md) records
+the no-runtime-dependency route. See the
+[source closeout](evidence/NATIVE_FOUNDATION_SOURCE_CLOSEOUT_2026-08-30.md).
+
 Phase: **bounded Human-proved native semantic sequential lane**.
 Commit `4384a14...` is preserved as the non-release tag
 `baseline/pr3-gameplay-safe-4384a14`; it removed the evidence-dependent global

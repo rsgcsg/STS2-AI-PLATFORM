@@ -72,6 +72,8 @@ run("dotnet", [
   `-p:STS2GameDir=${gameDir}`,
   `-p:PlatformSourceRevision=${source.platform.source_revision}`,
   `-p:PlatformSourceDigestSha256=${source.platform.source_digest_sha256}`,
+  `-p:NativeFoundationSourceRevision=${source.components.native_foundation.source_revision}`,
+  `-p:NativeFoundationSourceDigestSha256=${source.components.native_foundation.source_digest_sha256}`,
   `-p:ConnectorSourceRevision=${source.components.connector.source_revision}`,
   `-p:ConnectorPlayerEnvironmentSourceDigest=${source.components.connector.source_digest_sha256}`,
   `-p:AnnotatorSourceRevision=${source.components.annotator.source_revision}`,

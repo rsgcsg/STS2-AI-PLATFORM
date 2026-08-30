@@ -180,3 +180,53 @@ test("semantic direct UI commits share one execution boundary and scoped selecto
   assert.match(patches, /OnSelectModeConfirmButtonPressed/u);
   assert.match(patches, /RecorderRuntime\.TryEnterSemanticScope/u);
 });
+
+test("Native Foundation is the single combat semantic and lifecycle seam", () => {
+  const foundation = read("components/native-foundation/src/NativeCombatDecisionProvider.cs");
+  const combatSurface = read("components/connector/host/LiveHost/CombatTurnSurfaceReader.cs");
+  const witness = read("components/connector/host/PlayerEnvironment/Witness/ProcessLocalNativeSemanticWitness.cs");
+  const lifecycle = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeActionLifecycleSubscription.cs");
+
+  assert.match(foundation, /PlayerCombatState\.Hand\.Cards/u);
+  assert.match(foundation, /CardModel\.CanPlayTargeting/u);
+  assert.match(foundation, /PotionModel\.IsValidTarget/u);
+  assert.match(combatSurface, /NativeCombatDecisionProvider\.Capture/u);
+  assert.match(combatSurface, /NativeDecisionProjection[\s\S]*?\.VisibleSubjects/u);
+  assert.match(witness, /NativeCombatDecisionProvider\.Capture/u);
+  assert.doesNotMatch(witness, /private static IReadOnlyList<ProcessLocalSemanticAction> BuildActions/u);
+  assert.doesNotMatch(witness, /CanUsePotionSemantically/u);
+  assert.match(lifecycle, /NativeActionLifecycleObserver/u);
+  assert.doesNotMatch(lifecycle, /\.BeforeExecuted \+=/u);
+});
+
+test("Native Foundation remains semantic-only and Ritsu-free", () => {
+  const foundationFiles = [
+    "components/native-foundation/src/NativeDecisionContracts.cs",
+    "components/native-foundation/src/NativeCombatDecisionProvider.cs",
+    "components/native-foundation/src/NativeDomainOwnerProbe.cs",
+    "components/native-foundation/src/NativeActionLifecycleObserver.cs"
+  ];
+  const source = foundationFiles.map(read).join("\n");
+  const project = read("apps/game-mod/STS2Platform.GameMod.csproj");
+
+  assert.doesNotMatch(source, /Harmony|Http|JsonSerializer|File\.|Directory\.|Receipt|EvidenceStore/u);
+  assert.doesNotMatch(`${source}\n${project}`, /RitsuLib|STS2RitsuLib/u);
+  assert.match(project, /components\/native-foundation\/src\/\*\.cs/u);
+});
+
+test("semantic witness preserves Native Foundation capture failures", () => {
+  const witness = read("components/connector/host/PlayerEnvironment/Witness/ProcessLocalNativeSemanticWitness.cs");
+  assert.match(witness, /Schema,\s*decision\.Status,/u);
+  assert.match(witness, /decision\.Detail\);/u);
+  assert.doesNotMatch(witness, /Schema,\s*"captured",\s*scope,/u);
+});
+
+test("delivery receipt cannot claim causal settlement", () => {
+  const submission = read("components/connector/host/PlayerEnvironment/Execution/ActionSubmission.cs");
+  const protocol = read("components/connector/host/PlayerEnvironment/Protocol/PlayerEnvironmentContracts.cs");
+
+  assert.match(submission, /postDeliveryObservation/u);
+  assert.match(submission, /not causal settlement/u);
+  assert.match(protocol, /not business completion or a canonical[\s\S]*causal next-decision state/u);
+  assert.doesNotMatch(submission, /WaitFor.*Successor|CompletionProbe|BusinessOutcome/u);
+});

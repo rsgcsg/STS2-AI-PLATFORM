@@ -24,6 +24,10 @@ export function textBoundaryErrors(relative, contents) {
       && /(?:from\s+|import\s*\()\s*["'][^"']*(?:host-runtime|annotator)/u.test(contents)) {
     errors.push(`${normalized}: Connector imports a downstream component`);
   }
+  if (normalized.startsWith("components/native-foundation/")
+      && /STS2Connector|STS2HumanAnnotator|HarmonyLib|System\.Text\.Json/u.test(contents)) {
+    errors.push(`${normalized}: Native Foundation imports transport, evidence, or patch ownership`);
+  }
   if (normalized.startsWith("components/host-runtime/")
       && /(?:from\s+|import\s*\()\s*["'][^"']*(?:\.\.\/)+(?:connector|annotator)(?:\/|["'])/u.test(contents)) {
     errors.push(`${normalized}: Host Runtime imports another component implementation`);
@@ -153,6 +157,7 @@ export function collectBoundaryErrors(workspaceRoot = root) {
   }
 
   for (const relative of [
+    "components/native-foundation/src",
     "components/connector/host",
     "components/connector/sdk",
     "components/connector/tools",

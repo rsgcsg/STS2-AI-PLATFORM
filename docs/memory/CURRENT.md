@@ -19,12 +19,22 @@ remain exact; audit-only source `193861a...` repaired cross-stream accounting
 without changing that artifact. ADR 0003 remains a historical candidate, not
 active gameplay authority.
 
+An independent stacked worktree now carries a source/test Native Foundation
+candidate: one bounded combat semantic catalog, one exact lifecycle adapter,
+one PlayerChoice lineage adapter, and a non-authorizing
+Reward/CardReward/Map owner discriminator. It changes native bytes, so no PR #3
+Human evidence transfers. ADR 0004 keeps RitsuLib as an external reference and
+adds no runtime dependency. The next gate is final commit/build/install/load
+followed by one short exact-artifact Human canary.
+
 ## Active workstreams
 
 - Full-Run Human Semantic Timeline and evidence representation: PR #3. Keep its
   runtime semantics and exact Human evidence on this feature branch. Existing
   schema-3 proof is trace-level only; canonical eligibility comes from
   `calibrate-semantic-training`.
+- Native Foundation refactor: isolated stacked branch
+  `refactor/platform/native-foundation`; do not fold it into or rewrite PR #3.
 - Repository System v1: the integrated governance baseline for documentation
   routing, bounded context, sparse Skills, deterministic checks, and
   supply-chain configuration. It changes no game behavior or component

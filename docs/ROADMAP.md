@@ -1,5 +1,22 @@
 # Roadmap
 
+## Native Foundation Migration
+
+- Complete at source/test: introduce a semantic-only game-side Native
+  Foundation and route Connector/Annotator Direct Combat through one STS2-owned
+  logical/native catalog.
+- Complete at source/test: route Annotator action lifecycle and PlayerChoice
+  parent lineage through one read-only Foundation adapter.
+- Complete at source/test: distinguish Reward/CardReward/Map semantic owner
+  from input owner without adding legality or execution.
+- Complete: audit Ritsu v0.5.18/main and development and choose the bounded
+  reference-only route in ADR 0004; no runtime dependency is added.
+- Pending exact artifact: install, cold-load, non-Human identity checks, then a
+  short Combat/PlayerChoice/Reward/CardReward/Map Human canary.
+- Next after canary: Treasure lifecycle discriminator, then migrate Shop,
+  Event, Rest, run entry, and terminal by native mechanism. Remove each old
+  publication/witness path only after both consumers use the shared adapter.
+
 ## Canonical Human One-Step Evidence
 
 - Complete: mechanically separate Human provenance H, authoritative S,

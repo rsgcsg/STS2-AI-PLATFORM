@@ -12,6 +12,7 @@ using MegaCrit.Sts2.Core.Runs;
 using STS2Connector.PlayerEnvironment.Protocol;
 using STS2Connector.PlayerEnvironment.Witness;
 using STS2HumanAnnotator.Core;
+using STS2Platform.NativeFoundation;
 
 namespace STS2HumanAnnotator.Mod;
 
@@ -1618,15 +1619,7 @@ internal static class RecorderRuntime
             drafts = result;
         }
         PersistSemanticBoundaryDrafts(drafts);
-        GameAction? parent = null;
-        try
-        {
-            parent = RunManager.Instance.ActionExecutor.CurrentlyRunningAction;
-        }
-        catch
-        {
-            // Direct commits outside a GameAction have no parent lineage.
-        }
+        GameAction? parent = NativePlayerChoiceLineage.Capture().ParentAction;
         NativeSemanticDiscriminatorRuntime.ObserveDirectCommit(
             _store,
             SessionId,

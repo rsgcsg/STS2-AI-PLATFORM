@@ -10,7 +10,8 @@ models, training or research authority.
 ## Planes
 
 ```text
-Environment:  Host <-> Connector <-> consumer
+Native:       STS2 -> Native Foundation -> Connector / Annotator
+Environment:  game-side Host <-> Connector <-> consumer
 Host control: Host Runtime <-> STS2 process lifecycle
 Evidence:     Annotator -> immutable bundle -> verify/store/transfer/receive -> consumer
 Policy:       external adapter -> Policy Runtime -> Connector
@@ -64,10 +65,12 @@ The current schema-3 timeline is an accounting/lifecycle trace. Offline
 calibration is the only current promotion gate for canonical one-step rows.
 Exact-source and exact-runtime analysis found that normal STS2 UI staging
 withdraws many accepted affordances before execution, while generic later
-interactivity does not prove causal settlement. ADR 0003 therefore selects a
-serialized Human-input collection design, but explicitly withholds permission
-to implement any input gate. Connector remains the only state/action authority;
-the Annotator does not reconstruct a same-state catalog or successor.
+interactivity does not prove causal settlement. ADR 0003 records the withdrawn
+serialized-input candidate; it is not current gameplay authority. Native
+Foundation now owns the bounded shared combat semantic catalog and exact
+lifecycle adapter. Connector remains the only public state/action authority;
+Annotator consumes the shared native facts and does not reconstruct legality or
+claim a universal successor.
 
 ## Hard Shell
 
@@ -82,8 +85,9 @@ Manifest-required advertised Reads. It cannot filter or invent candidates. Its
 adapter returns scores plus an index, and Runtime resolves that index locally
 against the same Snapshot before acquiring the one Connector controller. Shadow
 never acquires a controller; One-Step returns to Human; Auto hands off on an
-unsupported surface, abstention, or not-delivered Receipt. Receipt and stable
-successor remain distinct evidence. A transport exception after submission or
+unsupported surface, abstention, or not-delivered Receipt. A Receipt successor
+is an immediate post-delivery observation, not causal settlement; stable next
+decision evidence remains separate. A transport exception after submission or
 an `unknown` Receipt taints the run and is never retried. Adapter failure or a
 bounded decision timeout returns to Human before controller acquisition.
 
@@ -91,6 +95,8 @@ bounded decision timeout returns to Human before controller acquisition.
 
 ```text
 STS2 installation and native runtime
+  -> Native Foundation
+     -> STS2-owned semantic decisions, lifecycle, and owner lineage
   -> Connector component
      -> Player Environment contract, native UI implementation, SDK, and release identity
   -> Host Runtime component
@@ -116,6 +122,12 @@ External consumers -> public Connector SDK / Host Runtime package
 STPD              -> public packages + version-pinned Evidence + thin Policy Adapter
 SpireAgent        -> consumer integration and policy
 ```
+
+Native Foundation is semantic/lifecycle infrastructure, not a service,
+transport, evidence store, or executor. Connector may filter its facts by
+fair-player visibility and deliverability but cannot create semantic legality;
+Annotator may observe them but cannot authorize input. See
+[Native Foundation](NATIVE_FOUNDATION.md).
 
 The Connector gameplay authority is one component-local path. Host Runtime
 owns process lifecycle and may consume the public SDK; it must install the
