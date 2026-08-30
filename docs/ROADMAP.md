@@ -11,8 +11,11 @@
   from input owner without adding legality or execution.
 - Complete: audit Ritsu v0.5.18/main and development and choose the bounded
   reference-only route in ADR 0004; no runtime dependency is added.
-- Pending exact artifact: install, cold-load, non-Human identity checks, then a
-  short Combat/PlayerChoice/Reward/CardReward/Map Human canary.
+- Complete for exact artifact `9a89f1fe... / b1c34f90...`: clean build, safe
+  install, cold-load, non-mutating live controller/stale/idempotency checks,
+  shipped-headless H0, and main-menu-only canonical live/headless parity.
+- Pending Human evidence: a short Combat/PlayerChoice and
+  `lethal -> Reward -> CardReward -> Map` canary on that exact artifact.
 - Next after canary: Treasure lifecycle discriminator, then migrate Shop,
   Event, Rest, run entry, and terminal by native mechanism. Remove each old
   publication/witness path only after both consumers use the shared adapter.

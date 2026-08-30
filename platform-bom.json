@@ -243,7 +243,7 @@
     }
   },
   "unified_platform_runtime_candidate": {
-    "status": "native_semantic_discriminator_bounded_human_pass",
+    "status": "native_foundation_loaded_automated_gates_pass_human_pending",
     "platform": "darwin",
     "architecture": "arm64",
     "game": {
@@ -332,6 +332,59 @@
       },
       "evidence_transfer_from_predecessor": false,
       "rollback": "apps/game-mod/.local/deployments/2026-08-30T06-43-57.781Z"
+    },
+    "native_foundation_runtime_candidate": {
+      "status": "loaded_automated_gates_pass_human_pending",
+      "workspace_revision_at_build": "da9f60535ade0fb9bc792c18be1b8976b3bedcd4",
+      "implementation_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "native_foundation": {
+        "source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+        "component_tree_revision": "981c4667384905b6c359d1bd39ddc8b8f352a968",
+        "component_source_digest_sha256": "098f7215512199e825dbbb910d78f4c9e61b7b0ea7a1a742052e91ffa75dac52",
+        "build_source_digest_sha256": "d2018cad13b1f904ac7b8e8cd6928491ed819470e7107e757455c34a179c9ee4"
+      },
+      "connector_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "annotator_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "game_mod_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "artifact_sha256": "9a89f1fe728bdce442c70de0daaec0299230e80c6442c97f4bd0752620ce959b",
+      "artifact_mvid": "b1c34f90-f143-4f7f-97da-eea90c23dbde",
+      "built": "pass_clean_source",
+      "installed": "pass",
+      "loaded": "pass",
+      "installed_at": "2026-08-30T13:23:42.261Z",
+      "loaded_at": "2026-08-30T13:27:09.3430850+00:00",
+      "player_environment_protocol": "1.0.0",
+      "runtime_instance_id": "b57a37b4767a42aab5cffa4bba8870f4",
+      "environment_fingerprint": "f0cbd53a1be10fad5630252aa4f4ee484b426d733ac3f4d52a04d069584b1c37",
+      "modset_status": "exact_platform_modset",
+      "modset_fingerprint": "d5054e7bbfc30d8787c3573f57ada09bb808874c0c4f82485433c0e725a96e8d",
+      "loaded_mod_ids": ["STS2_PLATFORM"],
+      "automated_live_ui": {
+        "loaded_identity": "pass",
+        "interactive_snapshot": "pass_main_menu_complete",
+        "controller_conflict": "pass_http_409",
+        "stale_rejection": "pass_not_delivered",
+        "request_idempotency": "pass_same_receipt"
+      },
+      "automated_headless": {
+        "status": "h0_pass_canary_exact",
+        "runtime_instance_id": "efd022e91c7e4f0287494707b423d700",
+        "host_kind": "headless",
+        "snapshot_status": "interactive",
+        "interaction_kind": "main_menu"
+      },
+      "visible_headless_semantic_invariance": {
+        "status": "pass",
+        "scope": "main_menu_only",
+        "canonical_digest_sha256": "71e246abad05c8a9a805bb6e041cef526ea54645ebc71bb68d103a4c490ab3d7",
+        "visible_runtime_instance_id": "b57a37b4767a42aab5cffa4bba8870f4",
+        "headless_runtime_instance_id": "efd022e91c7e4f0287494707b423d700"
+      },
+      "receipt_successor_contract": "immediate_post_delivery_observation_not_causal_s_prime",
+      "ritsu_route": "RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY",
+      "human_runtime": "not_exercised",
+      "evidence_transfer_from_predecessor": false,
+      "rollback": "apps/game-mod/.local/deployments/2026-08-30T13-23-42.253Z"
     },
     "serialized_canonical_loaded_candidate": {
       "status": "loaded_pending_owner_human_canary",
@@ -839,6 +892,8 @@
     "native_semantic_discriminator_overlapping_acceptance_not_exercised",
     "native_semantic_discriminator_cancel_abort_not_exercised",
     "native_semantic_discriminator_handoff_is_candidate_not_final_successor",
-    "native_semantic_discriminator_full_run_not_implemented"
+    "native_semantic_discriminator_full_run_not_implemented",
+    "native_foundation_candidate_human_runtime_not_exercised",
+    "native_foundation_visible_headless_parity_main_menu_only"
   ]
 }

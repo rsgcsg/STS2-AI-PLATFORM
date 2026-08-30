@@ -24,9 +24,11 @@ commit `a3bcd37...`: one bounded combat semantic catalog, one exact lifecycle
 adapter, one PlayerChoice lineage adapter, and a non-authorizing
 Reward/CardReward/Map owner discriminator. It changes native bytes, so no PR #3
 Human evidence transfers. ADR 0004 keeps RitsuLib as an external reference and
-adds no runtime dependency. Portable source/tests pass; the next gate is final
-provenance closeout, build/install/load, then one short exact-artifact Human
-canary.
+adds no runtime dependency. Portable source/tests, clean build, safe install,
+cold-load, non-mutating controller/stale/idempotency gates and shipped-headless
+H0 pass for `9a89f1fe... / b1c34f90...`. Live/headless canonical parity is
+proved only at the main menu. The next gate is one short exact-artifact Human
+canary; no predecessor Human evidence transfers.
 
 ## Active workstreams
 
@@ -51,16 +53,18 @@ canary.
 - The S1 checkpoint named by the current Policy Manifest is unavailable on this
   Mac, so real-model Shadow, One-Step, Auto, and Agent-run evidence remain
   unexercised.
-- Human/runtime gates remain owner-operated and cannot be promoted by portable
-  repository checks.
+- The Native Foundation artifact has automated runtime evidence but no Human
+  Combat/PlayerChoice/cross-domain evidence; owner operation is the remaining
+  gate and cannot be promoted by portable checks.
 
 ## Next meaningful gates
 
-- Keep the required `portable` source/test gate green on latest PR heads.
-- Extend the execution-bound native semantic lane to the next narrow non-combat
-  Full-Run mechanisms. Keep unknown UI playable and fail evidence closed; do
-  not restore global UI serialization, add natural-observer polling or transfer
-  predecessor Human evidence.
+- Run one bounded Human canary on exact artifact `9a89f1fe... / b1c34f90...`:
+  Direct Combat/PlayerChoice, then `lethal -> Reward -> CardReward -> Map`.
+- After that evidence is audited, extend the execution-bound native semantic
+  lane to the next narrow Full-Run mechanisms. Keep unknown UI playable and
+  fail evidence closed; do not restore global UI serialization, add natural
+  observer polling, or transfer predecessor Human evidence.
 
 Use `npm run project:context` to start a task and
 `npm run project:closeout` to surface likely documentation, evidence, contract,

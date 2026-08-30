@@ -25,9 +25,14 @@ compatible; `Receipt.Successor` is clarified as an immediate post-delivery
 observation, not canonical causal `S'`.
 
 Connector, Annotator, unified-Mod targeted checks and the full portable suite
-pass for component source commit `a3bcd37...`. The final artifact has not yet
-been built, installed, cold-loaded, or Human exercised; predecessor PR #3
-evidence does not transfer.
+pass for component source commit `a3bcd37...`. Clean build, safe install and
+cold-load pass as artifact `9a89f1fe... / b1c34f90...` against exact STS2
+`v0.111.0 / 41cef1ea`, runtime `b57a37b4...`, environment `f0cbd53a...`, and
+sole-Platform Modset `d5054e7b...`. Live controller conflict, stale rejection
+and request idempotency pass without gameplay mutation. Shipped headless H0
+passes in runtime `efd022e9...`; live/headless main-menu canonical digests are
+equal (`71e246ab...`). This parity claim is menu-only. Human exercise remains
+pending, and predecessor PR #3 evidence does not transfer.
 RitsuLib was audited at upstream v0.5.18/main `f224961...` and development
 `c466809...`; [ADR 0004](adr/0004-native-foundation-and-ritsu-route.md) records
 the no-runtime-dependency route. See the

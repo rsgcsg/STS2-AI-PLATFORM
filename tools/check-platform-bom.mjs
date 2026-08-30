@@ -47,6 +47,20 @@ const NATIVE_SEMANTIC_DISCRIMINATOR = Object.freeze({
   timelineId: "timeline-bc4ee13a1bdd400bbec356e5a0abdbdc",
   auditCloseoutSourceRevision: "193861ad9f8e1e7c058a292942b5cf5729aad413"
 });
+const NATIVE_FOUNDATION_RUNTIME_CANDIDATE = Object.freeze({
+  workspaceRevision: "da9f60535ade0fb9bc792c18be1b8976b3bedcd4",
+  sourceRevision: "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+  nativeFoundationTree: "981c4667384905b6c359d1bd39ddc8b8f352a968",
+  nativeFoundationDigest: "098f7215512199e825dbbb910d78f4c9e61b7b0ea7a1a742052e91ffa75dac52",
+  nativeFoundationBuildDigest: "d2018cad13b1f904ac7b8e8cd6928491ed819470e7107e757455c34a179c9ee4",
+  artifactSha: "9a89f1fe728bdce442c70de0daaec0299230e80c6442c97f4bd0752620ce959b",
+  artifactMvid: "b1c34f90-f143-4f7f-97da-eea90c23dbde",
+  runtimeInstance: "b57a37b4767a42aab5cffa4bba8870f4",
+  environment: "f0cbd53a1be10fad5630252aa4f4ee484b426d733ac3f4d52a04d069584b1c37",
+  modset: "d5054e7bbfc30d8787c3573f57ada09bb808874c0c4f82485433c0e725a96e8d",
+  headlessRuntime: "efd022e91c7e4f0287494707b423d700",
+  canonicalDigest: "71e246abad05c8a9a805bb6e041cef526ea54645ebc71bb68d103a4c490ab3d7"
+});
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -205,7 +219,7 @@ export function validatePlatformBom(bom, authorities) {
 
   const policyCandidate = bom.unified_platform_runtime_candidate;
   expectEqual(errors, "unified Platform candidate status", policyCandidate?.status,
-    "native_semantic_discriminator_bounded_human_pass");
+    "native_foundation_loaded_automated_gates_pass_human_pending");
   const discriminatorCandidate = policyCandidate?.native_semantic_discriminator_source_candidate;
   expectEqual(errors, "native discriminator candidate status", discriminatorCandidate?.status,
     "human_canary_bounded_semantic_lane_supported");
@@ -272,6 +286,95 @@ export function validatePlatformBom(bom, authorities) {
     "native_ledger_sha256",
     "native_semantic_discriminator_sha256"
   ]) expectPattern(errors, `native discriminator Human ${field}`, discriminatorHuman?.[field], SHA256);
+
+  const nativeFoundationCandidate = policyCandidate?.native_foundation_runtime_candidate;
+  expectEqual(errors, "Native Foundation candidate status", nativeFoundationCandidate?.status,
+    "loaded_automated_gates_pass_human_pending");
+  expectEqual(errors, "Native Foundation workspace at build",
+    nativeFoundationCandidate?.workspace_revision_at_build,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.workspaceRevision);
+  for (const [label, actual] of [
+    ["implementation", nativeFoundationCandidate?.implementation_source_revision],
+    ["Native Foundation", nativeFoundationCandidate?.native_foundation?.source_revision],
+    ["Connector", nativeFoundationCandidate?.connector_source_revision],
+    ["Annotator", nativeFoundationCandidate?.annotator_source_revision],
+    ["Game Mod", nativeFoundationCandidate?.game_mod_source_revision]
+  ]) expectEqual(errors, `Native Foundation ${label} source`, actual,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.sourceRevision);
+  expectEqual(errors, "Native Foundation component tree",
+    nativeFoundationCandidate?.native_foundation?.component_tree_revision,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.nativeFoundationTree);
+  expectEqual(errors, "Native Foundation component digest",
+    nativeFoundationCandidate?.native_foundation?.component_source_digest_sha256,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.nativeFoundationDigest);
+  expectEqual(errors, "Native Foundation build digest",
+    nativeFoundationCandidate?.native_foundation?.build_source_digest_sha256,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.nativeFoundationBuildDigest);
+  expectEqual(errors, "Native Foundation artifact", nativeFoundationCandidate?.artifact_sha256,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.artifactSha);
+  expectEqual(errors, "Native Foundation MVID", nativeFoundationCandidate?.artifact_mvid,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.artifactMvid);
+  expectEqual(errors, "Native Foundation build", nativeFoundationCandidate?.built,
+    "pass_clean_source");
+  expectEqual(errors, "Native Foundation install", nativeFoundationCandidate?.installed, "pass");
+  expectEqual(errors, "Native Foundation load", nativeFoundationCandidate?.loaded, "pass");
+  expectEqual(errors, "Native Foundation protocol",
+    nativeFoundationCandidate?.player_environment_protocol, "1.0.0");
+  expectEqual(errors, "Native Foundation runtime", nativeFoundationCandidate?.runtime_instance_id,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.runtimeInstance);
+  expectEqual(errors, "Native Foundation environment",
+    nativeFoundationCandidate?.environment_fingerprint,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.environment);
+  expectEqual(errors, "Native Foundation Modset status",
+    nativeFoundationCandidate?.modset_status, "exact_platform_modset");
+  expectEqual(errors, "Native Foundation Modset", nativeFoundationCandidate?.modset_fingerprint,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.modset);
+  if (!Array.isArray(nativeFoundationCandidate?.loaded_mod_ids)
+      || nativeFoundationCandidate.loaded_mod_ids.length !== 1
+      || nativeFoundationCandidate.loaded_mod_ids[0] !== "STS2_PLATFORM") {
+    errors.push("Native Foundation loaded Mods: expected only STS2_PLATFORM");
+  }
+  for (const [field, expected] of Object.entries({
+    loaded_identity: "pass",
+    interactive_snapshot: "pass_main_menu_complete",
+    controller_conflict: "pass_http_409",
+    stale_rejection: "pass_not_delivered",
+    request_idempotency: "pass_same_receipt"
+  })) expectEqual(errors, `Native Foundation live ${field}`,
+    nativeFoundationCandidate?.automated_live_ui?.[field], expected);
+  expectEqual(errors, "Native Foundation headless status",
+    nativeFoundationCandidate?.automated_headless?.status, "h0_pass_canary_exact");
+  expectEqual(errors, "Native Foundation headless runtime",
+    nativeFoundationCandidate?.automated_headless?.runtime_instance_id,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.headlessRuntime);
+  expectEqual(errors, "Native Foundation headless kind",
+    nativeFoundationCandidate?.automated_headless?.host_kind, "headless");
+  expectEqual(errors, "Native Foundation headless snapshot",
+    nativeFoundationCandidate?.automated_headless?.snapshot_status, "interactive");
+  expectEqual(errors, "Native Foundation headless interaction",
+    nativeFoundationCandidate?.automated_headless?.interaction_kind, "main_menu");
+  expectEqual(errors, "Native Foundation visible/headless parity",
+    nativeFoundationCandidate?.visible_headless_semantic_invariance?.status, "pass");
+  expectEqual(errors, "Native Foundation parity scope",
+    nativeFoundationCandidate?.visible_headless_semantic_invariance?.scope, "main_menu_only");
+  expectEqual(errors, "Native Foundation parity digest",
+    nativeFoundationCandidate?.visible_headless_semantic_invariance?.canonical_digest_sha256,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.canonicalDigest);
+  expectEqual(errors, "Native Foundation parity visible runtime",
+    nativeFoundationCandidate?.visible_headless_semantic_invariance?.visible_runtime_instance_id,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.runtimeInstance);
+  expectEqual(errors, "Native Foundation parity headless runtime",
+    nativeFoundationCandidate?.visible_headless_semantic_invariance?.headless_runtime_instance_id,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.headlessRuntime);
+  expectEqual(errors, "Native Foundation receipt successor contract",
+    nativeFoundationCandidate?.receipt_successor_contract,
+    "immediate_post_delivery_observation_not_causal_s_prime");
+  expectEqual(errors, "Native Foundation Ritsu route", nativeFoundationCandidate?.ritsu_route,
+    "RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY");
+  expectEqual(errors, "Native Foundation Human runtime", nativeFoundationCandidate?.human_runtime,
+    "not_exercised");
+  expectEqual(errors, "Native Foundation predecessor evidence transfer",
+    nativeFoundationCandidate?.evidence_transfer_from_predecessor, false);
   for (const [field, expected] of Object.entries({
     valid_decision_v2: 40,
     invalid_decision_v2: 0,
@@ -1081,6 +1184,13 @@ export function validatePlatformBom(bom, authorities) {
   ]) {
     if (!bom.non_claims?.includes(value))
       errors.push(`Native semantic discriminator non-claim is missing: ${value}`);
+  }
+  for (const value of [
+    "native_foundation_candidate_human_runtime_not_exercised",
+    "native_foundation_visible_headless_parity_main_menu_only"
+  ]) {
+    if (!bom.non_claims?.includes(value))
+      errors.push(`Native Foundation non-claim is missing: ${value}`);
   }
   return errors;
 }

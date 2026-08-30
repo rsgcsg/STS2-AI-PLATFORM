@@ -2,9 +2,11 @@
 
 ## Evidence Level
 
-This report currently covers committed source and deterministic tests. Exact
-build/install/load fields are added only after those gates complete. It does
-not transfer predecessor PR #3 Human evidence to rebuilt bytes.
+This report covers committed source, deterministic tests, exact build,
+install, cold-load, bounded non-Human live checks, shipped-headless H0, and a
+main-menu-only live/headless canonical comparison. It does not transfer
+predecessor PR #3 Human evidence to rebuilt bytes; Human gameplay remains
+pending.
 
 Exact game baseline:
 
@@ -66,6 +68,32 @@ Boundary tests require one combat semantic provider, one lifecycle adapter,
 semantic-only Native Foundation source, no Ritsu dependency, and non-causal
 receipt wording.
 
+## Exact Artifact And Runtime
+
+- implementation source: `a3bcd373e156fb354a6b4947b72c15236457c4b0`;
+- clean build workspace: `da9f60535ade0fb9bc792c18be1b8976b3bedcd4`;
+- artifact SHA-256:
+  `9a89f1fe728bdce442c70de0daaec0299230e80c6442c97f4bd0752620ce959b`;
+- artifact MVID: `b1c34f90-f143-4f7f-97da-eea90c23dbde`;
+- visible runtime: `b57a37b4767a42aab5cffa4bba8870f4`;
+- environment: `f0cbd53a1be10fad5630252aa4f4ee484b426d733ac3f4d52a04d069584b1c37`;
+- exact Modset: only `STS2_PLATFORM`, fingerprint
+  `d5054e7bbfc30d8787c3573f57ada09bb808874c0c4f82485433c0e725a96e8d`;
+- rollback archive:
+  `apps/game-mod/.local/deployments/2026-08-30T13-23-42.253Z`.
+
+The visible runtime passed loaded identity and a complete interactive main-menu
+Snapshot. A second controller was rejected with HTTP 409. A deliberately stale
+request returned `not_delivered`; resubmitting the same request ID returned the
+same receipt and executed no action.
+
+The same artifact passed shipped Godot headless H0 in runtime
+`efd022e91c7e4f0287494707b423d700`. Its final main-menu Snapshot and a fresh
+visible runtime Snapshot canonicalize to the same digest
+`71e246abad05c8a9a805bb6e041cef526ea54645ebc71bb68d103a4c490ab3d7`.
+This proves only main-menu semantic invariance. No combat, non-menu mutation,
+performance, or full cross-Host parity claim follows.
+
 The architecture evidence set is:
 
 - [Native Seam Matrix](../NATIVE_SEAM_MATRIX.md), including every required
@@ -77,8 +105,8 @@ The architecture evidence set is:
 
 ## Runtime Gate
 
-The final committed artifact requires install, cold-load, exact identity, and a
-short Human canary covering Direct Combat, generated PlayerChoice, and
+Build/install/load and bounded automated gates are complete. The artifact now
+requires a short Human canary covering Direct Combat, generated PlayerChoice, and
 `lethal -> Reward -> CardReward -> Map`. The owner discriminator must change
 domains without authorizing actions, normal gameplay must remain unblocked,
 and no predecessor Human claim may be promoted.
