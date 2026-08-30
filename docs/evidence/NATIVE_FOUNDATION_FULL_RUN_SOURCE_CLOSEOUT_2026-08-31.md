@@ -70,6 +70,11 @@ is still an immediate post-delivery observation, not causal `S'`.
 - Connector CLI, docs, contract and boundary checks pass.
 - Unified game-Mod boundary tests: 32/32 pass.
 - Platform dependency boundary checks pass.
+- Root exact-game orchestration now builds the Connector Release artifact
+  before the dependent standalone Annotator check. A regression test fixes
+  that order; the prior clean-order failure was a missing build prerequisite,
+  not a semantic or runtime failure.
+- Root portable suite and root exact-game suite pass.
 - Exact clean unified build: PASS with no warnings.
 - Build artifact SHA-256: `3e3ebc3cbb7b3e19c2e6bfe2412a9b215aca86666dffcc8c028ba7686a9fa89e`.
 - Build artifact MVID: `53568805-b90a-4165-84ba-098f1c05fc6c`.

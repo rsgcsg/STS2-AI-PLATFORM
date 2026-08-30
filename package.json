@@ -30,7 +30,7 @@
     "project:check": "node --test tools/project-system.test.mjs && node tools/project-system.mjs check",
     "project:closeout": "node tools/project-system.mjs closeout",
     "check": "npm run project:check && npm run check:identity && npm run check:entrypoints && npm run check:bom && npm run check:boundaries && npm run check:history && npm run check:components",
-    "check:exact-game": "npm --prefix components/connector run check && npm --prefix components/annotator run check && npm --prefix apps/game-mod run build",
+    "check:exact-game": "npm --prefix components/connector run check && npm --prefix components/connector run build && npm --prefix components/annotator run check && npm --prefix apps/game-mod run build",
     "build": "npm --prefix components/policy-runtime run build && npm --prefix apps/game-mod run build",
     "doctor": "node tools/platform-doctor.mjs",
     "connector:doctor": "npm --prefix components/connector run doctor",
