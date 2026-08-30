@@ -2,8 +2,8 @@
 
 ## Evidence boundary
 
-This report binds source, exact-source audit, deterministic tests and dirty
-exact builds. It does not claim install, load, Human gameplay, canonical rows or
+This report binds source, exact-source audit, deterministic tests and a clean
+exact build. It does not claim install, load, Human gameplay, canonical rows or
 Full-Run qualification. Gameplay-safe commit `4384a14...` is preserved by the
 non-release tag `baseline/pr3-gameplay-safe-4384a14` and remains the rollback
 baseline.
@@ -52,10 +52,12 @@ fails audit rather than affecting gameplay.
 - all Annotator Core tests pass (`98/98`), plus CLI and semantic-analysis tests;
 - Connector SDK/package/docs/contract/boundary/compatibility/CLI/release/Python
   checks pass;
-- exact Connector and Annotator builds succeed with zero warnings/errors.
+- exact Connector and Annotator builds succeed with zero warnings/errors;
+- clean workspace `05d9e8e...` builds unified artifact
+  `d3b59bed... / 04acd691...`.
 
-Dirty build identities are intentionally not runtime candidates. A clean commit
-and rebuild must precede install.
+This artifact is only a build candidate until safe install and cold-load bind
+its exact runtime identity.
 
 ## Runtime discriminator gate
 

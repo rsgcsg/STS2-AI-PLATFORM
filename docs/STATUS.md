@@ -23,8 +23,9 @@ it compares the current UI catalog with `S_sem + A_sem(S)` derived from STS2's
 logical combat state and native card/potion validators. It tracks exact
 accepted action identity, cancellation, pre-Commit abort, player-choice
 pause/resume and terminal lifecycle without changing scheduling, legality or UI
-delivery. Source, deterministic tests and dirty exact builds pass. No new
-artifact is yet claimed installed, loaded or Human-exercised. See the
+delivery. Source, deterministic tests and a clean exact build pass as artifact
+`d3b59bed... / 04acd691...`. It is not yet claimed installed, loaded or
+Human-exercised. See the
 [discriminator source closeout](evidence/NATIVE_SEMANTIC_RUNTIME_DISCRIMINATOR_SOURCE_CLOSEOUT_2026-08-30.md).
 
 Normalized semantic evidence schema 3 is now bounded Human-proved for its

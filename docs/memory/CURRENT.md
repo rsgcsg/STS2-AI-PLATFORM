@@ -12,7 +12,8 @@ read-only native semantic sequential lane. The discriminator records `A(UI)`
 beside STS2-owned logical `S_sem + A_sem(S)` at first native execution, plus
 exact accepted identity, cancellation, pre-Commit abort and player-choice
 lineage. It cannot authorize, block or execute UI. Source/tests/build pass; the
-new bytes are not yet installed, loaded or Human-exercised. ADR 0003 is a
+clean artifact `d3b59bed... / 04acd691...` is built but not yet installed,
+loaded or Human-exercised. ADR 0003 is a
 historical candidate under re-audit, not active gameplay authority.
 
 ## Active workstreams
@@ -40,7 +41,7 @@ historical candidate under re-audit, not active gameplay authority.
 ## Next meaningful gates
 
 - Keep the required `portable` source/test gate green on latest PR heads.
-- Build, install and cold-load the native discriminator candidate, then run its
+- Install and cold-load the native discriminator candidate, then run its
   bounded owner canary. Do not restore global UI serialization, add natural-
   observer polling or transfer predecessor Human evidence.
 

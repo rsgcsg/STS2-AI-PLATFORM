@@ -185,7 +185,42 @@ export function validatePlatformBom(bom, authorities) {
 
   const policyCandidate = bom.unified_platform_runtime_candidate;
   expectEqual(errors, "unified Platform candidate status", policyCandidate?.status,
-    "serialized_canonical_loaded_pending_human_canary");
+    "native_semantic_discriminator_built_pending_install");
+  const discriminatorCandidate = policyCandidate?.native_semantic_discriminator_source_candidate;
+  expectEqual(errors, "native discriminator candidate status", discriminatorCandidate?.status,
+    "built_pending_install_load_human_canary");
+  expectEqual(errors, "native discriminator workspace",
+    discriminatorCandidate?.workspace_revision_at_build,
+    bom.components?.connector?.source_revision);
+  expectEqual(errors, "native discriminator Connector source",
+    discriminatorCandidate?.connector_source_revision,
+    bom.components?.connector?.source_revision);
+  expectEqual(errors, "native discriminator Connector tree",
+    discriminatorCandidate?.connector_component_tree_revision,
+    bom.components?.connector?.component_tree_revision);
+  expectEqual(errors, "native discriminator Connector digest",
+    discriminatorCandidate?.connector_component_source_digest_sha256,
+    bom.components?.connector?.component_source_digest_sha256);
+  expectEqual(errors, "native discriminator Annotator source",
+    discriminatorCandidate?.annotator_source_revision,
+    bom.components?.annotator?.source_revision);
+  expectEqual(errors, "native discriminator Annotator tree",
+    discriminatorCandidate?.annotator_component_tree_revision,
+    bom.components?.annotator?.component_tree_revision);
+  expectEqual(errors, "native discriminator Annotator digest",
+    discriminatorCandidate?.annotator_component_source_digest_sha256,
+    bom.components?.annotator?.component_source_digest_sha256);
+  expectPattern(errors, "native discriminator artifact",
+    discriminatorCandidate?.artifact_sha256, SHA256);
+  expectPattern(errors, "native discriminator MVID", discriminatorCandidate?.artifact_mvid, MVID);
+  expectEqual(errors, "native discriminator build", discriminatorCandidate?.built,
+    "pass_clean_source");
+  expectEqual(errors, "native discriminator install", discriminatorCandidate?.installed, "pending");
+  expectEqual(errors, "native discriminator load", discriminatorCandidate?.loaded, "pending");
+  expectEqual(errors, "native discriminator Human runtime",
+    discriminatorCandidate?.human_runtime, "pending");
+  expectEqual(errors, "native discriminator predecessor transfer",
+    discriminatorCandidate?.evidence_transfer_from_predecessor, false);
   const serializedCandidate = policyCandidate?.serialized_canonical_loaded_candidate;
   expectEqual(errors, "serialized candidate status", serializedCandidate?.status,
     "loaded_pending_owner_human_canary");
@@ -195,12 +230,12 @@ export function validatePlatformBom(bom, authorities) {
     COMMIT);
   expectPattern(errors, "serialized candidate Platform digest",
     serializedCandidate?.platform_source_digest_sha256, SHA256);
-  expectEqual(errors, "serialized candidate Connector source",
-    serializedCandidate?.connector_source_revision, bom.components?.connector?.source_revision);
+  expectPattern(errors, "serialized candidate Connector source",
+    serializedCandidate?.connector_source_revision, COMMIT);
   expectPattern(errors, "serialized candidate Connector digest",
     serializedCandidate?.connector_source_digest_sha256, SHA256);
-  expectEqual(errors, "serialized candidate Annotator source",
-    serializedCandidate?.annotator_source_revision, bom.components?.annotator?.source_revision);
+  expectPattern(errors, "serialized candidate Annotator source",
+    serializedCandidate?.annotator_source_revision, COMMIT);
   expectPattern(errors, "serialized candidate Annotator digest",
     serializedCandidate?.annotator_source_digest_sha256, SHA256);
   expectPattern(errors, "serialized candidate artifact", serializedCandidate?.artifact_sha256, SHA256);
@@ -274,7 +309,7 @@ export function validatePlatformBom(bom, authorities) {
     policyCandidate?.connector?.current_component_source_digest_sha256,
     bom.components?.connector?.component_source_digest_sha256);
   expectEqual(errors, "candidate Connector source relation", policyCandidate?.connector?.source_relation,
-    "loaded_native_source_scope_matches_current_component");
+    "loaded_native_source_precedes_current_discriminator_source");
   expectEqual(errors, "candidate Annotator source relation", policyCandidate?.annotator?.source_relation,
     "loaded_native_source_precedes_current_full_run_source");
   const semanticTimeline = policyCandidate?.semantic_timeline_source_candidate;
@@ -958,6 +993,8 @@ export function validatePlatformBom(bom, authorities) {
     errors.push("S1 checkpoint/model-mode non-claim is missing");
   if (!bom.non_claims?.includes("serialized_canonical_candidate_human_runtime_not_exercised"))
     errors.push("Serialized canonical Human-runtime non-claim is missing");
+  if (!bom.non_claims?.includes("native_semantic_discriminator_human_runtime_pending"))
+    errors.push("Native semantic discriminator Human-runtime non-claim is missing");
   return errors;
 }
 
