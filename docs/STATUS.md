@@ -31,10 +31,14 @@ Annotator consumes the same catalog without gaining legality or mutation
 authority. UI-derived reachability/reward/option publication is demoted from
 semantic authority. Targeted tests and an exact clean macOS build pass as
 artifact `3e3ebc3c... / 53568805...` against STS2
-`v0.111.0 / 41cef1ea / 9cb4f1ad... / 57785517...`. This is source/test/build
-evidence only: that artifact is not yet installed, loaded or Human-exercised.
-Public protocol 1.0.0 remains compatible; `Receipt.Successor` is still an
-immediate post-delivery observation, not canonical causal `S'`. See the
+`v0.111.0 / 41cef1ea / 9cb4f1ad... / 57785517...`. Safe install, rollback
+capture and cold-load also pass on macOS in Connector runtime `2c94849e...`,
+environment `8db5a2af...`, exact sole-Platform Modset `2f4b276f...`.
+Annotator initialized Ready/no-session and the startup log contained no
+Platform initialization error. This is bounded main-menu runtime evidence:
+Map/Reward/CardReward decisions and Human recording remain unexercised. Public
+protocol 1.0.0 remains compatible; `Receipt.Successor` is still an immediate
+post-delivery observation, not canonical causal `S'`. See the
 [continuation source closeout](evidence/NATIVE_FOUNDATION_FULL_RUN_SOURCE_CLOSEOUT_2026-08-31.md).
 
 Connector, Annotator, unified-Mod targeted checks and the full portable suite

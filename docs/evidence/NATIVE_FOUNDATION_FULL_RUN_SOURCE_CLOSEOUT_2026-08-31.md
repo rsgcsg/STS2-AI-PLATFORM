@@ -79,14 +79,35 @@ is still an immediate post-delivery observation, not causal `S'`.
 - Build artifact SHA-256: `3e3ebc3cbb7b3e19c2e6bfe2412a9b215aca86666dffcc8c028ba7686a9fa89e`.
 - Build artifact MVID: `53568805-b90a-4165-84ba-098f1c05fc6c`.
 
+## Mac Automated Runtime Evidence
+
+The exact clean artifact above was safely installed and cold-loaded on macOS
+against the same exact STS2 identity. The deploy created rollback snapshot
+`apps/game-mod/.local/deployments/2026-08-30T22-32-44.334Z` before replacing
+the predecessor installation.
+
+- `verify-loaded`: PASS.
+- Connector runtime instance: `2c94849ea18a453a990e402e886287b1`.
+- Environment fingerprint: `8db5a2aff09d059664d57f1b7ef03770dd6dcfe27ba315e8c795448b58c48377`.
+- Modset: exact sole `STS2_PLATFORM`, fingerprint
+  `2f4b276f9c4ebcffb665f680ab1d7cf0ba969a2ff8ccbf414104bd4fee29a710`.
+- Connector protocol: `1.0.0`; execution was available at the main menu.
+- Annotator runtime: Ready/no-session, as expected for a non-Human canary.
+- Startup log: unified Mod initialization completed without Platform,
+  Connector, Annotator, Native Foundation or Harmony errors. Existing
+  non-fatal profile-content warnings were unrelated to this artifact.
+
+The process was stopped after verification. No gameplay action was submitted.
+
 ## Evidence Boundary
 
-At this closeout the continuation artifact has source, deterministic test and
-exact clean-build evidence. It has not been installed, loaded, exercised on a
-Map/Reward/CardReward decision, or used for Human recording. PR #5 Windows T3,
-predecessor schema-3 Human evidence and earlier macOS runtime evidence do not
-transfer. Ritsu remains
+At this closeout the continuation artifact has source, deterministic test,
+exact clean-build, safe-install and bounded cold-load evidence. It has not been
+exercised on a Map/Reward/CardReward decision or used for Human recording. The
+loaded main-menu readiness envelope does not prove the new decision adapters.
+PR #5 Windows T3, predecessor schema-3 Human evidence and earlier macOS runtime
+evidence do not transfer. Ritsu remains
 `RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY`.
 
 Next non-Human architecture batch is the Treasure lifecycle discriminator;
-runtime evidence for this artifact remains a separate gate.
+T3 gameplay evidence for this artifact remains a separate gate.
