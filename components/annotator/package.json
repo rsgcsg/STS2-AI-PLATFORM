@@ -32,6 +32,7 @@
     "admit:modset": "node tools/annotator.mjs admit-current-modset",
     "verify:loaded": "node tools/annotator.mjs verify-loaded",
     "audit": "node tools/annotator.mjs audit",
+    "audit:native-semantic": "node tools/annotator.mjs audit-native-semantic",
     "export": "node tools/annotator.mjs export",
     "pack-session": "node tools/annotator.mjs pack-session",
     "rollback": "node tools/annotator.mjs rollback"

@@ -539,6 +539,7 @@ internal static class RecorderRuntime
         ArmedPotionUses.Clear();
         NativeActionLedger.Reset();
         BoundaryTracker.Reset();
+        NativeSemanticDiscriminatorRuntime.Reset();
     }
 
     private static IReadOnlyList<string> LifecycleBlockers(RecordingLifecycleState state) =>
@@ -1104,6 +1105,14 @@ internal static class RecorderRuntime
             ProcessLocalNativeMatch match = context.Frame.Resolve(observed!);
             if (!IsExact(match) || !context.TryClaimRootAction(nativeActionType))
                 return;
+            NativeSemanticDiscriminatorRuntime.Observe(
+                _store,
+                SessionId,
+                TimelineId,
+                _currentRunId,
+                NativeActionLifecycleKinds.Accepted,
+                action,
+                context.Frame);
             if (SupportedFamilyForNativeAction(nativeActionType) == null)
                 StartSemanticNativeAction(context, witness!, match, action);
             else
@@ -1123,6 +1132,15 @@ internal static class RecorderRuntime
     internal static void ObservePlayCardExecutionAborted(PlayCardAction action)
     {
         string actionWitnessId = NativeWitnessIdentity.Get(action, "game_action");
+        NativeSemanticDiscriminatorRuntime.Observe(
+            _store,
+            SessionId,
+            TimelineId,
+            _currentRunId,
+            "aborted_before_commit",
+            action,
+            capture: false,
+            detail: "STS2 removed the queued card before PlayCardAction could Commit.");
         PendingDecision? pending;
         bool invalidated;
         lock (Gate)
@@ -1407,9 +1425,18 @@ internal static class RecorderRuntime
 
     private static void ObserveBeforeActionExecution(GameAction action)
     {
+        string actionWitnessId = NativeWitnessIdentity.Get(action, "game_action");
+        NativeSemanticDiscriminatorRuntime.Observe(
+            _store,
+            SessionId,
+            TimelineId,
+            _currentRunId,
+            action.State.ToString() == "ReadyToResumeExecuting"
+                ? "before_execution_resume"
+                : "before_execution",
+            action);
         if (!_semanticBoundaryTraceHealthy || _store == null)
             return;
-        string actionWitnessId = NativeWitnessIdentity.Get(action, "game_action");
         lock (Gate)
         {
             if (!BoundaryTracker.Contains(actionWitnessId))
@@ -1591,6 +1618,24 @@ internal static class RecorderRuntime
             drafts = result;
         }
         PersistSemanticBoundaryDrafts(drafts);
+        GameAction? parent = null;
+        try
+        {
+            parent = RunManager.Instance.ActionExecutor.CurrentlyRunningAction;
+        }
+        catch
+        {
+            // Direct commits outside a GameAction have no parent lineage.
+        }
+        NativeSemanticDiscriminatorRuntime.ObserveDirectCommit(
+            _store,
+            SessionId,
+            TimelineId,
+            _currentRunId,
+            actionWitnessId,
+            nativeActionType,
+            frame,
+            parent == null ? null : NativeWitnessIdentity.Get(parent, "game_action"));
         AppendJournal(
             "semantic_human_action_accepted",
             recordId,
@@ -1747,6 +1792,16 @@ internal static class RecorderRuntime
             }
         }
 
+        NativeSemanticDiscriminatorRuntime.Observe(
+            _store,
+            SessionId,
+            TimelineId,
+            _currentRunId,
+            kind,
+            subscription.Action,
+            capture: kind is NativeActionLifecycleKinds.PausedForPlayerChoice
+                or NativeActionLifecycleKinds.ReadyToResume
+                or NativeActionLifecycleKinds.Resumed);
         ObserveSemanticLifecycle(subscription, kind);
         if (!terminal)
             return;
@@ -2166,6 +2221,17 @@ internal static class RecorderRuntime
                 NativeActionLedger.InvalidateStrictTransition(subscription.ActionWitnessId);
             }
         }
+
+        NativeSemanticDiscriminatorRuntime.Observe(
+            _store,
+            SessionId,
+            TimelineId,
+            _currentRunId,
+            kind,
+            subscription.Action,
+            capture: kind is NativeActionLifecycleKinds.PausedForPlayerChoice
+                or NativeActionLifecycleKinds.ReadyToResume
+                or NativeActionLifecycleKinds.Resumed);
 
         bool lifecyclePersisted = AppendNativeActionEvent(
             evidence,

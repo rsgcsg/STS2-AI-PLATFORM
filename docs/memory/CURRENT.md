@@ -7,18 +7,13 @@ requests, or dated evidence.
 ## Current phase
 
 `develop` retains the bounded Human-proved schema-2 trace baseline. PR #3 now
-contains schema-3 content-addressed evidence, exact after-repair Human
-performance evidence, and the canonical training calibration. Latest session
-`session-20260829T084437Z-...` accounts for 933/933 trace dispositions but
-performs 31,613 full captures (628.720 seconds cumulative) and yields zero
-canonical `S + A(S) -> A -> S'` rows. ADR 0003 selects serialized Human input.
-The candidate is implemented and cold-loaded as `b805474d... / 3ab1e10e...`;
-Host admission now verifies the unified installed identity. A 9-action
-same-artifact prefix matches, while longer same-artifact and cross-Host rapid
-combat runs expose native effect-timing divergence; twin execution therefore
-remains differential-only. Managed Exact independently passes an 80-action
-bounded authority/performance probe. Only the serialized Human owner canary
-remains.
+preserves gameplay-safe commit `4384a14...` as a non-release tag and tests a
+read-only native semantic sequential lane. The discriminator records `A(UI)`
+beside STS2-owned logical `S_sem + A_sem(S)` at first native execution, plus
+exact accepted identity, cancellation, pre-Commit abort and player-choice
+lineage. It cannot authorize, block or execute UI. Source/tests/build pass; the
+new bytes are not yet installed, loaded or Human-exercised. ADR 0003 is a
+historical candidate under re-audit, not active gameplay authority.
 
 ## Active workstreams
 
@@ -33,10 +28,9 @@ remains.
 
 ## Current blockers and open questions
 
-- Input serialization is implemented for the migrated canonical families and
-  has source/test/exact-build/install/load evidence. After-latency, blocked
-  rapid-input behavior and canonical rows require a new exact-artifact owner
-  canary.
+- The native semantic lane requires one exact-artifact owner canary covering
+  rapid roots, native cancellation, potion, End Turn and player-choice
+  pause/resume before an engineering verdict.
 - The S1 checkpoint named by the current Policy Manifest is unavailable on this
   Mac, so real-model Shadow, One-Step, Auto, and Agent-run evidence remain
   unexercised.
@@ -46,9 +40,9 @@ remains.
 ## Next meaningful gates
 
 - Keep the required `portable` source/test gate green on latest PR heads.
-- Run the bounded owner canary documented in the serialized source/runtime
-  closeouts. Do not add natural-observer polling or transfer predecessor Human
-  evidence.
+- Build, install and cold-load the native discriminator candidate, then run its
+  bounded owner canary. Do not restore global UI serialization, add natural-
+  observer polling or transfer predecessor Human evidence.
 
 Use `npm run project:context` to start a task and
 `npm run project:closeout` to surface likely documentation, evidence, contract,

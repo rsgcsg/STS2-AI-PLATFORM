@@ -70,6 +70,17 @@ This sidecar is not `HumanDecisionRecordV2`, corpus admission, or durable
 training authority. Predecessor sessions without it remain valid, and existing
 V1/V2 bytes are never reinterpreted.
 
+`native-semantic-discriminator.jsonl` is an additive read-only experiment
+stream. For each exact-correlated accepted combat root it records ordered native
+lifecycle plus, at first execution, two independent projections: the current
+public UI catalog and a compact semantic state/catalog derived from STS2's
+logical hand, native card/potion validators and combat phase. Successful roots
+must match exactly once; cancellation and PlayCard pre-Commit abort are separate
+dispositions. Player-choice commits are linked to the paused parent action.
+The stream is audited by `audit-native-semantic`; it does not authorize input,
+change Decision V2, admit training rows, prove End Turn completion by itself, or
+claim Full-Run semantic completeness.
+
 `canonical-transitions.jsonl` is the additive serialized-input contract. A row
 is written only after one complete pre catalog, exact-once selected action,
 native terminal/direct Commit, no intervening admitted mutation and one complete

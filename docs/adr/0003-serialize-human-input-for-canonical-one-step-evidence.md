@@ -1,6 +1,6 @@
 # ADR 0003: Select Serialized Human Input For Canonical One-Step Evidence
 
-- Status: implementation candidate, exact-runtime Human validation pending
+- Status: historical candidate under native-semantic re-audit; not active UI authority
 - Date: 2026-08-29
 - Scope: Human Recorder canonical sequential evidence only
 - Runtime effect: serializes mutation-producing Human input while recording
@@ -102,3 +102,19 @@ separate research scheme and cannot weaken this one-step contract.
 The source is not Human-proved. Promotion requires clean build provenance,
 safe install, cold-load identity and a short owner canary covering ordinary and
 rapid input, canonical audit, first-command Close and after-latency profiling.
+
+## 2026-08-30 Re-audit
+
+The global implementation was withdrawn from active gameplay after unsupported
+but valid STS2 UI could be blocked by evidence admission. Gameplay-safe commit
+`4384a14...` is preserved as `baseline/pr3-gameplay-safe-4384a14`; no current
+collector may restore that gate.
+
+Current source instead runs an additive read-only discriminator at native first
+execution. It compares the current UI catalog with a semantic catalog derived
+from STS2-owned logical state and native validators, while recording exact
+accepted identity, cancellation, pre-Commit abort and player-choice lineage.
+This experiment neither authorizes nor delays input. This ADR remains the
+historical rationale for serialization, but its decision is not promoted unless
+the native discriminator is falsified by exact runtime evidence and a narrower
+game-owned decision-epoch gate can be proved safe.

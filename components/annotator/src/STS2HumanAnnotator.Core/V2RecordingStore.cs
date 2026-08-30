@@ -19,6 +19,7 @@ public sealed class V2RecordingStore : IDisposable
     private readonly FileStream _nativeActionLedger;
     private readonly FileStream _semanticBoundaryTrace;
     private readonly FileStream _canonicalTransitions;
+    private readonly FileStream _nativeSemanticDiscriminator;
     private readonly Dictionary<string, long> _families = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _readsByKind = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _invalidationsByReason = new(StringComparer.Ordinal);
@@ -57,6 +58,8 @@ public sealed class V2RecordingStore : IDisposable
             Path.Combine(directory, "semantic-boundary-trace.jsonl"));
         _canonicalTransitions = OpenBufferedAppend(
             Path.Combine(directory, "canonical-transitions.jsonl"));
+        _nativeSemanticDiscriminator = OpenBufferedAppend(
+            Path.Combine(directory, "native-semantic-discriminator.jsonl"));
         WriteCoverage();
     }
 
@@ -399,6 +402,26 @@ public sealed class V2RecordingStore : IDisposable
                 () => AppendBufferedLine(_canonicalTransitions, value)));
     }
 
+    public void AppendNativeSemanticDiscriminatorEvent(
+        NativeSemanticDiscriminatorEvent value)
+    {
+        if (value.SchemaVersion != NativeSemanticDiscriminatorContract.SchemaVersion
+            || value.Schema != NativeSemanticDiscriminatorContract.EventSchema
+            || value.SessionId != Manifest.SessionId
+            || value.TimelineId != Manifest.TimelineId
+            || value.Sequence <= 0
+            || string.IsNullOrWhiteSpace(value.EventId)
+            || string.IsNullOrWhiteSpace(value.Phase)
+            || string.IsNullOrWhiteSpace(value.ActionWitnessId)
+            || string.IsNullOrWhiteSpace(value.NativeActionType))
+            throw new InvalidDataException("Native semantic discriminator event is invalid.");
+        EnsureOpen();
+        ExecuteWrite(() =>
+            _performance.Measure(
+                "native_semantic_discriminator_append_buffered",
+                () => AppendBufferedLine(_nativeSemanticDiscriminator, value)));
+    }
+
     public void AppendInvalidation(InvalidationRecord invalidation)
     {
         EnsureOpen();
@@ -442,6 +465,7 @@ public sealed class V2RecordingStore : IDisposable
                 _nativeActionLedger.Flush(flushToDisk: true);
                 _semanticBoundaryTrace.Flush(flushToDisk: true);
                 _canonicalTransitions.Flush(flushToDisk: true);
+                _nativeSemanticDiscriminator.Flush(flushToDisk: true);
             });
             foreach (FileStream stream in _decisionFiles.Values)
                 stream.Dispose();
@@ -450,6 +474,7 @@ public sealed class V2RecordingStore : IDisposable
             _nativeActionLedger.Dispose();
             _semanticBoundaryTrace.Dispose();
             _canonicalTransitions.Dispose();
+            _nativeSemanticDiscriminator.Dispose();
             WriteAtomic(
                 Path.Combine(DirectoryPath, "performance-profile.json"),
                 JsonSerializer.Serialize(

@@ -3,8 +3,10 @@
 > This matrix tracks Human/native accounting and trace-level boundary coverage.
 > It is not a canonical one-step training matrix. ADR 0003 and the latest
 > calibration show that schema-3 `transition_proved` does not by itself prove
-> complete same-state A(S), exact A membership and causal S'. New work migrates
-> mechanisms to the serialized canonical lane rather than expanding polling.
+> complete same-state A(S), exact A membership and causal S'. The former global
+> serialized-input candidate is no longer active after it blocked ordinary UI.
+> Current work tests a read-only native semantic sequential lane without
+> expanding polling or weakening gameplay.
 
 This is the current coverage authority for the additive Human Semantic Timeline.
 It does not expand `HumanDecisionRecordV2`, corpus admission, or Connector
@@ -42,10 +44,11 @@ from a later Human effect.
 | event / shop / rest / treasure | Connector observation coverage only | not implemented as Human witnesses | map successors only: event (5), shop (1), rest (2), treasure (1); room-internal actions not exercised |
 | run entry / game terminal | observation coverage varies | not implemented as Human witnesses | final `EndTurn -> game_over` observed; run entry and exhaustive Full Run not exercised |
 
-Current source migrates ordinary combat Play/End Turn/Potion and generated-card
-select/skip to serialized canonical admission. These families no longer feed a
-parallel schema-3 execution tracker. Map, reward, card reward and Combat-hand
-selectors retain trace-only coverage until their native mechanisms migrate.
+Current source keeps the gameplay-safe observer path and adds an independent
+process-local discriminator for ordinary combat Play/End Turn/Potion. At native
+first execution it records both `A(UI)` and `S_sem + A_sem(S)` from logical hand,
+current potion slots, combat phase and STS2 validators. Generated choice remains
+linked to its paused parent lifecycle rather than becoming a replacement root.
 This is source/test evidence; the matrix's Live column remains predecessor
 trace evidence until the new artifact is owner-operated.
 

@@ -7,23 +7,22 @@
   schema-3 trace terminology.
 - Complete: calibrate the latest 933-action exact Human session; 0 rows satisfy
   the full canonical one-step contract, while 497 retain only legacy V2 use.
-- Complete: bound Tier A/B/C with exact source, runtime, performance and offline
-  parity counterexamples; ADR 0003 selects serialized Human input.
-- Complete at source/test: serialized mutation admission, shared authoritative
-  boundary capture, canonical content-addressed transition stream and
-  independent tamper-detecting audit for the migrated high-frequency families.
-- Complete: clean build/install/cold-load and exact identity verification for
-  artifact `b805474d... / 3ab1e10e...`.
-- Complete: unified installed identity and exact-Platform Modset admission;
-  bounded Reference prefix matches, while longer same-artifact and cross-Host
-  rapid combat counterexamples keep twin execution differential-only.
+- Complete: bound the earlier alternatives; ADR 0003 records the historical
+  serialized-input choice, while gameplay evidence later withdrew its global
+  UI gate.
+- Historical candidate only: serialized mutation admission and artifact
+  `b805474d... / 3ab1e10e...`. They are not active gameplay authority.
+- Complete at source/test: preserve gameplay-safe input and add a read-only
+  native semantic discriminator at first execution, with STS2-owned logical
+  state/native validators, exact action identity and cancellation/abort/player-
+  choice accounting.
 - Complete: current Managed Exact rebuild plus 80-action/158-Read reset,
   stale, idempotency and bounded performance measurement.
-- Pending owner canary: blocked rapid input, canonical rows, first-command
-  Close and measured after-latency/footprint.
-- Next after the gate: migrate remaining Full-Run semantic-only families to the
-  canonical lane by native mechanism, without restoring natural-observer
-  polling.
+- Pending exact-runtime canary: rapid root chains, an earlier effect cancelling
+  a later queued root, potion, End Turn and player-choice pause/resume.
+- Next after the gate: choose the native semantic sequential architecture only
+  from exact Human evidence. Do not restore global UI serialization, natural-
+  observer polling or a second legality model.
 
 ## Consolidation Baseline
 

@@ -16,15 +16,15 @@ ledger debt, makes status capture lifecycle-requested rather than periodic, and
 buffers append streams until one durable Close seal. The repair remains
 source/test-only. Root `../../../docs/STATUS.md` is authoritative for the
 current runtime boundary.
-Latest exact session `session-20260829T084437Z-...` closes the after-repair
-performance gate but rejects the natural observer as canonical one-step
-training authority: 933 accepted actions mechanically classify as 247
-`S + A(S)` with unresolved S', 682 execution state/action-space unresolved and
-4 rejected, with 0 canonical `S + A(S) -> A -> S'`. ADR 0003 now has a
-source/test implementation candidate: mutation-producing input is serialized,
-one Read-rich boundary is shared by settlement and the next action, and an
-additive canonical transition stream is independently audited. New Native bytes
-still require exact-runtime Human and after-latency evidence.
+Latest exact session `session-20260829T084437Z-...` rejects the natural observer
+as canonical one-step training authority: 933 accepted actions mechanically
+yield zero canonical rows. The later global serialization candidate is retained
+as history only because it blocked valid unsupported UI. Current source keeps
+the gameplay-safe observer and adds a non-authorizing native semantic
+discriminator. It samples logical combat state and native legality at first
+execution, independently records UI actionability and tracks cancellation,
+abort and player-choice lineage. New Native bytes have source/test/build
+evidence only and require an exact-runtime Human canary.
 Current Full-Run topic source preserves that execution-owned continuous timeline
 and adds interaction-specific semantic Reads, reward claim/proceed, card reward
 select, map travel and Combat hand selector witnesses. The first owner canary

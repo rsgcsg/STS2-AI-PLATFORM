@@ -26,7 +26,9 @@ Use the smallest route that answers the task.
 - Canonical H/S/A(S)/A/S' calibration and bounded architecture decision:
   [Recorder canonical causality decision](evidence/RECORDER_CANONICAL_CAUSALITY_DECISION_2026-08-29.md)
   and [ADR 0003](adr/0003-serialize-human-input-for-canonical-one-step-evidence.md).
-- Current serialized-input source candidate and native restore/twin decision:
+- Current native-semantic discriminator source candidate:
+  [source closeout](evidence/NATIVE_SEMANTIC_RUNTIME_DISCRIMINATOR_SOURCE_CLOSEOUT_2026-08-30.md).
+- Historical serialized-input candidate and native restore/twin decision:
   [source closeout](evidence/SERIALIZED_HUMAN_INPUT_SOURCE_CLOSEOUT_2026-08-30.md)
   [runtime candidate](evidence/SERIALIZED_HUMAN_INPUT_RUNTIME_CANDIDATE_2026-08-30.md),
   and [native restore audit](evidence/NATIVE_RESTORE_AND_TWIN_RUNTIME_AUDIT_2026-08-30.md).
