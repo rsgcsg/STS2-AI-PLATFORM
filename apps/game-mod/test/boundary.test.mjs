@@ -90,6 +90,16 @@ test("single-Mod deploy replaces archived predecessor component configuration", 
   assert.doesNotMatch(lifecycle, /if \(!fs\.existsSync\((?:connector|annotator)Config\)\)/u);
 });
 
+test("single-Mod deploy and rollback transact native Windows Mod settings", () => {
+  const lifecycle = read("apps/game-mod/lifecycle.mjs");
+
+  assert.match(lifecycle, /resolveWindowsSteamSettings/u);
+  assert.match(lifecycle, /prepareSoleWindowsModSettings/u);
+  assert.match(lifecycle, /archiveTarget\(backup, "settings", settings\.file\)/u);
+  assert.match(lifecycle, /entry\.location === "settings"/u);
+  assert.match(lifecycle, /enabled_mod_ids: \[platformModId\]/u);
+});
+
 test("cold launch derives exact Connector canaries from compatibility authority", () => {
   const lifecycle = read("apps/game-mod/lifecycle.mjs");
   assert.match(lifecycle, /resolveConnectorCanaryEnvironment/u);

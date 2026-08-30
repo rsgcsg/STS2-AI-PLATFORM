@@ -25,8 +25,11 @@ npm run game-mod:verify-loaded
 ```
 
 Deployment backs up the existing unified artifact, the predecessor three-Mod
-files, and component configuration before replacement. It removes the three
-predecessor manifests rather than retaining a silent fallback. Restore with:
+files, component configuration, and the native Windows Mod settings before
+replacement. On Windows it preserves every settings entry while enabling only
+`STS2_PLATFORM`; rollback restores the exact prior settings bytes. It removes
+the three predecessor manifests rather than retaining a silent fallback.
+Restore with:
 
 ```bash
 npm run game-mod:rollback
