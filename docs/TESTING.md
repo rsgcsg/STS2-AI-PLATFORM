@@ -62,6 +62,10 @@ Root Host wrappers retain an explicit nested-npm `--` boundary so profile,
 endpoint, and experimental-evidence arguments reach the owning Host CLI on
 Windows and POSIX shells.
 
+The Host profile-template test also pins its captured file inventory. This
+prevents Node-version-specific recursive-copy filter behavior from admitting
+runtime-only Windows `logs` or `sentry` files into a reusable profile template.
+
 ## Evidence Ladder
 
 Evidence levels are ordered but never implied:

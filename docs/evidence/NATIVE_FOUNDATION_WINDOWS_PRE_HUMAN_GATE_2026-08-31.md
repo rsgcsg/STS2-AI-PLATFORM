@@ -83,6 +83,13 @@ The repository root Host wrapper now preserves forwarded profile/build flags on
 npm 11; its regression test prevents a second argument parser from silently
 dropping exact-profile authority.
 
+The first public Windows-portability run then reproduced a Node 20 filesystem
+adapter defect that local Node 24 did not expose: recursive-copy filtering
+admitted runtime-only `logs` and `sentry` files to a reusable profile template.
+Host source `8543e562aaee880fd7e0c4e41887ce94fbb2bd84` replaces that callback-dependent
+filter with an explicit contained file walk and pins the exact captured
+inventory. This changes no game artifact or gameplay/evidence semantics.
+
 - H0 verdict: pass;
 - host kind: `headless`;
 - runtime: `49f34fbfbbbc429393be52ce66625d65`;
