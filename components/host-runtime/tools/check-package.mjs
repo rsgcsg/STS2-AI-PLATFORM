@@ -4,6 +4,10 @@ import { mkdtempSync, readFileSync, realpathSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import {
+  moduleSpecifierForPath,
+  packageEntryHasLaunchAuthority
+} from "./package-entry-admission.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const npmExecPath = process.env.npm_execpath;
@@ -29,6 +33,7 @@ if (report?.name !== "@rsgcsg/sts2-host-runtime") {
 }
 const files = new Set(report.files.map((entry) => entry.path));
 const fileMetadata = new Map(report.files.map((entry) => [entry.path, entry]));
+const sourcePackage = JSON.parse(readFileSync(path.join(root, "package.json"), "utf8"));
 for (const required of [
   "tools/headless.mjs",
   "tools/managed-pe-driver.mjs",
@@ -45,7 +50,21 @@ for (const required of [
 }
 for (const executable of ["tools/headless.mjs", "tools/managed-pe-driver.mjs"]) {
   const mode = fileMetadata.get(executable)?.mode;
-  if (typeof mode !== "number" || (mode & 0o111) === 0) {
+  const index = spawnSync("git", ["ls-files", "--stage", "--", executable], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: "pipe"
+  });
+  if (index.error) throw index.error;
+  if (index.status !== 0) throw new Error(index.stderr || index.stdout);
+  const gitMode = index.stdout.trim().split(/\s+/u)[0];
+  const declaredBin = Object.values(sourcePackage.bin ?? {}).includes(executable);
+  if (!packageEntryHasLaunchAuthority({
+    platform: process.platform,
+    npmMode: mode,
+    gitMode,
+    declaredBin
+  })) {
     throw new Error(`Host Runtime package entry is not executable: ${executable}`);
   }
 }
@@ -82,16 +101,19 @@ if (packResult.error) throw packResult.error;
 if (packResult.status !== 0) throw new Error(packResult.stderr || packResult.stdout);
 const packed = JSON.parse(packResult.stdout)[0];
 const tarball = path.join(smokeRoot, packed.filename);
-const installResult = spawnSync(
-  process.platform === "win32" ? "npm.cmd" : "npm",
-  ["install", tarball, "--ignore-scripts", "--no-audit", "--no-fund"],
-  {
-    cwd: smokeRoot,
-    encoding: "utf8",
-    stdio: "pipe",
-    shell: process.platform === "win32"
-  }
-);
+const installArgs = ["install", tarball, "--ignore-scripts", "--no-audit", "--no-fund"];
+const installResult = typeof npmExecPath === "string" && npmExecPath.length > 0
+  ? spawnSync(process.execPath, [npmExecPath, ...installArgs], {
+      cwd: smokeRoot,
+      encoding: "utf8",
+      stdio: "pipe"
+    })
+  : spawnSync(process.platform === "win32" ? "npm.cmd" : "npm", installArgs, {
+      cwd: smokeRoot,
+      encoding: "utf8",
+      stdio: "pipe",
+      shell: process.platform === "win32"
+    });
 if (installResult.error) throw installResult.error;
 if (installResult.status !== 0) {
   throw new Error(installResult.stderr || installResult.stdout);
@@ -101,7 +123,8 @@ const importResult = spawnSync(process.execPath, [
   "--input-type=module",
   "--eval",
   [
-    `import { readProjectIdentity } from ${JSON.stringify(path.join(installedRoot, "src/project-identity.mjs"))};`,
+    `import { readProjectIdentity } from ${JSON.stringify(moduleSpecifierForPath(
+      path.join(installedRoot, "src/project-identity.mjs")))};`,
     `const identity = readProjectIdentity(${JSON.stringify(installedRoot)});`,
     "if (identity.distribution_kind !== 'installed_package') process.exit(3);",
     "console.log(JSON.stringify(identity));"
@@ -128,6 +151,9 @@ console.log(JSON.stringify({
   packed_size: report.size,
   unpacked_size: report.unpackedSize,
   integrity: report.integrity,
+  executable_validation: process.platform === "win32"
+    ? "declared_bin_and_git_index_mode"
+    : "npm_package_entry_mode",
   standalone_smoke: {
     package_name: installedPackage.name,
     package_version: installedPackage.version,

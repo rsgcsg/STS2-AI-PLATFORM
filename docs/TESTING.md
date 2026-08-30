@@ -51,9 +51,12 @@ The component checks have separate meanings:
 installation. They build or compile game-bound artifacts; a successful build is
 not install, load, Live, native-human mutation, or qualification evidence.
 
-Public CI runs `npm run check` and does not require proprietary game assemblies.
-Exact-game checks are local and must record the game, platform, Modset, source,
-artifact, and runtime identities from the current manifests and reports.
+Public CI runs the complete portable gate on Ubuntu and a targeted Windows
+portability gate for root identity, Host packaging/runtime adapters, Annotator
+.NET and evidence file sharing, canonical Evidence bytes, and game-Mod
+lifecycle tests. Neither job requires proprietary game assemblies. Exact-game
+checks are local and must record the game, platform, Modset, source, artifact,
+and runtime identities from the current manifests and reports.
 
 ## Evidence Ladder
 

@@ -512,7 +512,7 @@ public sealed class V2EvidenceTests
 
                 Assert.Equal(
                     new[] { 1L, 2L },
-                    File.ReadLines(Path.Combine(session, "semantic-boundary-trace.jsonl"))
+                    ReadLiveLines(Path.Combine(session, "semantic-boundary-trace.jsonl"))
                         .Select(line => JsonSerializer.Deserialize<SemanticBoundaryTraceEvent>(
                             line,
                             EvidenceJson.Options)!.Sequence));
@@ -556,7 +556,7 @@ public sealed class V2EvidenceTests
                 SemanticEvent(manifest with { TimelineId = "timeline-other" }, 2,
                     SemanticBoundaryTraceKinds.ActionStarted, action)
             }));
-            Assert.Empty(File.ReadLines(tracePath));
+            Assert.Empty(ReadLiveLines(tracePath));
 
             store.Dispose();
             Assert.Throws<ObjectDisposedException>(() => store.AppendSemanticBoundaryEvents(
@@ -611,7 +611,7 @@ public sealed class V2EvidenceTests
                         action)
                 });
                 SemanticEvidenceEvent persisted = JsonSerializer.Deserialize<SemanticEvidenceEvent>(
-                    File.ReadLines(Path.Combine(session, "semantic-boundary-trace.jsonl")).First(),
+                    ReadLiveLines(Path.Combine(session, "semantic-boundary-trace.jsonl")).First(),
                     EvidenceJson.Options)!;
                 Assert.Equal(SemanticEvidenceContract.EventSchema, persisted.Schema);
                 Assert.Equal(first, persisted.HumanObservationRef);
@@ -631,6 +631,20 @@ public sealed class V2EvidenceTests
         {
             Delete(root);
         }
+    }
+
+    private static IReadOnlyList<string> ReadLiveLines(string path)
+    {
+        using var stream = new FileStream(
+            path,
+            FileMode.Open,
+            FileAccess.Read,
+            FileShare.ReadWrite | FileShare.Delete);
+        using var reader = new StreamReader(stream);
+        var lines = new List<string>();
+        while (reader.ReadLine() is { } line)
+            lines.Add(line);
+        return lines;
     }
 
     [Fact]
