@@ -48,8 +48,10 @@ from a later Human effect.
 Current source keeps the gameplay-safe observer path and adds an independent
 process-local discriminator for ordinary combat Play/End Turn/Potion. At native
 first execution it records both `A(UI)` and `S_sem + A_sem(S)` from logical hand,
-current potion slots, combat phase and STS2 validators. Generated choice remains
-linked to its paused parent lifecycle rather than becoming a replacement root.
+current potion slots, combat phase and STS2 validators when the canonical
+boundary does not already own that execution sample; otherwise it records an
+explicit lifecycle-only delegation. Generated choice remains linked to its
+paused parent lifecycle rather than becoming a replacement root.
 Exact owner session `session-20260830T064823Z-...` exercises 30 PlayCard, ten
 EndTurn and one potion root plus two player-choice pause/resume pairs. All 41
 successful roots have complete first-execution captures and exact-once native

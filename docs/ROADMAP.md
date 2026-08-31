@@ -58,9 +58,10 @@
 - Historical candidate only: serialized mutation admission and artifact
   `b805474d... / 3ab1e10e...`. They are not active gameplay authority.
 - Complete at source/test: preserve gameplay-safe input and add a read-only
-  native semantic discriminator at first execution, with STS2-owned logical
-  state/native validators, exact action identity and cancellation/abort/player-
-  choice accounting.
+  native semantic discriminator at first execution when the canonical boundary
+  does not already own the sample, with STS2-owned logical state/native
+  validators, exact action identity and cancellation/abort/player-choice
+  accounting.
 - Complete: current Managed Exact rebuild plus 80-action/158-Read reset,
   stale, idempotency and bounded performance measurement.
 - Complete bounded exact-runtime canary: 41/41 successful roots are exact-once
