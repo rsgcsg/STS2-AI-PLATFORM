@@ -32,9 +32,14 @@ authority. UI-derived reachability/reward/option publication is demoted from
 semantic authority. Treasure component source `85cb0a5...` additionally binds
 the exact `TreasureRoom`/run owner and `TreasureRoomRelicSynchronizer`
 collection, with `closed/opening/relic_choice/resolving/completed` stages and
-exact `open/select/skip/proceed` membership. Treasure targeted Connector and
-unified-Mod checks pass; its final clean build/load evidence is pending. The
-earlier Map/Reward/CardReward batch targeted tests and exact clean macOS build pass as
+exact `open/select/skip/proceed` membership. Final exact Treasure-continuation
+artifact `3bc44ddb... / 708ecfab...` builds cleanly and cold-loads on macOS in
+Connector runtime `955e5b02...`, environment `722a4149...`, sole-Platform
+Modset `b6b669df...`, with rollback `2026-08-31T03-07-08.478Z`. Startup logs
+contain no Platform or Harmony errors. A build-provenance omission was also
+fixed so every compiled game-Mod composition source is now identity-bound.
+This is bounded main-menu T2 evidence only. The earlier Map/Reward/CardReward
+batch targeted tests and exact clean macOS build pass as
 artifact `3e3ebc3c... / 53568805...` against STS2
 `v0.111.0 / 41cef1ea / 9cb4f1ad... / 57785517...`. Safe install, rollback
 capture and cold-load also pass on macOS in Connector runtime `2c94849e...`,
@@ -44,7 +49,8 @@ Platform initialization error. This is bounded main-menu runtime evidence:
 Map/Reward/CardReward/Treasure decisions and Human recording remain unexercised. Public
 protocol 1.0.0 remains compatible; `Receipt.Successor` is still an immediate
 post-delivery observation, not canonical causal `S'`. See the
-[continuation source closeout](evidence/NATIVE_FOUNDATION_FULL_RUN_SOURCE_CLOSEOUT_2026-08-31.md).
+[continuation source closeout](evidence/NATIVE_FOUNDATION_FULL_RUN_SOURCE_CLOSEOUT_2026-08-31.md)
+and [Treasure closeout](evidence/NATIVE_FOUNDATION_TREASURE_SOURCE_CLOSEOUT_2026-08-31.md).
 
 Connector, Annotator, unified-Mod targeted checks and the full portable suite
 pass for component source commit `a3bcd37...`. Clean build, safe install and

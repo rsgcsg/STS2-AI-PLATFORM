@@ -29,7 +29,10 @@
   accounting, potion, three PlayerChoice pause/resume pairs, repeated
   `lethal -> Reward -> CardReward -> Map`, and Recorder New/Pause/Resume/Close.
   See the [Human closeout](evidence/NATIVE_FOUNDATION_WINDOWS_HUMAN_CLOSEOUT_2026-08-31.md).
-- Independently pending for the restacked PR #6 artifact: exact build,
+- Complete on predecessor PR #6 artifact `3bc44ddb... / 708ecfab...`: exact
+  build, safe install/rollback and bounded main-menu cold-load on macOS. This
+  evidence does not transfer across the restack.
+- Pending for the restacked PR #6 artifact: exact build,
   install/load and representative runtime exercise of the new
   Map/Reward/CardReward/Treasure adapters;
   no PR #5 Human evidence transfers.
