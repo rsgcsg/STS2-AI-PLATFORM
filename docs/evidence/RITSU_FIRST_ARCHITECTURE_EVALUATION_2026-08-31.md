@@ -1,7 +1,7 @@
 # Ritsu-First Architecture Evaluation
 
-Status: `DECISION_READY_RITSU_FIRST`  
-Evidence date: 2026-08-31  
+Status: `DECISION_READY_RITSU_FIRST`
+Evidence date: 2026-08-31
 Evidence favors: `RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY`
 
 This is a counterfactual integration evaluation. It does not adopt a runtime
