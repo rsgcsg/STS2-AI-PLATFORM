@@ -51,6 +51,12 @@ export function compiledSourceDigest(components) {
     .digest("hex");
 }
 
+export function isGameModCompiledSource(relative) {
+  return path.extname(relative) === ".cs"
+    || relative === "STS2Platform.GameMod.csproj"
+    || relative === "mod_manifest.json";
+}
+
 export function sourceSetIdentity(platformRoot) {
   const connectorRoot = path.join(platformRoot, "components/connector");
   const connector = playerEnvironmentSourceIdentity(connectorRoot);
@@ -71,11 +77,7 @@ export function sourceSetIdentity(platformRoot) {
   );
   const gameMod = componentIdentity(
     path.join(platformRoot, "apps/game-mod"),
-    (relative) => [
-      "UnifiedPlatformMod.cs",
-      "STS2Platform.GameMod.csproj",
-      "mod_manifest.json"
-    ].includes(relative)
+    isGameModCompiledSource
   );
   const components = {
     native_foundation: nativeFoundation,
