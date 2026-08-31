@@ -1,5 +1,33 @@
 # Roadmap
 
+## Native Foundation Migration
+
+- Complete at source/test: introduce a semantic-only game-side Native
+  Foundation and route Connector/Annotator Direct Combat through one STS2-owned
+  logical/native catalog.
+- Complete at source/test: route Annotator action lifecycle and PlayerChoice
+  parent lineage through one read-only Foundation adapter.
+- Complete at source/test: distinguish Reward/CardReward/Map semantic owner
+  from input owner without adding legality or execution.
+- Complete and frozen: PR #7/#8 retrofit and Ritsu-first evidence preserve the
+  `RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY` route in ADR 0004; useful
+  findings are retained without merging research runtime code.
+- Complete for exact artifact `9a89f1fe... / b1c34f90...`: clean build, safe
+  install, cold-load, non-mutating live controller/stale/idempotency checks,
+  shipped-headless H0, and main-menu-only canonical live/headless parity.
+- Complete independently on Windows artifact `a681f8b1... / 7c42c4c3...`:
+  source checks, exact shipped-game discovery, clean build, artifact plus native
+  Mod-settings rollback, cold-load with sole `STS2_PLATFORM`, bounded visible
+  Connector checks, shipped-headless H0, and main-menu-only canonical parity.
+- Complete bounded Windows Human gate: exact artifact `a681f8b1... /
+  7c42c4c3...` passes 35/35 Decision V2 records, 37/37 native-root disposition
+  accounting, potion, three PlayerChoice pause/resume pairs, repeated
+  `lethal -> Reward -> CardReward -> Map`, and Recorder New/Pause/Resume/Close.
+  See the [Human closeout](evidence/NATIVE_FOUNDATION_WINDOWS_HUMAN_CLOSEOUT_2026-08-31.md).
+- Next: Treasure lifecycle discriminator, then migrate Shop,
+  Event, Rest, run entry, and terminal by native mechanism. Remove each old
+  publication/witness path only after both consumers use the shared adapter.
+
 ## Canonical Human One-Step Evidence
 
 - Complete: mechanically separate Human provenance H, authoritative S,

@@ -14,6 +14,7 @@ of rules, RNG, effects, native legality, and Commit.
 
 ```text
 STS2 game truth
+  -> Native Foundation: shared game-side semantic decisions and lifecycle
   -> Host Runtime: process lifecycle, isolation, recovery, exact identity
   -> Connector: fair-player Snapshot, Read, finite BoundAction, Receipt, successor
   -> external strategy and research consumers
@@ -33,6 +34,7 @@ Workbench and Platform Live UI
 
 | Path | Responsibility |
 |---|---|
+| `components/native-foundation` | Shared STS2 semantic decisions, lifecycle, and owner lineage |
 | `components/connector` | Fair-player Player Environment and native action binding |
 | `components/host-runtime` | Runtime discovery, isolation, lifecycle, recovery, and qualification support |
 | `components/annotator` | Native-human witness recording, audit, and immutable session bundles |

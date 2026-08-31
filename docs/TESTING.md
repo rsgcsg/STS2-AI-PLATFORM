@@ -51,9 +51,23 @@ The component checks have separate meanings:
 installation. They build or compile game-bound artifacts; a successful build is
 not install, load, Live, native-human mutation, or qualification evidence.
 
-Public CI runs `npm run check` and does not require proprietary game assemblies.
-Exact-game checks are local and must record the game, platform, Modset, source,
-artifact, and runtime identities from the current manifests and reports.
+Public CI runs the complete portable gate on Ubuntu and a targeted Windows
+portability gate for root identity, Host packaging/runtime adapters, Annotator
+.NET and evidence file sharing, canonical Evidence bytes, and game-Mod
+lifecycle tests. Neither job requires proprietary game assemblies. Exact-game
+checks are local and must record the game, platform, Modset, source, artifact,
+and runtime identities from the current manifests and reports.
+
+Root Host wrappers retain an explicit nested-npm `--` boundary so profile,
+endpoint, and experimental-evidence arguments reach the owning Host CLI on
+Windows and POSIX shells.
+
+The Host profile-template test also pins its captured file inventory. This
+prevents Node-version-specific recursive-copy filter behavior from admitting
+runtime-only Windows `logs` or `sentry` files into a reusable profile template.
+Workspace package tests use Node's standard automatic discovery rather than
+depending on shell-expanded `*.test.mjs` globs, which Windows npm does not
+expand on the supported Node 20 baseline.
 
 ## Evidence Ladder
 

@@ -58,6 +58,13 @@ support for the native semantic lane, not proof of true overlapping acceptance,
 cancel/abort, final successor semantics or non-combat Full Run. See the
 [Human closeout](evidence/NATIVE_SEMANTIC_RUNTIME_DISCRIMINATOR_HUMAN_CLOSEOUT_2026-08-30.md).
 
+The stacked Native Foundation candidate moves that bounded combat catalog and
+exact lifecycle observation into one neutral game-side owner consumed by both
+Connector and Annotator. It also adds a non-authorizing
+Reward/CardReward/Map owner discriminator. This is source/test evidence only
+until the new artifact is cold-loaded and exercised; the matrix above retains
+the predecessor artifact's exact Live claims.
+
 Semantic state Read requirements are interaction-specific: combat requires
 `run_deck` and `combat_piles`, shop requires `run_deck` and `shop_catalog`, and
 the current ordinary non-combat surfaces require `run_deck`. A failed Read makes

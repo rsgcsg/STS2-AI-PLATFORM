@@ -44,7 +44,43 @@ const NATIVE_SEMANTIC_DISCRIMINATOR = Object.freeze({
   environment: "190234e4a3b270d4447e13598c45aa205d40766b98f6efa2b99c3790b77386d2",
   modset: "968a30c304f7ba8befd459f279a1f36957eb5dbebed94e8016111bce3389288c",
   sessionId: "session-20260830T064823Z-ed1d683fe0b44e1db312c7489cda7fba",
-  timelineId: "timeline-bc4ee13a1bdd400bbec356e5a0abdbdc"
+  timelineId: "timeline-bc4ee13a1bdd400bbec356e5a0abdbdc",
+  auditCloseoutSourceRevision: "193861ad9f8e1e7c058a292942b5cf5729aad413"
+});
+const NATIVE_FOUNDATION_RUNTIME_CANDIDATE = Object.freeze({
+  workspaceRevision: "da9f60535ade0fb9bc792c18be1b8976b3bedcd4",
+  sourceRevision: "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+  nativeFoundationTree: "981c4667384905b6c359d1bd39ddc8b8f352a968",
+  nativeFoundationDigest: "098f7215512199e825dbbb910d78f4c9e61b7b0ea7a1a742052e91ffa75dac52",
+  nativeFoundationBuildDigest: "d2018cad13b1f904ac7b8e8cd6928491ed819470e7107e757455c34a179c9ee4",
+  artifactSha: "9a89f1fe728bdce442c70de0daaec0299230e80c6442c97f4bd0752620ce959b",
+  artifactMvid: "b1c34f90-f143-4f7f-97da-eea90c23dbde",
+  runtimeInstance: "b57a37b4767a42aab5cffa4bba8870f4",
+  environment: "f0cbd53a1be10fad5630252aa4f4ee484b426d733ac3f4d52a04d069584b1c37",
+  modset: "d5054e7bbfc30d8787c3573f57ada09bb808874c0c4f82485433c0e725a96e8d",
+  headlessRuntime: "efd022e91c7e4f0287494707b423d700",
+  canonicalDigest: "71e246abad05c8a9a805bb6e041cef526ea54645ebc71bb68d103a4c490ab3d7"
+});
+const NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE = Object.freeze({
+  workspaceRevision: "c667122ee35853f6a4a315871cb4e70383363c8f",
+  sourceRevision: "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+  nativeFoundationTree: "981c4667384905b6c359d1bd39ddc8b8f352a968",
+  nativeFoundationDigest: "098f7215512199e825dbbb910d78f4c9e61b7b0ea7a1a742052e91ffa75dac52",
+  nativeFoundationBuildDigest: "d2018cad13b1f904ac7b8e8cd6928491ed819470e7107e757455c34a179c9ee4",
+  executableSha: "8602c26bffd2937e3841835fd8360ef8e974624a543e05977229fd3d062be231",
+  mainAssemblySha: "0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9",
+  mainAssemblyMvid: "73b63ee0-6c0a-47bb-b0d1-b21f6d94222e",
+  artifactSha: "a681f8b1b516376a26823114ca42d2dca4c2981c2930e5770872777c3e3bc3a9",
+  artifactMvid: "7c42c4c3-02fb-46c9-ac90-dfb1cf516fdd",
+  runtimeInstance: "7a1942b652da47d29baf6852f427f924",
+  environment: "a52b5cc5f903bd1583af6463f098123226a1abf6fd74ca0b2a99b1ef3cd24889",
+  modset: "e5693d19c7571c1a30a07c2bca584eeced6b64e675bc5fb37acbb1638a1cb86c",
+  headlessRuntime: "49f34fbfbbbc429393be52ce66625d65",
+  canonicalDigest: "eaf8516dc290509ca8b2a33f098b0d6582842c9be2635accd4c217c2d3dd58e4",
+  rollback: "apps/game-mod/.local/deployments/2026-08-30T14-44-51.829Z",
+  takeoverRuntime: "a711647abb174c8384ab4434a445195c",
+  takeoverEnvironment: "73b37f526c3db9403d7eb39b0796d0a5aa3d92fc0f5eef86344cddcce06d0112",
+  takeoverModset: "7140e294e14fede34ac1b566fecfe70b1ff56a04333e80ca0b87deb70d83b638"
 });
 
 function readJson(file) {
@@ -60,6 +96,7 @@ function expectPattern(errors, label, value, pattern) {
 }
 
 export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
+  const nativeFoundationComponent = readJson(path.join(platformRoot, "components", "native-foundation", "component.json"));
   const connectorRelease = readJson(path.join(platformRoot, "components", "connector", "release-manifest.json"));
   const connectorManifest = readJson(path.join(platformRoot, "components", "connector", "host", "mod_manifest.json"));
   const connectorSdk = readJson(path.join(platformRoot, "components", "connector", "sdk", "typescript", "package.json"));
@@ -76,6 +113,7 @@ export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
   ));
   return {
     identities: readIdentityReport(platformRoot),
+    nativeFoundationComponent,
     connectorRelease,
     connectorManifest,
     connectorSdk,
@@ -95,6 +133,7 @@ export function validatePlatformBom(bom, authorities) {
   const errors = [];
   expectEqual(errors, "schema", bom.schema, "sts2.ai-platform/bom-1");
   const componentMap = {
+    native_foundation: "native-foundation",
     connector: "connector",
     host_runtime: "host-runtime",
     annotator: "annotator",
@@ -112,6 +151,8 @@ export function validatePlatformBom(bom, authorities) {
     expectEqual(errors, `${bomKey}.component_tree_revision`, component?.component_tree_revision, identity.component_tree_revision);
     expectEqual(errors, `${bomKey}.component_source_digest_sha256`, component?.component_source_digest_sha256, identity.component_source_digest_sha256);
   }
+  expectEqual(errors, "Native Foundation version", bom.components?.native_foundation?.version,
+    authorities.nativeFoundationComponent.version);
   expectEqual(errors, "connector release version", bom.components?.connector?.version, authorities.connectorRelease.release.version);
   expectEqual(errors, "connector Mod version", authorities.connectorManifest.version, authorities.connectorRelease.release.version);
   expectEqual(errors, "Player Environment protocol", bom.components?.player_environment_protocol, authorities.connectorRelease.player_environment.protocol);
@@ -199,7 +240,7 @@ export function validatePlatformBom(bom, authorities) {
 
   const policyCandidate = bom.unified_platform_runtime_candidate;
   expectEqual(errors, "unified Platform candidate status", policyCandidate?.status,
-    "native_semantic_discriminator_bounded_human_pass");
+    "native_foundation_loaded_automated_gates_pass_human_pending");
   const discriminatorCandidate = policyCandidate?.native_semantic_discriminator_source_candidate;
   expectEqual(errors, "native discriminator candidate status", discriminatorCandidate?.status,
     "human_canary_bounded_semantic_lane_supported");
@@ -259,13 +300,315 @@ export function validatePlatformBom(bom, authorities) {
     "pass_after_audit_aggregation_fix");
   expectEqual(errors, "native discriminator audit source",
     discriminatorHuman?.audit_closeout_source_revision,
-    bom.components?.annotator?.source_revision);
+    NATIVE_SEMANTIC_DISCRIMINATOR.auditCloseoutSourceRevision);
   for (const field of [
     "manifest_sha256",
     "decision_v2_sha256",
     "native_ledger_sha256",
     "native_semantic_discriminator_sha256"
   ]) expectPattern(errors, `native discriminator Human ${field}`, discriminatorHuman?.[field], SHA256);
+
+  const nativeFoundationCandidate = policyCandidate?.native_foundation_runtime_candidate;
+  expectEqual(errors, "Native Foundation candidate status", nativeFoundationCandidate?.status,
+    "loaded_automated_gates_pass_human_pending");
+  expectEqual(errors, "Native Foundation workspace at build",
+    nativeFoundationCandidate?.workspace_revision_at_build,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.workspaceRevision);
+  for (const [label, actual] of [
+    ["implementation", nativeFoundationCandidate?.implementation_source_revision],
+    ["Native Foundation", nativeFoundationCandidate?.native_foundation?.source_revision],
+    ["Connector", nativeFoundationCandidate?.connector_source_revision],
+    ["Annotator", nativeFoundationCandidate?.annotator_source_revision],
+    ["Game Mod", nativeFoundationCandidate?.game_mod_source_revision]
+  ]) expectEqual(errors, `Native Foundation ${label} source`, actual,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.sourceRevision);
+  expectEqual(errors, "Native Foundation component tree",
+    nativeFoundationCandidate?.native_foundation?.component_tree_revision,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.nativeFoundationTree);
+  expectEqual(errors, "Native Foundation component digest",
+    nativeFoundationCandidate?.native_foundation?.component_source_digest_sha256,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.nativeFoundationDigest);
+  expectEqual(errors, "Native Foundation build digest",
+    nativeFoundationCandidate?.native_foundation?.build_source_digest_sha256,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.nativeFoundationBuildDigest);
+  expectEqual(errors, "Native Foundation artifact", nativeFoundationCandidate?.artifact_sha256,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.artifactSha);
+  expectEqual(errors, "Native Foundation MVID", nativeFoundationCandidate?.artifact_mvid,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.artifactMvid);
+  expectEqual(errors, "Native Foundation build", nativeFoundationCandidate?.built,
+    "pass_clean_source");
+  expectEqual(errors, "Native Foundation install", nativeFoundationCandidate?.installed, "pass");
+  expectEqual(errors, "Native Foundation load", nativeFoundationCandidate?.loaded, "pass");
+  expectEqual(errors, "Native Foundation protocol",
+    nativeFoundationCandidate?.player_environment_protocol, "1.0.0");
+  expectEqual(errors, "Native Foundation runtime", nativeFoundationCandidate?.runtime_instance_id,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.runtimeInstance);
+  expectEqual(errors, "Native Foundation environment",
+    nativeFoundationCandidate?.environment_fingerprint,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.environment);
+  expectEqual(errors, "Native Foundation Modset status",
+    nativeFoundationCandidate?.modset_status, "exact_platform_modset");
+  expectEqual(errors, "Native Foundation Modset", nativeFoundationCandidate?.modset_fingerprint,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.modset);
+  if (!Array.isArray(nativeFoundationCandidate?.loaded_mod_ids)
+      || nativeFoundationCandidate.loaded_mod_ids.length !== 1
+      || nativeFoundationCandidate.loaded_mod_ids[0] !== "STS2_PLATFORM") {
+    errors.push("Native Foundation loaded Mods: expected only STS2_PLATFORM");
+  }
+  for (const [field, expected] of Object.entries({
+    loaded_identity: "pass",
+    interactive_snapshot: "pass_main_menu_complete",
+    controller_conflict: "pass_http_409",
+    stale_rejection: "pass_not_delivered",
+    request_idempotency: "pass_same_receipt"
+  })) expectEqual(errors, `Native Foundation live ${field}`,
+    nativeFoundationCandidate?.automated_live_ui?.[field], expected);
+  expectEqual(errors, "Native Foundation headless status",
+    nativeFoundationCandidate?.automated_headless?.status, "h0_pass_canary_exact");
+  expectEqual(errors, "Native Foundation headless runtime",
+    nativeFoundationCandidate?.automated_headless?.runtime_instance_id,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.headlessRuntime);
+  expectEqual(errors, "Native Foundation headless kind",
+    nativeFoundationCandidate?.automated_headless?.host_kind, "headless");
+  expectEqual(errors, "Native Foundation headless snapshot",
+    nativeFoundationCandidate?.automated_headless?.snapshot_status, "interactive");
+  expectEqual(errors, "Native Foundation headless interaction",
+    nativeFoundationCandidate?.automated_headless?.interaction_kind, "main_menu");
+  expectEqual(errors, "Native Foundation visible/headless parity",
+    nativeFoundationCandidate?.visible_headless_semantic_invariance?.status, "pass");
+  expectEqual(errors, "Native Foundation parity scope",
+    nativeFoundationCandidate?.visible_headless_semantic_invariance?.scope, "main_menu_only");
+  expectEqual(errors, "Native Foundation parity digest",
+    nativeFoundationCandidate?.visible_headless_semantic_invariance?.canonical_digest_sha256,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.canonicalDigest);
+  expectEqual(errors, "Native Foundation parity visible runtime",
+    nativeFoundationCandidate?.visible_headless_semantic_invariance?.visible_runtime_instance_id,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.runtimeInstance);
+  expectEqual(errors, "Native Foundation parity headless runtime",
+    nativeFoundationCandidate?.visible_headless_semantic_invariance?.headless_runtime_instance_id,
+    NATIVE_FOUNDATION_RUNTIME_CANDIDATE.headlessRuntime);
+  expectEqual(errors, "Native Foundation receipt successor contract",
+    nativeFoundationCandidate?.receipt_successor_contract,
+    "immediate_post_delivery_observation_not_causal_s_prime");
+  expectEqual(errors, "Native Foundation Ritsu route", nativeFoundationCandidate?.ritsu_route,
+    "RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY");
+  expectEqual(errors, "Native Foundation Human runtime", nativeFoundationCandidate?.human_runtime,
+    "not_exercised");
+  expectEqual(errors, "Native Foundation predecessor evidence transfer",
+    nativeFoundationCandidate?.evidence_transfer_from_predecessor, false);
+
+  const windowsFoundation = policyCandidate?.native_foundation_windows_runtime_candidate;
+  expectEqual(errors, "Windows Native Foundation candidate status", windowsFoundation?.status,
+    "bounded_windows_human_pass");
+  expectEqual(errors, "Windows Native Foundation platform", windowsFoundation?.platform, "win32");
+  expectEqual(errors, "Windows Native Foundation architecture", windowsFoundation?.architecture,
+    "x64");
+  expectEqual(errors, "Windows Native Foundation workspace at build",
+    windowsFoundation?.workspace_revision_at_build,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.workspaceRevision);
+  for (const [label, actual] of [
+    ["implementation", windowsFoundation?.implementation_source_revision],
+    ["Native Foundation", windowsFoundation?.native_foundation?.source_revision],
+    ["Connector", windowsFoundation?.connector_source_revision],
+    ["Annotator", windowsFoundation?.annotator_source_revision],
+    ["Game Mod", windowsFoundation?.game_mod_source_revision]
+  ]) expectEqual(errors, `Windows Native Foundation ${label} source`, actual,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.sourceRevision);
+  expectEqual(errors, "Windows Native Foundation component tree",
+    windowsFoundation?.native_foundation?.component_tree_revision,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.nativeFoundationTree);
+  expectEqual(errors, "Windows Native Foundation component digest",
+    windowsFoundation?.native_foundation?.component_source_digest_sha256,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.nativeFoundationDigest);
+  expectEqual(errors, "Windows Native Foundation build digest",
+    windowsFoundation?.native_foundation?.build_source_digest_sha256,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.nativeFoundationBuildDigest);
+  for (const [label, actual, expected] of [
+    ["executable", windowsFoundation?.game?.executable_sha256,
+      NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.executableSha],
+    ["main assembly", windowsFoundation?.game?.main_assembly_sha256,
+      NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.mainAssemblySha],
+    ["main assembly MVID", windowsFoundation?.game?.main_assembly_mvid,
+      NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.mainAssemblyMvid],
+    ["artifact", windowsFoundation?.artifact_sha256,
+      NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.artifactSha],
+    ["artifact MVID", windowsFoundation?.artifact_mvid,
+      NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.artifactMvid]
+  ]) expectEqual(errors, `Windows Native Foundation ${label}`, actual, expected);
+  expectEqual(errors, "Windows Native Foundation game version", windowsFoundation?.game?.version,
+    "v0.111.0");
+  expectEqual(errors, "Windows Native Foundation game commit", windowsFoundation?.game?.commit,
+    "41cef1ea");
+  expectEqual(errors, "Windows Native Foundation game assembly hash",
+    windowsFoundation?.game?.main_assembly_hash, 222455745);
+  for (const [field, expected] of Object.entries({
+    built: "pass_clean_source",
+    installed: "pass",
+    loaded: "pass",
+    player_environment_protocol: "1.0.0",
+    host_kind: "live_ui",
+    modset_status: "exact_platform_modset",
+    human_runtime: "pass_bounded_owner_canary"
+  })) expectEqual(errors, `Windows Native Foundation ${field}`, windowsFoundation?.[field], expected);
+  expectEqual(errors, "Windows Native Foundation installed/loaded equality",
+    windowsFoundation?.installed_equals_loaded, true);
+  expectEqual(errors, "Windows Native Foundation runtime", windowsFoundation?.runtime_instance_id,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.runtimeInstance);
+  expectEqual(errors, "Windows Native Foundation environment",
+    windowsFoundation?.environment_fingerprint,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.environment);
+  expectEqual(errors, "Windows Native Foundation Modset", windowsFoundation?.modset_fingerprint,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.modset);
+  if (!Array.isArray(windowsFoundation?.loaded_mod_ids)
+      || windowsFoundation.loaded_mod_ids.length !== 1
+      || windowsFoundation.loaded_mod_ids[0] !== "STS2_PLATFORM") {
+    errors.push("Windows Native Foundation loaded Mods: expected only STS2_PLATFORM");
+  }
+  for (const [field, expected] of Object.entries({
+    loaded_identity: "pass",
+    interactive_snapshot: "pass_main_menu_complete",
+    bound_actions: "pass_complete_one",
+    reads: "pass_none_advertised_none_completed",
+    controller_conflict: "pass_http_409",
+    stale_rejection: "pass_not_delivered",
+    request_idempotency: "pass_same_receipt"
+  })) expectEqual(errors, `Windows Native Foundation live ${field}`,
+    windowsFoundation?.automated_live_ui?.[field], expected);
+  expectEqual(errors, "Windows Native Foundation live mutation",
+    windowsFoundation?.automated_live_ui?.action_delivered, false);
+  const windowsTakeover = windowsFoundation?.final_takeover;
+  for (const [field, expected] of Object.entries({
+    status: "loaded_read_only_pass_human_pending",
+    process_id: 9068,
+    runtime_instance_id: NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.takeoverRuntime,
+    environment_fingerprint: NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.takeoverEnvironment,
+    modset_status: "exact_platform_modset",
+    modset_fingerprint: NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.takeoverModset,
+    snapshot_status: "interactive",
+    interaction_kind: "main_menu",
+    bound_actions: "complete_one",
+    reads: "none_advertised",
+    recorder: "ready_no_session",
+    installed_equals_loaded: true,
+    fingerprint_relation_to_automated_gate: "changed_by_disabled_workshop_entry_update",
+    evidence_level: "loaded_read_only_not_human_or_controller_mutation"
+  })) expectEqual(errors, `Windows Native Foundation final takeover ${field}`,
+    windowsTakeover?.[field], expected);
+  if (!Array.isArray(windowsTakeover?.loaded_mod_ids)
+      || windowsTakeover.loaded_mod_ids.length !== 1
+      || windowsTakeover.loaded_mod_ids[0] !== "STS2_PLATFORM") {
+    errors.push("Windows Native Foundation final takeover loaded Mods: expected only STS2_PLATFORM");
+  }
+  for (const [field, expected] of Object.entries({
+    id: "CombatSolver",
+    loaded: false,
+    prior_discovery_size: 2246860,
+    current_discovery_size: 2292940,
+    prior_last_modified: 1788097420,
+    current_last_modified: 1788154165,
+    current_version: "0.22.9"
+  })) expectEqual(errors, `Windows Native Foundation disabled Workshop update ${field}`,
+    windowsTakeover?.disabled_workshop_update?.[field], expected);
+  expectEqual(errors, "Windows Native Foundation settings transaction",
+    windowsFoundation?.windows_mod_settings?.transaction, "pass_backup_restore_redeploy");
+  expectEqual(errors, "Windows Native Foundation sole enabled Mod",
+    windowsFoundation?.windows_mod_settings?.sole_platform_enabled, true);
+  expectEqual(errors, "Windows Native Foundation preserved Mod settings",
+    windowsFoundation?.windows_mod_settings?.other_entries_preserved_disabled, true);
+  expectEqual(errors, "Windows Native Foundation Recorder initial status",
+    windowsFoundation?.recorder_lifecycle?.initial_status, "ready_no_session");
+  expectEqual(errors, "Windows Native Foundation Recorder portable checks",
+    windowsFoundation?.recorder_lifecycle?.automated_portable_checks, "pass");
+  expectEqual(errors, "Windows Native Foundation Recorder owner lifecycle",
+    windowsFoundation?.recorder_lifecycle?.owner_new_pause_resume_close,
+    "pass");
+  const windowsHuman = windowsFoundation?.human_closeout;
+  for (const [field, expected] of Object.entries({
+    status: "pass_bounded_native_foundation_windows_human",
+    runtime_instance_id: "d8a10ba2a4684182807df332facc881c",
+    environment_fingerprint: "9e0e0cfe9fd7d4cae507059e6588c3cb1ee67f466ccef6d8044269a4c8ee8c7e",
+    modset_status: "exact_platform_modset",
+    modset_fingerprint: "1f1bdecc945fd4af54d0a5f1296cf6b91d0e82fca180d8b6b3c619bdd52ed135",
+    session_id: "session-20260831T072650Z-b0608291ae7f416d96b058078f441794",
+    timeline_id: "timeline-d9b5829a46d54e8cb460dab5d8647a16",
+    audit_status: "pass",
+    valid_records: 35,
+    invalid_records: 0,
+    invalidations: 34,
+    reads_materialized: 149,
+    reads_failed: 0,
+    native_accepted: 37,
+    native_successful: 36,
+    native_cancelled: 1,
+    native_aborted: 0,
+    native_unknown: 0,
+    semantic_exact_once_membership: 36,
+    play_card: 25,
+    end_turn_successful: 10,
+    end_turn_cancelled: 1,
+    use_potion: 1,
+    canonical_play: 25,
+    canonical_end_turn: 9,
+    canonical_use_potion: 1,
+    player_choice_pauses: 3,
+    player_choice_resumes: 3,
+    crossed_player_choice_commit: 1,
+    lethal_reward_card_reward_map: "pass_repeated_owner_handoff",
+    recorder_new_pause_resume_close: "pass",
+    human_origin: "owner_attested_and_no_other_loaded_controller",
+    evidence_transfer_from_predecessor: false
+  })) expectEqual(errors, `Windows Native Foundation Human ${field}`,
+    windowsHuman?.[field], expected);
+  if (!Array.isArray(windowsHuman?.loaded_mod_ids)
+      || windowsHuman.loaded_mod_ids.length !== 1
+      || windowsHuman.loaded_mod_ids[0] !== "STS2_PLATFORM") {
+    errors.push("Windows Native Foundation Human loaded Mods: expected only STS2_PLATFORM");
+  }
+  for (const [label, actual] of [
+    ["manifest", windowsHuman?.manifest_sha256],
+    ["Decision V2", windowsHuman?.decision_v2_sha256],
+    ["RunJournal", windowsHuman?.run_journal_sha256],
+    ["native ledger", windowsHuman?.native_ledger_sha256],
+    ["native discriminator", windowsHuman?.native_semantic_discriminator_sha256],
+    ["semantic trace", windowsHuman?.semantic_boundary_trace_sha256],
+    ["canonical transitions", windowsHuman?.canonical_transitions_sha256],
+    ["invalidations", windowsHuman?.invalidations_sha256],
+    ["game log", windowsHuman?.game_log_sha256]
+  ]) expectPattern(errors, `Windows Native Foundation Human ${label} SHA`, actual, SHA256);
+  for (const [field, expected] of Object.entries({
+    status: "h0_pass_canary_exact",
+    runtime_instance_id: NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.headlessRuntime,
+    host_kind: "headless",
+    snapshot_status: "interactive",
+    interaction_kind: "main_menu",
+    process_exit: "pass_graceful_code_0"
+  })) expectEqual(errors, `Windows Native Foundation headless ${field}`,
+    windowsFoundation?.automated_headless?.[field], expected);
+  expectPattern(errors, "Windows Native Foundation headless report",
+    windowsFoundation?.automated_headless?.report,
+    /^components\/host-runtime\/\.local\/evidence\/shipped-h0-[^/]+\/report\.json$/u);
+  expectEqual(errors, "Windows Native Foundation visible/headless parity",
+    windowsFoundation?.visible_headless_semantic_invariance?.status, "pass");
+  expectEqual(errors, "Windows Native Foundation parity scope",
+    windowsFoundation?.visible_headless_semantic_invariance?.scope, "main_menu_only");
+  expectEqual(errors, "Windows Native Foundation parity digest",
+    windowsFoundation?.visible_headless_semantic_invariance?.canonical_digest_sha256,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.canonicalDigest);
+  expectEqual(errors, "Windows Native Foundation parity visible runtime",
+    windowsFoundation?.visible_headless_semantic_invariance?.visible_runtime_instance_id,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.runtimeInstance);
+  expectEqual(errors, "Windows Native Foundation parity headless runtime",
+    windowsFoundation?.visible_headless_semantic_invariance?.headless_runtime_instance_id,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.headlessRuntime);
+  expectEqual(errors, "Windows Native Foundation receipt successor contract",
+    windowsFoundation?.receipt_successor_contract,
+    "immediate_post_delivery_observation_not_causal_s_prime");
+  expectEqual(errors, "Windows Native Foundation Ritsu route", windowsFoundation?.ritsu_route,
+    "RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY");
+  expectEqual(errors, "Windows Native Foundation predecessor evidence transfer",
+    windowsFoundation?.evidence_transfer_from_predecessor, false);
+  expectEqual(errors, "Windows Native Foundation rollback", windowsFoundation?.rollback,
+    NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.rollback);
   for (const [field, expected] of Object.entries({
     valid_decision_v2: 40,
     invalid_decision_v2: 0,
@@ -1075,6 +1418,15 @@ export function validatePlatformBom(bom, authorities) {
   ]) {
     if (!bom.non_claims?.includes(value))
       errors.push(`Native semantic discriminator non-claim is missing: ${value}`);
+  }
+  for (const value of [
+    "native_foundation_candidate_human_runtime_not_exercised",
+    "native_foundation_visible_headless_parity_main_menu_only",
+    "native_foundation_windows_human_not_full_run",
+    "native_foundation_windows_visible_headless_parity_main_menu_only"
+  ]) {
+    if (!bom.non_claims?.includes(value))
+      errors.push(`Native Foundation non-claim is missing: ${value}`);
   }
   return errors;
 }

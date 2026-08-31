@@ -9,6 +9,7 @@ import {
   normalizeExactModsetCanary,
   normalizeInstalledProvenance,
   prepareExactWindowsModSettings,
+  resolveWindowsSteamSettings,
   resolveConnectorCanaryEnvironment,
   resolveWorkstationInstallation
 } from "./workstation-platform.mjs";
@@ -224,28 +225,7 @@ function requireInstalledProvenance() {
 }
 
 function windowsSettings() {
-  if (process.platform !== "win32") return null;
-  const roaming = process.env.APPDATA;
-  if (!roaming) throw new Error("APPDATA is unavailable; cannot resolve Windows STS2 settings.");
-  const steamRoot = path.join(roaming, "SlayTheSpire2", "steam");
-  if (!fs.existsSync(steamRoot)) throw new Error(`Windows STS2 Steam settings root is absent: ${steamRoot}`);
-  const candidates = fs.readdirSync(steamRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join(steamRoot, entry.name, "settings.save"))
-    .filter(fs.existsSync);
-  if (candidates.length !== 1) {
-    throw new Error(`Expected exactly one Windows Steam settings.save, observed ${candidates.length}.`);
-  }
-  const file = candidates[0];
-  const value = readJson(file);
-  if (value.schema_version !== windowsSettingsSchema)
-    throw new Error(`Windows settings schema drift: expected ${windowsSettingsSchema}, observed ${value.schema_version}.`);
-  if (value.mod_settings == null
-      || typeof value.mod_settings !== "object"
-      || Array.isArray(value.mod_settings)
-      || !Array.isArray(value.mod_settings.mod_list))
-    throw new Error("Windows settings have an unexpected mod_settings shape.");
-  return { file, value };
+  return resolveWindowsSteamSettings({ expectedSchema: windowsSettingsSchema });
 }
 
 function requireExactObserverModSettings() {

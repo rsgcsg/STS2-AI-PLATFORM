@@ -383,6 +383,7 @@ export interface PlayerEnvironmentReceipt {
   reason_code?: string | null;
   detail?: string | null;
   retry: { allowed: boolean; reason: string };
+  /** Immediate post-delivery observation; not business completion or canonical causal S'. */
   successor: PlayerEnvironmentSnapshot | null;
   attribution?: { runtime_instance_id: string; client_session_id: string; client_instance_id: string; product_id: string; product_name: string; product_version: string; controller_lease_id: string; controller_generation: number } | null;
 }

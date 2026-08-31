@@ -16,6 +16,7 @@ using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
 using STS2Connector.LiveHost.Contracts;
+using STS2Platform.NativeFoundation;
 
 namespace STS2Connector.LiveHost;
 
@@ -54,6 +55,7 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
         PlayerCombatState? playerCombat = player.PlayerCombatState;
         if (playerCombat == null)
             return null;
+        NativeCombatDecision semanticDecision = NativeCombatDecisionProvider.Capture(entities);
         CardModel[] visibleHandCards = hand.ActiveHolders
             .Select(holder => holder.CardModel)
             .Where(card => card != null)
@@ -72,22 +74,28 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
             }
         };
 
-        bool inputReady = IsCombatInputReady(
+        bool presentationReady = IsCombatInputReady(
             CombatManager.Instance.IsInProgress,
             CombatManager.Instance.PlayerActionsDisabled,
             playerCombat.Phase == PlayerTurnPhase.Play,
             CombatManager.Instance.IsPartOfPlayerTurn(player),
             !hand.InCardPlay && hand.CurrentMode == NPlayerHand.Mode.Play,
             hand.PeekButton?.IsPeeking == true);
+        bool inputReady = IsProjectionReady(
+            presentationReady,
+            semanticDecision.Status,
+            semanticDecision.IsDecisionOpen);
         var playableCards = new List<VisibleCombatCommandOption>();
         var usablePotions = new List<VisibleCombatCommandOption>();
         if (inputReady)
         {
-            AddCardOptions(playableCards, player, visibleHandCards, entities);
-            AddPotionOptions(usablePotions, player, entities);
+            AddCardOptions(playableCards, semanticDecision, visibleHandCards);
+            AddPotionOptions(usablePotions, semanticDecision, player);
         }
 
-        bool canEndTurn = inputReady && room.Ui.EndTurnButton.IsEnabled;
+        bool canEndTurn = inputReady
+            && room.Ui.EndTurnButton.IsEnabled
+            && semanticDecision.Actions.Any(action => action.Verb == "end_turn");
         var surface = new CombatTurnSurface(
             Kind,
             entities.GetId(room, "room"),
@@ -101,14 +109,16 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
             "contract_complete_for_immediate_combat_turn_including_visible_companions; pile contents available through a separate read-only Player Environment Read",
             inputReady
                 ? "derived_from_same_validator_as_execution"
-                : "empty_while_native_hand_rejects_input",
+                : presentationReady
+                    ? "empty_while_native_semantic_decision_is_unavailable"
+                    : "empty_while_native_hand_rejects_input",
             new[]
             {
                 "CombatManager.DebugOnlyGetState",
                 "LocalContext.GetMe",
                 "PlayerCombatState",
                 "PlayerCombatState.Pets+MonsterModel.IsHealthBarVisible",
-                "CardModel.CanPlay",
+                "NativeCombatDecisionProvider logical action catalog",
                 "CombatState.HittableEnemies",
                 "NPlayerHand.ActiveHolders+AreCardActionsAllowed-equivalent guards",
                 "NCardPlayQueue exclusion"
@@ -148,74 +158,56 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
 
     private static void AddCardOptions(
         ICollection<VisibleCombatCommandOption> commandOptions,
-        Player player,
-        IReadOnlyList<CardModel> visibleHandCards,
-        NativeEntityRegistry entities)
+        NativeCombatDecision decision,
+        IReadOnlyList<CardModel> visibleHandCards)
     {
-        foreach (CardModel card in visibleHandCards)
+        foreach (IGrouping<object?, NativeSemanticAction> group in NativeDecisionProjection
+                     .VisibleSubjects(decision, "play", visibleHandCards)
+                     .GroupBy(action => action.NativeSubject, ReferenceEqualityComparer.Instance))
         {
-            if (!card.CanPlay(out UnplayableReason reason, out _) || reason != UnplayableReason.None)
-                continue;
-            string cardId = entities.GetId(card, "card");
+            NativeSemanticAction first = group.First();
+            CardModel card = (CardModel)first.NativeSubject!;
             string cardName = ConnectorMod.SafeGetText(() => card.Title) ?? card.Id.Entry;
-            if (card.TargetType == TargetType.AnyEnemy)
-            {
-                var targetIds = new List<string>();
-                foreach (Creature target in player.Creature.CombatState?.HittableEnemies ?? Array.Empty<Creature>())
-                {
-                    string targetId = entities.GetId(target, "enemy");
-                    targetIds.Add(targetId);
-                }
-                if (targetIds.Count > 0)
-                    commandOptions.Add(new VisibleCombatCommandOption(cardId, cardName, targetIds));
-            }
-            else
-            {
-                commandOptions.Add(new VisibleCombatCommandOption(cardId, cardName, Array.Empty<string>()));
-            }
+            string[] targetIds = group.SelectMany(action => action.Operands)
+                .Where(operand => operand.Role == "target")
+                .Select(operand => operand.ReferentId)
+                .Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)
+                .ToArray();
+            commandOptions.Add(new VisibleCombatCommandOption(
+                first.SubjectReferentId!,
+                cardName,
+                targetIds));
         }
     }
 
     private static void AddPotionOptions(
         ICollection<VisibleCombatCommandOption> commandOptions,
-        Player player,
-        NativeEntityRegistry entities)
+        NativeCombatDecision decision,
+        Player player)
     {
-        for (int slot = 0; slot < player.PotionSlots.Count; slot++)
+        object[] deliverablePotions = Enumerable.Range(0, player.PotionSlots.Count)
+            .Select(index => player.GetPotionAtSlotIndex(index))
+            .Where(potion => CanUsePotion(player, potion))
+            .Cast<object>()
+            .ToArray();
+        foreach (IGrouping<object?, NativeSemanticAction> group in NativeDecisionProjection
+                     .VisibleSubjects(decision, "use", deliverablePotions)
+                     .GroupBy(action => action.NativeSubject, ReferenceEqualityComparer.Instance))
         {
-            PotionModel? potion = player.GetPotionAtSlotIndex(slot);
-            if (!CanUsePotion(player, potion))
-                continue;
-            string potionId = entities.GetId(potion!, "potion");
-            string potionName = ConnectorMod.SafeGetText(() => potion!.Title) ?? potion!.Id.Entry;
-            if (potion!.TargetType == TargetType.AnyEnemy)
-            {
-                var targetIds = new List<string>();
-                foreach (Creature target in (player.Creature.CombatState?.HittableEnemies ?? Array.Empty<Creature>()).Where(potion.IsValidTarget))
-                {
-                    string targetId = entities.GetId(target, "enemy");
-                    targetIds.Add(targetId);
-                }
-                if (targetIds.Count > 0)
-                    commandOptions.Add(new VisibleCombatCommandOption(potionId, potionName, targetIds));
-            }
-            else
-            {
-                Creature? target = potion.TargetType switch
-                {
-                    TargetType.Self or TargetType.AnyPlayer => player.Creature,
-                    TargetType.AnyAlly => player.Creature.CombatState?.PlayerCreatures.FirstOrDefault(potion.IsValidTarget),
-                    _ => null
-                };
-                if (!IsAdvertisablePotionTarget(potion, target))
-                    continue;
-                commandOptions.Add(new VisibleCombatCommandOption(
-                    potionId,
-                    potionName,
-                    target == null
-                        ? Array.Empty<string>()
-                        : new[] { entities.GetId(target, "creature") }));
-            }
+            NativeSemanticAction first = group.First();
+            PotionModel potion = (PotionModel)first.NativeSubject!;
+            string potionName = ConnectorMod.SafeGetText(() => potion.Title) ?? potion.Id.Entry;
+            string[] targetIds = group.SelectMany(action => action.Operands)
+                .Where(operand => operand.Role == "target")
+                .Select(operand => operand.ReferentId)
+                .Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)
+                .ToArray();
+            commandOptions.Add(new VisibleCombatCommandOption(
+                first.SubjectReferentId!,
+                potionName,
+                targetIds));
         }
     }
 
@@ -411,4 +403,12 @@ internal sealed class CombatTurnSurfaceReader : ILiveSurfaceReader
             hand != null && !hand.InCardPlay && hand.CurrentMode == NPlayerHand.Mode.Play,
             hand?.PeekButton?.IsPeeking == true);
     }
+
+    internal static bool IsProjectionReady(
+        bool presentationReady,
+        string semanticStatus,
+        bool semanticDecisionOpen) =>
+        presentationReady
+        && string.Equals(semanticStatus, "captured", StringComparison.Ordinal)
+        && semanticDecisionOpen;
 }

@@ -1,6 +1,14 @@
 {
   "schema": "sts2.ai-platform/component-identity-spec-1",
   "components": {
+    "native-foundation": {
+      "path": "components/native-foundation",
+      "version_file": "component.json",
+      "contract_paths": [
+        "src/NativeDecisionContracts.cs",
+        "src/NativeActionLifecycleObserver.cs"
+      ]
+    },
     "connector": {
       "path": "components/connector",
       "version_file": "package.json",

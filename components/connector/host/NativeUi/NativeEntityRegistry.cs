@@ -4,10 +4,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using STS2Platform.NativeFoundation;
 
 namespace STS2Connector.NativeUi;
 
-internal sealed class NativeEntityRegistry
+internal sealed class NativeEntityRegistry : INativeReferentIdentity
 {
     private sealed record Identity(string Value);
 

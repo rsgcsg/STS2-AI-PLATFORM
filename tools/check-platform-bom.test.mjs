@@ -59,6 +59,73 @@ test("BOM check rejects V2 evidence and selector-claim drift", async () => {
   assert.ok(errors.includes("Read-rich V2 predecessor generated-card-choice non-claim is missing"));
 });
 
+test("BOM check keeps closed Human audit provenance independent from current source", async () => {
+  const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
+  const candidate = bom.unified_platform_runtime_candidate.native_semantic_discriminator_source_candidate;
+
+  assert.notEqual(
+    candidate.owner_canary.audit_closeout_source_revision,
+    bom.components.annotator.source_revision
+  );
+  assert.deepEqual(validatePlatformBom(bom, await readBomAuthorities(root)), []);
+
+  candidate.owner_canary.audit_closeout_source_revision = "0".repeat(40);
+  const errors = validatePlatformBom(bom, await readBomAuthorities(root));
+  assert.ok(errors.some((error) => error.startsWith("native discriminator audit source:")));
+});
+
+test("BOM check rejects Windows Native Foundation identity and claim drift", async () => {
+  const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
+  const candidate =
+    bom.unified_platform_runtime_candidate.native_foundation_windows_runtime_candidate;
+  candidate.game.main_assembly_sha256 = "0".repeat(64);
+  candidate.artifact_mvid = "00000000-0000-0000-0000-000000000000";
+  candidate.loaded_mod_ids = ["STS2_PLATFORM", "STS2-RitsuLib"];
+  candidate.automated_live_ui.reads = "filtered";
+  candidate.automated_live_ui.action_delivered = true;
+  candidate.final_takeover.loaded_mod_ids = ["STS2_PLATFORM", "CombatSolver"];
+  candidate.final_takeover.evidence_level = "human_pass";
+  candidate.final_takeover.disabled_workshop_update.loaded = true;
+  candidate.recorder_lifecycle.owner_new_pause_resume_close = "pending_human_runtime";
+  candidate.human_closeout.native_unknown = 1;
+  candidate.human_closeout.loaded_mod_ids = ["STS2_PLATFORM", "CombatSolver"];
+  candidate.visible_headless_semantic_invariance.scope = "full_run";
+  candidate.human_runtime = "pass";
+  candidate.evidence_transfer_from_predecessor = true;
+  bom.non_claims = bom.non_claims.filter(
+    (claim) => claim !== "native_foundation_windows_human_not_full_run"
+  );
+  const errors = validatePlatformBom(bom, await readBomAuthorities(root));
+  assert.ok(errors.some((error) =>
+    error.startsWith("Windows Native Foundation main assembly:")));
+  assert.ok(errors.some((error) => error.startsWith("Windows Native Foundation artifact MVID:")));
+  assert.ok(errors.includes("Windows Native Foundation loaded Mods: expected only STS2_PLATFORM"));
+  assert.ok(errors.some((error) => error.startsWith("Windows Native Foundation live reads:")));
+  assert.ok(errors.some((error) => error.startsWith("Windows Native Foundation live mutation:")));
+  assert.ok(errors.includes(
+    "Windows Native Foundation final takeover loaded Mods: expected only STS2_PLATFORM"
+  ));
+  assert.ok(errors.some((error) =>
+    error.startsWith("Windows Native Foundation final takeover evidence_level:")));
+  assert.ok(errors.some((error) =>
+    error.startsWith("Windows Native Foundation disabled Workshop update loaded:")));
+  assert.ok(errors.some((error) =>
+    error.startsWith("Windows Native Foundation Recorder owner lifecycle:")));
+  assert.ok(errors.some((error) =>
+    error.startsWith("Windows Native Foundation Human native_unknown:")));
+  assert.ok(errors.includes(
+    "Windows Native Foundation Human loaded Mods: expected only STS2_PLATFORM"
+  ));
+  assert.ok(errors.some((error) => error.startsWith("Windows Native Foundation parity scope:")));
+  assert.ok(errors.some((error) => error.startsWith("Windows Native Foundation human_runtime:")));
+  assert.ok(errors.some((error) =>
+    error.startsWith("Windows Native Foundation predecessor evidence transfer:")));
+  assert.ok(errors.includes(
+    "Native Foundation non-claim is missing: "
+      + "native_foundation_windows_human_not_full_run"
+  ));
+});
+
 test("BOM check rejects unified artifact, identity and evidence promotion", async () => {
   const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
   const candidate = bom.unified_platform_runtime_candidate;
@@ -97,6 +164,10 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   candidate.native_semantic_discriminator_source_candidate.owner_canary.route_verdict =
     "PRACTICALLY_IMPOSSIBLE_TRIANGLE";
   candidate.native_semantic_discriminator_source_candidate.evidence_transfer_from_predecessor = true;
+  candidate.native_foundation_runtime_candidate.human_runtime = "pass";
+  candidate.native_foundation_runtime_candidate.visible_headless_semantic_invariance.scope =
+    "full_run";
+  candidate.native_foundation_runtime_candidate.evidence_transfer_from_predecessor = true;
   candidate.recording_application_decision_gate.human_origin = "machine_proven";
   candidate.predecessor_human_session.evidence_transfer_to_unified_artifact = true;
   candidate.external_policy.checkpoint_status = "present";
@@ -112,6 +183,12 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   );
   bom.non_claims = bom.non_claims.filter(
     (claim) => claim !== "native_semantic_discriminator_cancel_abort_not_exercised"
+  );
+  bom.non_claims = bom.non_claims.filter(
+    (claim) => claim !== "native_foundation_candidate_human_runtime_not_exercised"
+  );
+  bom.non_claims = bom.non_claims.filter(
+    (claim) => claim !== "native_foundation_visible_headless_parity_main_menu_only"
   );
   bom.non_claims.push("native_semantic_discriminator_human_runtime_pending");
   bom.non_claims.push("semantic_execution_order_exact_rebind_not_exercised");
@@ -149,6 +226,10 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
     error.startsWith("native discriminator Human native_successful:")));
   assert.ok(errors.some((error) => error.startsWith("native discriminator route verdict:")));
   assert.ok(errors.some((error) => error.startsWith("native discriminator predecessor transfer:")));
+  assert.ok(errors.some((error) => error.startsWith("Native Foundation Human runtime:")));
+  assert.ok(errors.some((error) => error.startsWith("Native Foundation parity scope:")));
+  assert.ok(errors.some((error) =>
+    error.startsWith("Native Foundation predecessor evidence transfer:")));
   assert.ok(errors.some((error) => error.startsWith("accepted-only Human origin:")));
   assert.ok(errors.some((error) => error.startsWith("predecessor evidence transfer:")));
   assert.ok(errors.some((error) => error.startsWith("candidate policy checkpoint:")));
@@ -160,6 +241,12 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   assert.ok(errors.includes(
     "Native semantic discriminator non-claim is missing: "
       + "native_semantic_discriminator_cancel_abort_not_exercised"));
+  assert.ok(errors.includes(
+    "Native Foundation non-claim is missing: native_foundation_candidate_human_runtime_not_exercised"
+  ));
+  assert.ok(errors.includes(
+    "Native Foundation non-claim is missing: native_foundation_visible_headless_parity_main_menu_only"
+  ));
   assert.ok(errors.includes(
     "Live-proved semantic execution-order rebind retains a stale non-claim"
   ));

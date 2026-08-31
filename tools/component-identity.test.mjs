@@ -6,6 +6,8 @@ import path from "node:path";
 import test from "node:test";
 import { calculateComponentIdentity } from "./component-identity.mjs";
 
+const tool = path.join(import.meta.dirname, "component-identity.mjs");
+
 function git(root, ...args) {
   return execFileSync("git", args, { cwd: root, encoding: "utf8" }).trim();
 }
@@ -72,4 +74,12 @@ test("component commits change source, tree, and digest identities together", ()
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test("quiet validation is shell-independent and emits no report", () => {
+  const output = execFileSync(process.execPath, [tool, "--quiet"], {
+    cwd: path.resolve(import.meta.dirname, ".."),
+    encoding: "utf8"
+  });
+  assert.equal(output, "");
 });

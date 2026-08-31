@@ -14,6 +14,12 @@ const ignoredDirectories = new Set([
 
 const componentRoutes = [
   {
+    id: "native-foundation",
+    prefix: "components/native-foundation/",
+    guide: "components/native-foundation/README.md",
+    check: "npm --prefix components/connector run test && npm --prefix apps/game-mod run check"
+  },
+  {
     id: "connector",
     prefix: "components/connector/",
     guide: "components/connector/docs/NEW_ENGINEER_GUIDE.md",
@@ -487,10 +493,10 @@ export function formatContext(workspaceRoot = root, options = {}) {
     if (!route) return true;
     if (skill.name === "repo-skill-maintenance") return true;
     if (skill.name === "platform-runtime-qualification") {
-      return ["connector", "host-runtime", "game-mod"].includes(owner);
+      return ["native-foundation", "connector", "host-runtime", "game-mod"].includes(owner);
     }
     if (skill.name === "platform-human-evidence") {
-      return ["annotator", "evidence", "game-mod"].includes(owner);
+      return ["native-foundation", "annotator", "evidence", "game-mod"].includes(owner);
     }
     return false;
   });
@@ -588,7 +594,7 @@ export function formatCloseout(workspaceRoot = root) {
     /^contracts\//u, /package\.json$/u, /pyproject\.toml$/u, /\.csproj$/u, /^platform-bom\.json$/u
   ]);
   const evidenceImpact = anyMatch(files, [
-    /^components\/(?:connector|host-runtime|annotator|evidence|policy-runtime)\//u,
+    /^components\/(?:native-foundation|connector|host-runtime|annotator|evidence|policy-runtime)\//u,
     /^apps\/game-mod\//u,
     /^docs\/(?:STATUS|TESTING)\.md$/u,
     /^docs\/evidence\//u

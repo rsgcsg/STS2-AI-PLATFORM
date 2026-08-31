@@ -2,29 +2,35 @@
   "schema": "sts2.ai-platform/bom-1",
   "version": "0.2.0-rc.1",
   "components": {
+    "native_foundation": {
+      "version": "0.1.0-rc.1",
+      "source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "component_tree_revision": "981c4667384905b6c359d1bd39ddc8b8f352a968",
+      "component_source_digest_sha256": "098f7215512199e825dbbb910d78f4c9e61b7b0ea7a1a742052e91ffa75dac52"
+    },
     "connector": {
       "version": "1.2.0-rc.6",
-      "source_revision": "05d9e8e859a26b306f23ae5de188347d0570781b",
-      "component_tree_revision": "42206612cbb07f18ec048286486534edcde5b4f2",
-      "component_source_digest_sha256": "7e96c7a8fc31fdf2f198d50bc674b54547b051dd533c8e089b800cad178ef9a9"
+      "source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "component_tree_revision": "e7e444c07dab20610e9a11bd4fae8111bae4d620",
+      "component_source_digest_sha256": "13656b1ab7c46ffe9410ffbba06d6811f014194cbf8976213c63a388f9ccfbf1"
     },
     "host_runtime": {
       "version": "1.1.0-rc.7",
-      "source_revision": "cbabfac0c27f621f3990961318b2bf48d9b2fa5f",
-      "component_tree_revision": "1092c4edb80bfc01c068c44f513030b1fa19080b",
-      "component_source_digest_sha256": "b271e043237ea1e66158dff2adf43bf34d579004e1cd0931647312b280836701"
+      "source_revision": "8543e562aaee880fd7e0c4e41887ce94fbb2bd84",
+      "component_tree_revision": "20f318c703957b2faeb4c0f39d6333323a9f46b2",
+      "component_source_digest_sha256": "f647053eaed75442a2c4e6b7f5a4120d2468f1ba301e811e1080e8317c192a72"
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "193861ad9f8e1e7c058a292942b5cf5729aad413",
-      "component_tree_revision": "b1ecb56bf12d87327191a0a34422ce37ad6e6398",
-      "component_source_digest_sha256": "1c2c8166e928dee4c425f08958a667f4c9fc3f816378a34f2306b0299f29db38"
+      "source_revision": "65631c8b72883fb34478f2bde597cab935192f0c",
+      "component_tree_revision": "5a47f6aabf1bc09cee6a8ae50c744418724006d2",
+      "component_source_digest_sha256": "3cc2e6a907703b093ea900dd09321bd85031d25581937cc8100af8c037c0ab88"
     },
     "evidence": {
       "version": "0.1.0-rc.1",
-      "source_revision": "7ba324caf1a7d5ffc8fe1abd08ba4391b11beb1b",
-      "component_tree_revision": "ebd775891b73dcc96b0a8e195b99d49ffa5005fa",
-      "component_source_digest_sha256": "215e42045b30ef7b0fe9bfcca34761499513e7c43162dbc5f18904c7b024e1fb"
+      "source_revision": "0eeeaa06ae8b51bb8b80ca6c948aebf649289817",
+      "component_tree_revision": "cdc71327c108a9094d57d90582e1e9c60f1da24a",
+      "component_source_digest_sha256": "dde7682f5d11c1b521e60af2c2f9ebc430812dafe77fd83bbd112cdecad5cf27"
     },
     "policy_runtime": {
       "version": "0.1.0-rc.1",
@@ -34,21 +40,21 @@
     },
     "workbench": {
       "version": "0.1.0-rc.1",
-      "source_revision": "7ba324caf1a7d5ffc8fe1abd08ba4391b11beb1b",
-      "component_tree_revision": "e0a89ef04f0f180f5019b5cb57d6a0c9f5c541c8",
-      "component_source_digest_sha256": "5fd900fdde0372f5c8b8b203153b0273a946b51f6998eba5b465f4c4316fd0b9"
+      "source_revision": "942ea2be91ba0121fab6c6eb3a95a448097ac113",
+      "component_tree_revision": "1ccf47d2215e63beff16d1428f707862e9f502f6",
+      "component_source_digest_sha256": "4068ddf28d53290e0f3aba1331f0e0bc5b78f82564a3da5031c28e15a6ae57d2"
     },
     "live_ui": {
       "version": "0.1.0-rc.1",
-      "source_revision": "305a2cac80f0bd3126d66cfc5818477c583a8ce5",
-      "component_tree_revision": "b6e4f4052e7ff2bbc640720587a5d982e7a32b6a",
-      "component_source_digest_sha256": "9e2675d9c7429817d329770b6a395e9d4b9aa8593aae05f463cf118c2486650a"
+      "source_revision": "942ea2be91ba0121fab6c6eb3a95a448097ac113",
+      "component_tree_revision": "4383295746202289b56aa5362de5be93bce55929",
+      "component_source_digest_sha256": "e8feeafddaae446cc5fd3077540f78fd6689f262e097b2258e07e80e5a77102f"
     },
     "game_mod": {
       "version": "0.2.0-rc.1",
-      "source_revision": "17324c98e67e89958ff1e16e1207285031bb5297",
-      "component_tree_revision": "d6e3b9d3c02230c74d566048dac142f284fc0c3d",
-      "component_source_digest_sha256": "8a751649c936c00d77841a794831c9995322144935157887d94967ecc6329b09"
+      "source_revision": "bcb899eb63977e46dfde5e0a3a22a4662c8120b0",
+      "component_tree_revision": "4076d10d971f283997fad4e2840e979b880418f5",
+      "component_source_digest_sha256": "73d33920fb5e555644716640306595a676b207e5f096dc7635306ed77f99c45b"
     },
     "player_environment_protocol": "1.0.0",
     "typescript_sdk": "1.1.0-rc.1"
@@ -148,8 +154,8 @@
     },
     "connector": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
-      "current_component_source_revision": "05d9e8e859a26b306f23ae5de188347d0570781b",
-      "current_component_source_digest_sha256": "7e96c7a8fc31fdf2f198d50bc674b54547b051dd533c8e089b800cad178ef9a9",
+      "current_component_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "current_component_source_digest_sha256": "13656b1ab7c46ffe9410ffbba06d6811f014194cbf8976213c63a388f9ccfbf1",
       "source_relation": "loaded_human_v2_artifact_precedes_unified_platform_source",
       "artifact_sha256": "6c66cbf06757dca3e7d910467fb56b89376f109c6d7d0ba47d2bc0260ab4a3d2",
       "artifact_mvid": "11f1da35-558f-4346-8ec9-a493fea95cb8",
@@ -161,8 +167,8 @@
     "annotator": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
       "source_digest_sha256": "8d23f1015a7b0df800f78a7545da5c86bfee521131c4391b398c884ff917918f",
-      "current_component_source_revision": "193861ad9f8e1e7c058a292942b5cf5729aad413",
-      "current_component_source_digest_sha256": "1c2c8166e928dee4c425f08958a667f4c9fc3f816378a34f2306b0299f29db38",
+      "current_component_source_revision": "65631c8b72883fb34478f2bde597cab935192f0c",
+      "current_component_source_digest_sha256": "3cc2e6a907703b093ea900dd09321bd85031d25581937cc8100af8c037c0ab88",
       "source_relation": "loaded_human_v2_artifact_precedes_unified_platform_source",
       "artifact_sha256": "4e911dd616afa55753a5320a42c11ce0cebe9d4d10fefd66c8f8a431884cf105",
       "artifact_mvid": "692e9dd9-4bc7-4203-ae12-511ef95a5331",
@@ -237,7 +243,7 @@
     }
   },
   "unified_platform_runtime_candidate": {
-    "status": "native_semantic_discriminator_bounded_human_pass",
+    "status": "native_foundation_loaded_automated_gates_pass_human_pending",
     "platform": "darwin",
     "architecture": "arm64",
     "game": {
@@ -249,8 +255,8 @@
     "connector": {
       "source_revision": "4de52cfd72c6bf5b0d2312538152e81c616dabfb",
       "source_digest_sha256": "8651b47e2fec8e0c77689a8e8774377795d79c188f2d69910a116e72db8f78c1",
-      "current_component_source_revision": "05d9e8e859a26b306f23ae5de188347d0570781b",
-      "current_component_source_digest_sha256": "7e96c7a8fc31fdf2f198d50bc674b54547b051dd533c8e089b800cad178ef9a9",
+      "current_component_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "current_component_source_digest_sha256": "13656b1ab7c46ffe9410ffbba06d6811f014194cbf8976213c63a388f9ccfbf1",
       "source_relation": "loaded_native_source_precedes_current_discriminator_source",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b",
@@ -264,8 +270,8 @@
     "annotator": {
       "source_revision": "cb20bfa6e4e0e64b3ee8fdf0e1d472e8a668450b",
       "source_digest_sha256": "3910bcbc71599610b125c91c62e9860541ce9edea9b2c0a9f41842eb53651071",
-      "current_component_source_revision": "193861ad9f8e1e7c058a292942b5cf5729aad413",
-      "current_component_source_digest_sha256": "1c2c8166e928dee4c425f08958a667f4c9fc3f816378a34f2306b0299f29db38",
+      "current_component_source_revision": "65631c8b72883fb34478f2bde597cab935192f0c",
+      "current_component_source_digest_sha256": "3cc2e6a907703b093ea900dd09321bd85031d25581937cc8100af8c037c0ab88",
       "source_relation": "loaded_native_source_precedes_current_audit_closeout_source",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b"
@@ -326,6 +332,211 @@
       },
       "evidence_transfer_from_predecessor": false,
       "rollback": "apps/game-mod/.local/deployments/2026-08-30T06-43-57.781Z"
+    },
+    "native_foundation_runtime_candidate": {
+      "status": "loaded_automated_gates_pass_human_pending",
+      "workspace_revision_at_build": "da9f60535ade0fb9bc792c18be1b8976b3bedcd4",
+      "implementation_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "native_foundation": {
+        "source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+        "component_tree_revision": "981c4667384905b6c359d1bd39ddc8b8f352a968",
+        "component_source_digest_sha256": "098f7215512199e825dbbb910d78f4c9e61b7b0ea7a1a742052e91ffa75dac52",
+        "build_source_digest_sha256": "d2018cad13b1f904ac7b8e8cd6928491ed819470e7107e757455c34a179c9ee4"
+      },
+      "connector_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "annotator_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "game_mod_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "artifact_sha256": "9a89f1fe728bdce442c70de0daaec0299230e80c6442c97f4bd0752620ce959b",
+      "artifact_mvid": "b1c34f90-f143-4f7f-97da-eea90c23dbde",
+      "built": "pass_clean_source",
+      "installed": "pass",
+      "loaded": "pass",
+      "installed_at": "2026-08-30T13:23:42.261Z",
+      "loaded_at": "2026-08-30T13:27:09.3430850+00:00",
+      "player_environment_protocol": "1.0.0",
+      "runtime_instance_id": "b57a37b4767a42aab5cffa4bba8870f4",
+      "environment_fingerprint": "f0cbd53a1be10fad5630252aa4f4ee484b426d733ac3f4d52a04d069584b1c37",
+      "modset_status": "exact_platform_modset",
+      "modset_fingerprint": "d5054e7bbfc30d8787c3573f57ada09bb808874c0c4f82485433c0e725a96e8d",
+      "loaded_mod_ids": ["STS2_PLATFORM"],
+      "automated_live_ui": {
+        "loaded_identity": "pass",
+        "interactive_snapshot": "pass_main_menu_complete",
+        "controller_conflict": "pass_http_409",
+        "stale_rejection": "pass_not_delivered",
+        "request_idempotency": "pass_same_receipt"
+      },
+      "automated_headless": {
+        "status": "h0_pass_canary_exact",
+        "runtime_instance_id": "efd022e91c7e4f0287494707b423d700",
+        "host_kind": "headless",
+        "snapshot_status": "interactive",
+        "interaction_kind": "main_menu"
+      },
+      "visible_headless_semantic_invariance": {
+        "status": "pass",
+        "scope": "main_menu_only",
+        "canonical_digest_sha256": "71e246abad05c8a9a805bb6e041cef526ea54645ebc71bb68d103a4c490ab3d7",
+        "visible_runtime_instance_id": "b57a37b4767a42aab5cffa4bba8870f4",
+        "headless_runtime_instance_id": "efd022e91c7e4f0287494707b423d700"
+      },
+      "receipt_successor_contract": "immediate_post_delivery_observation_not_causal_s_prime",
+      "ritsu_route": "RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY",
+      "human_runtime": "not_exercised",
+      "evidence_transfer_from_predecessor": false,
+      "rollback": "apps/game-mod/.local/deployments/2026-08-30T13-23-42.253Z"
+    },
+    "native_foundation_windows_runtime_candidate": {
+      "status": "bounded_windows_human_pass",
+      "platform": "win32",
+      "architecture": "x64",
+      "workspace_revision_at_build": "c667122ee35853f6a4a315871cb4e70383363c8f",
+      "implementation_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "native_foundation": {
+        "source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+        "component_tree_revision": "981c4667384905b6c359d1bd39ddc8b8f352a968",
+        "component_source_digest_sha256": "098f7215512199e825dbbb910d78f4c9e61b7b0ea7a1a742052e91ffa75dac52",
+        "build_source_digest_sha256": "d2018cad13b1f904ac7b8e8cd6928491ed819470e7107e757455c34a179c9ee4"
+      },
+      "connector_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "annotator_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "game_mod_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
+      "game": {
+        "version": "v0.111.0",
+        "commit": "41cef1ea",
+        "main_assembly_hash": 222455745,
+        "executable_sha256": "8602c26bffd2937e3841835fd8360ef8e974624a543e05977229fd3d062be231",
+        "main_assembly_sha256": "0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9",
+        "main_assembly_mvid": "73b63ee0-6c0a-47bb-b0d1-b21f6d94222e"
+      },
+      "artifact_sha256": "a681f8b1b516376a26823114ca42d2dca4c2981c2930e5770872777c3e3bc3a9",
+      "artifact_mvid": "7c42c4c3-02fb-46c9-ac90-dfb1cf516fdd",
+      "built": "pass_clean_source",
+      "installed": "pass",
+      "loaded": "pass",
+      "installed_equals_loaded": true,
+      "installed_at": "2026-08-30T14:44:51.848Z",
+      "loaded_at": "2026-08-30T14:45:02.9331357Z",
+      "windows_mod_settings": {
+        "transaction": "pass_backup_restore_redeploy",
+        "sole_platform_enabled": true,
+        "other_entries_preserved_disabled": true
+      },
+      "player_environment_protocol": "1.0.0",
+      "host_kind": "live_ui",
+      "runtime_instance_id": "7a1942b652da47d29baf6852f427f924",
+      "environment_fingerprint": "a52b5cc5f903bd1583af6463f098123226a1abf6fd74ca0b2a99b1ef3cd24889",
+      "modset_status": "exact_platform_modset",
+      "modset_fingerprint": "e5693d19c7571c1a30a07c2bca584eeced6b64e675bc5fb37acbb1638a1cb86c",
+      "loaded_mod_ids": ["STS2_PLATFORM"],
+      "automated_live_ui": {
+        "loaded_identity": "pass",
+        "interactive_snapshot": "pass_main_menu_complete",
+        "bound_actions": "pass_complete_one",
+        "reads": "pass_none_advertised_none_completed",
+        "controller_conflict": "pass_http_409",
+        "stale_rejection": "pass_not_delivered",
+        "request_idempotency": "pass_same_receipt",
+        "action_delivered": false
+      },
+      "final_takeover": {
+        "status": "loaded_read_only_pass_human_pending",
+        "loaded_at": "2026-08-31T06:19:00.9006578Z",
+        "process_id": 9068,
+        "runtime_instance_id": "a711647abb174c8384ab4434a445195c",
+        "environment_fingerprint": "73b37f526c3db9403d7eb39b0796d0a5aa3d92fc0f5eef86344cddcce06d0112",
+        "modset_status": "exact_platform_modset",
+        "modset_fingerprint": "7140e294e14fede34ac1b566fecfe70b1ff56a04333e80ca0b87deb70d83b638",
+        "loaded_mod_ids": ["STS2_PLATFORM"],
+        "snapshot_status": "interactive",
+        "interaction_kind": "main_menu",
+        "bound_actions": "complete_one",
+        "reads": "none_advertised",
+        "recorder": "ready_no_session",
+        "installed_equals_loaded": true,
+        "fingerprint_relation_to_automated_gate": "changed_by_disabled_workshop_entry_update",
+        "disabled_workshop_update": {
+          "id": "CombatSolver",
+          "loaded": false,
+          "prior_discovery_size": 2246860,
+          "current_discovery_size": 2292940,
+          "prior_last_modified": 1788097420,
+          "current_last_modified": 1788154165,
+          "current_version": "0.22.9"
+        },
+        "evidence_level": "loaded_read_only_not_human_or_controller_mutation"
+      },
+      "recorder_lifecycle": {
+        "initial_status": "ready_no_session",
+        "automated_portable_checks": "pass",
+        "owner_new_pause_resume_close": "pass"
+      },
+      "human_closeout": {
+        "status": "pass_bounded_native_foundation_windows_human",
+        "runtime_instance_id": "d8a10ba2a4684182807df332facc881c",
+        "environment_fingerprint": "9e0e0cfe9fd7d4cae507059e6588c3cb1ee67f466ccef6d8044269a4c8ee8c7e",
+        "modset_status": "exact_platform_modset",
+        "modset_fingerprint": "1f1bdecc945fd4af54d0a5f1296cf6b91d0e82fca180d8b6b3c619bdd52ed135",
+        "loaded_mod_ids": ["STS2_PLATFORM"],
+        "session_id": "session-20260831T072650Z-b0608291ae7f416d96b058078f441794",
+        "timeline_id": "timeline-d9b5829a46d54e8cb460dab5d8647a16",
+        "audit_status": "pass",
+        "valid_records": 35,
+        "invalid_records": 0,
+        "invalidations": 34,
+        "reads_materialized": 149,
+        "reads_failed": 0,
+        "native_accepted": 37,
+        "native_successful": 36,
+        "native_cancelled": 1,
+        "native_aborted": 0,
+        "native_unknown": 0,
+        "semantic_exact_once_membership": 36,
+        "play_card": 25,
+        "end_turn_successful": 10,
+        "end_turn_cancelled": 1,
+        "use_potion": 1,
+        "canonical_play": 25,
+        "canonical_end_turn": 9,
+        "canonical_use_potion": 1,
+        "player_choice_pauses": 3,
+        "player_choice_resumes": 3,
+        "crossed_player_choice_commit": 1,
+        "lethal_reward_card_reward_map": "pass_repeated_owner_handoff",
+        "recorder_new_pause_resume_close": "pass",
+        "human_origin": "owner_attested_and_no_other_loaded_controller",
+        "manifest_sha256": "1b12fce39f002fcedafa30e222018361e4fbac827ca89bf9e92ea255b31b175a",
+        "decision_v2_sha256": "bc1db402e85652d4150c94537b4131eac9b66326abffc666ebbcb91dd673521e",
+        "run_journal_sha256": "0002710bb691bd24513494f52d86b5b62125ce4368680dd12fb2a4051da07852",
+        "native_ledger_sha256": "eea7e253d29ead94516ba6490593827f70b930ed55c6a24ce07b5a03643ac561",
+        "native_semantic_discriminator_sha256": "bea51e9d363fadfdf74cf429f72f998bc7632ea5d19b7d4f658000df30b9e154",
+        "semantic_boundary_trace_sha256": "0b48fb2dec30469f1f2ecdb79d530601274bf993f7e2a77b9ccc38c40ee068b5",
+        "canonical_transitions_sha256": "fb2021a6bad3a84cc50751cd33dfed6377d2fe70e3cc14772a5a7ab4cfeed86c",
+        "invalidations_sha256": "f8606a728cee1ae0c6b1f755104a349d48978446d79dcb4e64dc5b5223bac403",
+        "game_log_sha256": "d63463f88304800be0e52cc6291ed83dfe063958e7bd4f2b0bd7de78bb5fbefe",
+        "evidence_transfer_from_predecessor": false
+      },
+      "automated_headless": {
+        "status": "h0_pass_canary_exact",
+        "runtime_instance_id": "49f34fbfbbbc429393be52ce66625d65",
+        "host_kind": "headless",
+        "snapshot_status": "interactive",
+        "interaction_kind": "main_menu",
+        "process_exit": "pass_graceful_code_0",
+        "report": "components/host-runtime/.local/evidence/shipped-h0-2026-08-30T14-50-02-025Z/report.json"
+      },
+      "visible_headless_semantic_invariance": {
+        "status": "pass",
+        "scope": "main_menu_only",
+        "canonical_digest_sha256": "eaf8516dc290509ca8b2a33f098b0d6582842c9be2635accd4c217c2d3dd58e4",
+        "visible_runtime_instance_id": "7a1942b652da47d29baf6852f427f924",
+        "headless_runtime_instance_id": "49f34fbfbbbc429393be52ce66625d65"
+      },
+      "receipt_successor_contract": "immediate_post_delivery_observation_not_causal_s_prime",
+      "ritsu_route": "RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY",
+      "human_runtime": "pass_bounded_owner_canary",
+      "evidence_transfer_from_predecessor": false,
+      "rollback": "apps/game-mod/.local/deployments/2026-08-30T14-44-51.829Z"
     },
     "serialized_canonical_loaded_candidate": {
       "status": "loaded_pending_owner_human_canary",
@@ -556,8 +767,8 @@
     "live_ui": {
       "source_revision": "305a2cac80f0bd3126d66cfc5818477c583a8ce5",
       "source_digest_sha256": "c2a75214cb69678913fceb965ae4d41784a6cb1580311b53a2cc5b4c0c4cb1c4",
-      "current_component_source_revision": "305a2cac80f0bd3126d66cfc5818477c583a8ce5",
-      "current_component_source_digest_sha256": "9e2675d9c7429817d329770b6a395e9d4b9aa8593aae05f463cf118c2486650a",
+      "current_component_source_revision": "942ea2be91ba0121fab6c6eb3a95a448097ac113",
+      "current_component_source_digest_sha256": "e8feeafddaae446cc5fd3077540f78fd6689f262e097b2258e07e80e5a77102f",
       "source_relation": "loaded_native_source_scope_matches_current_component",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b"
@@ -566,8 +777,8 @@
       "version": "0.2.0-rc.1",
       "platform_source_revision": "b5389a0b4a1bbed37e6a9718776fdf38f06f50c9",
       "platform_source_digest_sha256": "dbcd6ec1df10cad5ad011eb61a2f2ca533d7a110cd3f1296efa9c154b98d0cea",
-      "current_component_source_revision": "17324c98e67e89958ff1e16e1207285031bb5297",
-      "current_component_source_digest_sha256": "8a751649c936c00d77841a794831c9995322144935157887d94967ecc6329b09",
+      "current_component_source_revision": "bcb899eb63977e46dfde5e0a3a22a4662c8120b0",
+      "current_component_source_digest_sha256": "73d33920fb5e555644716640306595a676b207e5f096dc7635306ed77f99c45b",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b",
       "installed": "pass",
@@ -833,6 +1044,10 @@
     "native_semantic_discriminator_overlapping_acceptance_not_exercised",
     "native_semantic_discriminator_cancel_abort_not_exercised",
     "native_semantic_discriminator_handoff_is_candidate_not_final_successor",
-    "native_semantic_discriminator_full_run_not_implemented"
+    "native_semantic_discriminator_full_run_not_implemented",
+    "native_foundation_candidate_human_runtime_not_exercised",
+    "native_foundation_visible_headless_parity_main_menu_only",
+    "native_foundation_windows_human_not_full_run",
+    "native_foundation_windows_visible_headless_parity_main_menu_only"
   ]
 }

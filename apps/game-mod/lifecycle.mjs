@@ -8,7 +8,9 @@ import process from "node:process";
 
 import {
   loadHostRuntimeWorkstationApi,
+  prepareSoleWindowsModSettings,
   resolveConnectorCanaryEnvironment,
+  resolveWindowsSteamSettings,
   resolveWorkstationInstallation
 } from "../../components/annotator/tools/workstation-platform.mjs";
 import { evaluateLoadedEvidence, extractGameProcessIds } from "./loaded-evidence.mjs";
@@ -50,6 +52,8 @@ const managedModFiles = [
   ...retiredProductionFiles
 ];
 const managedConfigFiles = ["STS2_MCP.conf", "STS2_HUMAN_ANNOTATOR.conf"];
+const windowsSettingsSchema = 8;
+const platformModId = "STS2_PLATFORM";
 const command = process.argv[2] ?? "doctor";
 
 function readJson(file) {
@@ -124,6 +128,9 @@ function restoreTarget(entry) {
   if (entry.location === "local" && entry.name === path.basename(installedProvenance)) {
     return installedProvenance;
   }
+  if (entry.location === "settings" && entry.name === "settings.save") {
+    return resolveWindowsSteamSettings({ expectedSchema: windowsSettingsSchema }).file;
+  }
   throw new Error(`Unsupported Game Mod rollback target: ${entry.location}/${entry.name}`);
 }
 
@@ -133,14 +140,16 @@ function validateRollbackManifest(manifest) {
   }
   const allowedMods = new Set([...managedModFiles, ...managedConfigFiles]);
   for (const entry of manifest.files) {
-    const validLocation = entry?.location === "mods" || entry?.location === "local";
+    const validLocation = ["mods", "local", "settings"].includes(entry?.location);
     const validName = typeof entry?.name === "string"
       && path.basename(entry.name) === entry.name
       && entry.name !== "."
       && entry.name !== "..";
     const allowedName = entry?.location === "mods"
       ? allowedMods.has(entry.name)
-      : entry?.name === path.basename(installedProvenance);
+      : entry?.location === "local"
+        ? entry?.name === path.basename(installedProvenance)
+        : entry?.name === "settings.save";
     const expectedArchive = validLocation && validName
       ? `${entry.location}--${entry.name}`
       : null;
@@ -197,6 +206,7 @@ function deploy() {
   fs.mkdirSync(installation.mods_dir, { recursive: true });
   const backup = path.join(localRoot, "deployments", new Date().toISOString().replaceAll(":", "-"));
   fs.mkdirSync(backup, { recursive: true });
+  const settings = resolveWindowsSteamSettings({ expectedSchema: windowsSettingsSchema });
   const entries = [
     ...managedModFiles.map((name) => archiveTarget(
       backup,
@@ -206,7 +216,8 @@ function deploy() {
       backup,
       "mods",
       path.join(installation.mods_dir, name))),
-    archiveTarget(backup, "local", installedProvenance)
+    archiveTarget(backup, "local", installedProvenance),
+    ...(settings ? [archiveTarget(backup, "settings", settings.file)] : [])
   ];
   writeJson(path.join(backup, "rollback-manifest.json"), {
     schema: "sts2.platform/game-mod-rollback-1",
@@ -238,6 +249,12 @@ function deploy() {
       runtime_status_path: runtimeStatus,
       successor_timeout_ms: 20000
     });
+    if (settings) {
+      writeJson(settings.file, prepareSoleWindowsModSettings({
+        settings: settings.value,
+        enabledModId: platformModId
+      }));
+    }
     const installed = {
       schema: "sts2.platform/game-mod-installed-provenance-1",
       installed_at: new Date().toISOString(),
@@ -245,6 +262,7 @@ function deploy() {
       game: exact.provenance.game,
       artifact: exactIdentity(installedDll),
       manifest: readJson(installedManifest),
+      enabled_mod_ids: [platformModId],
       retired_production_files: retiredProductionFiles,
       rollback: backup
     };

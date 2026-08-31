@@ -35,6 +35,11 @@ Use the smallest route that answers the task.
   and [native restore audit](evidence/NATIVE_RESTORE_AND_TWIN_RUNTIME_AUDIT_2026-08-30.md).
 - Bounded active context and next gate: [Current Context](memory/CURRENT.md).
 - Product boundary and dependency direction: [Architecture](ARCHITECTURE.md).
+- Shared game-side semantics, seam matrix, and migration:
+  [Native Foundation](NATIVE_FOUNDATION.md),
+  [Native Seam Matrix](NATIVE_SEAM_MATRIX.md),
+  [Architecture Example Suite](NATIVE_FOUNDATION_EXAMPLE_SUITE.md), and
+  [ADR 0004](adr/0004-native-foundation-and-ritsu-route.md).
 - Ownership matrix: [Components](COMPONENTS.md).
 - Portable/runtime evidence meanings: [Testing and Evidence](TESTING.md).
 - Component and composition identity: [Versioning](VERSIONING.md) and `platform-bom.json`.
@@ -44,6 +49,7 @@ Use the smallest route that answers the task.
 ## Component entry points
 
 - [Connector map](../components/connector/docs/DOCUMENT_MAP.md)
+- [Native Foundation](../components/native-foundation/README.md)
 - [Host Runtime map](../components/host-runtime/docs/DOCUMENT_MAP.md)
 - [Annotator map](../components/annotator/docs/DOCUMENT_MAP.md)
 - [Evidence package](../components/evidence/README.md)

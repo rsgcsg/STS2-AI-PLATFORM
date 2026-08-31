@@ -18,6 +18,7 @@ using MegaCrit.Sts2.Core.Runs;
 using STS2Connector.LiveHost;
 using STS2Connector.LiveHost.Contracts;
 using STS2Connector.NativeUi;
+using STS2Platform.NativeFoundation;
 
 namespace STS2Connector.PlayerEnvironment.Witness;
 
@@ -85,12 +86,8 @@ public static class PlayerEnvironmentNativeSemanticWitness
             if (run?.CurrentRoom is not CombatRoom combatRoom
                 || !CombatManager.Instance.IsInProgress)
             {
-                return Unavailable(
-                    phase,
-                    "not_combat",
-                    observedAction,
-                    ui,
-                    "No active combat semantic state exists.");
+                NativeDomainOwnerObservation domain = NativeDomainOwnerProbe.Capture();
+                return DomainOwnerCapture(phase, observedAction, ui, domain);
             }
 
             Player? player = LocalContext.GetMe(run);
@@ -107,14 +104,10 @@ public static class PlayerEnvironmentNativeSemanticWitness
 
             NativeEntityRegistry entities = NativeUiRuntime.Entities;
             CombatLiveContext context = LiveContextReader.BuildCombat(run, combatRoom, entities);
-            bool localPlayPhase = playerCombat.Phase == PlayerTurnPhase.Play
-                                  && CombatManager.Instance.IsPartOfPlayerTurn(player)
-                                  && !CombatManager.Instance.PlayerActionsDisabled
-                                  && !CombatManager.Instance.IsPlayerReadyToEndTurn(player)
-                                  && RunManager.Instance.ActionQueueSynchronizer.CombatState
-                                  == ActionSynchronizerCombatState.PlayPhase;
+            NativeCombatDecision decision = NativeCombatDecisionProvider.Capture(entities);
+            bool localPlayPhase = decision.IsDecisionOpen;
             IReadOnlyList<VisibleCombatPotionState> semanticPotions =
-                BuildSemanticPotionStates(player, entities, localPlayPhase);
+                BuildSemanticPotionStates(player, entities, decision);
             context = context with
             {
                 Player = context.Player with { PotionStates = semanticPotions }
@@ -207,19 +200,27 @@ public static class PlayerEnvironmentNativeSemanticWitness
                     RunManager.Instance.ActionQueueSynchronizer.CombatState.ToString(),
                 semantic_input_open = localPlayPhase
             };
-            IReadOnlyList<ProcessLocalSemanticAction> actions = localPlayPhase
-                ? BuildActions(player, playerCombat, entities)
-                : Array.Empty<ProcessLocalSemanticAction>();
+            IReadOnlyList<ProcessLocalSemanticAction> actions = decision.Actions
+                .Select(action => new ProcessLocalSemanticAction(
+                    action.Key,
+                    action.Verb,
+                    action.SubjectReferentId,
+                    action.Operands.ToDictionary(
+                        operand => operand.Role,
+                        operand => operand.ReferentId,
+                        StringComparer.Ordinal),
+                    action.NativeLegalityBasis))
+                .ToArray();
             ProcessLocalObservedSemanticAction? observed = observedAction == null
                 ? null
-                : DescribeObserved(observedAction, player, entities, actions);
+                : ToLegacyObserved(decision.Describe(observedAction, entities));
             string scope = observedAction?.State.ToString() == "ReadyToResumeExecuting"
                 ? "player_choice_continuation"
                 : localPlayPhase ? "combat_play_phase" : "combat_non_decision";
 
             return new ProcessLocalNativeSemanticCapture(
                 Schema,
-                "captured",
+                decision.Status,
                 scope,
                 phase,
                 StableIdentityHash.Object(state),
@@ -228,14 +229,7 @@ public static class PlayerEnvironmentNativeSemanticWitness
                 actions,
                 observed,
                 ui,
-                new[]
-                {
-                    "exact_sts2_logical_hand",
-                    "CardModel.CanPlayTargeting",
-                    "PotionModel.IsValidTarget+PassesCustomUsabilityCheck",
-                    "Player.CanUseOrRemovePotions",
-                    "CombatManager+ActionQueueSynchronizer"
-                },
+                decision.Evidence,
                 new[]
                 {
                     "read_only_experiment_not_action_authority",
@@ -244,7 +238,7 @@ public static class PlayerEnvironmentNativeSemanticWitness
                     "end_turn_finished_does_not_alone_prove_turn_commit",
                     "player_choice_options_remain_owned_by_the_current_selector"
                 },
-                null);
+                decision.Detail);
         }
         catch (Exception exception)
         {
@@ -260,16 +254,8 @@ public static class PlayerEnvironmentNativeSemanticWitness
     public static string BuildActionKey(
         string verb,
         string? subjectReferentId,
-        IReadOnlyDictionary<string, string>? arguments = null)
-    {
-        string operands = arguments == null
-            ? string.Empty
-            : string.Join(
-                ",",
-                arguments.OrderBy(pair => pair.Key, StringComparer.Ordinal)
-                    .Select(pair => $"{pair.Key}={pair.Value}"));
-        return $"{verb}|{subjectReferentId ?? "-"}|{operands}";
-    }
+        IReadOnlyDictionary<string, string>? arguments = null) =>
+        NativeCombatDecisionProvider.BuildActionKey(verb, subjectReferentId, arguments);
 
     private static ProcessLocalNativeSemanticCapture Unavailable(
         string phase,
@@ -300,6 +286,38 @@ public static class PlayerEnvironmentNativeSemanticWitness
             new[] { "semantic_state_not_captured" },
             detail);
 
+    private static ProcessLocalNativeSemanticCapture DomainOwnerCapture(
+        string phase,
+        GameAction? observedAction,
+        ProcessLocalUiCatalogObservation ui,
+        NativeDomainOwnerObservation domain)
+    {
+        JsonNode state = JsonSerializer.SerializeToNode(domain, ConnectorMod._jsonOptions)
+            ?? new JsonObject();
+        return new ProcessLocalNativeSemanticCapture(
+            Schema,
+            domain.Status,
+            domain.SemanticDomain,
+            phase,
+            StableIdentityHash.Object(domain),
+            state,
+            CatalogDigest(Array.Empty<ProcessLocalSemanticAction>()),
+            Array.Empty<ProcessLocalSemanticAction>(),
+            observedAction == null
+                ? null
+                : new ProcessLocalObservedSemanticAction(
+                    observedAction.GetType().Name,
+                    null,
+                    "outside_combat_catalog",
+                    0,
+                    "not_applicable",
+                    "Cross-domain owner capture does not create a legality catalog."),
+            ui,
+            domain.Evidence,
+            domain.NonClaims,
+            $"semantic_owner={domain.SemanticDomain};input_owner={domain.InputDomain}");
+    }
+
     private static ProcessLocalUiCatalogObservation BuildUiCatalog(
         ProcessLocalNativeWitnessFrame frame,
         GameAction? observedAction)
@@ -326,94 +344,10 @@ public static class PlayerEnvironmentNativeSemanticWitness
             match?.MatchCount);
     }
 
-    private static IReadOnlyList<ProcessLocalSemanticAction> BuildActions(
-        Player player,
-        PlayerCombatState combat,
-        NativeEntityRegistry entities)
-    {
-        var actions = new List<ProcessLocalSemanticAction>();
-        foreach (CardModel card in combat.Hand.Cards)
-        {
-            string cardId = entities.GetId(card, "card");
-            foreach (Creature? target in CardTargets(card, player.Creature.CombatState!))
-            {
-                if (!card.CanPlayTargeting(target))
-                    continue;
-                IReadOnlyDictionary<string, string> arguments = target == null
-                    ? new Dictionary<string, string>(StringComparer.Ordinal)
-                    : new Dictionary<string, string>(StringComparer.Ordinal)
-                    {
-                        ["target"] = entities.GetId(target, TargetKind(target))
-                    };
-                actions.Add(new ProcessLocalSemanticAction(
-                    BuildActionKey("play", cardId, arguments),
-                    "play",
-                    cardId,
-                    arguments,
-                    "logical_hand+CardModel.CanPlayTargeting"));
-            }
-        }
-
-        for (int slot = 0; slot < player.PotionSlots.Count; slot++)
-        {
-            PotionModel? potion = player.GetPotionAtSlotIndex(slot);
-            if (!CanUsePotionSemantically(player, potion))
-                continue;
-            string potionId = entities.GetId(potion!, "potion");
-            foreach (Creature? target in PotionTargets(potion!, player))
-            {
-                if (!potion!.IsValidTarget(target))
-                    continue;
-                IReadOnlyDictionary<string, string> arguments = target == null
-                    ? new Dictionary<string, string>(StringComparer.Ordinal)
-                    : new Dictionary<string, string>(StringComparer.Ordinal)
-                    {
-                        ["target"] = entities.GetId(target, TargetKind(target))
-                    };
-                actions.Add(new ProcessLocalSemanticAction(
-                    BuildActionKey("use", potionId, arguments),
-                    "use",
-                    potionId,
-                    arguments,
-                    "current_potion_slot+native_potion_usability_and_target_validation"));
-            }
-        }
-
-        actions.Add(new ProcessLocalSemanticAction(
-            BuildActionKey("end_turn", null),
-            "end_turn",
-            null,
-            new Dictionary<string, string>(StringComparer.Ordinal),
-            "local_player_combat_play_phase"));
-        return actions.OrderBy(action => action.Key, StringComparer.Ordinal).ToArray();
-    }
-
-    private static IEnumerable<Creature?> CardTargets(
-        CardModel card,
-        ICombatState combat) => card.TargetType switch
-    {
-        TargetType.AnyEnemy => combat.HittableEnemies.Cast<Creature?>(),
-        TargetType.AnyAlly => combat.PlayerCreatures.Where(creature => creature.IsAlive).Cast<Creature?>(),
-        _ => new Creature?[] { null }
-    };
-
-    private static IEnumerable<Creature?> PotionTargets(PotionModel potion, Player player)
-    {
-        ICombatState combat = player.Creature.CombatState!;
-        return potion.TargetType switch
-        {
-            TargetType.AnyEnemy => combat.HittableEnemies.Cast<Creature?>(),
-            TargetType.AnyAlly => combat.PlayerCreatures.Where(creature => creature.IsAlive).Cast<Creature?>(),
-            TargetType.AnyPlayer => combat.PlayerCreatures.Where(creature => creature.IsAlive).Cast<Creature?>(),
-            TargetType.Self => new Creature?[] { player.Creature },
-            _ => new Creature?[] { null }
-        };
-    }
-
     private static IReadOnlyList<VisibleCombatPotionState> BuildSemanticPotionStates(
         Player player,
         NativeEntityRegistry entities,
-        bool localPlayPhase)
+        NativeCombatDecision decision)
     {
         var result = new List<VisibleCombatPotionState>();
         for (int slot = 0; slot < player.PotionSlots.Count; slot++)
@@ -425,76 +359,22 @@ public static class PlayerEnvironmentNativeSemanticWitness
             result.Add(new VisibleCombatPotionState(
                 entities.GetId(potion, "potion"),
                 potion.TargetType.ToString(),
-                localPlayPhase && CanUsePotionSemantically(player, potion)
-                               && PotionTargets(potion, player).Any(potion.IsValidTarget),
+                decision.Actions.Any(action =>
+                    action.Verb == "use" && ReferenceEquals(action.NativeSubject, potion)),
                 automatic));
         }
         return result;
     }
 
-    private static bool CanUsePotionSemantically(Player player, PotionModel? potion) =>
-        potion != null
-        && player.CanUseOrRemovePotions
-        && potion.Usage is PotionUsage.CombatOnly or PotionUsage.AnyTime
-        && !potion.Owner.Creature.IsDead
-        && potion.PassesCustomUsabilityCheck;
-
-    private static ProcessLocalObservedSemanticAction DescribeObserved(
-        GameAction action,
-        Player player,
-        NativeEntityRegistry entities,
-        IReadOnlyList<ProcessLocalSemanticAction> actions)
-    {
-        string? key = TryBuildObservedKey(action, player, entities);
-        int count = key == null ? 0 : actions.Count(candidate => candidate.Key == key);
-        return new ProcessLocalObservedSemanticAction(
-            action.GetType().Name,
-            key,
-            key == null ? "not_described" : "described",
-            count,
-            key == null ? "unknown" : count == 1 ? "exact_once" : count == 0 ? "absent" : "ambiguous",
-            key == null ? "The exact native operand no longer resolved." : null);
-    }
-
-    private static string? TryBuildObservedKey(
-        GameAction action,
-        Player player,
-        NativeEntityRegistry entities)
-    {
-        if (action is PlayCardAction play)
-        {
-            CardModel? card = play.NetCombatCard.ToCardModelOrNull();
-            if (card == null)
-                return null;
-            Creature? target = play.Target;
-            IReadOnlyDictionary<string, string> arguments = target == null
-                ? new Dictionary<string, string>(StringComparer.Ordinal)
-                : new Dictionary<string, string>(StringComparer.Ordinal)
-                {
-                    ["target"] = entities.GetId(target, TargetKind(target))
-                };
-            return BuildActionKey("play", entities.GetId(card, "card"), arguments);
-        }
-        if (action is UsePotionAction use)
-        {
-            PotionModel? potion = player.GetPotionAtSlotIndex((int)use.PotionIndex);
-            if (potion == null)
-                return null;
-            Creature? target = player.Creature.CombatState?.GetCreature(use.TargetId);
-            if (target == null && potion.TargetType is TargetType.Self or TargetType.AnyPlayer)
-                target = player.Creature;
-            IReadOnlyDictionary<string, string> arguments = target == null
-                ? new Dictionary<string, string>(StringComparer.Ordinal)
-                : new Dictionary<string, string>(StringComparer.Ordinal)
-                {
-                    ["target"] = entities.GetId(target, TargetKind(target))
-                };
-            return BuildActionKey("use", entities.GetId(potion, "potion"), arguments);
-        }
-        return action is EndPlayerTurnAction
-            ? BuildActionKey("end_turn", null)
-            : null;
-    }
+    private static ProcessLocalObservedSemanticAction ToLegacyObserved(
+        NativeObservedSemanticAction observed) =>
+        new(
+            observed.NativeActionType,
+            observed.Key,
+            observed.Status,
+            observed.MatchCount,
+            observed.Membership,
+            observed.Detail);
 
     private static ProcessLocalObservedAction? TryDescribeForUi(GameAction? action)
     {
@@ -532,5 +412,4 @@ public static class PlayerEnvironmentNativeSemanticWitness
     private static string CatalogDigest(IReadOnlyList<ProcessLocalSemanticAction> actions) =>
         StableIdentityHash.Object(actions.Select(action => action.Key).Order(StringComparer.Ordinal).ToArray());
 
-    private static string TargetKind(Creature target) => target.IsPlayer ? "player" : "creature";
 }

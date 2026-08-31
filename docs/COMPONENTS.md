@@ -2,6 +2,7 @@
 
 | Component | Path | Owns | Must not own |
 |---|---|---|---|
+| Native Foundation | `components/native-foundation` | STS2-owned semantic decisions, native lifecycle, process-local owner lineage | transport, evidence, public action authority, input execution |
 | Connector | `components/connector` | Player Environment, native binding/execution, REST/MCP, SDK | process lifecycle, strategy, annotation |
 | Host Runtime | `components/host-runtime` | discovery, isolation, launch/reset/stop, headless/managed experiments, qualification | gameplay legality, research models |
 | Human Annotator | `components/annotator` | native-human witness, records, audit/export/bundle, workstation | action authority, research admission |
@@ -12,6 +13,11 @@
 | Platform Game Mod | `apps/game-mod` | one manifest/DLL, explicit component initialization, exact build/install/load/rollback provenance | gameplay legality, Human witness semantics, UI domain logic |
 | Platform tools | `tools` | composition, component identity, migration/boundary checks | native operands, policy |
 | STPD | external repository | ResearchTransition, Dataset Views, representation, Qwen, training/evaluation | Host implementation or legality |
+
+Native Foundation is deliberately compiled into the game-side Connector Host
+and unified Mod rather than published as a second runtime service. Connector
+projects fair-player visibility and deliverability from its semantic facts;
+Annotator observes the same lifecycle and facts without gaining authority.
 
 Each imported component retains its focused `AGENTS.md`, tests and operational
 documentation. Those files add component-specific constraints but cannot
