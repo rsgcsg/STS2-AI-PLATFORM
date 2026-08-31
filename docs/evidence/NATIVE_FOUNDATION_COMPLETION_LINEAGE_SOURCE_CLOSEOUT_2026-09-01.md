@@ -2,11 +2,10 @@
 
 ## Evidence Boundary
 
-This report closes the source, deterministic-test and exact-build portion of
-the Map, Reward and Treasure native completion-lineage repair. It does not
-claim installation, loaded runtime, or Human qualification for the new
-artifact. A new Human canary is required because the source and artifact
-identity changed.
+This report closes the source, deterministic-test, exact-build and exact-load
+portion of the Map, Reward and Treasure native completion-lineage repair. It
+does not claim Human qualification for the new artifact. A new Human canary is
+required because the source and artifact identity changed.
 
 Implementation source commit: `61be43df7fe0acf73dd8f634d2f2b9527b85973a`.
 Provenance/BOM commit: `32c75184128d72c65a5165dea4e14ddb7e4ee7a7`.
@@ -104,13 +103,17 @@ The clean exact-game build used the following identities:
 - unified Game Mod
   `f9f616dafe6aa4f7733c81caad3a79ddbe771adbb7b9e46bd79c310138d8efc2`
   / `2b2de33c-9f01-41f4-906e-c73cf7d283a2`;
-- build workspace `32c75184128d72c65a5165dea4e14ddb7e4ee7a7`;
+- build workspace `ed2e0b514500d6d1d19cb123f338ad0d704489d8`;
 - game Mod compiled source revision `9f89d5e42575e0716b9df981f3bab5ffffe1e0f6`;
 - compiled Platform source digest
   `33c521a04a8788b58053e469daf9f024851200db6b7b75b94284ac992ffdf7c0`.
 
 `npm run check:bom` and `npm run check:exact-game` pass on this source. The
-new bytes are not installed, loaded, or Human-exercised by this report.
+artifact was then safely installed and cold-loaded with the sole
+`STS2_PLATFORM` Modset in runtime `e64e508d7f8e420abb2f9c723670e832`,
+environment `8002d9e30693e4ad46575310b8885cc280a949a141e49b9b5bfb4d14fe1f5730`.
+Loaded identity matched the artifact exactly. This remains load evidence only;
+the artifact has not been Human-exercised.
 
 ## Non-Claims And Next Gate
 

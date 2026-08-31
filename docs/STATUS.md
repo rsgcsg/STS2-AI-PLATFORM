@@ -77,9 +77,6 @@ claims. Native semantic proof now waits for `VoteForMapCoordAction` or
 `PickRelicAction` terminal lifecycle, successful reward/card-reward completion,
 or terminal proceed task completion. The UI callback only accounts for the
 Human root. Legacy V2 successor polling no longer feeds the semantic trace; an
-incomplete native boundary remains explicit unknown. A fresh exact clean build
-or terminal proceed task completion. The UI callback only accounts for the
-Human root. Legacy V2 successor polling no longer feeds the semantic trace; an
 incomplete native boundary remains explicit unknown. The completion-lineage
 repair now carries session/generation, exact Human root, native family/kind,
 task and optional owner/operand/lineage identity instead of a completion count
@@ -97,8 +94,11 @@ cb205b8e-95b0-483f-877d-b2747f402e68` and Annotator
 47130865-befc-405e-9b2d-379730c9a2bf`, against STS2
 `v0.111.0 / 41cef1ea` and game assembly
 `9cb4f1ad... / 57785517...`. These are source/build candidates only: they
-have not been installed, loaded or Human-exercised. A fresh exact runtime
-canary covering all four families remains required.
+are installed and cold-loaded in runtime `e64e508d...` with environment
+`8002d9e3...`, sole `STS2_PLATFORM` Modset `207b71f1...`, and rollback
+`apps/game-mod/.local/deployments/2026-08-31T16-40-27.256Z`. Loaded identity
+matches the artifact exactly. They have not been Human-exercised; a fresh exact
+runtime canary covering all four families remains required.
 
 Connector, Annotator, unified-Mod targeted checks and the full portable suite
 pass for component source commit `a3bcd37...`. Clean build, safe install and
