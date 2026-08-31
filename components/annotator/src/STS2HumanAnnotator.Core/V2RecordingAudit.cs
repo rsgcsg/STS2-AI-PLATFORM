@@ -613,6 +613,12 @@ public static class V2RecordingAuditor
                 && value.Kind == SemanticBoundaryTraceKinds.ActionAccepted)
             .Select(value => value.Action.RecordId)
             .ToHashSet(StringComparer.Ordinal);
+        HashSet<string> semanticAcceptedActionIds = semanticEvents
+            .Where(value =>
+                value.SchemaVersion == SemanticBoundaryTraceContract.SchemaVersion
+                && value.Kind == SemanticBoundaryTraceKinds.ActionAccepted)
+            .Select(value => value.Action.ActionWitnessId)
+            .ToHashSet(StringComparer.Ordinal);
         HashSet<string> discriminatorAcceptedActionIds = discriminatorEvents
             .Where(value => value.Phase == "accepted")
             .Select(value => value.ActionWitnessId)
@@ -633,8 +639,9 @@ public static class V2RecordingAuditor
         }
         foreach (string discriminatorActionId in discriminatorAcceptedActionIds)
         {
-            if (!nativeAcceptedActionIds.Contains(discriminatorActionId))
-                Add(errors, "native_semantic_discriminator_accepted_without_native_ledger");
+            if (!nativeAcceptedActionIds.Contains(discriminatorActionId)
+                && !semanticAcceptedActionIds.Contains(discriminatorActionId))
+                Add(errors, "native_semantic_discriminator_accepted_without_canonical_accounting");
         }
     }
 

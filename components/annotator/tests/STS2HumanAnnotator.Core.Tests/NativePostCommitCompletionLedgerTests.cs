@@ -6,64 +6,138 @@ namespace STS2HumanAnnotator.Core.Tests;
 public sealed class NativePostCommitCompletionLedgerTests
 {
     [Fact]
-    public void CompletionUsesExactRootAndNativeIdentityRatherThanRegistrationOrder()
-    {
-        var ledger = new NativePostCommitCompletionLedger();
-        Assert.True(ledger.Register(Registration("root-a", "reward-a", "owner-a")));
-        Assert.True(ledger.Register(Registration("root-b", "reward-b", "owner-b")));
-
-        NativePostCommitCompletionResolution result = ledger.Complete(
-            Completion("root-b", "reward-b", "owner-b"));
-
-        Assert.True(result.IsMatched);
-        Assert.Equal("root-b", result.Registration!.ActionWitnessId);
-        Assert.Equal(1, ledger.Count);
-        Assert.Equal("no_match", ledger.Complete(
-            Completion("root-b", "reward-b", "owner-b")).Status);
-    }
-
-    [Fact]
-    public void MismatchedOperandOrOwnerCannotSettleAnExactRoot()
+    public void NativeTaskBindsAfterUiScopeUsingExactOperationIdentity()
     {
         var ledger = new NativePostCommitCompletionLedger();
         Assert.True(ledger.Register(Registration("root-a", "reward-a", "owner-a")));
 
-        NativePostCommitCompletionResolution operandMismatch = ledger.Complete(
-            Completion("root-a", "reward-a-other", "owner-a"));
-        Assert.Equal("no_match", operandMismatch.Status);
-        Assert.Equal(1, ledger.Count);
+        NativeTaskBindingResolution binding = ledger.BindTask(
+            new NativeTaskObservation(
+                "session-a",
+                1,
+                "native.select",
+                "task-a",
+                "owner-a",
+                "reward-a"));
 
-        NativePostCommitCompletionResolution ownerMismatch = ledger.Complete(
-            Completion("root-a", "reward-a", "owner-other"));
-        Assert.Equal("no_match", ownerMismatch.Status);
-        Assert.Equal(1, ledger.Count);
+        Assert.True(binding.IsMatched);
+        Assert.Equal("root-a", binding.Binding!.ActionWitnessId);
+        Assert.Equal("reward_claim", binding.Binding.Family);
+
+        NativePostCommitCompletionResolution completion = ledger.CompleteTask(
+            new NativeTaskCompletion(
+                "session-a",
+                1,
+                "completion-a",
+                "task-a",
+                true));
+
+        Assert.True(completion.IsMatched);
+        Assert.Equal("root-a", completion.Registration!.ActionWitnessId);
+        Assert.Equal("root-a", completion.Completion!.ActionWitnessId);
     }
 
     [Fact]
-    public void SessionAndGenerationDriftFailClosedAndDoNotConsumeRegistration()
+    public void SharedNativeMethodGetsFamilyFromExactRootRatherThanCallback()
     {
         var ledger = new NativePostCommitCompletionLedger();
-        Assert.True(ledger.Register(Registration("root-a", "reward-a", "owner-a")));
+        Assert.True(ledger.Register(new NativePostCommitCompletionRegistration(
+            "session-a",
+            1,
+            "reward-proceed",
+            new NativePostCommitCompletionExpectation(
+                "reward_proceed",
+                "RunManager.ProceedFromTerminalRewardsScreen",
+                "run-manager",
+                "reward-room"))));
+        Assert.True(ledger.Register(new NativePostCommitCompletionRegistration(
+            "session-a",
+            1,
+            "treasure-proceed",
+            new NativePostCommitCompletionExpectation(
+                "treasure_proceed",
+                "RunManager.ProceedFromTerminalRewardsScreen",
+                "run-manager",
+                "treasure-room"))));
 
-        Assert.Equal("no_match", ledger.Complete(
-            Completion("root-a", "reward-a", "owner-a", sessionId: "other-session")).Status);
-        Assert.Equal("no_match", ledger.Complete(
-            Completion("root-a", "reward-a", "owner-a", generation: 2)).Status);
-        Assert.Equal(1, ledger.Count);
+        NativeTaskBindingResolution binding = ledger.BindTask(
+            new NativeTaskObservation(
+                "session-a",
+                1,
+                "RunManager.ProceedFromTerminalRewardsScreen",
+                "task-shared",
+                "run-manager",
+                "reward-room"));
+
+        Assert.True(binding.IsMatched);
+        Assert.Equal("reward-proceed", binding.Binding!.ActionWitnessId);
+        Assert.Equal("reward_proceed", binding.Binding.Family);
     }
 
     [Fact]
-    public void MissingRootIdentityCannotMatchEvenWhenNativeFactsAreUnique()
+    public void AmbiguousTaskBindingFailsClosedWithoutConsumingRoots()
     {
         var ledger = new NativePostCommitCompletionLedger();
-        Assert.True(ledger.Register(Registration("root-a", "reward", "owner")));
-        Assert.True(ledger.Register(Registration("root-b", "reward", "owner")));
+        Assert.True(ledger.Register(new NativePostCommitCompletionRegistration(
+            "session-a",
+            1,
+            "root-a",
+            new NativePostCommitCompletionExpectation(
+                "reward_claim",
+                "native.select",
+                "owner"))));
+        Assert.True(ledger.Register(new NativePostCommitCompletionRegistration(
+            "session-a",
+            1,
+            "root-b",
+            new NativePostCommitCompletionExpectation(
+                "treasure_open",
+                "native.select",
+                "owner"))));
 
-        NativePostCommitCompletionResolution result = ledger.Complete(
-            Completion(null, "reward", "owner"));
+        NativeTaskBindingResolution binding = ledger.BindTask(
+            new NativeTaskObservation(
+                "session-a",
+                1,
+                "native.select",
+                "task-a",
+                "owner"));
 
-        Assert.Equal("no_match", result.Status);
+        Assert.Equal("ambiguous", binding.Status);
         Assert.Equal(2, ledger.Count);
+    }
+
+    [Fact]
+    public void MismatchedTaskIdentityCannotConsumeAnExactRoot()
+    {
+        var ledger = new NativePostCommitCompletionLedger();
+        Assert.True(ledger.Register(Registration("root-a", "reward-a", "owner-a")));
+
+        Assert.Equal("no_match", ledger.BindTask(new NativeTaskObservation(
+            "session-a", 1, "native.select", "task-a", "owner-a", "other-operand")).Status);
+        Assert.Equal("no_match", ledger.BindTask(new NativeTaskObservation(
+            "session-a", 1, "native.select", "task-b", "other-owner", "reward-a")).Status);
+        Assert.Equal(1, ledger.Count);
+    }
+
+    [Fact]
+    public void SessionAndGenerationDriftFailClosedAcrossBindingAndCompletion()
+    {
+        var ledger = new NativePostCommitCompletionLedger();
+        Assert.True(ledger.Register(Registration("root-a", "reward-a", "owner-a")));
+
+        Assert.Equal("no_match", ledger.BindTask(new NativeTaskObservation(
+            "other-session", 1, "native.select", "task-a", "owner-a", "reward-a")).Status);
+        Assert.Equal("no_match", ledger.BindTask(new NativeTaskObservation(
+            "session-a", 2, "native.select", "task-a", "owner-a", "reward-a")).Status);
+
+        Assert.True(ledger.BindTask(new NativeTaskObservation(
+            "session-a", 1, "native.select", "task-a", "owner-a", "reward-a")).IsMatched);
+        Assert.Equal("no_match", ledger.CompleteTask(new NativeTaskCompletion(
+            "other-session", 1, "completion-a", "task-a", true)).Status);
+        Assert.Equal("no_match", ledger.CompleteTask(new NativeTaskCompletion(
+            "session-a", 2, "completion-a", "task-a", true)).Status);
+        Assert.Equal(1, ledger.Count);
     }
 
     [Fact]
@@ -72,32 +146,30 @@ public sealed class NativePostCommitCompletionLedgerTests
         var ledger = new NativePostCommitCompletionLedger();
         Assert.True(ledger.Register(Registration("root-a", "reward-a", "owner-a")));
 
-        NativePostCommitCompletionResolution result = ledger.Complete(
-            Completion("root-a", "reward-a", "owner-a", succeeded: false));
+        Assert.True(ledger.BindTask(new NativeTaskObservation(
+            "session-a", 1, "native.select", "task-a", "owner-a", "reward-a")).IsMatched);
+        NativePostCommitCompletionResolution result = ledger.CompleteTask(
+            new NativeTaskCompletion("session-a", 1, "completion-a", "task-a", false));
 
         Assert.True(result.IsMatched);
         Assert.True(result.IsFailure);
         Assert.Equal(0, ledger.Count);
-        Assert.Equal("no_match", ledger.Complete(
-            Completion("root-a", "reward-a", "owner-a")).Status);
+        Assert.Equal("no_match", ledger.CompleteTask(
+            new NativeTaskCompletion("session-a", 1, "completion-b", "task-a", true)).Status);
     }
 
     [Fact]
-    public void MalformedCompletionCannotConsumeAnExactRoot()
+    public void MalformedTaskCompletionCannotConsumeAnExactBinding()
     {
         var ledger = new NativePostCommitCompletionLedger();
         Assert.True(ledger.Register(Registration("root-a", "reward-a", "owner-a")));
 
-        NativePostCommitCompletion malformed = Completion(
-            "root-a",
-            "reward-a",
-            "owner-a") with
-        {
-            CompletionId = "",
-            TaskWitnessId = ""
-        };
-
-        Assert.Equal("no_match", ledger.Complete(malformed).Status);
+        Assert.True(ledger.BindTask(new NativeTaskObservation(
+            "session-a", 1, "native.select", "task-a", "owner-a", "reward-a")).IsMatched);
+        Assert.Equal("no_match", ledger.CompleteTask(new NativeTaskCompletion(
+            "session-a", 1, "", "task-a", true)).Status);
+        Assert.Equal("no_match", ledger.CompleteTask(new NativeTaskCompletion(
+            "session-a", 1, "completion-a", "", true)).Status);
         Assert.Equal(1, ledger.Count);
     }
 
@@ -117,22 +189,4 @@ public sealed class NativePostCommitCompletionLedgerTests
                 NativeOwnerWitnessId: owner,
                 NativeOperandWitnessId: operand));
 
-    private static NativePostCommitCompletion Completion(
-        string? actionWitnessId,
-        string operand,
-        string owner,
-        string sessionId = "session-a",
-        long generation = 1,
-        bool succeeded = true) =>
-        new(
-            sessionId,
-            generation,
-            $"completion-{Guid.NewGuid():N}",
-            "reward_claim",
-            "native.select",
-            "task-a",
-            succeeded,
-            actionWitnessId,
-            owner,
-            operand);
 }

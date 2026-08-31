@@ -161,6 +161,25 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame }) {
     return { valid: true, reason: "native_post_commit_exact" };
   }
 
+  if (proved.proof_status === "proved_native_commit_then_owner_boundary") {
+    if (proved.boundary?.witness_kind !== "native_decision_owner_ready")
+      return { valid: false, reason: "native_owner_boundary_witness_missing" };
+    return { valid: true, reason: "native_commit_then_owner_boundary_exact" };
+  }
+
+  if (proved.proof_status === "proved_native_commit_then_execution_handoff") {
+    const next = actionsById.get(proved.related_action_witness_id);
+    const nextBoundary = next?.events.find((event) =>
+      event.kind === "boundary_observed"
+      && event.boundary?.immediately_consumed_by_action_witness_id === next.id);
+    if (!nextBoundary || !sameRef(proved.successor_ref, nextBoundary.execution_pre_ref))
+      return { valid: false, reason: "native_commit_handoff_does_not_equal_next_execution_pre" };
+    const nextMembership = frameStatus(successor, next.action);
+    if (nextMembership.action_match_count !== 1)
+      return { valid: false, reason: "native_commit_handoff_action_not_in_same_state_catalog" };
+    return { valid: true, reason: "native_commit_then_execution_handoff_exact" };
+  }
+
   return { valid: false, reason: "interactive_polling_is_not_causal_successor_proof" };
 }
 

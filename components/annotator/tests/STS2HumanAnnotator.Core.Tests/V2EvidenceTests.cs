@@ -476,7 +476,208 @@ public sealed class V2EvidenceTests
             Assert.Equal(
                 1,
                 tampered.Errors[
-                    "native_semantic_discriminator_accepted_without_native_ledger"]);
+                    "native_semantic_discriminator_accepted_without_canonical_accounting"]);
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
+    public void ModernSemanticRootDoesNotRequireLegacyNativeLedgerProjection()
+    {
+        string root = Temp("modern-semantic-accounting");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            string session;
+            using (var store = V2RecordingStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                HumanDecisionRecord v1 = RecordValidationTests.ValidRecord();
+                HumanDecisionRecordV2 v2 = V2Record(v1, (
+                    PersistReads(store, v1.Pre.SnapshotId),
+                    PersistReads(store, v1.Successor.SnapshotId)));
+                store.AppendDecision(v2);
+                FrozenDecisionFrameV2 frame = v2.Pre;
+                var action = new SemanticActionReference(
+                    "semantic-only-root",
+                    1,
+                    "semantic-only-record",
+                    "run-0001",
+                    "VoteForMapCoordAction",
+                    1,
+                    frame.SnapshotId);
+                store.AppendSemanticBoundaryEvent(SemanticEvent(
+                    manifest,
+                    1,
+                    SemanticBoundaryTraceKinds.ActionAccepted,
+                    action,
+                    frame));
+                store.AppendSemanticBoundaryEvent(SemanticEvent(
+                    manifest,
+                    2,
+                    SemanticBoundaryTraceKinds.ActionCancelledBeforeStart,
+                    action));
+                store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(
+                    manifest,
+                    1,
+                    "accepted",
+                    action.ActionWitnessId));
+                store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(
+                    manifest,
+                    2,
+                    "before_execution",
+                    action.ActionWitnessId) with
+                {
+                    SemanticStateDigest = "semantic-state",
+                    SemanticState = JsonNode.Parse("{\"map\":true}"),
+                    SemanticActionKeys = new[] { "activate|map" },
+                    ObservedActionKey = "activate|map",
+                    SemanticMembership = "exact_once",
+                    SemanticMatchCount = 1
+                });
+                store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(
+                    manifest,
+                    3,
+                    "started",
+                    action.ActionWitnessId));
+                store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(
+                    manifest,
+                    4,
+                    "finished",
+                    action.ActionWitnessId));
+            }
+
+            RecordingAuditResult audit = V2RecordingAuditor.Audit(session);
+
+            Assert.True(audit.Status == "pass", JsonSerializer.Serialize(audit.Errors));
+            Assert.DoesNotContain(
+                "native_semantic_discriminator_accepted_without_canonical_accounting",
+                audit.Errors.Keys);
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
+    public void CanonicalRootCommitSuccessorPersistsAndAuditsEndToEnd()
+    {
+        string root = Temp("canonical-causal-path");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            string session;
+            using (var store = V2RecordingStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                HumanDecisionRecord v1 = RecordValidationTests.ValidRecord();
+                HumanDecisionRecordV2 v2 = V2Record(v1, (
+                    PersistReads(store, v1.Pre.SnapshotId),
+                    PersistReads(store, v1.Successor.SnapshotId)));
+                store.AppendDecision(v2);
+                FrozenDecisionFrameV2 successor = v2.Pre with
+                {
+                    SnapshotId = v2.Successor.SnapshotId,
+                    InteractionId = v2.Successor.InteractionId,
+                    InteractionKind = v2.Successor.InteractionKind,
+                    Snapshot = v2.Successor.Snapshot,
+                    Reads = v2.Successor.Reads
+                };
+
+                var action = new SemanticActionReference(
+                    "map-root",
+                    1,
+                    "map-record",
+                    "run-0001",
+                    "VoteForMapCoordAction",
+                    1,
+                    v2.Pre.SnapshotId)
+                {
+                    RequiresNativePostCommit = true
+                };
+                var tracker = new SemanticBoundaryTracker();
+                var drafts = new List<SemanticBoundaryTraceDraft>();
+                drafts.AddRange(tracker.Accept(action, v2.Pre));
+                drafts.AddRange(tracker.ObserveBeforeActionExecution(
+                    action.ActionWitnessId,
+                    new SemanticBoundaryObservation(
+                        SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
+                        DateTimeOffset.UnixEpoch,
+                        v2.Pre.SnapshotId,
+                        "interactive",
+                        "complete",
+                        v2.Pre.InteractionId,
+                        v2.Pre.InteractionKind,
+                        v2.Pre,
+                        action.ActionWitnessId)));
+                drafts.AddRange(tracker.Started(action.ActionWitnessId));
+                drafts.AddRange(tracker.Finished(action.ActionWitnessId));
+                drafts.AddRange(tracker.ObserveNativeCommit(
+                    action.ActionWitnessId,
+                    new NativeCompletionEvidence(
+                        "map-commit",
+                        "map_navigation",
+                        "GameAction.Finished",
+                        action.ActionWitnessId,
+                        null,
+                        "map-action",
+                        "map-coordinate",
+                        null,
+                        true)));
+                drafts.AddRange(tracker.ObserveDecisionBoundary(
+                    new SemanticBoundaryObservation(
+                        SemanticBoundaryWitnessKinds.NativeDecisionOwnerReady,
+                        DateTimeOffset.UnixEpoch.AddSeconds(1),
+                        successor.SnapshotId,
+                        "interactive",
+                        "complete",
+                        successor.InteractionId,
+                        successor.InteractionKind,
+                        successor,
+                        null)));
+                store.AppendSemanticBoundaryEvents(drafts.Select((draft, index) =>
+                    SemanticEvent(manifest, index + 1, draft)).ToArray());
+                store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(
+                    manifest,
+                    1,
+                    "accepted",
+                    action.ActionWitnessId));
+                store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(
+                    manifest,
+                    2,
+                    "before_execution",
+                    action.ActionWitnessId) with
+                {
+                    SemanticStateDigest = "semantic-state",
+                    SemanticState = JsonNode.Parse("{\"map\":true}"),
+                    SemanticActionKeys = new[] { "activate|map" },
+                    ObservedActionKey = "activate|map",
+                    SemanticMembership = "exact_once",
+                    SemanticMatchCount = 1
+                });
+                store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(
+                    manifest,
+                    3,
+                    "started",
+                    action.ActionWitnessId));
+                store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(
+                    manifest,
+                    4,
+                    "finished",
+                    action.ActionWitnessId));
+            }
+
+            RecordingAuditResult audit = V2RecordingAuditor.Audit(session);
+
+            Assert.True(audit.Status == "pass", JsonSerializer.Serialize(audit.Errors));
         }
         finally
         {
@@ -1103,6 +1304,32 @@ public sealed class V2EvidenceTests
             Array.Empty<string>())
         {
             HumanObservation = humanObservation
+        };
+
+    private static SemanticBoundaryTraceEvent SemanticEvent(
+        RecordingManifestV2 manifest,
+        long sequence,
+        SemanticBoundaryTraceDraft draft) => new(
+            SemanticBoundaryTraceContract.SchemaVersion,
+            SemanticBoundaryTraceContract.EventSchema,
+            $"semantic-event-{sequence}",
+            manifest.SessionId,
+            manifest.TimelineId,
+            draft.Action.RunId,
+            sequence,
+            DateTimeOffset.UnixEpoch.AddMilliseconds(sequence),
+            draft.Kind,
+            draft.Action,
+            draft.ProofStatus,
+            draft.RelatedActionWitnessId,
+            draft.Boundary,
+            draft.SemanticPre,
+            draft.SemanticSuccessor,
+            draft.Detail,
+            draft.NonClaims ?? Array.Empty<string>())
+        {
+            HumanObservation = draft.HumanObservation,
+            NativeCompletion = draft.NativeCompletion
         };
 
     private static NativeSemanticDiscriminatorEvent DiscriminatorEvent(

@@ -159,6 +159,77 @@ test("accepts only an exact native UI post-commit boundary for direct UI proof",
   }
 });
 
+test("accepts a native Commit followed by an exact owner-ready boundary", async () => {
+  const { root, refs } = await fixture();
+  try {
+    const selected = action();
+    const events = [
+      event(1, "action_accepted", "a1", selected, { human_observation_ref: refs.s0 }),
+      event(2, "boundary_observed", "a1", selected, { execution_pre_ref: refs.s0 }),
+      event(3, "action_started", "a1", selected, { execution_pre_ref: refs.s0 }),
+      event(4, "native_commit_observed", "a1", selected, { execution_pre_ref: refs.s0 }),
+      event(5, "action_finished", "a1", selected, { execution_pre_ref: refs.s0 }),
+      event(6, "transition_proved", "a1", selected, {
+        execution_pre_ref: refs.s0,
+        successor_ref: refs.s1,
+        proof_status: "proved_native_commit_then_owner_boundary",
+        boundary: { witness_kind: "native_decision_owner_ready" }
+      })
+    ];
+    await writeFile(path.join(root, "semantic-boundary-trace.jsonl"),
+      `${events.map(JSON.stringify).join("\n")}\n`);
+    await writeFile(path.join(root, "native-action-ledger.jsonl"), "");
+    await writeFile(path.join(root, "run-0001.jsonl"), "");
+
+    const report = await calibrate(root);
+    assert.equal(report.summary.canonical_s_a_s_prime, 1);
+    assert.equal(report.summary.proof_reasons.native_commit_then_owner_boundary_exact, 1);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("accepts a native Commit handoff only when it equals the next execution pre", async () => {
+  const { root, refs } = await fixture();
+  try {
+    const first = action();
+    const second = action("action-2");
+    const events = [
+      event(1, "action_accepted", "a1", first, { human_observation_ref: refs.s0 }),
+      event(2, "boundary_observed", "a1", first, { execution_pre_ref: refs.s0 }),
+      event(3, "action_started", "a1", first, { execution_pre_ref: refs.s0 }),
+      event(4, "native_commit_observed", "a1", first, { execution_pre_ref: refs.s0 }),
+      event(5, "action_finished", "a1", first, { execution_pre_ref: refs.s0 }),
+      event(6, "transition_proved", "a1", first, {
+        execution_pre_ref: refs.s0,
+        successor_ref: refs.s1,
+        related_action_witness_id: "a2",
+        proof_status: "proved_native_commit_then_execution_handoff"
+      }),
+      event(7, "action_accepted", "a2", second, { human_observation_ref: refs.s1 }),
+      event(8, "boundary_observed", "a2", second, {
+        execution_pre_ref: refs.s1,
+        boundary: { immediately_consumed_by_action_witness_id: "a2" }
+      }),
+      event(9, "action_started", "a2", second, { execution_pre_ref: refs.s1 }),
+      event(10, "transition_unknown", "a2", second, {
+        execution_pre_ref: refs.s1,
+        proof_status: "closed_without_boundary"
+      })
+    ];
+    await writeFile(path.join(root, "semantic-boundary-trace.jsonl"),
+      `${events.map(JSON.stringify).join("\n")}\n`);
+    await writeFile(path.join(root, "native-action-ledger.jsonl"), "");
+    await writeFile(path.join(root, "run-0001.jsonl"), "");
+
+    const report = await calibrate(root);
+    assert.equal(report.summary.canonical_s_a_s_prime, 1);
+    assert.equal(report.summary.proof_reasons.native_commit_then_execution_handoff_exact, 1);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("fails closed when a content-addressed semantic frame is tampered", async () => {
   const { root, refs } = await fixture();
   try {

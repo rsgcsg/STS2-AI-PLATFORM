@@ -10,6 +10,21 @@ import {
 
 const root = path.resolve(import.meta.dirname, "../../..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
+const sourceBetween = (source, start, end) => {
+  const startAt = source.indexOf(start);
+  const endAt = source.indexOf(end, startAt + start.length);
+  if (startAt < 0 || endAt < 0)
+    throw new Error(`Could not isolate source span: ${start} -> ${end}`);
+  return source.slice(startAt, endAt);
+};
+const harmonyPatchContaining = (source, target, from = 0) => {
+  const targetAt = source.indexOf(target, from);
+  const patchStart = source.lastIndexOf("[HarmonyPatch]", targetAt);
+  const nextPatch = source.indexOf("[HarmonyPatch]", targetAt + target.length);
+  if (from < 0 || targetAt < 0 || patchStart < 0 || nextPatch < 0)
+    throw new Error(`Could not isolate Harmony patch containing: ${target}`);
+  return source.slice(patchStart, nextPatch);
+};
 
 test("game Mod test discovery is shell-neutral", () => {
   const packageJson = JSON.parse(read("apps/game-mod/package.json"));
@@ -296,12 +311,102 @@ test("non-combat Human witnesses use public bindings and exact native completion
   );
   assert.match(
     patches,
-    /class NativeTreasureNormalRewardsPatch[\s\S]*"treasure_open"[\s\S]*nativeOperand: NativeTreasureUiContext\.CurrentRoom\(\)/u
+    /class NativeTreasureNormalRewardsPatch[\s\S]*"OneOffSynchronizer\.DoLocalTreasureRoomRewards"[\s\S]*nativeOperand: NativeTreasureUiContext\.CurrentRoom\(\)/u
   );
-  assert.match(
+  assert.match(patches, /ProceedFromTerminalRewardsScreen[\s\S]*QueueNativePostCommitBoundary/u);
+});
+
+test("terminal rewards completion is family-neutral at the shared native seam", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+  const completionMarker = "NativeTreasureProceedCompletionPatch";
+  const sharedCompletionPatch = harmonyPatchContaining(
     patches,
-    /class NativeTreasureProceedCompletionPatch[\s\S]*"treasure_proceed"[\s\S]*nativeOperand: NativeTreasureUiContext\.CurrentRoom\(\)/u
+    "ProceedFromTerminalRewardsScreen",
+    patches.indexOf(completionMarker)
   );
+
+  assert.ok(sharedCompletionPatch.length > 0);
+  assert.match(sharedCompletionPatch, /QueueNativePostCommitBoundary\(\s*__result,/u);
+  assert.doesNotMatch(sharedCompletionPatch, /"(?:reward|treasure)_proceed"/u);
+});
+
+test("task completion correlation does not consult HumanActionScope.Current", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const queueMethod = sourceBetween(
+    runtime,
+    "private static void QueueNativePostCommitBoundary<TTask>",
+    "private static void PersistSemanticBoundaryDrafts"
+  );
+  const completionMethod = sourceBetween(
+    runtime,
+    "private static void ObserveNativePostCommitCompletion",
+    "private static NativeCompletionEvidence ToCompletionEvidence"
+  );
+
+  assert.match(queueMethod, /NativeTaskCompletion signal = new/u);
+  assert.doesNotMatch(queueMethod, /HumanActionScope\.Current/u);
+  assert.match(completionMethod, /NativePostCommitCompletions\.CompleteTask\(taskCompletion\)/u);
+  assert.doesNotMatch(completionMethod, /HumanActionScope\.Current/u);
+});
+
+test("GameAction Finished and task completion remain evidence-only before boundary handling", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const lifecycleMethod = sourceBetween(
+    runtime,
+    "private static void ObserveSemanticOnlyNativeActionLifecycle",
+    "private static void ObserveNativeCommit"
+  );
+  const completionMethod = sourceBetween(
+    runtime,
+    "private static void ObserveNativePostCommitCompletion",
+    "private static NativeCompletionEvidence ToCompletionEvidence"
+  );
+
+  assert.match(lifecycleMethod, /NativeActionLifecycleKinds\.Finished/u);
+  assert.doesNotMatch(
+    lifecycleMethod,
+    /ObserveNativePostCommitBoundary|CaptureSemanticFrame|TrySettle/u
+  );
+  assert.doesNotMatch(
+    completionMethod,
+    /ObserveNativePostCommitBoundary|CaptureSemanticFrame|TrySettle/u
+  );
+});
+
+test("a committed unresolved root admits the next exact root for execution handoff", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const preparation = sourceBetween(
+    runtime,
+    "private static bool TryPrepareSerializedEvidence",
+    "internal static void StageCardPlay"
+  );
+
+  assert.match(preparation, /semanticExecutionHandoffReady = BoundaryTracker\.CanOpenNextRoot/u);
+  assert.match(
+    preparation,
+    /!BoundaryTracker\.HasUnresolvedActions\s*\|\| BoundaryTracker\.CanOpenNextRoot/u
+  );
+  assert.doesNotMatch(preparation, /Task\.Delay|Thread\.Sleep|Stopwatch|\bTimer\b/u);
+});
+
+test("native completion proof has no FIFO, count, timer, or polling fallback", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const queueMethod = sourceBetween(
+    runtime,
+    "private static void QueueNativePostCommitBoundary<TTask>",
+    "private static void PersistSemanticBoundaryDrafts"
+  );
+  const completionMethod = sourceBetween(
+    runtime,
+    "private static void ObserveNativePostCommitCompletion",
+    "private static NativeCompletionEvidence ToCompletionEvidence"
+  );
+  const proofFallback = /(?:\bFIFO\b|\.Count\b|FirstOrDefault|LastOrDefault|TryDequeue|\bDequeue\(|Task\.Delay|Task\.Wait|WaitAsync|Task\.WhenAny|Thread\.Sleep|Stopwatch|System\.Timers|\bTimer\b|\bPoll(?:ing)?\b|TrySettle)/u;
+
+  // The queue is only cross-thread transport; proof stays in the exact ledger.
+  assert.match(queueMethod, /QueuedNativePostCommitCompletions\.Enqueue\(signal\)/u);
+  assert.doesNotMatch(queueMethod, proofFallback);
+  assert.doesNotMatch(completionMethod, proofFallback);
 });
 
 test("treasure semantic stages come from Native Foundation rather than UI publication", () => {
