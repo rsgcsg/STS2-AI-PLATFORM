@@ -56,7 +56,12 @@ internal static class RitsuFirstConformanceProgram
             shop_fixtures = 3,
             shop_lanes = new[] { "direct", "ritsu_first" },
             treasure_stage_fixtures = 3,
-            production_mutation = false
+            production_mutation = false,
+            qualification_artifact_mvid = typeof(RitsuFirstConformanceProgram)
+                .Assembly
+                .ManifestModule
+                .ModuleVersionId
+                .ToString()
         }));
     }
 
