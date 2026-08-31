@@ -256,9 +256,11 @@ test("non-combat native owners are observed by explicit read-only seams", () => 
 test("treasure semantic stages come from Native Foundation rather than UI publication", () => {
   const reader = read("components/connector/host/LiveHost/TreasureRoomSurfaceReader.cs");
   const witness = read("components/connector/host/PlayerEnvironment/Witness/ProcessLocalNativeSemanticWitness.cs");
+  const provider = read("components/native-foundation/src/NativeTreasureDecisionProvider.cs");
 
   assert.match(reader, /NativeTreasureDecisionProvider\.Capture/u);
-  assert.match(reader, /NativeTreasureDecisionProvider\.Contains/u);
+  assert.match(reader, /NativeSemanticActionCatalog\.ContainsExactlyOnce/u);
+  assert.doesNotMatch(provider, /public static bool Contains/u);
   assert.doesNotMatch(reader, /ChestOpenedField|CollectionOpenField|TreasureLifecycleFacts/u);
   assert.match(witness, /NativeTreasureDecisionProvider\.Capture/u);
 });
