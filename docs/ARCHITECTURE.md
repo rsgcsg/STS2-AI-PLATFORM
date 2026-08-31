@@ -44,6 +44,31 @@ invalidations, the additive native-action ledger, Reads and bundles remain the
 durable Evidence Plane. Audit,
 pack, verify, store and transfer never run on the game main thread.
 
+## Canonical Sequential Evidence Boundary
+
+The Recorder's durable trace and a research transition are different products.
+The canonical one-step contract is:
+
+```text
+S_t + A(S_t) -> A_t -> S_(t+1)
+```
+
+`S_t` is the authoritative fair-player state consumed by `A_t`; `A(S_t)` is
+the complete same-state Connector catalog; and `S_(t+1)` is the next state
+after the action and its causally owned automatic continuation. Human
+observation `H`, native acceptance, lifecycle completion, and an interactive
+poll are independently valuable evidence, but none may be silently relabelled
+as `S_t` or `S_(t+1)`.
+
+The current schema-3 timeline is an accounting/lifecycle trace. Offline
+calibration is the only current promotion gate for canonical one-step rows.
+Exact-source and exact-runtime analysis found that normal STS2 UI staging
+withdraws many accepted affordances before execution, while generic later
+interactivity does not prove causal settlement. ADR 0003 therefore selects a
+serialized Human-input collection design, but explicitly withholds permission
+to implement any input gate. Connector remains the only state/action authority;
+the Annotator does not reconstruct a same-state catalog or successor.
+
 ## Hard Shell
 
 STS2 owns rules, RNG, native legality, effects and Commit. Connector publishes

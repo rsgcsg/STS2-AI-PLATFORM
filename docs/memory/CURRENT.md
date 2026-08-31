@@ -6,23 +6,37 @@ requests, or dated evidence.
 
 ## Current phase
 
-`develop` retains the bounded Human-proved semantic trace schema-2 baseline for
-ordinary combat and generated-card select. Full-Run Human Semantic Timeline
-work continues independently in PR #3; its branch, checks, review state, and
-latest exact evidence must be read from the PR and linked evidence rather than
-copied here.
+`develop` retains the bounded Human-proved schema-2 trace baseline. PR #3
+preserves gameplay-safe commit `4384a14...` as a non-release tag and now has a
+bounded Human-proved read-only native semantic sequential lane. Exact session
+`session-20260830T064823Z-...` records 41/41 successful roots as exact-once in
+STS2-owned logical `A_sem(S)` at first native execution; it includes PlayCard,
+EndTurn, potion and player-choice pause/resume. The same run proves that
+execution-time `A(UI)` is not the semantic action authority. The discriminator
+cannot authorize, block or execute UI. Loaded native artifact
+`d3b59bed... / 04acd691...`, runtime `f015b026...`, and Modset `968a30c3...`
+remain exact; audit-only source `193861a...` repaired cross-stream accounting
+without changing that artifact. ADR 0003 remains a historical candidate, not
+active gameplay authority.
 
 ## Active workstreams
 
-- Full-Run Human Semantic Timeline: independent feature work in PR #3. Do not
-  mix its runtime semantics or evidence with repository-system changes.
-- Repository System v1 is the governance baseline for documentation routing,
-  bounded Codex context, sparse Skills, deterministic drift checks, and
+- Full-Run Human Semantic Timeline and evidence representation: PR #3. Keep its
+  runtime semantics and exact Human evidence on this feature branch. Existing
+  schema-3 proof is trace-level only; canonical eligibility comes from
+  `calibrate-semantic-training`.
+- Repository System v1: the integrated governance baseline for documentation
+  routing, bounded context, sparse Skills, deterministic checks, and
   supply-chain configuration. It changes no game behavior or component
   semantic version.
 
 ## Current blockers and open questions
 
+- True overlapping accepted roots/execution reorder and native cancel/abort did
+  not occur in the bounded discriminator canary and remain targeted Live gates.
+- Adjacent first-execution digests are causal handoff candidates, not proof of
+  final successor/business outcome semantics; non-combat Full-Run native
+  adapters remain to be implemented.
 - The S1 checkpoint named by the current Policy Manifest is unavailable on this
   Mac, so real-model Shadow, One-Step, Auto, and Agent-run evidence remain
   unexercised.
@@ -32,10 +46,11 @@ copied here.
 ## Next meaningful gates
 
 - Keep the required `portable` source/test gate green on latest PR heads.
-- Complete Full-Run runtime/Human gates only on its independent exact artifact.
-- Before a governed release, reconcile Status, BOM, versions, non-claims,
-  rollback, and exact evidence without inheriting predecessor proof.
+- Extend the execution-bound native semantic lane to the next narrow non-combat
+  Full-Run mechanisms. Keep unknown UI playable and fail evidence closed; do
+  not restore global UI serialization, add natural-observer polling or transfer
+  predecessor Human evidence.
 
 Use `npm run project:context` to start a task and
 `npm run project:closeout` to surface likely documentation, evidence, contract,
-version, and governance impacts before a PR.
+version, and governance impacts before PR closeout.

@@ -59,7 +59,7 @@ Exact-game lifecycle:
   launch | launch-live-connector | verify-loaded | admit-current-modset
 
 Evidence:
-  audit | export | pack-session`);
+  audit | audit-native-semantic | export | pack-session`);
 }
 
 function run(executable, commandArgs, options = {}) {
@@ -727,6 +727,11 @@ function audit() {
   run("dotnet", [toolDll, "audit", directory]);
 }
 
+function auditNativeSemantic() {
+  const directory = resolveCliPath(args[0] || readJson(runtimeStatus).recording_directory);
+  run("dotnet", [toolDll, "audit-native-semantic", directory]);
+}
+
 function exportRecords() {
   const directory = resolveCliPath(args[0] || readJson(runtimeStatus).recording_directory);
   const output = args[1]
@@ -809,6 +814,7 @@ try {
   else if (command === "launch-live-connector") launchConnectorOnly();
   else if (command === "verify-loaded") verifyLoaded();
   else if (command === "audit") audit();
+  else if (command === "audit-native-semantic") auditNativeSemantic();
   else if (command === "export") exportRecords();
   else if (command === "pack-session") packSession();
   else if (command === "rollback") rollback();

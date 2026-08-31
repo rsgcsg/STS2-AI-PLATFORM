@@ -4,7 +4,7 @@
 
 ```text
 STS2 native UI and action queue  game truth and accepted action
-STS2-Connector                  stable S, complete A(S), exact Host bindings
+STS2-Connector                  fair-player state, complete A(S), exact Host bindings
 Human Annotator                 correlation, lifecycle/boundary observation, raw evidence
 STPD                            research projection and dataset admission
 ```
@@ -26,16 +26,17 @@ without changing that path:
 ```text
 frozen Human observation H (observation evidence only) + exact accepted action
 -> game-owned started / choice pause-resume / cancelled / finished lifecycle
--> exact execution consumes S captured immediately before that Human effect
--> state-complete execution handoff or complete interactive decision boundary
--> proved S -> A -> S', cancelled/not-successful, or unknown
+-> exact execution captures an adjacent state boundary
+-> state-complete execution handoff or complete interactive observation
+-> trace disposition, followed by independent canonical training calibration
 ```
 
 `SemanticBoundaryTracker` never publishes or executes actions. Human H is not
-silently promoted to semantic S. A complete execution boundary can establish S
-even while the UI is settling and its finite action catalog has not republished;
-state completeness, required-Read completeness and catalog completeness are
-recorded independently. An arbitrary settling poll cannot prove a boundary.
+silently promoted to semantic S. The current tracker can establish a
+state-causal trace boundary while the UI catalog has not republished; state,
+Read and catalog completeness are recorded independently. Such a boundary is
+not canonical sequential S without complete same-state A(S) and exact action
+membership. An arbitrary settling poll cannot prove a causal training boundary.
 `GameAction.Finished` is lifecycle evidence, not universal completion. The
 legacy V2 adapter and semantic timeline share action identity, but neither is
 authority for the other.
@@ -99,6 +100,21 @@ drain limit may classify a still-unproved semantic edge unknown; elapsed time
 never proves S'. Audit/pack/verify/store/transfer remain offline Evidence
 operations.
 
+The frame loop is not observation authority. It performs no Player Environment
+capture while an idle recording has no explicit status or Close work. Canonical
+families capture one complete boundary at the mutation edge; that same frame
+settles the predecessor and becomes the next action's pre-frame. Native
+lifecycle callbacks carry identity and terminal facts without rebuilding a
+Snapshot. The remaining schema-3-only Full-Run adapters may request a bounded
+boundary until they migrate; they cannot authorize canonical rows.
+
+Evidence streams append and flush to the OS on the native callback path so write
+errors remain immediate, but they do not fsync each lifecycle fact. Close is the
+durability boundary: it blocks new witnesses, drains causal work, writes the
+derived coverage summary, then `Flush(true)` seals every stream before Closed is
+published. An interrupted session is partial inspectable evidence, not a durable
+Human evidence seal.
+
 Only a complete interactive pre-frame is eligible. One non-overlapping accepted
 root may remain a strict transition candidate. Every exact-correlated native
 root enters a bounded ledger at `GameAction.OnEnqueued`, after STS2 assigns its
@@ -116,7 +132,10 @@ observed. Timeout, overlap, cancellation, runtime drift, lifecycle persistence
 uncertainty, root-contract error, or mapping failure is fail-closed. Native
 lifecycle, invalidated-decision facts and `semantic-boundary-trace.jsonl` are
 additive sidecar evidence; `HumanDecisionRecordV2` bytes and meaning are
-unchanged. The semantic trace is observation-only and audited independently.
+unchanged. Schema-3 events reference exact content-addressed frozen frames by
+H/S/S' role, eliminating repeated inline frames without normalizing away
+snapshot or Read provenance. The semantic trace is observation-only and audited
+independently; historical schema-1/2 rows remain readable.
 Audit rejects a proved transition whose semantic pre does not match its complete
 pre-execution boundary, or whose causal window contains another Human action
 start after A begins and before S'.
@@ -131,6 +150,29 @@ because the pile-missing execution branch returns with native state `Finished`
 without spending resources or running `OnPlay`; this is classified as
 `not_a_successful_action`. No scheduler, argument, result or gameplay behavior
 is changed.
+
+Full-Run expansion does not add a surface switch to the causal tracker. Map
+selection enters the same lifecycle path through STS2's
+`VoteForMapCoordAction`. Reward claim/proceed and card-reward selection have no
+equivalent root `GameAction`, so narrow source-local Prefix/Postfix observers
+record their exact native UI delivery while Connector still supplies the frozen
+complete BoundAction. These observers neither await business reward completion
+nor create legality. Semantic state Reads are selected by interaction kind and
+remain information completeness only; they cannot publish or authorize an
+action.
+
+## Canonical Sequential Collection Decision
+
+Exact runtime calibration shows that native UI staging removes PlayCard,
+UsePotion and EndTurn affordances before execution, while generic interactive
+polling does not prove causal S'. ADR 0003 therefore uses serialized Human
+input. For migrated families `_pending`, the native ledger and direct-Commit
+witness are the only causal state owners; the old schema-3 tracker is not fed in
+parallel. Additional mutation is blocked while lifecycle is open, never queued
+or replayed. An unavailable boundary is explicit unknown. The additive
+`canonical-transitions.jsonl` binds each admitted Decision V2 row to exact
+content-addressed pre/successor frames. This source candidate still needs a new
+artifact owner canary.
 
 The application event stream is typed, process-local and bounded. A consumer
 queries current status, then requests events after sequence N. A gap means the

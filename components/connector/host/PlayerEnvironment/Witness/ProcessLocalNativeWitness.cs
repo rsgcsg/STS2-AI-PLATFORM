@@ -170,6 +170,23 @@ public static class PlayerEnvironmentNativeWitness
         SnapshotBuildResult frame =
             STS2Connector.PlayerEnvironment.PlayerEnvironmentService.BuildSnapshot(
                 requiredReadKinds: requiredReadKinds);
+        return CreateFrame(frame, requiredReadKinds);
+    }
+
+    public static ProcessLocalNativeWitnessFrame Capture(
+        Func<string, IReadOnlyCollection<string>> requiredReadKindsForInteraction)
+    {
+        ArgumentNullException.ThrowIfNull(requiredReadKindsForInteraction);
+        SnapshotBuildResult frame =
+            STS2Connector.PlayerEnvironment.PlayerEnvironmentService.BuildSnapshot(
+                requiredReadKindsForInteraction: requiredReadKindsForInteraction);
+        return CreateFrame(frame, frame.ReadBuilds.Keys.ToArray());
+    }
+
+    private static ProcessLocalNativeWitnessFrame CreateFrame(
+        SnapshotBuildResult frame,
+        IReadOnlyCollection<string>? requiredReadKinds)
+    {
         HashSet<string> referentIds = frame.Snapshot.BoundActions.Actions
             .SelectMany(action => action.Arguments.Select(argument => argument.ReferentId)
                 .Append(action.SubjectReferentId))

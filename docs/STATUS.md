@@ -13,16 +13,81 @@ GitHub enforcement is an operational fact separate from this source document;
 the workflow records intended rules, while repository settings must be checked
 directly before claiming protection.
 
-Phase: **semantic trace schema 2 is a bounded Human-proved freeze candidate for
-ordinary combat and generated-card select; exact schema-2 execution reorder,
-lethal cross-surface and Full-Run settlement remain out of claim**.
+Phase: **bounded Human-proved native semantic sequential lane**.
+Commit `4384a14...` is preserved as the non-release tag
+`baseline/pr3-gameplay-safe-4384a14`; it removed the evidence-dependent global
+UI gate after that gate blocked ordinary unsupported gameplay. ADR 0003 is now
+a historical candidate under re-audit, not active gameplay authority. Current
+native source adds an independent read-only stream at the exact execution seam:
+it compares the current UI catalog with `S_sem + A_sem(S)` derived from STS2's
+logical combat state and native card/potion validators. It tracks exact
+accepted action identity, cancellation, pre-Commit abort, player-choice
+pause/resume and terminal lifecycle without changing scheduling, legality or UI
+delivery. Source, deterministic tests and a clean exact build pass as artifact
+`d3b59bed... / 04acd691...`. It is safely installed and cold-loaded in runtime
+`f015b026...`, environment `190234e4...`, exact sole-Platform Modset
+`968a30c3...`. Closed owner session
+`session-20260830T064823Z-ed1d683fe0b44e1db312c7489cda7fba`
+records 41 accepted and 41 successful roots with 41 exact-once memberships in
+native `A_sem(S)`, zero unknown/cancel/abort, and two complete player-choice
+pause/resume pairs. The UI frame was not authoritative for 34 roots and a
+complete UI catalog omitted the executing root seven times. This supports
+`FEASIBLE_FULL_RUN_NATIVE_SEMANTIC_RECORDER_EXISTS` for the bounded combat
+mechanisms; it does not prove overlapping acceptance, cancel/abort, final
+successor semantics or Full Run. Audit-only source `193861a...` fixes stream
+aggregation for that closed session without changing or inheriting the loaded
+native artifact. The game process was exited after recording Close. See the
+[source closeout](evidence/NATIVE_SEMANTIC_RUNTIME_DISCRIMINATOR_SOURCE_CLOSEOUT_2026-08-30.md)
+and [Human closeout](evidence/NATIVE_SEMANTIC_RUNTIME_DISCRIMINATOR_HUMAN_CLOSEOUT_2026-08-30.md).
 
-Current source advances the proved predecessor into semantic trace schema 2:
-H is observation-only, execution binds S, state/Read/catalog completeness are
-orthogonal, and Close drains an unresolved semantic edge before classifying it
-unknown. Artifact `eb7ed072... / 34a36a2b...` is built, installed and loaded;
-latest owner session `session-20260827T042832Z-...` supplies bounded Human
-evidence without promoting any schema-1 row.
+Normalized semantic evidence schema 3 is now bounded Human-proved for its
+trace-level accounting and storage contract on exact
+artifact `4fa67570... / 51c7c37b...`, runtime `7bcc19e7...`, exact Modset
+`2263e395...`. Closed session
+`session-20260829T052157Z-e549d3601e7640f997b6f475180b2dfe` has 333
+accepted/started/finished/proved actions with zero unknown, cancellation, abort
+or unresolved disposition. It exercises Play, End Turn, three potion uses,
+reward claim/proceed, card reward and generated-card selection, Combat hand
+confirm and map travel. Exact role references resolve to 947 immutable frames;
+the event log contains no inline H/S/S' frames and persisted Reads fall to 5.354
+per accepted action from predecessor rates of 23.97-28.63. Independent Decision
+V2 audit passes 188/188. This proves bounded trace semantics and storage for
+that exact artifact, not canonical one-step training, exhaustive Full Run, or
+elimination of owner-perceived lag.
+
+Current source adds a Close-time bounded stage profiler for snapshot/Read capture,
+serialization, hashing, object writes and durable appends. The profiler changes
+no action or semantic authority and has source/test evidence only; the Human run
+above cannot supply its timings. See the
+[schema-3 closeout](evidence/SCHEMA3_HUMAN_DATA_LIFECYCLE_CLOSEOUT_2026-08-29.md).
+
+The subsequent exact profiler session
+`session-20260829T072035Z-807f6a97b0e8498a828bb25c84e04ae4`, artifact
+`f1afebd2... / a618ef18...`, runtime `74c63f9a...`, independently passes
+102/102 Decision V2 records and accounts for 267/267 proved semantic actions.
+It also causally explains owner-perceived lag: 12,394 synchronous Player
+Environment captures consume 251.633 seconds, 50.47% of its 498.578-second
+recording window. The old combined Snapshot probe alone runs 10,676 times and
+consumes 214.890 seconds. Current source removes idle polling, gates legacy
+recovery capture on actual recovery debt, reuses lifecycle-requested status
+frames, buffers hot evidence appends and durably seals every stream at Close.
+Those repairs are source/test/build/install/load complete as exact artifact
+`bb37d34f... / 3587836e...`, cold-loaded in process `22308` and Connector runtime
+`9a42d54c...` with exact sole-Platform Modset `90f3c7f3...`. Loaded verification
+passes in the legal Ready/no-session state; after-repair Human latency and
+semantic evidence remain pending and do not transfer from the predecessor. See the
+[causal performance baseline](evidence/RECORDER_CAUSAL_PERFORMANCE_BASELINE_2026-08-29.md).
+
+The after-repair owner session
+`session-20260829T084437Z-cc4079776c9e417eba53a122e452cab7` is exact evidence
+for the loaded artifact above. It accounts for 933/933 trace-level proved
+actions and 497 valid Decision V2 records, but also records 31,613 synchronous
+full Player Environment captures consuming 628.720 seconds (27.519% of the
+2,284.687-second window), with one call reaching 273.851 ms. Mechanical
+canonical calibration classifies 247 actions as `S + A(S)` with unresolved S',
+682 as execution-time state/action-space unresolved, and 4 rejected; canonical
+`S + A(S) -> A -> S'` is 0. See the
+[canonical causality decision](evidence/RECORDER_CANONICAL_CAUSALITY_DECISION_2026-08-29.md).
 
 ## Implemented
 
@@ -115,6 +180,30 @@ evidence without promoting any schema-1 row.
   select is proved, and a direct Play -> End Turn handoff has `A.S' == next S`.
   Acceptance/execution reorder did not recur on this artifact. See the
   [schema-2 owner closeout](evidence/SEMANTIC_TIMELINE_OWNER_CLOSEOUT_2026-08-27.md).
+- Full-Run batch 1 keeps the same `SemanticBoundaryTracker` and adds only two
+  native witness mechanisms: existing typed `GameAction` lifecycle for map
+  travel, and exact source-local UI delivery callbacks for reward claim,
+  reward proceed and card-reward select. Interaction-specific semantic Read
+  policy removes the accidental combat-only `combat_piles` requirement from
+  reward/map boundaries without weakening state completeness. Deterministic
+  tests prove a continuous lethal -> reward -> card choice -> map timeline.
+  This is source/test/build evidence only; see
+  [Full-Run semantic coverage](FULL_RUN_SEMANTIC_COVERAGE.md).
+  Exact source `509e5c6...` built unified artifact
+  `fe3e3a82... / b1284288...` against STS2 `v0.111.0 / 41cef1ea`.
+  Its owner canary exercised combat, generated choice, reward/card reward and
+  map, but failed semantic accounting: direct UI commits used a non-canonical
+  execution witness, and a paused parent was pruned before native finish,
+  disabling the trace. Strengthened audit now reports 546 missing accepted
+  roots instead of the former false PASS. Repair source `c8775e1...` retains
+  parents through native terminal lifecycle, canonicalizes direct UI execution,
+  and adds exact Combat hand select/deselect/confirm witnesses. Clean artifact
+  `8d2f7d2a... / 3043f4f4...` is safely installed and cold-loaded in runtime
+  `fb5a82ea...` with the sole exact `STS2_PLATFORM` Mod. The latest repair
+  canary passes bounded semantic accounting: 250 schema-2 accepted actions,
+  248 proved, two cancelled before start and 0 semantic unknown/unresolved; its
+  193 native accepted roots are all accounted for. See the
+  [batch canary](evidence/FULL_RUN_BATCH1_OWNER_CANARY_2026-08-28.md).
 - Platform Evidence `0.1.0-rc.1` verifies V1/V2 typed artifacts and provides an
   immutable local store, transfer and staged receiver with receipts.
 - Workbench `0.1.0-rc.1` provides Environment, Policy, Human Data, Evidence,
@@ -354,14 +443,25 @@ not a semantic seal. See the dated owner-canary report.
   semantic proof. Schema 2 is now owner-operated and proves bounded ordinary
   combat, generated-card select and direct execution handoff. Exact reorder on
   the schema-2 artifact, catalog-incomplete Live handoff, successful pending-
-  edge Close drain, lethal cross-surface settlement, Full Run, corpus admission
-  and training authority remain non-claims.
+  edge Close drain, hand select/replace/deselect, generated skip, repaired
+  self-target potion and target-picker cancel, room-internal
+  event/shop/rest/treasure actions, run entry, exhaustive Full
+  Run, semantic-free performance, game outcome success, corpus admission and
+  training authority remain non-claims.
 - H0/H1/H2 are automated real-runtime evidence, not human validation, a full
   game journey, durable qualification, semantic parity or long-soak proof.
 - The optional noninteractive Host execution profile was not implemented by the
   current Connector and remains a non-claim; shipped-default semantics passed.
 - Generated-card select is audited on the current schema-2 unified artifact;
   generated-card skip remains `not exercised`.
+- The first potion owner canary proved one enemy-targeted use but exposed three
+  self-target exact-mapping failures and one accepted self-target use without
+  explicit accounting. Repair source `fba874e8...` follows STS2's owner
+  normalization only through exact frozen-catalog matching and defers failures
+  until native acceptance. Artifact `b5fbda12... / 1cbcff84...` is cold-loaded
+  under the sole exact Platform Modset; Human proof is pending. Trace batching
+  improved the narrow boundary-to-start median from about 8 ms to 4 ms, but
+  perceived-lag elimination remains a non-claim.
 - The V2 bundle/store/receiver/STPD path is verified, but this does not authorize
   corpus inclusion or training and does not qualify unexercised action families.
 - Platform Evidence is a focused evidence-integrity package, not a

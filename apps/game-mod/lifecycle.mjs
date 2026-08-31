@@ -11,6 +11,7 @@ import {
   resolveConnectorCanaryEnvironment,
   resolveWorkstationInstallation
 } from "../../components/annotator/tools/workstation-platform.mjs";
+import { evaluateLoadedEvidence, extractGameProcessIds } from "./loaded-evidence.mjs";
 import { waitForLoadedReadiness } from "./loaded-readiness.mjs";
 import { sourceSetIdentity, sourceSetMatches } from "./source-identity.mjs";
 
@@ -32,9 +33,11 @@ const hostApi = await loadHostRuntimeWorkstationApi(annotatorRoot);
 const installation = resolveWorkstationInstallation({ headlessApi: hostApi });
 const installedDll = path.join(installation.mods_dir, "STS2_PLATFORM.dll");
 const installedManifest = path.join(installation.mods_dir, "STS2_PLATFORM.json");
+const installedIdentity = path.join(installation.mods_dir, "STS2_PLATFORM.identity");
 const retiredProductionFiles = [
   "STS2_MCP.dll",
   "STS2_MCP.json",
+  "STS2_MCP.identity",
   "STS2_HUMAN_ANNOTATOR.dll",
   "STS2_HUMAN_ANNOTATOR.json",
   "STS2_PLATFORM_LIVE_UI.dll",
@@ -43,6 +46,7 @@ const retiredProductionFiles = [
 const managedModFiles = [
   "STS2_PLATFORM.dll",
   "STS2_PLATFORM.json",
+  "STS2_PLATFORM.identity",
   ...retiredProductionFiles
 ];
 const managedConfigFiles = ["STS2_MCP.conf", "STS2_HUMAN_ANNOTATOR.conf"];
@@ -71,11 +75,6 @@ function exactIdentity(file) {
 
 function sameIdentity(left, right) {
   return left?.sha256 === right?.sha256
-    && left?.module_version_id === right?.module_version_id;
-}
-
-function sameHostIdentity(left, right) {
-  return left?.artifact_sha256 === right?.sha256
     && left?.module_version_id === right?.module_version_id;
 }
 
@@ -220,6 +219,14 @@ function deploy() {
     }
     fs.copyFileSync(builtDll, installedDll);
     fs.copyFileSync(manifestSource, installedManifest);
+    writeJson(installedIdentity, {
+      schema: "sts2.platform/game-mod-installed-identity-1",
+      source_revision: exact.provenance.source.components.connector.source_revision,
+      workspace_revision: exact.provenance.source.platform.workspace_revision,
+      artifact_sha256: exact.built.sha256,
+      artifact_mvid: exact.built.module_version_id,
+      installed_at: new Date().toISOString()
+    });
     const connectorConfig = path.join(installation.mods_dir, "STS2_MCP.conf");
     writeJson(connectorConfig, {
       port: 15526,
@@ -337,6 +344,7 @@ async function verifyLoaded() {
   if (!installation.log_file || !fs.existsSync(installation.log_file)) throw new Error("STS2 runtime log is unavailable.");
   const installed = readJson(installedProvenance);
   const expected = installed.artifact;
+  const processIds = extractGameProcessIds(gameProcesses(), process.platform);
   const loaded = await waitForLoadedReadiness(async () => {
     if (!fs.existsSync(runtimeStatus)) throw new Error("Annotator runtime status is unavailable.");
     const status = readJson(runtimeStatus);
@@ -346,42 +354,19 @@ async function verifyLoaded() {
     const liveUiIdentity = latestIdentity(log, "[STS2 Platform Live UI] identity ");
     const latestUiIdentityIndex = log.lastIndexOf("[STS2 Platform Live UI] identity ");
     const uiLog = log.slice(Math.max(0, latestUiIdentityIndex));
-    const ready = sameIdentity(status.environment?.connector, expected)
-      && sameIdentity(status.environment?.annotator, expected)
-      && sameHostIdentity(capabilities.host?.implementation, expected)
-      && platformIdentity?.artifact_sha256 === expected.sha256
-      && platformIdentity?.module_version_id === expected.module_version_id
-      && liveUiIdentity?.artifact_sha256 === expected.sha256
-      && liveUiIdentity?.module_version_id === expected.module_version_id
-      && latestUiIdentityIndex >= 0
-      && uiLog.includes("[STS2 Platform Live UI] panel ready; input=K");
-    return { ready, status, capabilities, platformIdentity, liveUiIdentity, log, uiLog };
+    const evaluation = evaluateLoadedEvidence({
+      status,
+      capabilities,
+      platformIdentity,
+      liveUiIdentity,
+      installed,
+      uiPanelReady: latestUiIdentityIndex >= 0
+        && uiLog.includes("[STS2 Platform Live UI] panel ready; input=K"),
+      gameProcessIds: processIds
+    });
+    return { ...evaluation, status, capabilities, platformIdentity, liveUiIdentity, log, uiLog };
   });
-  const { status, capabilities, platformIdentity, liveUiIdentity, log, uiLog } = loaded;
-  const errors = [];
-  const ageMs = Date.now() - Date.parse(status.observed_at);
-  if (ageMs > 5000) errors.push("runtime_status_not_fresh");
-  if (!sameIdentity(status.environment?.connector, expected)) errors.push("connector_not_loaded_from_unified_artifact");
-  if (!sameIdentity(status.environment?.annotator, expected)) errors.push("annotator_not_loaded_from_unified_artifact");
-  if (status.environment?.connector?.source_revision !== installed.source.components.connector.source_revision) errors.push("connector_source_revision_mismatch");
-  if (status.environment?.connector?.source_digest_sha256 !== installed.source.components.connector.source_digest_sha256) errors.push("connector_source_digest_mismatch");
-  if (status.environment?.annotator?.source_revision !== installed.source.components.annotator.source_revision) errors.push("annotator_source_revision_mismatch");
-  if (status.environment?.annotator?.source_digest_sha256 !== installed.source.components.annotator.source_digest_sha256) errors.push("annotator_source_digest_mismatch");
-  if (status.environment?.modset_status !== "exact_platform_modset") errors.push("unified_modset_not_exact");
-  if (!sameHostIdentity(capabilities.host?.implementation, expected)) errors.push("connector_capabilities_artifact_mismatch");
-  if (capabilities.execution_available !== true) errors.push("connector_execution_not_available");
-  if (!platformIdentity) errors.push("platform_loaded_identity_absent");
-  if (platformIdentity?.artifact_sha256 !== expected.sha256) errors.push("platform_loaded_sha_mismatch");
-  if (platformIdentity?.module_version_id !== expected.module_version_id) errors.push("platform_loaded_mvid_mismatch");
-  if (platformIdentity?.platform_source_revision !== installed.source.platform.source_revision) errors.push("platform_loaded_source_revision_mismatch");
-  if (!liveUiIdentity) errors.push("live_ui_loaded_identity_absent");
-  if (liveUiIdentity?.artifact_sha256 !== expected.sha256) errors.push("live_ui_loaded_sha_mismatch");
-  if (liveUiIdentity?.module_version_id !== expected.module_version_id) errors.push("live_ui_loaded_mvid_mismatch");
-  if (liveUiIdentity?.source_revision !== installed.source.components.live_ui.source_revision) errors.push("live_ui_source_revision_mismatch");
-  const latestUiIdentityIndex = log.lastIndexOf("[STS2 Platform Live UI] identity ");
-  if (latestUiIdentityIndex < 0 || !log.slice(latestUiIdentityIndex).includes("[STS2 Platform Live UI] panel ready; input=K")) {
-    errors.push("live_ui_panel_ready_absent");
-  }
+  const { errors, status, capabilities, platformIdentity, liveUiIdentity, uiLog } = loaded;
   const result = {
     status: errors.length ? "fail" : "pass",
     errors,

@@ -1,19 +1,37 @@
 # Status
 
-Historical Annotator evidence below remains bound to its original
-source/artifact. Annotator `0.3.0-rc.1` is the current read-rich V2 source.
-Its exact predecessor Native artifacts have ordinary-combat V2 evidence and one
-audited generated-card select. Generated-card skip and the current unified
-artifact's Human path remain `not exercised`. Root `../../../docs/STATUS.md` is
-authoritative for the current runtime boundary.
-
-Current schema-2 source refactors the semantic observer into an execution-owned
-continuous timeline. Human H, semantic state completeness, required Reads,
-finite catalog completeness and causal proof are independent. Deterministic
-regressions cover settling-but-state-complete handoff, rapid chains, End Turn,
-choice reorder, cancellation/abort and Close draining. This is source/test/build
-evidence only; the schema-1 owner sessions below remain immutable predecessor
-evidence and do not prove the new artifact Live.
+Historical Annotator evidence below remains bound to its original source and
+artifact. Annotator `0.3.0-rc.1` is the current read-rich V2 source. Schema 3 is
+bounded Human-proved for trace accounting on exact artifact `4fa67570... / 51c7c37b...`, runtime
+`7bcc19e7...`: session `session-20260829T052157Z-...` accounts for 333/333
+proved actions with zero unknown and independently audits 188/188 Decision V2
+records. Exact content-addressed frames, Snapshot-gated Read-rich capture,
+batched persistence and successor reuse are therefore exercised. Generated
+skip, target-picker cancel and hand select/replace/deselect remain unexercised.
+The Close-time stage profiler is now Human-exercised by exact session
+`session-20260829T072035Z-...`: semantic accounting passes 267/267, while
+12,394 synchronous Player Environment captures consume 50.47% of the
+498.578-second recording window. Current source gates recovery capture on real
+ledger debt, makes status capture lifecycle-requested rather than periodic, and
+buffers append streams until one durable Close seal. The repair remains
+source/test-only. Root `../../../docs/STATUS.md` is authoritative for the
+current runtime boundary.
+Latest exact session `session-20260829T084437Z-...` rejects the natural observer
+as canonical one-step training authority: 933 accepted actions mechanically
+yield zero canonical rows. The later global serialization candidate is retained
+as history only because it blocked valid unsupported UI. Current source keeps
+the gameplay-safe observer and adds a non-authorizing native semantic
+discriminator. It samples logical combat state and native legality at first
+execution, independently records UI actionability and tracks cancellation,
+abort and player-choice lineage. New Native bytes have source/test/build
+evidence only and require an exact-runtime Human canary.
+Current Full-Run topic source preserves that execution-owned continuous timeline
+and adds interaction-specific semantic Reads, reward claim/proceed, card reward
+select, map travel and Combat hand selector witnesses. The first owner canary
+found that a paused parent could be pruned before native finish and direct UI
+commits used a non-canonical boundary name. Current source repairs both and
+strengthens audit so a stopped schema-2 trace cannot pass beside a continuing
+native ledger. The repair is source/test/build evidence only.
 
 Rapid-input artifact `080701b3... / 142054a5...` is cold-loaded and Live-proved
 in runtime `39fa2d2e...`. Its closed owner session
@@ -89,6 +107,12 @@ audits 19/19 records and explicitly separates 16 native-accepted failures.
   authoritative Connector frame;
 - exact generated-card choice select/skip witness using shipped native UI
   callbacks and the same frozen BoundAction authority.
+- additive Full-Run semantic witnesses for reward claim/proceed and card reward
+  select through exact direct UI delivery callbacks, plus map travel through the
+  native `VoteForMapCoordAction` lifecycle; Decision V2 remains unchanged.
+- exact Combat hand select/replace/deselect/confirm witnesses through native
+  hand/container callbacks and the same direct UI mechanism; nested native
+  helper calls cannot manufacture a second Human action.
 
 ## Automated Evidence
 
@@ -203,8 +227,10 @@ recorded only after the corresponding cold loads and owner-operated actions.
 
 ## Declared Unsupported
 
-Potions, event/reward/shop/rest/map/menu actions, arbitrary selectors,
-multiplayer, and gameplay-affecting Modsets are not admitted by version
-`0.3.0-rc.1`. Generated-card select has one predecessor Live record; skip and
-the current artifact's generated-card paths still require exact native-human
-runtime evidence.
+Decision V2 remains the narrow combat capture profile: potion, non-combat,
+arbitrary-selector, multiplayer and gameplay-affecting-Modset records are not
+admitted by version `0.3.0-rc.1`. The additive semantic sidecar now has source/
+test coverage for reward claim/proceed, card reward select, map travel and
+Combat hand selection, but the repaired paths remain pending exact native-human
+runtime evidence. Potion, event, shop, rest, treasure, run entry and terminal
+Human witnesses are not implemented.

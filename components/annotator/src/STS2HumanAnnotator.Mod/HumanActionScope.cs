@@ -3,7 +3,9 @@ using STS2HumanAnnotator.Core;
 
 namespace STS2HumanAnnotator.Mod;
 
-internal readonly record struct NativeUiScopeEntry(bool Entered, bool DeferredFailure);
+internal readonly record struct NativeUiScopeEntry(
+    bool Entered,
+    bool DeferredFailure);
 
 internal sealed class HumanActionContext
 {
@@ -12,16 +14,20 @@ internal sealed class HumanActionContext
     internal HumanActionContext(
         string origin,
         string expectedNativeActionType,
+        ProcessLocalObservedAction? expectedAction,
         ProcessLocalNativeWitnessFrame frame,
         DateTimeOffset enteredAt)
     {
         Origin = origin;
+        ExpectedAction = expectedAction;
         Frame = frame;
         EnteredAt = enteredAt;
         _rootActionGate = new AcceptedRootActionGate(expectedNativeActionType);
     }
 
     internal string Origin { get; }
+
+    internal ProcessLocalObservedAction? ExpectedAction { get; }
 
     internal ProcessLocalNativeWitnessFrame Frame { get; }
 
@@ -81,12 +87,14 @@ internal static class HumanActionScope
     internal static void Enter(
         string origin,
         string expectedNativeActionType,
+        ProcessLocalObservedAction? expectedAction,
         ProcessLocalNativeWitnessFrame frame)
     {
         _stack ??= new Stack<HumanActionContext>();
         _stack.Push(new HumanActionContext(
             origin,
             expectedNativeActionType,
+            expectedAction,
             frame,
             DateTimeOffset.UtcNow));
     }

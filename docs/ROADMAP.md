@@ -1,5 +1,33 @@
 # Roadmap
 
+## Canonical Human One-Step Evidence
+
+- Complete: mechanically separate Human provenance H, authoritative S,
+  complete same-state A(S), exact A membership and causal S' from legacy V2 and
+  schema-3 trace terminology.
+- Complete: calibrate the latest 933-action exact Human session; 0 rows satisfy
+  the full canonical one-step contract, while 497 retain only legacy V2 use.
+- Complete: bound the earlier alternatives; ADR 0003 records the historical
+  serialized-input choice, while gameplay evidence later withdrew its global
+  UI gate.
+- Historical candidate only: serialized mutation admission and artifact
+  `b805474d... / 3ab1e10e...`. They are not active gameplay authority.
+- Complete at source/test: preserve gameplay-safe input and add a read-only
+  native semantic discriminator at first execution, with STS2-owned logical
+  state/native validators, exact action identity and cancellation/abort/player-
+  choice accounting.
+- Complete: current Managed Exact rebuild plus 80-action/158-Read reset,
+  stale, idempotency and bounded performance measurement.
+- Complete bounded exact-runtime canary: 41/41 successful roots are exact-once
+  in STS2-owned native `A_sem(S)`, across 30 PlayCard, ten EndTurn, one potion
+  use and two player-choice pause/resume pairs. The same run disproves current
+  `A(UI)` as sequential semantic authority. See the
+  [Human closeout](evidence/NATIVE_SEMANTIC_RUNTIME_DISCRIMINATOR_HUMAN_CLOSEOUT_2026-08-30.md).
+- Next: extend the same execution-bound native semantic adapters to non-combat
+  Full-Run mechanisms. Keep separate targeted gates for true overlapping
+  acceptance/execution reorder and native cancel/abort; do not restore global
+  UI serialization, natural-observer polling or a second legality model.
+
 ## Consolidation Baseline
 
 - Complete: import all three histories without squashing.
@@ -47,8 +75,9 @@
   audit/bundle/store/receive/STPD and Workbench closeout.
 - Complete on predecessor exact artifact: one naturally occurring generated-
   card select mapped exact-unique and reached an interactive successor.
-- Pending exact-runtime evidence: generated-card skip and the unified artifact's
-  Human action path remain `not exercised`; evidence is not transferred.
+- Complete bounded exact-runtime Human evidence: the latest repair canary passes
+  semantic accounting on the unified artifact. Generated-card skip remains
+  `not exercised`, and the bounded canary does not qualify exhaustive Full Run.
 
 Cloud storage, broad action-family capture and a full Workbench remain later
 work; they are not reasons to weaken the component boundaries.
@@ -185,6 +214,62 @@ action-family expansion remain outside this bounded baseline.
   catalog-incomplete Live handoff and successful pending-edge Close drain remain
   targeted evidence gaps; predecessor schema-1 evidence is not transferred.
 
-Next semantic phase, on a separate topic branch: structural-only Annotator
-cleanup without changing frozen bounded behavior. Rapid lethal and combat ->
-reward are later independent feature branches, not this closeout.
+## Full-Run Human Semantic Timeline
+
+- Superseded as canonical one-step authority: existing `transition_proved`
+  counts are trace-level lifecycle/state evidence. They require the mechanical
+  calibration gate and currently yield zero canonical one-step rows in the
+  latest exact session.
+
+- Active on a short-lived topic branch from `develop`; ordinary combat schema 2
+  is frozen as the regression oracle rather than tuned to reduce unknowns.
+- Complete at source/test: semantic state Reads are interaction-specific instead
+  of inheriting the combat-only profile.
+- Complete at source/test: lethal combat may settle at the first complete reward
+  boundary; reward claim/proceed and card reward select use exact direct UI
+  delivery witnesses; map travel reuses the game-owned
+  `VoteForMapCoordAction` lifecycle.
+- Failed predecessor runtime gate: the first owner canary exposed direct-UI
+  execution binding and paused-parent lifecycle defects; strengthened audit
+  rejects its truncated trace rather than transferring its evidence.
+- Complete at source/test/build: the repair preserves parent lifecycle through
+  native finish, uses one canonical direct-UI boundary, and adds Combat hand
+  select/replace/deselect/confirm through the same bounded UI-commit mechanism.
+- Complete bounded exact-runtime gate: owner session
+  `session-20260827T151912Z-4c7f26e56b954b498cfa0c3213e4b488` passes the repair
+  canary for semantic accounting, including repaired canonical direct-UI
+  binding and parent-lifecycle retention.
+- The predecessor long owner run proved one enemy-targeted potion and exposed
+  self-target operand normalization and accepted-action accounting defects in
+  the Annotator witness; the subsequent bounded repair-artifact gate below
+  closes those defects.
+- Complete bounded repair-artifact gate: the latest closed owner session proves
+  233 accepted/233 semantic transitions, including enemy-target, no-target and
+  self-target potion use, with zero unresolved. Target-picker cancel remains
+  unexercised.
+- Bounded Human-proved on artifact `4fa67570... / 51c7c37b...`: semantic evidence schema 3 stores exact
+  content-addressed H/S/S' frames behind role references; legacy schema-1/2
+  remains auditable. The latest closed session accounts for 333/333 proved
+  actions with zero unknown and reduces persisted Reads to 5.354 per accepted
+  action without creating a new boundary proof.
+- Remaining Live gaps: potion target-picker cancel, hand
+  select/replace/deselect, generated skip, room-internal
+  event/shop/rest/treasure actions and run entry.
+- Complete at subsequent source/test: Human potion use arms from the native
+  holder, binds only at `EnqueueManualUse`, and then reuses the typed
+  `UsePotionAction` lifecycle. Target-picker cancel produces no accepted action;
+  programmatic Connector use has no Human arm and is not recorded.
+- The profiler artifact is Human-exercised and attributes 50.47% of recording
+  wall time to synchronous Player Environment capture, including an
+  unconditional 50 ms legacy recovery/status probe. Current source removes idle
+  capture, gates recovery on real debt, buffers hot append streams and durably
+  seals them at Close. Complete build/install/cold-load: exact artifact
+  `bb37d34f... / 3587836e...` is Ready in Connector runtime `9a42d54c...` with
+  exact sole-Platform Modset; loaded verification passes without requiring a
+  session environment heartbeat. Next gate: run one short Play/End Turn/rapid-
+  chain canary for quantitative before/after plus semantic audit. Then close
+  target-picker cancel and representative generated-skip/
+  hand-selector gaps before Event options.
+- Non-combat room expansion follows a clean Combat mechanism canary.
+- Later: run entry/terminal, representative long-act run, then continuous Full
+  Run. Rare content remains targeted evidence and does not block the mainline.

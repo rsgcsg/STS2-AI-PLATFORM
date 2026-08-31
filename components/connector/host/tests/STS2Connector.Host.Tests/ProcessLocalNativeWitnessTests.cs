@@ -8,6 +8,30 @@ namespace STS2Connector.Host.Tests;
 public sealed class ProcessLocalNativeWitnessTests
 {
     [Fact]
+    public void SemanticActionKeyIsDeterministicAndRoleOrdered()
+    {
+        string first = PlayerEnvironmentNativeSemanticWitness.BuildActionKey(
+            "play",
+            "card-1",
+            new Dictionary<string, string>
+            {
+                ["z_target"] = "enemy-2",
+                ["a_mode"] = "normal"
+            });
+        string second = PlayerEnvironmentNativeSemanticWitness.BuildActionKey(
+            "play",
+            "card-1",
+            new Dictionary<string, string>
+            {
+                ["a_mode"] = "normal",
+                ["z_target"] = "enemy-2"
+            });
+
+        Assert.Equal(first, second);
+        Assert.Equal("play|card-1|a_mode=normal,z_target=enemy-2", first);
+    }
+
+    [Fact]
     public void ExactNativeInstanceSelectsOneDuplicateLookingCard()
     {
         var entities = new NativeEntityRegistry();

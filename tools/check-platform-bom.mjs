@@ -9,6 +9,43 @@ const PLATFORM_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 const SHA256 = /^[0-9a-f]{64}$/u;
 const COMMIT = /^[0-9a-f]{40}$/u;
 const MVID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+const LOADED_SCHEMA3_ANNOTATOR = Object.freeze({
+  sourceRevision: "54efe38d6d2f49051e04248072acb548feddfe9a",
+  workspaceRevisionAtBuild: "750315b3b998a04507439869c96ba78d280787fb",
+  componentTreeRevision: "e07fa1ad8b4939cbc5e6435d818acacc4565b57d",
+  componentSourceDigest: "b95e8c8e630f793b90f7328c3f1ea8374a6c252c0cfff55560cab43619da3a54",
+  buildSourceDigest: "a601e6d9ee85c54fbf1841535dc11c59e7d224a20f0d6b003493a7e1b53aa622",
+  artifactSha: "4fa6757045b6d5c2b137e78b1e96e7163c2a5c64372a41955682257d6a6a1056",
+  artifactMvid: "51c7c37b-3305-4286-b2bc-52cd5725ac76",
+  runtimeInstance: "7bcc19e7fb614eedad563db93310adc7",
+  environment: "15177b88c13f87fac1c4b676aee2529a643411952eeda50b82ca67837be1f15f",
+  modset: "2263e3958c03544a5a43ed462be1f85406a9a1c0fba8bf981a0c4c69fe54b544",
+  rollback: "apps/game-mod/.local/deployments/2026-08-28T16-46-50.719Z"
+});
+const POTION_OWNER_CANARY = Object.freeze({
+  sourceRevision: "e1d88e3582d3d51a383d366d5ede517ca6a98e40",
+  componentSourceDigest: "724aafeb04bdb7980585dc3973e3d4199252b3774b504fc2a1f3cd75074e600b",
+  artifactSha: "be1a96ec762139de7bcda8ec5f4898a482c6dc03cf4fd18e20be41585eb22380",
+  artifactMvid: "79354979-0488-42c3-bd83-8b90d6bbf9e4",
+  runtimeInstance: "1ad1e3f83e9545ab911bd75f85262a96",
+  environment: "94b59c951d4b0004d85bba9de2a35c3fd28b12d35b9ed2e996c8b81fc8c3fafc",
+  modset: "35c367613f6caf041842a02850582477edd1dfba018316dbf599f2f79aa81915",
+  rollback: "apps/game-mod/.local/deployments/2026-08-27T16-03-47.774Z"
+});
+const NATIVE_SEMANTIC_DISCRIMINATOR = Object.freeze({
+  sourceRevision: "05d9e8e859a26b306f23ae5de188347d0570781b",
+  connectorTree: "42206612cbb07f18ec048286486534edcde5b4f2",
+  connectorDigest: "7e96c7a8fc31fdf2f198d50bc674b54547b051dd533c8e089b800cad178ef9a9",
+  annotatorTree: "a849c967e0b361cef10a1ee0ea3bb17070d12e85",
+  annotatorDigest: "d0eb10bf40d381fde88fcf5e0cc146aa9429a126c7cce3f9345acebb2d0e6e0b",
+  artifactSha: "d3b59bed5453b62e0f6e7b1efc3d0414748ec354d1205bf06edbd46ee1e301c1",
+  artifactMvid: "04acd691-90f8-4105-93d8-b260f4726315",
+  runtimeInstance: "f015b026a0d043538e4a3f8403476056",
+  environment: "190234e4a3b270d4447e13598c45aa205d40766b98f6efa2b99c3790b77386d2",
+  modset: "968a30c304f7ba8befd459f279a1f36957eb5dbebed94e8016111bce3389288c",
+  sessionId: "session-20260830T064823Z-ed1d683fe0b44e1db312c7489cda7fba",
+  timelineId: "timeline-bc4ee13a1bdd400bbec356e5a0abdbdc"
+});
 
 function readJson(file) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
@@ -75,7 +112,6 @@ export function validatePlatformBom(bom, authorities) {
     expectEqual(errors, `${bomKey}.component_tree_revision`, component?.component_tree_revision, identity.component_tree_revision);
     expectEqual(errors, `${bomKey}.component_source_digest_sha256`, component?.component_source_digest_sha256, identity.component_source_digest_sha256);
   }
-
   expectEqual(errors, "connector release version", bom.components?.connector?.version, authorities.connectorRelease.release.version);
   expectEqual(errors, "connector Mod version", authorities.connectorManifest.version, authorities.connectorRelease.release.version);
   expectEqual(errors, "Player Environment protocol", bom.components?.player_environment_protocol, authorities.connectorRelease.player_environment.protocol);
@@ -163,7 +199,164 @@ export function validatePlatformBom(bom, authorities) {
 
   const policyCandidate = bom.unified_platform_runtime_candidate;
   expectEqual(errors, "unified Platform candidate status", policyCandidate?.status,
-    "semantic_execution_order_exact_rebind_live_proved");
+    "native_semantic_discriminator_bounded_human_pass");
+  const discriminatorCandidate = policyCandidate?.native_semantic_discriminator_source_candidate;
+  expectEqual(errors, "native discriminator candidate status", discriminatorCandidate?.status,
+    "human_canary_bounded_semantic_lane_supported");
+  expectEqual(errors, "native discriminator workspace",
+    discriminatorCandidate?.workspace_revision_at_build,
+    NATIVE_SEMANTIC_DISCRIMINATOR.sourceRevision);
+  expectEqual(errors, "native discriminator Connector source",
+    discriminatorCandidate?.connector_source_revision,
+    NATIVE_SEMANTIC_DISCRIMINATOR.sourceRevision);
+  expectEqual(errors, "native discriminator Connector tree",
+    discriminatorCandidate?.connector_component_tree_revision,
+    NATIVE_SEMANTIC_DISCRIMINATOR.connectorTree);
+  expectEqual(errors, "native discriminator Connector digest",
+    discriminatorCandidate?.connector_component_source_digest_sha256,
+    NATIVE_SEMANTIC_DISCRIMINATOR.connectorDigest);
+  expectEqual(errors, "native discriminator Annotator source",
+    discriminatorCandidate?.annotator_source_revision,
+    NATIVE_SEMANTIC_DISCRIMINATOR.sourceRevision);
+  expectEqual(errors, "native discriminator Annotator tree",
+    discriminatorCandidate?.annotator_component_tree_revision,
+    NATIVE_SEMANTIC_DISCRIMINATOR.annotatorTree);
+  expectEqual(errors, "native discriminator Annotator digest",
+    discriminatorCandidate?.annotator_component_source_digest_sha256,
+    NATIVE_SEMANTIC_DISCRIMINATOR.annotatorDigest);
+  expectEqual(errors, "native discriminator artifact",
+    discriminatorCandidate?.artifact_sha256, NATIVE_SEMANTIC_DISCRIMINATOR.artifactSha);
+  expectEqual(errors, "native discriminator MVID",
+    discriminatorCandidate?.artifact_mvid, NATIVE_SEMANTIC_DISCRIMINATOR.artifactMvid);
+  expectEqual(errors, "native discriminator build", discriminatorCandidate?.built,
+    "pass_clean_source");
+  expectEqual(errors, "native discriminator install", discriminatorCandidate?.installed, "pass");
+  expectEqual(errors, "native discriminator load", discriminatorCandidate?.loaded, "pass");
+  expectEqual(errors, "native discriminator Human runtime",
+    discriminatorCandidate?.human_runtime, "pass_bounded_owner_canary");
+  expectEqual(errors, "native discriminator runtime",
+    discriminatorCandidate?.runtime_instance_id, NATIVE_SEMANTIC_DISCRIMINATOR.runtimeInstance);
+  expectEqual(errors, "native discriminator environment",
+    discriminatorCandidate?.environment_fingerprint, NATIVE_SEMANTIC_DISCRIMINATOR.environment);
+  expectEqual(errors, "native discriminator Modset status",
+    discriminatorCandidate?.modset_status, "exact_platform_modset");
+  expectEqual(errors, "native discriminator Modset",
+    discriminatorCandidate?.modset_fingerprint, NATIVE_SEMANTIC_DISCRIMINATOR.modset);
+  if (!Array.isArray(discriminatorCandidate?.loaded_mod_ids)
+    || discriminatorCandidate.loaded_mod_ids.length !== 1
+    || discriminatorCandidate.loaded_mod_ids[0] !== "STS2_PLATFORM")
+    errors.push("native discriminator loaded Mods: expected only STS2_PLATFORM");
+  expectEqual(errors, "native discriminator runtime status",
+    discriminatorCandidate?.runtime_status, "recording_closed_process_exited");
+  const discriminatorHuman = discriminatorCandidate?.owner_canary;
+  expectEqual(errors, "native discriminator Human session", discriminatorHuman?.session_id,
+    NATIVE_SEMANTIC_DISCRIMINATOR.sessionId);
+  expectEqual(errors, "native discriminator Human timeline", discriminatorHuman?.timeline_id,
+    NATIVE_SEMANTIC_DISCRIMINATOR.timelineId);
+  expectEqual(errors, "native discriminator Human origin", discriminatorHuman?.human_origin,
+    "owner_attested_not_machine_proven");
+  expectEqual(errors, "native discriminator Human audit", discriminatorHuman?.audit_status,
+    "pass_after_audit_aggregation_fix");
+  expectEqual(errors, "native discriminator audit source",
+    discriminatorHuman?.audit_closeout_source_revision,
+    bom.components?.annotator?.source_revision);
+  for (const field of [
+    "manifest_sha256",
+    "decision_v2_sha256",
+    "native_ledger_sha256",
+    "native_semantic_discriminator_sha256"
+  ]) expectPattern(errors, `native discriminator Human ${field}`, discriminatorHuman?.[field], SHA256);
+  for (const [field, expected] of Object.entries({
+    valid_decision_v2: 40,
+    invalid_decision_v2: 0,
+    native_accepted: 41,
+    native_successful: 41,
+    native_cancelled: 0,
+    native_aborted: 0,
+    native_unknown: 0,
+    semantic_exact_once_membership: 41,
+    play_card: 30,
+    end_turn: 10,
+    use_potion: 1,
+    player_choice_pauses: 2,
+    player_choice_resumes: 2,
+    ordinary_execution_handoff_candidates: 40,
+    overlapping_acceptance: 0,
+    ui_frame_not_authoritative_at_execution: 34,
+    ui_complete_catalog_zero_membership: 7,
+    legacy_strict_transition_admitted: 40,
+    legacy_strict_transition_invalidated_on_close: 1
+  })) expectEqual(errors, `native discriminator Human ${field}`, discriminatorHuman?.[field], expected);
+  expectEqual(errors, "native discriminator route verdict", discriminatorHuman?.route_verdict,
+    "FEASIBLE_FULL_RUN_NATIVE_SEMANTIC_RECORDER_EXISTS");
+  expectEqual(errors, "native discriminator predecessor transfer",
+    discriminatorCandidate?.evidence_transfer_from_predecessor, false);
+  expectPattern(errors, "native discriminator rollback", discriminatorCandidate?.rollback,
+    /^apps\/game-mod\/\.local\/deployments\/[0-9TZ.:-]+$/u);
+  const serializedCandidate = policyCandidate?.serialized_canonical_loaded_candidate;
+  expectEqual(errors, "serialized candidate status", serializedCandidate?.status,
+    "loaded_pending_owner_human_canary");
+  expectPattern(errors, "serialized candidate workspace", serializedCandidate?.workspace_revision_at_build,
+    COMMIT);
+  expectPattern(errors, "serialized candidate Platform source", serializedCandidate?.platform_source_revision,
+    COMMIT);
+  expectPattern(errors, "serialized candidate Platform digest",
+    serializedCandidate?.platform_source_digest_sha256, SHA256);
+  expectPattern(errors, "serialized candidate Connector source",
+    serializedCandidate?.connector_source_revision, COMMIT);
+  expectPattern(errors, "serialized candidate Connector digest",
+    serializedCandidate?.connector_source_digest_sha256, SHA256);
+  expectPattern(errors, "serialized candidate Annotator source",
+    serializedCandidate?.annotator_source_revision, COMMIT);
+  expectPattern(errors, "serialized candidate Annotator digest",
+    serializedCandidate?.annotator_source_digest_sha256, SHA256);
+  expectPattern(errors, "serialized candidate artifact", serializedCandidate?.artifact_sha256, SHA256);
+  expectPattern(errors, "serialized candidate MVID", serializedCandidate?.artifact_mvid, MVID);
+  expectEqual(errors, "serialized candidate protocol", serializedCandidate?.player_environment_protocol,
+    "1.0.0");
+  expectPattern(errors, "serialized candidate runtime", serializedCandidate?.runtime_instance_id,
+    /^[0-9a-f]{32}$/u);
+  expectPattern(errors, "serialized candidate environment", serializedCandidate?.environment_fingerprint,
+    SHA256);
+  expectEqual(errors, "serialized candidate Modset status", serializedCandidate?.modset_status,
+    "exact_platform_modset");
+  expectPattern(errors, "serialized candidate Modset", serializedCandidate?.modset_fingerprint, SHA256);
+  if (!Array.isArray(serializedCandidate?.loaded_mod_ids)
+    || serializedCandidate.loaded_mod_ids.length !== 1
+    || serializedCandidate.loaded_mod_ids[0] !== "STS2_PLATFORM")
+    errors.push("serialized candidate loaded Mods: expected only STS2_PLATFORM");
+  for (const level of ["built", "installed", "loaded"])
+    expectEqual(errors, `serialized candidate ${level}`, serializedCandidate?.[level], "pass");
+  expectEqual(errors, "serialized candidate installed identity",
+    serializedCandidate?.installed_identity, "verified_unified_platform_sidecar");
+  expectEqual(errors, "serialized candidate runtime status", serializedCandidate?.runtime_status,
+    "ready_no_session");
+  expectEqual(errors, "serialized candidate Human runtime", serializedCandidate?.human_runtime,
+    "not_exercised");
+  expectEqual(errors, "serialized candidate canonical stream", serializedCandidate?.canonical_stream,
+    "not_exercised");
+  expectEqual(errors, "serialized candidate after latency", serializedCandidate?.after_latency,
+    "not_measured");
+  const serializedHost = serializedCandidate?.host_automation;
+  expectEqual(errors, "serialized candidate isolated Host bootstrap",
+    serializedHost?.isolated_profile_bootstrap, "pass_shared_profile_unchanged");
+  expectEqual(errors, "serialized candidate same-artifact prefix",
+    serializedHost?.same_artifact_prefix_9, "semantic_match");
+  expectEqual(errors, "serialized candidate same-artifact rapid trajectory",
+    serializedHost?.same_artifact_rapid_12, "semantic_mismatch_native_effect_timing");
+  expectEqual(errors, "serialized candidate Managed actions", serializedHost?.managed_exact_actions, 80);
+  expectEqual(errors, "serialized candidate Managed reads", serializedHost?.managed_exact_reads, 158);
+  expectEqual(errors, "serialized candidate Managed authority gates",
+    serializedHost?.managed_exact_reset_stale_idempotency, "pass");
+  if (!(serializedHost?.managed_exact_qualification_decisions_per_second > 0))
+    errors.push("serialized candidate Managed performance: expected positive measured throughput");
+  expectEqual(errors, "serialized candidate cross-Host rapid trajectory",
+    serializedHost?.cross_host_rapid_prefix,
+    "semantic_mismatch_reference_pre_effect_vs_managed_post_effect");
+  expectEqual(errors, "serialized candidate predecessor transfer",
+    serializedCandidate?.evidence_transfer_from_predecessor, false);
+  expectPattern(errors, "serialized candidate rollback", serializedCandidate?.rollback,
+    /^apps\/game-mod\/\.local\/deployments\/[0-9TZ.:-]+$/u);
   expectEqual(errors, "candidate STPD source", policyCandidate?.external_policy?.stpd_source_revision,
     bom.external_consumer_cutovers?.stpd);
   expectEqual(errors, "candidate policy checkpoint", policyCandidate?.external_policy?.checkpoint_status,
@@ -188,14 +381,14 @@ export function validatePlatformBom(bom, authorities) {
     policyCandidate?.connector?.current_component_source_digest_sha256,
     bom.components?.connector?.component_source_digest_sha256);
   expectEqual(errors, "candidate Connector source relation", policyCandidate?.connector?.source_relation,
-    "loaded_native_source_scope_matches_current_component");
+    "loaded_native_source_precedes_current_discriminator_source");
   expectEqual(errors, "candidate Annotator source relation", policyCandidate?.annotator?.source_relation,
-    "loaded_native_source_precedes_current_semantic_timeline_source");
+    "loaded_native_source_precedes_current_audit_closeout_source");
   const semanticTimeline = policyCandidate?.semantic_timeline_source_candidate;
   expectEqual(errors, "semantic timeline source status", semanticTimeline?.status,
     "human_canary_bounded_live_proved");
-  expectEqual(errors, "semantic timeline current Annotator source",
-    semanticTimeline?.annotator_source_revision, bom.components?.annotator?.source_revision);
+  expectPattern(errors, "semantic timeline proved Annotator source",
+    semanticTimeline?.annotator_source_revision, COMMIT);
   expectEqual(errors, "semantic timeline trace schema", semanticTimeline?.trace_schema,
     "sts2.human-annotator/semantic-boundary-trace-event-2");
   expectPattern(errors, "semantic timeline workspace at build",
@@ -280,6 +473,165 @@ export function validatePlatformBom(bom, authorities) {
     /^apps\/game-mod\/\.local\/deployments\//u);
   if (semanticTimeline?.artifact_sha256 === policyCandidate?.annotator?.artifact_sha256)
     errors.push("Semantic timeline source candidate must not reuse predecessor artifact identity");
+  const fullRun = policyCandidate?.full_run_semantic_source_candidate;
+  expectEqual(errors, "Full-Run source status", fullRun?.status,
+    "semantic_evidence_schema3_bounded_human_pass");
+  expectPattern(errors, "Full-Run build Annotator source",
+    fullRun?.annotator_source_revision, COMMIT);
+  expectEqual(errors, "Full-Run current Annotator source",
+    fullRun?.annotator_source_revision, LOADED_SCHEMA3_ANNOTATOR.sourceRevision);
+  expectEqual(errors, "Full-Run current Annotator component tree",
+    fullRun?.annotator_component_tree_revision, LOADED_SCHEMA3_ANNOTATOR.componentTreeRevision);
+  expectPattern(errors, "Full-Run build Annotator component digest",
+    fullRun?.annotator_component_source_digest_sha256, SHA256);
+  expectEqual(errors, "Full-Run current Annotator component digest",
+    fullRun?.annotator_component_source_digest_sha256,
+    LOADED_SCHEMA3_ANNOTATOR.componentSourceDigest);
+  expectEqual(errors, "Full-Run build Annotator provenance",
+    fullRun?.annotator_build_source_digest_sha256, LOADED_SCHEMA3_ANNOTATOR.buildSourceDigest);
+  expectEqual(errors, "Full-Run workspace at build",
+    fullRun?.workspace_revision_at_build, LOADED_SCHEMA3_ANNOTATOR.workspaceRevisionAtBuild);
+  expectPattern(errors, "Full-Run build source digest",
+    fullRun?.annotator_build_source_digest_sha256, SHA256);
+  expectEqual(errors, "Full-Run trace schema", fullRun?.trace_schema,
+    "sts2.human-annotator/semantic-evidence-event-3");
+  expectPattern(errors, "Full-Run workspace at build",
+    fullRun?.workspace_revision_at_build, COMMIT);
+  expectPattern(errors, "Full-Run artifact", fullRun?.artifact_sha256, SHA256);
+  expectEqual(errors, "Full-Run current artifact", fullRun?.artifact_sha256,
+    LOADED_SCHEMA3_ANNOTATOR.artifactSha);
+  expectPattern(errors, "Full-Run MVID", fullRun?.artifact_mvid, MVID);
+  expectEqual(errors, "Full-Run current MVID", fullRun?.artifact_mvid,
+    LOADED_SCHEMA3_ANNOTATOR.artifactMvid);
+  expectEqual(errors, "Full-Run protocol", fullRun?.player_environment_protocol,
+    bom.components?.player_environment_protocol);
+  expectEqual(errors, "Full-Run slices", JSON.stringify(fullRun?.implemented_slices),
+    JSON.stringify([
+      "lethal_combat_to_reward",
+      "reward_claim",
+      "reward_proceed",
+      "card_reward_select",
+      "map_travel",
+      "combat_hand_select",
+      "combat_hand_deselect",
+      "combat_hand_confirm",
+      "potion_use_target_cancel"
+    ]));
+  expectEqual(errors, "Full-Run tests", fullRun?.annotator_core_tests, 82);
+  expectEqual(errors, "Full-Run build", fullRun?.built, "pass");
+  expectEqual(errors, "Full-Run install", fullRun?.installed, "pass");
+  expectEqual(errors, "Full-Run loaded", fullRun?.loaded, "pass");
+  expectEqual(errors, "Full-Run Human runtime", fullRun?.human_runtime,
+    "pass_bounded_schema3");
+  expectPattern(errors, "Full-Run runtime", fullRun?.runtime_instance_id,
+    /^[0-9a-f]{32}$/u);
+  expectEqual(errors, "Full-Run current runtime", fullRun?.runtime_instance_id,
+    LOADED_SCHEMA3_ANNOTATOR.runtimeInstance);
+  expectPattern(errors, "Full-Run environment", fullRun?.environment_fingerprint, SHA256);
+  expectEqual(errors, "Full-Run Modset status", fullRun?.modset_status,
+    "exact_platform_modset");
+  expectPattern(errors, "Full-Run Modset", fullRun?.modset_fingerprint, SHA256);
+  expectEqual(errors, "Full-Run current environment", fullRun?.environment_fingerprint,
+    LOADED_SCHEMA3_ANNOTATOR.environment);
+  expectEqual(errors, "Full-Run current Modset", fullRun?.modset_fingerprint,
+    LOADED_SCHEMA3_ANNOTATOR.modset);
+  expectEqual(errors, "Full-Run loaded Mods", JSON.stringify(fullRun?.loaded_mod_ids),
+    JSON.stringify(["STS2_PLATFORM"]));
+  const schema3Canary = fullRun?.owner_canary;
+  expectEqual(errors, "schema-3 owner session", schema3Canary?.session_id,
+    "session-20260829T052157Z-e549d3601e7640f997b6f475180b2dfe");
+  expectEqual(errors, "schema-3 owner timeline", schema3Canary?.timeline_id,
+    "timeline-53a417ad759941c99a6ba9e138115453");
+  expectEqual(errors, "schema-3 owner audit", schema3Canary?.audit_status, "pass");
+  expectEqual(errors, "schema-3 owner origin", schema3Canary?.human_origin,
+    "owner_attested_not_machine_proven");
+  expectEqual(errors, "schema-3 Decision V2 valid", schema3Canary?.decision_v2_valid, 188);
+  expectEqual(errors, "schema-3 Decision V2 invalid", schema3Canary?.decision_v2_invalid, 0);
+  expectEqual(errors, "schema-3 accepted", schema3Canary?.semantic_accepted, 333);
+  expectEqual(errors, "schema-3 started", schema3Canary?.semantic_started, 333);
+  expectEqual(errors, "schema-3 finished", schema3Canary?.semantic_finished, 333);
+  expectEqual(errors, "schema-3 proved", schema3Canary?.semantic_proved, 333);
+  expectEqual(errors, "schema-3 unknown", schema3Canary?.semantic_unknown, 0);
+  expectEqual(errors, "schema-3 cancelled", schema3Canary?.semantic_cancelled, 0);
+  expectEqual(errors, "schema-3 aborted", schema3Canary?.semantic_aborted, 0);
+  expectEqual(errors, "schema-3 unresolved", schema3Canary?.semantic_unresolved, 0);
+  expectEqual(errors, "schema-3 performance profile", schema3Canary?.performance_profile,
+    "not_present_in_loaded_artifact");
+  const fullRunCanary = fullRun?.prior_full_run_canary;
+  expectEqual(errors, "Full-Run owner audit", fullRunCanary?.audit_status, "pass");
+  expectEqual(errors, "Full-Run owner origin", fullRunCanary?.human_origin,
+    "owner_attested_not_machine_proven");
+  expectEqual(errors, "Full-Run accepted", fullRunCanary?.semantic_accepted, 250);
+  expectEqual(errors, "Full-Run proved", fullRunCanary?.semantic_proved, 248);
+  expectEqual(errors, "Full-Run cancelled", fullRunCanary?.semantic_cancelled_before_start, 2);
+  expectEqual(errors, "Full-Run unknown", fullRunCanary?.semantic_unknown, 0);
+  expectEqual(errors, "Full-Run unresolved", fullRunCanary?.semantic_unresolved, 0);
+  expectEqual(errors, "Full-Run native accounting", fullRunCanary?.native_accounting, "pass");
+  const subsequent = fullRun?.potion_owner_canary;
+  expectEqual(errors, "Full-Run potion canary source", subsequent?.annotator_source_revision,
+    POTION_OWNER_CANARY.sourceRevision);
+  expectEqual(errors, "Full-Run potion canary digest",
+    subsequent?.annotator_component_source_digest_sha256,
+    POTION_OWNER_CANARY.componentSourceDigest);
+  expectEqual(errors, "Full-Run subsequent source/test", subsequent?.source_test_status, "pass");
+  expectEqual(errors, "Full-Run subsequent tests", subsequent?.annotator_core_tests, 80);
+  expectEqual(errors, "Full-Run subsequent slices", JSON.stringify(subsequent?.implemented_slices),
+    JSON.stringify(["potion_use_target_cancel"]));
+  for (const level of ["built", "installed", "loaded"])
+    expectEqual(errors, `Full-Run subsequent ${level}`, subsequent?.[level], "pass");
+  expectEqual(errors, "Full-Run potion canary artifact", subsequent?.artifact_sha256,
+    POTION_OWNER_CANARY.artifactSha);
+  expectEqual(errors, "Full-Run potion canary MVID", subsequent?.artifact_mvid,
+    POTION_OWNER_CANARY.artifactMvid);
+  expectEqual(errors, "Full-Run potion canary runtime", subsequent?.runtime_instance_id,
+    POTION_OWNER_CANARY.runtimeInstance);
+  expectEqual(errors, "Full-Run potion canary environment", subsequent?.environment_fingerprint,
+    POTION_OWNER_CANARY.environment);
+  expectEqual(errors, "Full-Run potion canary Modset status", subsequent?.modset_status,
+    "exact_platform_modset");
+  expectEqual(errors, "Full-Run potion canary Modset", subsequent?.modset_fingerprint,
+    POTION_OWNER_CANARY.modset);
+  expectEqual(errors, "Full-Run potion canary rollback", subsequent?.rollback,
+    POTION_OWNER_CANARY.rollback);
+  expectEqual(errors, "Full-Run potion canary Human", subsequent?.human_runtime,
+    "pass_overall_accounting_potion_gate_failed");
+  const potionCanary = subsequent?.owner_canary;
+  expectEqual(errors, "Full-Run potion canary audit", potionCanary?.audit_status, "pass");
+  expectEqual(errors, "Full-Run potion canary Human origin", potionCanary?.human_origin,
+    "owner_attested_not_machine_proven");
+  for (const [label, actual, expected] of [
+    ["Decision V2 valid", potionCanary?.decision_v2_valid, 219],
+    ["Decision V2 invalid", potionCanary?.decision_v2_invalid, 0],
+    ["legacy invalidations", potionCanary?.legacy_invalidations, 287],
+    ["Reads", potionCanary?.reads_materialized, 17954],
+    ["Read failures", potionCanary?.reads_failed, 0],
+    ["accepted", potionCanary?.semantic_accepted, 627],
+    ["proved", potionCanary?.semantic_proved, 625],
+    ["cancel before start", potionCanary?.semantic_cancelled_before_start, 1],
+    ["cancel after start unknown", potionCanary?.semantic_cancelled_after_start_unknown, 1],
+    ["unresolved", potionCanary?.semantic_unresolved, 0],
+    ["enemy-target potion proved", potionCanary?.potion_enemy_target_proved, 1],
+    ["self-target potion invalidations", potionCanary?.potion_self_target_mapping_invalidations, 3],
+    ["self-target potion unaccounted", potionCanary?.potion_self_target_unaccounted, 1]
+  ]) expectEqual(errors, `Full-Run potion canary ${label}`, actual, expected);
+  expectEqual(errors, "Full-Run potion target cancel",
+    potionCanary?.potion_target_picker_cancel, "not_exercised");
+  expectEqual(errors, "Full-Run potion canary evidence transfer",
+    subsequent?.evidence_transfer_from_repair_artifact, false);
+  expectEqual(errors, "Full-Run current evidence transfer from potion canary",
+    fullRun?.evidence_transfer_from_potion_owner_canary, false);
+  expectEqual(errors, "Full-Run predecessor evidence transfer",
+    fullRun?.evidence_transfer_from_schema2_predecessor, false);
+  expectEqual(errors, "Full-Run predecessor canary",
+    fullRun?.predecessor_owner_canary, "failed_semantic_accounting");
+  expectEqual(errors, "Full-Run predecessor missing semantic roots",
+    fullRun?.predecessor_missing_semantic_native_roots, 546);
+  expectPattern(errors, "Full-Run rollback", fullRun?.rollback,
+    /^apps\/game-mod\/\.local\/deployments\//u);
+  if (fullRun?.annotator_source_revision === semanticTimeline?.annotator_source_revision)
+    errors.push("Full-Run source candidate must not reuse the proved schema-2 source identity");
+  if (fullRun?.artifact_sha256 === semanticTimeline?.artifact_sha256)
+    errors.push("Full-Run source candidate must not reuse the proved schema-2 artifact identity");
   expectEqual(errors, "candidate Live UI source relation", policyCandidate?.live_ui?.source_relation,
     "loaded_native_source_scope_matches_current_component");
   expectEqual(errors, "candidate Connector protocol", policyCandidate?.connector?.protocol,
@@ -711,6 +1063,19 @@ export function validatePlatformBom(bom, authorities) {
     errors.push("Automated-input epistemic-boundary non-claim is missing");
   if (!bom.non_claims?.includes("s1_checkpoint_absent_shadow_one_step_auto_not_exercised"))
     errors.push("S1 checkpoint/model-mode non-claim is missing");
+  if (!bom.non_claims?.includes("serialized_canonical_candidate_human_runtime_not_exercised"))
+    errors.push("Serialized canonical Human-runtime non-claim is missing");
+  if (bom.non_claims?.includes("native_semantic_discriminator_human_runtime_pending"))
+    errors.push("Bounded Human-proved native discriminator retains a stale pending non-claim");
+  for (const value of [
+    "native_semantic_discriminator_overlapping_acceptance_not_exercised",
+    "native_semantic_discriminator_cancel_abort_not_exercised",
+    "native_semantic_discriminator_handoff_is_candidate_not_final_successor",
+    "native_semantic_discriminator_full_run_not_implemented"
+  ]) {
+    if (!bom.non_claims?.includes(value))
+      errors.push(`Native semantic discriminator non-claim is missing: ${value}`);
+  }
   return errors;
 }
 

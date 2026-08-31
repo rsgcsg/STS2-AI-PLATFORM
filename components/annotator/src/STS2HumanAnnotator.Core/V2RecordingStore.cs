@@ -9,10 +9,17 @@ public sealed class V2RecordingStore : IDisposable
     private static readonly Encoding Utf8NoBom = new UTF8Encoding(false);
     private readonly object _gate = new();
     private readonly Dictionary<string, FileStream> _decisionFiles = new(StringComparer.Ordinal);
+    private readonly Dictionary<FrozenDecisionFrameV2, SemanticFrameReference> _semanticFrames =
+        new(ReferenceEqualityComparer.Instance);
+    private readonly Dictionary<string, SemanticFrameReference> _semanticFramesByDigest =
+        new(StringComparer.Ordinal);
+    private readonly RecordingPerformanceProfiler _performance = new();
     private readonly FileStream _invalidations;
     private readonly FileStream _journal;
     private readonly FileStream _nativeActionLedger;
     private readonly FileStream _semanticBoundaryTrace;
+    private readonly FileStream _canonicalTransitions;
+    private readonly FileStream _nativeSemanticDiscriminator;
     private readonly Dictionary<string, long> _families = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _readsByKind = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _invalidationsByReason = new(StringComparer.Ordinal);
@@ -44,16 +51,27 @@ public sealed class V2RecordingStore : IDisposable
         WriteCreateNew(
             Path.Combine(directory, "capture-profile.json"),
             JsonSerializer.Serialize(captureProfile, EvidenceJson.IndentedOptions));
-        _invalidations = OpenAppend(Path.Combine(directory, "invalidations.jsonl"));
-        _journal = OpenAppend(Path.Combine(directory, "run-journal.jsonl"));
-        _nativeActionLedger = OpenAppend(Path.Combine(directory, "native-action-ledger.jsonl"));
-        _semanticBoundaryTrace = OpenAppend(Path.Combine(directory, "semantic-boundary-trace.jsonl"));
+        _invalidations = OpenBufferedAppend(Path.Combine(directory, "invalidations.jsonl"));
+        _journal = OpenBufferedAppend(Path.Combine(directory, "run-journal.jsonl"));
+        _nativeActionLedger = OpenBufferedAppend(Path.Combine(directory, "native-action-ledger.jsonl"));
+        _semanticBoundaryTrace = OpenBufferedAppend(
+            Path.Combine(directory, "semantic-boundary-trace.jsonl"));
+        _canonicalTransitions = OpenBufferedAppend(
+            Path.Combine(directory, "canonical-transitions.jsonl"));
+        _nativeSemanticDiscriminator = OpenBufferedAppend(
+            Path.Combine(directory, "native-semantic-discriminator.jsonl"));
         WriteCoverage();
     }
 
     public string DirectoryPath { get; }
     public RecordingManifestV2 Manifest { get; }
     public HumanCaptureProfile CaptureProfile { get; }
+
+    public T Measure<T>(string phase, Func<T> operation) =>
+        _performance.Measure(phase, operation);
+
+    public void Measure(string phase, Action operation) =>
+        _performance.Measure(phase, operation);
 
     public RecordingStoreSnapshot GetSnapshot()
     {
@@ -102,7 +120,13 @@ public sealed class V2RecordingStore : IDisposable
         EnsureOpen();
         try
         {
-            return PersistReadCore(capture);
+            ReadEvidence? result = null;
+            ExecuteWrite(() =>
+            {
+                result = PersistReadCore(capture);
+                RecordReadUnsafe(capture.Kind, capture.Status == "materialized");
+            });
+            return result!;
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
         {
@@ -116,7 +140,6 @@ public sealed class V2RecordingStore : IDisposable
         string evidenceId = $"read-{Guid.NewGuid():N}";
         if (capture.Status != "materialized")
         {
-            RecordRead(capture.Kind, materialized: false);
             return new ReadEvidence(
                 HumanRecorderV2Contract.SchemaVersion,
                 HumanRecorderV2Contract.ReadEvidenceSchema,
@@ -138,23 +161,31 @@ public sealed class V2RecordingStore : IDisposable
         if (capture.Content == null || capture.Completeness == null
             || string.IsNullOrWhiteSpace(capture.ContentSchema))
             throw new InvalidDataException("A materialized Read requires content, schema and completeness.");
-        byte[] payload = Encoding.UTF8.GetBytes(EvidenceCanonicalJson.Serialize(capture.Content) + "\n");
-        string digest = EvidenceIdentity.Sha256Bytes(payload);
+        (byte[] payload, string digest) = _performance.Measure(
+            "read_serialize_hash",
+            () =>
+            {
+                byte[] encoded = Encoding.UTF8.GetBytes(
+                    EvidenceCanonicalJson.Serialize(capture.Content) + "\n");
+                return (encoded, EvidenceIdentity.Sha256Bytes(encoded));
+            });
         string relative = $"blobs/sha256/{digest[..2]}/{digest}.json";
         string destination = ResolveRelative(relative);
-        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-        if (File.Exists(destination))
+        _performance.Measure("read_blob_verify_or_write", () =>
         {
-            if (EvidenceIdentity.Sha256File(destination) != digest)
-                throw new IOException("Content-addressed Read blob collision.");
-        }
-        else
-        {
-            string temporary = destination + $".tmp-{Guid.NewGuid():N}";
-            File.WriteAllBytes(temporary, payload);
-            File.Move(temporary, destination);
-        }
-        RecordRead(capture.Kind, materialized: true);
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            if (File.Exists(destination))
+            {
+                if (EvidenceIdentity.Sha256File(destination) != digest)
+                    throw new IOException("Content-addressed Read blob collision.");
+            }
+            else
+            {
+                string temporary = destination + $".tmp-{Guid.NewGuid():N}";
+                File.WriteAllBytes(temporary, payload);
+                File.Move(temporary, destination);
+            }
+        });
         return new ReadEvidence(
             HumanRecorderV2Contract.SchemaVersion,
             HumanRecorderV2Contract.ReadEvidenceSchema,
@@ -174,6 +205,80 @@ public sealed class V2RecordingStore : IDisposable
             capture.Detail);
     }
 
+    public IReadOnlyList<ReadEvidence> PersistReads(IReadOnlyList<CapturedReadPayload> captures)
+    {
+        if (captures.Count == 0)
+            return Array.Empty<ReadEvidence>();
+        EnsureOpen();
+        try
+        {
+            var result = new List<ReadEvidence>(captures.Count);
+            ExecuteWrite(() =>
+            {
+                foreach (CapturedReadPayload capture in captures)
+                {
+                    result.Add(PersistReadCore(capture));
+                    RecordReadUnsafe(capture.Kind, capture.Status == "materialized");
+                }
+            });
+            return result;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            MarkWriteFailure(exception);
+            throw;
+        }
+    }
+
+    public SemanticFrameReference PersistSemanticFrame(FrozenDecisionFrameV2 frame)
+    {
+        EnsureOpen();
+        SemanticFrameReference? result = null;
+        ExecuteWrite(() =>
+        {
+            if (_semanticFrames.TryGetValue(frame, out result))
+                return;
+            byte[] payload = _performance.Measure(
+                "semantic_frame_serialize",
+                () =>
+                {
+                    JsonNode node = JsonSerializer.SerializeToNode(frame, EvidenceJson.Options)
+                        ?? throw new InvalidDataException(
+                            "Semantic frame serialization returned null.");
+                    return Encoding.UTF8.GetBytes(EvidenceCanonicalJson.Serialize(node));
+                });
+            string digest = _performance.Measure(
+                "semantic_frame_hash",
+                () => EvidenceIdentity.Sha256Bytes(payload));
+            if (_semanticFramesByDigest.TryGetValue(digest, out result))
+            {
+                _semanticFrames.Add(frame, result);
+                return;
+            }
+            string relative = $"semantic-frames/sha256/{digest[..2]}/{digest}.json";
+            string destination = ResolveRelative(relative);
+            _performance.Measure("semantic_frame_verify_or_write", () =>
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                if (File.Exists(destination))
+                {
+                    if (EvidenceIdentity.Sha256File(destination) != digest)
+                        throw new IOException("Content-addressed semantic frame collision.");
+                }
+                else
+                {
+                    string temporary = destination + $".tmp-{Guid.NewGuid():N}";
+                    File.WriteAllBytes(temporary, payload);
+                    File.Move(temporary, destination);
+                }
+            });
+            result = new SemanticFrameReference(frame.SnapshotId, digest, relative);
+            _semanticFrames.Add(frame, result);
+            _semanticFramesByDigest.Add(digest, result);
+        });
+        return result!;
+    }
+
     public void AppendDecision(HumanDecisionRecordV2 record)
     {
         EnsureOpen();
@@ -183,10 +288,14 @@ public sealed class V2RecordingStore : IDisposable
         if (!validation.Valid || !profileValidation.Valid)
             throw new InvalidDataException(
                 $"V2 decision record failed validation: {string.Join(',', validation.Errors.Concat(profileValidation.Errors))}");
-        VerifyReadBlobs(record.Pre.Reads.Concat(record.Successor.Reads));
+        _performance.Measure(
+            "decision_read_blob_verify",
+            () => VerifyReadBlobs(record.Pre.Reads.Concat(record.Successor.Reads)));
         ExecuteWrite(() =>
         {
-            AppendLine(DecisionFile(record.RunId), record);
+            _performance.Measure(
+                "decision_append_buffered",
+                () => AppendBufferedLine(DecisionFile(record.RunId), record));
             _admittedCount++;
             _families[record.DecisionFamily] = _families.GetValueOrDefault(record.DecisionFamily) + 1;
             string actionFamily = HumanCaptureProfileValidator.ResolveActionFamily(
@@ -199,7 +308,6 @@ public sealed class V2RecordingStore : IDisposable
                 record.Action.Verb,
                 record.RecordedAt,
                 record.DecisionFamily);
-            WriteCoverage();
         });
     }
 
@@ -213,7 +321,8 @@ public sealed class V2RecordingStore : IDisposable
             || string.IsNullOrWhiteSpace(value.Kind))
             throw new InvalidDataException("Run journal event is invalid for this recording.");
         EnsureOpen();
-        ExecuteWrite(() => AppendLine(_journal, value));
+        ExecuteWrite(() =>
+            _performance.Measure("journal_append_buffered", () => AppendBufferedLine(_journal, value)));
     }
 
     public void AppendNativeActionEvent(NativeActionLedgerEvent value)
@@ -230,21 +339,87 @@ public sealed class V2RecordingStore : IDisposable
             || string.IsNullOrWhiteSpace(value.NativeActionType))
             throw new InvalidDataException("Native action ledger event is invalid for this recording.");
         EnsureOpen();
-        ExecuteWrite(() => AppendLine(_nativeActionLedger, value));
+        ExecuteWrite(() =>
+            _performance.Measure(
+                "native_ledger_append_buffered",
+                () => AppendBufferedLine(_nativeActionLedger, value)));
     }
 
-    public void AppendSemanticBoundaryEvent(SemanticBoundaryTraceEvent value)
+    public void AppendSemanticBoundaryEvent(SemanticBoundaryTraceEvent value) =>
+        AppendSemanticBoundaryEvents(new[] { value });
+
+    public void AppendSemanticBoundaryEvents(
+        IReadOnlyList<SemanticBoundaryTraceEvent> values)
     {
-        if (!SemanticBoundaryTraceContract.IsSupported(value.SchemaVersion, value.Schema)
+        foreach (SemanticBoundaryTraceEvent value in values)
+            ValidateSemanticBoundaryEvent(value);
+        if (values.Count == 0)
+            return;
+        EnsureOpen();
+        ExecuteWrite(() =>
+        {
+            _performance.Measure("semantic_event_append_buffered", () =>
+            {
+                foreach (SemanticBoundaryTraceEvent value in values)
+                    AppendLine(_semanticBoundaryTrace, value, flushToDisk: false);
+                _semanticBoundaryTrace.Flush();
+            });
+        });
+    }
+
+    public void AppendSemanticEvidenceEvents(IReadOnlyList<SemanticEvidenceEvent> values)
+    {
+        foreach (SemanticEvidenceEvent value in values)
+            ValidateSemanticEvidenceEvent(value);
+        if (values.Count == 0)
+            return;
+        EnsureOpen();
+        ExecuteWrite(() =>
+        {
+            _performance.Measure("semantic_event_append_buffered", () =>
+            {
+                foreach (SemanticEvidenceEvent value in values)
+                    AppendLine(_semanticBoundaryTrace, value, flushToDisk: false);
+                _semanticBoundaryTrace.Flush();
+            });
+        });
+    }
+
+    public void AppendCanonicalTransition(CanonicalTransitionEvidence value)
+    {
+        IReadOnlyList<string> errors = CanonicalTransitionEvidenceValidator.Validate(value);
+        if (errors.Count > 0
+            || value.SessionId != Manifest.SessionId
+            || value.TimelineId != Manifest.TimelineId)
+        {
+            throw new InvalidDataException(
+                $"Canonical transition evidence is invalid: {string.Join(',', errors)}");
+        }
+        EnsureOpen();
+        ExecuteWrite(() =>
+            _performance.Measure(
+                "canonical_transition_append_buffered",
+                () => AppendBufferedLine(_canonicalTransitions, value)));
+    }
+
+    public void AppendNativeSemanticDiscriminatorEvent(
+        NativeSemanticDiscriminatorEvent value)
+    {
+        if (value.SchemaVersion != NativeSemanticDiscriminatorContract.SchemaVersion
+            || value.Schema != NativeSemanticDiscriminatorContract.EventSchema
             || value.SessionId != Manifest.SessionId
             || value.TimelineId != Manifest.TimelineId
             || value.Sequence <= 0
             || string.IsNullOrWhiteSpace(value.EventId)
-            || string.IsNullOrWhiteSpace(value.Kind)
-            || string.IsNullOrWhiteSpace(value.Action.ActionWitnessId))
-            throw new InvalidDataException("Semantic boundary trace event is invalid for this recording.");
+            || string.IsNullOrWhiteSpace(value.Phase)
+            || string.IsNullOrWhiteSpace(value.ActionWitnessId)
+            || string.IsNullOrWhiteSpace(value.NativeActionType))
+            throw new InvalidDataException("Native semantic discriminator event is invalid.");
         EnsureOpen();
-        ExecuteWrite(() => AppendLine(_semanticBoundaryTrace, value));
+        ExecuteWrite(() =>
+            _performance.Measure(
+                "native_semantic_discriminator_append_buffered",
+                () => AppendBufferedLine(_nativeSemanticDiscriminator, value)));
     }
 
     public void AppendInvalidation(InvalidationRecord invalidation)
@@ -252,7 +427,9 @@ public sealed class V2RecordingStore : IDisposable
         EnsureOpen();
         ExecuteWrite(() =>
         {
-            AppendLine(_invalidations, invalidation);
+            _performance.Measure(
+                "invalidation_append_buffered",
+                () => AppendBufferedLine(_invalidations, invalidation));
             _invalidationCount++;
             _invalidationsByReason[invalidation.ReasonCode] =
                 _invalidationsByReason.GetValueOrDefault(invalidation.ReasonCode) + 1;
@@ -266,7 +443,6 @@ public sealed class V2RecordingStore : IDisposable
                 invalidation.ReasonCode,
                 invalidation.RecordedAt,
                 invalidation.Detail);
-            WriteCoverage();
         });
     }
 
@@ -279,28 +455,43 @@ public sealed class V2RecordingStore : IDisposable
         {
             if (_closed)
                 return;
+            WriteCoverage();
+            _performance.Measure("close_evidence_durable_flush", () =>
+            {
+                foreach (FileStream stream in _decisionFiles.Values)
+                    stream.Flush(flushToDisk: true);
+                _invalidations.Flush(flushToDisk: true);
+                _journal.Flush(flushToDisk: true);
+                _nativeActionLedger.Flush(flushToDisk: true);
+                _semanticBoundaryTrace.Flush(flushToDisk: true);
+                _canonicalTransitions.Flush(flushToDisk: true);
+                _nativeSemanticDiscriminator.Flush(flushToDisk: true);
+            });
             foreach (FileStream stream in _decisionFiles.Values)
                 stream.Dispose();
             _invalidations.Dispose();
             _journal.Dispose();
             _nativeActionLedger.Dispose();
             _semanticBoundaryTrace.Dispose();
+            _canonicalTransitions.Dispose();
+            _nativeSemanticDiscriminator.Dispose();
+            WriteAtomic(
+                Path.Combine(DirectoryPath, "performance-profile.json"),
+                JsonSerializer.Serialize(
+                    _performance.Snapshot(Manifest.SessionId),
+                    EvidenceJson.IndentedOptions));
             _closed = true;
             _appendHealth = "closed";
         }
     }
 
-    private void RecordRead(string kind, bool materialized)
+    private void RecordReadUnsafe(string kind, bool materialized)
     {
-        ExecuteWrite(() =>
-        {
-            if (materialized)
-                _readMaterialized++;
-            else
-                _readFailed++;
-            _readsByKind[kind] = _readsByKind.GetValueOrDefault(kind) + 1;
-            WriteCoverage();
-        });
+        if (materialized)
+            _readMaterialized++;
+        else
+            _readFailed++;
+        _readsByKind[kind] = _readsByKind.GetValueOrDefault(kind) + 1;
     }
 
     private void EnsureOpen()
@@ -379,9 +570,10 @@ public sealed class V2RecordingStore : IDisposable
             new Dictionary<string, long>(_readsByKind, StringComparer.Ordinal),
             new Dictionary<string, long>(_invalidationsByReason, StringComparer.Ordinal),
             DateTimeOffset.UtcNow);
-        WriteAtomic(
-            Path.Combine(DirectoryPath, "coverage.json"),
-            JsonSerializer.Serialize(coverage, EvidenceJson.IndentedOptions));
+        _performance.Measure("coverage_write", () =>
+            WriteAtomic(
+                Path.Combine(DirectoryPath, "coverage.json"),
+                JsonSerializer.Serialize(coverage, EvidenceJson.IndentedOptions)));
     }
 
     private FileStream DecisionFile(string runId)
@@ -389,7 +581,7 @@ public sealed class V2RecordingStore : IDisposable
         string safe = SafeId(runId, nameof(runId));
         if (!_decisionFiles.TryGetValue(safe, out FileStream? stream))
         {
-            stream = OpenAppend(Path.Combine(DirectoryPath, $"{safe}.jsonl"));
+            stream = OpenBufferedAppend(Path.Combine(DirectoryPath, $"{safe}.jsonl"));
             _decisionFiles.Add(safe, stream);
         }
         return stream;
@@ -400,20 +592,55 @@ public sealed class V2RecordingStore : IDisposable
             ? value
             : throw new InvalidDataException($"{name} contains unsafe path characters.");
 
-    private static FileStream OpenAppend(string path) => new(
+    private static FileStream OpenBufferedAppend(string path) => new(
         path,
         FileMode.Append,
         FileAccess.Write,
         FileShare.Read,
-        4096,
-        FileOptions.WriteThrough);
+        64 * 1024,
+        FileOptions.SequentialScan);
 
-    private static void AppendLine<T>(FileStream stream, T value)
+    private static void AppendLine<T>(
+        FileStream stream,
+        T value,
+        bool flushToDisk = true)
     {
         byte[] json = JsonSerializer.SerializeToUtf8Bytes(value, EvidenceJson.Options);
         stream.Write(json);
         stream.WriteByte((byte)'\n');
-        stream.Flush(true);
+        if (flushToDisk)
+            stream.Flush(flushToDisk: true);
+    }
+
+    private static void AppendBufferedLine<T>(FileStream stream, T value)
+    {
+        AppendLine(stream, value, flushToDisk: false);
+        stream.Flush();
+    }
+
+    private void ValidateSemanticBoundaryEvent(SemanticBoundaryTraceEvent value)
+    {
+        if (!SemanticBoundaryTraceContract.IsSupported(value.SchemaVersion, value.Schema)
+            || value.SessionId != Manifest.SessionId
+            || value.TimelineId != Manifest.TimelineId
+            || value.Sequence <= 0
+            || string.IsNullOrWhiteSpace(value.EventId)
+            || string.IsNullOrWhiteSpace(value.Kind)
+            || string.IsNullOrWhiteSpace(value.Action.ActionWitnessId))
+            throw new InvalidDataException("Semantic boundary trace event is invalid for this recording.");
+    }
+
+    private void ValidateSemanticEvidenceEvent(SemanticEvidenceEvent value)
+    {
+        if (value.SchemaVersion != SemanticEvidenceContract.SchemaVersion
+            || value.Schema != SemanticEvidenceContract.EventSchema
+            || value.SessionId != Manifest.SessionId
+            || value.TimelineId != Manifest.TimelineId
+            || value.Sequence <= 0
+            || string.IsNullOrWhiteSpace(value.EventId)
+            || string.IsNullOrWhiteSpace(value.Kind)
+            || string.IsNullOrWhiteSpace(value.Action.ActionWitnessId))
+            throw new InvalidDataException("Semantic evidence event is invalid for this recording.");
     }
 
     private static void WriteCreateNew(string path, string content)

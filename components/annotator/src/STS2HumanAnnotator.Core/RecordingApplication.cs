@@ -137,47 +137,6 @@ public sealed record RecordingApplicationStatus(
     IReadOnlyList<string> Blockers,
     long LatestEventSequence);
 
-/// <summary>
-/// Validates the bounded native UI interval between selecting a hand card and
-/// STS2 attempting its native PlayCardAction. The second frame is expected to
-/// be transient, so snapshot/catalog equality would reject legitimate plays.
-/// </summary>
-public static class StagedCardPlayGuard
-{
-    public static bool IsContinuous(
-        string stagedRuntimeInstanceId,
-        string stagedEnvironmentFingerprint,
-        string stagedInteractionId,
-        long stagedSequence,
-        DateTimeOffset stagedAt,
-        string currentRuntimeInstanceId,
-        string currentEnvironmentFingerprint,
-        string currentInteractionId,
-        long currentSequence,
-        DateTimeOffset observedAt,
-        bool externalControllerActive,
-        TimeSpan maximumAge)
-    {
-        return !externalControllerActive
-            && maximumAge > TimeSpan.Zero
-            && observedAt >= stagedAt
-            && observedAt - stagedAt <= maximumAge
-            && currentSequence >= stagedSequence
-            && string.Equals(
-                stagedRuntimeInstanceId,
-                currentRuntimeInstanceId,
-                StringComparison.Ordinal)
-            && string.Equals(
-                stagedEnvironmentFingerprint,
-                currentEnvironmentFingerprint,
-                StringComparison.Ordinal)
-            && string.Equals(
-                stagedInteractionId,
-                currentInteractionId,
-                StringComparison.Ordinal);
-    }
-}
-
 public enum RecordingEventKind
 {
     RuntimeReady,

@@ -53,6 +53,7 @@ const forbidden = [...files].filter((file) =>
   file.startsWith(".local/")
   || file.startsWith("test/")
   || file.startsWith("docs/evidence/")
+  || file.split("/").some((segment) => segment === "bin" || segment === "obj")
   || /\.(?:dll|exe|pdb|pck|save)$/iu.test(file)
 );
 if (forbidden.length > 0) {

@@ -120,17 +120,20 @@ test("record settlement accepts only shared exact Modsets and never retries an u
   assert.match(runtime, /ClearPendingWithInvalidation\([\s\S]*decision_persistence_unknown/u);
 });
 
-test("native card staging permits transient snapshot advance without weakening identity guards", () => {
+test("native card staging reuses one exact evidence frame without a second capture guard", () => {
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
-  const guard = read("components/annotator/src/STS2HumanAnnotator.Core/RecordingApplication.cs");
 
-  assert.match(runtime, /StagedCardPlayGuard\.IsContinuous/u);
+  assert.match(runtime, /StageCardPlay\(CardModel card\)[\s\S]*TryPrepareSerializedEvidence\(out ProcessLocalNativeWitnessFrame\? preparedFrame\)[\s\S]*new ExactDecisionFrame\(frame, environment\)/u);
+  assert.match(runtime, /ReferenceEquals\(staged\.Card, stagedCard\)[\s\S]*IsExact\(staged\.Decision\.Frame\.Resolve\(expectedAction\)\)[\s\S]*selected = staged\.Decision\.Frame/u);
+  assert.doesNotMatch(runtime, /StagedCardPlayGuard/u);
   assert.doesNotMatch(runtime, /cached\.Frame\.Snapshot\.SnapshotId,[\s\S]*current\.Snapshot\.SnapshotId/u);
-  assert.match(guard, /currentSequence >= stagedSequence/u);
-  assert.match(guard, /stagedRuntimeInstanceId/u);
-  assert.match(guard, /stagedEnvironmentFingerprint/u);
-  assert.match(guard, /stagedInteractionId/u);
-  assert.match(guard, /externalControllerActive/u);
+});
+
+test("annotator evidence prefixes never become generic STS2 gameplay gates", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+
+  assert.doesNotMatch(patches, /(?:private|internal|public)\s+static\s+bool\s+Prefix\s*\(/u);
+  assert.doesNotMatch(patches, /BlockMutation|AllowMutation/u);
 });
 
 test("capture failures become invalidations only after the native action is accepted", () => {
@@ -159,4 +162,21 @@ test("rapid accepted actions use one exact lifecycle ledger and never fabricate 
   assert.doesNotMatch(runtime, /overlapping_action_before_successor/u);
   assert.match(ledger, /AcceptedHumanActionLedger/u);
   assert.match(ledger, /ObserveRecoveryBoundary/u);
+});
+
+test("semantic direct UI commits share one execution boundary and scoped selector path", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+
+  assert.match(runtime, /SemanticBoundaryWitnessKinds\.BeforeHumanActionExecution/u);
+  assert.doesNotMatch(runtime, /before_direct_ui_commit/u);
+  assert.match(runtime, /HumanActionScope\.Current != null/u);
+  assert.match(patches, /class NativeCombatHandSelectPatch/u);
+  assert.match(patches, /SelectCardInSimpleMode/u);
+  assert.match(patches, /SelectCardInUpgradeMode/u);
+  assert.match(patches, /class NativeCombatHandDeselectPatch/u);
+  assert.match(patches, /DeselectHolder/u);
+  assert.match(patches, /class NativeCombatHandConfirmPatch/u);
+  assert.match(patches, /OnSelectModeConfirmButtonPressed/u);
+  assert.match(patches, /RecorderRuntime\.TryEnterSemanticScope/u);
 });

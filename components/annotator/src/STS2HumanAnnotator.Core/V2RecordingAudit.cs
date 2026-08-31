@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace STS2HumanAnnotator.Core;
 
@@ -92,8 +93,23 @@ public static class V2RecordingAuditor
         }
 
         ValidateJournal(directory, manifest, errors);
-        ValidateNativeActionLedger(directory, manifest, recordsById, errors);
-        ValidateSemanticBoundaryTrace(directory, manifest, errors);
+        IReadOnlyList<NativeActionLedgerEvent> nativeEvents = ValidateNativeActionLedger(
+            directory,
+            manifest,
+            recordsById,
+            errors);
+        IReadOnlyList<SemanticBoundaryTraceEvent> semanticEvents = ValidateSemanticBoundaryTrace(
+            directory,
+            manifest,
+            errors);
+        IReadOnlyList<NativeSemanticDiscriminatorEvent> discriminatorEvents =
+            ValidateNativeSemanticDiscriminator(directory, manifest, errors);
+        ValidateSchemaTwoSemanticAccounting(
+            nativeEvents,
+            semanticEvents,
+            discriminatorEvents,
+            errors);
+        ValidateCanonicalTransitions(directory, manifest, recordsById, errors);
         long invalidations = File.Exists(Path.Combine(directory, "invalidations.jsonl"))
             ? Lines(Path.Combine(directory, "invalidations.jsonl")).LongCount()
             : 0;
@@ -111,6 +127,130 @@ public static class V2RecordingAuditor
                 "audit_does_not_qualify_unseen_families",
                 "read_capture_is_player_visible_evidence_not_hidden_state"
             });
+    }
+
+    private static void ValidateCanonicalTransitions(
+        string directory,
+        RecordingManifestV2? manifest,
+        IReadOnlyDictionary<string, HumanDecisionRecordV2> admittedRecords,
+        IDictionary<string, long> errors)
+    {
+        string path = Path.Combine(directory, "canonical-transitions.jsonl");
+        // Pre-serialized recordings remain readable without this additive stream.
+        if (!File.Exists(path))
+            return;
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        foreach ((string line, _) in Lines(path))
+        {
+            CanonicalTransitionEvidence? value;
+            try
+            {
+                value = JsonSerializer.Deserialize<CanonicalTransitionEvidence>(
+                    line,
+                    EvidenceJson.Options);
+            }
+            catch (JsonException)
+            {
+                Add(errors, "canonical_transition_json_invalid");
+                continue;
+            }
+            if (value == null)
+            {
+                Add(errors, "canonical_transition_null");
+                continue;
+            }
+            foreach (string error in CanonicalTransitionEvidenceValidator.Validate(value))
+                Add(errors, error);
+            if (manifest == null
+                || value.SessionId != manifest.SessionId
+                || value.TimelineId != manifest.TimelineId)
+                Add(errors, "canonical_transition_manifest_mismatch");
+            if (!seen.Add(value.TransitionId))
+                Add(errors, "canonical_transition_duplicate");
+            string recordId = value.TransitionId.StartsWith("canonical-", StringComparison.Ordinal)
+                ? value.TransitionId["canonical-".Length..]
+                : string.Empty;
+            if (!admittedRecords.TryGetValue(recordId, out HumanDecisionRecordV2? record)
+                || record.Sequence != value.ActionSequence
+                || EvidenceIdentity.Sha256Json(record.Action)
+                    != EvidenceIdentity.Sha256Json(value.Action))
+            {
+                Add(errors, "canonical_transition_decision_mismatch");
+                continue;
+            }
+            FrozenDecisionFrameV2? pre = ReadSemanticFrameReference(
+                directory,
+                value.PreStateRef,
+                errors);
+            FrozenDecisionFrameV2? successor = ReadSemanticFrameReference(
+                directory,
+                value.SuccessorRef,
+                errors);
+            if (pre != null && SemanticFrameDigest(pre) != SemanticFrameDigest(record.Pre))
+                Add(errors, "canonical_transition_pre_mismatch");
+            if (successor == null)
+                continue;
+            if (successor.SnapshotId != record.Successor.SnapshotId
+                || successor.InteractionId != record.Successor.InteractionId
+                || successor.InteractionKind != record.Successor.InteractionKind)
+                Add(errors, "canonical_transition_successor_identity_mismatch");
+            if (!JsonNode.DeepEquals(successor.Snapshot, record.Successor.Snapshot))
+                Add(errors, "canonical_transition_successor_snapshot_mismatch");
+            JsonNode? successorReads = JsonSerializer.SerializeToNode(
+                successor.Reads,
+                EvidenceJson.Options);
+            JsonNode? recordedReads = JsonSerializer.SerializeToNode(
+                record.Successor.Reads,
+                EvidenceJson.Options);
+            if (!JsonNode.DeepEquals(successorReads, recordedReads))
+                Add(errors, "canonical_transition_successor_reads_mismatch");
+        }
+    }
+
+    private static FrozenDecisionFrameV2? ReadSemanticFrameReference(
+        string directory,
+        SemanticFrameReference reference,
+        IDictionary<string, long> errors)
+    {
+        string path;
+        try
+        {
+            path = ResolveBelow(directory, reference.ObjectRef);
+        }
+        catch (InvalidDataException)
+        {
+            Add(errors, "canonical_transition_frame_ref_invalid");
+            return null;
+        }
+        if (!File.Exists(path) || EvidenceIdentity.Sha256File(path) != reference.ContentSha256)
+        {
+            Add(errors, "canonical_transition_frame_missing_or_changed");
+            return null;
+        }
+        try
+        {
+            FrozenDecisionFrameV2? frame = JsonSerializer.Deserialize<FrozenDecisionFrameV2>(
+                File.ReadAllText(path),
+                EvidenceJson.Options);
+            if (frame == null || frame.SnapshotId != reference.SnapshotId)
+            {
+                Add(errors, "canonical_transition_frame_identity_mismatch");
+                return null;
+            }
+            return frame;
+        }
+        catch (JsonException)
+        {
+            Add(errors, "canonical_transition_frame_json_invalid");
+            return null;
+        }
+    }
+
+    private static string SemanticFrameDigest(FrozenDecisionFrameV2 frame)
+    {
+        JsonNode node = JsonSerializer.SerializeToNode(frame, EvidenceJson.Options)
+            ?? throw new InvalidDataException("Semantic frame serialization returned null.");
+        return EvidenceIdentity.Sha256Text(EvidenceCanonicalJson.Serialize(node));
     }
 
     public static IReadOnlyList<HumanDecisionRecordV2> ReadAdmitted(string recordingDirectory)
@@ -182,7 +322,7 @@ public static class V2RecordingAuditor
             Add(errors, "run_journal_empty");
     }
 
-    private static void ValidateNativeActionLedger(
+    private static IReadOnlyList<NativeActionLedgerEvent> ValidateNativeActionLedger(
         string directory,
         RecordingManifestV2? manifest,
         IReadOnlyDictionary<string, HumanDecisionRecordV2> admittedRecords,
@@ -191,7 +331,7 @@ public static class V2RecordingAuditor
         string path = Path.Combine(directory, "native-action-ledger.jsonl");
         // V2 recordings sealed before the additive ledger remain readable.
         if (!File.Exists(path))
-            return;
+            return Array.Empty<NativeActionLedgerEvent>();
 
         var events = new List<NativeActionLedgerEvent>();
         foreach ((string line, _) in Lines(path))
@@ -244,9 +384,10 @@ public static class V2RecordingAuditor
                 || EvidenceIdentity.Sha256Json(accepted.BoundAction) != EvidenceIdentity.Sha256Json(record.Action))
                 Add(errors, "native_action_decision_record_mismatch");
         }
+        return events;
     }
 
-    private static void ValidateSemanticBoundaryTrace(
+    private static IReadOnlyList<SemanticBoundaryTraceEvent> ValidateSemanticBoundaryTrace(
         string directory,
         RecordingManifestV2? manifest,
         IDictionary<string, long> errors)
@@ -255,11 +396,37 @@ public static class V2RecordingAuditor
         // The observation-only trace is additive; predecessor V2 sessions do
         // not gain or lose validity based on its absence.
         if (!File.Exists(path))
-            return;
+            return Array.Empty<SemanticBoundaryTraceEvent>();
 
         var events = new List<SemanticBoundaryTraceEvent>();
+        var semanticFrames = new Dictionary<string, FrozenDecisionFrameV2>(StringComparer.Ordinal);
         foreach ((string line, _) in Lines(path))
         {
+            string? schema;
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(line);
+                schema = document.RootElement.TryGetProperty("schema", out JsonElement property)
+                    ? property.GetString()
+                    : null;
+            }
+            catch (JsonException)
+            {
+                Add(errors, "semantic_boundary_trace_json_invalid");
+                continue;
+            }
+            if (schema == SemanticEvidenceContract.EventSchema)
+            {
+                SemanticBoundaryTraceEvent? materialized = MaterializeSemanticEvidenceEvent(
+                    directory,
+                    manifest,
+                    line,
+                    semanticFrames,
+                    errors);
+                if (materialized != null)
+                    events.Add(materialized);
+                continue;
+            }
             SemanticBoundaryTraceEvent? value;
             try
             {
@@ -284,6 +451,237 @@ public static class V2RecordingAuditor
         }
         foreach (string error in SemanticBoundaryTraceValidator.Validate(events))
             Add(errors, error);
+        return events;
+    }
+
+    private static SemanticBoundaryTraceEvent? MaterializeSemanticEvidenceEvent(
+        string directory,
+        RecordingManifestV2? manifest,
+        string line,
+        IDictionary<string, FrozenDecisionFrameV2> semanticFrames,
+        IDictionary<string, long> errors)
+    {
+        SemanticEvidenceEvent? value;
+        try
+        {
+            value = JsonSerializer.Deserialize<SemanticEvidenceEvent>(line, EvidenceJson.Options);
+        }
+        catch (JsonException)
+        {
+            Add(errors, "semantic_evidence_event_json_invalid");
+            return null;
+        }
+        if (value == null
+            || value.SchemaVersion != SemanticEvidenceContract.SchemaVersion
+            || value.Schema != SemanticEvidenceContract.EventSchema
+            || manifest == null
+            || value.SessionId != manifest.SessionId
+            || value.TimelineId != manifest.TimelineId)
+        {
+            Add(errors, "semantic_evidence_event_session_mismatch");
+            return null;
+        }
+
+        FrozenDecisionFrameV2? humanObservation = ResolveSemanticFrame(
+            directory,
+            value.HumanObservationRef,
+            semanticFrames,
+            errors);
+        FrozenDecisionFrameV2? executionPre = ResolveSemanticFrame(
+            directory,
+            value.ExecutionPreRef,
+            semanticFrames,
+            errors);
+        FrozenDecisionFrameV2? successor = ResolveSemanticFrame(
+            directory,
+            value.SuccessorRef,
+            semanticFrames,
+            errors);
+        SemanticBoundaryObservation? boundary = null;
+        if (value.Boundary != null)
+        {
+            FrozenDecisionFrameV2? state = ResolveSemanticFrame(
+                directory,
+                value.Boundary.StateRef,
+                semanticFrames,
+                errors);
+            boundary = new SemanticBoundaryObservation(
+                value.Boundary.WitnessKind,
+                value.Boundary.ObservedAt,
+                value.Boundary.SnapshotId,
+                value.Boundary.Status,
+                value.Boundary.BoundActionsStatus,
+                value.Boundary.InteractionId,
+                value.Boundary.InteractionKind,
+                state,
+                value.Boundary.ImmediatelyConsumedByActionWitnessId)
+            {
+                StateCompleteness = value.Boundary.StateCompleteness,
+                RequiredReadsStatus = value.Boundary.RequiredReadsStatus,
+                StateBlockers = value.Boundary.StateBlockers
+            };
+        }
+
+        return new SemanticBoundaryTraceEvent(
+            SemanticBoundaryTraceContract.SchemaVersion,
+            SemanticBoundaryTraceContract.EventSchema,
+            value.EventId,
+            value.SessionId,
+            value.TimelineId,
+            value.RunId,
+            value.Sequence,
+            value.ObservedAt,
+            value.Kind,
+            value.Action,
+            value.ProofStatus,
+            value.RelatedActionWitnessId,
+            boundary,
+            executionPre,
+            successor,
+            value.Detail,
+            value.NonClaims)
+        {
+            HumanObservation = humanObservation
+        };
+    }
+
+    private static FrozenDecisionFrameV2? ResolveSemanticFrame(
+        string directory,
+        SemanticFrameReference? reference,
+        IDictionary<string, FrozenDecisionFrameV2> semanticFrames,
+        IDictionary<string, long> errors)
+    {
+        if (reference == null)
+            return null;
+        string cacheKey = $"{reference.ContentSha256}\n{reference.ObjectRef}";
+        if (semanticFrames.TryGetValue(cacheKey, out FrozenDecisionFrameV2? cached))
+        {
+            if (cached.SnapshotId != reference.SnapshotId)
+            {
+                Add(errors, "semantic_frame_identity_mismatch");
+                return null;
+            }
+            return cached;
+        }
+        try
+        {
+            string path = ResolveBelow(directory, reference.ObjectRef);
+            if (!File.Exists(path)
+                || EvidenceIdentity.Sha256File(path) != reference.ContentSha256)
+            {
+                Add(errors, "semantic_frame_missing_or_changed");
+                return null;
+            }
+            FrozenDecisionFrameV2? frame = JsonSerializer.Deserialize<FrozenDecisionFrameV2>(
+                File.ReadAllText(path),
+                EvidenceJson.Options);
+            if (frame == null || frame.SnapshotId != reference.SnapshotId)
+            {
+                Add(errors, "semantic_frame_identity_mismatch");
+                return null;
+            }
+            semanticFrames.Add(cacheKey, frame);
+            return frame;
+        }
+        catch (Exception exception) when (
+            exception is IOException or JsonException or InvalidDataException)
+        {
+            Add(errors, "semantic_frame_invalid");
+            return null;
+        }
+    }
+
+    private static void ValidateSchemaTwoSemanticAccounting(
+        IReadOnlyList<NativeActionLedgerEvent> nativeEvents,
+        IReadOnlyList<SemanticBoundaryTraceEvent> semanticEvents,
+        IReadOnlyList<NativeSemanticDiscriminatorEvent> discriminatorEvents,
+        IDictionary<string, long> errors)
+    {
+        // Current evidence can account a native root through either the
+        // semantic timeline or the execution-bound discriminator. Older
+        // sessions with neither stream retain their original meaning.
+        bool hasSchemaTwoTrace = semanticEvents.Any(value =>
+            value.SchemaVersion == SemanticBoundaryTraceContract.SchemaVersion
+            && value.Schema == SemanticBoundaryTraceContract.EventSchema);
+        if (!hasSchemaTwoTrace && discriminatorEvents.Count == 0)
+            return;
+
+        HashSet<string> semanticAcceptedRecordIds = semanticEvents
+            .Where(value =>
+                value.SchemaVersion == SemanticBoundaryTraceContract.SchemaVersion
+                && value.Kind == SemanticBoundaryTraceKinds.ActionAccepted)
+            .Select(value => value.Action.RecordId)
+            .ToHashSet(StringComparer.Ordinal);
+        HashSet<string> discriminatorAcceptedActionIds = discriminatorEvents
+            .Where(value => value.Phase == "accepted")
+            .Select(value => value.ActionWitnessId)
+            .ToHashSet(StringComparer.Ordinal);
+        HashSet<string> nativeAcceptedActionIds = nativeEvents
+            .Where(value =>
+                value.SchemaVersion == NativeActionLedgerContract.SchemaVersion
+                && value.Kind == NativeActionLifecycleKinds.Accepted)
+            .Select(value => value.ActionWitnessId)
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (NativeActionLedgerEvent accepted in nativeEvents.Where(value =>
+                     value.SchemaVersion == NativeActionLedgerContract.SchemaVersion
+                     && value.Kind == NativeActionLifecycleKinds.Accepted))
+        {
+            if (!semanticAcceptedRecordIds.Contains(accepted.RecordId)
+                && !discriminatorAcceptedActionIds.Contains(accepted.ActionWitnessId))
+                Add(errors, "semantic_trace_missing_accepted_native_action");
+        }
+        foreach (string discriminatorActionId in discriminatorAcceptedActionIds)
+        {
+            if (!nativeAcceptedActionIds.Contains(discriminatorActionId))
+                Add(errors, "native_semantic_discriminator_accepted_without_native_ledger");
+        }
+    }
+
+    private static IReadOnlyList<NativeSemanticDiscriminatorEvent>
+        ValidateNativeSemanticDiscriminator(
+            string directory,
+            RecordingManifestV2? manifest,
+            IDictionary<string, long> errors)
+    {
+        string path = Path.Combine(directory, "native-semantic-discriminator.jsonl");
+        // The stream is additive. Historical recordings remain valid without it.
+        if (!File.Exists(path))
+            return Array.Empty<NativeSemanticDiscriminatorEvent>();
+
+        var events = new List<NativeSemanticDiscriminatorEvent>();
+        foreach ((string line, _) in Lines(path))
+        {
+            NativeSemanticDiscriminatorEvent? value;
+            try
+            {
+                value = JsonSerializer.Deserialize<NativeSemanticDiscriminatorEvent>(
+                    line,
+                    EvidenceJson.Options);
+            }
+            catch (JsonException)
+            {
+                Add(errors, "native_semantic_discriminator_json_invalid");
+                continue;
+            }
+            if (value == null)
+            {
+                Add(errors, "native_semantic_discriminator_null");
+                continue;
+            }
+            if (manifest == null
+                || value.SessionId != manifest.SessionId
+                || value.TimelineId != manifest.TimelineId)
+                Add(errors, "native_semantic_discriminator_manifest_mismatch");
+            events.Add(value);
+        }
+        if (events.Count == 0)
+            return events;
+
+        NativeSemanticDiscriminatorReport report =
+            NativeSemanticDiscriminatorAnalyzer.Analyze(events);
+        foreach (string _ in report.Errors)
+            Add(errors, "native_semantic_discriminator_analysis_failed");
+        return events;
     }
 
     private static T? ReadOrError<T>(string path, IDictionary<string, long> errors, string error)

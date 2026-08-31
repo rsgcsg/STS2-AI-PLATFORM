@@ -10,6 +10,7 @@ public sealed class V2EvidenceTests
     [Theory]
     [InlineData("ordinary_combat", "play", "ordinary_combat.play_card")]
     [InlineData("ordinary_combat", "end_turn", "ordinary_combat.end_turn")]
+    [InlineData("ordinary_combat", "use", "ordinary_combat.use_potion")]
     [InlineData("native_generated_card_choice", "select", "native_generated_card_choice.select")]
     public void ActionFamilyNormalizationIsSharedByAdmissionAndStatus(
         string decisionFamily,
@@ -200,7 +201,10 @@ public sealed class V2EvidenceTests
                 });
             }
 
-            Assert.Equal("pass", V2RecordingAuditor.Audit(session).Status);
+            RecordingAuditResult pass = V2RecordingAuditor.Audit(session);
+            Assert.True(
+                pass.Status == "pass",
+                JsonSerializer.Serialize(pass.Errors, EvidenceJson.Options));
             string output = Path.Combine(root, "bundle");
             V2SessionBundlePacker.Pack(
                 session,
@@ -245,6 +249,434 @@ public sealed class V2EvidenceTests
         {
             Delete(root);
         }
+    }
+
+    [Fact]
+    public void SchemaTwoAuditRejectsNativeAcceptedActionMissingFromSemanticTrace()
+    {
+        string root = Temp("v2-semantic-accounting");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            string session;
+            using (var store = V2RecordingStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                HumanDecisionRecord v1 = RecordValidationTests.ValidRecord();
+                HumanDecisionRecordV2 v2 = V2Record(v1, (
+                    PersistReads(store, v1.Pre.SnapshotId),
+                    PersistReads(store, v1.Successor.SnapshotId)));
+                store.AppendDecision(v2);
+
+                var nativeAccepted = new NativeActionLedgerEvent(
+                    NativeActionLedgerContract.SchemaVersion,
+                    NativeActionLedgerContract.EventSchema,
+                    "native-event-1",
+                    manifest.SessionId,
+                    manifest.TimelineId,
+                    "run-0001",
+                    1,
+                    "game-action-missing",
+                    1,
+                    v1.RecordId,
+                    DateTimeOffset.UnixEpoch,
+                    NativeActionLifecycleKinds.Accepted,
+                    "PlayCardAction",
+                    7,
+                    "waiting_for_execution",
+                    Array.Empty<string>(),
+                    "strict_candidate",
+                    null,
+                    v2.Pre,
+                    v2.NativeWitness,
+                    v2.Mapping,
+                    v2.Action);
+                store.AppendNativeActionEvent(nativeAccepted);
+                store.AppendNativeActionEvent(nativeAccepted with
+                {
+                    EventId = "native-event-2",
+                    Sequence = 2,
+                    Kind = NativeActionLifecycleKinds.Cancelled,
+                    NativeState = "cancelled",
+                    TransitionEvidence = "native_cancelled",
+                    DecisionPre = null,
+                    NativeWitness = null,
+                    Mapping = null,
+                    BoundAction = null
+                });
+
+                var directAction = new SemanticActionReference(
+                    "direct-action-accounted",
+                    2,
+                    "direct-record",
+                    "run-0001",
+                    "NPlayerHand.OnSelectModeConfirmButtonPressed",
+                    null,
+                    v2.Pre.SnapshotId)
+                {
+                    NativeMechanism = "direct_ui_commit"
+                };
+                store.AppendSemanticBoundaryEvent(SemanticEvent(
+                    manifest,
+                    1,
+                    SemanticBoundaryTraceKinds.ActionAccepted,
+                    directAction,
+                    v2.Pre));
+                store.AppendSemanticBoundaryEvent(SemanticEvent(
+                    manifest,
+                    2,
+                    SemanticBoundaryTraceKinds.ActionCancelledBeforeStart,
+                    directAction));
+            }
+
+            RecordingAuditResult audit = V2RecordingAuditor.Audit(session);
+
+            Assert.Equal("fail", audit.Status);
+            Assert.Equal(1, audit.Errors["semantic_trace_missing_accepted_native_action"]);
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
+    public void SchemaTwoAuditAcceptsNativeActionAccountedByValidDiscriminatorStream()
+    {
+        string root = Temp("v2-semantic-discriminator-accounting");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            string session;
+            using (var store = V2RecordingStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                HumanDecisionRecord v1 = RecordValidationTests.ValidRecord();
+                HumanDecisionRecordV2 v2 = V2Record(v1, (
+                    PersistReads(store, v1.Pre.SnapshotId),
+                    PersistReads(store, v1.Successor.SnapshotId)));
+                store.AppendDecision(v2);
+
+                var accepted = new NativeActionLedgerEvent(
+                    NativeActionLedgerContract.SchemaVersion,
+                    NativeActionLedgerContract.EventSchema,
+                    "native-event-1",
+                    manifest.SessionId,
+                    manifest.TimelineId,
+                    "run-0001",
+                    1,
+                    "game-action-accounted",
+                    1,
+                    v1.RecordId,
+                    DateTimeOffset.UnixEpoch,
+                    NativeActionLifecycleKinds.Accepted,
+                    "PlayCardAction",
+                    7,
+                    "waiting_for_execution",
+                    Array.Empty<string>(),
+                    "strict_candidate",
+                    null,
+                    v2.Pre,
+                    v2.NativeWitness,
+                    v2.Mapping,
+                    v2.Action);
+                store.AppendNativeActionEvent(accepted);
+                store.AppendNativeActionEvent(accepted with
+                {
+                    EventId = "native-event-2",
+                    Sequence = 2,
+                    Kind = NativeActionLifecycleKinds.Started,
+                    NativeState = "executing",
+                    TransitionEvidence = "lifecycle_observed",
+                    DecisionPre = null,
+                    NativeWitness = null,
+                    Mapping = null,
+                    BoundAction = null
+                });
+                store.AppendNativeActionEvent(accepted with
+                {
+                    EventId = "native-event-3",
+                    Sequence = 3,
+                    Kind = NativeActionLifecycleKinds.Finished,
+                    NativeState = "finished",
+                    TransitionEvidence = "lifecycle_observed",
+                    DecisionPre = null,
+                    NativeWitness = null,
+                    Mapping = null,
+                    BoundAction = null
+                });
+                store.AppendNativeActionEvent(accepted with
+                {
+                    EventId = "native-event-4",
+                    Sequence = 4,
+                    Kind = NativeActionLifecycleKinds.StrictTransitionAdmitted,
+                    NativeState = "finished",
+                    TransitionEvidence = "strict_v2_admitted",
+                    DecisionPre = null,
+                    NativeWitness = null,
+                    Mapping = null,
+                    BoundAction = null
+                });
+
+                store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(
+                    manifest,
+                    1,
+                    "accepted",
+                    "game-action-accounted"));
+                store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(
+                    manifest,
+                    2,
+                    "before_execution",
+                    "game-action-accounted") with
+                {
+                    SemanticStateDigest = "semantic-state",
+                    SemanticState = JsonNode.Parse("{\"energy\":3}"),
+                    SemanticActionKeys = new[] { "play|card" },
+                    ObservedActionKey = "play|card",
+                    SemanticMembership = "exact_once",
+                    SemanticMatchCount = 1
+                });
+                store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(
+                    manifest,
+                    3,
+                    "started",
+                    "game-action-accounted"));
+                store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(
+                    manifest,
+                    4,
+                    "finished",
+                    "game-action-accounted"));
+            }
+
+            RecordingAuditResult audit = V2RecordingAuditor.Audit(session);
+
+            Assert.True(
+                audit.Status == "pass",
+                JsonSerializer.Serialize(audit.Errors));
+            Assert.Empty(audit.Errors);
+
+            string discriminator = Path.Combine(
+                session,
+                "native-semantic-discriminator.jsonl");
+            File.WriteAllText(
+                discriminator,
+                File.ReadAllText(discriminator).Replace(
+                    "game-action-accounted",
+                    "game-action-orphan",
+                    StringComparison.Ordinal));
+            RecordingAuditResult tampered = V2RecordingAuditor.Audit(session);
+            Assert.Equal("fail", tampered.Status);
+            Assert.Equal(
+                1,
+                tampered.Errors["semantic_trace_missing_accepted_native_action"]);
+            Assert.Equal(
+                1,
+                tampered.Errors[
+                    "native_semantic_discriminator_accepted_without_native_ledger"]);
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
+    public void SemanticBoundaryBatchIsVisibleInOrderAndReadableAfterClose()
+    {
+        string root = Temp("v2-semantic-batch");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            string session;
+            using (V2RecordingStore store = V2RecordingStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                SemanticActionReference action = new(
+                    "action-batch",
+                    1,
+                    "record-batch",
+                    "run-0001",
+                    "PlayCardAction",
+                    1,
+                    "snapshot-a");
+                store.AppendSemanticBoundaryEvents(new[]
+                {
+                    SemanticEvent(manifest, 1, SemanticBoundaryTraceKinds.ActionAccepted, action),
+                    SemanticEvent(manifest, 2, SemanticBoundaryTraceKinds.ActionStarted, action)
+                });
+
+                Assert.Equal(
+                    new[] { 1L, 2L },
+                    File.ReadLines(Path.Combine(session, "semantic-boundary-trace.jsonl"))
+                        .Select(line => JsonSerializer.Deserialize<SemanticBoundaryTraceEvent>(
+                            line,
+                            EvidenceJson.Options)!.Sequence));
+            }
+
+            Assert.Equal(
+                new[] { 1L, 2L },
+                File.ReadLines(Path.Combine(session, "semantic-boundary-trace.jsonl"))
+                    .Select(line => JsonSerializer.Deserialize<SemanticBoundaryTraceEvent>(
+                        line,
+                        EvidenceJson.Options)!.Sequence));
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
+    public void SemanticBoundaryBatchValidatesBeforeWritingAndRejectsClosedStore()
+    {
+        string root = Temp("v2-semantic-batch-failure");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            using V2RecordingStore store = V2RecordingStore.Create(root, manifest, profile);
+            SemanticActionReference action = new(
+                "action-batch",
+                1,
+                "record-batch",
+                "run-0001",
+                "PlayCardAction",
+                1,
+                "snapshot-a");
+            string tracePath = Path.Combine(store.DirectoryPath, "semantic-boundary-trace.jsonl");
+
+            Assert.Throws<InvalidDataException>(() => store.AppendSemanticBoundaryEvents(new[]
+            {
+                SemanticEvent(manifest, 1, SemanticBoundaryTraceKinds.ActionAccepted, action),
+                SemanticEvent(manifest with { TimelineId = "timeline-other" }, 2,
+                    SemanticBoundaryTraceKinds.ActionStarted, action)
+            }));
+            Assert.Empty(File.ReadLines(tracePath));
+
+            store.Dispose();
+            Assert.Throws<ObjectDisposedException>(() => store.AppendSemanticBoundaryEvents(
+                new[] { SemanticEvent(manifest, 1, SemanticBoundaryTraceKinds.ActionAccepted, action) }));
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
+    public void SemanticEvidenceStoresAnExactFrameOnceAndAuditsTampering()
+    {
+        string root = Temp("v2-semantic-evidence");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            string session;
+            string framePath;
+            using (V2RecordingStore store = V2RecordingStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                FrozenDecisionFrameV2 frame = V2Record(
+                    RecordValidationTests.ValidRecord(),
+                    (PersistReads(store, "snapshot-a"), PersistReads(store, "snapshot-b"))).Pre;
+                SemanticFrameReference first = store.PersistSemanticFrame(frame);
+                SemanticFrameReference second = store.PersistSemanticFrame(frame);
+                Assert.Equal(first, second);
+                Assert.Single(Directory.GetFiles(
+                    Path.Combine(session, "semantic-frames"),
+                    "*.json",
+                    SearchOption.AllDirectories));
+
+                var action = new SemanticActionReference(
+                    "action-ref",
+                    1,
+                    "record-ref",
+                    "run-0001",
+                    "PlayCardAction",
+                    1,
+                    frame.SnapshotId);
+                store.AppendSemanticEvidenceEvents(new[]
+                {
+                    SemanticEvidenceEvent(manifest, 1, SemanticBoundaryTraceKinds.ActionAccepted, action)
+                        with { HumanObservationRef = first },
+                    SemanticEvidenceEvent(
+                        manifest,
+                        2,
+                        SemanticBoundaryTraceKinds.ActionCancelledBeforeStart,
+                        action)
+                });
+                SemanticEvidenceEvent persisted = JsonSerializer.Deserialize<SemanticEvidenceEvent>(
+                    File.ReadLines(Path.Combine(session, "semantic-boundary-trace.jsonl")).First(),
+                    EvidenceJson.Options)!;
+                Assert.Equal(SemanticEvidenceContract.EventSchema, persisted.Schema);
+                Assert.Equal(first, persisted.HumanObservationRef);
+                framePath = Path.Combine(session, first.ObjectRef);
+            }
+
+            RecordingAuditResult beforeTamper = V2RecordingAuditor.Audit(session);
+            Assert.DoesNotContain(
+                beforeTamper.Errors.Keys,
+                key => key.StartsWith("semantic_", StringComparison.Ordinal));
+            File.AppendAllText(framePath, "tampered");
+            RecordingAuditResult audit = V2RecordingAuditor.Audit(session);
+            Assert.Equal("fail", audit.Status);
+            Assert.True(audit.Errors.ContainsKey("semantic_frame_missing_or_changed"));
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
+    public void ReadBatchPreservesCountsAndPayloads()
+    {
+        string root = Temp("v2-read-batch");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            using V2RecordingStore store = V2RecordingStore.Create(root, manifest, profile);
+            JsonNode content = JsonNode.Parse("{\"cards\":[\"Strike\"]}")!;
+            JsonNode completeness = JsonNode.Parse("{\"status\":\"complete\",\"missing\":[]}")!;
+            IReadOnlyList<ReadEvidence> reads = store.PersistReads(new[]
+            {
+                CapturedRead("run_deck", content, completeness),
+                CapturedRead("combat_piles", content, completeness)
+            });
+
+            Assert.Equal(2, reads.Count);
+            RecordingStoreSnapshot snapshot = store.GetSnapshot();
+            Assert.Equal(2, snapshot.Counters.ReadsMaterialized);
+            Assert.Equal(0, snapshot.Counters.ReadsFailed);
+            Assert.All(reads, read => Assert.True(File.Exists(Path.Combine(store.DirectoryPath, read.PayloadRef!))));
+        }
+        finally
+        {
+            Delete(root);
+        }
+
+        static CapturedReadPayload CapturedRead(
+            string kind,
+            JsonNode content,
+            JsonNode completeness) => new(
+            $"read-{kind}",
+            kind,
+            "snapshot-a",
+            "runtime-1",
+            "environment-1",
+            "materialized",
+            $"sts2.player-environment/read/{kind}-1",
+            content.DeepClone(),
+            completeness.DeepClone(),
+            DateTimeOffset.UnixEpoch,
+            null,
+            null);
     }
 
     [Fact]
@@ -366,6 +798,116 @@ public sealed class V2EvidenceTests
             Delete(root);
         }
     }
+
+    [Fact]
+    public void CanonicalTransitionBindsExactDecisionFramesAndDetectsTampering()
+    {
+        string root = Temp("v2-canonical-transition");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            string session;
+            SemanticFrameReference preRef;
+            using (var store = V2RecordingStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                HumanDecisionRecord value = RecordValidationTests.ValidRecord();
+                HumanDecisionRecordV2 record = V2Record(
+                    value,
+                    (PersistReads(store, value.Pre.SnapshotId),
+                        PersistReads(store, value.Successor.SnapshotId)));
+                store.AppendDecision(record);
+                preRef = store.PersistSemanticFrame(record.Pre);
+                var successor = new FrozenDecisionFrameV2(
+                    record.Successor.SnapshotId,
+                    record.Successor.InteractionId,
+                    record.Successor.InteractionKind,
+                    record.Pre.SurfaceSchema,
+                    record.Pre.CatalogDigest,
+                    record.Pre.CatalogCount,
+                    record.Successor.Snapshot.DeepClone(),
+                    record.Successor.Reads);
+                SemanticFrameReference successorRef = store.PersistSemanticFrame(successor);
+                store.AppendCanonicalTransition(Canonical(record, preRef, successorRef));
+            }
+
+            RecordingAuditResult pass = V2RecordingAuditor.Audit(session);
+            Assert.True(
+                pass.Status == "pass",
+                JsonSerializer.Serialize(pass.Errors, EvidenceJson.Options));
+            File.AppendAllText(Path.Combine(session, preRef.ObjectRef), "tampered");
+            RecordingAuditResult tampered = V2RecordingAuditor.Audit(session);
+            Assert.Equal("fail", tampered.Status);
+            Assert.True(tampered.Errors.ContainsKey(
+                "canonical_transition_frame_missing_or_changed"));
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
+    public void PreSerializedRecordingRemainsValidWithoutCanonicalStream()
+    {
+        string root = Temp("v2-pre-serialized-compatibility");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            string session;
+            using (var store = V2RecordingStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                HumanDecisionRecord value = RecordValidationTests.ValidRecord();
+                store.AppendDecision(V2Record(
+                    value,
+                    (PersistReads(store, value.Pre.SnapshotId),
+                        PersistReads(store, value.Successor.SnapshotId))));
+            }
+            File.Delete(Path.Combine(session, "canonical-transitions.jsonl"));
+
+            Assert.Equal("pass", V2RecordingAuditor.Audit(session).Status);
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    private static CanonicalTransitionEvidence Canonical(
+        HumanDecisionRecordV2 record,
+        SemanticFrameReference preRef,
+        SemanticFrameReference successorRef) => new(
+        CanonicalTransitionEvidenceContract.SchemaVersion,
+        CanonicalTransitionEvidenceContract.Schema,
+        $"canonical-{record.RecordId}",
+        record.SessionId,
+        record.TimelineId,
+        record.RunId,
+        record.Sequence,
+        DateTimeOffset.UnixEpoch,
+        CanonicalTransitionEvidenceContract.CollectionMode,
+        $"epoch-{preRef.ContentSha256}",
+        "ui-action-test",
+        "direct_ui_commit",
+        preRef,
+        record.Action,
+        successorRef,
+        "canonical_s_a_s_prime",
+        new[]
+        {
+            "complete_pre_state_and_catalog",
+            "chosen_action_exactly_once_in_pre_catalog",
+            "one_mutation_in_flight",
+            "native_terminal_or_direct_commit_observed",
+            "no_intervening_human_mutation",
+            "complete_authoritative_successor"
+        },
+        new[] { "not_business_completion" });
 
     private static HumanCaptureProfile Profile() => new(
         2,
@@ -519,6 +1061,99 @@ public sealed class V2EvidenceTests
         value.DecisionFamily,
         value.Surface,
         value.Eligibility);
+
+    private static SemanticBoundaryTraceEvent SemanticEvent(
+        RecordingManifestV2 manifest,
+        long sequence,
+        string kind,
+        SemanticActionReference action,
+        FrozenDecisionFrameV2? humanObservation = null) => new(
+            SemanticBoundaryTraceContract.SchemaVersion,
+            SemanticBoundaryTraceContract.EventSchema,
+            $"semantic-event-{sequence}",
+            manifest.SessionId,
+            manifest.TimelineId,
+            action.RunId,
+            sequence,
+            DateTimeOffset.UnixEpoch.AddMilliseconds(sequence),
+            kind,
+            action,
+            kind == SemanticBoundaryTraceKinds.ActionAccepted
+                ? "human_observation_recorded"
+                : "not_a_successful_action",
+            null,
+            null,
+            null,
+            null,
+            null,
+            Array.Empty<string>())
+        {
+            HumanObservation = humanObservation
+        };
+
+    private static NativeSemanticDiscriminatorEvent DiscriminatorEvent(
+        RecordingManifestV2 manifest,
+        long sequence,
+        string phase,
+        string actionWitnessId) => new(
+            NativeSemanticDiscriminatorContract.SchemaVersion,
+            NativeSemanticDiscriminatorContract.EventSchema,
+            $"discriminator-event-{sequence}",
+            manifest.SessionId,
+            manifest.TimelineId,
+            "run-0001",
+            sequence,
+            DateTimeOffset.UnixEpoch.AddMilliseconds(sequence),
+            phase,
+            actionWitnessId,
+            "PlayCardAction",
+            7,
+            phase,
+            "captured",
+            "combat_play_phase",
+            null,
+            null,
+            "semantic-catalog",
+            Array.Empty<string>(),
+            null,
+            null,
+            null,
+            "snapshot-test",
+            "interactive",
+            "combat_turn",
+            "complete",
+            1,
+            "ui-catalog",
+            null,
+            null,
+            null,
+            null,
+            Array.Empty<string>());
+
+    private static SemanticEvidenceEvent SemanticEvidenceEvent(
+        RecordingManifestV2 manifest,
+        long sequence,
+        string kind,
+        SemanticActionReference action) => new(
+            SemanticEvidenceContract.SchemaVersion,
+            SemanticEvidenceContract.EventSchema,
+            $"semantic-evidence-event-{sequence}",
+            manifest.SessionId,
+            manifest.TimelineId,
+            action.RunId,
+            sequence,
+            DateTimeOffset.UnixEpoch.AddMilliseconds(sequence),
+            kind,
+            action,
+            kind == SemanticBoundaryTraceKinds.ActionAccepted
+                ? "human_observation_recorded"
+                : "not_a_successful_action",
+            null,
+            null,
+            null,
+            null,
+            null,
+            Array.Empty<string>());
 
     private static string Temp(string name) =>
         Path.Combine(Path.GetTempPath(), $"sts2-{name}-{Guid.NewGuid():N}");

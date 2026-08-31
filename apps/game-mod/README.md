@@ -38,6 +38,10 @@ common loaded SHA/MVID for Connector/Annotator/UI, component-specific embedded
 source provenance, a ready UI node, and Connector execution availability.
 `verify-loaded` polls this exact readiness envelope for a bounded startup
 window; timeout still fails closed with the latest observed identity state.
+The unified load log and Connector capabilities own process-global artifact,
+source and Modset evidence. Annotator status is bound to the current process
+and load generation; its session-bound environment is an additional check when
+a session exists, not a heartbeat or a prerequisite for the legal Ready state.
 
 The UI is composed from built-in Godot nodes and driven by SceneTree signals.
 Do not replace it with a custom `Node` callback unless the package explicitly

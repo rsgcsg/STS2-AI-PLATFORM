@@ -28,6 +28,12 @@ public static class SemanticBoundaryTraceKinds
     public const string TransitionUnknown = "transition_unknown";
 }
 
+public static class SemanticBoundaryWitnessKinds
+{
+    public const string BeforeHumanActionExecution = "before_next_human_action_execution";
+    public const string CompleteInteractiveObservation = "complete_interactive_observation";
+}
+
 public sealed record SemanticActionReference(
     string ActionWitnessId,
     long ActionSequence,
@@ -35,7 +41,13 @@ public sealed record SemanticActionReference(
     string RunId,
     string NativeActionType,
     uint? NativeQueueId,
-    string HumanObservationSnapshotId);
+    string HumanObservationSnapshotId)
+{
+    public string NativeMechanism { get; init; } = "game_action";
+    public NativeWitnessEvidence? NativeWitness { get; init; }
+    public ExactMappingEvidence? Mapping { get; init; }
+    public RecordedBoundAction? BoundAction { get; init; }
+}
 
 /// <summary>
 /// One read-only state capture. State completeness, action-catalog completeness,
@@ -68,7 +80,10 @@ public sealed record SemanticBoundaryObservation(
 
     public bool IsExecutionBoundary =>
         !string.IsNullOrWhiteSpace(ImmediatelyConsumedByActionWitnessId)
-        && string.Equals(WitnessKind, "before_next_human_action_execution", StringComparison.Ordinal);
+        && string.Equals(
+            WitnessKind,
+            SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
+            StringComparison.Ordinal);
 
     public bool CanBindExecutionPre => HasCompleteSemanticState && IsExecutionBoundary;
 
@@ -134,6 +149,7 @@ public sealed class SemanticBoundaryTracker
         public bool Paused { get; set; }
         public bool Finished { get; set; }
         public bool Disposed { get; set; }
+        public bool NativeLifecycleTerminal { get; set; }
         public long? ExecutionOrder { get; set; }
     }
 
@@ -271,6 +287,7 @@ public sealed class SemanticBoundaryTracker
     {
         Entry entry = Required(actionWitnessId);
         entry.Finished = true;
+        entry.NativeLifecycleTerminal = true;
         return new[]
         {
             Draft(
@@ -304,6 +321,7 @@ public sealed class SemanticBoundaryTracker
     {
         Entry entry = Required(actionWitnessId);
         entry.Disposed = true;
+        entry.NativeLifecycleTerminal = true;
         if (entry.Started)
             _currentState = null;
         return new[]
@@ -480,7 +498,12 @@ public sealed class SemanticBoundaryTracker
 
     private void PruneDisposed()
     {
-        foreach (string id in _order.Where(id => _entries[id].Disposed).ToArray())
+        // A transition can be semantically disposed at a player-choice S'
+        // while its owning GameAction is still paused and will later resume.
+        // Retain it until STS2 reports a terminal lifecycle callback so those
+        // exact native facts cannot reference a pruned witness.
+        foreach (string id in _order.Where(id =>
+                     _entries[id].Disposed && _entries[id].NativeLifecycleTerminal).ToArray())
         {
             _entries.Remove(id);
             _order.Remove(id);

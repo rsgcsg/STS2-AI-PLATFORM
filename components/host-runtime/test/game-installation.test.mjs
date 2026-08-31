@@ -62,3 +62,24 @@ test("admits an installed Connector identity only when it matches the DLL", () =
   assert.equal(readInstalledConnectorIdentity({ mods_dir: modsDir }).status, "identity_mismatch");
   rmSync(directory, { recursive: true, force: true });
 });
+
+test("prefers the unified Platform identity over a retired Connector sidecar", () => {
+  const directory = mkdtempSync(path.join(os.tmpdir(), "sts2-platform-identity-"));
+  const modsDir = path.join(directory, "mods");
+  mkdirSync(modsDir);
+  writeFileSync(path.join(modsDir, "STS2_PLATFORM.dll"), "unified-candidate");
+  writeFileSync(path.join(modsDir, "STS2_PLATFORM.identity"), JSON.stringify({
+    source_revision: "b".repeat(40),
+    artifact_sha256: "77626f5e8bf379d0a876cb6e6926209c416bc05625d450b69f713610f0dd94f9",
+    artifact_mvid: "11111111-2222-3333-4444-555555555555"
+  }));
+  writeFileSync(path.join(modsDir, "STS2_MCP.identity"), JSON.stringify({
+    source_revision: "a".repeat(40),
+    artifact_sha256: "0".repeat(64)
+  }));
+  const result = readInstalledConnectorIdentity({ mods_dir: modsDir });
+  assert.equal(result.status, "verified");
+  assert.equal(result.identity.source_revision, "b".repeat(40));
+  assert.match(result.identity_file, /STS2_PLATFORM\.identity$/u);
+  rmSync(directory, { recursive: true, force: true });
+});

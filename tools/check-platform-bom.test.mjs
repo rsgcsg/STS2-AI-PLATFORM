@@ -69,6 +69,13 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   candidate.semantic_timeline_source_candidate.loaded = "non_claim";
   candidate.semantic_timeline_source_candidate.owner_canary.semantic_proved = 18;
   candidate.semantic_timeline_source_candidate.evidence_transfer_from_predecessor = true;
+  candidate.full_run_semantic_source_candidate.annotator_source_revision = "0".repeat(40);
+  candidate.full_run_semantic_source_candidate.workspace_revision_at_build = "0".repeat(40);
+  candidate.full_run_semantic_source_candidate.loaded = "non_claim";
+  candidate.full_run_semantic_source_candidate.owner_canary.semantic_proved = 332;
+  candidate.full_run_semantic_source_candidate.owner_canary.performance_profile = "pass";
+  candidate.full_run_semantic_source_candidate.evidence_transfer_from_schema2_predecessor = true;
+  candidate.full_run_semantic_source_candidate.predecessor_missing_semantic_native_roots = 0;
   candidate.game_mod.installed = "pending";
   candidate.runtime.execution_available = false;
   candidate.owner_ui_visibility = "pass";
@@ -81,6 +88,15 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   candidate.semantic_execution_order_loaded_candidate.owner_canary.semantic_proved = 25;
   candidate.semantic_execution_order_loaded_candidate.owner_canary.exact_reorder_rebind = "pass";
   candidate.semantic_execution_order_loaded_candidate.evidence_transfer_from_predecessor = true;
+  candidate.serialized_canonical_loaded_candidate.human_runtime = "pass";
+  candidate.serialized_canonical_loaded_candidate.host_automation.same_artifact_prefix_9 =
+    "semantic_mismatch";
+  candidate.serialized_canonical_loaded_candidate.evidence_transfer_from_predecessor = true;
+  candidate.native_semantic_discriminator_source_candidate.human_runtime = "pending";
+  candidate.native_semantic_discriminator_source_candidate.owner_canary.native_successful = 40;
+  candidate.native_semantic_discriminator_source_candidate.owner_canary.route_verdict =
+    "PRACTICALLY_IMPOSSIBLE_TRIANGLE";
+  candidate.native_semantic_discriminator_source_candidate.evidence_transfer_from_predecessor = true;
   candidate.recording_application_decision_gate.human_origin = "machine_proven";
   candidate.predecessor_human_session.evidence_transfer_to_unified_artifact = true;
   candidate.external_policy.checkpoint_status = "present";
@@ -91,6 +107,13 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
     (claim) => claim !==
       "native_rejected_cancelled_attempt_absence_owner_attested_not_machine_attributable"
   );
+  bom.non_claims = bom.non_claims.filter(
+    (claim) => claim !== "serialized_canonical_candidate_human_runtime_not_exercised"
+  );
+  bom.non_claims = bom.non_claims.filter(
+    (claim) => claim !== "native_semantic_discriminator_cancel_abort_not_exercised"
+  );
+  bom.non_claims.push("native_semantic_discriminator_human_runtime_pending");
   bom.non_claims.push("semantic_execution_order_exact_rebind_not_exercised");
   const errors = validatePlatformBom(bom, await readBomAuthorities(root));
   assert.ok(errors.some((error) => error.startsWith("candidate current Live UI source:")));
@@ -101,6 +124,12 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   assert.ok(errors.some((error) => error.startsWith("semantic timeline semantic proved:")));
   assert.ok(errors.some((error) =>
     error.startsWith("semantic timeline predecessor evidence transfer:")));
+  assert.ok(errors.some((error) => error.startsWith("Full-Run workspace at build:")));
+  assert.ok(errors.some((error) => error.startsWith("Full-Run loaded:")));
+  assert.ok(errors.some((error) => error.startsWith("schema-3 proved:")));
+  assert.ok(errors.some((error) => error.startsWith("schema-3 performance profile:")));
+  assert.ok(errors.some((error) => error.startsWith("Full-Run predecessor evidence transfer:")));
+  assert.ok(errors.some((error) => error.startsWith("Full-Run predecessor missing semantic roots:")));
   assert.ok(errors.some((error) => error.startsWith("candidate Game Mod installed:")));
   assert.ok(errors.some((error) => error.startsWith("candidate execution:")));
   assert.ok(errors.some((error) => error.startsWith("candidate owner UI visibility:")));
@@ -113,11 +142,24 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
   assert.ok(errors.some((error) => error.startsWith("semantic execution proved:")));
   assert.ok(errors.some((error) => error.startsWith("semantic execution exact reorder claim:")));
   assert.ok(errors.some((error) => error.startsWith("semantic execution candidate evidence transfer:")));
+  assert.ok(errors.some((error) => error.startsWith("serialized candidate Human runtime:")));
+  assert.ok(errors.some((error) => error.startsWith("serialized candidate predecessor transfer:")));
+  assert.ok(errors.some((error) => error.startsWith("native discriminator Human runtime:")));
+  assert.ok(errors.some((error) =>
+    error.startsWith("native discriminator Human native_successful:")));
+  assert.ok(errors.some((error) => error.startsWith("native discriminator route verdict:")));
+  assert.ok(errors.some((error) => error.startsWith("native discriminator predecessor transfer:")));
   assert.ok(errors.some((error) => error.startsWith("accepted-only Human origin:")));
   assert.ok(errors.some((error) => error.startsWith("predecessor evidence transfer:")));
   assert.ok(errors.some((error) => error.startsWith("candidate policy checkpoint:")));
   assert.ok(errors.includes("S1 checkpoint/model-mode non-claim is missing"));
   assert.ok(errors.includes("Native-rejected attempt attribution non-claim is missing"));
+  assert.ok(errors.includes("Serialized canonical Human-runtime non-claim is missing"));
+  assert.ok(errors.includes(
+    "Bounded Human-proved native discriminator retains a stale pending non-claim"));
+  assert.ok(errors.includes(
+    "Native semantic discriminator non-claim is missing: "
+      + "native_semantic_discriminator_cancel_abort_not_exercised"));
   assert.ok(errors.includes(
     "Live-proved semantic execution-order rebind retains a stale non-claim"
   ));

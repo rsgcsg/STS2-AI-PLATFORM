@@ -5,10 +5,11 @@
 > no longer part of the current development contract.
 
 The Human Annotator records bounded human decisions made through the shipped
-Slay the Spire 2 UI. It combines the exact pre-action Player Environment frame
-from the Platform Connector component, a native action
-already accepted by the game, an exact process-local mapping to one frozen
-`BoundAction`, and the next stable Player Environment snapshot.
+Slay the Spire 2 UI. It preserves the exact Human observation, complete frozen
+`BoundAction` catalog, exact process-local mapping, native action
+identity/lifecycle, and later authoritative Player Environment observations as
+distinct facts. Offline calibration, not a runtime disposition label, decides
+whether those facts satisfy a particular research transition contract.
 
 The recorder observes. It does not click, enqueue actions, reconstruct legality,
 or expose native references on a wire.
@@ -24,6 +25,18 @@ or expose native references on a wire.
   choice select/skip observation. Ordinary-combat V2 is exact native-human
   verified; generated-card select has one audited predecessor record while skip
   and the unified artifact remain `not exercised`.
+- The additive schema-2 timeline is bounded Human-proved for its historical
+  trace contract in ordinary combat and generated-card select. Current Full-Run
+  source/test coverage adds lethal-to-reward settlement, reward claim/proceed,
+  card reward select and map travel without expanding Decision V2. Neither the
+  schema name nor `transition_proved` grants canonical one-step eligibility.
+- Current source writes semantic evidence schema 3: ordered lifecycle and
+  disposition events reference content-addressed Human and boundary frames
+  instead of embedding the same frame repeatedly. The independent auditor
+  resolves and hashes every reference and applies the trace-level causal
+  invariants. Historical schema-1/2 traces remain readable. The latest exact
+  owner session proves schema-3 accounting but calibrates to zero canonical
+  `S + A(S) -> A -> S'` rows; see the current status and ADR 0003.
 - A typed RecordingService exposes Query/Status, Command and ordered Event
   contracts to Platform views. Runtime startup is `Ready`; `StartNewSession`
   opens an isolated session, Pause/Resume gate new witness admission, and Close
@@ -54,9 +67,8 @@ or expose native references on a wire.
   same-artifact 20-record run independently passed audit/export and strict STPD
   B0 with zero rejected records and no `mapping_zero`.
   Earlier exact artifacts contribute 170 predecessor records but do not lend
-  identity or authority to the current artifact. Pending scope remains explicit:
-  potions and non-Combat UI actions are unsupported by this recorder slice.
-- Unsupported by this first slice: potions and non-Combat UI actions.
+  identity or authority to the current artifact. Decision V2 remains a narrow
+  combat profile; broader semantic-sidecar coverage is tracked separately.
 
 Unified artifact `06f62285... / 17981f40...` has two owner-operated sessions
 that independently audit 39/39 records: 25 card plays and 14 end turns, with 158
@@ -99,12 +111,12 @@ Implementation or build evidence is not human-origin evidence. See
 
 ```text
 shipped STS2 UI
-  -> observer freezes Connector S + complete A(S) at native selection start
-  -> game accepts a semantic action and assigns an exact GameAction ID
+  -> observer freezes Human observation H + complete Connector A(H)
+  -> game accepts an exact GameAction or source-local UI Commit
   -> exact native references match exactly one frozen BoundAction
-  -> additive ledger observes the game-owned action lifecycle
-  -> Connector observes a different stable S' with required same-frame Reads
-  -> append-only HumanDecisionRecord V2 + RunJournal + content-addressed blobs
+  -> native lifecycle/direct delivery and authoritative boundary frames are observed
+  -> normalized trace + unchanged narrow Decision V2 evidence
+  -> offline calibration tests an explicit research transition contract
   -> audit/export
   -> immutable HumanSessionBundle V2
   -> Platform Evidence verify/store/transfer/receive
@@ -115,6 +127,18 @@ Zero or multiple matches, no current or same-card staged stable pre-frame,
 runtime drift, an unproven overlapping causal window, or a missing stable
 successor are quarantined rather than guessed. Overlap still retains accepted
 action identity and lifecycle evidence; it does not emit a strict V2 record.
+Schema-3 `transition_proved` is a trace disposition, not canonical training
+authority. Run the mechanical calibration before making any one-step claim:
+
+```bash
+npm --prefix components/annotator run calibrate:semantic-training -- \
+  .local/recordings/<session> --output /tmp/semantic-calibration.json
+```
+
+ADR 0003 selects serialized Human input as the next candidate architecture for
+canonical one-step collection. No input gate or runtime implementation is
+authorized by that decision. Pending explicit owner approval, implementation
+must remain stopped at this design boundary.
 
 ## Prerequisites
 
