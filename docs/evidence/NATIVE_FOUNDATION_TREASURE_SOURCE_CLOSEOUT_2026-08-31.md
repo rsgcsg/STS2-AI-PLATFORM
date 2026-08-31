@@ -3,7 +3,9 @@
 Date: 2026-08-31
 Branch: `refactor/platform/native-foundation-full-run-mainline`
 Original stacked base: `refactor/platform/native-foundation@79191a1e8c93d3e1a9cbd7632972fc7d6cbad39f`
-Implementation commit: `85cb0a59a0edc9432d76e55d5925a8a3264a4d05`
+Implementation commits: `db6c4676c29ab623e281afcbf6beb0311c4c68a0`
+(`feat: add native non-combat semantic completion seams`) and
+`34f10fed5ab96522c70229e4c1f59d15826fa2bf` (provenance alignment).
 
 Closeout note: PR #3 and PR #5 are now integrated in `develop` at
 `c751952fb2730f198e3adadbebce5aff9cf63c98`. The continuation was rebased onto
@@ -60,22 +62,26 @@ remains an immediate post-delivery observation, not a causal `S'`.
 
 ## Automated Evidence
 
-- Connector Host: 165/165 tests pass.
+- Connector Host: 164/164 tests pass.
 - Connector TypeScript SDK: 7/7 tests pass.
 - Connector CLI, docs, contract and boundary checks pass.
-- Unified game-Mod tests: 33/33 pass.
+- Unified game-Mod tests: 36/36 pass.
 - exact owner/stage/membership and presentation-separation tests pass.
 
 The final clean build also closes a provenance defect discovered during this
 batch: compiled game-Mod identity now includes every composition `.cs` input,
 including `NativeFoundationOwnerPatches.cs`, rather than only the initializer,
-project and manifest. The portable regression suite contains 34 game-Mod tests.
+project and manifest. The current portable regression suite contains 36
+game-Mod tests.
 
-- exact clean artifact SHA-256:
-  `3bc44ddb3c339353a5afcb1acb079e58edad019c4959ffaa10369da783ac3c1b`;
-- MVID: `708ecfab-b370-4575-83d0-39c1700bc8b6`;
-- compiled Platform source revision: `85cb0a59...`;
-- compiled Platform source digest: `831b63e2...`;
+- fresh exact clean candidate artifact SHA-256:
+  `8ecdb2dfca07c2bd323d16a754d25f500d8c048489a9b374c86314ad89055716`;
+- MVID: `d0340c68-9323-4f98-80fd-cb7f78d2bd00`;
+- compiled Platform source revision: `db6c4676...`;
+- game-Mod compiled-input source digest:
+  `3a58e4b752540312f42a1f7741ae524a46dce69436838324d9977ec6c0f8deb9`;
+- this candidate is source/build evidence only and has not been installed,
+  loaded or Human-qualified.
 - build: PASS with no warnings.
 
 ## Mac Automated Runtime Evidence
@@ -99,9 +105,9 @@ The process was stopped after verification. No gameplay action was submitted.
 
 ## Evidence Boundary
 
-This report records source, deterministic test, exact clean-build, safe-install
-and bounded main-menu cold-load evidence for the predecessor continuation. It
-does not prove that Treasure was entered or that open/select/skip/proceed was
-observed or delivered. Human and gameplay runtime remain T3 pending. Earlier
-continuation and PR #5 runtime/Human evidence do not transfer, and the current
-native-completion continuation requires a fresh exact artifact gate.
+This report records predecessor source, deterministic test, exact clean-build,
+safe-install and bounded main-menu cold-load evidence separately from the
+current fresh candidate. It does not prove that Treasure was entered or that
+open/select/skip/proceed was observed or delivered. Human and gameplay runtime
+remain T3 pending. Earlier continuation and PR #5 runtime/Human evidence do not
+transfer; the fresh candidate requires its own install/load and Human gate.

@@ -643,6 +643,41 @@
       "evidence_transfer_from_predecessor": false,
       "rollback": "apps/game-mod/.local/deployments/2026-08-27T03-41-37.869Z"
     },
+    "native_foundation_full_run_continuation_candidate": {
+      "status": "source_test_exact_build_human_pending",
+      "workspace_revision_at_build": "34f10fed5ab96522c70229e4c1f59d15826fa2bf",
+      "platform_source_revision": "9f89d5e42575e0716b9df981f3bab5ffffe1e0f6",
+      "platform_source_digest_sha256": "652897879893d3f4dc69b0f2a0b95b6d65ee2122448e127cd1d627829d34b0f5",
+      "game_mod_component_source_revision": "db6c4676c29ab623e281afcbf6beb0311c4c68a0",
+      "game_mod_component_tree_revision": "59facc798f135a1a9727e899f80194b592c12c95",
+      "game_mod_component_source_digest_sha256": "9a0e21b69f9186635ed3b6a4fa8c7ed6c852246dce5c18ce2bd3d15f256878db",
+      "game_mod_compiled_input_digest_sha256": "3a58e4b752540312f42a1f7741ae524a46dce69436838324d9977ec6c0f8deb9",
+      "connector_source_revision": "7ba6df82767af098a59e4c8adf734275c3741c91",
+      "connector_artifact_sha256": "c9d0d2bbd25c4024d6436772f2de859dd5270f37d03c88a2f0efcefdf9d74948",
+      "connector_artifact_mvid": "9edbc540-ddb4-425e-b99d-43e98abf2566",
+      "annotator_source_revision": "db6c4676c29ab623e281afcbf6beb0311c4c68a0",
+      "annotator_component_source_digest_sha256": "b2e54240405b4e0f16a46baaff25a930642ef6fe691250e815810089908f8d3d",
+      "annotator_artifact_sha256": "11d052a7a6d8b49d173cef9ad74054d63a44674233afd4172c4af45ebe6785d8",
+      "annotator_artifact_mvid": "86f361c7-22b8-4f9e-b681-ea8ac871c883",
+      "game_mod_artifact_sha256": "8ecdb2dfca07c2bd323d16a754d25f500d8c048489a9b374c86314ad89055716",
+      "game_mod_artifact_mvid": "d0340c68-9323-4f98-80fd-cb7f78d2bd00",
+      "game": {
+        "version": "v0.111.0",
+        "commit": "41cef1ea",
+        "main_assembly_sha256": "9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4",
+        "main_assembly_mvid": "57785517-0b16-42b9-8b36-bad6fb28384b"
+      },
+      "modset": {
+        "status": "exact_sole_platform_expected",
+        "ids": ["STS2_PLATFORM"]
+      },
+      "protocol": "1.0.0",
+      "built": "pass",
+      "installed": "pending",
+      "loaded": "pending",
+      "human_runtime": "pending",
+      "evidence_transfer_from_predecessor": false
+    },
     "full_run_semantic_source_candidate": {
       "status": "semantic_evidence_schema3_bounded_human_pass",
       "workspace_revision_at_build": "750315b3b998a04507439869c96ba78d280787fb",

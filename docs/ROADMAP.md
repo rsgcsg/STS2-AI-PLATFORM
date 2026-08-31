@@ -37,10 +37,13 @@
 - Complete on predecessor PR #6 artifact `3bc44ddb... / 708ecfab...`: exact
   build, safe install/rollback and bounded main-menu cold-load on macOS. This
   evidence does not transfer across the restack.
-- Pending for the restacked PR #6 artifact: exact build,
-  install/load and representative runtime exercise of the new
-  Map/Reward/CardReward/Treasure adapters;
-  no PR #5 Human evidence transfers.
+- Complete at source/test and fresh exact clean-build on the restacked
+  continuation: Map/Reward/CardReward/Treasure adapters and their native
+  completion seams build as game-Mod artifact
+  `8ecdb2df... / d0340c68...`; Connector and Annotator dependent artifacts are
+  also recorded in the source closeout. Install/load and representative Human
+  runtime exercise of all four adapters remain pending; no PR #5 Human
+  evidence transfers.
 - Next after PR #6 requalification: migrate Shop,
   Event, Rest, run entry, and terminal by native mechanism. Remove each old
   publication/witness path only after both consumers use the shared adapter.

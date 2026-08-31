@@ -3,7 +3,9 @@
 Date: 2026-08-31
 Branch: `refactor/platform/native-foundation-full-run-mainline`
 Original stacked base: `refactor/platform/native-foundation@79191a1e8c93d3e1a9cbd7632972fc7d6cbad39f`
-Implementation commit: `47dacf93d49d2f8cb1a1d8409557bee9884e0ecf`
+Implementation commits: `db6c4676c29ab623e281afcbf6beb0311c4c68a0`
+(`feat: add native non-combat semantic completion seams`) and
+`34f10fed5ab96522c70229e4c1f59d15826fa2bf` (provenance alignment).
 
 Closeout note: PR #3 and PR #5 are now integrated in `develop` at
 `c751952fb2730f198e3adadbebce5aff9cf63c98`. The continuation was rebased onto
@@ -71,19 +73,26 @@ is still an immediate post-delivery observation, not causal `S'`.
 
 ## Automated Evidence
 
-- Connector Host: 156/156 tests pass.
+- Connector Host: 164/164 tests pass.
 - Connector TypeScript SDK: 7/7 tests pass.
 - Connector CLI, docs, contract and boundary checks pass.
-- Unified game-Mod boundary tests: 32/32 pass.
+- Unified game-Mod boundary tests: 36/36 pass.
 - Platform dependency boundary checks pass.
 - Root exact-game orchestration now builds the Connector Release artifact
   before the dependent standalone Annotator check. A regression test fixes
   that order; the prior clean-order failure was a missing build prerequisite,
   not a semantic or runtime failure.
 - Root portable suite and root exact-game suite pass.
-- Exact clean unified build: PASS with no warnings.
-- Build artifact SHA-256: `3e3ebc3cbb7b3e19c2e6bfe2412a9b215aca86666dffcc8c028ba7686a9fa89e`.
-- Build artifact MVID: `53568805-b90a-4165-84ba-098f1c05fc6c`.
+- Fresh exact clean unified build after the continuation commits: PASS with no
+  warnings. Candidate artifact SHA-256:
+  `8ecdb2dfca07c2bd323d16a754d25f500d8c048489a9b374c86314ad89055716`;
+  MVID: `d0340c68-9323-4f98-80fd-cb7f78d2bd00`. The dependent Connector
+  artifact is `c9d0d2bbd25c4024d6436772f2de859dd5270f37d03c88a2f0efcefdf9d74948`
+  / `9edbc540-ddb4-425e-b99d-43e98abf2566`, and the Annotator artifact is
+  `11d052a7a6d8b49d173cef9ad74054d63a44674233afd4172c4af45ebe6785d8`
+  / `86f361c7-22b8-4f9e-b681-ea8ac871c883`.
+  These are build candidates only; they are not yet installed, loaded or
+  Human-qualified.
 
 ## Mac Automated Runtime Evidence
 
@@ -113,17 +122,20 @@ but only accepts a semantic successor from an exact native post-commit/task
 completion or GameAction lifecycle. `legacy_v2_successor` is no longer sent to
 the semantic tracker, so interactive polling cannot create canonical proof.
 Reward/CardReward completion and Treasure native roots are source/test claims
-only; this note does not transfer the predecessor artifact or Human evidence.
+only; the fresh exact build above has not yet been installed or loaded. This
+note does not transfer the predecessor artifact or Human evidence.
 
 ## Evidence Boundary
 
-At this closeout the continuation artifact has source, deterministic test,
-exact clean-build, safe-install and bounded cold-load evidence. It has not been
-exercised on a Map/Reward/CardReward decision or used for Human recording. The
-loaded main-menu readiness envelope does not prove the new decision adapters.
+At this closeout the continuation has source, deterministic test and fresh
+exact clean-build evidence. The fresh candidate has not been installed,
+cold-loaded, exercised on a Map/Reward/CardReward/Treasure decision or used for
+Human recording. The predecessor main-menu readiness envelope does not prove
+the new decision adapters.
 PR #5 Windows T3, predecessor schema-3 Human evidence and earlier macOS runtime
 evidence do not transfer. Ritsu remains
 `RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY`.
 
-Next non-Human architecture batch is the Treasure lifecycle discriminator;
+The next gate is safe install/cold-load of the fresh candidate followed by a
+single bounded Human canary covering Map, Reward, CardReward and Treasure.
 T3 gameplay evidence for this artifact remains a separate gate.

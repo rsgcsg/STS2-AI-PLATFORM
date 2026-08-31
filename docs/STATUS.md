@@ -77,9 +77,18 @@ claims. Native semantic proof now waits for `VoteForMapCoordAction` or
 `PickRelicAction` terminal lifecycle, successful reward/card-reward completion,
 or terminal proceed task completion. The UI callback only accounts for the
 Human root. Legacy V2 successor polling no longer feeds the semantic trace; an
-incomplete native boundary remains explicit unknown. This is source/test
-evidence only until a fresh exact artifact is built and a new Human canary
-exercises all four families.
+incomplete native boundary remains explicit unknown. A fresh exact clean build
+is now available as game-Mod artifact
+`8ecdb2dfca07c2bd323d16a754d25f500d8c048489a9b374c86314ad89055716 /
+d0340c68-9323-4f98-80fd-cb7f78d2bd00`, with Connector
+`c9d0d2bbd25c4024d6436772f2de859dd5270f37d03c88a2f0efcefdf9d74948 /
+9edbc540-ddb4-425e-b99d-43e98abf2566` and Annotator
+`11d052a7a6d8b49d173cef9ad74054d63a44674233afd4172c4af45ebe6785d8 /
+86f361c7-22b8-4f9e-b681-ea8ac871c883`, against STS2
+`v0.111.0 / 41cef1ea` and game assembly
+`9cb4f1ad... / 57785517...`. These are source/build candidates only: they
+have not been installed, loaded or Human-exercised. A fresh exact runtime
+canary covering all four families remains required.
 
 Connector, Annotator, unified-Mod targeted checks and the full portable suite
 pass for component source commit `a3bcd37...`. Clean build, safe install and
