@@ -645,7 +645,7 @@
     },
     "native_foundation_full_run_continuation_candidate": {
       "status": "source_test_exact_build_human_pending",
-      "workspace_revision_at_build": "34f10fed5ab96522c70229e4c1f59d15826fa2bf",
+      "workspace_revision_at_build": "9aa0407fe9535a54f1599a40b4d4c8be318a5ba6",
       "platform_source_revision": "9f89d5e42575e0716b9df981f3bab5ffffe1e0f6",
       "platform_source_digest_sha256": "652897879893d3f4dc69b0f2a0b95b6d65ee2122448e127cd1d627829d34b0f5",
       "game_mod_component_source_revision": "db6c4676c29ab623e281afcbf6beb0311c4c68a0",
