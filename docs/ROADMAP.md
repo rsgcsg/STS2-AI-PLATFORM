@@ -11,6 +11,9 @@
   Map destinations, Reward choices/proceed and CardReward options through
   typed shared Native Foundation decision providers. Connector intersects
   presentation/delivery and Annotator consumes the same catalog.
+- Complete at source/test: route Treasure chest, exact relic choice, skip and
+  proceed through `NativeTreasureDecisionProvider`; visible controls remain
+  delivery bindings only.
 - Complete and frozen: PR #7/#8 retrofit and Ritsu-first evidence preserve the
   `RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY` route in ADR 0004; useful
   findings are retained without merging research runtime code.
@@ -26,8 +29,9 @@
   accounting, potion, three PlayerChoice pause/resume pairs, repeated
   `lethal -> Reward -> CardReward -> Map`, and Recorder New/Pause/Resume/Close.
   See the [Human closeout](evidence/NATIVE_FOUNDATION_WINDOWS_HUMAN_CLOSEOUT_2026-08-31.md).
-- Independently pending for the continuation artifact: exact install/load and
-  representative runtime exercise of the new Map/Reward/CardReward adapters;
+- Independently pending for the restacked PR #6 artifact: exact build,
+  install/load and representative runtime exercise of the new
+  Map/Reward/CardReward/Treasure adapters;
   no PR #5 Human evidence transfers.
 - Next after PR #6 requalification: migrate Shop,
   Event, Rest, run entry, and terminal by native mechanism. Remove each old

@@ -181,22 +181,22 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 
 | Field | Exact-version conclusion |
 |---|---|
-| Semantic owner | current treasure room/chest state and generated relic choice collection |
-| State source | chest-open stage, relic options, skip/completed state and room progression |
-| Semantic action source | native chest/relic collection; current Platform reads exact chest/holders/proceed control |
-| Native validator | current stage, holder membership and room-owned claim/proceed callbacks |
-| Decision boundary | current treasure stage has one exact open/choose/skip/proceed operation |
+| Semantic owner | exact `TreasureRoom`/`IRunState` pair registered by `NTreasureRoom.Create`, plus the current `TreasureRoomRelicSynchronizer` collection |
+| State source | room-owned chest-open/collection lifecycle, `CurrentRelics`, exact local player vote and room progression |
+| Semantic action source | `NativeTreasureDecisionProvider` projects `open`, exact relic `select`, `skip` and `proceed` from those game-owned operands |
+| Native validator | current room identity/stage, exact relic reference membership and local vote; Connector separately rechecks the current delivery control |
+| Decision boundary | provider stage is `closed`, `opening`, `relic_choice`, `resolving` or `completed`; only stage-valid operations are semantic candidates |
 | Presentation owner | chest control, relic holders and `NProceedButton` |
 | Delivery seam | exact chest/holder/proceed callback |
-| Exact binding | treasure room plus chest, relic collection/holder or proceed control |
+| Exact binding | public room/relic referents bind the process-local `TreasureRoom`/`RelicModel`; UI nodes stay Host-local delivery operands |
 | Lifecycle | chest generation, relic claim/skip and room completion |
 | Next-decision seam | relic choice continuation, completed treasure phase, or Map |
 | Root/continuation | open is a root; relic choice is its continuation; proceed starts room transition |
-| Current workaround | stage is reconstructed from visible nodes and Proceed `IsSkip` |
-| Heuristic debt | no native treasure lifecycle adapter; visibility currently participates in stage truth |
+| Current workaround | removed as semantic authority; visible controls only intersect the provider catalog for delivery |
+| Heuristic debt | exact private lifecycle fields remain version-bound read-only inputs; chest callback observation prevents transient empty-option republishing |
 | Ritsu support | treasure generation hooks are not an exact claim/continuation contract |
-| Missing evidence | preferred next lifecycle discriminator T0/T1/T3 |
-| Migration verdict | direct presentation adapter retained; next lifecycle discriminator |
+| Missing evidence | final continuation artifact T2 cold-load and representative T3 open/select/skip/proceed exercise |
+| Migration verdict | typed Native Foundation provider implemented at T0/T1; Connector presentation adapter retained only for delivery |
 
 ## Run Entry / Room And Act Transition
 

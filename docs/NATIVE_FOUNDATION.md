@@ -50,7 +50,7 @@ game's `ActionExecutor`. Generated-card choice remains a visible Connector
 surface, while Annotator records pause/resume against that exact parent. The
 lineage neither enumerates choices nor authorizes input.
 
-### Reward to card reward to map
+### Reward to card reward to map and treasure
 
 `NativeDomainOwnerProbe` distinguishes semantic owner from presentation/input
 owner using `RunState.CurrentRoom`, `NOverlayStack.Peek`, and
@@ -64,6 +64,10 @@ catalogs behind that route:
   discard choices and native proceed policy;
 - `NativeCardRewardDecisionProvider` observes the exact option arrays supplied
   to `NCardRewardSelectionScreen.ShowScreen` and `RefreshOptions`.
+- `NativeTreasureDecisionProvider` binds the exact `TreasureRoom`/run pair from
+  `NTreasureRoom.Create`, then reads the room-owned lifecycle and
+  `TreasureRoomRelicSynchronizer` collection for exact open/select/skip/proceed
+  membership.
 
 The unified Mod registers those exact owner arguments through three bounded,
 read-only Postfix seams. Connector intersects each catalog with current visible
@@ -93,6 +97,7 @@ T2/T3 rows are non-claims, not implied support.
 | Map reachability from `NMapPoint.State` | removed as semantic authority | `RunState` and `MapTravel` own destinations; map nodes only bind delivery |
 | Reward publication from `NRewardButton` | removed as semantic authority | exact `RewardsSet` membership and proceed policy now own the catalog |
 | CardReward options from holders/buttons | removed as semantic authority | exact native option arrays own membership; controls only bind delivery |
+| Treasure stage from chest/holder/proceed visibility | removed as semantic authority | exact room lifecycle and synchronizer vote own the catalog; controls only bind delivery |
 | per-surface owner detection | retained for presentation routing only | semantic owner and action source now come from typed Foundation providers |
 | duplicated Describe/Start dispatch in source adapters | migration debt | consolidate only when a native domain adapter is proved |
 | SnapshotBuilder source-specific special paths | migration debt | move facts before actions when owning domains migrate |
@@ -100,11 +105,11 @@ T2/T3 rows are non-claims, not implied support.
 ## Migration Map
 
 1. Keep Direct Combat and PlayerChoice as regression oracles.
-2. Keep Map/Reward/CardReward typed decision adapters source-local and validate
+2. Keep Map/Reward/CardReward/Treasure typed decision adapters source-local and validate
    their exact owner registration, presentation intersection and execution-time
    revalidation on a new artifact.
-3. Use Treasure as the next lifecycle discriminator, then migrate Shop,
-   Event, Rest, run entry, and terminal by native mechanism rather than screen.
+3. Use Shop as the next domain migration, then Event, Rest, run entry, and
+   terminal by native mechanism rather than screen.
 4. Remove old owner/publication branches only after their Connector consumer
    and Annotator witness both use the shared adapter.
 
