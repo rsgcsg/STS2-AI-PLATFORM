@@ -7,7 +7,7 @@
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {
-    "check": "node --test test",
+    "check": "node --test",
     "build": "node build.mjs",
     "doctor": "node lifecycle.mjs doctor",
     "deploy": "node lifecycle.mjs deploy",

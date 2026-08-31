@@ -25,6 +25,6 @@ test("workspace package test entrypoints do not require shell glob expansion", (
     ["apps/workbench/package.json", "test"]
   ]) {
     const packageJson = JSON.parse(fs.readFileSync(path.join(root, relative), "utf8"));
-    assert.equal(packageJson.scripts[script], "node --test test", relative);
+    assert.equal(packageJson.scripts[script], "node --test", relative);
   }
 });
