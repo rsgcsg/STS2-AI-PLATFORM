@@ -3,7 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { compiledSourceDigest } from "../source-identity.mjs";
+import {
+  compiledSourceDigest,
+  isGameModCompiledSource
+} from "../source-identity.mjs";
 
 const root = path.resolve(import.meta.dirname, "../../..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
@@ -50,6 +53,14 @@ test("compiled identity ignores repository-only provenance", () => {
 
   assert.equal(repositoryOnlyDrift, baseline);
   assert.notEqual(nativeDrift, baseline);
+});
+
+test("game-Mod provenance covers every compiled composition source", () => {
+  assert.equal(isGameModCompiledSource("UnifiedPlatformMod.cs"), true);
+  assert.equal(isGameModCompiledSource("NativeFoundationOwnerPatches.cs"), true);
+  assert.equal(isGameModCompiledSource("STS2Platform.GameMod.csproj"), true);
+  assert.equal(isGameModCompiledSource("mod_manifest.json"), true);
+  assert.equal(isGameModCompiledSource("test/boundary.test.mjs"), false);
 });
 
 test("component initializers are disabled only in the unified build", () => {
