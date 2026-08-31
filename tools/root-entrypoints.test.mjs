@@ -17,3 +17,14 @@ test("nested npm Host entrypoints preserve the script argument boundary", () => 
     }
   }
 });
+
+test("workspace package test entrypoints do not require shell glob expansion", () => {
+  for (const [relative, script] of [
+    ["apps/game-mod/package.json", "check"],
+    ["apps/ingame-ui/package.json", "check"],
+    ["apps/workbench/package.json", "test"]
+  ]) {
+    const packageJson = JSON.parse(fs.readFileSync(path.join(root, relative), "utf8"));
+    assert.equal(packageJson.scripts[script], "node --test test", relative);
+  }
+});
