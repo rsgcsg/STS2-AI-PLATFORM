@@ -90,6 +90,12 @@ Host source `8543e562aaee880fd7e0c4e41887ce94fbb2bd84` replaces that callback-de
 filter with an explicit contained file walk and pins the exact captured
 inventory. This changes no game artifact or gameplay/evidence semantics.
 
+The same Node 20 Windows run exposed shell-only `*.test.mjs` package scripts
+after Host, Annotator, and Evidence had passed. Game Mod, Live UI, and Workbench
+now use Node's standard test discovery; a root regression test keeps those
+entrypoints portable. This is package/test-harness authority only and likewise
+does not change the installed game artifact.
+
 - H0 verdict: pass;
 - host kind: `headless`;
 - runtime: `49f34fbfbbbc429393be52ce66625d65`;

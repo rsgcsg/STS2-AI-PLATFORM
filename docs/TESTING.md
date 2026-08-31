@@ -65,6 +65,9 @@ Windows and POSIX shells.
 The Host profile-template test also pins its captured file inventory. This
 prevents Node-version-specific recursive-copy filter behavior from admitting
 runtime-only Windows `logs` or `sentry` files into a reusable profile template.
+Workspace package tests use Node's standard automatic discovery rather than
+depending on shell-expanded `*.test.mjs` globs, which Windows npm does not
+expand on the supported Node 20 baseline.
 
 ## Evidence Ladder
 
