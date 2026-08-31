@@ -83,6 +83,9 @@ test("BOM check rejects Windows Native Foundation identity and claim drift", asy
   candidate.loaded_mod_ids = ["STS2_PLATFORM", "STS2-RitsuLib"];
   candidate.automated_live_ui.reads = "filtered";
   candidate.automated_live_ui.action_delivered = true;
+  candidate.final_takeover.loaded_mod_ids = ["STS2_PLATFORM", "CombatSolver"];
+  candidate.final_takeover.evidence_level = "human_pass";
+  candidate.final_takeover.disabled_workshop_update.loaded = true;
   candidate.recorder_lifecycle.owner_new_pause_resume_close = "pass";
   candidate.visible_headless_semantic_invariance.scope = "full_run";
   candidate.human_runtime = "pass";
@@ -97,6 +100,13 @@ test("BOM check rejects Windows Native Foundation identity and claim drift", asy
   assert.ok(errors.includes("Windows Native Foundation loaded Mods: expected only STS2_PLATFORM"));
   assert.ok(errors.some((error) => error.startsWith("Windows Native Foundation live reads:")));
   assert.ok(errors.some((error) => error.startsWith("Windows Native Foundation live mutation:")));
+  assert.ok(errors.includes(
+    "Windows Native Foundation final takeover loaded Mods: expected only STS2_PLATFORM"
+  ));
+  assert.ok(errors.some((error) =>
+    error.startsWith("Windows Native Foundation final takeover evidence_level:")));
+  assert.ok(errors.some((error) =>
+    error.startsWith("Windows Native Foundation disabled Workshop update loaded:")));
   assert.ok(errors.some((error) =>
     error.startsWith("Windows Native Foundation Recorder owner lifecycle:")));
   assert.ok(errors.some((error) => error.startsWith("Windows Native Foundation parity scope:")));

@@ -39,6 +39,11 @@ headless runtime `49f34fbf...` have equal main-menu-only canonical digest
 `eaf8516d...`. Human gameplay and Recorder owner lifecycle remain unexercised;
 the macOS and PR #3 Human evidence do not transfer. See the
 [Windows pre-Human gate](../evidence/NATIVE_FOUNDATION_WINDOWS_PRE_HUMAN_GATE_2026-08-31.md).
+The final takeover cold load is `a711647a... / 73b37f52... / 7140e294...` with
+only `STS2_PLATFORM` loaded. Steam updated the disabled `CombatSolver` Workshop
+entry after the earlier gate, and the complete ModManager fingerprint correctly
+changed. This loaded/read-only envelope is current for the pending Human canary;
+the earlier controller/headless evidence remains scoped to its own fingerprint.
 
 ## Active workstreams
 

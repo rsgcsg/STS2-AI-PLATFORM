@@ -71,6 +71,34 @@ Workshop entries remain preserved and disabled.
 - duplicate request ID: exact same Receipt;
 - delivered mutations during this gate: zero.
 
+## Final Owner-Takeover Cold Load
+
+After source/CI closeout, a fresh visible cold load on the same installed DLL
+passed `verify-loaded` again and was left at the main menu for owner takeover:
+
+- process: `9068`;
+- Connector runtime: `a711647abb174c8384ab4434a445195c`;
+- environment fingerprint:
+  `73b37f526c3db9403d7eb39b0796d0a5aa3d92fc0f5eef86344cddcce06d0112`;
+- Modset status/fingerprint:
+  `exact_platform_modset / 7140e294e14fede34ac1b566fecfe70b1ff56a04333e80ca0b87deb70d83b638`;
+- loaded Mods: ordered `['STS2_PLATFORM']`;
+- Snapshot: complete interactive `main_menu`, one complete `Continue` binding,
+  no advertised Reads;
+- Recorder: Ready with no open session.
+
+The complete Modset fingerprint differs from the earlier visible/headless gate.
+The owning-layer cause is explicit, non-loaded Workshop discovery drift:
+between the two logs the disabled `CombatSolver` entry changed from size
+`2246860` / modified value `1788097420` to size `2292940` / modified value
+`1788154165`; its current manifest is `0.22.9`. `LiveModsetIdentity` hashes all
+ModManager entries, including disabled entries, before it separately admits the
+loaded set. The loaded set, game, Platform DLL SHA/MVID, and implementation
+source did not change. The earlier main-menu gate remains evidence for its own
+fingerprint; it is not relabeled as evidence for this takeover environment.
+This final cold load is loaded/read-only preparation, not Human or controller
+mutation evidence.
+
 The initial cold-load found a Windows deployment-layer defect: the production
 Mod was disabled while preserved Workshop Mods were enabled in native settings.
 The game-mod deployment transaction now owns the exact settings mutation and

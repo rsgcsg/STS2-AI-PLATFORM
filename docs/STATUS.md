@@ -44,6 +44,12 @@ canonical digest `eaf8516d...`. Recorder initializes Ready/no-session and its
 portable lifecycle checks pass; owner-visible New/Pause/Resume/Close and the
 Combat/PlayerChoice/cross-domain canary remain the exact Human gate. See the
 [Windows pre-Human gate](evidence/NATIVE_FOUNDATION_WINDOWS_PRE_HUMAN_GATE_2026-08-31.md).
+The final owner-takeover cold load is runtime `a711647a...`, environment
+`73b37f52...`, and sole-loaded-Platform Modset `7140e294...`. Its complete
+fingerprint changed because Steam updated a disabled Workshop entry; the loaded
+set and Platform bytes did not change. It is recorded separately as
+loaded/read-only preparation and does not inherit the earlier controller or
+headless claims.
 RitsuLib was audited at upstream v0.5.18/main `f224961...` and development
 `c466809...`; [ADR 0004](adr/0004-native-foundation-and-ritsu-route.md) records
 the no-runtime-dependency route. See the

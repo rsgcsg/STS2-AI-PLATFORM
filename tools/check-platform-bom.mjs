@@ -77,7 +77,10 @@ const NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE = Object.freeze({
   modset: "e5693d19c7571c1a30a07c2bca584eeced6b64e675bc5fb37acbb1638a1cb86c",
   headlessRuntime: "49f34fbfbbbc429393be52ce66625d65",
   canonicalDigest: "eaf8516dc290509ca8b2a33f098b0d6582842c9be2635accd4c217c2d3dd58e4",
-  rollback: "apps/game-mod/.local/deployments/2026-08-30T14-44-51.829Z"
+  rollback: "apps/game-mod/.local/deployments/2026-08-30T14-44-51.829Z",
+  takeoverRuntime: "a711647abb174c8384ab4434a445195c",
+  takeoverEnvironment: "73b37f526c3db9403d7eb39b0796d0a5aa3d92fc0f5eef86344cddcce06d0112",
+  takeoverModset: "7140e294e14fede34ac1b566fecfe70b1ff56a04333e80ca0b87deb70d83b638"
 });
 
 function readJson(file) {
@@ -473,6 +476,39 @@ export function validatePlatformBom(bom, authorities) {
     windowsFoundation?.automated_live_ui?.[field], expected);
   expectEqual(errors, "Windows Native Foundation live mutation",
     windowsFoundation?.automated_live_ui?.action_delivered, false);
+  const windowsTakeover = windowsFoundation?.final_takeover;
+  for (const [field, expected] of Object.entries({
+    status: "loaded_read_only_pass_human_pending",
+    process_id: 9068,
+    runtime_instance_id: NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.takeoverRuntime,
+    environment_fingerprint: NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.takeoverEnvironment,
+    modset_status: "exact_platform_modset",
+    modset_fingerprint: NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.takeoverModset,
+    snapshot_status: "interactive",
+    interaction_kind: "main_menu",
+    bound_actions: "complete_one",
+    reads: "none_advertised",
+    recorder: "ready_no_session",
+    installed_equals_loaded: true,
+    fingerprint_relation_to_automated_gate: "changed_by_disabled_workshop_entry_update",
+    evidence_level: "loaded_read_only_not_human_or_controller_mutation"
+  })) expectEqual(errors, `Windows Native Foundation final takeover ${field}`,
+    windowsTakeover?.[field], expected);
+  if (!Array.isArray(windowsTakeover?.loaded_mod_ids)
+      || windowsTakeover.loaded_mod_ids.length !== 1
+      || windowsTakeover.loaded_mod_ids[0] !== "STS2_PLATFORM") {
+    errors.push("Windows Native Foundation final takeover loaded Mods: expected only STS2_PLATFORM");
+  }
+  for (const [field, expected] of Object.entries({
+    id: "CombatSolver",
+    loaded: false,
+    prior_discovery_size: 2246860,
+    current_discovery_size: 2292940,
+    prior_last_modified: 1788097420,
+    current_last_modified: 1788154165,
+    current_version: "0.22.9"
+  })) expectEqual(errors, `Windows Native Foundation disabled Workshop update ${field}`,
+    windowsTakeover?.disabled_workshop_update?.[field], expected);
   expectEqual(errors, "Windows Native Foundation settings transaction",
     windowsFoundation?.windows_mod_settings?.transaction, "pass_backup_restore_redeploy");
   expectEqual(errors, "Windows Native Foundation sole enabled Mod",
