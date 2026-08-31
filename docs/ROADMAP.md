@@ -37,13 +37,13 @@
 - Complete on predecessor PR #6 artifact `3bc44ddb... / 708ecfab...`: exact
   build, safe install/rollback and bounded main-menu cold-load on macOS. This
   evidence does not transfer across the restack.
-- Complete at source/test and fresh exact clean-build on the restacked
-  continuation: Map/Reward/CardReward/Treasure adapters and their identity-
-  carrying native completion seams build as game-Mod artifact
-  `f9f616da... / 2b2de33c...`; Connector and Annotator dependent artifacts are
-  recorded in the [completion-lineage source closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
-  Install/load and representative Human runtime exercise of all four adapters
-  remain pending; no predecessor Human evidence transfers.
+- Complete at source/test/build/load on PR #6: one modern semantic timeline now
+  separates Human Root, exact native Commit, and later Successor Boundary.
+  Async Tasks carry durable root/owner/operand/lineage identity; shared methods
+  are family-neutral; strict-V2 ledger and discriminator are non-authoritative.
+  Exact artifact `b637d380... / 9286ca51...` is cold-loaded with sole
+  `STS2_PLATFORM`. Representative Map/Reward/CardReward/Treasure Human runtime
+  remains pending; no predecessor Human evidence transfers.
 - Next after PR #6 requalification: migrate Shop,
   Event, Rest, run entry, and terminal by native mechanism. Remove each old
   publication/witness path only after both consumers use the shared adapter.

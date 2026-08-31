@@ -72,6 +72,12 @@ lifecycle adapter. Connector remains the only public state/action authority;
 Annotator consumes the shared native facts and does not reconstruct legality or
 claim a universal successor.
 
+ADR 0005 makes the semantic timeline the sole modern Human-root accounting
+authority. A Human Root, its exact STS2 Native Commit, and its later Successor
+Boundary are separate facts. Native lifecycle/task completion never implies
+`S'`; the strict-V2 ledger is compatibility-only and the native semantic
+discriminator is diagnostic-only.
+
 ## Hard Shell
 
 STS2 owns rules, RNG, native legality, effects and Commit. Connector publishes

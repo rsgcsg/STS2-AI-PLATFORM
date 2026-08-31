@@ -100,6 +100,20 @@ are installed and cold-loaded in runtime `e64e508d...` with environment
 matches the artifact exactly. They have not been Human-exercised; a fresh exact
 runtime canary covering all four families remains required.
 
+The latest PR #6 causal-evidence repair supersedes that candidate. It makes the
+semantic timeline the sole modern accounting authority and separates Human
+Root, Native Commit, and Successor Boundary. Async tasks retain exact root and
+owner/operand/lineage identity beyond the UI scope; shared completion methods
+derive family from the matched root. `GameAction.Finished` and Task completion
+prove Commit only, while `S'` requires a native owner-ready, PlayerChoice, or
+next-root pre-execution boundary. Legacy native-ledger bytes remain strict-V2
+compatibility, and the discriminator remains diagnostic. Clean artifact
+`b637d380... / 9286ca51...` is installed and cold-loaded in runtime
+`583ab4e5...`, environment `ea08bd5d...`, sole-Platform Modset `30b507c5...`.
+Source/tests/build/load pass; fresh Human qualification is pending and no
+predecessor evidence transfers. See [ADR 0005](adr/0005-human-root-commit-successor-evidence.md)
+and the updated [source closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
+
 Connector, Annotator, unified-Mod targeted checks and the full portable suite
 pass for component source commit `a3bcd37...`. Clean build, safe install and
 cold-load pass as artifact `9a89f1fe... / b1c34f90...` against exact STS2

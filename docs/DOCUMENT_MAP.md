@@ -44,6 +44,9 @@ Use the smallest route that answers the task.
   [Native Foundation Full-Run source closeout](evidence/NATIVE_FOUNDATION_FULL_RUN_SOURCE_CLOSEOUT_2026-08-31.md).
 - Current Treasure adapter source evidence:
   [Native Foundation Treasure source closeout](evidence/NATIVE_FOUNDATION_TREASURE_SOURCE_CLOSEOUT_2026-08-31.md).
+- Current Human Root/Native Commit/Successor Boundary authority and source gate:
+  [ADR 0005](adr/0005-human-root-commit-successor-evidence.md) and
+  [causal evidence source closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
 - Ownership matrix: [Components](COMPONENTS.md).
 - Portable/runtime evidence meanings: [Testing and Evidence](TESTING.md).
 - Component and composition identity: [Versioning](VERSIONING.md) and `platform-bom.json`.

@@ -1,132 +1,122 @@
-# Native Foundation Completion Lineage Source Closeout - 2026-09-01
+# Native Foundation Causal Evidence Source Closeout - 2026-09-01
 
-## Evidence Boundary
+## Evidence boundary
 
-This report closes the source, deterministic-test, exact-build and exact-load
-portion of the Map, Reward and Treasure native completion-lineage repair. It
-does not claim Human qualification for the new artifact. A new Human canary is
-required because the source and artifact identity changed.
+This report closes source, deterministic test, exact build, install, and load
+work for PR #6's Human-root accounting repair. Human qualification remains
+pending. The failed predecessor session is evidence about the old architecture,
+not evidence for the new artifact.
 
-Implementation source commit: `61be43df7fe0acf73dd8f634d2f2b9527b85973a`.
-Provenance/BOM commit: `32c75184128d72c65a5165dea4e14ddb7e4ee7a7`.
-Branch: `refactor/platform/native-foundation-full-run-mainline`.
+- Source branch: `refactor/platform/native-foundation-full-run-mainline`.
+- Canonical source commit: `f320ef65c8f34db02d321e06448391e459131331`.
+- Build workspace commit: `cdcc8e17de0ca07757d7087e336b28030722d8c0`.
+- Predecessor failure session:
+  `session-20260831T164142Z-ee4ed79cff7a4f2296806ce7d224d93f`.
+- Exact game: STS2 `v0.111.0 / 41cef1ea`, assembly
+  `9cb4f1ad... / 57785517...`.
 
-The latest predecessor Human session used to classify the failures was
-`session-20260831T135855Z-f647f7127cea48f3825c2a33a0520d1a`, timeline
-`timeline-a7298fef194c4e15b80780f570678162`. It loaded the predecessor Game Mod
-artifact `8ecdb2dfca07c2bd323d16a754d25f500d8c048489a9b374c86314ad89055716`
-with MVID `d0340c68-9323-4f98-80fd-cb7f78d2bd00`. Its modern events proved
-completion behavior but did not carry an exact related Human-root identity;
-therefore those events are diagnostic predecessor evidence only and do not
-qualify this repair.
+## Root cause
 
-## Failure Classification Used For The Repair
+The old implementation exposed five overlapping views of one action:
+`HumanActionScope`, the accepted-root gate, strict-V2 native ledger, modern
+semantic timeline, and native semantic discriminator. The modern timeline was
+already the causal evidence stream, but audit still required every diagnostic
+discriminator acceptance to appear in the strict-V2 ledger. Async Task
+completion attempted to recover a root from a short-lived ambient UI scope;
+the shared terminal-reward callback hard-coded a domain family; and both Task
+completion and `GameAction.Finished` were treated as immediate successor
+boundaries.
 
-The predecessor session recorded:
+That explains the predecessor failures: Map/PickRelic modern roots were rejected
+for lacking a legacy projection, Reward/CardReward completions lost roots or
+families, and Map `Finished` snapshots could remain the same decision state.
+Green unit tests exercised each helper separately and did not traverse root,
+native binding, Commit, successor, persistence, and final audit together.
 
-| Domain | Predecessor invalidations | Classification |
-|---|---:|---|
-| Map | 34 | 30 exact native-reference misses; 4 serialized-evidence overlaps |
-| Reward claim | 50 | 41 exact native-reference misses; 9 serialized-evidence overlaps |
-| Treasure | 9 | 3 chest and 3 relic and 3 proceed roots remained fail-closed |
-| Reward proceed | 18 modern proofs | predecessor source/runtime evidence only |
-| CardReward select | 12 modern proofs | predecessor source/runtime evidence only |
+With the corrected accounting definition, the predecessor bytes now audit as
+118 valid Decision V2 records, 73 explicit invalidations, and no malformed
+stream errors: discriminator roots are allowed to resolve through the modern
+timeline instead of requiring a legacy projection. This is an audit-definition
+correction, not retroactive semantic qualification. Offline calibration still
+finds only 12/45 modern canonical transitions, 32 unresolved successors, and
+one unresolved state/action-space row on those old bytes.
 
-The misses were not repaired by relaxing completeness, actionability, or
-required Reads. The source fix aligns the Annotator witness with the same
-public/native referents used by the Connector catalog:
+## Canonical model
 
-- Map observes the native `MapPoint` (`NMapPoint.Point`), not the UI wrapper.
-- Reward claim observes the native `Reward`, not `NRewardButton`.
-- Treasure chest and room-proceed public roots use the public null subject;
-  relic selection uses `activate`; skip uses `skip`; room ownership remains a
-  private native constraint rather than a public action operand.
-
-These changes make the old exact-reference misses matchable when the current
-decision frame is genuinely authoritative. They do not backfill a frame after
-the decision boundary or turn an incomplete Treasure frame into a success.
-
-## Completion Lineage
-
-Direct UI callbacks account for the Human root and freeze its semantic pre
-state. Native completion callbacks then carry an identity-bearing signal:
+ADR 0005 defines the single modern model:
 
 ```text
-session + generation + Human root
-  -> exact native family/kind/task/owner/operand/lineage
-  -> game-thread transport
-  -> post-commit semantic capture
-  -> proved successor or explicit unknown
+Human Root
+  -> exact native operation binding
+  -> Native Commit
+  -> authoritative Successor Boundary
 ```
 
-`NativePostCommitCompletionLedger` indexes registrations by the exact
-`ActionWitnessId`. Session/generation, family, kind, task identity and any
-native owner/operand/lineage identities are retained in the completion
-evidence. A missing root identity, mismatch, duplicate, reset, stale
-generation, failed task, or unmatched completion cannot consume another
-registration and is quarantined or recorded unknown.
+- The semantic timeline is the sole modern accounting authority.
+- The strict-V2 native ledger remains a historical compatibility projection.
+- The discriminator remains a non-authorizing execution diagnostic.
+- A Task is bound while native owner/operand/lineage are available. Its durable
+  binding carries session, generation, root, family, kind and Task identity;
+  completion never consults `HumanActionScope.Current`.
+- A shared callback gets family from the matched root, never from callback
+  naming or completion order.
+- `GameAction.Finished` and successful Task completion prove Commit only. They
+  never capture or prove `S'`.
+- `S'` requires a typed native owner-ready boundary, a legitimate paused
+  PlayerChoice, or the next Human root's complete pre-execution state before
+  its effect. A committed unresolved root is therefore allowed to hand off to
+  the next exact root.
+- Duplicate, stale, ambiguous, cancelled, faulted, unmatched, missing-boundary,
+  and cross-Human cases fail closed. There is no FIFO, count, timer, polling,
+  UI-stability, queue-idle, retry, or backfill proof path.
 
-The queue drained by `OnProcessFrame` is only a game-thread transport seam. It
-does not provide semantic authority. There is no count, FIFO, current-waiting
-root, timer, animation, queue-idle, or polling fallback in the modern proof
-path. Legacy V2 successor material remains historical compatibility evidence
-and cannot qualify this lane.
+## Native seams
 
-## Native Seams
-
-| Domain/action | Pre-state owner | Causal completion | Successor capture |
+| Family | Human root and pre-state | Native Commit | Successor boundary |
 |---|---|---|---|
-| Map travel | `RunState.Map` / exact `MapPoint` | `VoteForMapCoordAction` lifecycle | exact `GameAction` terminal boundary |
-| Reward claim | exact `RewardsSet` / `Reward` | `RewardsSetSynchronizer.SelectLocalReward` successful task | identity-matched post-commit frame |
-| Reward proceed | exact reward screen/proceed state | `RunManager.ProceedFromTerminalRewardsScreen` task | identity-matched post-commit frame |
-| CardReward select | exact native card option | `CardReward.OnSelect` successful task | identity-matched post-commit frame |
-| Treasure open | exact `TreasureRoom` lifecycle | `OneOffSynchronizer.DoLocalTreasureRoomRewards` task | identity-matched post-commit frame |
-| Treasure relic/skip | exact relic choice owner | `PickRelicAction` lifecycle | exact `GameAction` terminal boundary |
-| Treasure proceed | completed exact room state | `RunManager.ProceedFromTerminalRewardsScreen` task | identity-matched post-commit frame |
+| Map | exact `MapPoint` in the frozen Map decision frame | exact `VoteForMapCoordAction.Finished` | entered room owner ready, next map decision, or next exact root execution pre |
+| Reward claim | exact `RewardsSet` and `Reward` | successful bound `SelectLocalReward` Task | CardReward/remaining Reward owner ready or next exact root execution pre |
+| Reward proceed | exact Reward terminal state | successful bound `ProceedFromTerminalRewardsScreen` Task | Map/room owner ready or next exact root execution pre |
+| CardReward | exact active native card option | synchronous `NCardRewardSelectionScreen.SelectCard` completion-source Commit | remaining Reward/Map owner ready or next exact root execution pre |
+| Treasure open | exact `TreasureRoom` closed decision | successful bound normal-reward Task | relic-choice/completed owner ready or next exact root execution pre |
+| Treasure select/skip | exact relic-choice decision | exact `PickRelicAction.Finished` | completed Treasure/Map owner ready or next exact root execution pre |
+| Treasure proceed | exact completed Treasure decision | successful bound terminal-proceed Task | Map/room owner ready or next exact root execution pre |
 
-Reward proceed and CardReward completion paths retain the existing native
-completion mechanism and receive identity checks; no protocol or gameplay
-authority changed.
+Shop and Rest were source-audited only as generalization probes. Both fit the
+same root/Commit/successor contract with domain adapters; neither requires a
+new ledger. Their exact production seams and Human coverage remain out of PR #6.
 
-## Automated Exact Build
+## Automated evidence
 
-The clean exact-game build used the following identities:
+The repair adds cross-layer counterexamples for exact GameAction accounting,
+async Task binding after UI scope exit, shared-method family recovery,
+Commit-before-successor, ambiguous/stale/cancel/fault/unmatched failure, the
+committed-root execution handoff, and a complete persisted synthetic audit.
+Annotator Core passes 116 tests; game-Mod boundary tests pass 42 tests.
 
-- STS2 `v0.111.0 / 41cef1ea`;
-- `sts2.dll` SHA-256
-  `9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4`;
-- `sts2.dll` MVID `57785517-0b16-42b9-8b36-bad6fb28384b`;
-- Connector `6215718eafb3bc16042d4b94bb0bf6acafaadc7c4aa09ce2dd35010bf4c9aeb9`
-  / `cb205b8e-95b0-483f-877d-b2747f402e68`;
-- Annotator `d915c0e14fc1989c97a778a8d1652450c69cf8028a019191916c4b32d23b9ddd`
-  / `47130865-befc-405e-9b2d-379730c9a2bf`;
-- unified Game Mod
-  `f9f616dafe6aa4f7733c81caad3a79ddbe771adbb7b9e46bd79c310138d8efc2`
-  / `2b2de33c-9f01-41f4-906e-c73cf7d283a2`;
-- build workspace `ed2e0b514500d6d1d19cb123f338ad0d704489d8`;
-- game Mod compiled source revision `9f89d5e42575e0716b9df981f3bab5ffffe1e0f6`;
-- compiled Platform source digest
-  `33c521a04a8788b58053e469daf9f024851200db6b7b75b94284ac992ffdf7c0`.
+Clean exact artifacts:
 
-`npm run check:bom` and `npm run check:exact-game` pass on this source. The
-artifact was then safely installed and cold-loaded with the sole
-`STS2_PLATFORM` Modset in runtime `e64e508d7f8e420abb2f9c723670e832`,
-environment `8002d9e30693e4ad46575310b8885cc280a949a141e49b9b5bfb4d14fe1f5730`.
-Loaded identity matched the artifact exactly. This remains load evidence only;
-the artifact has not been Human-exercised.
+- Annotator `05e03fa2925866ba169e018c8ff4e7afdc0cb2eb2d602025f588c98c81f25028`
+  / `e651b3e4-2577-4b69-81a9-a78cd4a03e2c`.
+- Unified `STS2_PLATFORM`
+  `b637d380990c5f5c28d5c390c4b6d215083e84ed7fc8c9e276beae254e212b16`
+  / `9286ca51-4617-4ec1-8015-3de9d35cbda3`.
+- Connector remains `6215718... / cb205b8e...`.
 
-## Non-Claims And Next Gate
+Safe install and cold-load pass in Connector runtime `583ab4e5...`, environment
+`ea08bd5d...`, exact sole-Platform Modset `30b507c5...`. The Recorder starts
+Ready with no session. Rollback is
+`apps/game-mod/.local/deployments/2026-08-31T18-18-39.375Z`.
 
-No new performance claim is made. The predecessor profile remains the only
-available runtime profile; SnapshotBuilder was not reworked and lifecycle-only
-capture remains intended to stay at zero.
+## Non-claims and next gate
 
-The next gate is one fresh exact-runtime Human canary using only
-`STS2_PLATFORM`, covering Map travel, Reward claim/proceed, CardReward select,
-Treasure open/relic select/skip/proceed, and rapid/overlap input. The audit
-must show each modern successful completion carries the exact root ID and
-native identity, while stale, failed, cancelled, incomplete, or unmatched
-signals remain unknown without cross-root proof. This is a new canary, not a
-transfer of the predecessor session.
+Loaded is not Human-qualified. No old Human PASS transfers, no runtime
+performance improvement is claimed, lifecycle-only full capture must remain
+zero, and Shop/Event/Rest/Full Run are not added.
 
-Current status: `source_test_exact_build_human_pending`.
+The next gate is a bounded Human canary covering Map, Reward claim/proceed,
+CardReward, Treasure open/select-or-skip/proceed, and one natural rapid case.
+Every accepted root must receive one explicit disposition; successful modern
+proof must contain exact Commit identity and a later causal boundary.
+
+Current status: `source_test_build_load_pass_human_pending`.

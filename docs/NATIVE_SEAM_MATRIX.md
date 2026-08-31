@@ -63,8 +63,8 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 | Presentation owner | `NMapScreen`, `NMapPoint`, `NMapDrawingInput` and current controller mode |
 | Delivery seam | `NMapScreen.OnMapPointSelectedLocally`; annotation stop on the exact drawing input |
 | Exact binding | public referent binds the process-local `MapPoint`; Connector resolves one current `NMapPoint` only for delivery |
-| Lifecycle | route vote/travel and room transition; annotation is presentation-only |
-| Next-decision seam | entered room's native decision owner or another explicit map decision |
+| Lifecycle | exact `VoteForMapCoordAction` lifecycle proves Commit; room transition remains separate |
+| Next-decision seam | entered room's native decision owner, another explicit map decision, or next-root execution pre; `Finished` alone is not `S'` |
 | Root/continuation | route selection is a root; annotation is a non-gameplay UI continuation |
 | Current workaround | private `_isInputDisabled`/`_drawingInput`, FTUE and controller on-screen filtering remain delivery readiness only |
 | Heuristic debt | causal room-entry completion remains outside the decision provider; map annotation is presentation-only |
@@ -105,8 +105,8 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 | Presentation owner | `NRewardsScreen`, `NRewardButton`, potion popup and `NProceedButton` |
 | Delivery seam | exact reward button callback, `DiscardPotionGameAction`, or Proceed control |
 | Exact binding | public referent binds the process-local `Reward` or `PotionModel`; Connector resolves one current button/slot only for delivery |
-| Lifecycle | claim may open CardReward or another nested selection; proceed starts room/map transition |
-| Next-decision seam | CardReward owner, remaining reward set, or Map owner after room transition |
+| Lifecycle | exact bound claim/proceed Task completion proves Commit; claim may open CardReward or another nested selection |
+| Next-decision seam | CardReward owner, remaining reward set, Map owner, or next-root execution pre; Task completion alone is not `S'` |
 | Root/continuation | claim/proceed are roots; nested reward choices are continuations |
 | Current workaround | visible/enabled buttons and popup slots remain current delivery readiness; linked sets fail closed |
 | Heuristic debt | reward-specific `OnSelect` may still return false at native Commit; Receipt remains delivery-only and no business Outcome is inferred |
@@ -126,8 +126,8 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 | Presentation owner | card-reward screen, `NCardHolder` and alternative buttons |
 | Delivery seam | holder `Pressed` signal or exact alternative button callback |
 | Exact binding | public referent binds the exact `CardModel` or `CardRewardAlternative`; Connector maps it to one current holder/button for delivery |
-| Lifecycle | selection resolves the reward continuation and returns to rewards/map flow |
-| Next-decision seam | remaining Reward owner or Map after native transition |
+| Lifecycle | the exact selection completion source proves Commit and resolves the reward continuation |
+| Next-decision seam | remaining Reward owner, Map owner, or next-root execution pre; the selection callback does not itself prove `S'` |
 | Root/continuation | continuation of the reward claim that opened it |
 | Current workaround | private `_isClickable` and enabled alternative buttons remain temporary delivery readiness |
 | Heuristic debt | parent reward root identity is not yet a generic Foundation lineage contract; the typed continuation owner is exact |
@@ -189,8 +189,8 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 | Presentation owner | chest control, relic holders and `NProceedButton` |
 | Delivery seam | exact chest/holder/proceed callback |
 | Exact binding | public room/relic referents bind the process-local `TreasureRoom`/`RelicModel`; UI nodes stay Host-local delivery operands |
-| Lifecycle | chest generation, relic claim/skip and room completion |
-| Next-decision seam | relic choice continuation, completed treasure phase, or Map |
+| Lifecycle | bound chest/proceed Task or exact `PickRelicAction` completion proves Commit |
+| Next-decision seam | relic-choice/completed Treasure owner, Map owner, or next-root execution pre; completion alone is not `S'` |
 | Root/continuation | open is a root; relic choice is its continuation; proceed starts room transition |
 | Current workaround | removed as semantic authority; visible controls only intersect the provider catalog for delivery |
 | Heuristic debt | exact private lifecycle fields remain version-bound read-only inputs; chest callback observation prevents transient empty-option republishing |

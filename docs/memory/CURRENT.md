@@ -72,11 +72,15 @@ The durable result is in the
 - The Native Foundation Human gate is complete for its bounded scope. It is not
   exhaustive Full-Run qualification. PR #6's restacked bytes have no inherited
   runtime or Human qualification.
+- PR #6 source `f320ef6...` now separates Human Root, exact Native Commit and
+  later Successor Boundary. Clean artifact `b637d380... / 9286ca51...` is
+  installed and cold-loaded with sole `STS2_PLATFORM`; Human qualification of
+  Map/Reward/CardReward/Treasure remains pending.
 
 ## Next meaningful gates
 
-- Build and qualify the final PR #6 source against exact STS2, then exercise
-  representative Map/Reward/CardReward/Treasure decisions. Keep unknown UI
+- Exercise the loaded PR #6 artifact through representative
+  Map/Reward/CardReward/Treasure decisions and one natural rapid case. Keep unknown UI
   playable and fail evidence closed; do not restore global UI serialization,
   add natural observer polling, or transfer predecessor Human evidence.
 
