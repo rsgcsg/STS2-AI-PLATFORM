@@ -74,8 +74,10 @@ Combat/PlayerChoice/cross-domain canary remain the exact Human gate. See the
 [Windows pre-Human gate](evidence/NATIVE_FOUNDATION_WINDOWS_PRE_HUMAN_GATE_2026-08-31.md).
 RitsuLib was audited at upstream v0.5.18/main `f224961...` and development
 `c466809...`; [ADR 0004](adr/0004-native-foundation-and-ritsu-route.md) records
-the no-runtime-dependency route. See the
-[source closeout](evidence/NATIVE_FOUNDATION_SOURCE_CLOSEOUT_2026-08-30.md).
+the no-runtime-dependency route. The independent Ritsu-first counterfactual is
+`DECISION_READY_RITSU_FIRST`, but does not adopt a dependency or change ADR
+0004; see the [Ritsu-first architecture evaluation](evidence/RITSU_FIRST_ARCHITECTURE_EVALUATION_2026-08-31.md)
+and [source closeout](evidence/NATIVE_FOUNDATION_SOURCE_CLOSEOUT_2026-08-30.md).
 
 Phase: **bounded Human-proved native semantic sequential lane**.
 Commit `4384a14...` is preserved as the non-release tag

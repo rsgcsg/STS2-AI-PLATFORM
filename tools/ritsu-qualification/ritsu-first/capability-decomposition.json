@@ -17,7 +17,7 @@
       "syntax_only": false,
       "version_effect": "Room hook signature churn may be absorbed for subscribed events; UI owner types remain Platform-known.",
       "runtime_cost": "Ritsu lifecycle runtime and configuration.",
-      "evidence": "source+exact_compile_pending"
+      "evidence": "source+exact_compile"
     },
     {
       "category": "semantic_catalog_construction",

@@ -16,6 +16,10 @@
   `NativeTreasureDecisionProvider`; visible controls are delivery bindings only.
 - Complete: audit Ritsu v0.5.18/main and development and choose the bounded
   reference-only route in ADR 0004; no runtime dependency is added.
+- Complete at source/test/build: independently rebuild representative existing
+  mechanisms Ritsu-first and compare a greenfield Shop contract. The resulting
+  `DECISION_READY_RITSU_FIRST` packet favors the existing reference-only route;
+  it does not adopt a dependency, modify ADR 0004, or claim a Ritsu runtime A/B.
 - Complete for exact artifact `9a89f1fe... / b1c34f90...`: clean build, safe
   install, cold-load, non-mutating live controller/stale/idempotency checks,
   shipped-headless H0, and main-menu-only canonical live/headless parity.
