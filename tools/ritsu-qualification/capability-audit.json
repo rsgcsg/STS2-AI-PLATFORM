@@ -1,0 +1,28 @@
+{
+  "schema": "sts2.platform/ritsu-substrate-capability-audit-1",
+  "platform_oracle": "32c76156fed2c14f55427ee88590bf1979598d9d",
+  "ritsu": {
+    "stable_version": "0.5.18",
+    "stable_commit": "f224961a9392e010335da092240b90ee8235317f",
+    "development_commit": "c466809004f8ecd801956fea2bc3fef83a5d7ad5",
+    "nuget_sha256": "03856b26c71bd33a09cd7486d84ee1622cd7bd8a20987648d9350040f575fef3",
+    "assembly_sha256": "0dc899012a089fac64cb35858840d3263258864e713d3fa23b99dd4cd99cf744",
+    "license": "MIT",
+    "minimum_game_version": "0.111.0"
+  },
+  "sampled_contract": {
+    "combat_catalog": "platform_direct_required",
+    "exact_game_action_identity": "platform_direct_required",
+    "game_action_cancel_abort": "platform_direct_required",
+    "player_choice_parent_lineage": "platform_direct_required",
+    "treasure_catalog": "platform_direct_required",
+    "patch_registration_diagnostics": "ritsu_stable_available",
+    "private_member_resolution": "ritsu_stable_available",
+    "effect_level_card_potion_turn_events": "ritsu_stable_available",
+    "reward_taken_and_continue_events": "ritsu_stable_available"
+  },
+  "stable_dev_split": {
+    "sampled_capability_difference": "none",
+    "development_only_requirement": false
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "schema": "sts2.platform/ritsu-strict-config-fingerprint-1",
+  "ritsu_version": "0.5.18",
+  "settings": {
+    "debug_compat_ancient_architect": false,
+    "debug_compat_loc_table": false,
+    "debug_compat_unlock_epoch": false,
+    "debug_compatibility_mode": false,
+    "debug_log_viewer_enabled": false,
+    "debug_log_viewer_lan_access_enabled": false,
+    "steam_workshop_auto_update_check_enabled": false,
+    "update_check_enabled": false
+  },
+  "canonical_json": "{\"debug_compat_ancient_architect\":false,\"debug_compat_loc_table\":false,\"debug_compat_unlock_epoch\":false,\"debug_compatibility_mode\":false,\"debug_log_viewer_enabled\":false,\"debug_log_viewer_lan_access_enabled\":false,\"steam_workshop_auto_update_check_enabled\":false,\"update_check_enabled\":false}",
+  "sha256": "98af0c838deb869eabe76e512ba6ac5a40574ebb2190f2eb6dffe07184c7a4b9",
+  "runtime_status": "specified_not_loaded",
+  "non_claim": "This profile was source-audited and fingerprinted but was not installed or loaded."
+}
