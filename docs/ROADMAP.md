@@ -26,8 +26,9 @@
 - Pending Human evidence: a short Combat/PlayerChoice and
   `lethal -> Reward -> CardReward -> Map` canary on the exact Windows artifact;
   Recorder owner New/Pause/Resume/Close is included in that gate.
-- Independently pending for the continuation artifact: final exact build,
-  install/load and representative runtime exercise of the new
+- Complete for continuation artifact `3bc44ddb... / 708ecfab...`: final exact
+  build, safe install/rollback and bounded main-menu cold-load on macOS.
+- Independently pending: representative T3 runtime exercise of the new
   Map/Reward/CardReward/Treasure adapters; no PR #5 Human evidence transfers.
 - Next non-Human batch after Treasure closeout: migrate Shop, then Event, Rest,
   run entry, and terminal by native mechanism. Remove each old

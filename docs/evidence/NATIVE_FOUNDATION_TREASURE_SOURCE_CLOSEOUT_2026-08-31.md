@@ -56,10 +56,41 @@ remains an immediate post-delivery observation, not a causal `S'`.
 - Unified game-Mod tests: 33/33 pass.
 - exact owner/stage/membership and presentation-separation tests pass.
 
+The final clean build also closes a provenance defect discovered during this
+batch: compiled game-Mod identity now includes every composition `.cs` input,
+including `NativeFoundationOwnerPatches.cs`, rather than only the initializer,
+project and manifest. The portable regression suite contains 34 game-Mod tests.
+
+- exact clean artifact SHA-256:
+  `3bc44ddb3c339353a5afcb1acb079e58edad019c4959ffaa10369da783ac3c1b`;
+- MVID: `708ecfab-b370-4575-83d0-39c1700bc8b6`;
+- compiled Platform source revision: `85cb0a59...`;
+- compiled Platform source digest: `831b63e2...`;
+- build: PASS with no warnings.
+
+## Mac Automated Runtime Evidence
+
+The exact clean artifact above was safely installed after creating rollback
+snapshot `apps/game-mod/.local/deployments/2026-08-31T03-07-08.478Z`, then
+cold-loaded against the same exact STS2 identity.
+
+- `verify-loaded`: PASS;
+- Connector runtime: `955e5b0232ff47eda43068e41e13ec99`;
+- environment fingerprint:
+  `722a4149cef7bdb74cbe9a1c547c614be139d316320128b2124e643a5ea0d89e`;
+- sole `STS2_PLATFORM` Modset fingerprint:
+  `b6b669df28947a5fc16e42f00dc4f48cc0cddc9d1bca3cffb34ccd6593530f8d`;
+- Connector protocol `1.0.0`, execution available at main menu;
+- Annotator Ready/no-session as expected;
+- startup completed without Platform, Native Foundation, Connector, Annotator
+  or Harmony errors.
+
+The process was stopped after verification. No gameplay action was submitted.
+
 ## Evidence Boundary
 
-This report initially records source and deterministic test evidence only. A
-dirty-worktree development build is not evidence. Final clean build, safe
-install, cold-load, exact identity and Human open/select/skip/proceed exercise
-must be appended only after those exact gates pass. Earlier continuation and
-PR #5 runtime/Human evidence do not transfer.
+This report records source, deterministic test, exact clean-build, safe-install
+and bounded main-menu cold-load evidence. It does not prove that Treasure was
+entered or that open/select/skip/proceed was observed or delivered. Human and
+gameplay runtime remain T3 pending. Earlier continuation and PR #5
+runtime/Human evidence do not transfer.
