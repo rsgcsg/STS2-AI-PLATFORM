@@ -4,6 +4,7 @@ using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 using MegaCrit.Sts2.Core.Nodes.Screens.Map;
 using MegaCrit.Sts2.Core.Nodes.Screens;
 using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
+using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
 
 namespace STS2Platform.NativeFoundation;
@@ -60,6 +61,7 @@ public static class NativeDomainOwnerProbe
             nameof(NCardRewardSelectionScreen) => "card_reward",
             nameof(NRewardsScreen) => "room_rewards",
             _ when mapOpen => "map_navigation",
+            _ when roomType == nameof(TreasureRoom) => "treasure",
             _ when roomType != null => $"room:{roomType}",
             _ => "no_run_domain"
         };
@@ -68,10 +70,11 @@ public static class NativeDomainOwnerProbe
             nameof(NCardRewardSelectionScreen) => "card_reward_selection",
             nameof(NRewardsScreen) => "reward_claim",
             _ when mapOpen => "map_navigation",
+            _ when roomType == nameof(TreasureRoom) => "treasure_room",
             _ when overlayType != null => $"overlay:{overlayType}",
             _ => "room_or_none"
         };
-        bool supportedDiscriminator = semantic is "room_rewards" or "card_reward" or "map_navigation";
+        bool supportedDiscriminator = semantic is "room_rewards" or "card_reward" or "map_navigation" or "treasure";
         return new NativeDomainOwnerObservation(
             supportedDiscriminator ? "captured" : "observed",
             semantic,

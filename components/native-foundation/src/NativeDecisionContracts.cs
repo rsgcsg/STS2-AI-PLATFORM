@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using MegaCrit.Sts2.Core.GameActions;
+using MegaCrit.Sts2.Core.Models;
 
 namespace STS2Platform.NativeFoundation;
 
@@ -74,6 +75,17 @@ public sealed record NativeCardRewardDecision(
     string Status,
     string Scope,
     bool IsDecisionOpen,
+    IReadOnlyList<NativeSemanticAction> Actions,
+    IReadOnlyList<string> Evidence,
+    string? Detail);
+
+public sealed record NativeTreasureDecision(
+    string Status,
+    string Scope,
+    string Stage,
+    bool ChestOpened,
+    bool IsDecisionOpen,
+    IReadOnlyList<RelicModel> Relics,
     IReadOnlyList<NativeSemanticAction> Actions,
     IReadOnlyList<string> Evidence,
     string? Detail);
