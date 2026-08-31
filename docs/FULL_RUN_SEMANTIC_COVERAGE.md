@@ -77,6 +77,13 @@ chest/holder/proceed controls. The matrix above retains predecessor Live claims
 only where explicitly named; no predecessor Human evidence transfers to the
 current continuation artifact.
 
+The 2026-09-01 completion-lineage source candidate replaces the earlier
+count-only post-commit transport for Map, Reward and Treasure roots. Its
+source, deterministic tests and exact build pass, but its new artifact has no
+Human runtime evidence yet. The predecessor session's Map/Reward/Treasure
+failure counts remain classification evidence only. See the
+[completion-lineage source closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
+
 Semantic state Read requirements are interaction-specific: combat requires
 `run_deck` and `combat_piles`, shop requires `run_deck` and `shop_catalog`, and
 the current ordinary non-combat surfaces require `run_deck`. A failed Read makes

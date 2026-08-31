@@ -78,13 +78,23 @@ claims. Native semantic proof now waits for `VoteForMapCoordAction` or
 or terminal proceed task completion. The UI callback only accounts for the
 Human root. Legacy V2 successor polling no longer feeds the semantic trace; an
 incomplete native boundary remains explicit unknown. A fresh exact clean build
-is now available as game-Mod artifact
-`8ecdb2dfca07c2bd323d16a754d25f500d8c048489a9b374c86314ad89055716 /
-d0340c68-9323-4f98-80fd-cb7f78d2bd00`, with Connector
-`c9d0d2bbd25c4024d6436772f2de859dd5270f37d03c88a2f0efcefdf9d74948 /
-9edbc540-ddb4-425e-b99d-43e98abf2566` and Annotator
-`11d052a7a6d8b49d173cef9ad74054d63a44674233afd4172c4af45ebe6785d8 /
-86f361c7-22b8-4f9e-b681-ea8ac871c883`, against STS2
+or terminal proceed task completion. The UI callback only accounts for the
+Human root. Legacy V2 successor polling no longer feeds the semantic trace; an
+incomplete native boundary remains explicit unknown. The completion-lineage
+repair now carries session/generation, exact Human root, native family/kind,
+task and optional owner/operand/lineage identity instead of a completion count
+or FIFO match. Map and Reward witnesses use the same native referents as the
+Connector projection, and Treasure public verbs are aligned without exposing
+the private room owner. See the [completion-lineage source
+closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
+
+A fresh exact clean build is now available as game-Mod artifact
+`f9f616dafe6aa4f7733c81caad3a79ddbe771adbb7b9e46bd79c310138d8efc2 /
+2b2de33c-9f01-41f4-906e-c73cf7d283a2`, with Connector
+`6215718eafb3bc16042d4b94bb0bf6acafaadc7c4aa09ce2dd35010bf4c9aeb9 /
+cb205b8e-95b0-483f-877d-b2747f402e68` and Annotator
+`d915c0e14fc1989c97a778a8d1652450c69cf8028a019191916c4b32d23b9ddd /
+47130865-befc-405e-9b2d-379730c9a2bf`, against STS2
 `v0.111.0 / 41cef1ea` and game assembly
 `9cb4f1ad... / 57785517...`. These are source/build candidates only: they
 have not been installed, loaded or Human-exercised. A fresh exact runtime
