@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <OutputType>Library</OutputType>
+    <OutputType>Exe</OutputType>
     <AssemblyName>STS2Platform.RitsuQualification</AssemblyName>
     <RootNamespace>STS2Platform.Qualification.Ritsu</RootNamespace>
     <TargetFramework>net9.0</TargetFramework>
@@ -11,6 +11,7 @@
     <Deterministic>true</Deterministic>
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <StartupObject>STS2Platform.Qualification.RitsuFirst.RitsuFirstConformanceProgram</StartupObject>
     <RitsuLibAutoCopy>false</RitsuLibAutoCopy>
     <!-- Ritsu's transitive Godot generators require a deterministic project root. -->
     <GodotProjectDir>$(MSBuildProjectDirectory)</GodotProjectDir>
@@ -28,6 +29,7 @@
 
   <ItemGroup>
     <Compile Include="RitsuQualificationBridge.cs" />
+    <Compile Include="ritsu-first/*.cs" />
     <Compile Include="../../components/native-foundation/src/*.cs" Link="NativeFoundation/%(Filename)%(Extension)" />
   </ItemGroup>
 
@@ -38,15 +40,18 @@
   <ItemGroup>
     <Reference Include="sts2">
       <HintPath>$(STS2GameDataDir)/sts2.dll</HintPath>
-      <Private>false</Private>
+      <Private Condition="'$(QualificationCopyGameReferences)' == 'true'">true</Private>
+      <Private Condition="'$(QualificationCopyGameReferences)' != 'true'">false</Private>
     </Reference>
     <Reference Include="GodotSharp">
       <HintPath>$(STS2GameDataDir)/GodotSharp.dll</HintPath>
-      <Private>false</Private>
+      <Private Condition="'$(QualificationCopyGameReferences)' == 'true'">true</Private>
+      <Private Condition="'$(QualificationCopyGameReferences)' != 'true'">false</Private>
     </Reference>
     <Reference Include="0Harmony">
       <HintPath>$(STS2GameDataDir)/0Harmony.dll</HintPath>
-      <Private>false</Private>
+      <Private Condition="'$(QualificationCopyGameReferences)' == 'true'">true</Private>
+      <Private Condition="'$(QualificationCopyGameReferences)' != 'true'">false</Private>
     </Reference>
   </ItemGroup>
 </Project>

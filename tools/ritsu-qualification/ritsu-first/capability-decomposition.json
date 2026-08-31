@@ -1,0 +1,210 @@
+{
+  "schema": "sts2.platform/ritsu-first-capability-decomposition-1",
+  "direct_oracle": "32c76156fed2c14f55427ee88590bf1979598d9d",
+  "evaluation_base": "4980d268e70c370cc427427d4c71af1dcfe7619e",
+  "game": "0.111.0 / 41cef1ea",
+  "ritsu": {
+    "stable": "v0.5.18@f224961a9392e010335da092240b90ee8235317f",
+    "development": "c466809004f8ecd801956fea2bc3fef83a5d7ad5"
+  },
+  "categories": [
+    {
+      "category": "native_owner_state_discovery",
+      "direct": "Exact STS2 singleton/current-room and owner callbacks.",
+      "ritsu_stable": "RoomEntering/Entered/Exited events expose room and run state, but not every current UI owner.",
+      "ritsu_dev": "No sampled semantic addition.",
+      "deletion": "partial_plumbing_only",
+      "syntax_only": false,
+      "version_effect": "Room hook signature churn may be absorbed for subscribed events; UI owner types remain Platform-known.",
+      "runtime_cost": "Ritsu lifecycle runtime and configuration.",
+      "evidence": "source+exact_compile_pending"
+    },
+    {
+      "category": "semantic_catalog_construction",
+      "direct": "Platform reads STS2 logical state and projects Platform records.",
+      "ritsu_stable": "No Combat, Treasure, or Shop legal-action catalog.",
+      "ritsu_dev": "No sampled semantic addition.",
+      "deletion": "none",
+      "syntax_only": false,
+      "version_effect": "None unless Ritsu adds domain catalogs, which would still not become Platform authority automatically.",
+      "runtime_cost": "Dependency adds no catalog benefit.",
+      "evidence": "source"
+    },
+    {
+      "category": "native_validator_calls",
+      "direct": "Calls CardModel, PotionModel, Hook, phase, inventory, and room validators directly.",
+      "ritsu_stable": "No public facade over sampled native legality validators.",
+      "ritsu_dev": "No sampled semantic addition.",
+      "deletion": "none",
+      "syntax_only": false,
+      "version_effect": "Platform remains coupled to validator signatures.",
+      "runtime_cost": "No offsetting benefit.",
+      "evidence": "source"
+    },
+    {
+      "category": "exact_object_binding",
+      "direct": "Native object references remain Host-local operands.",
+      "ritsu_stable": "Lifecycle events carry some native subjects but do not provide a general binding registry.",
+      "ritsu_dev": "ManagedActions bind Ritsu-created actions, not arbitrary vanilla/Human actions.",
+      "deletion": "none",
+      "syntax_only": false,
+      "version_effect": "No general reduction.",
+      "runtime_cost": "ManagedActions would add a second action family if misapplied.",
+      "evidence": "source"
+    },
+    {
+      "category": "harmony_patch_targets",
+      "direct": "Platform registers explicit Harmony targets and owns failure handling.",
+      "ritsu_stable": "IPatchMethod, PatchTarget, ModPatcher, required-patcher rollback and diagnostics.",
+      "ritsu_dev": "Same sampled API.",
+      "deletion": "registration_and_diagnostics_boilerplate",
+      "syntax_only": false,
+      "version_effect": "Exact target type/member/signature remains in Platform patch declarations.",
+      "runtime_cost": "Ritsu patch inventory and startup lifecycle.",
+      "evidence": "source+previous_exact_build"
+    },
+    {
+      "category": "private_member_access",
+      "direct": "Reflection/AccessTools field or method resolution with local fail-closed handling.",
+      "ritsu_stable": "PrivateAccess resolves typed field refs/delegates and throws on missing members.",
+      "ritsu_dev": "Same sampled API.",
+      "deletion": "access_boilerplate",
+      "syntax_only": true,
+      "version_effect": "Private member names and types remain exact Platform-owned knowledge.",
+      "runtime_cost": "Ritsu dependency for a bounded helper.",
+      "evidence": "source+previous_exact_build"
+    },
+    {
+      "category": "async_il_interception",
+      "direct": "Harmony plus local async/task seams when necessary.",
+      "ritsu_stable": "Patch helpers and LifecyclePatchTaskBridge cover Ritsu-owned hooks; general arbitrary task completion remains custom.",
+      "ritsu_dev": "No sampled general vanilla-action API.",
+      "deletion": "case_dependent",
+      "syntax_only": false,
+      "version_effect": "Can centralize repeated hook-task wrapping only when a suitable Ritsu lifecycle event exists.",
+      "runtime_cost": "Broad patch substrate.",
+      "evidence": "source"
+    },
+    {
+      "category": "lifecycle_observation",
+      "direct": "Platform observes exact GameAction and domain callbacks.",
+      "ritsu_stable": "Typed card, potion, turn, room, reward, purchase and run lifecycle events.",
+      "ritsu_dev": "No sampled semantic addition.",
+      "deletion": "effect_and_room_lifecycle_plumbing",
+      "syntax_only": false,
+      "version_effect": "Subscribers can avoid hook signature churn for covered events.",
+      "runtime_cost": "Event bus, patches and settings.",
+      "evidence": "source+previous_exact_build"
+    },
+    {
+      "category": "game_action_identity_order_disposition",
+      "direct": "Exact GameAction instance events expose started, pause/resume, cancel, finished and execution order.",
+      "ritsu_stable": "Effect-level events do not carry the generic root GameAction or cancel/abort disposition.",
+      "ritsu_dev": "ManagedActions cover Ritsu-created actions only.",
+      "deletion": "none",
+      "syntax_only": false,
+      "version_effect": "Platform retains exact GameAction seam.",
+      "runtime_cost": "Ritsu events are additive diagnostics, not replacement authority.",
+      "evidence": "source+previous_exact_build"
+    },
+    {
+      "category": "player_choice_lineage",
+      "direct": "ActionExecutor.CurrentlyRunningAction supplies the exact parent root.",
+      "ritsu_stable": "PlayerChoiceContext-related effects exist, but no generic parent/continuation lineage API.",
+      "ritsu_dev": "No sampled semantic addition.",
+      "deletion": "none",
+      "syntax_only": false,
+      "version_effect": "Platform retains exact ActionExecutor seam.",
+      "runtime_cost": "No offsetting benefit.",
+      "evidence": "source"
+    },
+    {
+      "category": "native_action_enqueue_networking",
+      "direct": "Connector calls exact STS2 callbacks/actions and relies on native multiplayer paths.",
+      "ritsu_stable": "Networking utilities exist; no general vanilla BoundAction submission facade.",
+      "ritsu_dev": "ManagedActions help custom Ritsu actions, not arbitrary vanilla callbacks.",
+      "deletion": "none_for_sampled_player_actions",
+      "syntax_only": false,
+      "version_effect": "Potential value for future Platform-created test actions only.",
+      "runtime_cost": "Must not create a duplicate executor.",
+      "evidence": "source"
+    },
+    {
+      "category": "version_conditionals",
+      "direct": "Platform pins exact game identity and updates direct seams when APIs move.",
+      "ritsu_stable": "Cumulative STS2_AT_LEAST defines and internal compatibility shims across supported API targets.",
+      "ritsu_dev": "Same mechanism with unreleased fixes possible.",
+      "deletion": "only_for_public_ritsu_facades",
+      "syntax_only": false,
+      "version_effect": "Covered Ritsu events/helpers can absorb churn; Platform semantic calls and private names cannot use internal shims.",
+      "runtime_cost": "Requires matching Ritsu package plus Platform exact admission.",
+      "evidence": "source_history"
+    },
+    {
+      "category": "patch_startup_diagnostics",
+      "direct": "Small Platform startup audit and patch failure reporting.",
+      "ritsu_stable": "Structured patch inventory, criticality, rollback, logs and framework lifecycle.",
+      "ritsu_dev": "Same sampled API.",
+      "deletion": "meaningful_shared_infrastructure",
+      "syntax_only": false,
+      "version_effect": "Improves diagnosis but does not prove compatibility.",
+      "runtime_cost": "Large framework/config surface for a capability Platform already has narrowly.",
+      "evidence": "source+previous_exact_build"
+    },
+    {
+      "category": "runtime_config",
+      "direct": "Platform exact identity and Modset admission only.",
+      "ritsu_stable": "Compatibility, diagnostics and update settings require an additional strict fingerprint.",
+      "ritsu_dev": "Potentially moving defaults/API.",
+      "deletion": "none",
+      "syntax_only": false,
+      "version_effect": "Adds independent configuration drift risk.",
+      "runtime_cost": "Additional Mod/runtime/settings and supply identity.",
+      "evidence": "source+previous_config_fingerprint"
+    },
+    {
+      "category": "test_debug_tooling",
+      "direct": "Platform exact-game fixtures and deterministic contract tests.",
+      "ritsu_stable": "Diagnostics, console, state presets and patch test helpers are broad but many are privileged/debug-only.",
+      "ritsu_dev": "ManagedActions and debug tooling continue evolving.",
+      "deletion": "possible_fixture_plumbing_only",
+      "syntax_only": false,
+      "version_effect": "Useful for investigation; cannot qualify semantic parity by itself.",
+      "runtime_cost": "Must remain outside gameplay authority and fair-player evidence.",
+      "evidence": "source"
+    },
+    {
+      "category": "connector_projection",
+      "direct": "Intersects Platform semantic actions with visible/reachable UI and owns binding/delivery.",
+      "ritsu_stable": "No Player Environment projection or stale/idempotent Receipt contract.",
+      "ritsu_dev": "No sampled addition.",
+      "deletion": "none",
+      "syntax_only": false,
+      "version_effect": "No direct benefit.",
+      "runtime_cost": "Must not create a second authority.",
+      "evidence": "source"
+    },
+    {
+      "category": "annotator_correlation",
+      "direct": "Correlates exact Human input with root GameAction lifecycle and causal boundaries.",
+      "ritsu_stable": "Effect events can enrich diagnostics but lack exact root/disposition/lineage.",
+      "ritsu_dev": "No sampled arbitrary Human-action correlation API.",
+      "deletion": "none_for_causal_evidence",
+      "syntax_only": false,
+      "version_effect": "Covered effect hooks may reduce auxiliary patches only.",
+      "runtime_cost": "Duplicate event streams require reconciliation.",
+      "evidence": "source"
+    },
+    {
+      "category": "external_host_runtime",
+      "direct": "Owns process/profile/headless/recovery outside the game process.",
+      "ritsu_stable": "Game-side framework only.",
+      "ritsu_dev": "Same boundary.",
+      "deletion": "none",
+      "syntax_only": false,
+      "version_effect": "No replacement for external lifecycle or exact environment identity.",
+      "runtime_cost": "Additional loaded Mod in every Host environment.",
+      "evidence": "architecture+source"
+    }
+  ]
+}

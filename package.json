@@ -25,7 +25,7 @@
     "check:bom": "node --test tools/check-platform-bom.test.mjs && node tools/check-platform-bom.mjs",
     "check:boundaries": "node --test tools/check-boundaries.test.mjs && node tools/check-boundaries.mjs",
     "check:history": "node tools/check-migration-history.mjs",
-    "check:ritsu-qualification": "node --test tools/ritsu-qualification/qualification.test.mjs",
+    "check:ritsu-qualification": "node --test tools/ritsu-qualification/qualification.test.mjs tools/ritsu-qualification/ritsu-first/ritsu-first.test.mjs",
     "check:components": "npm --prefix components/connector run check && npm --prefix components/host-runtime run check && npm --prefix components/annotator run test && npm --prefix components/evidence run check && npm --prefix components/policy-runtime run check && npm --prefix apps/workbench run test && npm --prefix apps/ingame-ui run check && npm --prefix apps/game-mod run check",
     "project:context": "node tools/project-system.mjs context",
     "project:check": "node --test tools/project-system.test.mjs && node tools/project-system.mjs check",
