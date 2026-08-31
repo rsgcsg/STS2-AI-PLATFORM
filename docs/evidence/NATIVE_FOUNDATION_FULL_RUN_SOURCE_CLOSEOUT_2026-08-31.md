@@ -1,16 +1,22 @@
 # Native Foundation Full-Run Source Closeout
 
-Date: 2026-08-31  
-Branch: `refactor/platform/native-foundation-full-run-mainline`  
-Stacked base: `refactor/platform/native-foundation@79191a1e8c93d3e1a9cbd7632972fc7d6cbad39f`  
+Date: 2026-08-31
+Branch: `refactor/platform/native-foundation-full-run-mainline`
+Original stacked base: `refactor/platform/native-foundation@79191a1e8c93d3e1a9cbd7632972fc7d6cbad39f`
 Implementation commit: `47dacf93d49d2f8cb1a1d8409557bee9884e0ecf`
+
+Closeout note: PR #3 and PR #5 are now integrated in `develop` at
+`c751952fb2730f198e3adadbebce5aff9cf63c98`. The continuation was rebased onto
+that commit; its patch-equivalent Map/Reward/CardReward implementation is
+`129d73e...`. Artifact and runtime identities below remain predecessor evidence
+for the original pre-rebase source and do not qualify the restacked bytes.
 
 ## Scope
 
 This continuation migrates Map, Reward and CardReward from an owner-only
-discriminator to typed Native Foundation decision adapters. PR #5 remains the
-frozen proof line; its exact Windows Human T3 gate remains pending and is not
-transferred here.
+discriminator to typed Native Foundation decision adapters. PR #5's exact
+Windows Human evidence is now durable on `develop`, but it is bound to its own
+artifact and is not transferred here.
 
 ## Exact Native Basis
 

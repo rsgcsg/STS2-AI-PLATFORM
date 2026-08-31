@@ -6,9 +6,10 @@ requests, or dated evidence.
 
 ## Current phase
 
-`develop` retains the bounded Human-proved schema-2 trace baseline. PR #3
-preserves gameplay-safe commit `4384a14...` as a non-release tag and now has a
-bounded Human-proved read-only native semantic sequential lane. Exact session
+`develop@c751952...` now contains the completed PR #3 and PR #5 production
+lines. The integrated PR #3 history preserves gameplay-safe commit
+`4384a14...` as a non-release tag and contains a bounded Human-proved read-only
+native semantic sequential lane. Exact session
 `session-20260830T064823Z-...` records 41/41 successful roots as exact-once in
 STS2-owned logical `A_sem(S)` at first native execution; it includes PlayCard,
 EndTurn, potion and player-choice pause/resume. The same run proves that
@@ -19,8 +20,8 @@ remain exact; audit-only source `193861a...` repaired cross-stream accounting
 without changing that artifact. ADR 0003 remains a historical candidate, not
 active gameplay authority.
 
-The Native Foundation workstream carries component source
-commit `a3bcd37...`: one bounded combat semantic catalog, one exact lifecycle
+The integrated Native Foundation workstream carries component source commit
+`a3bcd37...`: one bounded combat semantic catalog, one exact lifecycle
 adapter, one PlayerChoice lineage adapter, and a non-authorizing
 Reward/CardReward/Map owner discriminator. It changes native bytes, so no PR #3
 Human evidence transfers. ADR 0004 now freezes RitsuLib as an external
@@ -49,16 +50,14 @@ The durable result is in the
 
 ## Active workstreams
 
-- Full-Run Human Semantic Timeline and evidence representation: PR #3. Keep its
-  runtime semantics and exact Human evidence on this feature branch. Existing
-  schema-3 proof is trace-level only; canonical eligibility comes from
-  `calibrate-semantic-training`.
-- Native Foundation refactor: bounded Human closeout complete; converge after
-  PR #3 through normal protected PR flow, then restack PR #6 on `develop`.
-- Repository System v1: the integrated governance baseline for documentation
-  routing, bounded context, sparse Skills, deterministic checks, and
-  supply-chain configuration. It changes no game behavior or component
-  semantic version.
+- PR #6, `refactor/platform/native-foundation-full-run-mainline`, is the sole
+  open topic. It is directly based on `develop@c751952...` and contains the
+  Map/Reward/CardReward/Treasure Native Foundation continuation.
+- PR #3 and PR #5 are merged integration history. Ritsu research PRs #7 and #8
+  are closed without their experimental runtime code; durable findings live in
+  ADR 0004 and the final route-decision packet.
+- Repository System v1 remains the integrated governance baseline. It changes
+  no game behavior or component semantic version.
 
 ## Current blockers and open questions
 
@@ -71,16 +70,15 @@ The durable result is in the
   Mac, so real-model Shadow, One-Step, Auto, and Agent-run evidence remain
   unexercised.
 - The Native Foundation Human gate is complete for its bounded scope. It is not
-  exhaustive Full-Run qualification; non-combat adapters remain PR #6 work.
+  exhaustive Full-Run qualification. PR #6's restacked bytes have no inherited
+  runtime or Human qualification.
 
 ## Next meaningful gates
 
-- Converge completed PR #3 and PR #5 into `develop`, close the superseded Ritsu
-  research branches without their runtime code, and restack PR #6.
-- Extend the execution-bound native semantic
-  lane to the next narrow Full-Run mechanisms. Keep unknown UI playable and
-  fail evidence closed; do not restore global UI serialization, add natural
-  observer polling, or transfer predecessor Human evidence.
+- Build and qualify the final PR #6 source against exact STS2, then exercise
+  representative Map/Reward/CardReward/Treasure decisions. Keep unknown UI
+  playable and fail evidence closed; do not restore global UI serialization,
+  add natural observer polling, or transfer predecessor Human evidence.
 
 Use `npm run project:context` to start a task and
 `npm run project:closeout` to surface likely documentation, evidence, contract,

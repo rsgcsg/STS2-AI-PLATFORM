@@ -1,15 +1,21 @@
 # Native Foundation Treasure Source Closeout
 
-Date: 2026-08-31  
-Branch: `refactor/platform/native-foundation-full-run-mainline`  
-Stacked base: `refactor/platform/native-foundation@79191a1e8c93d3e1a9cbd7632972fc7d6cbad39f`  
+Date: 2026-08-31
+Branch: `refactor/platform/native-foundation-full-run-mainline`
+Original stacked base: `refactor/platform/native-foundation@79191a1e8c93d3e1a9cbd7632972fc7d6cbad39f`
 Implementation commit: `85cb0a59a0edc9432d76e55d5925a8a3264a4d05`
+
+Closeout note: PR #3 and PR #5 are now integrated in `develop` at
+`c751952fb2730f198e3adadbebce5aff9cf63c98`. The continuation was rebased onto
+that commit; its patch-equivalent Treasure implementation is `9f89d5e...`.
+Artifact and runtime identities below remain predecessor evidence for the
+original pre-rebase source and do not qualify the restacked bytes.
 
 ## Scope
 
 This continuation migrates Treasure semantic publication from visible-node
-stage reconstruction to one typed Native Foundation decision provider. PR #5
-remains frozen at its pending exact Windows Human T3 gate; no evidence is
+stage reconstruction to one typed Native Foundation decision provider. PR #5's
+exact Windows Human evidence is now durable on `develop`; no evidence is
 transferred between the two artifacts.
 
 ## Exact Native Basis
