@@ -8,6 +8,12 @@ import { compiledSourceDigest } from "../source-identity.mjs";
 const root = path.resolve(import.meta.dirname, "../../..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
 
+test("game Mod test discovery is shell-neutral", () => {
+  const packageJson = JSON.parse(read("apps/game-mod/package.json"));
+
+  assert.equal(packageJson.scripts.check, "node --test");
+});
+
 test("production game Mod has one manifest, assembly and explicit initializer", () => {
   const manifest = JSON.parse(read("apps/game-mod/mod_manifest.json"));
   const project = read("apps/game-mod/STS2Platform.GameMod.csproj");
