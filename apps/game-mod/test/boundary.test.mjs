@@ -236,8 +236,20 @@ test("non-combat native owners are observed by explicit read-only seams", () => 
   assert.match(patches, /typeof\(NRewardsScreen\), nameof\(NRewardsScreen\.ShowScreen\)/u);
   assert.match(patches, /typeof\(NCardRewardSelectionScreen\),[\s\S]*nameof\(NCardRewardSelectionScreen\.ShowScreen\)/u);
   assert.match(patches, /typeof\(NCardRewardSelectionScreen\),[\s\S]*nameof\(NCardRewardSelectionScreen\.RefreshOptions\)/u);
+  assert.match(patches, /typeof\(NTreasureRoom\),[\s\S]*nameof\(NTreasureRoom\.Create\)/u);
+  assert.match(patches, /typeof\(NTreasureRoom\),[\s\S]*"OnChestButtonReleased"/u);
   assert.equal((patches.match(/harmony\.Patch\(original, postfix:/gu) ?? []).length, 1);
   assert.doesNotMatch(patches, /PatchAll|prefix:|finalizer:|transpiler:|static\s+bool\s+Prefix/u);
+});
+
+test("treasure semantic stages come from Native Foundation rather than UI publication", () => {
+  const reader = read("components/connector/host/LiveHost/TreasureRoomSurfaceReader.cs");
+  const witness = read("components/connector/host/PlayerEnvironment/Witness/ProcessLocalNativeSemanticWitness.cs");
+
+  assert.match(reader, /NativeTreasureDecisionProvider\.Capture/u);
+  assert.match(reader, /NativeTreasureDecisionProvider\.Contains/u);
+  assert.doesNotMatch(reader, /ChestOpenedField|CollectionOpenField|TreasureLifecycleFacts/u);
+  assert.match(witness, /NativeTreasureDecisionProvider\.Capture/u);
 });
 
 test("Native Foundation remains semantic-only and Ritsu-free", () => {
@@ -245,6 +257,7 @@ test("Native Foundation remains semantic-only and Ritsu-free", () => {
     "components/native-foundation/src/NativeDecisionContracts.cs",
     "components/native-foundation/src/NativeCombatDecisionProvider.cs",
     "components/native-foundation/src/NativeDomainOwnerProbe.cs",
+    "components/native-foundation/src/NativeTreasureDecisionProvider.cs",
     "components/native-foundation/src/NativeActionLifecycleObserver.cs"
   ];
   const source = foundationFiles.map(read).join("\n");

@@ -4,7 +4,12 @@ using MegaCrit.Sts2.Core.Entities.CardRewardAlternatives;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Nodes.Screens;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
+using MegaCrit.Sts2.Core.Nodes.Rooms;
+using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 using MegaCrit.Sts2.Core.Rewards;
+using MegaCrit.Sts2.Core.Rooms;
+using MegaCrit.Sts2.Core.Runs;
 using STS2Platform.NativeFoundation;
 
 namespace STS2Platform.GameMod;
@@ -44,6 +49,24 @@ internal static class NativeFoundationOwnerPatches
             AccessTools.Method(
                 typeof(NativeCardRewardRefreshPatch),
                 nameof(NativeCardRewardRefreshPatch.Postfix)));
+        PatchPostfix(
+            harmony,
+            AccessTools.Method(
+                typeof(NTreasureRoom),
+                nameof(NTreasureRoom.Create),
+                new[] { typeof(TreasureRoom), typeof(IRunState) }),
+            AccessTools.Method(
+                typeof(NativeTreasureOwnerPatch),
+                nameof(NativeTreasureOwnerPatch.Postfix)));
+        PatchPostfix(
+            harmony,
+            AccessTools.Method(
+                typeof(NTreasureRoom),
+                "OnChestButtonReleased",
+                new[] { typeof(NButton) }),
+            AccessTools.Method(
+                typeof(NativeTreasureChestPatch),
+                nameof(NativeTreasureChestPatch.Postfix)));
         _initialized = true;
     }
 
@@ -55,6 +78,41 @@ internal static class NativeFoundationOwnerPatches
         if (original == null || postfix == null)
             throw new MissingMethodException("A Native Foundation owner seam is unavailable.");
         harmony.Patch(original, postfix: new HarmonyMethod(postfix));
+    }
+}
+
+internal static class NativeTreasureOwnerPatch
+{
+    internal static void Postfix(
+        TreasureRoom room,
+        IRunState runState,
+        NTreasureRoom? __result)
+    {
+        if (__result == null)
+            return;
+        try
+        {
+            NativeTreasureDecisionProvider.Register(__result, room, runState);
+        }
+        catch (Exception exception)
+        {
+            GD.PrintErr($"[STS2 Platform] native treasure owner observation failed: {exception}");
+        }
+    }
+}
+
+internal static class NativeTreasureChestPatch
+{
+    internal static void Postfix(NTreasureRoom __instance)
+    {
+        try
+        {
+            NativeTreasureDecisionProvider.ObserveChestOpening(__instance);
+        }
+        catch (Exception exception)
+        {
+            GD.PrintErr($"[STS2 Platform] native treasure lifecycle observation failed: {exception}");
+        }
     }
 }
 

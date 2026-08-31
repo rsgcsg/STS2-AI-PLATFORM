@@ -141,6 +141,7 @@ public sealed class NativeFoundationContractTests
     [InlineData("CombatRoom", "NRewardsScreen", false, "room_rewards", "reward_claim")]
     [InlineData("CombatRoom", "NCardRewardSelectionScreen", false, "card_reward", "card_reward_selection")]
     [InlineData("EventRoom", null, true, "map_navigation", "map_navigation")]
+    [InlineData("TreasureRoom", null, false, "treasure", "treasure_room")]
     public void CrossDomainProbeSeparatesSemanticAndInputOwners(
         string room,
         string? overlay,
@@ -174,6 +175,58 @@ public sealed class NativeFoundationContractTests
                 presentationReady,
                 semanticStatus,
                 semanticDecisionOpen));
+    }
+
+    [Theory]
+    [InlineData(false, false, false, false, false, "closed")]
+    [InlineData(false, false, true, false, false, "opening")]
+    [InlineData(false, false, false, true, false, "opening")]
+    [InlineData(true, true, true, true, false, "relic_choice")]
+    [InlineData(true, true, true, true, true, "resolving")]
+    [InlineData(true, true, true, false, false, "resolving")]
+    [InlineData(true, false, true, false, false, "completed")]
+    public void TreasureStageComesFromNativeLifecycleRatherThanClickability(
+        bool chestOpened,
+        bool collectionOpen,
+        bool chestOpeningObserved,
+        bool hasRelicCollection,
+        bool localVoteReceived,
+        string expected)
+    {
+        IReadOnlyList<MegaCrit.Sts2.Core.Models.RelicModel>? relics =
+            hasRelicCollection
+                ? new MegaCrit.Sts2.Core.Models.RelicModel[] { null! }
+                : null;
+
+        Assert.Equal(expected, NativeTreasureDecisionProvider.ClassifyStage(
+            chestOpened,
+            collectionOpen,
+            chestOpeningObserved,
+            relics,
+            localVoteReceived));
+    }
+
+    [Fact]
+    public void TreasureMembershipRequiresOneExactNativeSubject()
+    {
+        var room = new object();
+        var decision = new NativeTreasureDecision(
+            "captured",
+            "treasure",
+            "completed",
+            true,
+            true,
+            Array.Empty<MegaCrit.Sts2.Core.Models.RelicModel>(),
+            new[] { Action("proceed", room, "proceed") },
+            Array.Empty<string>(),
+            null);
+
+        Assert.True(NativeTreasureDecisionProvider.Contains(decision, "proceed", room));
+        Assert.False(NativeTreasureDecisionProvider.Contains(decision, "proceed", new object()));
+        Assert.False(NativeTreasureDecisionProvider.Contains(
+            decision with { Actions = new[] { Action("a", room, "proceed"), Action("b", room, "proceed") } },
+            "proceed",
+            room));
     }
 
     private static NativeSemanticAction Action(

@@ -13,6 +13,8 @@ using MegaCrit.Sts2.Core.Entities.Potions;
 using MegaCrit.Sts2.Core.Extensions;
 using MegaCrit.Sts2.Core.GameActions;
 using MegaCrit.Sts2.Core.Models;
+using MegaCrit.Sts2.Core.Nodes;
+using MegaCrit.Sts2.Core.Nodes.Rooms;
 using MegaCrit.Sts2.Core.Nodes.Screens;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 using MegaCrit.Sts2.Core.Nodes.Screens.Map;
@@ -375,6 +377,13 @@ public static class PlayerEnvironmentNativeSemanticWitness
         if (NMapScreen.Instance?.IsOpen == true)
         {
             NativeMapDecision decision = NativeMapDecisionProvider.Capture(entities);
+            return (decision.Status, decision.Actions, decision.Evidence, decision.Detail);
+        }
+        if (RunManager.Instance.DebugOnlyGetState()?.CurrentRoom is TreasureRoom
+            && NRun.Instance?.TreasureRoom is { } treasure)
+        {
+            NativeTreasureDecision decision =
+                NativeTreasureDecisionProvider.Capture(treasure, entities);
             return (decision.Status, decision.Actions, decision.Evidence, decision.Detail);
         }
         return (
