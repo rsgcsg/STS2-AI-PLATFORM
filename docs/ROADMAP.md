@@ -11,6 +11,9 @@
   Map destinations, Reward choices/proceed and CardReward options through
   typed shared Native Foundation decision providers. Connector intersects
   presentation/delivery and Annotator consumes the same catalog.
+- Complete at source/test on continuation component source `85cb0a5...`: route
+  Treasure chest, exact relic choice, skip and proceed through
+  `NativeTreasureDecisionProvider`; visible controls are delivery bindings only.
 - Complete: audit Ritsu v0.5.18/main and development and choose the bounded
   reference-only route in ADR 0004; no runtime dependency is added.
 - Complete for exact artifact `9a89f1fe... / b1c34f90...`: clean build, safe
@@ -23,11 +26,11 @@
 - Pending Human evidence: a short Combat/PlayerChoice and
   `lethal -> Reward -> CardReward -> Map` canary on the exact Windows artifact;
   Recorder owner New/Pause/Resume/Close is included in that gate.
-- Independently pending for the continuation artifact: exact install/load and
-  representative runtime exercise of the new Map/Reward/CardReward adapters;
-  no PR #5 Human evidence transfers.
-- Next non-Human batch: Treasure lifecycle discriminator, then migrate Shop,
-  Event, Rest, run entry, and terminal by native mechanism. Remove each old
+- Independently pending for the continuation artifact: final exact build,
+  install/load and representative runtime exercise of the new
+  Map/Reward/CardReward/Treasure adapters; no PR #5 Human evidence transfers.
+- Next non-Human batch after Treasure closeout: migrate Shop, then Event, Rest,
+  run entry, and terminal by native mechanism. Remove each old
   publication/witness path only after both consumers use the shared adapter.
 
 ## Canonical Human One-Step Evidence

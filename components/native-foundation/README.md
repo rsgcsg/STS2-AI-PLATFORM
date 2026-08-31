@@ -19,6 +19,8 @@ Current bounded ownership:
 - `NativeRewardDecisionProvider`: exact `RewardsSet` membership, potion-belt
   alternatives and native proceed policy;
 - `NativeCardRewardDecisionProvider`: exact card and alternative option lists;
+- `NativeTreasureDecisionProvider`: exact treasure room lifecycle, relic
+  collection membership and local vote;
 - `NativeDomainOwnerProbe`: cross-domain owner discriminator only.
 
 The owner probe deliberately does not enumerate actions. Each typed provider
