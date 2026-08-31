@@ -86,12 +86,14 @@ test("BOM check rejects Windows Native Foundation identity and claim drift", asy
   candidate.final_takeover.loaded_mod_ids = ["STS2_PLATFORM", "CombatSolver"];
   candidate.final_takeover.evidence_level = "human_pass";
   candidate.final_takeover.disabled_workshop_update.loaded = true;
-  candidate.recorder_lifecycle.owner_new_pause_resume_close = "pass";
+  candidate.recorder_lifecycle.owner_new_pause_resume_close = "pending_human_runtime";
+  candidate.human_closeout.native_unknown = 1;
+  candidate.human_closeout.loaded_mod_ids = ["STS2_PLATFORM", "CombatSolver"];
   candidate.visible_headless_semantic_invariance.scope = "full_run";
   candidate.human_runtime = "pass";
   candidate.evidence_transfer_from_predecessor = true;
   bom.non_claims = bom.non_claims.filter(
-    (claim) => claim !== "native_foundation_windows_candidate_human_runtime_not_exercised"
+    (claim) => claim !== "native_foundation_windows_human_not_full_run"
   );
   const errors = validatePlatformBom(bom, await readBomAuthorities(root));
   assert.ok(errors.some((error) =>
@@ -109,13 +111,18 @@ test("BOM check rejects Windows Native Foundation identity and claim drift", asy
     error.startsWith("Windows Native Foundation disabled Workshop update loaded:")));
   assert.ok(errors.some((error) =>
     error.startsWith("Windows Native Foundation Recorder owner lifecycle:")));
+  assert.ok(errors.some((error) =>
+    error.startsWith("Windows Native Foundation Human native_unknown:")));
+  assert.ok(errors.includes(
+    "Windows Native Foundation Human loaded Mods: expected only STS2_PLATFORM"
+  ));
   assert.ok(errors.some((error) => error.startsWith("Windows Native Foundation parity scope:")));
   assert.ok(errors.some((error) => error.startsWith("Windows Native Foundation human_runtime:")));
   assert.ok(errors.some((error) =>
     error.startsWith("Windows Native Foundation predecessor evidence transfer:")));
   assert.ok(errors.includes(
     "Native Foundation non-claim is missing: "
-      + "native_foundation_windows_candidate_human_runtime_not_exercised"
+      + "native_foundation_windows_human_not_full_run"
   ));
 });
 

@@ -387,7 +387,7 @@
       "rollback": "apps/game-mod/.local/deployments/2026-08-30T13-23-42.253Z"
     },
     "native_foundation_windows_runtime_candidate": {
-      "status": "loaded_automated_gates_pass_human_pending",
+      "status": "bounded_windows_human_pass",
       "platform": "win32",
       "architecture": "x64",
       "workspace_revision_at_build": "c667122ee35853f6a4a315871cb4e70383363c8f",
@@ -469,7 +469,52 @@
       "recorder_lifecycle": {
         "initial_status": "ready_no_session",
         "automated_portable_checks": "pass",
-        "owner_new_pause_resume_close": "pending_human_runtime"
+        "owner_new_pause_resume_close": "pass"
+      },
+      "human_closeout": {
+        "status": "pass_bounded_native_foundation_windows_human",
+        "runtime_instance_id": "d8a10ba2a4684182807df332facc881c",
+        "environment_fingerprint": "9e0e0cfe9fd7d4cae507059e6588c3cb1ee67f466ccef6d8044269a4c8ee8c7e",
+        "modset_status": "exact_platform_modset",
+        "modset_fingerprint": "1f1bdecc945fd4af54d0a5f1296cf6b91d0e82fca180d8b6b3c619bdd52ed135",
+        "loaded_mod_ids": ["STS2_PLATFORM"],
+        "session_id": "session-20260831T072650Z-b0608291ae7f416d96b058078f441794",
+        "timeline_id": "timeline-d9b5829a46d54e8cb460dab5d8647a16",
+        "audit_status": "pass",
+        "valid_records": 35,
+        "invalid_records": 0,
+        "invalidations": 34,
+        "reads_materialized": 149,
+        "reads_failed": 0,
+        "native_accepted": 37,
+        "native_successful": 36,
+        "native_cancelled": 1,
+        "native_aborted": 0,
+        "native_unknown": 0,
+        "semantic_exact_once_membership": 36,
+        "play_card": 25,
+        "end_turn_successful": 10,
+        "end_turn_cancelled": 1,
+        "use_potion": 1,
+        "canonical_play": 25,
+        "canonical_end_turn": 9,
+        "canonical_use_potion": 1,
+        "player_choice_pauses": 3,
+        "player_choice_resumes": 3,
+        "crossed_player_choice_commit": 1,
+        "lethal_reward_card_reward_map": "pass_repeated_owner_handoff",
+        "recorder_new_pause_resume_close": "pass",
+        "human_origin": "owner_attested_and_no_other_loaded_controller",
+        "manifest_sha256": "1b12fce39f002fcedafa30e222018361e4fbac827ca89bf9e92ea255b31b175a",
+        "decision_v2_sha256": "bc1db402e85652d4150c94537b4131eac9b66326abffc666ebbcb91dd673521e",
+        "run_journal_sha256": "0002710bb691bd24513494f52d86b5b62125ce4368680dd12fb2a4051da07852",
+        "native_ledger_sha256": "eea7e253d29ead94516ba6490593827f70b930ed55c6a24ce07b5a03643ac561",
+        "native_semantic_discriminator_sha256": "bea51e9d363fadfdf74cf429f72f998bc7632ea5d19b7d4f658000df30b9e154",
+        "semantic_boundary_trace_sha256": "0b48fb2dec30469f1f2ecdb79d530601274bf993f7e2a77b9ccc38c40ee068b5",
+        "canonical_transitions_sha256": "fb2021a6bad3a84cc50751cd33dfed6377d2fe70e3cc14772a5a7ab4cfeed86c",
+        "invalidations_sha256": "f8606a728cee1ae0c6b1f755104a349d48978446d79dcb4e64dc5b5223bac403",
+        "game_log_sha256": "d63463f88304800be0e52cc6291ed83dfe063958e7bd4f2b0bd7de78bb5fbefe",
+        "evidence_transfer_from_predecessor": false
       },
       "automated_headless": {
         "status": "h0_pass_canary_exact",
@@ -489,7 +534,7 @@
       },
       "receipt_successor_contract": "immediate_post_delivery_observation_not_causal_s_prime",
       "ritsu_route": "RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY",
-      "human_runtime": "not_exercised",
+      "human_runtime": "pass_bounded_owner_canary",
       "evidence_transfer_from_predecessor": false,
       "rollback": "apps/game-mod/.local/deployments/2026-08-30T14-44-51.829Z"
     },
@@ -1002,7 +1047,7 @@
     "native_semantic_discriminator_full_run_not_implemented",
     "native_foundation_candidate_human_runtime_not_exercised",
     "native_foundation_visible_headless_parity_main_menu_only",
-    "native_foundation_windows_candidate_human_runtime_not_exercised",
+    "native_foundation_windows_human_not_full_run",
     "native_foundation_windows_visible_headless_parity_main_menu_only"
   ]
 }

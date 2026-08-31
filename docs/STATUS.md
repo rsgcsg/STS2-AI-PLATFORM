@@ -31,8 +31,8 @@ cold-load pass as artifact `9a89f1fe... / b1c34f90...` against exact STS2
 sole-Platform Modset `d5054e7b...`. Live controller conflict, stale rejection
 and request idempotency pass without gameplay mutation. Shipped headless H0
 passes in runtime `efd022e9...`; live/headless main-menu canonical digests are
-equal (`71e246ab...`). This parity claim is menu-only. Human exercise remains
-pending, and predecessor PR #3 evidence does not transfer.
+equal (`71e246ab...`). This parity claim is menu-only, and predecessor PR #3
+evidence does not transfer.
 
 Fresh Windows evidence is independently bound to artifact
 `a681f8b1... / 7c42c4c3...` and shipped STS2
@@ -41,18 +41,22 @@ cold-load, sole `STS2_PLATFORM` Modset `e5693d19...`, Connector controller/
 stale/idempotency checks, and shipped-headless H0 pass. Visible runtime
 `7a1942b6...` and headless runtime `49f34fbf...` agree on the main-menu-only
 canonical digest `eaf8516d...`. Recorder initializes Ready/no-session and its
-portable lifecycle checks pass; owner-visible New/Pause/Resume/Close and the
-Combat/PlayerChoice/cross-domain canary remain the exact Human gate. See the
+portable lifecycle checks pass. The subsequent exact owner session
+`session-20260831T072650Z-b0608291ae7f416d96b058078f441794`, runtime
+`d8a10ba2...`, environment `9e0e0cfe...`, and sole-Platform Modset
+`1f1bdecc...` passes 35/35 Decision V2 records and accounts for all 37 native
+roots as 36 exact-once successes plus one correctly cancelled End Turn. It
+exercises ordinary/targeted Play, potion Use, End Turn, three complete
+PlayerChoice pause/resume pairs, repeated lethal-to-Reward/CardReward/Map
+handoffs, and Recorder New/Pause/Resume/Close. See the
 [Windows pre-Human gate](evidence/NATIVE_FOUNDATION_WINDOWS_PRE_HUMAN_GATE_2026-08-31.md).
-The final owner-takeover cold load is runtime `a711647a...`, environment
-`73b37f52...`, and sole-loaded-Platform Modset `7140e294...`. Its complete
-fingerprint changed because Steam updated a disabled Workshop entry; the loaded
-set and Platform bytes did not change. It is recorded separately as
-loaded/read-only preparation and does not inherit the earlier controller or
-headless claims.
+The exact Human result is recorded in the
+[Windows closeout](evidence/NATIVE_FOUNDATION_WINDOWS_HUMAN_CLOSEOUT_2026-08-31.md).
 RitsuLib was audited at upstream v0.5.18/main `f224961...` and development
-`c466809...`; [ADR 0004](adr/0004-native-foundation-and-ritsu-route.md) records
-the no-runtime-dependency route. See the
+`c466809...`; retrofit and Ritsu-first counterfactual evidence removed zero
+whole semantic categories. [ADR 0004](adr/0004-native-foundation-and-ritsu-route.md)
+therefore freezes `RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY`; see the
+[final decision packet](evidence/RITSU_ROUTE_FINAL_DECISION_2026-08-31.md) and
 [source closeout](evidence/NATIVE_FOUNDATION_SOURCE_CLOSEOUT_2026-08-30.md).
 
 Phase: **bounded Human-proved native semantic sequential lane**.

@@ -1,6 +1,6 @@
 # ADR 0004: Native Foundation And Ritsu Route
 
-- Status: accepted source architecture candidate; exact-runtime seal pending
+- Status: accepted and exact Windows Human sealed
 - Date: 2026-08-30
 - Scope: game-side Platform semantic/lifecycle infrastructure
 
@@ -31,6 +31,14 @@ PlayerChoice parent lineage, or causal next-decision contract. STS2 v0.111.0
 already exposes the exact lifecycle events and `ActionExecutor` owner used by
 this bounded slice.
 
+Subsequent PR #7 retrofit and PR #8 Ritsu-first counterfactual work reached the
+same bounded result. Zero whole integration categories and zero sampled
+Treasure touchpoints were removed; Combat, PlayerChoice, Treasure, and Shop
+still retained Platform-owned semantic facts and exact lifecycle/lineage. The
+durable measurements are preserved in the
+[final decision packet](../evidence/RITSU_ROUTE_FINAL_DECISION_2026-08-31.md),
+without merging the research implementations into production.
+
 ## Decision
 
 `RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY`
@@ -45,6 +53,10 @@ package, Mod dependency, bootstrap, patch manager, or runtime compatibility
 surface. If a future domain needs a seam that Ritsu actually supplies better,
 that proposal requires a new bounded ADR and exact build/runtime evidence.
 
+The exact Windows Native Foundation artifact then passed the bounded Human
+Combat/PlayerChoice, cross-domain owner-handoff, and Recorder lifecycle gate;
+see the [Windows Human closeout](../evidence/NATIVE_FOUNDATION_WINDOWS_HUMAN_CLOSEOUT_2026-08-31.md).
+
 ## Consequences
 
 - Connector remains the sole fair-player/public action and delivery authority.
@@ -57,9 +69,11 @@ that proposal requires a new bounded ADR and exact build/runtime evidence.
 - Ritsu runtime A/B was not run because source/API audit found no substitute
   implementation to compare for the required seam. This is an explicit
   non-claim, not evidence of Ritsu runtime incompatibility.
-- Reopening the dependency decision requires a Ritsu release to provide or
-  replace a critical Platform seam across at least two domains, pass the same
-  Platform-owned conformance contract, and justify a strict-config runtime A/B.
+- Reopening the dependency decision requires a stable Ritsu release to replace
+  a critical Platform seam across at least two real production domains, delete
+  meaningful Direct integration rather than wrap it, pass the same
+  Platform-owned conformance/fail-closed contracts, and justify a strict-config
+  exact runtime A/B.
 
 ## Rejected
 

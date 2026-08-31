@@ -399,7 +399,7 @@ export function validatePlatformBom(bom, authorities) {
 
   const windowsFoundation = policyCandidate?.native_foundation_windows_runtime_candidate;
   expectEqual(errors, "Windows Native Foundation candidate status", windowsFoundation?.status,
-    "loaded_automated_gates_pass_human_pending");
+    "bounded_windows_human_pass");
   expectEqual(errors, "Windows Native Foundation platform", windowsFoundation?.platform, "win32");
   expectEqual(errors, "Windows Native Foundation architecture", windowsFoundation?.architecture,
     "x64");
@@ -448,7 +448,7 @@ export function validatePlatformBom(bom, authorities) {
     player_environment_protocol: "1.0.0",
     host_kind: "live_ui",
     modset_status: "exact_platform_modset",
-    human_runtime: "not_exercised"
+    human_runtime: "pass_bounded_owner_canary"
   })) expectEqual(errors, `Windows Native Foundation ${field}`, windowsFoundation?.[field], expected);
   expectEqual(errors, "Windows Native Foundation installed/loaded equality",
     windowsFoundation?.installed_equals_loaded, true);
@@ -521,7 +521,60 @@ export function validatePlatformBom(bom, authorities) {
     windowsFoundation?.recorder_lifecycle?.automated_portable_checks, "pass");
   expectEqual(errors, "Windows Native Foundation Recorder owner lifecycle",
     windowsFoundation?.recorder_lifecycle?.owner_new_pause_resume_close,
-    "pending_human_runtime");
+    "pass");
+  const windowsHuman = windowsFoundation?.human_closeout;
+  for (const [field, expected] of Object.entries({
+    status: "pass_bounded_native_foundation_windows_human",
+    runtime_instance_id: "d8a10ba2a4684182807df332facc881c",
+    environment_fingerprint: "9e0e0cfe9fd7d4cae507059e6588c3cb1ee67f466ccef6d8044269a4c8ee8c7e",
+    modset_status: "exact_platform_modset",
+    modset_fingerprint: "1f1bdecc945fd4af54d0a5f1296cf6b91d0e82fca180d8b6b3c619bdd52ed135",
+    session_id: "session-20260831T072650Z-b0608291ae7f416d96b058078f441794",
+    timeline_id: "timeline-d9b5829a46d54e8cb460dab5d8647a16",
+    audit_status: "pass",
+    valid_records: 35,
+    invalid_records: 0,
+    invalidations: 34,
+    reads_materialized: 149,
+    reads_failed: 0,
+    native_accepted: 37,
+    native_successful: 36,
+    native_cancelled: 1,
+    native_aborted: 0,
+    native_unknown: 0,
+    semantic_exact_once_membership: 36,
+    play_card: 25,
+    end_turn_successful: 10,
+    end_turn_cancelled: 1,
+    use_potion: 1,
+    canonical_play: 25,
+    canonical_end_turn: 9,
+    canonical_use_potion: 1,
+    player_choice_pauses: 3,
+    player_choice_resumes: 3,
+    crossed_player_choice_commit: 1,
+    lethal_reward_card_reward_map: "pass_repeated_owner_handoff",
+    recorder_new_pause_resume_close: "pass",
+    human_origin: "owner_attested_and_no_other_loaded_controller",
+    evidence_transfer_from_predecessor: false
+  })) expectEqual(errors, `Windows Native Foundation Human ${field}`,
+    windowsHuman?.[field], expected);
+  if (!Array.isArray(windowsHuman?.loaded_mod_ids)
+      || windowsHuman.loaded_mod_ids.length !== 1
+      || windowsHuman.loaded_mod_ids[0] !== "STS2_PLATFORM") {
+    errors.push("Windows Native Foundation Human loaded Mods: expected only STS2_PLATFORM");
+  }
+  for (const [label, actual] of [
+    ["manifest", windowsHuman?.manifest_sha256],
+    ["Decision V2", windowsHuman?.decision_v2_sha256],
+    ["RunJournal", windowsHuman?.run_journal_sha256],
+    ["native ledger", windowsHuman?.native_ledger_sha256],
+    ["native discriminator", windowsHuman?.native_semantic_discriminator_sha256],
+    ["semantic trace", windowsHuman?.semantic_boundary_trace_sha256],
+    ["canonical transitions", windowsHuman?.canonical_transitions_sha256],
+    ["invalidations", windowsHuman?.invalidations_sha256],
+    ["game log", windowsHuman?.game_log_sha256]
+  ]) expectPattern(errors, `Windows Native Foundation Human ${label} SHA`, actual, SHA256);
   for (const [field, expected] of Object.entries({
     status: "h0_pass_canary_exact",
     runtime_instance_id: NATIVE_FOUNDATION_WINDOWS_RUNTIME_CANDIDATE.headlessRuntime,
@@ -1369,7 +1422,7 @@ export function validatePlatformBom(bom, authorities) {
   for (const value of [
     "native_foundation_candidate_human_runtime_not_exercised",
     "native_foundation_visible_headless_parity_main_menu_only",
-    "native_foundation_windows_candidate_human_runtime_not_exercised",
+    "native_foundation_windows_human_not_full_run",
     "native_foundation_windows_visible_headless_parity_main_menu_only"
   ]) {
     if (!bom.non_claims?.includes(value))
