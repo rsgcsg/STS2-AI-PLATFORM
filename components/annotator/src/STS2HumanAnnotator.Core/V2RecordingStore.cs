@@ -1,6 +1,7 @@
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Runtime.CompilerServices;
 
 namespace STS2HumanAnnotator.Core;
 
@@ -9,8 +10,10 @@ public sealed class V2RecordingStore : IDisposable
     private static readonly Encoding Utf8NoBom = new UTF8Encoding(false);
     private readonly object _gate = new();
     private readonly Dictionary<string, FileStream> _decisionFiles = new(StringComparer.Ordinal);
-    private readonly Dictionary<FrozenDecisionFrameV2, SemanticFrameReference> _semanticFrames =
-        new(ReferenceEqualityComparer.Instance);
+    // Keep the fast same-object lookup without retaining complete frame graphs
+    // for the lifetime of a recording session.
+    private readonly ConditionalWeakTable<FrozenDecisionFrameV2, SemanticFrameReference>
+        _semanticFrames = new();
     private readonly Dictionary<string, SemanticFrameReference> _semanticFramesByDigest =
         new(StringComparer.Ordinal);
     private readonly RecordingPerformanceProfiler _performance = new();

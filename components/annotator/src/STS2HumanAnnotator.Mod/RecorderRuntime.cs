@@ -1427,6 +1427,12 @@ internal static class RecorderRuntime
     private static void ObserveBeforeActionExecution(GameAction action)
     {
         string actionWitnessId = NativeWitnessIdentity.Get(action, "game_action");
+        bool canonicalBoundaryWillCapture;
+        lock (Gate)
+        {
+            canonicalBoundaryWillCapture = _semanticBoundaryTraceHealthy
+                && BoundaryTracker.Contains(actionWitnessId);
+        }
         NativeSemanticDiscriminatorRuntime.Observe(
             _store,
             SessionId,
@@ -1435,7 +1441,11 @@ internal static class RecorderRuntime
             action.State.ToString() == "ReadyToResumeExecuting"
                 ? "before_execution_resume"
                 : "before_execution",
-            action);
+            action,
+            capture: !canonicalBoundaryWillCapture,
+            detail: canonicalBoundaryWillCapture
+                ? NativeSemanticDiscriminatorContract.CanonicalBoundaryCaptureDelegatedDetail
+                : null);
         if (!_semanticBoundaryTraceHealthy || _store == null)
             return;
         lock (Gate)

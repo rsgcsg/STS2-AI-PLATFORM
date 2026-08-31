@@ -154,6 +154,15 @@ no action or semantic authority and has source/test evidence only; the Human run
 above cannot supply its timings. See the
 [schema-3 closeout](evidence/SCHEMA3_HUMAN_DATA_LIFECYCLE_CLOSEOUT_2026-08-29.md).
 
+Current source also contains a bounded recorder hardening pass: semantic-frame
+same-object caching no longer strongly retains complete frame graphs, the
+process-local native entity registry prunes dead IDs through a bounded candidate
+queue, and canonical boundary tracking explicitly suppresses a duplicate
+execution-time discriminator snapshot. This is source/test evidence only; it
+does not change action authority or inherit the latency claim of any prior
+artifact. A new build must be cold-loaded and owner-exercised before any
+after-repair frame-stall claim.
+
 The subsequent exact profiler session
 `session-20260829T072035Z-807f6a97b0e8498a828bb25c84e04ae4`, artifact
 `f1afebd2... / a618ef18...`, runtime `74c63f9a...`, independently passes

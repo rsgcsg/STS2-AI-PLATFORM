@@ -72,11 +72,15 @@ V1/V2 bytes are never reinterpreted.
 
 `native-semantic-discriminator.jsonl` is an additive read-only experiment
 stream. For each exact-correlated accepted combat root it records ordered native
-lifecycle plus, at first execution, two independent projections: the current
-public UI catalog and a compact semantic state/catalog derived from STS2's
-logical hand, native card/potion validators and combat phase. Successful roots
-must match exactly once; cancellation and PlayCard pre-Commit abort are separate
-dispositions. Player-choice commits are linked to the paused parent action.
+lifecycle plus, when no canonical boundary capture already owns the same
+execution sample, two independent projections: the current public UI catalog
+and a compact semantic state/catalog derived from STS2's logical hand, native
+card/potion validators and combat phase. A `successful_capture_delegated` row
+explicitly means that the canonical semantic-boundary stream owns that sample;
+it is not a missing capture and cannot authorize an action. Successful roots
+with an independent sample must match exactly once; cancellation and PlayCard
+pre-Commit abort are separate dispositions. Player-choice commits are linked to
+the paused parent action.
 The stream is audited by `audit-native-semantic`; it does not authorize input,
 change Decision V2, admit training rows, prove End Turn completion by itself, or
 claim Full-Run semantic completeness.

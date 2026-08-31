@@ -7,6 +7,8 @@ public static class NativeSemanticDiscriminatorContract
     public const int SchemaVersion = 1;
     public const string EventSchema =
         "sts2.human-annotator/native-semantic-discriminator-event-1";
+    public const string CanonicalBoundaryCaptureDelegatedDetail =
+        "Canonical semantic boundary capture owns this execution snapshot.";
 }
 
 /// <summary>
@@ -141,13 +143,21 @@ public static class NativeSemanticDiscriminatorAnalyzer
             }
             else if (finished)
             {
-                membership = execution?.SemanticMembership ?? "unknown";
+                bool delegated = execution != null
+                    && execution.CaptureStatus == "not_sampled"
+                    && execution.Detail == NativeSemanticDiscriminatorContract
+                        .CanonicalBoundaryCaptureDelegatedDetail;
+                membership = delegated
+                    ? "delegated_to_canonical_boundary"
+                    : execution?.SemanticMembership ?? "unknown";
                 disposition = execution?.SemanticMembership == "exact_once"
                     ? "successful_membership_proved"
-                    : "successful_membership_unknown";
+                    : delegated
+                        ? "successful_capture_delegated"
+                        : "successful_membership_unknown";
                 if (execution == null)
                     reasons.Add("successful_action_missing_execution_boundary");
-                else if (execution.SemanticMembership != "exact_once")
+                else if (!delegated && execution.SemanticMembership != "exact_once")
                     reasons.Add("successful_action_not_exact_once_in_semantic_catalog");
             }
             else
