@@ -14,6 +14,11 @@
 - Complete at source/test: route Treasure chest, exact relic choice, skip and
   proceed through `NativeTreasureDecisionProvider`; visible controls remain
   delivery bindings only.
+- Complete at source/test on PR #6: remove provider-specific action-key and
+  membership copies, carry exact unselected rewards in one native capture, and
+  use request-local reference indexes for Map/Reward/CardReward presentation
+  intersection. This is allocation/enumeration hardening, not runtime latency
+  or Human qualification evidence.
 - Complete and frozen: PR #7/#8 retrofit and Ritsu-first evidence preserve the
   `RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY` route in ADR 0004; useful
   findings are retained without merging research runtime code.

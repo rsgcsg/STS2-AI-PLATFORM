@@ -46,7 +46,7 @@ public static class NativeMapDecisionProvider
                 {
                     string id = identities.GetId(point, "map_point");
                     return new NativeSemanticAction(
-                        NativeCombatDecisionProvider.BuildActionKey("travel", id),
+                        NativeSemanticActionCatalog.BuildKey("travel", id),
                         "travel",
                         id,
                         point,
@@ -74,12 +74,6 @@ public static class NativeMapDecisionProvider
                 $"{exception.GetType().Name}: {exception.Message}");
         }
     }
-
-    public static bool ContainsDestination(
-        NativeMapDecision decision,
-        MapPoint point) =>
-        decision.Actions.Count(action =>
-            action.Verb == "travel" && ReferenceEquals(action.NativeSubject, point)) == 1;
 
     internal static IReadOnlyList<MapPoint> GetDestinations(RunState run)
         => GetDestinations(

@@ -58,6 +58,19 @@ post-delivery observation, not canonical causal `S'`. See the
 [continuation source closeout](evidence/NATIVE_FOUNDATION_FULL_RUN_SOURCE_CLOSEOUT_2026-08-31.md)
 and [Treasure closeout](evidence/NATIVE_FOUNDATION_TREASURE_SOURCE_CLOSEOUT_2026-08-31.md).
 
+The PR #6 source-hardening pass keeps those authority boundaries unchanged.
+Native action keys and exact-once membership now use one mechanical Native
+Foundation catalog helper instead of provider-specific copies. Reward capture
+returns its exact unselected native rewards with the action catalog, removing
+repeated weak-owner reads and per-button reward-array allocation. Connector
+builds request-local reference indexes for Map, Reward and CardReward
+presentation intersection, while every delivery still re-captures native
+membership. A dead reward/map handoff helper and a test-only Witness key wrapper
+were removed. Existing profiling identifies full Snapshot capture as the
+dominant recorder cost; this pass proves reduced catalog enumeration and
+allocation only, not a runtime latency improvement. No public protocol,
+semantic authority, loaded artifact, or Human evidence claim changed.
+
 Connector, Annotator, unified-Mod targeted checks and the full portable suite
 pass for component source commit `a3bcd37...`. Clean build, safe install and
 cold-load pass as artifact `9a89f1fe... / b1c34f90...` against exact STS2

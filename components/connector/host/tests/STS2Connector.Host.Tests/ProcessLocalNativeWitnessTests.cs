@@ -1,6 +1,7 @@
 using STS2Connector.NativeUi;
 using STS2Connector.PlayerEnvironment.Protocol;
 using STS2Connector.PlayerEnvironment.Witness;
+using STS2Platform.NativeFoundation;
 using System.Text.Json.Nodes;
 
 namespace STS2Connector.Host.Tests;
@@ -10,7 +11,7 @@ public sealed class ProcessLocalNativeWitnessTests
     [Fact]
     public void SemanticActionKeyIsDeterministicAndRoleOrdered()
     {
-        string first = PlayerEnvironmentNativeSemanticWitness.BuildActionKey(
+        string first = NativeSemanticActionCatalog.BuildKey(
             "play",
             "card-1",
             new Dictionary<string, string>
@@ -18,7 +19,7 @@ public sealed class ProcessLocalNativeWitnessTests
                 ["z_target"] = "enemy-2",
                 ["a_mode"] = "normal"
             });
-        string second = PlayerEnvironmentNativeSemanticWitness.BuildActionKey(
+        string second = NativeSemanticActionCatalog.BuildKey(
             "play",
             "card-1",
             new Dictionary<string, string>

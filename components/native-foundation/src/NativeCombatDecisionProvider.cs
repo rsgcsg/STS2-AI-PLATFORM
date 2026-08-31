@@ -63,19 +63,6 @@ public static class NativeCombatDecisionProvider
         }
     }
 
-    public static string BuildActionKey(
-        string verb,
-        string? subjectReferentId,
-        IReadOnlyDictionary<string, string>? arguments = null)
-    {
-        string operands = arguments == null
-            ? string.Empty
-            : string.Join(",", arguments
-                .OrderBy(pair => pair.Key, StringComparer.Ordinal)
-                .Select(pair => $"{pair.Key}={pair.Value}"));
-        return $"{verb}|{subjectReferentId ?? "-"}|{operands}";
-    }
-
     public static NativeObservedSemanticAction Describe(
         GameAction action,
         NativeCombatDecision decision,
@@ -153,7 +140,7 @@ public static class NativeCombatDecisionProvider
         }
 
         actions.Add(new NativeSemanticAction(
-            BuildActionKey("end_turn", null),
+            NativeSemanticActionCatalog.BuildKey("end_turn", null),
             "end_turn",
             null,
             player,
@@ -180,7 +167,7 @@ public static class NativeCombatDecisionProvider
                     target)
             };
         return new NativeSemanticAction(
-            BuildActionKey(
+            NativeSemanticActionCatalog.BuildKey(
                 verb,
                 subjectId,
                 operands.ToDictionary(value => value.Role, value => value.ReferentId, StringComparer.Ordinal)),
@@ -244,7 +231,7 @@ public static class NativeCombatDecisionProvider
             return ObservedKey("use", potion, target, identities);
         }
         return action is EndPlayerTurnAction
-            ? BuildActionKey("end_turn", null)
+            ? NativeSemanticActionCatalog.BuildKey("end_turn", null)
             : null;
     }
 
@@ -261,7 +248,10 @@ public static class NativeCombatDecisionProvider
             {
                 ["target"] = identities.GetId(target, TargetKind(target))
             };
-        return BuildActionKey(verb, identities.GetId(subject, subjectKind), arguments);
+        return NativeSemanticActionCatalog.BuildKey(
+            verb,
+            identities.GetId(subject, subjectKind),
+            arguments);
     }
 
     private static string TargetKind(Creature target) =>

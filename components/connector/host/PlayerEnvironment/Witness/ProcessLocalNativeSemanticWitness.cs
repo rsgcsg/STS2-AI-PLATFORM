@@ -69,10 +69,9 @@ public sealed record ProcessLocalNativeSemanticCapture(
     string? Detail);
 
 /// <summary>
-/// Read-only experiment seam for comparing current UI actionability with a
-/// gameplay-semantic combat decision projected from STS2-owned state and
-/// native validators. It has no mutation methods and is intentionally absent
-/// from the public Player Environment transport.
+/// Read-only process-local evidence seam for comparing current UI actionability
+/// with gameplay-semantic decisions projected from STS2-owned state. It has no
+/// mutation methods and is intentionally absent from public transport.
 /// </summary>
 public static class PlayerEnvironmentNativeSemanticWitness
 {
@@ -261,12 +260,6 @@ public static class PlayerEnvironmentNativeSemanticWitness
                 $"{exception.GetType().Name}: {exception.Message}");
         }
     }
-
-    public static string BuildActionKey(
-        string verb,
-        string? subjectReferentId,
-        IReadOnlyDictionary<string, string>? arguments = null) =>
-        NativeCombatDecisionProvider.BuildActionKey(verb, subjectReferentId, arguments);
 
     private static ProcessLocalNativeSemanticCapture Unavailable(
         string phase,

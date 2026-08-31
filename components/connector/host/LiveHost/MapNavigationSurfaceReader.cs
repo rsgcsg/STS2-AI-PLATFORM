@@ -15,8 +15,8 @@ using STS2Platform.NativeFoundation;
 namespace STS2Connector.LiveHost;
 
 /// <summary>
-/// Exact-build adapter for the map's route-selection protocol. Full visible
-/// topology is context; only the currently travelable points own actions.
+/// Exact-build adapter for the map's route-selection protocol. Native map
+/// destinations own semantic actions; current controls only bind delivery.
 /// </summary>
 internal sealed class MapNavigationSurfaceReader : ILiveSurfaceReader
 {
@@ -91,13 +91,17 @@ internal sealed class MapNavigationSurfaceReader : ILiveSurfaceReader
             return BindingUnavailable(game, "The open map contains ambiguous UI nodes for one or more coordinates.");
 
         var byCoord = pointNodes.ToDictionary(node => node.Point.coord);
-        MapPoint[] semanticDestinations = nativeDecision.Actions
-            .Where(action => action.Verb == "travel")
-            .Select(action => action.NativeSubject)
-            .OfType<MapPoint>()
-            .ToArray();
-        if (semanticDestinations.Any(destination =>
-                pointNodes.Count(node => ReferenceEquals(node.Point, destination)) != 1))
+        var presentedPointSet = new HashSet<MapPoint>(
+            pointNodes.Select(node => node.Point),
+            ReferenceEqualityComparer.Instance);
+        IReadOnlyList<MapPoint> semanticDestinations =
+            NativeSemanticActionCatalog.Subjects<MapPoint>(
+                nativeDecision.Actions,
+                "travel");
+        var semanticDestinationSet = new HashSet<MapPoint>(
+            semanticDestinations,
+            ReferenceEqualityComparer.Instance);
+        if (semanticDestinations.Any(destination => !presentedPointSet.Contains(destination)))
         {
             return BindingUnavailable(
                 game,
@@ -150,16 +154,14 @@ internal sealed class MapNavigationSurfaceReader : ILiveSurfaceReader
             drawingMode == DrawingMode.None);
         if (routeInputReady && pointNodes.Any(node =>
                 node.State == MapPointState.Travelable
-                != semanticDestinations.Any(destination =>
-                    ReferenceEquals(destination, node.Point))))
+                != semanticDestinationSet.Contains(node.Point)))
         {
             return ContradictoryRouteState(game, context);
         }
 
         NMapPoint[] travelable = routeInputReady
             ? pointNodes.Where(node =>
-                semanticDestinations.Any(destination =>
-                    ReferenceEquals(destination, node.Point))
+                semanticDestinationSet.Contains(node.Point)
                 && IsExactUiTravelChoice(screen, node, usingDirectionalNavigation)).ToArray()
             : Array.Empty<NMapPoint>();
         VisibleMapChoice[] options = travelable.Select(node => new VisibleMapChoice(
@@ -414,7 +416,10 @@ internal sealed class MapNavigationSurfaceReader : ILiveSurfaceReader
             || !ReferenceEquals(RunManager.Instance.DebugOnlyGetState(), expectedRunState)
             || !ConnectorMod.FindAll<NMapPoint>(expectedScreen).Any(node => ReferenceEquals(node, expectedNode))
             || !ReferenceEquals(expectedNode.Point, expectedPoint)
-            || !NativeMapDecisionProvider.ContainsDestination(decision, expectedPoint)
+            || !NativeSemanticActionCatalog.ContainsExactlyOnce(
+                decision.Actions,
+                "travel",
+                expectedPoint)
             || expectedNode.State != MapPointState.Travelable
             || !IsExactUiTravelChoice(expectedScreen, expectedNode, usingDirectionalNavigation))
         {

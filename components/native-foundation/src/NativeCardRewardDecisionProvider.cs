@@ -47,7 +47,7 @@ public static class NativeCardRewardDecisionProvider
             {
                 string id = identities.GetId(option.Card, "card");
                 actions.Add(new NativeSemanticAction(
-                    NativeCombatDecisionProvider.BuildActionKey("select", id),
+                    NativeSemanticActionCatalog.BuildKey("select", id),
                     "select",
                     id,
                     option.Card,
@@ -58,7 +58,7 @@ public static class NativeCardRewardDecisionProvider
             {
                 string id = identities.GetId(alternative, "card_reward_alternative");
                 actions.Add(new NativeSemanticAction(
-                    NativeCombatDecisionProvider.BuildActionKey("activate", id),
+                    NativeSemanticActionCatalog.BuildKey("activate", id),
                     "activate",
                     id,
                     alternative,
@@ -87,13 +87,6 @@ public static class NativeCardRewardDecisionProvider
                 $"{exception.GetType().Name}: {exception.Message}");
         }
     }
-
-    public static bool Contains(
-        NativeCardRewardDecision decision,
-        string verb,
-        object subject) =>
-        decision.Actions.Count(action =>
-            action.Verb == verb && ReferenceEquals(action.NativeSubject, subject)) == 1;
 
     private static NativeCardRewardDecision Unavailable(string status, string detail) =>
         new(

@@ -12,7 +12,6 @@ using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.Rewards;
 using MegaCrit.Sts2.Core.Nodes.Screens;
-using MegaCrit.Sts2.Core.Nodes.Screens.Map;
 using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
 using MegaCrit.Sts2.Core.Rewards;
 using MegaCrit.Sts2.Core.Runs;
@@ -94,36 +93,33 @@ internal sealed class RewardClaimSurfaceReader : ILiveSurfaceReader
         Player exactPlayer = player;
         IReadOnlyList<(int Slot, PotionModel Potion)> occupiedPotions = OccupiedPotions(exactPlayer);
         bool potionSlotsFull = ArePotionSlotsFull(exactPlayer, occupiedPotions.Count);
-        IReadOnlyList<Reward> ownedRewards =
-            NativeRewardDecisionProvider.OwnedRewards(screen);
-        bool catalogBoundExactly = ownedRewards.All(reward =>
-                                       buttons.Count(button =>
-                                           ReferenceEquals(button.Reward, reward)) == 1)
-                                   && buttons.All(button =>
-                                       NativeRewardDecisionProvider.OwnsReward(
-                                           screen,
-                                           button.Reward!));
+        IReadOnlyList<Reward> ownedRewards = nativeDecision.Rewards;
+        bool catalogBoundExactly = NativeDecisionProjection.HasExactReferenceBijection(
+            ownedRewards,
+            buttons.Select(button => button.Reward!));
+        var claimableRewards = new HashSet<Reward>(
+            NativeSemanticActionCatalog.Subjects<Reward>(nativeDecision.Actions, "claim"),
+            ReferenceEqualityComparer.Instance);
+        var discardablePotionSet = new HashSet<PotionModel>(
+            NativeSemanticActionCatalog.Subjects<PotionModel>(nativeDecision.Actions, "discard"),
+            ReferenceEqualityComparer.Instance);
         VisibleReward[] rewards = buttons.Select(button =>
             BuildReward(
                 button,
                 entities,
                 catalogBoundExactly
-                && NativeRewardDecisionProvider.Contains(
-                    nativeDecision,
-                    "claim",
-                    button.Reward!))).ToArray();
+                && claimableRewards.Contains(button.Reward!))).ToArray();
         VisibleCombatPotion[] discardablePotions = catalogBoundExactly
             ? occupiedPotions
-                .Where(entry => NativeRewardDecisionProvider.Contains(
-                    nativeDecision,
-                    "discard",
-                    entry.Potion))
+                .Where(entry => discardablePotionSet.Contains(entry.Potion))
                 .Select(entry => BuildDiscardablePotion(entry.Slot, entry.Potion, entities))
                 .ToArray()
             : Array.Empty<VisibleCombatPotion>();
         bool canProceed = catalogBoundExactly
                           && proceedButton.IsEnabled
-                          && NativeRewardDecisionProvider.Contains(nativeDecision, "proceed");
+                          && NativeSemanticActionCatalog.ContainsExactlyOnce(
+                              nativeDecision.Actions,
+                              "proceed");
         bool hasVisibleControls = buttons.Length > 0 || proceedButton.IsEnabled;
         bool hasCurrentCommand = rewards.Any(reward => reward.Enabled)
                                  || discardablePotions.Length > 0
@@ -308,7 +304,10 @@ internal sealed class RewardClaimSurfaceReader : ILiveSurfaceReader
         NativeRewardDecision decision =
             NativeRewardDecisionProvider.Capture(expectedScreen, entities);
         if (!IsCurrent(expectedScreen)
-            || !NativeRewardDecisionProvider.Contains(decision, "claim", expectedReward)
+            || !NativeSemanticActionCatalog.ContainsExactlyOnce(
+                decision.Actions,
+                "claim",
+                expectedReward)
             || !ConnectorMod.FindAll<NRewardButton>(expectedScreen).Any(button => ReferenceEquals(button, expectedButton))
             || !ReferenceEquals(expectedButton.Reward, expectedReward)
             || !ConnectorMod.IsNodeVisible(expectedButton)
@@ -331,7 +330,9 @@ internal sealed class RewardClaimSurfaceReader : ILiveSurfaceReader
         NativeRewardDecision decision =
             NativeRewardDecisionProvider.Capture(expectedScreen, entities);
         if (!IsCurrent(expectedScreen)
-            || !NativeRewardDecisionProvider.Contains(decision, "proceed")
+            || !NativeSemanticActionCatalog.ContainsExactlyOnce(
+                decision.Actions,
+                "proceed")
             || ConnectorMod.FindFirst<NProceedButton>(expectedScreen) is not { } currentButton
             || !ReferenceEquals(currentButton, expectedButton)
             || !ConnectorMod.IsNodeVisible(expectedButton)
@@ -356,7 +357,10 @@ internal sealed class RewardClaimSurfaceReader : ILiveSurfaceReader
         NativeRewardDecision decision =
             NativeRewardDecisionProvider.Capture(expectedScreen, entities);
         if (!IsCurrent(expectedScreen)
-            || !NativeRewardDecisionProvider.Contains(decision, "discard", expectedPotion)
+            || !NativeSemanticActionCatalog.ContainsExactlyOnce(
+                decision.Actions,
+                "discard",
+                expectedPotion)
             || !expectedPlayer.CanUseOrRemovePotions
             || !ArePotionSlotsFull(expectedPlayer)
             || !ReferenceEquals(expectedPlayer.GetPotionAtSlotIndex(expectedSlot), expectedPotion)
@@ -379,15 +383,6 @@ internal sealed class RewardClaimSurfaceReader : ILiveSurfaceReader
     private static bool IsCurrent(NRewardsScreen screen) =>
         ActiveInputResolver.IsVisibleActiveOverlay(screen)
         && ReferenceEquals(NOverlayStack.Instance?.Peek(), screen);
-
-    // An ordinary terminal reward can expose the map before the old overlay
-    // leaves the stack. Map visibility is player-visible completion evidence,
-    // unlike a merely disabled Proceed button or a hidden first-time tutorial.
-    private static bool IsVisibleMapAfterRewards()
-    {
-        NMapScreen? map = NMapScreen.Instance;
-        return map != null && (map.IsOpen || ConnectorMod.IsNodeVisible(map));
-    }
 
     private static string RewardKind(Reward reward) => reward switch
     {

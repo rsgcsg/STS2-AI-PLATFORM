@@ -45,10 +45,13 @@ public static class NativeRewardDecisionProvider
         {
             RewardsSet set = owner.Set;
             Player player = set.Player;
+            Reward[] rewards = set.Rewards
+                .Where(value => !value.SuccessfullySelected)
+                .ToArray();
             IReadOnlyList<PotionModel> occupiedPotions = OccupiedPotions(player);
             bool potionSlotsFull = occupiedPotions.Count >= player.PotionSlots.Count;
             var actions = new List<NativeSemanticAction>();
-            foreach (Reward reward in set.Rewards.Where(value => !value.SuccessfullySelected))
+            foreach (Reward reward in rewards)
             {
                 // Keep the existing Player Environment contract: when the
                 // belt is full, expose exact potion-discard choices rather
@@ -57,7 +60,7 @@ public static class NativeRewardDecisionProvider
                     continue;
                 string id = identities.GetId(reward, "reward");
                 actions.Add(new NativeSemanticAction(
-                    NativeCombatDecisionProvider.BuildActionKey("claim", id),
+                    NativeSemanticActionCatalog.BuildKey("claim", id),
                     "claim",
                     id,
                     reward,
@@ -65,8 +68,7 @@ public static class NativeRewardDecisionProvider
                     "RewardsSet.Rewards+Reward.SuccessfullySelected"));
             }
 
-            bool hasPendingPotionReward = set.Rewards.Any(reward =>
-                reward is PotionReward && !reward.SuccessfullySelected);
+            bool hasPendingPotionReward = rewards.Any(reward => reward is PotionReward);
             if (hasPendingPotionReward
                 && potionSlotsFull
                 && player.CanUseOrRemovePotions)
@@ -75,7 +77,7 @@ public static class NativeRewardDecisionProvider
                 {
                     string id = identities.GetId(potion, "potion");
                     actions.Add(new NativeSemanticAction(
-                        NativeCombatDecisionProvider.BuildActionKey("discard", id),
+                        NativeSemanticActionCatalog.BuildKey("discard", id),
                         "discard",
                         id,
                         potion,
@@ -89,7 +91,7 @@ public static class NativeRewardDecisionProvider
             if (canProceed)
             {
                 actions.Add(new NativeSemanticAction(
-                    NativeCombatDecisionProvider.BuildActionKey("proceed", null),
+                    NativeSemanticActionCatalog.BuildKey("proceed", null),
                     "proceed",
                     null,
                     set,
@@ -102,6 +104,7 @@ public static class NativeRewardDecisionProvider
                 "room_rewards",
                 actions.Count > 0,
                 owner.IsTerminal,
+                rewards,
                 actions.OrderBy(action => action.Key, StringComparer.Ordinal).ToArray(),
                 new[]
                 {
@@ -121,24 +124,6 @@ public static class NativeRewardDecisionProvider
         }
     }
 
-    public static bool Contains(
-        NativeRewardDecision decision,
-        string verb,
-        object? subject = null) =>
-        decision.Actions.Count(action =>
-            action.Verb == verb
-            && (subject == null || ReferenceEquals(action.NativeSubject, subject))) == 1;
-
-    public static IReadOnlyList<Reward> OwnedRewards(NRewardsScreen screen) =>
-        Owners.TryGetValue(screen, out Owner? owner)
-            ? owner.Set.Rewards
-                .Where(reward => !reward.SuccessfullySelected)
-                .ToArray()
-            : Array.Empty<Reward>();
-
-    public static bool OwnsReward(NRewardsScreen screen, Reward reward) =>
-        OwnedRewards(screen).Count(candidate => ReferenceEquals(candidate, reward)) == 1;
-
     private static IReadOnlyList<PotionModel> OccupiedPotions(Player player)
     {
         var result = new List<PotionModel>();
@@ -156,6 +141,7 @@ public static class NativeRewardDecisionProvider
             "unavailable",
             false,
             false,
+            Array.Empty<Reward>(),
             Array.Empty<NativeSemanticAction>(),
             Array.Empty<string>(),
             detail);

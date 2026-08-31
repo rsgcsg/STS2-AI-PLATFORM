@@ -115,6 +115,23 @@ public sealed class NativeFoundationContractTests
     }
 
     [Fact]
+    public void ExactPresentationBijectionRejectsMissingAndDuplicateBindings()
+    {
+        var first = new object();
+        var second = new object();
+
+        Assert.True(NativeDecisionProjection.HasExactReferenceBijection(
+            new[] { first, second },
+            new[] { second, first }));
+        Assert.False(NativeDecisionProjection.HasExactReferenceBijection(
+            new[] { first, second },
+            new[] { first, first }));
+        Assert.False(NativeDecisionProjection.HasExactReferenceBijection(
+            new[] { first },
+            new[] { first, second }));
+    }
+
+    [Fact]
     public void NativeMembershipRequiresOneExactSubjectReference()
     {
         var reward = new object();
@@ -123,6 +140,7 @@ public sealed class NativeFoundationContractTests
             "room_rewards",
             true,
             true,
+            Array.Empty<MegaCrit.Sts2.Core.Rewards.Reward>(),
             new[]
             {
                 Action("first", reward, "claim"),
@@ -132,9 +150,18 @@ public sealed class NativeFoundationContractTests
             null);
         var exact = duplicate with { Actions = new[] { Action("only", reward, "claim") } };
 
-        Assert.False(NativeRewardDecisionProvider.Contains(duplicate, "claim", reward));
-        Assert.True(NativeRewardDecisionProvider.Contains(exact, "claim", reward));
-        Assert.False(NativeRewardDecisionProvider.Contains(exact, "claim", new object()));
+        Assert.False(NativeSemanticActionCatalog.ContainsExactlyOnce(
+            duplicate.Actions,
+            "claim",
+            reward));
+        Assert.True(NativeSemanticActionCatalog.ContainsExactlyOnce(
+            exact.Actions,
+            "claim",
+            reward));
+        Assert.False(NativeSemanticActionCatalog.ContainsExactlyOnce(
+            exact.Actions,
+            "claim",
+            new object()));
     }
 
     [Theory]
@@ -221,10 +248,16 @@ public sealed class NativeFoundationContractTests
             Array.Empty<string>(),
             null);
 
-        Assert.True(NativeTreasureDecisionProvider.Contains(decision, "proceed", room));
-        Assert.False(NativeTreasureDecisionProvider.Contains(decision, "proceed", new object()));
-        Assert.False(NativeTreasureDecisionProvider.Contains(
-            decision with { Actions = new[] { Action("a", room, "proceed"), Action("b", room, "proceed") } },
+        Assert.True(NativeSemanticActionCatalog.ContainsExactlyOnce(
+            decision.Actions,
+            "proceed",
+            room));
+        Assert.False(NativeSemanticActionCatalog.ContainsExactlyOnce(
+            decision.Actions,
+            "proceed",
+            new object()));
+        Assert.False(NativeSemanticActionCatalog.ContainsExactlyOnce(
+            new[] { Action("a", room, "proceed"), Action("b", room, "proceed") },
             "proceed",
             room));
     }

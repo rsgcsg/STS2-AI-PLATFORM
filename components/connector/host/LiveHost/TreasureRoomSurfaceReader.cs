@@ -106,16 +106,16 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
                        && proceed.IsSkip
                        && proceed.IsEnabled
                        && ConnectorMod.IsNodeVisible(proceed)
-                       && NativeTreasureDecisionProvider.Contains(
-                           nativeDecision,
+                       && NativeSemanticActionCatalog.ContainsExactlyOnce(
+                           nativeDecision.Actions,
                            "skip",
                            room);
         bool canProceed = stage == "completed"
                           && !proceed.IsSkip
                           && proceed.IsEnabled
                           && ConnectorMod.IsNodeVisible(proceed)
-                          && NativeTreasureDecisionProvider.Contains(
-                              nativeDecision,
+                          && NativeSemanticActionCatalog.ContainsExactlyOnce(
+                              nativeDecision.Actions,
                               "proceed",
                               room);
 
@@ -124,15 +124,15 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
                             && chest.IsEnabled
                             && ConnectorMod.IsNodeVisible(chest)
                             && chest.MouseFilter != Control.MouseFilterEnum.Ignore
-                            && NativeTreasureDecisionProvider.Contains(
-                                nativeDecision,
+                            && NativeSemanticActionCatalog.ContainsExactlyOnce(
+                                nativeDecision.Actions,
                                 "open",
                                 room);
         bool canChoose = stage == "relic_choice"
                          && holderActionable
                          && currentRelics.Length == 1
-                         && NativeTreasureDecisionProvider.Contains(
-                             nativeDecision,
+                         && NativeSemanticActionCatalog.ContainsExactlyOnce(
+                             nativeDecision.Actions,
                              "select",
                              currentRelics[0]);
 
@@ -311,7 +311,10 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
         NativeTreasureDecision decision =
             NativeTreasureDecisionProvider.Capture(expectedUi, entities);
         if (!IsCurrent(expectedRoom, expectedUi)
-            || !NativeTreasureDecisionProvider.Contains(decision, "open", expectedRoom)
+            || !NativeSemanticActionCatalog.ContainsExactlyOnce(
+                decision.Actions,
+                "open",
+                expectedRoom)
             || !ReferenceEquals(expectedUi.GetNodeOrNull<NButton>("%Chest"), expectedChest)
             || !expectedChest.IsEnabled
             || !ConnectorMod.IsNodeVisible(expectedChest)
@@ -337,7 +340,10 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
         NativeTreasureDecision decision =
             NativeTreasureDecisionProvider.Capture(expectedUi, entities);
         if (!IsCurrent(expectedRoom, expectedUi)
-            || !NativeTreasureDecisionProvider.Contains(decision, "select", expectedRelic)
+            || !NativeSemanticActionCatalog.ContainsExactlyOnce(
+                decision.Actions,
+                "select",
+                expectedRelic)
             || !ReferenceEquals(expectedUi.GetNodeOrNull<NTreasureRoomRelicCollection>("%RelicCollection"), expectedCollection)
             || !ReferenceEquals(expectedCollection.SingleplayerRelicHolder, expectedHolder)
             || decision.Relics.Count != 1
@@ -367,7 +373,10 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
         NativeTreasureDecision decision =
             NativeTreasureDecisionProvider.Capture(expectedUi, entities);
         if (!IsCurrent(expectedRoom, expectedUi)
-            || !NativeTreasureDecisionProvider.Contains(decision, "skip", expectedRoom)
+            || !NativeSemanticActionCatalog.ContainsExactlyOnce(
+                decision.Actions,
+                "skip",
+                expectedRoom)
             || !ReferenceEquals(expectedUi.GetNodeOrNull<NTreasureRoomRelicCollection>("%RelicCollection"), expectedCollection)
             || !ReferenceEquals(expectedUi.ProceedButton, expectedProceed)
             || !expectedProceed.IsSkip
@@ -392,7 +401,10 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
         NativeTreasureDecision decision =
             NativeTreasureDecisionProvider.Capture(expectedUi, entities);
         if (!IsCurrent(expectedRoom, expectedUi)
-            || !NativeTreasureDecisionProvider.Contains(decision, "proceed", expectedRoom)
+            || !NativeSemanticActionCatalog.ContainsExactlyOnce(
+                decision.Actions,
+                "proceed",
+                expectedRoom)
             || !ReferenceEquals(expectedUi.ProceedButton, expectedProceed)
             || expectedProceed.IsSkip
             || !expectedProceed.IsEnabled

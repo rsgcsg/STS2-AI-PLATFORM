@@ -64,23 +64,19 @@ internal sealed class CardRewardSurfaceReader : ILiveSurfaceReader
 
         NGridCardHolder[] holders = VisibleCardHolders(cardRow);
         NCardRewardAlternativeButton[] buttons = VisibleAlternativeButtons(alternativesContainer);
-        CardModel[] semanticCards = nativeDecision.Actions
-            .Where(action => action.Verb == "select")
-            .Select(action => action.NativeSubject)
-            .OfType<CardModel>()
-            .ToArray();
-        CardRewardAlternative[] semanticAlternatives = nativeDecision.Actions
-            .Where(action => action.Verb == "activate")
-            .Select(action => action.NativeSubject)
-            .OfType<CardRewardAlternative>()
-            .ToArray();
-        bool catalogBoundExactly = semanticCards.All(card =>
-                                       holders.Count(holder =>
-                                           ReferenceEquals(holder.CardModel, card)) == 1)
-                                   && holders.All(holder =>
-                                       semanticCards.Count(card =>
-                                           ReferenceEquals(holder.CardModel, card)) == 1)
-                                   && semanticAlternatives.Length == buttons.Length;
+        IReadOnlyList<CardModel> semanticCards =
+            NativeSemanticActionCatalog.Subjects<CardModel>(nativeDecision.Actions, "select");
+        IReadOnlyList<CardRewardAlternative> semanticAlternatives =
+            NativeSemanticActionCatalog.Subjects<CardRewardAlternative>(
+                nativeDecision.Actions,
+                "activate");
+        var semanticCardSet = new HashSet<CardModel>(
+            semanticCards,
+            ReferenceEqualityComparer.Instance);
+        bool catalogBoundExactly = NativeDecisionProjection.HasExactReferenceBijection(
+                                       semanticCards,
+                                       holders.Select(holder => holder.CardModel))
+                                   && semanticAlternatives.Count == buttons.Length;
         string?[] alternativeLabels = buttons.Select(ReadAlternativeLabel).ToArray();
         if (alternativeLabels.Any(string.IsNullOrWhiteSpace))
         {
@@ -118,10 +114,7 @@ internal sealed class CardRewardSurfaceReader : ILiveSurfaceReader
             SelectableCardEntityIds = holders
                 .Where(holder => catalogBoundExactly
                                  && IsHolderClickable(holder)
-                                 && NativeCardRewardDecisionProvider.Contains(
-                                     nativeDecision,
-                                     "select",
-                                     holder.CardModel))
+                                 && semanticCardSet.Contains(holder.CardModel))
                 .Select(holder => entities.GetId(holder.CardModel, "card"))
                 .ToArray()
         };
@@ -242,7 +235,10 @@ internal sealed class CardRewardSurfaceReader : ILiveSurfaceReader
         NativeCardRewardDecision decision =
             NativeCardRewardDecisionProvider.Capture(expectedScreen, entities);
         if (!IsCurrent(expectedScreen)
-            || !NativeCardRewardDecisionProvider.Contains(decision, "select", expectedCard)
+            || !NativeSemanticActionCatalog.ContainsExactlyOnce(
+                decision.Actions,
+                "select",
+                expectedCard)
             || expectedScreen.GetNodeOrNull<Control>("UI/CardRow") is not { } currentRow
             || !ReferenceEquals(currentRow, expectedCardRow)
             || !currentRow.GetChildren().OfType<NGridCardHolder>().Any(holder => ReferenceEquals(holder, expectedHolder))
@@ -305,8 +301,8 @@ internal sealed class CardRewardSurfaceReader : ILiveSurfaceReader
         NativeCardRewardDecision decision =
             NativeCardRewardDecisionProvider.Capture(expectedScreen, entities);
         if (!IsCurrent(expectedScreen)
-            || !NativeCardRewardDecisionProvider.Contains(
-                decision,
+            || !NativeSemanticActionCatalog.ContainsExactlyOnce(
+                decision.Actions,
                 "activate",
                 expectedAlternative)
             || expectedScreen.GetNodeOrNull<Control>("UI/RewardAlternatives") is not { } currentContainer

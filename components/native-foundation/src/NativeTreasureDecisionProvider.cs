@@ -154,13 +154,6 @@ public static class NativeTreasureDecisionProvider
         }
     }
 
-    public static bool Contains(
-        NativeTreasureDecision decision,
-        string verb,
-        object subject) =>
-        decision.Actions.Count(action =>
-            action.Verb == verb && ReferenceEquals(action.NativeSubject, subject)) == 1;
-
     internal static string ClassifyStage(
         bool chestOpened,
         bool collectionOpen,
@@ -187,7 +180,7 @@ public static class NativeTreasureDecisionProvider
         object subject,
         string basis) =>
         new(
-            NativeCombatDecisionProvider.BuildActionKey(verb, referentId),
+            NativeSemanticActionCatalog.BuildKey(verb, referentId),
             verb,
             referentId,
             subject,

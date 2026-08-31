@@ -74,6 +74,12 @@ read-only Postfix seams. Connector intersects each catalog with current visible
 controls, retains Host-local delivery operands and re-captures native membership
 at execution. Annotator consumes the same catalog without gaining authority.
 
+`NativeSemanticActionCatalog` contains only deterministic key construction,
+exact-once membership and typed subject projection. It does not discover
+legality or bind controls. Exact native owner data is captured once per
+decision; request-local reference sets accelerate presentation intersection
+without surviving a Snapshot or becoming a second state cache.
+
 ## Seam Matrix And Example Suite
 
 The detailed [Native Seam Matrix](NATIVE_SEAM_MATRIX.md) records semantic owner,
@@ -99,6 +105,7 @@ T2/T3 rows are non-claims, not implied support.
 | CardReward options from holders/buttons | removed as semantic authority | exact native option arrays own membership; controls only bind delivery |
 | Treasure stage from chest/holder/proceed visibility | removed as semantic authority | exact room lifecycle and synchronizer vote own the catalog; controls only bind delivery |
 | per-surface owner detection | retained for presentation routing only | semantic owner and action source now come from typed Foundation providers |
+| duplicated action-key and exact-membership helpers | removed | one stateless Native Foundation catalog helper serves all typed providers without owning legality |
 | duplicated Describe/Start dispatch in source adapters | migration debt | consolidate only when a native domain adapter is proved |
 | SnapshotBuilder source-specific special paths | migration debt | move facts before actions when owning domains migrate |
 
