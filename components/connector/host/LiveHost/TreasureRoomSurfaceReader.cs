@@ -11,7 +11,6 @@ using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 using MegaCrit.Sts2.Core.Nodes.Rooms;
 using MegaCrit.Sts2.Core.Nodes.Screens.Map;
-using MegaCrit.Sts2.Core.Nodes.Screens.ScreenContext;
 using MegaCrit.Sts2.Core.Nodes.Screens.TreasureRoomRelic;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
@@ -51,11 +50,17 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
         NTreasureRoom? uiRoom = NRun.Instance?.TreasureRoom;
         if (uiRoom == null || !ConnectorMod.IsLiveNode(uiRoom))
             return null;
+        bool roomLayerOwnsInput = ActiveInputResolver.IsActiveLayer(
+            InputOwnerLayer.Room,
+            snapshot.TopOverlay != null,
+            snapshot.MapIsOpen,
+            snapshot.MenuSubmenu != null || snapshot.MenuRoot != null,
+            snapshot.OpenModal != null);
         if (ClassifyScreenHandoff(
                 RunManager.Instance.IsInProgress,
                 currentRoomIsTreasure: true,
                 uiRoomIsLive: true,
-                ActiveScreenContext.Instance.IsCurrent(uiRoom)))
+                roomLayerOwnsInput))
         {
             return ScreenHandoff(game, runState);
         }
@@ -422,7 +427,18 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
     private static bool IsCurrent(TreasureRoom expectedRoom, NTreasureRoom expectedUi) =>
         ReferenceEquals(RunManager.Instance.DebugOnlyGetState()?.CurrentRoom, expectedRoom)
         && ConnectorMod.IsLiveNode(expectedUi)
-        && ActiveScreenContext.Instance.IsCurrent(expectedUi);
+        && IsRoomLayerCurrent();
+
+    private static bool IsRoomLayerCurrent()
+    {
+        ActiveSurfaceSnapshot snapshot = ActiveInputResolver.Capture();
+        return ActiveInputResolver.IsActiveLayer(
+            InputOwnerLayer.Room,
+            snapshot.TopOverlay != null,
+            snapshot.MapIsOpen,
+            snapshot.MenuSubmenu != null || snapshot.MenuRoot != null,
+            snapshot.OpenModal != null);
+    }
 
     private static bool TryReadHolderRelic(
         NTreasureRoomRelicHolder holder,
@@ -489,7 +505,7 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
             {
                 "TreasureRoom exact current room",
                 "NTreasureRoom live node",
-                "ActiveScreenContext current-owner check"
+                "ActiveInputResolver room-layer current-owner check"
             },
             Array.Empty<string>());
         string signature = StableIdentityHash.Object(new
@@ -513,7 +529,7 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
             InputOwnership = new InputOwnership(
                 "none_fail_closed",
                 null,
-                "The treasure room exists but does not own the current native screen context; the Host polls without publishing actions."),
+                "The treasure room exists but does not own the current native input layer; the Host publishes no actions."),
             Diagnostics = new[]
             {
                 HostDiagnostics.Create(

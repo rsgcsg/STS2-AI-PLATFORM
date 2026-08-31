@@ -541,7 +541,8 @@ public static class V2RecordingAuditor
             value.Detail,
             value.NonClaims)
         {
-            HumanObservation = humanObservation
+            HumanObservation = humanObservation,
+            NativeCompletion = value.NativeCompletion
         };
     }
 

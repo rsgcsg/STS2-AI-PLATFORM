@@ -32,6 +32,21 @@ public sealed record SemanticBoundaryObservationReference(
 }
 
 /// <summary>
+/// Native completion identity attached to the semantic proof it caused. This
+/// is evidence metadata only; it never authorizes or executes an action.
+/// </summary>
+public sealed record NativeCompletionEvidence(
+    string CompletionId,
+    string Family,
+    string Kind,
+    string? ActionWitnessId,
+    string? TaskWitnessId,
+    string? NativeOwnerWitnessId,
+    string? NativeOperandWitnessId,
+    string? NativeLineageWitnessId,
+    bool Succeeded);
+
+/// <summary>
 /// Ordered semantic timeline event. Frames are stored once and referenced by
 /// role so lifecycle facts stay compact without weakening causal validation.
 /// </summary>
@@ -55,4 +70,5 @@ public sealed record SemanticEvidenceEvent(
     IReadOnlyList<string> NonClaims)
 {
     public SemanticFrameReference? HumanObservationRef { get; init; }
+    public NativeCompletionEvidence? NativeCompletion { get; init; }
 }

@@ -46,6 +46,7 @@ public sealed record SemanticActionReference(
     string HumanObservationSnapshotId)
 {
     public string NativeMechanism { get; init; } = "game_action";
+    public bool RequiresNativePostCommit { get; init; }
     public NativeWitnessEvidence? NativeWitness { get; init; }
     public ExactMappingEvidence? Mapping { get; init; }
     public RecordedBoundAction? BoundAction { get; init; }
@@ -111,6 +112,7 @@ public sealed record SemanticBoundaryTraceDraft(
     IReadOnlyList<string>? NonClaims = null)
 {
     public FrozenDecisionFrameV2? HumanObservation { get; init; }
+    public NativeCompletionEvidence? NativeCompletion { get; init; }
 }
 
 public sealed record SemanticBoundaryTraceEvent(
@@ -133,6 +135,7 @@ public sealed record SemanticBoundaryTraceEvent(
     IReadOnlyList<string> NonClaims)
 {
     public FrozenDecisionFrameV2? HumanObservation { get; init; }
+    public NativeCompletionEvidence? NativeCompletion { get; init; }
 }
 
 /// <summary>
@@ -378,6 +381,106 @@ public sealed class SemanticBoundaryTracker
         return drafts;
     }
 
+    /// <summary>
+    /// Settles one exact action from the native completion that belongs to it.
+    /// Unlike the general decision-boundary path this never chooses a current
+    /// or FIFO waiting entry; the caller supplies the matched root identity.
+    /// </summary>
+    public IReadOnlyList<SemanticBoundaryTraceDraft> ObserveNativePostCommitBoundary(
+        string actionWitnessId,
+        SemanticBoundaryObservation boundary,
+        NativeCompletionEvidence completion)
+    {
+        Entry entry = Required(actionWitnessId);
+        if (entry.Disposed)
+            return Array.Empty<SemanticBoundaryTraceDraft>();
+        if (!boundary.IsNativeUiPostCommitBoundary)
+            throw new InvalidOperationException("Native completion must use a native post-commit boundary.");
+        if (!completion.Succeeded
+            || !string.Equals(completion.ActionWitnessId, actionWitnessId, StringComparison.Ordinal)
+            || string.IsNullOrWhiteSpace(completion.CompletionId)
+            || string.IsNullOrWhiteSpace(completion.Family)
+            || string.IsNullOrWhiteSpace(completion.Kind))
+        {
+            throw new InvalidOperationException(
+                "A successful native post-commit boundary must carry the exact completed Human root identity.");
+        }
+
+        var drafts = new List<SemanticBoundaryTraceDraft>();
+        Entry[] earlier = WaitingForBoundaryInExecutionOrder()
+            .Where(candidate => candidate.Action.ActionWitnessId != actionWitnessId)
+            .Where(candidate => candidate.ExecutionOrder.HasValue
+                                && entry.ExecutionOrder.HasValue
+                                && candidate.ExecutionOrder.Value < entry.ExecutionOrder.Value)
+            .ToArray();
+        foreach (Entry predecessor in earlier)
+        {
+            drafts.AddRange(DisposeUnknown(
+                predecessor,
+                "intervening_human_action_before_native_completion",
+                actionWitnessId,
+                "A later native completion arrived before this earlier Human action had a causal completion boundary."));
+        }
+
+        Entry[] later = WaitingForBoundaryInExecutionOrder()
+            .Where(candidate => candidate.Action.ActionWitnessId != actionWitnessId)
+            .Where(candidate => candidate.ExecutionOrder.HasValue
+                                && entry.ExecutionOrder.HasValue
+                                && candidate.ExecutionOrder.Value > entry.ExecutionOrder.Value)
+            .ToArray();
+        if (later.Length > 0)
+        {
+            drafts.AddRange(DisposeUnknown(
+                    entry,
+                    "intervening_human_action_before_native_completion",
+                    later[0].Action.ActionWitnessId,
+                    "A later Human action had already started before this native completion was observed; its frame cannot be this action's strict successor.")
+                .Select(draft => draft with { NativeCompletion = completion }));
+            return drafts;
+        }
+
+        IReadOnlyList<SemanticBoundaryTraceDraft> settled = Settle(
+                entry,
+                boundary,
+                null,
+                forceUnknown: true)
+            .Select(draft => draft.Action.ActionWitnessId == actionWitnessId
+                ? draft with { NativeCompletion = completion }
+                : draft)
+            .ToArray();
+        drafts.AddRange(settled);
+        if (settled.Any(draft => draft.Action.ActionWitnessId == actionWitnessId
+                                && draft.Kind == SemanticBoundaryTraceKinds.TransitionProved))
+            _currentState = boundary.State;
+        return drafts;
+    }
+
+    public IReadOnlyList<SemanticBoundaryTraceDraft> NativeCompletionFailed(
+        string actionWitnessId,
+        string proofStatus,
+        string detail,
+        NativeCompletionEvidence? completion = null)
+    {
+        Entry entry = Required(actionWitnessId);
+        if (entry.Disposed)
+            return Array.Empty<SemanticBoundaryTraceDraft>();
+        entry.Disposed = true;
+        return new[]
+        {
+            Draft(
+                SemanticBoundaryTraceKinds.TransitionUnknown,
+                entry,
+                proofStatus,
+                semanticPre: entry.SemanticPre,
+                detail: detail,
+                nonClaims: new[] { "no_semantic_successor", "native_completion_failed" })
+                with
+            {
+                NativeCompletion = completion
+            }
+        };
+    }
+
     public IReadOnlyList<SemanticBoundaryTraceDraft> CloseUnknown(string proofStatus)
     {
         var drafts = new List<SemanticBoundaryTraceDraft>();
@@ -407,14 +510,44 @@ public sealed class SemanticBoundaryTracker
     private IReadOnlyList<SemanticBoundaryTraceDraft> Settle(
         Entry entry,
         SemanticBoundaryObservation boundary,
-        string? nextActionWitnessId)
+        string? nextActionWitnessId,
+        bool forceUnknown = false)
     {
         if (IsNonCausalObservation(boundary, new[] { entry }))
             return Array.Empty<SemanticBoundaryTraceDraft>();
 
+        if (entry.Action.RequiresNativePostCommit
+            && !boundary.IsNativeUiPostCommitBoundary)
+        {
+            if (!forceUnknown && nextActionWitnessId == null)
+                return Array.Empty<SemanticBoundaryTraceDraft>();
+            entry.Disposed = true;
+            return new[]
+            {
+                Draft(
+                    SemanticBoundaryTraceKinds.TransitionUnknown,
+                    entry,
+                    "native_post_commit_not_observed",
+                    relatedActionWitnessId: nextActionWitnessId,
+                    boundary: boundary,
+                    semanticPre: entry.SemanticPre,
+                    detail: "This action requires its exact native completion; an intervening or non-native boundary cannot prove its successor.",
+                nonClaims: new[] { "no_semantic_successor", "native_completion_required" })
+            };
+        }
+        if (entry.Action.RequiresNativePostCommit
+            && boundary.IsNativeUiPostCommitBoundary
+            && !forceUnknown)
+        {
+            // Only ObserveNativePostCommitBoundary has received and validated
+            // the matching completion identity. A generic boundary observer
+            // must not turn the witness kind into causal proof.
+            return Array.Empty<SemanticBoundaryTraceDraft>();
+        }
+
         if (!boundary.CanProveSemanticBoundary)
         {
-            if (nextActionWitnessId == null)
+            if (nextActionWitnessId == null && !forceUnknown)
                 return Array.Empty<SemanticBoundaryTraceDraft>();
             entry.Disposed = true;
             return new[]
@@ -617,7 +750,24 @@ public static class SemanticBoundaryTraceValidator
                     errors.Add("semantic_transition_proof_incomplete");
                 else if (value.SemanticPre.SnapshotId == value.SemanticSuccessor.SnapshotId)
                     errors.Add("semantic_transition_successor_not_different");
+
+                if (value.Action.RequiresNativePostCommit
+                    && (value.ProofStatus != "proved_native_post_commit_boundary"
+                        || value.NativeCompletion is not { Succeeded: true }
+                        || !string.Equals(
+                            value.NativeCompletion.ActionWitnessId,
+                            value.Action.ActionWitnessId,
+                            StringComparison.Ordinal)))
+                {
+                    errors.Add("semantic_native_completion_identity_missing");
+                }
             }
+            if (value.NativeCompletion is { ActionWitnessId: { } completionActionId }
+                && !string.Equals(
+                    completionActionId,
+                    value.Action.ActionWitnessId,
+                    StringComparison.Ordinal))
+                errors.Add("semantic_native_completion_action_identity_mismatch");
         }
 
         foreach (IGrouping<string, SemanticBoundaryTraceEvent> group in events

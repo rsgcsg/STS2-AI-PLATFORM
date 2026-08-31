@@ -577,6 +577,132 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
+    public void NativeRequiredActionNeedsItsExactCompletionEvidence()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference action = Action("native-root", 1) with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(action, State("human-s0"));
+        tracker.ObserveBeforeActionExecution("native-root", Boundary("s0", "native-root"));
+        tracker.Started("native-root");
+        tracker.Finished("native-root");
+
+        Assert.Empty(tracker.ObserveDecisionBoundary(PostCommitBoundary("s1")));
+
+        NativeCompletionEvidence completion = new(
+            "completion-native-root",
+            "reward_claim",
+            "native.select",
+            "native-root",
+            "task-native-root",
+            "owner-native-root",
+            "operand-native-root",
+            null,
+            true);
+        SemanticBoundaryTraceDraft proved = Assert.Single(
+            tracker.ObserveNativePostCommitBoundary(
+                "native-root",
+                PostCommitBoundary("s1"),
+                completion));
+
+        Assert.Equal(SemanticBoundaryTraceKinds.TransitionProved, proved.Kind);
+        Assert.Same(completion, proved.NativeCompletion);
+    }
+
+    [Fact]
+    public void FailedNativeCompletionIsAccountedWithoutAFalseSuccessor()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference action = Action("native-root", 1) with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(action, State("human-s0"));
+        tracker.ObserveBeforeActionExecution("native-root", Boundary("s0", "native-root"));
+        tracker.Started("native-root");
+        tracker.Finished("native-root");
+
+        NativeCompletionEvidence completion = new(
+            "completion-native-root",
+            "reward_claim",
+            "native.select",
+            "native-root",
+            "task-native-root",
+            "owner-native-root",
+            "operand-native-root",
+            null,
+            false);
+        SemanticBoundaryTraceDraft unknown = Assert.Single(
+            tracker.NativeCompletionFailed(
+                "native-root",
+                "native_completion_failed",
+                "native task failed",
+                completion));
+
+        Assert.Equal(SemanticBoundaryTraceKinds.TransitionUnknown, unknown.Kind);
+        Assert.Null(unknown.SemanticSuccessor);
+        Assert.Same(completion, unknown.NativeCompletion);
+    }
+
+    [Fact]
+    public void EarlierCompletionAfterLaterExecutionCannotCrossHumanEffect()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference first = Action("first", 1) with
+        {
+            RequiresNativePostCommit = true
+        };
+        SemanticActionReference second = Action("second", 2) with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(first, State("human-first"));
+        tracker.Accept(second, State("human-second"));
+        tracker.ObserveBeforeActionExecution("first", Boundary("s0", "first"));
+        tracker.Started("first");
+        tracker.Finished("first");
+        tracker.Started("second");
+        tracker.Finished("second");
+
+        SemanticBoundaryTraceDraft unknown = Assert.Single(
+            tracker.ObserveNativePostCommitBoundary(
+                "first",
+                PostCommitBoundary("after-first"),
+                Completion("first")));
+
+        Assert.Equal(SemanticBoundaryTraceKinds.TransitionUnknown, unknown.Kind);
+        Assert.Equal("intervening_human_action_before_native_completion", unknown.ProofStatus);
+        Assert.Null(unknown.SemanticSuccessor);
+    }
+
+    [Fact]
+    public void ValidatorRequiresNativeCompletionOnNativeProofs()
+    {
+        SemanticActionReference action = Action("native-root", 1) with
+        {
+            RequiresNativePostCommit = true
+        };
+        SemanticBoundaryTraceEvent[] events =
+        {
+            Event(1, SemanticBoundaryTraceKinds.ActionAccepted, action),
+            Event(2, SemanticBoundaryTraceKinds.ActionStarted, action),
+            Event(3, SemanticBoundaryTraceKinds.ActionFinished, action),
+            Event(4, SemanticBoundaryTraceKinds.TransitionProved, action) with
+            {
+                Boundary = PostCommitBoundary("s1"),
+                SemanticPre = State("s0"),
+                SemanticSuccessor = State("s1")
+            }
+        };
+
+        Assert.Contains(
+            "semantic_native_completion_identity_missing",
+            SemanticBoundaryTraceValidator.Validate(events));
+    }
+
+    [Fact]
     public void PeriodicInteractiveObservationCannotProveNonPausedAction()
     {
         var tracker = new SemanticBoundaryTracker();
@@ -794,4 +920,15 @@ public sealed class SemanticBoundaryTrackerTests
         {
             HumanObservation = draft.HumanObservation
         };
+
+    private static NativeCompletionEvidence Completion(string actionWitnessId) => new(
+        $"completion-{actionWitnessId}",
+        "test",
+        "native.test",
+        actionWitnessId,
+        $"task-{actionWitnessId}",
+        $"owner-{actionWitnessId}",
+        $"operand-{actionWitnessId}",
+        null,
+        true);
 }

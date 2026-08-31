@@ -423,7 +423,7 @@ internal static class NativeMapChoicePatch
             nameof(VoteForMapCoordAction),
             new ProcessLocalObservedAction(
                 "activate",
-                point,
+                point.Point,
                 new Dictionary<string, object>(StringComparer.Ordinal)));
     }
 
@@ -436,6 +436,10 @@ internal static class NativeMapChoicePatch
 
 internal static class NativeTreasureUiContext
 {
+    // These observed actions must match the public Player Environment
+    // projection. The native provider keeps TreasureRoom as its semantic
+    // owner, but the public projection hides room-owner bindings from the
+    // player action and maps choose/proceed operations to "activate".
     internal static TreasureRoom? CurrentRoom() =>
         RunManager.Instance.DebugOnlyGetState()?.CurrentRoom as TreasureRoom;
 
@@ -466,8 +470,12 @@ internal static class NativeTreasureChestChoicePatch
                 NativeActionType,
                 new ProcessLocalObservedAction(
                     "open",
-                    room,
-                    new Dictionary<string, object>(StringComparer.Ordinal)));
+                    null,
+                    new Dictionary<string, object>(StringComparer.Ordinal)),
+                new NativePostCommitCompletionExpectation(
+                    "treasure_open",
+                    "OneOffSynchronizer.DoLocalTreasureRoomRewards",
+                    NativeOperandWitnessId: NativeWitnessIdentity.Get(room, "treasure_room")));
     }
 
     private static void Postfix(NativeUiScopeEntry __state)
@@ -479,7 +487,7 @@ internal static class NativeTreasureChestChoicePatch
             NativeActionType,
             new ProcessLocalObservedAction(
                 "open",
-                room,
+                null,
                 new Dictionary<string, object>(StringComparer.Ordinal)),
             new NativeWitnessEvidence(
                 "native_treasure_chest_ui",
@@ -487,7 +495,8 @@ internal static class NativeTreasureChestChoicePatch
                 NativeWitnessIdentity.Get(room, "treasure_room"),
                 new Dictionary<string, string>(StringComparer.Ordinal),
                 DateTimeOffset.UtcNow),
-            captureImmediatePostCommitBoundary: false);
+            captureImmediatePostCommitBoundary: false,
+            actionWitnessId: __state.ActionWitnessId);
     }
 
     private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
@@ -527,7 +536,7 @@ internal static class NativeTreasureRelicChoicePatch
                     "native_treasure_relic_ui",
                     NativeActionType,
                     new ProcessLocalObservedAction(
-                        "select",
+                        "activate",
                         relic,
                         new Dictionary<string, object>(StringComparer.Ordinal))),
             relic);
@@ -575,7 +584,7 @@ internal static class NativeTreasureProceedPatch
         }
 
         bool isGameAction = proceed.IsSkip;
-        string verb = isGameAction ? "skip" : "proceed";
+        string verb = isGameAction ? "skip" : "activate";
         string expectedNativeActionType = isGameAction
             ? nameof(PickRelicAction)
             : NativeActionType;
@@ -585,8 +594,14 @@ internal static class NativeTreasureProceedPatch
                 expectedNativeActionType,
                 new ProcessLocalObservedAction(
                     verb,
-                    room,
-                    new Dictionary<string, object>(StringComparer.Ordinal))),
+                    null,
+                    new Dictionary<string, object>(StringComparer.Ordinal)),
+                isGameAction
+                    ? null
+                    : new NativePostCommitCompletionExpectation(
+                        "treasure_proceed",
+                        "RunManager.ProceedFromTerminalRewardsScreen",
+                        NativeOperandWitnessId: NativeWitnessIdentity.Get(room, "treasure_room"))),
             room,
             verb,
             isGameAction);
@@ -605,7 +620,7 @@ internal static class NativeTreasureProceedPatch
             NativeActionType,
             new ProcessLocalObservedAction(
                 verb,
-                room,
+                null,
                 new Dictionary<string, object>(StringComparer.Ordinal)),
             new NativeWitnessEvidence(
                 "native_treasure_proceed_ui",
@@ -613,7 +628,8 @@ internal static class NativeTreasureProceedPatch
                 NativeWitnessIdentity.Get(__instance.ProceedButton, "proceed_button"),
                 new Dictionary<string, string>(StringComparer.Ordinal),
                 DateTimeOffset.UtcNow),
-            captureImmediatePostCommitBoundary: false);
+            captureImmediatePostCommitBoundary: false,
+            actionWitnessId: __state.Scope.ActionWitnessId);
     }
 
     private static Exception? Finalizer(PatchState __state, Exception? __exception)
@@ -634,8 +650,13 @@ internal static class NativeTreasureNormalRewardsPatch
             typeof(OneOffSynchronizer).FullName,
             "DoLocalTreasureRoomRewards");
 
-    private static void Postfix(Task<int> __result) =>
-        RecorderRuntime.QueueNativePostCommitBoundary(__result);
+    private static void Postfix(OneOffSynchronizer __instance, Task<int> __result) =>
+        RecorderRuntime.QueueNativePostCommitBoundary(
+            __result,
+            "treasure_open",
+            "OneOffSynchronizer.DoLocalTreasureRoomRewards",
+            nativeOwner: __instance,
+            nativeOperand: NativeTreasureUiContext.CurrentRoom());
 }
 
 [HarmonyPatch]
@@ -649,8 +670,13 @@ internal static class NativeTreasureProceedCompletionPatch
             typeof(RunManager).FullName,
             "ProceedFromTerminalRewardsScreen");
 
-    private static void Postfix(Task __result) =>
-        RecorderRuntime.QueueNativePostCommitBoundary(__result);
+    private static void Postfix(RunManager __instance, Task __result) =>
+        RecorderRuntime.QueueNativePostCommitBoundary(
+            __result,
+            "treasure_proceed",
+            "RunManager.ProceedFromTerminalRewardsScreen",
+            nativeOwner: __instance,
+            nativeOperand: NativeTreasureUiContext.CurrentRoom());
 }
 
 [HarmonyPatch]
@@ -671,8 +697,14 @@ internal static class NativeRewardClaimStartPatch
                 NativeActionType,
                 new ProcessLocalObservedAction(
                     "activate",
-                    __instance,
-                    new Dictionary<string, object>(StringComparer.Ordinal)));
+                    __instance.Reward,
+                    new Dictionary<string, object>(StringComparer.Ordinal)),
+                new NativePostCommitCompletionExpectation(
+                    "reward_claim",
+                    "RewardsSetSynchronizer.SelectLocalReward",
+                    NativeOperandWitnessId: NativeWitnessIdentity.Get(
+                        __instance.Reward,
+                        "reward")));
     }
 
     private static void Postfix(NRewardButton __instance, NativeUiScopeEntry __state)
@@ -683,7 +715,7 @@ internal static class NativeRewardClaimStartPatch
             NativeActionType,
             new ProcessLocalObservedAction(
                 "activate",
-                __instance,
+                __instance.Reward,
                 new Dictionary<string, object>(StringComparer.Ordinal)),
             new NativeWitnessEvidence(
                 "native_reward_claim_ui",
@@ -691,7 +723,8 @@ internal static class NativeRewardClaimStartPatch
                 NativeWitnessIdentity.Get(__instance, "reward_button"),
                 new Dictionary<string, string>(StringComparer.Ordinal),
                 DateTimeOffset.UtcNow),
-            captureImmediatePostCommitBoundary: false);
+            captureImmediatePostCommitBoundary: false,
+            actionWitnessId: __state.ActionWitnessId);
     }
 
     private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
@@ -718,7 +751,13 @@ internal static class NativeRewardProceedPatch
             new ProcessLocalObservedAction(
                 "activate",
                 null,
-                new Dictionary<string, object>(StringComparer.Ordinal)));
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativePostCommitCompletionExpectation(
+                "reward_proceed",
+                "RunManager.ProceedFromTerminalRewardsScreen",
+                NativeOwnerWitnessId: NativeWitnessIdentity.Get(
+                    RunManager.Instance,
+                    "native_owner")));
     }
 
     private static void Postfix(NativeUiScopeEntry __state)
@@ -737,7 +776,8 @@ internal static class NativeRewardProceedPatch
                 null,
                 new Dictionary<string, string>(StringComparer.Ordinal),
                 DateTimeOffset.UtcNow),
-            captureImmediatePostCommitBoundary: false);
+            captureImmediatePostCommitBoundary: false,
+            actionWitnessId: __state.ActionWitnessId);
     }
 
     private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
@@ -769,7 +809,11 @@ internal static class NativeCardRewardSelectionPatch
                 new ProcessLocalObservedAction(
                     "select",
                     card,
-                    new Dictionary<string, object>(StringComparer.Ordinal)))
+                    new Dictionary<string, object>(StringComparer.Ordinal)),
+                new NativePostCommitCompletionExpectation(
+                    "card_reward_select",
+                    "CardReward.OnSelect",
+                    NativeOperandWitnessId: NativeWitnessIdentity.Get(card, "card")))
             : default;
     }
 
@@ -791,7 +835,8 @@ internal static class NativeCardRewardSelectionPatch
                 NativeWitnessIdentity.Get(card, "card"),
                 new Dictionary<string, string>(StringComparer.Ordinal),
                 DateTimeOffset.UtcNow),
-            captureImmediatePostCommitBoundary: false);
+            captureImmediatePostCommitBoundary: false,
+            actionWitnessId: __state.ActionWitnessId);
     }
 
     private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
@@ -813,8 +858,16 @@ internal static class NativeRewardClaimCompletionPatch
             typeof(RewardsSetSynchronizer).FullName,
             "SelectLocalReward");
 
-    private static void Postfix(Task<bool> __result) =>
-        RecorderRuntime.QueueNativePostCommitBoundary(__result);
+    private static void Postfix(
+        RewardsSetSynchronizer __instance,
+        [HarmonyArgument(0)] Reward reward,
+        Task<bool> __result) =>
+        RecorderRuntime.QueueNativePostCommitBoundary(
+            __result,
+            "reward_claim",
+            "RewardsSetSynchronizer.SelectLocalReward",
+            nativeOwner: __instance,
+            nativeOperand: reward);
 }
 
 [HarmonyPatch]
@@ -824,6 +877,10 @@ internal static class NativeCardRewardCompletionPatch
         AccessTools.Method(typeof(CardReward), "OnSelect")
         ?? throw new MissingMethodException(typeof(CardReward).FullName, "OnSelect");
 
-    private static void Postfix(Task<bool> __result) =>
-        RecorderRuntime.QueueNativePostCommitBoundary(__result);
+    private static void Postfix(CardReward __instance, Task<bool> __result) =>
+        RecorderRuntime.QueueNativePostCommitBoundary(
+            __result,
+            "card_reward_select",
+            "CardReward.OnSelect",
+            nativeOwner: __instance);
 }

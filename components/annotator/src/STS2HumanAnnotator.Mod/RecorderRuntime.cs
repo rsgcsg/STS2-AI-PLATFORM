@@ -65,6 +65,8 @@ internal static class RecorderRuntime
         new(StringComparer.Ordinal);
     private static readonly HashSet<string> SemanticOnlyNativeActionIds =
         new(StringComparer.Ordinal);
+    private static readonly NativePostCommitCompletionLedger NativePostCommitCompletions = new();
+    private static readonly Queue<NativePostCommitCompletion> QueuedNativePostCommitCompletions = new();
     private static StagedCardFrame? _stagedCardFrame;
     private static readonly Dictionary<PotionModel, ArmedPotionUse> ArmedPotionUses =
         new(ReferenceEqualityComparer.Instance);
@@ -74,7 +76,6 @@ internal static class RecorderRuntime
     private static long _nativeActionEventSequence;
     private static long _semanticBoundaryEventSequence;
     private static long _nativePostCommitGeneration;
-    private static int _queuedNativePostCommitBoundaries;
     private static DateTimeOffset _lastIdleStatusAt;
     private static volatile bool _statusRefreshRequested;
     private static DateTimeOffset? _semanticCloseDrainDeadline;
@@ -529,12 +530,15 @@ internal static class RecorderRuntime
     private static bool HasNativePendingRecordingWorkUnsafe() =>
         _pending != null
         || NativeActionLedger.HasUnresolvedLifecycle
-        || SemanticOnlyNativeActionIds.Count > 0;
+        || SemanticOnlyNativeActionIds.Count > 0
+        || NativePostCommitCompletions.Count > 0
+        || QueuedNativePostCommitCompletions.Count > 0;
 
     private static void ResetNativeActionTrackingUnsafe()
     {
         Interlocked.Increment(ref _nativePostCommitGeneration);
-        _queuedNativePostCommitBoundaries = 0;
+        QueuedNativePostCommitCompletions.Clear();
+        NativePostCommitCompletions.Reset();
         foreach (NativeActionLifecycleSubscription subscription in NativeActionSubscriptions.Values)
             subscription.Dispose();
         NativeActionSubscriptions.Clear();
@@ -1025,7 +1029,8 @@ internal static class RecorderRuntime
     internal static NativeUiScopeEntry TryEnterSemanticScope(
         string origin,
         string nativeActionType,
-        ProcessLocalObservedAction observed)
+        ProcessLocalObservedAction observed,
+        NativePostCommitCompletionExpectation? completionExpectation = null)
     {
         // A source-local callback may invoke another patched UI helper as part
         // of the same Human input. Only the outer exact callback owns that
@@ -1062,9 +1067,47 @@ internal static class RecorderRuntime
             {
                 if (!_initialized || _lifecycle.State != RecordingLifecycleState.Recording)
                     return default;
-                HumanActionScope.Enter(origin, nativeActionType, observed, frame);
+                string? actionWitnessId = completionExpectation == null
+                    ? null
+                    : $"ui-root-{Guid.NewGuid():N}";
+                if (completionExpectation != null)
+                {
+                    if (SessionId is not { } sessionId)
+                    {
+                        HumanActionScope.EnterDeferredFailure(
+                            nativeActionType,
+                            "native_completion_ledger_unavailable",
+                            "The recording session identity is unavailable; the UI input continues without strict transition evidence.",
+                            frame.Snapshot.SnapshotId,
+                            "decision_and_lifecycle_only");
+                        return new NativeUiScopeEntry(false, true);
+                    }
+                    bool registered = NativePostCommitCompletions.Register(
+                        new NativePostCommitCompletionRegistration(
+                            sessionId,
+                            Interlocked.Read(ref _nativePostCommitGeneration),
+                            actionWitnessId!,
+                            completionExpectation));
+                    if (!registered)
+                    {
+                        HumanActionScope.EnterDeferredFailure(
+                            nativeActionType,
+                            "native_completion_ledger_unavailable",
+                            "The exact native completion could not be staged; the UI input continues without strict transition evidence.",
+                            frame.Snapshot.SnapshotId,
+                            "decision_and_lifecycle_only");
+                        return new NativeUiScopeEntry(false, true);
+                    }
+                }
+                HumanActionScope.Enter(
+                    origin,
+                    nativeActionType,
+                    observed,
+                    frame,
+                    actionWitnessId,
+                    completionExpectation);
+                return new NativeUiScopeEntry(true, false, actionWitnessId);
             }
-            return new NativeUiScopeEntry(true, false);
         }
         catch (Exception exception)
         {
@@ -1081,7 +1124,17 @@ internal static class RecorderRuntime
     internal static void ExitNativeUiScope(NativeUiScopeEntry entry)
     {
         if (entry.Entered)
+        {
+            HumanActionContext? context = HumanActionScope.Current;
+            if (context?.CompletionExpectation != null
+                && !context.RootActionClaimed
+                && entry.ActionWitnessId is { } actionWitnessId)
+            {
+                lock (Gate)
+                    NativePostCommitCompletions.Remove(actionWitnessId);
+            }
             HumanActionScope.Exit();
+        }
         if (entry.DeferredFailure)
             HumanActionScope.ExitDeferredFailure();
     }
@@ -1229,7 +1282,8 @@ internal static class RecorderRuntime
         string nativeActionType,
         ProcessLocalObservedAction observed,
         NativeWitnessEvidence witness,
-        bool captureImmediatePostCommitBoundary = true)
+        bool captureImmediatePostCommitBoundary = true,
+        string? actionWitnessId = null)
     {
         HumanActionContext? context = HumanActionScope.Current;
         if (context == null)
@@ -1265,7 +1319,11 @@ internal static class RecorderRuntime
                 nativeActionType,
                 witness,
                 match,
-                postCommitFrame);
+                postCommitFrame,
+                context.CompletionExpectation,
+                actionWitnessId ?? (context.CompletionExpectation == null
+                    ? null
+                    : context.ActionWitnessId));
         }
         catch (Exception exception)
         {
@@ -1293,14 +1351,14 @@ internal static class RecorderRuntime
             if (_store != null)
                 UpdateRunLifecycle();
             EnsureActionExecutorObservation();
-            int queuedPostCommitBoundaries;
+            NativePostCommitCompletion[] queuedPostCommitCompletions;
             lock (Gate)
             {
-                queuedPostCommitBoundaries = _queuedNativePostCommitBoundaries;
-                _queuedNativePostCommitBoundaries = 0;
+                queuedPostCommitCompletions = QueuedNativePostCommitCompletions.ToArray();
+                QueuedNativePostCommitCompletions.Clear();
             }
-            for (int index = 0; index < queuedPostCommitBoundaries; index++)
-                ObserveNativePostCommitBoundary();
+            foreach (NativePostCommitCompletion completion in queuedPostCommitCompletions)
+                ObserveNativePostCommitCompletion(completion);
             PendingDecision? pending;
             bool closeBoundaryRequested;
             lock (Gate)
@@ -1418,6 +1476,9 @@ internal static class RecorderRuntime
         {
             if (_lifecycle.State != RecordingLifecycleState.Closing)
                 return;
+            Interlocked.Increment(ref _nativePostCommitGeneration);
+            QueuedNativePostCommitCompletions.Clear();
+            NativePostCommitCompletions.Reset();
             foreach (NativeActionLifecycleSubscription subscription in NativeActionSubscriptions.Values)
                 subscription.Dispose();
             NativeActionSubscriptions.Clear();
@@ -1611,7 +1672,9 @@ internal static class RecorderRuntime
         string nativeActionType,
         NativeWitnessEvidence witness,
         ProcessLocalNativeMatch match,
-        ProcessLocalNativeWitnessFrame? postCommitFrame = null)
+        ProcessLocalNativeWitnessFrame? postCommitFrame = null,
+        NativePostCommitCompletionExpectation? completionExpectation = null,
+        string? actionWitnessIdOverride = null)
     {
         if (!_semanticBoundaryTraceHealthy || _store == null)
             return;
@@ -1630,7 +1693,7 @@ internal static class RecorderRuntime
         FrozenDecisionFrameV2 humanObservation = FreezeSemanticBoundary(frame, environment);
         long sequence = Interlocked.Increment(ref _sequence);
         string recordId = $"semantic-record-{sequence:D8}-{Guid.NewGuid():N}";
-        string actionWitnessId = $"ui-action-{recordId}";
+        string actionWitnessId = actionWitnessIdOverride ?? $"ui-action-{recordId}";
         SemanticActionReference action = CreateSemanticActionReference(
             actionWitnessId,
             sequence,
@@ -1640,7 +1703,10 @@ internal static class RecorderRuntime
             humanObservation,
             "direct_ui_commit",
             witness,
-            match);
+            match) with
+        {
+            RequiresNativePostCommit = completionExpectation != null
+        };
         SemanticBoundaryObservation executionBoundary = CreateSemanticBoundaryObservation(
             frame,
             SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
@@ -1847,7 +1913,21 @@ internal static class RecorderRuntime
             subscription.Action);
         ObserveSemanticLifecycle(subscription, kind);
         if (kind == NativeActionLifecycleKinds.Finished)
-            ObserveNativePostCommitBoundary();
+        {
+            ObserveNativePostCommitBoundary(
+                subscription.ActionWitnessId,
+                new NativeCompletionEvidence(
+                    $"native-completion-{Guid.NewGuid():N}",
+                    SupportedFamilyForNativeAction(subscription.NativeActionType, null)
+                        ?? "native_game_action",
+                    "GameAction.Finished",
+                    subscription.ActionWitnessId,
+                    null,
+                    NativeWitnessIdentity.Get(subscription.Action, "game_action"),
+                    null,
+                    null,
+                    true));
+        }
         if (!terminal)
             return;
 
@@ -1860,14 +1940,26 @@ internal static class RecorderRuntime
         FinalizeClose();
     }
 
-    private static void ObserveNativePostCommitBoundary()
+    private static void ObserveNativePostCommitBoundary(
+        string actionWitnessId,
+        NativeCompletionEvidence completion)
     {
         try
         {
             ProcessLocalNativeWitnessFrame frame = CaptureSemanticFrame();
-            ObserveSemanticDecisionBoundary(
+            SemanticBoundaryObservation boundary = CreateSemanticBoundaryObservation(
                 frame,
-                SemanticBoundaryWitnessKinds.NativeUiPostCommit);
+                SemanticBoundaryWitnessKinds.NativeUiPostCommit,
+                null);
+            IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
+            lock (Gate)
+            {
+                drafts = BoundaryTracker.ObserveNativePostCommitBoundary(
+                    actionWitnessId,
+                    boundary,
+                    completion);
+            }
+            PersistSemanticBoundaryDrafts(drafts);
         }
         catch (Exception exception)
         {
@@ -1875,37 +1967,169 @@ internal static class RecorderRuntime
         }
     }
 
-    internal static void QueueNativePostCommitBoundary(Task task)
+    private static void ObserveNativePostCommitCompletion(
+        NativePostCommitCompletion completion)
     {
-        long generation = Interlocked.Read(ref _nativePostCommitGeneration);
-        _ = task.ContinueWith(
-            completed =>
+        NativePostCommitCompletionResolution resolution;
+        lock (Gate)
+            resolution = NativePostCommitCompletions.Complete(completion);
+
+        if (!resolution.IsMatched)
+        {
+            if (completion.ActionWitnessId is { } actionWitnessId)
             {
-                if (completed.Status != TaskStatus.RanToCompletion)
-                    return;
+                lock (Gate)
+                    NativePostCommitCompletions.Remove(actionWitnessId);
+                IReadOnlyList<SemanticBoundaryTraceDraft> drafts = Array.Empty<SemanticBoundaryTraceDraft>();
                 lock (Gate)
                 {
-                    if (generation == _nativePostCommitGeneration && _store != null)
-                        _queuedNativePostCommitBoundaries++;
+                    if (BoundaryTracker.Contains(actionWitnessId))
+                    {
+                        drafts = BoundaryTracker.NativeCompletionFailed(
+                            actionWitnessId,
+                            $"native_completion_{resolution.Status}",
+                            resolution.Detail
+                            ?? "The exact native completion could not be matched to this Human root.",
+                            ToCompletionEvidence(completion, actionWitnessId));
                 }
-            },
-            CancellationToken.None,
-            TaskContinuationOptions.ExecuteSynchronously,
-            TaskScheduler.Default);
+                }
+                PersistSemanticBoundaryDrafts(drafts);
+            }
+            Quarantine(
+                $"native_completion_{resolution.Status}",
+                resolution.Detail ?? "The native completion had no exact Human root.",
+                null,
+                completion.Kind,
+                "decision_and_lifecycle_only");
+            return;
+        }
+
+        NativePostCommitCompletionRegistration registration = resolution.Registration!;
+        if (!completion.Succeeded)
+        {
+            IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
+            lock (Gate)
+            {
+                drafts = BoundaryTracker.NativeCompletionFailed(
+                    registration.ActionWitnessId,
+                    "native_completion_failed",
+                    "STS2 reported the exact native completion as cancelled, faulted, or unsuccessful; no successor is claimed.",
+                    ToCompletionEvidence(completion, registration.ActionWitnessId));
+            }
+            PersistSemanticBoundaryDrafts(drafts);
+            return;
+        }
+
+        ObserveNativePostCommitBoundary(
+            registration.ActionWitnessId,
+            ToCompletionEvidence(completion, registration.ActionWitnessId));
     }
 
-    internal static void QueueNativePostCommitBoundary(Task<bool> task)
+    private static NativeCompletionEvidence ToCompletionEvidence(
+        NativePostCommitCompletion completion,
+        string actionWitnessId) =>
+        new(
+            completion.CompletionId,
+            completion.Family,
+            completion.Kind,
+            actionWitnessId,
+            completion.TaskWitnessId,
+            completion.NativeOwnerWitnessId,
+            completion.NativeOperandWitnessId,
+            completion.NativeLineageWitnessId,
+            completion.Succeeded);
+
+    internal static void QueueNativePostCommitBoundary(
+        Task task,
+        string family,
+        string kind,
+        object? nativeOwner = null,
+        object? nativeOperand = null,
+        object? nativeLineage = null)
     {
+        QueueNativePostCommitBoundary(
+            task,
+            family,
+            kind,
+            succeeded: completed => completed.Status == TaskStatus.RanToCompletion,
+            nativeOwner: nativeOwner,
+            nativeOperand: nativeOperand,
+            nativeLineage: nativeLineage);
+    }
+
+    internal static void QueueNativePostCommitBoundary(
+        Task<bool> task,
+        string family,
+        string kind,
+        object? nativeOwner = null,
+        object? nativeOperand = null,
+        object? nativeLineage = null)
+    {
+        QueueNativePostCommitBoundary(
+            task,
+            family,
+            kind,
+            succeeded: completed => completed.Status == TaskStatus.RanToCompletion
+                && completed is Task<bool> result
+                && result.Result,
+            nativeOwner: nativeOwner,
+            nativeOperand: nativeOperand,
+            nativeLineage: nativeLineage);
+    }
+
+    private static void QueueNativePostCommitBoundary<TTask>(
+        TTask task,
+        string family,
+        string kind,
+        Func<Task, bool> succeeded,
+        object? nativeOwner,
+        object? nativeOperand,
+        object? nativeLineage)
+        where TTask : Task
+    {
+        ArgumentNullException.ThrowIfNull(task);
+        if (string.IsNullOrWhiteSpace(family) || string.IsNullOrWhiteSpace(kind))
+            return;
         long generation = Interlocked.Read(ref _nativePostCommitGeneration);
+        string? sessionId = SessionId;
+        HumanActionContext? context = HumanActionScope.Current;
+        string? actionWitnessId = context?.ActionWitnessId;
+        object? contextualOperand = nativeOperand ?? context?.ExpectedAction?.Subject;
+        string? nativeOwnerWitnessId = nativeOwner == null
+            ? null
+            : NativeWitnessIdentity.Get(nativeOwner, "native_owner");
+        string? nativeOperandWitnessId = contextualOperand == null
+            ? null
+            : NativeWitnessIdentity.Get(contextualOperand, "native_operand");
+        string? nativeLineageWitnessId = nativeLineage == null
+            ? null
+            : NativeWitnessIdentity.Get(nativeLineage, "native_lineage");
+        string taskWitnessId = NativeWitnessIdentity.Get(task, "native_task");
         _ = task.ContinueWith(
             completed =>
             {
-                if (completed.Status != TaskStatus.RanToCompletion || !completed.Result)
+                if (sessionId == null)
                     return;
+                NativePostCommitCompletion signal = new(
+                    sessionId,
+                    generation,
+                    $"native-completion-{Guid.NewGuid():N}",
+                    family,
+                    kind,
+                    taskWitnessId,
+                    succeeded(completed),
+                    actionWitnessId,
+                    nativeOwnerWitnessId,
+                    nativeOperandWitnessId,
+                    nativeLineageWitnessId);
                 lock (Gate)
                 {
-                    if (generation == _nativePostCommitGeneration && _store != null)
-                        _queuedNativePostCommitBoundaries++;
+                    if (generation == _nativePostCommitGeneration
+                        && _store != null
+                        && string.Equals(SessionId, sessionId, StringComparison.Ordinal))
+                    {
+                        QueuedNativePostCommitCompletions.Enqueue(signal);
+                    }
                 }
             },
             CancellationToken.None,
@@ -1920,6 +2144,11 @@ internal static class RecorderRuntime
             return;
         V2RecordingStore store = _store
             ?? throw new InvalidOperationException("No open recording store for semantic boundary evidence.");
+        foreach (SemanticBoundaryTraceDraft draft in drafts.Where(IsTerminalWithoutNativeCompletion))
+        {
+            lock (Gate)
+                NativePostCommitCompletions.Remove(draft.Action.ActionWitnessId);
+        }
         var events = new List<SemanticEvidenceEvent>(drafts.Count);
         foreach (SemanticBoundaryTraceDraft draft in drafts)
         {
@@ -1955,11 +2184,19 @@ internal static class RecorderRuntime
                 draft.Detail,
                 draft.NonClaims ?? Array.Empty<string>())
             {
-                HumanObservationRef = humanObservationRef
+                HumanObservationRef = humanObservationRef,
+                NativeCompletion = draft.NativeCompletion
             });
         }
         store.AppendSemanticEvidenceEvents(events);
     }
+
+    private static bool IsTerminalWithoutNativeCompletion(SemanticBoundaryTraceDraft draft) =>
+        draft.Action.RequiresNativePostCommit
+        && (draft.Kind is SemanticBoundaryTraceKinds.TransitionUnknown
+            or SemanticBoundaryTraceKinds.ActionCancelledBeforeStart
+            or SemanticBoundaryTraceKinds.ActionCancelledAfterStart
+            or SemanticBoundaryTraceKinds.ActionAbortedBeforeCommit);
 
     private static SemanticBoundaryObservationReference ToReference(
         V2RecordingStore store,

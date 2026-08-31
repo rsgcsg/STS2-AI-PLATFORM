@@ -271,6 +271,39 @@ test("non-combat native owners are observed by explicit read-only seams", () => 
   assert.doesNotMatch(patches, /PatchAll|prefix:|finalizer:|transpiler:|static\s+bool\s+Prefix/u);
 });
 
+test("non-combat Human witnesses use public bindings and exact native completion operands", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+
+  assert.match(
+    patches,
+    /native_map_choice_ui[\s\S]*new ProcessLocalObservedAction\([\s\S]*"activate",\s*point\.Point/u
+  );
+  assert.match(
+    patches,
+    /native_reward_claim_ui[\s\S]*new ProcessLocalObservedAction\([\s\S]*"activate",\s*__instance\.Reward/u
+  );
+  assert.match(
+    patches,
+    /native_treasure_chest_ui[\s\S]*new ProcessLocalObservedAction\([\s\S]*"open",\s*null/u
+  );
+  assert.match(
+    patches,
+    /native_treasure_relic_ui[\s\S]*new ProcessLocalObservedAction\([\s\S]*"activate",\s*relic/u
+  );
+  assert.match(
+    patches,
+    /class NativeTreasureProceedPatch[\s\S]*string verb = isGameAction \? "skip" : "activate"/u
+  );
+  assert.match(
+    patches,
+    /class NativeTreasureNormalRewardsPatch[\s\S]*"treasure_open"[\s\S]*nativeOperand: NativeTreasureUiContext\.CurrentRoom\(\)/u
+  );
+  assert.match(
+    patches,
+    /class NativeTreasureProceedCompletionPatch[\s\S]*"treasure_proceed"[\s\S]*nativeOperand: NativeTreasureUiContext\.CurrentRoom\(\)/u
+  );
+});
+
 test("treasure semantic stages come from Native Foundation rather than UI publication", () => {
   const reader = read("components/connector/host/LiveHost/TreasureRoomSurfaceReader.cs");
   const witness = read("components/connector/host/PlayerEnvironment/Witness/ProcessLocalNativeSemanticWitness.cs");
