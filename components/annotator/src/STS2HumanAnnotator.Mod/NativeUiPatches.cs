@@ -1,17 +1,26 @@
 using System.Reflection;
+using System.Threading.Tasks;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.GameActions;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Potions;
+using MegaCrit.Sts2.Core.Multiplayer.Game;
 using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
 using MegaCrit.Sts2.Core.Nodes.Combat;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 using MegaCrit.Sts2.Core.Nodes.Potions;
 using MegaCrit.Sts2.Core.Nodes.Rewards;
+using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Nodes.Screens;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 using MegaCrit.Sts2.Core.Nodes.Screens.Map;
+using MegaCrit.Sts2.Core.Nodes.Screens.TreasureRoomRelic;
+using MegaCrit.Sts2.Core.Nodes.Rooms;
+using MegaCrit.Sts2.Core.Rooms;
+using MegaCrit.Sts2.Core.Rewards;
+using MegaCrit.Sts2.Core.Runs;
 using STS2Connector.PlayerEnvironment.Witness;
 using STS2HumanAnnotator.Core;
 
@@ -425,6 +434,225 @@ internal static class NativeMapChoicePatch
     }
 }
 
+internal static class NativeTreasureUiContext
+{
+    internal static TreasureRoom? CurrentRoom() =>
+        RunManager.Instance.DebugOnlyGetState()?.CurrentRoom as TreasureRoom;
+
+    internal static NTreasureRoom? CurrentUi() => NRun.Instance?.TreasureRoom;
+}
+
+[HarmonyPatch]
+internal static class NativeTreasureChestChoicePatch
+{
+    private const string NativeActionType = "NTreasureRoom.OnChestButtonReleased";
+
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(NTreasureRoom),
+            "OnChestButtonReleased",
+            new[] { typeof(NButton) })
+        ?? throw new MissingMethodException(
+            typeof(NTreasureRoom).FullName,
+            "OnChestButtonReleased");
+
+    private static void Prefix(out NativeUiScopeEntry __state)
+    {
+        TreasureRoom? room = NativeTreasureUiContext.CurrentRoom();
+        __state = room == null
+            ? default
+            : RecorderRuntime.TryEnterSemanticScope(
+                "native_treasure_chest_ui",
+                NativeActionType,
+                new ProcessLocalObservedAction(
+                    "open",
+                    room,
+                    new Dictionary<string, object>(StringComparer.Ordinal)));
+    }
+
+    private static void Postfix(NativeUiScopeEntry __state)
+    {
+        TreasureRoom? room = NativeTreasureUiContext.CurrentRoom();
+        if ((!__state.Entered && !__state.DeferredFailure) || room == null)
+            return;
+        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            NativeActionType,
+            new ProcessLocalObservedAction(
+                "open",
+                room,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativeWitnessEvidence(
+                "native_treasure_chest_ui",
+                NativeActionType,
+                NativeWitnessIdentity.Get(room, "treasure_room"),
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                DateTimeOffset.UtcNow),
+            captureImmediatePostCommitBoundary: false);
+    }
+
+    private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state);
+        return __exception;
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeTreasureRelicChoicePatch
+{
+    private const string NativeActionType = nameof(PickRelicAction);
+
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(NTreasureRoomRelicCollection),
+            "PickRelic",
+            new[] { typeof(NTreasureRoomRelicHolder) })
+        ?? throw new MissingMethodException(
+            typeof(NTreasureRoomRelicCollection).FullName,
+            "PickRelic");
+
+    private readonly record struct PatchState(
+        NativeUiScopeEntry Scope,
+        RelicModel? Relic);
+
+    private static void Prefix(
+        [HarmonyArgument(0)] NTreasureRoomRelicHolder holder,
+        out PatchState __state)
+    {
+        RelicModel? relic = holder.Relic?.Model;
+        __state = new PatchState(
+            relic == null
+                ? default
+                : RecorderRuntime.TryEnterSemanticScope(
+                    "native_treasure_relic_ui",
+                    NativeActionType,
+                    new ProcessLocalObservedAction(
+                        "select",
+                        relic,
+                        new Dictionary<string, object>(StringComparer.Ordinal))),
+            relic);
+    }
+
+    private static Exception? Finalizer(PatchState __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state.Scope);
+        return __exception;
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeTreasureProceedPatch
+{
+    private const string NativeActionType = "NTreasureRoom.OnProceedButtonPressed";
+
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(NTreasureRoom),
+            "OnProceedButtonPressed",
+            new[] { typeof(NButton) })
+        ?? throw new MissingMethodException(
+            typeof(NTreasureRoom).FullName,
+            "OnProceedButtonPressed");
+
+    private readonly record struct PatchState(
+        NativeUiScopeEntry Scope,
+        TreasureRoom? Room,
+        string? Verb,
+        bool IsGameAction);
+
+    private static void Prefix(
+        NTreasureRoom __instance,
+        [HarmonyArgument(0)] NButton button,
+        out PatchState __state)
+    {
+        TreasureRoom? room = NativeTreasureUiContext.CurrentRoom();
+        NTreasureRoom? uiRoom = NativeTreasureUiContext.CurrentUi();
+        if (room == null || uiRoom == null || !ReferenceEquals(uiRoom, __instance)
+            || button is not NProceedButton proceed)
+        {
+            __state = default;
+            return;
+        }
+
+        bool isGameAction = proceed.IsSkip;
+        string verb = isGameAction ? "skip" : "proceed";
+        string expectedNativeActionType = isGameAction
+            ? nameof(PickRelicAction)
+            : NativeActionType;
+        __state = new PatchState(
+            RecorderRuntime.TryEnterSemanticScope(
+                "native_treasure_proceed_ui",
+                expectedNativeActionType,
+                new ProcessLocalObservedAction(
+                    verb,
+                    room,
+                    new Dictionary<string, object>(StringComparer.Ordinal))),
+            room,
+            verb,
+            isGameAction);
+    }
+
+    private static void Postfix(
+        NTreasureRoom __instance,
+        PatchState __state)
+    {
+        if ((!__state.Scope.Entered && !__state.Scope.DeferredFailure)
+            || __state.Room is not { } room
+            || __state.Verb is not { } verb
+            || __state.IsGameAction)
+            return;
+        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            NativeActionType,
+            new ProcessLocalObservedAction(
+                verb,
+                room,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativeWitnessEvidence(
+                "native_treasure_proceed_ui",
+                NativeActionType,
+                NativeWitnessIdentity.Get(__instance.ProceedButton, "proceed_button"),
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                DateTimeOffset.UtcNow),
+            captureImmediatePostCommitBoundary: false);
+    }
+
+    private static Exception? Finalizer(PatchState __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state.Scope);
+        return __exception;
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeTreasureNormalRewardsPatch
+{
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(OneOffSynchronizer),
+            "DoLocalTreasureRoomRewards")
+        ?? throw new MissingMethodException(
+            typeof(OneOffSynchronizer).FullName,
+            "DoLocalTreasureRoomRewards");
+
+    private static void Postfix(Task<int> __result) =>
+        RecorderRuntime.QueueNativePostCommitBoundary(__result);
+}
+
+[HarmonyPatch]
+internal static class NativeTreasureProceedCompletionPatch
+{
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(RunManager),
+            "ProceedFromTerminalRewardsScreen")
+        ?? throw new MissingMethodException(
+            typeof(RunManager).FullName,
+            "ProceedFromTerminalRewardsScreen");
+
+    private static void Postfix(Task __result) =>
+        RecorderRuntime.QueueNativePostCommitBoundary(__result);
+}
+
 [HarmonyPatch]
 internal static class NativeRewardClaimStartPatch
 {
@@ -462,7 +690,8 @@ internal static class NativeRewardClaimStartPatch
                 NativeActionType,
                 NativeWitnessIdentity.Get(__instance, "reward_button"),
                 new Dictionary<string, string>(StringComparer.Ordinal),
-                DateTimeOffset.UtcNow));
+                DateTimeOffset.UtcNow),
+            captureImmediatePostCommitBoundary: false);
     }
 
     private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
@@ -507,7 +736,8 @@ internal static class NativeRewardProceedPatch
                 NativeActionType,
                 null,
                 new Dictionary<string, string>(StringComparer.Ordinal),
-                DateTimeOffset.UtcNow));
+                DateTimeOffset.UtcNow),
+            captureImmediatePostCommitBoundary: false);
     }
 
     private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
@@ -560,7 +790,8 @@ internal static class NativeCardRewardSelectionPatch
                 NativeActionType,
                 NativeWitnessIdentity.Get(card, "card"),
                 new Dictionary<string, string>(StringComparer.Ordinal),
-                DateTimeOffset.UtcNow));
+                DateTimeOffset.UtcNow),
+            captureImmediatePostCommitBoundary: false);
     }
 
     private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
@@ -568,4 +799,31 @@ internal static class NativeCardRewardSelectionPatch
         RecorderRuntime.ExitNativeUiScope(__state);
         return __exception;
     }
+}
+
+[HarmonyPatch]
+internal static class NativeRewardClaimCompletionPatch
+{
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(RewardsSetSynchronizer),
+            "SelectLocalReward",
+            new[] { typeof(Reward) })
+        ?? throw new MissingMethodException(
+            typeof(RewardsSetSynchronizer).FullName,
+            "SelectLocalReward");
+
+    private static void Postfix(Task<bool> __result) =>
+        RecorderRuntime.QueueNativePostCommitBoundary(__result);
+}
+
+[HarmonyPatch]
+internal static class NativeCardRewardCompletionPatch
+{
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(typeof(CardReward), "OnSelect")
+        ?? throw new MissingMethodException(typeof(CardReward).FullName, "OnSelect");
+
+    private static void Postfix(Task<bool> __result) =>
+        RecorderRuntime.QueueNativePostCommitBoundary(__result);
 }

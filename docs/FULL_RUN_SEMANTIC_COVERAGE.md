@@ -37,11 +37,11 @@ from a later Human effect.
 | Combat hand selector select / replace / deselect / confirm | exact hand/container callbacks + direct UI delivery | complete | schema-3 canary: eight confirms; select/replace/deselect not proved |
 | potion use / target / cancel | Human `NPotionHolder.UsePotion` arm -> exact `PotionModel.EnqueueManualUse` commit -> `UsePotionAction` lifecycle; target-picker cancel never enqueues | complete | schema-3 canary: three uses proved; cancel remains unexercised |
 | lethal combat -> reward | existing combat lifecycle + reward Player Environment boundary | complete | repair canary PASS |
-| reward claim | `NRewardButton.OnRelease` direct UI delivery | complete | schema-3 canary: 20 claims proved |
-| reward proceed | `NRewardsScreen.OnProceedButtonPressed` direct UI delivery | complete | schema-3 canary: 10 proceeds proved |
-| card reward select | `NCardRewardSelectionScreen.SelectCard` direct UI delivery | complete | schema-3 canary: three selects proved |
-| map travel | `NMapScreen.OnMapPointSelectedLocally` -> `VoteForMapCoordAction` lifecycle | complete | schema-3 canary: 24 actions proved |
-| treasure open / relic select / skip / proceed | exact room/synchronizer owner through `NativeTreasureDecisionProvider`; current controls bind delivery | Native Foundation source/test complete; Human witness path consumes the shared decision | predecessor map successor only; continuation artifact T2/T3 pending |
+| reward claim | `NRewardButton.OnRelease` -> `RewardsSetSynchronizer.SelectLocalReward` completion | source/test complete; direct UI return is not a successor proof | current continuation Human canary pending; prior direct-UI counts are not transferable |
+| reward proceed | `NRewardsScreen.OnProceedButtonPressed` -> `RunManager.ProceedFromTerminalRewardsScreen` completion | source/test complete; direct UI return is not a successor proof | current continuation Human canary pending; prior direct-UI counts are not transferable |
+| card reward select | `NCardRewardSelectionScreen.SelectCard` -> enclosing `CardReward.OnSelect` completion | source/test complete; option callback alone is not a successor proof | current continuation Human canary pending; prior direct-UI counts are not transferable |
+| map travel | `NMapScreen.OnMapPointSelectedLocally` -> `VoteForMapCoordAction` lifecycle | source/test complete | current continuation Human canary pending; predecessor counts are not transferable |
+| treasure open / relic select / skip / proceed | exact room/synchronizer owner; `PickRelicAction`, normal-reward task and terminal-proceed task seams | source/test complete; visual `OnRelease` is not gameplay authority | current continuation Human canary pending; predecessor counts are not transferable |
 | event / shop / rest | Connector observation coverage only | not implemented as shared native decisions or Human witnesses | map successors only: event (5), shop (1), rest (2); room-internal actions not exercised |
 | run entry / game terminal | observation coverage varies | not implemented as Human witnesses | final `EndTurn -> game_over` observed; run entry and exhaustive Full Run not exercised |
 
@@ -66,11 +66,16 @@ exact lifecycle observation into one neutral game-side owner consumed by both
 Connector and Annotator. Stacked continuation adds typed native decision
 providers for Map, Reward, CardReward and Treasure: game-owned route/reward/
 option/room membership now precedes presentation intersection, and execute-time
-binding re-captures the same provider. Treasure additionally separates the
-room-owned `closed/opening/relic_choice/resolving/completed` lifecycle from its
-visible chest/holder/proceed controls. The matrix above retains predecessor Live
-claims only where explicitly named; no PR #5 or schema-3 Human evidence
-transfers to the continuation providers.
+binding re-captures the same provider. The current Annotator continuation also
+uses exact native completion seams for these four families:
+`VoteForMapCoordAction`/`PickRelicAction` lifecycle, reward synchronizer and
+card-reward completion tasks, and the terminal proceed task. These callbacks
+are queued and captured on the game frame, never treated as an immediate UI
+return or a polling successor. Treasure additionally separates the room-owned
+`closed/opening/relic_choice/resolving/completed` lifecycle from its visible
+chest/holder/proceed controls. The matrix above retains predecessor Live claims
+only where explicitly named; no predecessor Human evidence transfers to the
+current continuation artifact.
 
 Semantic state Read requirements are interaction-specific: combat requires
 `run_deck` and `combat_piles`, shop requires `run_deck` and `shop_catalog`, and

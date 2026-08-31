@@ -155,6 +155,12 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame }) {
     return { valid: true, reason: "native_player_choice_pause" };
   }
 
+  if (proved.proof_status === "proved_native_post_commit_boundary") {
+    if (proved.boundary?.witness_kind !== "after_native_ui_commit")
+      return { valid: false, reason: "native_post_commit_witness_missing" };
+    return { valid: true, reason: "native_post_commit_exact" };
+  }
+
   return { valid: false, reason: "interactive_polling_is_not_causal_successor_proof" };
 }
 

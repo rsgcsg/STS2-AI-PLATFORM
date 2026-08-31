@@ -1,6 +1,8 @@
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Threading;
+using System.Threading.Tasks;
 using Godot;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Multiplayer;
@@ -71,6 +73,8 @@ internal static class RecorderRuntime
     private static long _journalSequence;
     private static long _nativeActionEventSequence;
     private static long _semanticBoundaryEventSequence;
+    private static long _nativePostCommitGeneration;
+    private static int _queuedNativePostCommitBoundaries;
     private static DateTimeOffset _lastIdleStatusAt;
     private static volatile bool _statusRefreshRequested;
     private static DateTimeOffset? _semanticCloseDrainDeadline;
@@ -110,16 +114,13 @@ internal static class RecorderRuntime
     private static bool _runActive;
     private static string _currentRunId = "run-unassigned";
     private static readonly HumanCaptureProfile CaptureProfile =
-        HumanCaptureProfiles.CombatReadRichV2;
-    private static readonly string[] RequiredReadKinds = CaptureProfile.Reads
-        .Where(read => read.Required)
-        .Select(read => read.Kind)
-        .Distinct(StringComparer.Ordinal)
-        .ToArray();
+        HumanCaptureProfiles.FullRunReadRichV2;
     private static readonly string[] DeclaredOutOfScopeActionFamilies =
     {
-        "navigation_and_non_combat",
-        "selectors_other_than_native_generated_card_choice"
+        "shop_inventory",
+        "event_option",
+        "rest_site",
+        "unverified_selector_families"
     };
 
     internal static string? SessionId { get; private set; }
@@ -532,6 +533,8 @@ internal static class RecorderRuntime
 
     private static void ResetNativeActionTrackingUnsafe()
     {
+        Interlocked.Increment(ref _nativePostCommitGeneration);
+        _queuedNativePostCommitBoundaries = 0;
         foreach (NativeActionLifecycleSubscription subscription in NativeActionSubscriptions.Values)
             subscription.Dispose();
         NativeActionSubscriptions.Clear();
@@ -1114,7 +1117,8 @@ internal static class RecorderRuntime
                 NativeActionLifecycleKinds.Accepted,
                 action,
                 context.Frame);
-            if (SupportedFamilyForNativeAction(nativeActionType) == null)
+            if (SupportedFamilyForNativeAction(nativeActionType, match) == null
+                || IsNonCombatSemanticNativeAction(nativeActionType))
                 StartSemanticNativeAction(context, witness!, match, action);
             else
                 StartPending(context, witness!, match, action);
@@ -1224,7 +1228,8 @@ internal static class RecorderRuntime
     internal static void ObserveAcceptedSemanticUiAction(
         string nativeActionType,
         ProcessLocalObservedAction observed,
-        NativeWitnessEvidence witness)
+        NativeWitnessEvidence witness,
+        bool captureImmediatePostCommitBoundary = true)
     {
         HumanActionContext? context = HumanActionScope.Current;
         if (context == null)
@@ -1239,12 +1244,28 @@ internal static class RecorderRuntime
             ProcessLocalNativeMatch match = context.Frame.Resolve(observed);
             if (!IsExact(match) || !context.TryClaimRootAction(nativeActionType))
                 return;
+            ProcessLocalNativeWitnessFrame? postCommitFrame = null;
+            if (captureImmediatePostCommitBoundary)
+            {
+                try
+                {
+                    // This runs from an exact synchronous native callback. It
+                    // remains available for already-proven combat UI seams.
+                    postCommitFrame = CaptureSemanticFrame();
+                }
+                catch
+                {
+                    // Keep the accepted action accounted; an unprovable post
+                    // boundary remains unknown rather than being backfilled.
+                }
+            }
             StartSemanticUiAction(
                 context.Frame,
                 BuildEnvironment(context.Frame),
                 nativeActionType,
                 witness,
-                match);
+                match,
+                postCommitFrame);
         }
         catch (Exception exception)
         {
@@ -1272,6 +1293,14 @@ internal static class RecorderRuntime
             if (_store != null)
                 UpdateRunLifecycle();
             EnsureActionExecutorObservation();
+            int queuedPostCommitBoundaries;
+            lock (Gate)
+            {
+                queuedPostCommitBoundaries = _queuedNativePostCommitBoundaries;
+                _queuedNativePostCommitBoundaries = 0;
+            }
+            for (int index = 0; index < queuedPostCommitBoundaries; index++)
+                ObserveNativePostCommitBoundary();
             PendingDecision? pending;
             bool closeBoundaryRequested;
             lock (Gate)
@@ -1581,7 +1610,8 @@ internal static class RecorderRuntime
         RecorderEnvironmentIdentity environment,
         string nativeActionType,
         NativeWitnessEvidence witness,
-        ProcessLocalNativeMatch match)
+        ProcessLocalNativeMatch match,
+        ProcessLocalNativeWitnessFrame? postCommitFrame = null)
     {
         if (!_semanticBoundaryTraceHealthy || _store == null)
             return;
@@ -1629,6 +1659,19 @@ internal static class RecorderRuntime
             drafts = result;
         }
         PersistSemanticBoundaryDrafts(drafts);
+        if (postCommitFrame != null)
+        {
+            try
+            {
+                ObserveSemanticDecisionBoundary(
+                    postCommitFrame,
+                    SemanticBoundaryWitnessKinds.NativeUiPostCommit);
+            }
+            catch (Exception exception)
+            {
+                DisableSemanticBoundaryTrace(exception);
+            }
+        }
         GameAction? parent = NativePlayerChoiceLineage.Capture().ParentAction;
         NativeSemanticDiscriminatorRuntime.ObserveDirectCommit(
             _store,
@@ -1803,6 +1846,8 @@ internal static class RecorderRuntime
             kind,
             subscription.Action);
         ObserveSemanticLifecycle(subscription, kind);
+        if (kind == NativeActionLifecycleKinds.Finished)
+            ObserveNativePostCommitBoundary();
         if (!terminal)
             return;
 
@@ -1813,6 +1858,59 @@ internal static class RecorderRuntime
             subscription.Dispose();
         }
         FinalizeClose();
+    }
+
+    private static void ObserveNativePostCommitBoundary()
+    {
+        try
+        {
+            ProcessLocalNativeWitnessFrame frame = CaptureSemanticFrame();
+            ObserveSemanticDecisionBoundary(
+                frame,
+                SemanticBoundaryWitnessKinds.NativeUiPostCommit);
+        }
+        catch (Exception exception)
+        {
+            DisableSemanticBoundaryTrace(exception);
+        }
+    }
+
+    internal static void QueueNativePostCommitBoundary(Task task)
+    {
+        long generation = Interlocked.Read(ref _nativePostCommitGeneration);
+        _ = task.ContinueWith(
+            completed =>
+            {
+                if (completed.Status != TaskStatus.RanToCompletion)
+                    return;
+                lock (Gate)
+                {
+                    if (generation == _nativePostCommitGeneration && _store != null)
+                        _queuedNativePostCommitBoundaries++;
+                }
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
+    }
+
+    internal static void QueueNativePostCommitBoundary(Task<bool> task)
+    {
+        long generation = Interlocked.Read(ref _nativePostCommitGeneration);
+        _ = task.ContinueWith(
+            completed =>
+            {
+                if (completed.Status != TaskStatus.RanToCompletion || !completed.Result)
+                    return;
+                lock (Gate)
+                {
+                    if (generation == _nativePostCommitGeneration && _store != null)
+                        _queuedNativePostCommitBoundaries++;
+                }
+            },
+            CancellationToken.None,
+            TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Default);
     }
 
     private static void PersistSemanticBoundaryDrafts(
@@ -2387,18 +2485,6 @@ internal static class RecorderRuntime
             pending.Environment,
             "successor");
 
-        try
-        {
-            ObserveSemanticDecisionBoundary(
-                successorFrame,
-                "legacy_v2_successor",
-                frozenSuccessor);
-        }
-        catch (Exception exception)
-        {
-            DisableSemanticBoundaryTrace(exception);
-        }
-
         HumanDecisionRecordV2 record;
         try
         {
@@ -2595,7 +2681,7 @@ internal static class RecorderRuntime
     private static ProcessLocalNativeWitnessFrame CaptureReadRichFrame() =>
         MeasureStore(
             "read_rich_snapshot_capture",
-            () => PlayerEnvironmentNativeWitness.Capture(RequiredReadKinds));
+            () => PlayerEnvironmentNativeWitness.Capture(SemanticBoundaryReadPolicy.RequiredKinds));
 
     private static ProcessLocalNativeWitnessFrame CaptureSemanticFrame() =>
         MeasureStore(
@@ -2609,9 +2695,7 @@ internal static class RecorderRuntime
     }
 
     private static bool HasRequiredReads(ProcessLocalNativeWitnessFrame frame) =>
-        RequiredReadKinds.All(kind => frame.Reads.TryGetValue(kind, out ProcessLocalReadCapture? read)
-            && string.Equals(read.Status, "materialized", StringComparison.Ordinal)
-            && read.Read != null);
+        HasSemanticRequiredReads(frame);
 
     private static bool HasSemanticRequiredReads(ProcessLocalNativeWitnessFrame frame) =>
         SemanticBoundaryReadPolicy.RequiredKinds(frame.Snapshot.Interaction.Kind)
@@ -2648,7 +2732,13 @@ internal static class RecorderRuntime
                 StringComparison.Ordinal)
             ? SemanticBoundaryReadPolicy.RequiredKinds(frame.Snapshot.Interaction.Kind)
                 .Select(kind => new CaptureReadRequirement(phase, kind, true))
-            : CaptureProfile.Reads.Where(read => string.Equals(read.Phase, phase, StringComparison.Ordinal));
+            : CaptureProfile.Reads.Where(read =>
+                string.Equals(read.Phase, phase, StringComparison.Ordinal)
+                && (read.InteractionKind == null
+                    || string.Equals(
+                        read.InteractionKind,
+                        frame.Snapshot.Interaction.Kind,
+                        StringComparison.Ordinal)));
         foreach (CaptureReadRequirement requirement in requirements
                      .OrderBy(read => read.Kind, StringComparer.Ordinal))
         {
@@ -2741,16 +2831,45 @@ internal static class RecorderRuntime
             "Only supported_action_families are eligible for recording; all other gameplay actions are outside this capture profile.");
     }
 
-    private static string? SupportedFamilyForNativeAction(string nativeActionType) =>
-        nativeActionType switch
+    private static string? SupportedFamilyForNativeAction(
+        string nativeActionType,
+        ProcessLocalNativeMatch? match = null)
+    {
+        // Treasure skip is intentionally the same native PickRelicAction as a
+        // selected relic. Keep the profile family aligned with the exact
+        // bound verb rather than the CLR action type alone.
+        if (nativeActionType == nameof(PickRelicAction)
+            && string.Equals(match?.BoundAction?.Verb, "skip", StringComparison.Ordinal))
+        {
+            return "treasure_room.skip";
+        }
+
+        return nativeActionType switch
         {
             nameof(PlayCardAction) => "ordinary_combat.play_card",
             nameof(EndPlayerTurnAction) => "ordinary_combat.end_turn",
             nameof(UsePotionAction) => "ordinary_combat.use_potion",
             "NChooseACardSelectionScreen.SelectHolder" => "native_generated_card_choice.select",
             "NChooseACardSelectionScreen.OnSkipButtonReleased" => "native_generated_card_choice.skip",
+            nameof(VoteForMapCoordAction) => "map_navigation.travel",
+            "NRewardButton.OnRelease" => "reward_claim.claim",
+            "NRewardsScreen.OnProceedButtonPressed" => "reward_claim.proceed",
+            "NCardRewardSelectionScreen.SelectCard" => "card_reward_selection.select",
+            "NTreasureRoom.OnChestButtonReleased" => "treasure_room.open",
+            nameof(PickRelicAction) => "treasure_room.select",
+            "NTreasureRoom.OnProceedButtonPressed" => "treasure_room.proceed",
             _ => null
         };
+    }
+
+    private static bool IsNonCombatSemanticNativeAction(string nativeActionType) =>
+        nativeActionType is nameof(VoteForMapCoordAction)
+            or "NRewardButton.OnRelease"
+            or "NRewardsScreen.OnProceedButtonPressed"
+            or "NCardRewardSelectionScreen.SelectCard"
+            or "NTreasureRoom.OnChestButtonReleased"
+            or nameof(PickRelicAction)
+            or "NTreasureRoom.OnProceedButtonPressed";
 
     private static string DecisionFamily(string interactionKind) =>
         interactionKind.StartsWith("combat", StringComparison.Ordinal)

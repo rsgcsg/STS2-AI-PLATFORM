@@ -105,6 +105,16 @@ the predecessor installation.
 
 The process was stopped after verification. No gameplay action was submitted.
 
+## Current continuation note
+
+The current source continuation keeps the FullRun profile scoped to combat,
+Map, Reward, CardReward and Treasure. It accounts direct UI roots immediately,
+but only accepts a semantic successor from an exact native post-commit/task
+completion or GameAction lifecycle. `legacy_v2_successor` is no longer sent to
+the semantic tracker, so interactive polling cannot create canonical proof.
+Reward/CardReward completion and Treasure native roots are source/test claims
+only; this note does not transfer the predecessor artifact or Human evidence.
+
 ## Evidence Boundary
 
 At this closeout the continuation artifact has source, deterministic test,

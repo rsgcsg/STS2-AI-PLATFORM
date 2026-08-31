@@ -272,9 +272,10 @@ action-family expansion remain outside this bounded baseline.
 - Complete at source/test: semantic state Reads are interaction-specific instead
   of inheriting the combat-only profile.
 - Complete at source/test: lethal combat may settle at the first complete reward
-  boundary; reward claim/proceed and card reward select use exact direct UI
-  delivery witnesses; map travel reuses the game-owned
-  `VoteForMapCoordAction` lifecycle.
+  boundary; reward claim/proceed, card reward select and Treasure roots use
+  exact native completion/lifecycle witnesses; map travel reuses the game-owned
+  `VoteForMapCoordAction` lifecycle. Direct UI return and legacy V2 successor
+  polling do not create canonical semantic proof.
 - Failed predecessor runtime gate: the first owner canary exposed direct-UI
   execution binding and paused-parent lifecycle defects; strengthened audit
   rejects its truncated trace rather than transferring its evidence.

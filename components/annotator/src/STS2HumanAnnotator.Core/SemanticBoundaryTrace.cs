@@ -32,6 +32,8 @@ public static class SemanticBoundaryWitnessKinds
 {
     public const string BeforeHumanActionExecution = "before_next_human_action_execution";
     public const string CompleteInteractiveObservation = "complete_interactive_observation";
+    public const string NativeUiPostCommit = "after_native_ui_commit";
+    public const string LegacyV2Successor = "legacy_v2_successor";
 }
 
 public sealed record SemanticActionReference(
@@ -83,6 +85,12 @@ public sealed record SemanticBoundaryObservation(
         && string.Equals(
             WitnessKind,
             SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
+            StringComparison.Ordinal);
+
+    public bool IsNativeUiPostCommitBoundary =>
+        string.Equals(
+            WitnessKind,
+            SemanticBoundaryWitnessKinds.NativeUiPostCommit,
             StringComparison.Ordinal);
 
     public bool CanBindExecutionPre => HasCompleteSemanticState && IsExecutionBoundary;
@@ -347,6 +355,13 @@ public sealed class SemanticBoundaryTracker
             return Array.Empty<SemanticBoundaryTraceDraft>();
 
         Entry[] entries = WaitingForBoundaryInExecutionOrder();
+        // A periodic interactive snapshot is useful for status, but it cannot
+        // prove that a non-paused action has finished. Only an exact native
+        // post-commit witness (or a paused PlayerChoice boundary) may settle
+        // an action here. Execution handoff remains handled separately above.
+        if (entries.Length == 0 || IsNonCausalObservation(boundary, entries))
+            return Array.Empty<SemanticBoundaryTraceDraft>();
+
         var drafts = new List<SemanticBoundaryTraceDraft>();
         for (int index = 0; index < entries.Length; index++)
         {
@@ -394,6 +409,9 @@ public sealed class SemanticBoundaryTracker
         SemanticBoundaryObservation boundary,
         string? nextActionWitnessId)
     {
+        if (IsNonCausalObservation(boundary, new[] { entry }))
+            return Array.Empty<SemanticBoundaryTraceDraft>();
+
         if (!boundary.CanProveSemanticBoundary)
         {
             if (nextActionWitnessId == null)
@@ -453,6 +471,8 @@ public sealed class SemanticBoundaryTracker
                 entry,
                 entry.Paused
                     ? "proved_player_choice_boundary"
+                    : boundary.IsNativeUiPostCommitBoundary
+                        ? "proved_native_post_commit_boundary"
                     : nextActionWitnessId == null
                         ? "proved_interactive_decision_boundary"
                         : "proved_execution_handoff_boundary",
@@ -495,6 +515,13 @@ public sealed class SemanticBoundaryTracker
 
     private static bool IsWaitingForBoundary(Entry entry) =>
         !entry.Disposed && entry.Started && (entry.Finished || entry.Paused);
+
+    private static bool IsNonCausalObservation(
+        SemanticBoundaryObservation boundary,
+        IReadOnlyCollection<Entry> entries) =>
+        boundary.WitnessKind == SemanticBoundaryWitnessKinds.LegacyV2Successor
+        || (boundary.WitnessKind == SemanticBoundaryWitnessKinds.CompleteInteractiveObservation
+            && !entries.Any(entry => entry.Paused));
 
     private void PruneDisposed()
     {

@@ -16,7 +16,11 @@ public static class HumanRecorderV2Contract
     public const string SessionBundleAuditSchema = "sts2.human-annotator/session-bundle-audit-2";
 }
 
-public sealed record CaptureReadRequirement(string Phase, string Kind, bool Required);
+public sealed record CaptureReadRequirement(
+    string Phase,
+    string Kind,
+    bool Required,
+    string? InteractionKind = null);
 
 public sealed record HumanCaptureProfile(
     int SchemaVersion,

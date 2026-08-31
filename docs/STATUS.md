@@ -71,6 +71,16 @@ dominant recorder cost; this pass proves reduced catalog enumeration and
 allocation only, not a runtime latency improvement. No public protocol,
 semantic authority, loaded artifact, or Human evidence claim changed.
 
+The current continuation extends the Human Annotator profile to Map, Reward,
+CardReward and Treasure, but does not transfer the earlier schema-3 direct-UI
+claims. Native semantic proof now waits for `VoteForMapCoordAction` or
+`PickRelicAction` terminal lifecycle, successful reward/card-reward completion,
+or terminal proceed task completion. The UI callback only accounts for the
+Human root. Legacy V2 successor polling no longer feeds the semantic trace; an
+incomplete native boundary remains explicit unknown. This is source/test
+evidence only until a fresh exact artifact is built and a new Human canary
+exercises all four families.
+
 Connector, Annotator, unified-Mod targeted checks and the full portable suite
 pass for component source commit `a3bcd37...`. Clean build, safe install and
 cold-load pass as artifact `9a89f1fe... / b1c34f90...` against exact STS2

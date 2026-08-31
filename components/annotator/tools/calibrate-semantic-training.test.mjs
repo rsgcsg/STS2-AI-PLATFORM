@@ -127,6 +127,38 @@ test("classifies exact handoff, polling successor, and mismatched execution cata
   }
 });
 
+test("accepts only an exact native UI post-commit boundary for direct UI proof", async () => {
+  const { root, refs } = await fixture();
+  try {
+    const direct = action();
+    const events = [
+      event(1, "action_accepted", "a1", direct, { human_observation_ref: refs.s0 }),
+      event(2, "boundary_observed", "a1", direct, {
+        execution_pre_ref: refs.s0,
+        boundary: { witness_kind: "after_native_ui_commit" }
+      }),
+      event(3, "action_started", "a1", direct, { execution_pre_ref: refs.s0 }),
+      event(4, "action_finished", "a1", direct, { execution_pre_ref: refs.s0 }),
+      event(5, "transition_proved", "a1", direct, {
+        execution_pre_ref: refs.s0,
+        successor_ref: refs.s1,
+        proof_status: "proved_native_post_commit_boundary",
+        boundary: { witness_kind: "after_native_ui_commit" }
+      })
+    ];
+    await writeFile(path.join(root, "semantic-boundary-trace.jsonl"),
+      `${events.map(JSON.stringify).join("\n")}\n`);
+    await writeFile(path.join(root, "native-action-ledger.jsonl"), "");
+    await writeFile(path.join(root, "run-0001.jsonl"), "");
+
+    const report = await calibrate(root);
+    assert.equal(report.summary.canonical_s_a_s_prime, 1);
+    assert.equal(report.summary.proof_reasons.native_post_commit_exact, 1);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("fails closed when a content-addressed semantic frame is tampered", async () => {
   const { root, refs } = await fixture();
   try {

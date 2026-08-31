@@ -39,9 +39,13 @@ No decompiled proprietary source is stored in the repository.
 
 `NativeTreasureDecisionProvider` exposes process-local stages `closed`,
 `opening`, `relic_choice`, `resolving` and `completed`, with exact
-`open/select/skip/proceed` candidates. Two bounded read-only Postfixes register
-the exact owner and chest callback observation. They cannot suppress, replace
-or invoke gameplay.
+`open/select/skip/proceed` candidates. The current continuation keeps the
+provider read-only and binds Human roots to the exact native mechanisms:
+`PickRelicAction` for select/skip, the normal reward task for chest opening,
+and `RunManager.ProceedFromTerminalRewardsScreen` for proceed. The former
+visual `NProceedButton.OnRelease` seam is not gameplay authority and is not
+used as a semantic successor witness. These changes are source-only until a
+new exact artifact is built and loaded.
 
 Connector intersects that catalog with the current chest, relic holder and
 proceed controls, re-captures native membership at execution, and alone owns
@@ -96,7 +100,8 @@ The process was stopped after verification. No gameplay action was submitted.
 ## Evidence Boundary
 
 This report records source, deterministic test, exact clean-build, safe-install
-and bounded main-menu cold-load evidence. It does not prove that Treasure was
-entered or that open/select/skip/proceed was observed or delivered. Human and
-gameplay runtime remain T3 pending. Earlier continuation and PR #5
-runtime/Human evidence do not transfer.
+and bounded main-menu cold-load evidence for the predecessor continuation. It
+does not prove that Treasure was entered or that open/select/skip/proceed was
+observed or delivered. Human and gameplay runtime remain T3 pending. Earlier
+continuation and PR #5 runtime/Human evidence do not transfer, and the current
+native-completion continuation requires a fresh exact artifact gate.

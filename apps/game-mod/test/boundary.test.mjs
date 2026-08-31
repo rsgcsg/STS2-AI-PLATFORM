@@ -283,6 +283,17 @@ test("treasure semantic stages come from Native Foundation rather than UI public
   assert.match(witness, /NativeTreasureDecisionProvider\.Capture/u);
 });
 
+test("treasure skip keeps its exact bound family when sharing PickRelicAction", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+
+  assert.match(runtime, /SupportedFamilyForNativeAction\(nativeActionType, match\)/u);
+  assert.match(
+    runtime,
+    /nativeActionType == nameof\(PickRelicAction\)[\s\S]*?match\?\.BoundAction\?\.Verb[\s\S]*?treasure_room\.skip/u
+  );
+  assert.match(runtime, /"NTreasureRoom\.OnProceedButtonPressed" => "treasure_room\.proceed"/u);
+});
+
 test("Native Foundation remains semantic-only and Ritsu-free", () => {
   const foundationFiles = [
     "components/native-foundation/src/NativeDecisionContracts.cs",
