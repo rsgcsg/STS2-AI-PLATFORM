@@ -75,7 +75,9 @@ stream. For each exact-correlated accepted combat root it records ordered native
 lifecycle plus, when no canonical boundary capture already owns the same
 execution sample, two independent projections: the current public UI catalog
 and a compact semantic state/catalog derived from STS2's logical hand, native
-card/potion validators and combat phase. A `successful_capture_delegated` row
+card/potion validators and combat phase. Lifecycle rows are deliberately
+lightweight and may be `not_sampled`; only accepted/execution or direct-commit
+boundaries need a semantic projection. A `successful_capture_delegated` row
 explicitly means that the canonical semantic-boundary stream owns that sample;
 it is not a missing capture and cannot authorize an action. Successful roots
 with an independent sample must match exactly once; cancellation and PlayCard

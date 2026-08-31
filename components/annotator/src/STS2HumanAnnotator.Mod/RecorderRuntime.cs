@@ -1795,16 +1795,13 @@ internal static class RecorderRuntime
             }
         }
 
-        NativeSemanticDiscriminatorRuntime.Observe(
+        NativeSemanticDiscriminatorRuntime.ObserveLifecycleOnly(
             _store,
             SessionId,
             TimelineId,
             _currentRunId,
             kind,
-            subscription.Action,
-            capture: kind is NativeActionLifecycleKinds.PausedForPlayerChoice
-                or NativeActionLifecycleKinds.ReadyToResume
-                or NativeActionLifecycleKinds.Resumed);
+            subscription.Action);
         ObserveSemanticLifecycle(subscription, kind);
         if (!terminal)
             return;
@@ -2225,16 +2222,13 @@ internal static class RecorderRuntime
             }
         }
 
-        NativeSemanticDiscriminatorRuntime.Observe(
+        NativeSemanticDiscriminatorRuntime.ObserveLifecycleOnly(
             _store,
             SessionId,
             TimelineId,
             _currentRunId,
             kind,
-            subscription.Action,
-            capture: kind is NativeActionLifecycleKinds.PausedForPlayerChoice
-                or NativeActionLifecycleKinds.ReadyToResume
-                or NativeActionLifecycleKinds.Resumed);
+            subscription.Action);
 
         bool lifecyclePersisted = AppendNativeActionEvent(
             evidence,

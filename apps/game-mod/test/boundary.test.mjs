@@ -166,6 +166,24 @@ test("native card staging reuses one exact evidence frame without a second captu
   assert.doesNotMatch(runtime, /cached\.Frame\.Snapshot\.SnapshotId,[\s\S]*current\.Snapshot\.SnapshotId/u);
 });
 
+test("native lifecycle observation does not materialize a semantic frame", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const discriminator = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeSemanticDiscriminatorRuntime.cs");
+
+  assert.equal(
+    (runtime.match(/NativeSemanticDiscriminatorRuntime\.ObserveLifecycleOnly\(/gu) ?? []).length,
+    2
+  );
+  assert.match(
+    discriminator,
+    /capture: false,[\s\S]*NativeSemanticDiscriminatorContract\.LifecycleOnlyDetail/u
+  );
+  assert.doesNotMatch(
+    runtime,
+    /NativeSemanticDiscriminatorRuntime\.Observe\([\s\S]*capture: kind is NativeActionLifecycleKinds\./u
+  );
+});
+
 test("annotator evidence prefixes never become generic STS2 gameplay gates", () => {
   const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
 

@@ -119,6 +119,23 @@ internal static class NativeSemanticDiscriminatorRuntime
         }
     }
 
+    internal static void ObserveLifecycleOnly(
+        V2RecordingStore? store,
+        string? sessionId,
+        string? timelineId,
+        string runId,
+        string phase,
+        GameAction action) =>
+        Observe(
+            store,
+            sessionId,
+            timelineId,
+            runId,
+            phase,
+            action,
+            capture: false,
+            detail: NativeSemanticDiscriminatorContract.LifecycleOnlyDetail);
+
     private static NativeSemanticDiscriminatorEvent CreateEvent(
         string sessionId,
         string timelineId,

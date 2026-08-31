@@ -9,6 +9,8 @@ public static class NativeSemanticDiscriminatorContract
         "sts2.human-annotator/native-semantic-discriminator-event-1";
     public const string CanonicalBoundaryCaptureDelegatedDetail =
         "Canonical semantic boundary capture owns this execution snapshot.";
+    public const string LifecycleOnlyDetail =
+        "Native lifecycle observation does not capture a semantic boundary.";
 }
 
 /// <summary>

@@ -176,6 +176,54 @@ public sealed class NativeSemanticDiscriminatorTests
     }
 
     [Fact]
+    public void LifecycleRowsMayBeUnsampledWithoutChangingActionDisposition()
+    {
+        NativeSemanticDiscriminatorEvent[] events =
+        {
+            Event(1, "accepted", "a1"),
+            Event(2, "before_execution", "a1", membership: "exact_once", state: "s0"),
+            Event(3, "started", "a1") with
+            {
+                CaptureStatus = "not_sampled",
+                Scope = "not_sampled",
+                Detail = NativeSemanticDiscriminatorContract.LifecycleOnlyDetail
+            },
+            Event(4, "paused_for_player_choice", "a1") with
+            {
+                CaptureStatus = "not_sampled",
+                Scope = "not_sampled",
+                Detail = NativeSemanticDiscriminatorContract.LifecycleOnlyDetail
+            },
+            Event(5, "ready_to_resume", "a1") with
+            {
+                CaptureStatus = "not_sampled",
+                Scope = "not_sampled",
+                Detail = NativeSemanticDiscriminatorContract.LifecycleOnlyDetail
+            },
+            Event(6, "resumed", "a1") with
+            {
+                CaptureStatus = "not_sampled",
+                Scope = "not_sampled",
+                Detail = NativeSemanticDiscriminatorContract.LifecycleOnlyDetail
+            },
+            Event(7, "finished", "a1") with
+            {
+                CaptureStatus = "not_sampled",
+                Scope = "not_sampled",
+                Detail = NativeSemanticDiscriminatorContract.LifecycleOnlyDetail
+            }
+        };
+
+        NativeSemanticDiscriminatorReport report =
+            NativeSemanticDiscriminatorAnalyzer.Analyze(events);
+
+        Assert.Equal("pass", report.Status);
+        Assert.Equal(1, report.Successful);
+        Assert.Equal(0, report.Unknown);
+        Assert.Equal("successful_membership_proved", report.Actions[0].Disposition);
+    }
+
+    [Fact]
     public void StorePersistsIndependentDiscriminatorStream()
     {
         string root = Path.Combine(Path.GetTempPath(), $"sts2-native-semantic-{Guid.NewGuid():N}");
