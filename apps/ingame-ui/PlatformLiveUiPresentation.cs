@@ -13,18 +13,16 @@ public sealed record PlatformLiveLayoutState(
     Vector2 WorkspacePosition,
     Vector2 WorkspaceSize,
     bool WorkspaceCollapsed,
-    Vector2 RecorderPosition,
     bool RecorderCollapsed,
     int LastPage)
 {
-    public const int CurrentVersion = 1;
+    public const int CurrentVersion = 2;
 
     public static PlatformLiveLayoutState Defaults => new(
         CurrentVersion,
-        new Vector2(64, 72),
-        new Vector2(820, 560),
+        new Vector2(52, 64),
+        new Vector2(660, 440),
         false,
-        new Vector2(508, 144),
         false,
         0);
 }
@@ -64,7 +62,7 @@ public static class PlatformLiveLayout
     public static string LocalPath()
     {
         string root = System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData);
-        return Path.Combine(root, "STS2Platform", "live-ui-layout-v1.json");
+        return Path.Combine(root, "STS2Platform", "live-ui-layout-v2.json");
     }
 
     public static PlatformLiveLayoutState Load()
@@ -114,13 +112,6 @@ public static class PlatformLiveLayout
             Math.Clamp(requested.Position.X, 8, Math.Max(8, viewport.X - size.X - 8)),
             Math.Clamp(requested.Position.Y, 8, Math.Max(8, viewport.Y - size.Y - 8)));
         return new Rect2(position, size);
-    }
-
-    public static Vector2 ClampRecorder(Vector2 requested, Vector2 cardSize, Vector2 viewport)
-    {
-        return new(
-            Math.Clamp(requested.X, 8, Math.Max(8, viewport.X - cardSize.X - 8)),
-            Math.Clamp(requested.Y, 48, Math.Max(48, viewport.Y - cardSize.Y - 8)));
     }
 
     public static string PolicyUnavailableReason(PlatformLiveStatus status)

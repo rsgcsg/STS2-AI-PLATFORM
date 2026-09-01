@@ -21,24 +21,25 @@ fail-closed boundary.
 
 The Platform presentation is fully hidden until K opens the Workspace. There
 is no compact HUD or root-level Recorder surface during ordinary play. The
-K-open Workspace contains separate cards for Overview,
-Environment, Policy, Human Data, and Diagnostics. Long identities are shown in
+K-open Workspace contains peer tabs for Recorder, Overview, Environment,
+Policy, Human Data, and Diagnostics; Recorder is the default tab and is never a
+floating overlay. Long identities are shown in
 short form with the complete observed value available through the host's normal
 copy/expand affordance; values are never inferred from presentation state.
 
-The Recorder card is a tool region owned by the Workspace presentation surface
-and supports New Session, Pause, Resume, and Close only when the typed Recording
-Application status allows them. It is visible only while the Workspace is open,
-so no second shell can duplicate the same state. Every
+The Recorder tab is owned by the Workspace presentation surface and supports
+New Session, Pause, Resume, and Close only when the typed Recording Application
+status allows them. Tab switching removes it from the body rather than leaving
+an overlay. Every
 accepted or rejected command gets a low-noise toast and the next authoritative
 poll remains the source of truth.
 
 ## Interaction and persistence
 
-Only panels, buttons, drag handles, and resize handles capture pointer input.
+Only panels, tabs, buttons, drag handles, and resize handles capture pointer input.
 The hidden overlay root is click-through outside the Workspace so normal STS2 gameplay input is
 unaffected. K toggles the Workspace and Escape closes it. Workspace and
-Recorder positions, size, collapse state, and selected page are presentation
+Workspace position, size, collapse state, and selected page are presentation
 state stored in a versioned file under the local application-data directory;
 the file is fail-soft, local-only, and never contains secrets, model weights,
 raw evidence, or action operands. Invalid or old state returns to defaults.

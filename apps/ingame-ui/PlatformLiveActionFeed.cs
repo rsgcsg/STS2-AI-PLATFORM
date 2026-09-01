@@ -16,7 +16,7 @@ internal static class PlatformLiveActionFeed
             or RecordingEventKind.DecisionInvalidated;
 
     internal static string FormatEntry(RecordingEvent value) =>
-        $"#{value.Sequence} {FormatAction(value.Action)} · {FormatLifecycle(value.Kind)}";
+        $"#{value.Sequence} {FormatCompactAction(value.Action)} · {FormatLifecycle(value.Kind)}";
 
     internal static string FormatDetail(RecordingEvent value)
     {
@@ -64,6 +64,19 @@ internal static class PlatformLiveActionFeed
                 .OrderBy(pair => pair.Key, StringComparer.Ordinal)
                 .Select(pair => $"{pair.Key} [{pair.Value}]"));
         return $"{action.Verb} {label}{subject}{targets}".Trim();
+    }
+
+    private static string FormatCompactAction(RecordingActionProjection? action)
+    {
+        if (action == null)
+            return "Action unavailable";
+        string label = string.IsNullOrWhiteSpace(action.Label) ? action.Verb : action.Label;
+        string targets = action.Arguments.Count == 0
+            ? ""
+            : " → " + string.Join(", ", action.Arguments
+                .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                .Select(pair => pair.Value));
+        return $"{action.Verb} {label}{targets}".Trim();
     }
 
     private static string FormatLifecycle(RecordingEventKind kind) => kind switch

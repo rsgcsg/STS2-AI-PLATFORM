@@ -22,7 +22,6 @@ test("Live UI remains a non-authorizing hidden overlay", () => {
   assert.doesNotMatch(`${mod}\n${client}`, /bound_action_id/u);
   assert.match(mod, /InputEventMouseMotion/u);
   assert.match(mod, /OnWorkspaceInput/u);
-  assert.match(mod, /OnRecorderInput/u);
   assert.doesNotMatch(mod, /override void _(Ready|Process|Input)/u);
   assert.doesNotMatch(`${mod}\n${client}`, /Key\.F\d+/u);
 });
@@ -31,7 +30,6 @@ test("Workspace is bounded, click-through outside controls, and locally persiste
   assert.match(mod, /Root.*MouseFilterEnum\.Ignore/su);
   assert.match(mod, /CustomMinimumSize = new Vector2\(560, 360\)/u);
   assert.match(mod, /ClampWorkspace/u);
-  assert.match(mod, /ClampRecorder/u);
   assert.match(mod, /ResetLayout/u);
   assert.match(mod, /PlatformLiveLayout\.Load\(\)/u);
   assert.match(mod, /PlatformLiveLayout\.Save\(/u);
@@ -39,24 +37,44 @@ test("Workspace is bounded, click-through outside controls, and locally persiste
   assert.match(fs.readFileSync(path.join(root, "PlatformLiveUiPresentation.cs"), "utf8"), /fail-soft/u);
 });
 
+test("compact layout keeps content width and reset presentation-only", () => {
+  const presentation = fs.readFileSync(path.join(root, "PlatformLiveUiPresentation.cs"), "utf8");
+  assert.match(presentation, /CurrentVersion = 2/u);
+  assert.match(presentation, /new Vector2\(660, 440\)/u);
+  assert.match(mod, /Math\.Max\(360, _workspace\.Size\.X - 32\)/u);
+  assert.match(mod, /CustomMinimumSize = new Vector2\(360, 220\)/u);
+  assert.match(mod, /_layout = _defaultLayout/u);
+  assert.doesNotMatch(mod, /RecordingApplicationService\.Instance\.Execute.*ResetLayout/su);
+});
+
 test("one presentation owner prevents legacy and workspace shells from overlapping", () => {
   assert.equal((mod.match(/new CanvasLayer/g) ?? []).length, 1);
-  assert.equal((mod.match(/BuildRecorderCard\(\);/g) ?? []).length, 1);
-  assert.match(mod, /_workspaceSurface\.AddChild\(_recorderCard\)/u);
+  assert.equal((mod.match(/BuildRecorderPage\(tabs\);/g) ?? []).length, 1);
+  assert.match(mod, /tabs\.AddChild\(_recorderPage\)/u);
   assert.match(mod, /_workspaceSurface\.AddChild\(_toastStack\)/u);
   assert.match(mod, /_workspaceSurface\.GuiInput \+= OnWorkspaceInput/u);
-  assert.doesNotMatch(mod, /Root\.AddChild\(_recorderCard\)/u);
+  assert.doesNotMatch(mod, /_recorderPage\.Position/u);
   assert.doesNotMatch(mod, /Root\.AddChild\(_hud\)/u);
-  assert.match(mod, /_recorderCard\.Visible = workspaceVisible/u);
   assert.match(mod, /_toastStack\.Visible = workspaceVisible/u);
   assert.match(mod, /ApplyPresentationVisibility\(\)/u);
+});
+
+test("Recorder is the default Workspace tab and never a floating overlay", () => {
+  assert.match(mod, /Name = "Recorder"/u);
+  assert.match(mod, /BuildRecorderPage\(tabs\)/u);
+  assert.match(mod, /_tabs\.CurrentTab = 0/u);
+  assert.match(mod, /tabs\.CurrentTab = Math\.Clamp\(_layout\.LastPage, 0, 5\)/u);
+  assert.match(mod, /_recorderPage\.AddChild\(/u);
+  assert.doesNotMatch(mod, /_workspaceSurface\.AddChild\(_recorderPage\)/u);
+  assert.doesNotMatch(mod, /_recorderPage\.GuiInput/u);
 });
 
 test("Recorder owns a bounded canonical Action Feed with explicit unavailable fields", () => {
   assert.match(mod, /QueryEvents\(/u);
   assert.match(mod, /RefreshActionFeed\(status\.Recording\)/u);
-  assert.match(mod, /_workspaceSurface\.AddChild\(_recorderCard\)/u);
+  assert.match(mod, /_recorderDetails\.AddChild\(_actionFeedScroll\)/u);
   assert.match(mod, /_actionFeedScroll = new ScrollContainer/u);
+  assert.match(mod, /SizeFlagsHorizontal = SizeFlags\.ExpandFill/u);
   assert.match(mod, /while \(_actionFeed\.Count > PlatformLiveActionFeed\.MaxEntries\)/u);
   assert.match(mod, /value\.SessionId, sessionId/u);
   assert.match(mod, /sessionId == null/u);
@@ -124,8 +142,7 @@ test("Human Data controls use only the typed RecordingService application bounda
   assert.match(mod, /RecordingCommandKind\.StartNewSession/u);
   assert.doesNotMatch(`${mod}\n${client}`, /RecorderRuntime|HumanActionScope|AppendDecision/u);
   assert.match(mod, /QueryStatus\(\)/u);
-  assert.match(mod, /Native-accepted but failed closed \(not recorded\)/u);
-  assert.match(mod, /Declared out of scope/u);
+  assert.match(mod, /Scope:/u);
 });
 
 test("Live UI has no standalone packaging or deployment authority", () => {

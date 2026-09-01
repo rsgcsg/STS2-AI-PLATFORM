@@ -120,7 +120,8 @@ internal sealed class PlatformLivePanel : IDisposable
     private PanelContainer _workspace = null!;
     private Control _workspaceSurface = null!;
     private Control _workspaceBody = null!;
-    private PanelContainer _recorderCard = null!;
+    private PanelContainer _recorderPage = null!;
+    private Control _recorderDetails = null!;
     private VBoxContainer _toastStack = null!;
     private Label _workspaceTitle = null!;
     private Label _recorderTitle = null!;
@@ -135,11 +136,12 @@ internal sealed class PlatformLivePanel : IDisposable
     private Vector2 _resizeOrigin;
     private Vector2 _resizeStart;
     private bool _draggingWorkspace;
-    private bool _draggingRecorder;
     private bool _resizingWorkspace;
+    private TabContainer _tabs = null!;
     private PlatformLiveLayoutState _layout;
     private Label _connection = null!;
     private Label _command = null!;
+    private string _connectorTransport = "checking";
     private Button _tickButton = null!;
     private PlatformCommandMode _mode = PlatformCommandMode.Human;
     private bool _kWasPressed;
@@ -219,7 +221,7 @@ internal sealed class PlatformLivePanel : IDisposable
         _workspaceSurface.GuiInput += OnWorkspaceInput;
         _workspace.AddChild(_workspaceSurface);
         _workspaceBody = new VBoxContainer { MouseFilter = MouseFilterEnum.Stop };
-        _workspaceBody.AddThemeConstantOverride("separation", 12);
+        _workspaceBody.AddThemeConstantOverride("separation", 7);
         _workspaceSurface.AddChild(_workspaceBody);
         // Let empty title-bar space bubble to the bounded workspace drag handler;
         // child buttons still stop input themselves.
@@ -245,11 +247,12 @@ internal sealed class PlatformLivePanel : IDisposable
             MouseFilter = MouseFilterEnum.Ignore,
             AutowrapMode = TextServer.AutowrapMode.WordSmart
         };
-        _connection.AddThemeFontSizeOverride("font_size", 15);
+        _connection.AddThemeFontSizeOverride("font_size", 13);
         _connection.AddThemeColorOverride("font_color", TextSecondary);
         _workspaceBody.AddChild(_connection);
 
         var modeRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Stop };
+        modeRow.AddThemeConstantOverride("separation", 4);
         modeRow.AddChild(BuildModeButton("Human", PlatformCommandMode.Human));
         modeRow.AddChild(BuildModeButton("Shadow", PlatformCommandMode.Shadow));
         modeRow.AddChild(BuildModeButton("One-Step", PlatformCommandMode.OneStep));
@@ -268,7 +271,7 @@ internal sealed class PlatformLivePanel : IDisposable
             MouseFilter = MouseFilterEnum.Ignore,
             AutowrapMode = TextServer.AutowrapMode.WordSmart
         };
-        _command.AddThemeFontSizeOverride("font_size", 15);
+        _command.AddThemeFontSizeOverride("font_size", 13);
         _command.AddThemeColorOverride("font_color", Accent);
         _workspaceBody.AddChild(_command);
 
@@ -277,23 +280,24 @@ internal sealed class PlatformLivePanel : IDisposable
             MouseFilter = MouseFilterEnum.Stop,
             SizeFlagsVertical = SizeFlags.ExpandFill
         };
-        tabs.AddThemeFontSizeOverride("font_size", 14);
+        _tabs = tabs;
+        tabs.AddThemeFontSizeOverride("font_size", 13);
         tabs.AddThemeColorOverride("font_selected_color", TextPrimary);
         tabs.AddThemeColorOverride("font_unselected_color", TextSecondary);
         _workspaceBody.AddChild(tabs);
+        BuildRecorderPage(tabs);
         AddPage(tabs, "Overview");
         AddPage(tabs, "Environment");
         AddPage(tabs, "Policy");
         AddPage(tabs, "Human Data");
         AddPage(tabs, "Diagnostics");
-        tabs.CurrentTab = Math.Clamp(_layout.LastPage, 0, 4);
+        tabs.CurrentTab = Math.Clamp(_layout.LastPage, 0, 5);
         tabs.TabChanged += page =>
         {
             _layout = _layout with { LastPage = (int)page };
             PersistLayout();
         };
 
-        BuildRecorderCard();
         _toastStack = new VBoxContainer
         {
             Position = new Vector2(16, 360),
@@ -304,36 +308,62 @@ internal sealed class PlatformLivePanel : IDisposable
         ApplyLayout();
     }
 
-    private void BuildRecorderCard()
+    private void BuildRecorderPage(TabContainer tabs)
     {
-        _recorderCard = new PanelContainer
+        _recorderPage = new PanelContainer
         {
-            Position = new Vector2(440, 72),
-            Size = new Vector2(348, 388),
-            CustomMinimumSize = new Vector2(320, 300),
+            Name = "Recorder",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
             MouseFilter = MouseFilterEnum.Stop
         };
-        _recorderCard.AddThemeStyleboxOverride("panel", MakePanelStyle(
-            new Color("#1b2b32f2"), new Color("#4d9b8c"), 10, 1, 12));
-        _recorderCard.GuiInput += OnRecorderInput;
+        _recorderPage.AddThemeStyleboxOverride("panel", PageStyle("Recorder"));
         var body = new VBoxContainer { MouseFilter = MouseFilterEnum.Stop };
         body.AddThemeConstantOverride("separation", 8);
-        _recorderCard.AddChild(body);
-        // The card title is the drag surface; lifecycle buttons remain interactive.
+        body.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        body.SizeFlagsVertical = SizeFlags.ExpandFill;
+        var margin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
+        margin.AddThemeConstantOverride("margin_left", 14);
+        margin.AddThemeConstantOverride("margin_right", 14);
+        margin.AddThemeConstantOverride("margin_top", 10);
+        margin.AddThemeConstantOverride("margin_bottom", 10);
+        margin.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        margin.SizeFlagsVertical = SizeFlags.ExpandFill;
+        margin.AddChild(body);
+        var contentScroll = new ScrollContainer
+        {
+            MouseFilter = MouseFilterEnum.Stop,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Auto
+        };
+        contentScroll.AddChild(margin);
+        _recorderPage.AddChild(contentScroll);
+        // Recorder is a first-class Workspace tab; lifecycle buttons remain interactive.
         var titleRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
         _recorderTitle = new Label
         {
-            Text = "RECORDER / Ready",
+            Text = "RECORDER",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             MouseFilter = MouseFilterEnum.Ignore
         };
-        _recorderTitle.AddThemeFontSizeOverride("font_size", 16);
+        _recorderTitle.AddThemeFontSizeOverride("font_size", 17);
         _recorderTitle.AddThemeColorOverride("font_color", TextPrimary);
         titleRow.AddChild(_recorderTitle);
         _recorderCollapse = BuildCommandButton("Collapse", ToggleRecorderCollapse);
-        _recorderCollapse.CustomMinimumSize = new Vector2(88, 34);
+        _recorderCollapse.CustomMinimumSize = new Vector2(88, 32);
         titleRow.AddChild(_recorderCollapse);
         body.AddChild(titleRow);
+
+        _recorderDetails = new VBoxContainer
+        {
+            MouseFilter = MouseFilterEnum.Stop,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill
+        };
+        _recorderDetails.AddThemeConstantOverride("separation", 6);
+        body.AddChild(_recorderDetails);
 
         _recorderHealth = new Label
         {
@@ -341,13 +371,13 @@ internal sealed class PlatformLivePanel : IDisposable
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             MouseFilter = MouseFilterEnum.Ignore
         };
-        _recorderHealth.AddThemeFontSizeOverride("font_size", 12);
-        _recorderHealth.AddThemeColorOverride("font_color", TextSecondary);
-        body.AddChild(_recorderHealth);
+        _recorderHealth.AddThemeFontSizeOverride("font_size", 14);
+        _recorderHealth.AddThemeColorOverride("font_color", Accent);
+        _recorderDetails.AddChild(_recorderHealth);
 
         var controls = new HBoxContainer { MouseFilter = MouseFilterEnum.Stop };
-        controls.AddThemeConstantOverride("separation", 5);
-        body.AddChild(controls);
+        controls.AddThemeConstantOverride("separation", 4);
+        _recorderDetails.AddChild(controls);
         _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.StartNewSession] = BuildRecordingButton(
             controls, "New Session", STS2HumanAnnotator.Core.RecordingCommandKind.StartNewSession);
         _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.Pause] = BuildRecordingButton(
@@ -361,12 +391,12 @@ internal sealed class PlatformLivePanel : IDisposable
         {
             Text = "LAST ACTION\nNone observed yet.",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            CustomMinimumSize = new Vector2(0, 72),
+            CustomMinimumSize = new Vector2(0, 62),
             MouseFilter = MouseFilterEnum.Ignore
         };
-        _lastAction.AddThemeFontSizeOverride("font_size", 12);
+        _lastAction.AddThemeFontSizeOverride("font_size", 13);
         _lastAction.AddThemeColorOverride("font_color", Accent);
-        body.AddChild(_lastAction);
+        _recorderDetails.AddChild(_lastAction);
 
         var feedHeading = new Label
         {
@@ -375,22 +405,25 @@ internal sealed class PlatformLivePanel : IDisposable
         };
         feedHeading.AddThemeFontSizeOverride("font_size", 12);
         feedHeading.AddThemeColorOverride("font_color", TextPrimary);
-        body.AddChild(feedHeading);
+        _recorderDetails.AddChild(feedHeading);
         _actionFeedScroll = new ScrollContainer
         {
-            CustomMinimumSize = new Vector2(0, 150),
+            CustomMinimumSize = new Vector2(0, 132),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
             VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
             MouseFilter = MouseFilterEnum.Stop
         };
-        _actionFeedList = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        _actionFeedList = new VBoxContainer
+        {
+            MouseFilter = MouseFilterEnum.Ignore,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill
+        };
         _actionFeedList.AddThemeConstantOverride("separation", 4);
         _actionFeedScroll.AddChild(_actionFeedList);
-        body.AddChild(_actionFeedScroll);
-        // Recorder is a tool region owned by the same workspace surface. It is
-        // never an independent legacy shell and is gated with workspace visibility.
-        _workspaceSurface.AddChild(_recorderCard);
+        _recorderDetails.AddChild(_actionFeedScroll);
+        tabs.AddChild(_recorderPage);
     }
 
     private Button BuildRecordingButton(
@@ -416,7 +449,7 @@ internal sealed class PlatformLivePanel : IDisposable
                 : $"Set Policy Runtime mode to {text}; the UI never submits a BoundAction directly.",
             FocusMode = FocusModeEnum.None,
             MouseFilter = MouseFilterEnum.Stop,
-            CustomMinimumSize = new Vector2(118, 40),
+            CustomMinimumSize = new Vector2(88, 34),
             ToggleMode = true,
             Disabled = true
         };
@@ -525,8 +558,6 @@ internal sealed class PlatformLivePanel : IDisposable
                 _workspace.Position = clamped.Position;
                 _workspace.Size = clamped.Size;
                 LayoutWorkspaceSurface();
-                _recorderCard.Position = PlatformLiveLayout.ClampRecorder(
-                    _recorderCard.Position, _recorderCard.Size, _workspace.Size);
             }
             else
             {
@@ -534,34 +565,6 @@ internal sealed class PlatformLivePanel : IDisposable
                     new Rect2(_dragStart + motion.Position - _dragOrigin, _workspace.Size), Root.Size).Position;
             }
             _workspace.GetViewport().SetInputAsHandled();
-        }
-    }
-
-    private void OnRecorderInput(InputEvent @event)
-    {
-        if (@event is InputEventMouseButton mouseButton
-            && mouseButton.ButtonIndex == MouseButton.Left)
-        {
-            if (mouseButton.Pressed)
-            {
-                _draggingRecorder = true;
-                _dragOrigin = mouseButton.Position;
-                _dragStart = _recorderCard.Position;
-            }
-            else
-            {
-                if (_draggingRecorder)
-                    PersistLayout();
-                _draggingRecorder = false;
-            }
-        }
-        else if (@event is InputEventMouseMotion motion && _draggingRecorder)
-        {
-            _recorderCard.Position = PlatformLiveLayout.ClampRecorder(
-                _dragStart + motion.Position - _dragOrigin,
-                _recorderCard.Size,
-                _workspace.Size);
-            _recorderCard.GetViewport().SetInputAsHandled();
         }
     }
 
@@ -577,11 +580,10 @@ internal sealed class PlatformLivePanel : IDisposable
     private void ToggleRecorderCollapse()
     {
         _layout = _layout with { RecorderCollapsed = !_layout.RecorderCollapsed };
-        foreach (Button button in _recordingButtons.Values)
-            button.Visible = !_layout.RecorderCollapsed;
+        _recorderDetails.Visible = !_layout.RecorderCollapsed;
         _recorderCollapse.Text = _layout.RecorderCollapsed ? "Expand" : "Collapse";
         PersistLayout();
-        PushToast("layout.recorder", _layout.RecorderCollapsed ? "Recorder card collapsed." : "Recorder card expanded.");
+        PushToast("layout.recorder", _layout.RecorderCollapsed ? "Recorder details collapsed." : "Recorder details expanded.");
     }
 
     private void ResetLayout()
@@ -601,37 +603,21 @@ internal sealed class PlatformLivePanel : IDisposable
         LayoutWorkspaceSurface();
         SetWorkspaceCollapsed(_layout.WorkspaceCollapsed);
         _workspaceCollapse.Text = _layout.WorkspaceCollapsed ? "Expand" : "Collapse";
-        Vector2 recorderLocal = _layout.RecorderPosition - _workspace.Position;
-        if (recorderLocal.X < 8
-            || recorderLocal.Y < 48
-            || recorderLocal.X + _recorderCard.Size.X > _workspace.Size.X - 8
-            || recorderLocal.Y + _recorderCard.Size.Y > _workspace.Size.Y - 8)
-        {
-            // v1 stored the Recorder as a root-overlay coordinate. Rehome
-            // those legacy coordinates into the Workspace tool column once,
-            // without discarding the user's other presentation state.
-            recorderLocal = new Vector2(
-                Math.Max(8, _workspace.Size.X - _recorderCard.Size.X - 16),
-                72);
-        }
-        _recorderCard.Position = PlatformLiveLayout.ClampRecorder(
-            recorderLocal, _recorderCard.Size, _workspace.Size);
-        foreach (Button button in _recordingButtons.Values)
-            button.Visible = !_layout.RecorderCollapsed;
+        _recorderDetails.Visible = !_layout.RecorderCollapsed;
         _recorderCollapse.Text = _layout.RecorderCollapsed ? "Expand" : "Collapse";
         ApplyPresentationVisibility();
     }
 
     private void LayoutWorkspaceSurface()
     {
-        if (_workspaceSurface == null || _workspaceBody == null || _recorderCard == null || _toastStack == null)
+        if (_workspaceSurface == null || _workspaceBody == null || _recorderPage == null || _toastStack == null)
             return;
         _workspaceSurface.Position = Vector2.Zero;
         _workspaceSurface.Size = _workspace.Size;
         _workspaceBody.Position = new Vector2(16, 16);
         _workspaceBody.Size = new Vector2(
-            Math.Max(300, _workspace.Size.X - _recorderCard.Size.X - 44),
-            Math.Max(220, _workspace.Size.Y - 32));
+            Math.Max(360, _workspace.Size.X - 32),
+            Math.Max(260, _workspace.Size.Y - 32));
         _toastStack.Position = new Vector2(
             16,
             Math.Max(80, _workspace.Size.Y - _toastStack.Size.Y - 16));
@@ -642,7 +628,6 @@ internal sealed class PlatformLivePanel : IDisposable
         bool workspaceVisible = _workspace.Visible;
         // There is exactly one active presentation owner. The Workspace is
         // the only Platform surface; its Recorder and toast regions are children.
-        _recorderCard.Visible = workspaceVisible;
         _toastStack.Visible = workspaceVisible;
     }
 
@@ -660,8 +645,7 @@ internal sealed class PlatformLivePanel : IDisposable
         _layout = _layout with
         {
             WorkspacePosition = _workspace.Position,
-            WorkspaceSize = _workspace.Size,
-            RecorderPosition = _workspace.Position + _recorderCard.Position
+            WorkspaceSize = _workspace.Size
         };
         if (!PlatformLiveLayout.Save(_layout))
             PushToast("layout.persistence", "Layout could not be saved; using this session only.");
@@ -716,6 +700,9 @@ internal sealed class PlatformLivePanel : IDisposable
         {
             Name = name,
             MouseFilter = MouseFilterEnum.Stop,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 240),
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
             VerticalScrollMode = ScrollContainer.ScrollMode.Auto
         };
@@ -724,6 +711,7 @@ internal sealed class PlatformLivePanel : IDisposable
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(360, 220),
             MouseFilter = MouseFilterEnum.Ignore
         };
         card.AddThemeStyleboxOverride("panel", PageStyle(name));
@@ -753,6 +741,7 @@ internal sealed class PlatformLivePanel : IDisposable
     {
         Color background = name switch
         {
+            "Recorder" => new Color("#1b3338ed"),
             "Overview" => new Color("#1b2d3be8"),
             "Environment" => new Color("#1c3439e8"),
             "Policy" => new Color("#28233de8"),
@@ -762,6 +751,7 @@ internal sealed class PlatformLivePanel : IDisposable
         };
         Color border = name switch
         {
+            "Recorder" => new Color("#4d9b8c"),
             "Overview" => new Color("#3e7992"),
             "Environment" => new Color("#4b8f87"),
             "Policy" => new Color("#8276bd"),
@@ -872,13 +862,17 @@ internal sealed class PlatformLivePanel : IDisposable
     {
         if (Interlocked.Exchange(ref _pendingPollError, null) is { } error)
         {
+            _connectorTransport = "unavailable";
             _connection.Text = $"Connector loopback: UI poll failed ({error})";
+            ApplyRecordingAvailability(
+                STS2HumanAnnotator.Mod.RecordingApplicationService.Instance.QueryStatus());
             PushToast("transport.error", $"Status transport unavailable: {error}");
         }
     }
 
     private void ApplyStatus(PlatformLiveStatus status)
     {
+        _connectorTransport = status.TransportStatus;
         _connection.Text =
             $"Connector: {status.TransportStatus} | Policy Runtime: {status.PolicyRuntimeTransportStatus} | observed {status.ObservedAt:HH:mm:ss} UTC";
         string policyReason = PlatformLiveLayout.PolicyUnavailableReason(status);
@@ -925,9 +919,15 @@ internal sealed class PlatformLivePanel : IDisposable
     {
         if (_recorderTitle == null)
             return;
-        _recorderTitle.Text = $"RECORDER / {recording.Lifecycle.State} · {recording.Counters.Records} records";
-        _recorderHealth.Text =
-            $"Session: {recording.Session?.SessionId ?? "none"} · health: {recording.Health.Append}/{recording.Health.Disk} · pending: {recording.PendingDecision?.RecordId ?? "none"}";
+        _recorderTitle.Text = "RECORDER";
+        _recorderHealth.Text = $"● {recording.Lifecycle.State} | {recording.Counters.Records} records | Connector: {_connectorTransport}";
+        _recorderHealth.AddThemeColorOverride("font_color", recording.Lifecycle.State switch
+        {
+            STS2HumanAnnotator.Core.RecordingLifecycleState.Recording => new Color("#73d39a"),
+            STS2HumanAnnotator.Core.RecordingLifecycleState.Paused => new Color("#e6c36a"),
+            STS2HumanAnnotator.Core.RecordingLifecycleState.Closing => new Color("#e6c36a"),
+            _ => Accent
+        });
         STS2HumanAnnotator.Core.RecordingLifecycleState state = recording.Lifecycle.State;
         _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.StartNewSession].Disabled =
             state is not (STS2HumanAnnotator.Core.RecordingLifecycleState.Ready
@@ -1001,7 +1001,12 @@ internal sealed class PlatformLivePanel : IDisposable
         foreach (STS2HumanAnnotator.Core.RecordingEvent value in _actionFeed
                      .OrderByDescending(item => item.Sequence))
         {
-            var item = new PanelContainer { MouseFilter = MouseFilterEnum.Ignore };
+            var item = new PanelContainer
+            {
+                MouseFilter = MouseFilterEnum.Ignore,
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                CustomMinimumSize = new Vector2(0, 24)
+            };
             Color border = value.Kind switch
             {
                 STS2HumanAnnotator.Core.RecordingEventKind.DecisionRecorded => new Color("#4fa77c"),
@@ -1015,7 +1020,8 @@ internal sealed class PlatformLivePanel : IDisposable
                 Text = PlatformLiveActionFeed.FormatEntry(value),
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
                 MouseFilter = MouseFilterEnum.Ignore,
-                SizeFlagsHorizontal = SizeFlags.ExpandFill
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                ClipText = true
             };
             label.AddThemeFontSizeOverride("font_size", 12);
             label.AddThemeColorOverride("font_color", TextPrimary);
@@ -1027,79 +1033,52 @@ internal sealed class PlatformLivePanel : IDisposable
 
     private static string FormatOverview(PlatformLiveStatus status) => string.Join('\n', new[]
     {
-        "LIVE OVERVIEW",
-        $"Transport: {status.TransportStatus}",
+        "OVERVIEW",
+        $"Connector: {status.TransportStatus}",
         $"Policy Runtime: {status.PolicyRuntimeTransportStatus}",
-        $"Snapshot: {status.Snapshot?.SnapshotId ?? "none"} ({status.Snapshot?.Status ?? "unavailable"})",
+        $"Recording: {status.Recording.Lifecycle.State} · {status.Recording.Counters.Records} records",
         $"Interaction: {status.Snapshot?.Interaction.Kind ?? "none"}",
-        $"Scores: {string.Join(", ", status.Scores.Select(score => $"{score.Name}={score.DisplayValue}"))}",
+        $"Snapshot: {ShortValue(status.Snapshot?.SnapshotId, "none")} · {status.Snapshot?.Status ?? "unavailable"}",
         $"Selected: {(status.PolicyRuntime == null ? "unavailable" : status.Selected.Count == 0 ? "none" : string.Join(", ", status.Selected.Select(item => item.Label)))}",
-        $"Receipt: {status.Receipt.Status} ({status.Receipt.Detail})",
-        $"Reads: {status.Reads.Count} current Connector opportunities/materializations",
-        $"Recording: {status.Recording.Lifecycle.State}"
+        $"Receipt: {status.Receipt.Status}"
     });
 
     private static string FormatEnvironment(PlatformLiveStatus status) => string.Join('\n', new[]
     {
         "ENVIRONMENT",
-        FormatArtifact("Game", status.ExactIdentity.Game),
-        FormatArtifact("Connector", status.ExactIdentity.Connector),
-        FormatArtifact("Annotator", status.ExactIdentity.Annotator),
-        FormatArtifact("Platform Live UI", status.ExactIdentity.LiveUi),
-        $"Host kind: {status.ExactIdentity.HostKind ?? "unavailable"}",
-        $"Runtime instance: {status.ExactIdentity.RuntimeInstanceId ?? "unavailable"}",
-        $"Environment fingerprint: {status.ExactIdentity.EnvironmentFingerprint ?? "unavailable"}",
+        $"Game: {status.ExactIdentity.Game?.Version ?? "unavailable"}",
+        $"Interaction: {status.Snapshot?.Interaction.Kind ?? "none"}",
+        $"Connector: {status.ExactIdentity.Connector?.Product ?? "unavailable"} {status.ExactIdentity.Connector?.Version ?? ""}".TrimEnd(),
+        $"Annotator: {status.ExactIdentity.Annotator?.Product ?? "unavailable"} {status.ExactIdentity.Annotator?.Version ?? ""}".TrimEnd(),
         $"Modset: {status.ExactIdentity.ModsetStatus ?? "unavailable"}",
-        $"Modset fingerprint: {status.ExactIdentity.ModsetFingerprint ?? "unavailable"}",
-        $"Loaded Mod IDs: {(status.ExactIdentity.LoadedModIds.Count == 0 ? "none" : string.Join(", ", status.ExactIdentity.LoadedModIds))}"
+        $"Loaded Mods: {(status.ExactIdentity.LoadedModIds.Count == 0 ? "none" : string.Join(", ", status.ExactIdentity.LoadedModIds))}",
+        $"Connector health: {status.TransportStatus}"
     });
 
     private static string FormatPolicy(PlatformLiveStatus status) => string.Join('\n', new[]
     {
         "POLICY",
         $"Runtime: {status.PolicyRuntimeTransportStatus}",
-        $"Runtime software: {status.PolicyRuntime?.Runtime.Version ?? "unavailable"} / {status.PolicyRuntime?.Runtime.CodeSha256 ?? "unavailable"}",
         $"Mode: {status.PolicyRuntime?.Mode ?? "unavailable"}",
         $"Policy: {status.PolicyRuntime?.Policy.PolicyId ?? "unavailable"} {status.PolicyRuntime?.Policy.PolicyVersion ?? ""}".TrimEnd(),
-        $"Run: {status.PolicyRuntime?.RunId ?? "unavailable"}",
         $"Lifecycle: {status.PolicyRuntime?.Lifecycle ?? "unavailable"}",
-        $"Provider/architecture: {status.PolicyRuntime?.Policy.Provider ?? "unavailable"} / {status.PolicyRuntime?.Policy.Architecture ?? "unavailable"}",
-        $"Artifact SHA-256: {status.PolicyRuntime?.Policy.ArtifactSha256 ?? "unavailable"}",
-        $"Controller: {status.PolicyRuntime?.Controller ?? "unavailable"}",
-        $"Refreshing: {status.PolicyRuntime?.Refreshing.ToString() ?? "unknown"}",
-        $"Tainted: {status.PolicyRuntime?.Tainted.ToString() ?? "unknown"} ({status.PolicyRuntime?.TaintReason ?? "none"})",
-        $"Last decision: {status.PolicyRuntime?.LastDecision?.DecisionId ?? "none"}",
-        $"Connector information policy: {status.Snapshot?.InformationPolicy.Id ?? "unavailable"}",
-        "UI boundary: Connector observation, Policy Runtime commands, and Annotator recording control only; no direct gameplay action submission."
+        $"Last decision: {ShortValue(status.PolicyRuntime?.LastDecision?.DecisionId, "none")}",
+        $"Receipt: {status.Receipt.Status}",
+        status.PolicyRuntime == null
+            ? $"Unavailable: {PlatformLiveLayout.PolicyUnavailableReason(status)}"
+            : $"Tainted: {status.PolicyRuntime.Tainted}"
     });
 
     private static string FormatHumanData(PlatformLiveStatus status) => string.Join('\n', new[]
     {
         "HUMAN DATA",
-        $"Lifecycle: {status.Recording.Lifecycle.State} ({status.Recording.Detail})",
-        $"Session: {status.Recording.Session?.SessionId ?? "none"}",
-        $"Run / timeline: {status.Recording.Session?.RunId ?? "none"} / {status.Recording.Session?.TimelineId ?? "none"}",
-        $"Profile: {status.Recording.Session?.CaptureProfileId ?? "none"}",
-        $"Runtime state: {status.Recording.RuntimeState}",
+        $"Lifecycle: {status.Recording.Lifecycle.State}",
+        $"Session: {ShortValue(status.Recording.Session?.SessionId, "none")}",
         $"Records / invalidations: {status.Recording.Counters.Records} / {status.Recording.Counters.Invalidations}",
-        $"Recorded by family: {FormatCounts(status.Recording.Scope.RecordedByActionFamily)}",
-        $"Native-accepted but failed closed (not recorded): {FormatCounts(status.Recording.Scope.AcceptedFailedClosedByActionFamily)}",
-        $"Supported, not observed: {FormatItems(status.Recording.Scope.SupportedNotObserved)}",
-        $"Declared out of scope: {FormatItems(status.Recording.Scope.DeclaredOutOfScope)}",
-        $"Profile boundary: {status.Recording.Scope.Detail}",
-        $"Reads materialized / failed: {status.Recording.Counters.ReadsMaterialized} / {status.Recording.Counters.ReadsFailed}",
-        $"Pending root: {status.Recording.PendingRoot?.RecordId ?? "none"}",
-        $"Last record: {status.Recording.LastRecord?.Id ?? "none"}",
-        $"Last invalidation: {status.Recording.LastInvalidation?.Id ?? "none"}",
-        $"Required Reads / append / disk: {status.Recording.Health.RequiredReads} / {status.Recording.Health.Append} / {status.Recording.Health.Disk}",
+        $"Reads: {status.Recording.Counters.ReadsMaterialized} materialized · {status.Recording.Counters.ReadsFailed} failed",
+        $"Health: append={status.Recording.Health.Append} · disk={status.Recording.Health.Disk}",
         $"Closeout: {status.Recording.Closeout.State}",
-        $"Recording event sequence: {status.Recording.LatestEventSequence}",
-        $"Current Snapshot: {status.Recording.CurrentSnapshotId ?? "unavailable"}",
-        $"Available/materialized Reads: {status.Reads.Count}",
-        $"Recorder blockers: {(status.Recording.Blockers.Count == 0 ? "none" : string.Join(", ", status.Recording.Blockers))}",
-        $"Runtime invalidations: {(status.PolicyRuntime == null ? "unavailable" : status.Invalidations.Count.ToString())}",
-        $"Invalidation reasons: {(status.PolicyRuntime == null ? "unavailable" : string.Join(", ", status.Invalidations))}",
-        "Recording directory: intentionally not exposed to the UI"
+        $"Scope: {status.Recording.Scope.Detail}"
     });
 
     private static string FormatCounts(IReadOnlyDictionary<string, long> values) =>
@@ -1114,6 +1093,15 @@ internal sealed class PlatformLivePanel : IDisposable
     private static string FormatDiagnostics(PlatformLiveStatus status) => string.Join('\n', new[]
     {
         "DIAGNOSTICS",
+        FormatArtifact("Game", status.ExactIdentity.Game),
+        FormatArtifact("Connector", status.ExactIdentity.Connector),
+        FormatArtifact("Annotator", status.ExactIdentity.Annotator),
+        FormatArtifact("Platform Live UI", status.ExactIdentity.LiveUi),
+        $"Host kind: {status.ExactIdentity.HostKind ?? "unavailable"}",
+        $"Runtime instance: {ShortValue(status.ExactIdentity.RuntimeInstanceId, "unavailable")}",
+        $"Environment fingerprint: {status.ExactIdentity.EnvironmentFingerprint ?? "unavailable"}",
+        $"Modset fingerprint: {status.ExactIdentity.ModsetFingerprint ?? "unavailable"}",
+        $"Loaded Mod IDs: {(status.ExactIdentity.LoadedModIds.Count == 0 ? "none" : string.Join(", ", status.ExactIdentity.LoadedModIds))}",
         $"Schema: {status.Schema}",
         $"Policy Runtime status: {status.PolicyRuntime?.Schema ?? "unavailable"}",
         $"Runtime errors: {(status.PolicyRuntime?.Errors.Count > 0 ? string.Join(" | ", status.PolicyRuntime.Errors) : "none")}",
@@ -1128,12 +1116,19 @@ internal sealed class PlatformLivePanel : IDisposable
             ? $"{name}: unavailable"
             : $"{name}: {artifact.Product} {artifact.Version} | rev={artifact.SourceRevision ?? "unknown"} | module={artifact.ModuleVersionId ?? "unknown"} | sha={artifact.ArtifactSha256 ?? "unknown"}";
 
+    private static string ShortValue(string? value, string fallback = "unavailable")
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return fallback;
+        return value.Length <= 18 ? value : $"{value[..8]}…{value[^6..]}";
+    }
+
     private void OnProcessFrame()
     {
         ApplyPendingStatus();
         ApplyPendingPollError();
         ExpireToasts();
-        if (!_draggingWorkspace && !_draggingRecorder && !_resizingWorkspace)
+        if (!_draggingWorkspace && !_resizingWorkspace)
         {
             Rect2 clamped = PlatformLiveLayout.ClampWorkspace(
                 new Rect2(_workspace.Position, _workspace.Size), Root.Size);
@@ -1143,8 +1138,6 @@ internal sealed class PlatformLivePanel : IDisposable
                 _workspace.Size = clamped.Size;
                 LayoutWorkspaceSurface();
             }
-            _recorderCard.Position = PlatformLiveLayout.ClampRecorder(
-                _recorderCard.Position, _recorderCard.Size, _workspace.Size);
         }
 
         bool kPressed = Input.IsKeyPressed(Key.K) || Input.IsPhysicalKeyPressed(Key.K);
@@ -1153,7 +1146,10 @@ internal sealed class PlatformLivePanel : IDisposable
             _workspace.Visible = !_workspace.Visible;
             ApplyPresentationVisibility();
             if (_workspace.Visible)
+            {
+                _tabs.CurrentTab = 0;
                 _ = PollAsync();
+            }
             GD.Print($"[STS2 Platform Live UI] toggle; input=K; visible={_workspace.Visible.ToString().ToLowerInvariant()}");
             Root.GetViewport().SetInputAsHandled();
         }

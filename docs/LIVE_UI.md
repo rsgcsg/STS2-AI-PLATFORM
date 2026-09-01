@@ -6,6 +6,7 @@ with the uncommon letter key `K`; `Escape` closes it.
 
 | Page | Source |
 |---|---|
+| Recorder | Annotator recording lifecycle and canonical action feed |
 | Overview | combined typed status and exact identity |
 | Environment | Connector Snapshot/capabilities plus in-process Annotator and Live UI identity |
 | Policy | Policy Runtime status, scores, selected action, Receipt |
@@ -36,13 +37,13 @@ verification compares those records with installed provenance. `installed`,
 `loaded`, automated input, owner-visible UI, Human recording evidence and
 Agent-run evidence remain separate claims.
 
-The product shell is fully hidden during ordinary play; the single Workspace
-opens with `K` and closes with `Escape` or its Close button. There is no compact
-HUD or root-level Recorder surface while it is closed. Only one presentation
-owner is active: the Recorder tool region is mounted inside that same
-Workspace surface rather than as a legacy root overlay. Workspace and Recorder
-cards support bounded drag, resize, collapse, and Reset layout. The Recorder
-offers typed New Session, Pause, Resume, and Close controls. A bounded toast
+The product shell is fully hidden during ordinary play; the single compact
+Workspace opens with `K` and closes with `Escape` or its Close button. There is
+no compact HUD or root-level Recorder surface while it is closed. Recorder is
+the first-class default tab alongside Overview, Environment, Policy, Human
+Data, and Diagnostics; it never floats over another tab. The Workspace supports
+bounded drag, resize, collapse, and Reset layout. The Recorder tab offers typed
+New Session, Pause, Resume, and Close controls. A bounded toast
 stack reports accepted/rejected commands and transport recovery, deduplicates
 repeated state changes, expires automatically, and can be dismissed. Layout is
 versioned local presentation state with fail-soft defaults; it is never written
