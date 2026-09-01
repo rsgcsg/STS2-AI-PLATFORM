@@ -42,6 +42,7 @@ test("one presentation owner prevents legacy and workspace shells from overlappi
   assert.equal((mod.match(/BuildRecorderCard\(\);/g) ?? []).length, 1);
   assert.match(mod, /_workspaceSurface\.AddChild\(_recorderCard\)/u);
   assert.match(mod, /_workspaceSurface\.AddChild\(_toastStack\)/u);
+  assert.match(mod, /_workspaceSurface\.GuiInput \+= OnWorkspaceInput/u);
   assert.doesNotMatch(mod, /Root\.AddChild\(_recorderCard\)/u);
   assert.match(mod, /_hud\.Visible = !workspaceVisible/u);
   assert.match(mod, /_recorderCard\.Visible = workspaceVisible/u);

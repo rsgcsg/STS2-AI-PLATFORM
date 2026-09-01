@@ -229,10 +229,10 @@ internal sealed class PlatformLivePanel : IDisposable
         };
         _workspace.AddThemeStyleboxOverride("panel", MakePanelStyle(
             new Color("#111c2aeF"), new Color("#4e9bb0"), 12, 2, 16));
-        _workspace.GuiInput += OnWorkspaceInput;
         Root.AddChild(_workspace);
 
         _workspaceSurface = new Control { MouseFilter = MouseFilterEnum.Stop };
+        _workspaceSurface.GuiInput += OnWorkspaceInput;
         _workspace.AddChild(_workspaceSurface);
         _workspaceBody = new VBoxContainer { MouseFilter = MouseFilterEnum.Stop };
         _workspaceBody.AddThemeConstantOverride("separation", 12);
