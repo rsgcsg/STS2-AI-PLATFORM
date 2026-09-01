@@ -90,18 +90,22 @@ test("Recorder owns a bounded canonical Action Feed with explicit unavailable fi
   assert.match(mod, /bool feedChanged = false/u);
   assert.match(mod, /if \(feedChanged\)\s+RenderActionFeed\(\)/u);
   assert.match(mod, /SizeFlagsHorizontal = SizeFlags\.ExpandFill/u);
-  assert.match(mod, /while \(_actionFeed\.Count > PlatformLiveActionFeed\.MaxEntries\)/u);
+  assert.match(mod, /_actionFeed\.Recent\(PlatformLiveActionFeed\.MaxEntries\)/u);
+  assert.match(mod, /feedChanged \|= _actionFeed\.Apply\(value\)/u);
   assert.match(mod, /value\.SessionId, sessionId/u);
   assert.match(mod, /sessionId == null/u);
-  assert.match(feed, /DecisionPending => "Observed"/u);
-  assert.match(feed, /DecisionRecorded => "Recorded"/u);
-  assert.match(feed, /DecisionInvalidated => "Invalidated"/u);
+  assert.match(feed, /DecisionPending => "… Observed"/u);
+  assert.match(feed, /DecisionRecorded => "✓ Recorded"/u);
+  assert.match(feed, /DecisionInvalidated => "✕ Invalidated"/u);
+  assert.match(feed, /record:\{value\.RecordId\}/u);
+  assert.match(feed, /bound-action:\{boundActionId\}/u);
+  assert.match(feed, /stable action\/root identity unavailable/u);
   assert.match(feed, /SubjectReferentId/u);
   assert.match(feed, /Arguments/u);
   assert.match(feed, /EffectSummary/u);
   assert.match(feed, /unavailable \(not present in canonical evidence\)/u);
   assert.match(client, /RecordingApplicationService\.Instance\.QueryStatus\(\)/u);
-  assert.doesNotMatch(feed, /InputEventMouseButton|InputEventMouseMotion|frame.*delay/isu);
+  assert.doesNotMatch(feed, /InputEventMouseButton|InputEventMouseMotion|frame.*delay|AppendDecision|Execute\(/isu);
 });
 
 test("header controls and all presentation regions stay inside the Workspace hierarchy", () => {
@@ -140,13 +144,17 @@ test("active-tab clicks use one collapse state and other tabs expand", () => {
   assert.doesNotMatch(`${mod}\n${presentation}`, /WorkspaceCollapsed|RecorderCollapsed/u);
 });
 
-test("canonical action fixtures cover ordinary, targeted, choice and end-turn shapes", () => {
-  assert.match(feed, /FormatEntry\(RecordingEvent value\)/u);
-  assert.match(feed, /FormatDetail\(RecordingEvent value\)/u);
-  assert.match(feed, /Stable subject\/card ID/u);
+test("canonical action fixtures cover lifecycle aggregation and explicit evidence fields", () => {
+  assert.match(feed, /FormatEntry\(PlatformLiveActionItem value\)/u);
+  assert.match(feed, /FormatDetail\(PlatformLiveActionItem value\)/u);
+  assert.match(feed, /Subject\/card ID/u);
   assert.match(feed, /Target IDs/u);
-  assert.match(feed, /Card \/ choice display/u);
-  assert.match(feed, /Action kind/u);
+  assert.match(feed, /Action ID/u);
+  assert.match(feed, /waiting for canonical settlement/u);
+  assert.match(mod, /Records \{recording\.Counters\.Records\}/u);
+  assert.match(mod, /Pending \{pending\}/u);
+  assert.match(mod, /Invalidated \{invalidated\}/u);
+  assert.match(mod, /Recent Actions also includes Pending \/ Invalidated/u);
   assert.match(feed, /RecordingEventKind\.DecisionPending/u);
   assert.match(feed, /RecordingEventKind\.DecisionRecorded/u);
   assert.match(feed, /RecordingEventKind\.DecisionInvalidated/u);

@@ -2,6 +2,149 @@ using STS2HumanAnnotator.Core;
 
 namespace STS2PlatformLiveUi;
 
+internal sealed record PlatformLiveActionItem(
+    string CorrelationIdentity,
+    bool HasReliableCorrelation,
+    string? CorrelationIssue,
+    long FirstSequence,
+    long LatestSequence,
+    DateTimeOffset FirstObservedAt,
+    DateTimeOffset LatestObservedAt,
+    RecordingEventKind Kind,
+    string? RecordId,
+    string? Detail,
+    RecordingActionProjection? Action);
+
+internal sealed record PlatformLiveActionCounts(
+    int Records,
+    int Pending,
+    int Invalidated,
+    bool Exact);
+
+/// <summary>
+/// Read-only, session-local projection of canonical Recorder application events.
+/// RecordId is the preferred Human action root identity. BoundActionId is used
+/// only when the event contract has no RecordId. Events with neither identity
+/// remain event-level and make aggregate disposition counts explicitly inexact.
+/// This class cannot authorize, commit, record or deliver gameplay actions.
+/// </summary>
+internal sealed class PlatformLiveActionAggregation
+{
+    private readonly Dictionary<string, PlatformLiveActionItem> _items =
+        new(StringComparer.Ordinal);
+    private readonly HashSet<string> _seenEventIds = new(StringComparer.Ordinal);
+    private bool _sourceComplete = true;
+
+    internal int Count => _items.Count;
+
+    internal IReadOnlyList<PlatformLiveActionItem> Recent(int limit) => _items.Values
+        .OrderByDescending(value => value.FirstSequence)
+        .Take(Math.Max(0, limit))
+        .ToArray();
+
+    internal PlatformLiveActionCounts Counts
+    {
+        get
+        {
+            bool exact = _sourceComplete && _items.Values.All(value => value.HasReliableCorrelation);
+            return new PlatformLiveActionCounts(
+                _items.Values.Count(value => value.Kind == RecordingEventKind.DecisionRecorded),
+                _items.Values.Count(value => value.Kind == RecordingEventKind.DecisionPending),
+                _items.Values.Count(value => value.Kind == RecordingEventKind.DecisionInvalidated),
+                exact);
+        }
+    }
+
+    internal void Reset()
+    {
+        _items.Clear();
+        _seenEventIds.Clear();
+        _sourceComplete = true;
+    }
+
+    internal void MarkSourceIncomplete() => _sourceComplete = false;
+
+    internal bool Apply(RecordingEvent value)
+    {
+        if (!PlatformLiveActionFeed.IsActionEvent(value.Kind)
+            || !_seenEventIds.Add(value.EventId))
+            return false;
+
+        (string key, bool reliable, string? issue) = Correlation(value);
+        if (_items.TryGetValue(key, out PlatformLiveActionItem? existing))
+        {
+            string? existingBoundActionId = StableBoundActionId(existing.Action);
+            string? incomingBoundActionId = StableBoundActionId(value.Action);
+            if (existingBoundActionId != null
+                && incomingBoundActionId != null
+                && !string.Equals(existingBoundActionId, incomingBoundActionId, StringComparison.Ordinal))
+            {
+                // A shared root paired with conflicting bound action identities is
+                // not safe to merge. Preserve the incoming event as its own explicit
+                // evidence row and make aggregate disposition counts unavailable.
+                key = $"conflict:{value.EventId}";
+                reliable = false;
+                issue = "conflicting stable action identity";
+                _sourceComplete = false;
+            }
+            else
+            {
+                RecordingEventKind kind = value.Sequence >= existing.LatestSequence
+                    ? value.Kind
+                    : existing.Kind;
+                string? detail = value.Sequence >= existing.LatestSequence
+                    ? value.Detail
+                    : existing.Detail;
+                RecordingActionProjection? action = value.Action ?? existing.Action;
+                _items[key] = existing with
+                {
+                    LatestSequence = Math.Max(existing.LatestSequence, value.Sequence),
+                    LatestObservedAt = value.ObservedAt > existing.LatestObservedAt
+                        ? value.ObservedAt
+                        : existing.LatestObservedAt,
+                    Kind = kind,
+                    RecordId = value.RecordId ?? existing.RecordId,
+                    Detail = detail,
+                    Action = action
+                };
+                return true;
+            }
+        }
+
+        _items[key] = new PlatformLiveActionItem(
+            key,
+            reliable,
+            issue,
+            value.Sequence,
+            value.Sequence,
+            value.ObservedAt,
+            value.ObservedAt,
+            value.Kind,
+            value.RecordId,
+            value.Detail,
+            value.Action);
+        if (!reliable)
+            _sourceComplete = false;
+        return true;
+    }
+
+    private static (string Key, bool Reliable, string? Issue) Correlation(RecordingEvent value)
+    {
+        if (!string.IsNullOrWhiteSpace(value.RecordId))
+            return ($"record:{value.RecordId}", true, null);
+        string? boundActionId = StableBoundActionId(value.Action);
+        if (boundActionId != null)
+            return ($"bound-action:{boundActionId}", true, null);
+        return (
+            $"event:{value.EventId}",
+            false,
+            "stable action/root identity unavailable; event retained without aggregation");
+    }
+
+    private static string? StableBoundActionId(RecordingActionProjection? action) =>
+        string.IsNullOrWhiteSpace(action?.BoundActionId) ? null : action.BoundActionId;
+}
+
 /// <summary>
 /// Deterministic, read-only formatting for the recorder's canonical event
 /// projection. No gameplay state is inferred from input, timing or frames.
@@ -15,75 +158,94 @@ internal static class PlatformLiveActionFeed
             or RecordingEventKind.DecisionRecorded
             or RecordingEventKind.DecisionInvalidated;
 
-    internal static string FormatEntry(RecordingEvent value) =>
-        $"#{value.Sequence} {FormatCompactAction(value.Action)} · {FormatLifecycle(value.Kind)}";
+    internal static string FormatEntry(PlatformLiveActionItem value) =>
+        $"#{value.FirstSequence}  {FormatCompactAction(value.Action)}  {FormatLifecycle(value.Kind)}";
 
-    internal static string FormatDetail(RecordingEvent value)
+    internal static string FormatDetail(PlatformLiveActionItem value)
     {
         RecordingActionProjection? action = value.Action;
-        string actionKind = action?.Verb ?? "unavailable";
-        string displayName = action?.Label ?? "unavailable (not present in canonical evidence)";
-        string stableActionId = action?.BoundActionId ?? "unavailable";
-        string stableSubjectId = action?.SubjectReferentId ?? "unavailable";
-        string targets = action == null || action.Arguments.Count == 0
+        string stableActionId = string.IsNullOrWhiteSpace(action?.BoundActionId)
             ? "unavailable"
-            : string.Join(", ", action.Arguments
-                .OrderBy(pair => pair.Key, StringComparer.Ordinal)
-                .Select(pair => $"{pair.Key}={pair.Value}"));
+            : action.BoundActionId;
+        string stableSubjectId = string.IsNullOrWhiteSpace(action?.SubjectReferentId)
+            ? "unavailable"
+            : action.SubjectReferentId;
+        string targets = FormatTargets(action, includeKeys: true, unavailableWhenEmpty: true);
         string effect = string.IsNullOrWhiteSpace(action?.EffectSummary)
             ? "unavailable (not present in canonical evidence)"
             : action.EffectSummary!;
-        string detail = string.IsNullOrWhiteSpace(value.Detail)
-            ? "none"
-            : value.Detail!;
-        return string.Join('\n', new[]
+        var lines = new List<string>
         {
-            $"Action kind: {actionKind}",
-            $"Card / choice display: {displayName}",
-            $"Stable action ID: {stableActionId}",
-            $"Stable subject/card ID: {stableSubjectId}",
-            $"Target IDs: {targets}",
-            $"Effect summary: {effect}",
-            $"Lifecycle: {FormatLifecycle(value.Kind)}",
-            $"Canonical detail: {detail}"
-        });
+            FormatCompactAction(action),
+            FormatLifecycleDetail(value)
+        };
+        if (value.Kind == RecordingEventKind.DecisionRecorded
+            && !string.IsNullOrWhiteSpace(value.RecordId))
+            lines.Add($"Record: {value.RecordId}");
+        if (value.Kind == RecordingEventKind.DecisionInvalidated)
+            lines.Add($"Reason: {Explicit(value.Detail, "unavailable (canonical reason not exposed)")}");
+        if (!value.HasReliableCorrelation)
+            lines.Add($"Correlation: unavailable ({value.CorrelationIssue ?? "stable identity not exposed"})");
+        lines.Add($"Action ID: {stableActionId}");
+        lines.Add($"Subject/card ID: {stableSubjectId}");
+        lines.Add($"Target IDs: {targets}");
+        lines.Add($"Effect: {effect}");
+        return string.Join('\n', lines);
     }
 
-    private static string FormatAction(RecordingActionProjection? action)
+    internal static string FormatLifecycle(RecordingEventKind kind) => kind switch
     {
-        if (action == null)
-            return "Action unavailable (canonical evidence did not expose action facts)";
+        RecordingEventKind.DecisionPending => "… Observed",
+        RecordingEventKind.DecisionRecorded => "✓ Recorded",
+        RecordingEventKind.DecisionInvalidated => "✕ Invalidated",
+        _ => "unavailable"
+    };
 
-        string label = string.IsNullOrWhiteSpace(action.Label) ? "unavailable" : action.Label;
-        string subject = string.IsNullOrWhiteSpace(action.SubjectReferentId)
-            ? ""
-            : $" [{action.SubjectReferentId}]";
-        string targets = action.Arguments.Count == 0
-            ? ""
-            : " → " + string.Join(", ", action.Arguments
-                .OrderBy(pair => pair.Key, StringComparer.Ordinal)
-                .Select(pair => $"{pair.Key} [{pair.Value}]"));
-        return $"{action.Verb} {label}{subject}{targets}".Trim();
-    }
+    private static string FormatLifecycleDetail(PlatformLiveActionItem value) => value.Kind switch
+    {
+        RecordingEventKind.DecisionPending =>
+            "Status: … Observed · waiting for canonical settlement",
+        RecordingEventKind.DecisionRecorded => "Status: ✓ Recorded",
+        RecordingEventKind.DecisionInvalidated => "Status: ✕ Invalidated",
+        _ => "Status: unavailable"
+    };
 
     private static string FormatCompactAction(RecordingActionProjection? action)
     {
         if (action == null)
-            return "Action unavailable";
-        string label = string.IsNullOrWhiteSpace(action.Label) ? action.Verb : action.Label;
-        string targets = action.Arguments.Count == 0
-            ? ""
-            : " → " + string.Join(", ", action.Arguments
-                .OrderBy(pair => pair.Key, StringComparer.Ordinal)
-                .Select(pair => pair.Value));
-        return $"{action.Verb} {label}{targets}".Trim();
+            return "Action unavailable (canonical evidence omitted action facts)";
+        string verb = Humanize(action.Verb, "Action unavailable");
+        string label = string.IsNullOrWhiteSpace(action.Label) ? "unavailable" : action.Label.Trim();
+        string actionText = string.Equals(verb, label, StringComparison.OrdinalIgnoreCase)
+            ? verb
+            : $"{verb} {label}";
+        string targets = FormatTargets(action, includeKeys: false, unavailableWhenEmpty: false);
+        return targets.Length == 0 ? actionText : $"{actionText} → {targets}";
     }
 
-    private static string FormatLifecycle(RecordingEventKind kind) => kind switch
+    private static string FormatTargets(
+        RecordingActionProjection? action,
+        bool includeKeys,
+        bool unavailableWhenEmpty)
     {
-        RecordingEventKind.DecisionPending => "Observed",
-        RecordingEventKind.DecisionRecorded => "Recorded",
-        RecordingEventKind.DecisionInvalidated => "Invalidated",
-        _ => "Canonical"
-    };
+        if (action == null || action.Arguments.Count == 0)
+            return unavailableWhenEmpty ? "unavailable" : "";
+        string value = string.Join(", ", action.Arguments
+            .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+            .Select(pair => includeKeys ? $"{pair.Key}={Explicit(pair.Value)}" : Explicit(pair.Value)));
+        return value.Length == 0 && unavailableWhenEmpty ? "unavailable" : value;
+    }
+
+    private static string Humanize(string? value, string unavailable)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return unavailable;
+        string normalized = value.Replace('_', ' ').Trim();
+        return string.Join(' ', normalized
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
+    }
+
+    private static string Explicit(string? value, string unavailable = "unavailable") =>
+        string.IsNullOrWhiteSpace(value) ? unavailable : value.Trim();
 }

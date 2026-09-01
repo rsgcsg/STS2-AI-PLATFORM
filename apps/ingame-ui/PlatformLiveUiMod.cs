@@ -110,7 +110,7 @@ internal sealed class PlatformLivePanel : IDisposable
     private readonly Dictionary<string, Label> _pageText = new(StringComparer.Ordinal);
     private readonly Dictionary<PlatformCommandMode, Button> _modeButtons = new();
     private readonly Dictionary<STS2HumanAnnotator.Core.RecordingCommandKind, Button> _recordingButtons = new();
-    private readonly List<STS2HumanAnnotator.Core.RecordingEvent> _actionFeed = new();
+    private readonly PlatformLiveActionAggregation _actionFeed = new();
     private readonly List<PlatformLiveToast> _toasts = new();
     private static readonly Color TextPrimary = new("#f3f6fb");
     private static readonly Color TextSecondary = new("#b9c5d6");
@@ -130,6 +130,7 @@ internal sealed class PlatformLivePanel : IDisposable
     private Label _workspaceTitle = null!;
     private Label _recorderTitle = null!;
     private Label _recorderHealth = null!;
+    private Label _recorderCountScope = null!;
     private Label _lastAction = null!;
     private VBoxContainer _actionFeedList = null!;
     private ScrollContainer _recorderScroll = null!;
@@ -457,6 +458,16 @@ internal sealed class PlatformLivePanel : IDisposable
         _recorderHealth.AddThemeColorOverride("font_color", Accent);
         _recorderDetails.AddChild(_recorderHealth);
 
+        _recorderCountScope = new Label
+        {
+            Text = "Records = canonical session total · Recent Actions also includes Pending / Invalidated.",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        _recorderCountScope.AddThemeFontSizeOverride("font_size", 11);
+        _recorderCountScope.AddThemeColorOverride("font_color", TextSecondary);
+        _recorderDetails.AddChild(_recorderCountScope);
+
         var controls = new HBoxContainer { MouseFilter = MouseFilterEnum.Stop };
         controls.AddThemeConstantOverride("separation", 4);
         _recorderDetails.AddChild(controls);
@@ -482,7 +493,7 @@ internal sealed class PlatformLivePanel : IDisposable
 
         var feedHeading = new Label
         {
-            Text = "RECENT ACTIONS · canonical evidence",
+            Text = $"RECENT ACTIONS · latest {PlatformLiveActionFeed.MaxEntries} Human actions",
             MouseFilter = MouseFilterEnum.Ignore
         };
         feedHeading.AddThemeFontSizeOverride("font_size", 12);
@@ -1006,8 +1017,8 @@ internal sealed class PlatformLivePanel : IDisposable
         if (status.PolicyRuntime != null)
             _mode = ParseRuntimeMode(status.PolicyRuntime.Mode);
         ApplyModeButtonState();
-        ApplyRecordingAvailability(status.Recording);
         RefreshActionFeed(status.Recording);
+        ApplyRecordingAvailability(status.Recording);
         _pageText["Overview"].Text = FormatOverview(status);
         _pageText["Environment"].Text = FormatEnvironment(status);
         _pageText["Policy"].Text = FormatPolicy(status);
@@ -1046,7 +1057,14 @@ internal sealed class PlatformLivePanel : IDisposable
         if (_recorderTitle == null)
             return;
         _recorderTitle.Text = "RECORDER";
-        _recorderHealth.Text = $"● {recording.Lifecycle.State} | {recording.Counters.Records} records | Connector: {_connectorTransport}";
+        PlatformLiveActionCounts counts = _actionFeed.Counts;
+        string pending = counts.Exact ? counts.Pending.ToString() : "unavailable";
+        string invalidated = counts.Exact ? counts.Invalidated.ToString() : "unavailable";
+        _recorderHealth.Text =
+            $"● {recording.Lifecycle.State} | Records {recording.Counters.Records} | Pending {pending} | Invalidated {invalidated} | Connector: {_connectorTransport}";
+        _recorderCountScope.Text = counts.Exact
+            ? "Records = canonical session total · Recent Actions also includes Pending / Invalidated."
+            : "Records = canonical session total · Pending / Invalidated unavailable: action correlation evidence is incomplete.";
         _recorderHealth.AddThemeColorOverride("font_color", recording.Lifecycle.State switch
         {
             STS2HumanAnnotator.Core.RecordingLifecycleState.Recording => new Color("#73d39a"),
@@ -1076,7 +1094,7 @@ internal sealed class PlatformLivePanel : IDisposable
         {
             _actionFeedSessionId = sessionId;
             _lastRecordingEventSequence = 0;
-            _actionFeed.Clear();
+            _actionFeed.Reset();
             feedChanged = true;
         }
 
@@ -1087,7 +1105,8 @@ internal sealed class PlatformLivePanel : IDisposable
                     _lastRecordingEventSequence);
             if (batch.Gap)
             {
-                _actionFeed.Clear();
+                _actionFeed.Reset();
+                _actionFeed.MarkSourceIncomplete();
                 _lastRecordingEventSequence = Math.Max(0, batch.OldestAvailableSequence - 1);
                 feedChanged = true;
             }
@@ -1098,21 +1117,15 @@ internal sealed class PlatformLivePanel : IDisposable
                     || !string.Equals(value.SessionId, sessionId, StringComparison.Ordinal)
                     || !PlatformLiveActionFeed.IsActionEvent(value.Kind))
                     continue;
-                _actionFeed.RemoveAll(existing => existing.Sequence == value.Sequence);
-                _actionFeed.Add(value);
-                feedChanged = true;
+                feedChanged |= _actionFeed.Apply(value);
             }
             _lastRecordingEventSequence = Math.Max(_lastRecordingEventSequence, batch.LatestSequence);
-            while (_actionFeed.Count > PlatformLiveActionFeed.MaxEntries)
-            {
-                _actionFeed.RemoveAt(0);
-                feedChanged = true;
-            }
             if (feedChanged)
                 RenderActionFeed();
         }
         catch (Exception exception)
         {
+            _actionFeed.MarkSourceIncomplete();
             _lastAction.Text = "LAST ACTION\nUnavailable (canonical event projection failed).";
             PushToast("recording.feed", $"Action Feed unavailable: {exception.Message}");
         }
@@ -1125,15 +1138,14 @@ internal sealed class PlatformLivePanel : IDisposable
         foreach (Node child in _actionFeedList.GetChildren())
             child.QueueFree();
 
-        STS2HumanAnnotator.Core.RecordingEvent? newest = _actionFeed
-            .OrderByDescending(value => value.Sequence)
-            .FirstOrDefault();
+        IReadOnlyList<PlatformLiveActionItem> recent =
+            _actionFeed.Recent(PlatformLiveActionFeed.MaxEntries);
+        PlatformLiveActionItem? newest = recent.FirstOrDefault();
         _lastAction.Text = newest == null
             ? "LAST ACTION\nNone observed yet."
             : $"LAST ACTION\n{PlatformLiveActionFeed.FormatDetail(newest)}";
 
-        foreach (STS2HumanAnnotator.Core.RecordingEvent value in _actionFeed
-                     .OrderByDescending(item => item.Sequence))
+        foreach (PlatformLiveActionItem value in recent)
         {
             var item = new PanelContainer
             {
