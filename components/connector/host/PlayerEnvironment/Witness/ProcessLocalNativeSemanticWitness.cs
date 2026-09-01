@@ -81,9 +81,14 @@ public static class PlayerEnvironmentNativeSemanticWitness
     public static ProcessLocalNativeSemanticCapture Capture(
         string phase,
         GameAction? observedAction = null,
-        ProcessLocalNativeWitnessFrame? uiFrame = null)
+        ProcessLocalNativeWitnessFrame? uiFrame = null,
+        Action<ProcessLocalNativeWitnessFrame>? capturedUiFrame = null)
     {
-        uiFrame ??= PlayerEnvironmentNativeWitness.Capture();
+        if (uiFrame == null)
+        {
+            uiFrame = PlayerEnvironmentNativeWitness.Capture();
+            capturedUiFrame?.Invoke(uiFrame);
+        }
         ProcessLocalUiCatalogObservation ui = BuildUiCatalog(uiFrame, observedAction);
         try
         {

@@ -3034,15 +3034,38 @@ internal static class RecorderRuntime
             capabilities.Game.Modset.Fingerprint);
     }
 
-    private static ProcessLocalNativeWitnessFrame CaptureReadRichFrame() =>
-        MeasureStore(
+    private static ProcessLocalNativeWitnessFrame CaptureReadRichFrame()
+    {
+        ProcessLocalNativeWitnessFrame frame = MeasureStore(
             "read_rich_snapshot_capture",
             () => PlayerEnvironmentNativeWitness.Capture(SemanticBoundaryReadPolicy.RequiredKinds));
+        RecordCaptureSubphases("read_rich", frame);
+        return frame;
+    }
 
-    private static ProcessLocalNativeWitnessFrame CaptureSemanticFrame() =>
-        MeasureStore(
+    private static ProcessLocalNativeWitnessFrame CaptureSemanticFrame()
+    {
+        ProcessLocalNativeWitnessFrame frame = MeasureStore(
             "semantic_snapshot_capture",
             () => PlayerEnvironmentNativeWitness.Capture(SemanticBoundaryReadPolicy.RequiredKinds));
+        RecordCaptureSubphases("semantic", frame);
+        return frame;
+    }
+
+    private static void RecordCaptureSubphases(
+        string callSite,
+        ProcessLocalNativeWitnessFrame frame)
+    {
+        V2RecordingStore? store = _store;
+        if (store == null)
+            return;
+        foreach (ProcessLocalCaptureTiming timing in frame.CaptureTimings)
+        {
+            store.ObservePerformance(
+                $"full_capture.{callSite}.{timing.Phase}",
+                timing.ElapsedMicroseconds);
+        }
+    }
 
     private static T MeasureStore<T>(string phase, Func<T> operation)
     {

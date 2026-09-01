@@ -12,6 +12,25 @@ namespace STS2Connector.Tests;
 public sealed class PlayerEnvironmentContractTests
 {
     [Fact]
+    public void ProcessImmutableIdentityIsComputedOnceAndReused()
+    {
+        int calls = 0;
+        var cache = new ProcessImmutableValue<LoadedMainAssemblyIdentity>(() =>
+        {
+            calls++;
+            return new LoadedMainAssemblyIdentity("sha", "mvid");
+        });
+
+        LoadedMainAssemblyIdentity first = cache.Read();
+        LoadedMainAssemblyIdentity second = cache.Read();
+
+        Assert.Same(first, second);
+        Assert.Equal(1, calls);
+        Assert.Equal("sha", second.Sha256);
+        Assert.Equal("mvid", second.ModuleVersionId);
+    }
+
+    [Fact]
     public void SettlingSnapshotsCannotPublishMutationAuthority()
     {
         Assert.False(PlayerEnvironmentService.CanPublishMutationAuthority("settling"));

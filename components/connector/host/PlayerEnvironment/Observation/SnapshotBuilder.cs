@@ -9,6 +9,7 @@ using STS2Connector.LiveHost;
 using STS2Connector.LiveHost.Contracts;
 using STS2Connector.PlayerEnvironment.Protocol;
 using STS2Connector.NativeUi;
+using STS2Connector.PlayerEnvironment.Witness;
 
 namespace STS2Connector.PlayerEnvironment;
 
@@ -17,19 +18,27 @@ internal static partial class PlayerEnvironmentService
     internal static SnapshotBuildResult BuildSnapshot(
         bool suppressNativePageEvidence = true,
         IReadOnlyCollection<string>? requiredReadKinds = null,
-        Func<string, IReadOnlyCollection<string>>? requiredReadKindsForInteraction = null)
+        Func<string, IReadOnlyCollection<string>>? requiredReadKindsForInteraction = null,
+        ProcessLocalCaptureProfiler? captureProfiler = null)
     {
-        GameBuildIdentity game = EnvironmentIdentityRuntime.ReadGame();
-        LiveObservation? sourceFreeSurface =
-            NativeGeneratedCardChoice.TryBuild(Entities, game)
-            ?? NativeSimpleCardSelection.TryBuild(Entities, game)
-            ?? NativeDeckUpgradeSelection.TryBuild(Entities, game)
-            ?? NativeDeckTransformSelection.TryBuild(Entities, game)
-            ?? NativeCombatPileSelection.TryBuild(Entities, game)
-            ?? NativeDeckCardSelection.TryBuild(Entities, game)
-            ?? NativeRestSite.TryBuild(Entities, game);
-        LiveObservation draft = sourceFreeSurface
-            ?? LiveObservationReader.Build(Entities, game);
+        T Measure<T>(string phase, Func<T> operation) =>
+            captureProfiler == null ? operation() : captureProfiler.Measure(phase, operation);
+
+        GameBuildIdentity game = Measure(
+            "game_identity",
+            EnvironmentIdentityRuntime.ReadGame);
+        LiveObservation draft = Measure("native_surface_state", () =>
+        {
+            LiveObservation? sourceFreeSurface =
+                NativeGeneratedCardChoice.TryBuild(Entities, game)
+                ?? NativeSimpleCardSelection.TryBuild(Entities, game)
+                ?? NativeDeckUpgradeSelection.TryBuild(Entities, game)
+                ?? NativeDeckTransformSelection.TryBuild(Entities, game)
+                ?? NativeCombatPileSelection.TryBuild(Entities, game)
+                ?? NativeDeckCardSelection.TryBuild(Entities, game)
+                ?? NativeRestSite.TryBuild(Entities, game);
+            return sourceFreeSurface ?? LiveObservationReader.Build(Entities, game);
+        });
         if (suppressNativePageEvidence)
             draft = NativePageEvidence.SuppressMutation(draft);
         draft = draft with
@@ -45,19 +54,22 @@ internal static partial class PlayerEnvironmentService
                     "The exact current native UI owns input.")
         };
 
-        PersistentVisibleStateBuildResult shared = game.Compatibility.StateObservationAllowed
-            ? PersistentVisibleStateReader.Build(Entities)
-            : new PersistentVisibleStateBuildResult(false, null, null);
+        PersistentVisibleStateBuildResult shared = Measure(
+            "persistent_visible_state",
+            () => game.Compatibility.StateObservationAllowed
+                ? PersistentVisibleStateReader.Build(Entities)
+                : new PersistentVisibleStateBuildResult(false, null, null));
         draft = LiveObservationReader.ApplyMissingPersistentStatePolicy(draft, shared);
         IReadOnlyCollection<string>? selectedReadKinds = requiredReadKinds
             ?? requiredReadKindsForInteraction?.Invoke(draft.Surface.Kind);
-        IReadOnlyDictionary<string, PlayerReadBuildResult> readBuilds =
-            BuildRequiredReads(selectedReadKinds, draft.Context);
-        bool shopCatalogAvailable = ShopSurfaceFacts.TryGetCurrent(out _, out _, out _);
-        PlayerVisibilityProjection information = PlayerVisibilityCatalog.Build(
-            draft,
-            shared.State != null,
-            shopCatalogAvailable);
+        IReadOnlyDictionary<string, PlayerReadBuildResult> readBuilds = Measure(
+            "required_read_builds",
+            () => BuildRequiredReads(selectedReadKinds, draft.Context));
+        PlayerVisibilityProjection information = Measure("visibility_catalog", () =>
+        {
+            bool shopCatalogAvailable = ShopSurfaceFacts.TryGetCurrent(out _, out _, out _);
+            return PlayerVisibilityCatalog.Build(draft, shared.State != null, shopCatalogAvailable);
+        });
         IReadOnlyList<PlayerReadCatalogEntry> readCatalog = information.ReadCatalog;
         IReadOnlyList<PlayerEnvironmentLinkedDetailCatalogEntry> linkedDetails =
             BuildLinkedDetailCatalog(draft.Surface);
@@ -72,16 +84,20 @@ internal static partial class PlayerEnvironmentService
                 .Where(value => value != "linked_entity_detail_catalog_not_implemented")
                 .ToArray()
         };
-        JsonNode rawSurface = JsonSerializer.SerializeToNode(
-            draft.Surface,
-            draft.Surface.GetType(),
-            ConnectorMod._jsonOptions) ?? new JsonObject();
-        PlayerEnvironmentInteractionContent surfaceContent =
-            ProjectVisibleFacts(draft.Surface, draft.Context);
-        IReadOnlyList<NativeUiBoundAction> nativeBindings =
-            CanPublishMutationAuthority(draft.Readiness)
+        JsonNode rawSurface = Measure(
+            "surface_serialization",
+            () => JsonSerializer.SerializeToNode(
+                draft.Surface,
+                draft.Surface.GetType(),
+                ConnectorMod._jsonOptions) ?? new JsonObject());
+        PlayerEnvironmentInteractionContent surfaceContent = Measure(
+            "visible_surface_projection",
+            () => ProjectVisibleFacts(draft.Surface, draft.Context));
+        IReadOnlyList<NativeUiBoundAction> nativeBindings = Measure(
+            "native_binding_catalog",
+            () => CanPublishMutationAuthority(draft.Readiness)
                 ? BuildPlayerEnvironmentBindings(draft)
-                : Array.Empty<NativeUiBoundAction>();
+                : Array.Empty<NativeUiBoundAction>());
         string interactionId = ReadFirstString(
             rawSurface,
             "screen_entity_id",
@@ -91,10 +107,12 @@ internal static partial class PlayerEnvironmentService
             ?? nativeBindings.SelectMany(item => item.Candidate.EntityBindings)
                 .FirstOrDefault(entity => IsOwnerRole(entity.Role))?.EntityId
             ?? "interaction_" + StableIdentityHash.Object(new { draft.Surface.Kind, draft.Signature })[..20];
-        Dictionary<string, PlayerEnvironmentReferent> referents =
-            BuildFactReferents(surfaceContent);
-        BoundActionProjectionResult projected =
-            ProjectBoundActions(nativeBindings, interactionId, referents);
+        Dictionary<string, PlayerEnvironmentReferent> referents = Measure(
+            "referent_projection",
+            () => BuildFactReferents(surfaceContent));
+        BoundActionProjectionResult projected = Measure(
+            "bound_action_projection",
+            () => ProjectBoundActions(nativeBindings, interactionId, referents));
         IReadOnlyList<PlayerEnvironmentInteractionCapability> capabilities =
             ProjectInteractionCapabilities(projected.Projection, referents);
         string stage = ReadFirstString(rawSurface, "stage") ?? draft.Readiness;
@@ -120,7 +138,7 @@ internal static partial class PlayerEnvironmentService
                 Array.Empty<string>())))
             .OrderBy(read => read.ReadId, StringComparer.Ordinal)
             .ToArray();
-        string signature = StableIdentityHash.Object(new
+        string signature = Measure("stable_snapshot_signature", () => StableIdentityHash.Object(new
         {
             game.Version,
             game.Commit,
@@ -132,7 +150,7 @@ internal static partial class PlayerEnvironmentService
             authority = CanonicalAuthoritySignature(nativeBindings),
             reads,
             visibility.HiddenByPolicy
-        });
+        }));
         (string snapshotId, long sequence) = SnapshotIdentity.Observe(signature);
         bool visibleUnsupported = draft.Surface is UnsupportedSurface;
         bool actionsPublished = projected.Projection.Status == "complete"

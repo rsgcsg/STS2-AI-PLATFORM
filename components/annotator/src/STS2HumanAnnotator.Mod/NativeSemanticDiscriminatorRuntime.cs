@@ -52,7 +52,14 @@ internal static class NativeSemanticDiscriminatorRuntime
                     uiFrame == null
                         ? "native_semantic_discriminator_snapshot_capture"
                         : "native_semantic_discriminator_frame_projection",
-                    () => PlayerEnvironmentNativeSemanticWitness.Capture(phase, action, uiFrame))
+                    () => PlayerEnvironmentNativeSemanticWitness.Capture(
+                        phase,
+                        action,
+                        uiFrame,
+                        captured => RecordCaptureSubphases(
+                            store,
+                            "native_semantic_discriminator",
+                            captured)))
                 : null;
             string actionWitnessId = NativeWitnessIdentity.Get(action, "game_action");
             store.AppendNativeSemanticDiscriminatorEvent(CreateEvent(
@@ -81,6 +88,19 @@ internal static class NativeSemanticDiscriminatorRuntime
                 lock (Gate)
                     TrackedActions.Remove(action);
             }
+        }
+    }
+
+    private static void RecordCaptureSubphases(
+        V2RecordingStore store,
+        string callSite,
+        ProcessLocalNativeWitnessFrame frame)
+    {
+        foreach (ProcessLocalCaptureTiming timing in frame.CaptureTimings)
+        {
+            store.ObservePerformance(
+                $"full_capture.{callSite}.{timing.Phase}",
+                timing.ElapsedMicroseconds);
         }
     }
 

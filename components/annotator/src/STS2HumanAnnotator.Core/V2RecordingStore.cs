@@ -76,6 +76,9 @@ public sealed class V2RecordingStore : IDisposable
     public void Measure(string phase, Action operation) =>
         _performance.Measure(phase, operation);
 
+    public void ObservePerformance(string phase, long elapsedMicroseconds) =>
+        _performance.ObserveMicroseconds(phase, elapsedMicroseconds);
+
     public RecordingStoreSnapshot GetSnapshot()
     {
         lock (_gate)

@@ -31,6 +31,23 @@ public sealed class RecordingPerformanceProfiler
                 return true;
             });
 
+    public void ObserveMicroseconds(string phase, long microseconds)
+    {
+        if (string.IsNullOrWhiteSpace(phase))
+            throw new ArgumentException("Performance phase must be non-empty.", nameof(phase));
+        if (microseconds < 0)
+            throw new ArgumentOutOfRangeException(nameof(microseconds));
+        lock (_gate)
+        {
+            if (!_phases.TryGetValue(phase, out PhaseSamples? samples))
+            {
+                samples = new PhaseSamples();
+                _phases.Add(phase, samples);
+            }
+            samples.Add(microseconds);
+        }
+    }
+
     public RecordingPerformanceReport Snapshot(string sessionId)
     {
         lock (_gate)
@@ -57,15 +74,7 @@ public sealed class RecordingPerformanceProfiler
             throw new ArgumentException("Performance phase must be non-empty.", nameof(phase));
         long microseconds = (long)Math.Ceiling(
             elapsedTicks * 1_000_000d / Stopwatch.Frequency);
-        lock (_gate)
-        {
-            if (!_phases.TryGetValue(phase, out PhaseSamples? samples))
-            {
-                samples = new PhaseSamples();
-                _phases.Add(phase, samples);
-            }
-            samples.Add(microseconds);
-        }
+        ObserveMicroseconds(phase, microseconds);
     }
 
     private sealed class PhaseSamples
