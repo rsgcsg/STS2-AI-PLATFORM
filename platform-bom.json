@@ -10,7 +10,7 @@
     },
     "connector": {
       "version": "1.2.0-rc.6",
-      "source_revision": "4b4e1f7e7bad7108f73863262364b8e385fc8412",
+      "source_revision": "791e27172c39e5c4ce33a415b16fc1ea7f060513",
       "component_tree_revision": "cec1ab3f337b9dff0fb48786b11917ef0fe0d3ca",
       "component_source_digest_sha256": "62cf373d100e33266764a16c504f5f9deb1f110d178f4e499f7f9d2802b6c536"
     },
@@ -22,9 +22,9 @@
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "6432b8bf5bd8226916eb5b32dac7bd23136e983e",
-      "component_tree_revision": "187cac2551e3e5915dc7d59f6067577a00e4f11d",
-      "component_source_digest_sha256": "beabd2ecec2114bd2ca003be215e631f3cae59e77623539e195db5ae58596da0"
+      "source_revision": "7ed108ce8f6f5ea044c98645b97b31b4659cdb88",
+      "component_tree_revision": "9cef3997f1a465f88ee29cc93f21b0b093620512",
+      "component_source_digest_sha256": "61204f1e5cb03ef737ee4229a6a4159e5032183150b739a26a591726c677fda1"
     },
     "evidence": {
       "version": "0.1.0-rc.1",
