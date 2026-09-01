@@ -7,14 +7,14 @@
   logical/native catalog.
 - Complete at source/test: route Annotator action lifecycle and PlayerChoice
   parent lineage through one read-only Foundation adapter.
-- Complete at source/test/build on PR #6: route
+- Complete and merged in PR #6: route
   Map destinations, Reward choices/proceed and CardReward options through
   typed shared Native Foundation decision providers. Connector intersects
   presentation/delivery and Annotator consumes the same catalog.
 - Complete at source/test: route Treasure chest, exact relic choice, skip and
   proceed through `NativeTreasureDecisionProvider`; visible controls remain
   delivery bindings only.
-- Complete at source/test on PR #6: remove provider-specific action-key and
+- Complete and merged in PR #6: remove provider-specific action-key and
   membership copies, carry exact unselected rewards in one native capture, and
   use request-local reference indexes for Map/Reward/CardReward presentation
   intersection. This is allocation/enumeration hardening, not runtime latency
@@ -37,14 +37,20 @@
 - Complete on predecessor PR #6 artifact `3bc44ddb... / 708ecfab...`: exact
   build, safe install/rollback and bounded main-menu cold-load on macOS. This
   evidence does not transfer across the restack.
-- Complete at source/test/build/load on PR #6: one modern semantic timeline now
+- Complete at source/test/build/load/Human on PR #6: one modern semantic timeline now
   separates Human Root, exact native Commit, and later Successor Boundary.
   Async Tasks carry durable root/owner/operand/lineage identity; shared methods
   are family-neutral; strict-V2 ledger and discriminator are non-authoritative.
-  Exact artifact `b637d380... / 9286ca51...` is cold-loaded with sole
-  `STS2_PLATFORM`. Representative Map/Reward/CardReward/Treasure Human runtime
-  remains pending; no predecessor Human evidence transfers.
-- Next after PR #6 requalification: migrate Shop,
+  Exact final artifact `2382b3dd... / b1a7d1f1...` is cold-loaded with sole
+  `STS2_PLATFORM`; session `session-20260901T061040Z-561a204be0bc422da5809e1ec5c148aa`
+  passes strict V2, modern 25/25, Map 7/7 and typed owner-ready 5/5 with no
+  unresolved transition or close-drain timeout. No predecessor Human evidence
+  transfers.
+- In progress before new domains: the bounded pre-Full-Run hardening pass
+  centralizes durable semantic-boundary mapping and typed Connector surface
+  composition, protects exact candidate identity, records a current performance
+  baseline and publishes trigger-bound deferred debt.
+- Next after hardening: migrate Shop,
   Event, Rest, run entry, and terminal by native mechanism. Remove each old
   publication/witness path only after both consumers use the shared adapter.
 

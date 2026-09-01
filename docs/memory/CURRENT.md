@@ -6,8 +6,10 @@ requests, or dated evidence.
 
 ## Current phase
 
-`develop@c751952...` now contains the completed PR #3 and PR #5 production
-lines. The integrated PR #3 history preserves gameplay-safe commit
+`develop@a6389de...` contains the completed PR #3, PR #5 and PR #6 production
+lines. PR #6 is merged and Human-qualified for its explicitly bounded scope;
+the active topic is the independent pre-Full-Run hardening branch based on that
+exact `develop` commit. The integrated PR #3 history preserves gameplay-safe commit
 `4384a14...` as a non-release tag and contains a bounded Human-proved read-only
 native semantic sequential lane. Exact session
 `session-20260830T064823Z-...` records 41/41 successful roots as exact-once in
@@ -50,10 +52,11 @@ The durable result is in the
 
 ## Active workstreams
 
-- PR #6, `refactor/platform/native-foundation-full-run-mainline`, is the sole
-  open topic. It is directly based on `develop@c751952...` and contains the
-  Map/Reward/CardReward/Treasure Native Foundation continuation.
-- PR #3 and PR #5 are merged integration history. Ritsu research PRs #7 and #8
+- `refactor/platform/pre-full-run-hardening` is the sole Platform topic owned by
+  this workstream. It is directly based on `develop@a6389de...` and is limited
+  to evidence-mapping, action-composition, identity, current performance
+  evidence and deferred-debt closure before the next domain expansion.
+- PR #3, PR #5 and PR #6 are merged integration history. Ritsu research PRs #7 and #8
   are closed without their experimental runtime code; durable findings live in
   ADR 0004 and the final route-decision packet.
 - Repository System v1 remains the integrated governance baseline. It changes
@@ -69,10 +72,10 @@ The durable result is in the
 - The S1 checkpoint named by the current Policy Manifest is unavailable on this
   Mac, so real-model Shadow, One-Step, Auto, and Agent-run evidence remain
   unexercised.
-- The Native Foundation Human gate is complete for its bounded scope. It is not
-  exhaustive Full-Run qualification. PR #6's current exact candidate and
+- The Native Foundation Human gate is complete for PR #6's bounded scope. It is
+  not exhaustive Full-Run qualification. The exact merged candidate and
   owner-attested Human qualification are recorded below; predecessor evidence
-  does not transfer.
+  does not transfer to it or from it to new runtime bytes.
 - Historical PR #6 predecessor source `f320ef6...` separated Human Root, exact Native
   Commit and later Successor Boundary. Its same-bytes Human sessions prove
   Reward and Map stable but expose CardReward nested-owner and Treasure
@@ -94,12 +97,18 @@ The durable result is in the
 
 ## Next meaningful gates
 
-- PR #6 current candidate is Human-qualified: artifact `2382b3dd... /
+- PR #6's merged candidate remains Human-qualified: artifact `2382b3dd... /
   b1a7d1f1...`, runtime `a00b1852...`, environment `c9cc1a5d...`, and Modset
   `79bdf7ca...`. Session `session-20260901T061040Z-561a204be0bc422da5809e1ec5c148aa`
   passes strict V2, modern 25/25, Map 7/7 and owner-ready 5/5 with no
-  unresolved transition or close-drain timeout. Remaining work is evidence and
-  PR closeout; broader Full-Run domains remain outside this qualification.
+  unresolved transition or close-drain timeout.
+- The hardening topic must pass portable and exact-game checks, clean build,
+  safe install and exact cold-load. Because its Connector composition and
+  Annotator runtime mapping change compiled bytes, PR #6 Human evidence remains
+  historical and a short exact-candidate runtime/Human gate must be stated
+  explicitly rather than transferred.
+- Shop, Event, Rest, run entry and terminal remain the next Full-Run domain
+  expansion after this bounded hardening closeout.
 
 Use `npm run project:context` to start a task and
 `npm run project:closeout` to surface likely documentation, evidence, contract,

@@ -35,6 +35,63 @@ public sealed record SemanticBoundaryObservationReference(
 }
 
 /// <summary>
+/// Keeps the in-memory and durable boundary representations structurally
+/// aligned. Frame persistence and frame resolution remain owned by the caller;
+/// this codec only maps evidence fields and never establishes semantic proof.
+/// </summary>
+public static class SemanticBoundaryObservationCodec
+{
+    public static SemanticBoundaryObservationReference Encode(
+        SemanticBoundaryObservation observation,
+        Func<FrozenDecisionFrameV2, SemanticFrameReference> persistFrame)
+    {
+        ArgumentNullException.ThrowIfNull(observation);
+        ArgumentNullException.ThrowIfNull(persistFrame);
+
+        return new SemanticBoundaryObservationReference(
+            observation.WitnessKind,
+            observation.ObservedAt,
+            observation.SnapshotId,
+            observation.Status,
+            observation.BoundActionsStatus,
+            observation.InteractionId,
+            observation.InteractionKind,
+            observation.State == null ? null : persistFrame(observation.State),
+            observation.ImmediatelyConsumedByActionWitnessId)
+        {
+            StateCompleteness = observation.StateCompleteness,
+            RequiredReadsStatus = observation.RequiredReadsStatus,
+            StateBlockers = observation.StateBlockers,
+            NativeDecisionOwnerReady = observation.NativeDecisionOwnerReady
+        };
+    }
+
+    public static SemanticBoundaryObservation Materialize(
+        SemanticBoundaryObservationReference reference,
+        FrozenDecisionFrameV2? resolvedState)
+    {
+        ArgumentNullException.ThrowIfNull(reference);
+
+        return new SemanticBoundaryObservation(
+            reference.WitnessKind,
+            reference.ObservedAt,
+            reference.SnapshotId,
+            reference.Status,
+            reference.BoundActionsStatus,
+            reference.InteractionId,
+            reference.InteractionKind,
+            resolvedState,
+            reference.ImmediatelyConsumedByActionWitnessId)
+        {
+            StateCompleteness = reference.StateCompleteness,
+            RequiredReadsStatus = reference.RequiredReadsStatus,
+            StateBlockers = reference.StateBlockers,
+            NativeDecisionOwnerReady = reference.NativeDecisionOwnerReady
+        };
+    }
+}
+
+/// <summary>
 /// Native completion identity attached to the semantic proof it caused. This
 /// is evidence metadata only; it never authorizes or executes an action.
 /// </summary>

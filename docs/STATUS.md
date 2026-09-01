@@ -13,16 +13,33 @@ GitHub enforcement is an operational fact separate from this source document;
 the workflow records intended rules, while repository settings must be checked
 directly before claiming protection.
 
-## Native Foundation candidate
+## Current pre-Full-Run hardening
 
-PR #3 and PR #5 are integrated in `develop@c751952...` through the protected
+PR #6 is merged in `develop@a6389de...`. Its final exact candidate and bounded
+Human qualification are recorded below. The active hardening topic is based on
+that exact develop commit and changes only durable evidence mapping, Connector
+surface composition/exact candidate identity, tests, current performance
+evidence and closeout documentation. It does not add a Full-Run domain or alter
+STS2/Connector/Annotator authority.
+
+The latest exact performance baseline is the PR #6 Human session
+`session-20260901T061040Z-561a204be0bc422da5809e1ec5c148aa`. Snapshot capture,
+not frame projection or append serialization, remains the dominant synchronous
+cost. Exact trace inspection found no safely removable same-boundary duplicate:
+the discriminator captures are distinct execution/resume compatibility
+boundaries, and canonical Map capture already delegates instead of recapturing.
+No performance rewrite is justified in this topic. See the
+[deferred-debt register](PREFULLRUN_DEFERRED_DEBT.md).
+
+## Native Foundation integration history
+
+PR #3, PR #5 and PR #6 are integrated in `develop@a6389de...` through the protected
 PR flow. Their gameplay-safe semantic baseline, Native Foundation Combat and
 PlayerChoice adapters, exact Windows Human closeout, and final Ritsu route
 decision are now durable integration history. Ritsu remains an external design
 reference only: there is no runtime or package dependency.
 
-PR #6 is the sole active topic and is directly based on that `develop` commit.
-Its continuation source deepens Map, Reward, CardReward and Treasure from
+PR #6's merged continuation deepens Map, Reward, CardReward and Treasure from
 owner discrimination to four typed Native Foundation decision adapters.
 The providers read `RunState`/`MapTravel`, the exact `RewardsSet`, and exact
 card-reward option arrays. Connector now intersects those native catalogs with

@@ -505,22 +505,7 @@ public static class V2RecordingAuditor
                 value.Boundary.StateRef,
                 semanticFrames,
                 errors);
-            boundary = new SemanticBoundaryObservation(
-                value.Boundary.WitnessKind,
-                value.Boundary.ObservedAt,
-                value.Boundary.SnapshotId,
-                value.Boundary.Status,
-                value.Boundary.BoundActionsStatus,
-                value.Boundary.InteractionId,
-                value.Boundary.InteractionKind,
-                state,
-                value.Boundary.ImmediatelyConsumedByActionWitnessId)
-            {
-                StateCompleteness = value.Boundary.StateCompleteness,
-                RequiredReadsStatus = value.Boundary.RequiredReadsStatus,
-                StateBlockers = value.Boundary.StateBlockers,
-                NativeDecisionOwnerReady = value.Boundary.NativeDecisionOwnerReady
-            };
+            boundary = SemanticBoundaryObservationCodec.Materialize(value.Boundary, state);
         }
 
         return new SemanticBoundaryTraceEvent(

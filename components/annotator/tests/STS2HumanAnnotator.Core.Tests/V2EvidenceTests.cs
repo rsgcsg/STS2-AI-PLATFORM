@@ -902,19 +902,21 @@ public sealed class V2EvidenceTests
                     "combat-owner",
                     "MegaCrit.Sts2.Core.Combat.CombatState",
                     "CombatManager.TurnStarted->NEndTurnButton.OnTurnStarted.postfix");
-                var boundary = new SemanticBoundaryObservationReference(
-                    SemanticBoundaryWitnessKinds.NativeDecisionOwnerReady,
-                    DateTimeOffset.UnixEpoch.AddSeconds(1),
-                    successor.SnapshotId,
-                    "interactive",
-                    "complete",
-                    successor.InteractionId,
-                    successor.InteractionKind,
-                    successorRef,
-                    null)
-                {
-                    NativeDecisionOwnerReady = ownerReady
-                };
+                var boundary = SemanticBoundaryObservationCodec.Encode(
+                    new SemanticBoundaryObservation(
+                        SemanticBoundaryWitnessKinds.NativeDecisionOwnerReady,
+                        DateTimeOffset.UnixEpoch.AddSeconds(1),
+                        successor.SnapshotId,
+                        "interactive",
+                        "complete",
+                        successor.InteractionId,
+                        successor.InteractionKind,
+                        successor,
+                        null)
+                    {
+                        NativeDecisionOwnerReady = ownerReady
+                    },
+                    store.PersistSemanticFrame);
                 var executionBoundary = new SemanticBoundaryObservationReference(
                     SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
                     DateTimeOffset.UnixEpoch,
