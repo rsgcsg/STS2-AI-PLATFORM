@@ -447,7 +447,8 @@ internal sealed class PlatformLivePanel : IDisposable
         button.AddThemeStyleboxOverride("pressed", MakePanelStyle(
             new Color("#1e819b"), new Color("#9ae8f5"), 7, 2, 8));
         button.AddThemeStyleboxOverride("disabled", MakePanelStyle(
-            new Color("#1a232d"), new Color("#34404d"), 7, 1, 8));
+            selected ? new Color("#233b45") : new Color("#1a232d"),
+            selected ? new Color("#4d8a98") : new Color("#34404d"), 7, 1, 8));
         button.AddThemeStyleboxOverride("focus", MakePanelStyle(
             new Color("#315267"), Accent, 7, 2, 8));
     }
