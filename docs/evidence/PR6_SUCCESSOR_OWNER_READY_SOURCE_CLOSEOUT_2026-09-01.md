@@ -1,8 +1,8 @@
 # PR #6 Successor Owner-Ready Source Closeout
 
 Date: 2026-09-01  
-Evidence level: exact-native inspection, source and deterministic tests. Exact
-clean build/install/load and Human qualification are pending.
+Evidence level: exact-native inspection, source, deterministic tests, exact
+clean build, safe install and cold-load. Human qualification is pending.
 
 ## Counterexample and root cause
 
@@ -58,8 +58,20 @@ Annotator Core passes 121 tests, including missing/mismatched/incomplete owner
 evidence and owner-ready-versus-next-root double settlement. The persisted
 root/Commit/owner-ready path audits end to end. Game-Mod boundary tests pass 45
 tests and exact compilation resolves the private shipped method with zero
-warnings. Final exact candidate identities and load evidence will be appended
-after the clean committed build.
+warnings. Root portable and exact-game checks pass.
+
+Clean build workspace `7dd4e5a34c0e426ba54d2baf02420d8e0db08691`
+contains semantic source `c1b3144f07ba210c7f7064087d0d37bb3c9a2e66`.
+The unified artifact is
+`627b5b6980c8477bbfd42631140e18dd75177299c2c84ff650854024fbae4858 /
+f19b8863-a15f-4574-89ac-68954fee5944`. Safe install and cold-load pass in
+Connector runtime `c296ec997abd4d7dbbfbfa1ec74596f1`, environment
+`0c47c311da4d775232e9e920a70044a5f5ca4aad38555fefe82b5313f332816e`,
+and exact sole-Platform Modset
+`c8dd91e3283d347f17f886b9ad81063ccb9660dc3d4637cffb8b02b5763d67ce`.
+Recorder is Ready with no open session. Rollback is
+`apps/game-mod/.local/deployments/2026-09-01T05-17-12.536Z`. Startup contains
+no Platform, Harmony, Native Foundation or Annotator error.
 
 Because production bytes changed, prior Human sessions remain historical
 evidence only. The shortest new gate is exact Map travel into Combat, wait until

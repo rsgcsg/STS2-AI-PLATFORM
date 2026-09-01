@@ -86,8 +86,11 @@ The durable result is in the
   than early Close: `NativeDecisionOwnerReady` had no publisher. Source
   `c1b3144...` adds one exact typed Combat publisher after native play phase and
   input-owner readiness, plus complete domain-matching Connector capture and
-  durable owner/mechanism evidence. Source/tests pass; new build/load/Human
-  evidence is pending and no predecessor Human qualification transfers.
+  durable owner/mechanism evidence. Root/exact checks, clean build, safe install
+  and cold-load pass as artifact `627b5b69... / f19b8863...`, runtime
+  `c296ec99...`, environment `0c47c311...`, sole-Platform Modset
+  `c8dd91e3...`; only the new Human canary remains and no predecessor Human
+  qualification transfers.
 
 ## Next meaningful gates
 

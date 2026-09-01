@@ -118,9 +118,13 @@ semantic `Play`, executor unpause, synchronizer `PlayPhase`, and the
 `NEndTurnButton.OnTurnStarted` input-owner callback. Annotator still requires a
 complete, domain-matching Connector frame and persists exact owner/mechanism
 evidence. Earlier `RoomEntered`, `CombatBegan`, and visual active-combat events
-are rejected as too early. Source/tests pass; exact clean build/install/load and
-the no-next-Human-input Map canary remain pending. Prior Human evidence does not
-transfer to these bytes. See the [successor owner-ready closeout](evidence/PR6_SUCCESSOR_OWNER_READY_SOURCE_CLOSEOUT_2026-09-01.md).
+are rejected as too early. Root/exact checks, clean build, safe install and
+cold-load pass as artifact `627b5b69... / f19b8863...`, runtime `c296ec99...`,
+environment `0c47c311...`, and sole-Platform Modset `c8dd91e3...`; rollback is
+`apps/game-mod/.local/deployments/2026-09-01T05-17-12.536Z`. The
+no-next-Human-input Map canary is the only remaining qualification gate. Prior
+Human evidence does not transfer to these bytes. See the [successor owner-ready
+closeout](evidence/PR6_SUCCESSOR_OWNER_READY_SOURCE_CLOSEOUT_2026-09-01.md).
 
 A fresh exact clean build is now available as game-Mod artifact
 `f9f616dafe6aa4f7733c81caad3a79ddbe771adbb7b9e46bd79c310138d8efc2 /
