@@ -1,5 +1,10 @@
 namespace STS2HumanAnnotator.Core;
 
+/// <summary>
+/// Historical durable native-lifecycle evidence contract. New runtime causal
+/// admission is owned exclusively by SemanticBoundaryTracker; this contract
+/// remains readable so existing recordings and audits retain their meaning.
+/// </summary>
 public static class NativeActionLedgerContract
 {
     public const int SchemaVersion = 2;
@@ -52,159 +57,10 @@ public sealed record NativeActionLedgerEvent(
     ExactMappingEvidence? Mapping = null,
     RecordedBoundAction? BoundAction = null);
 
-public sealed record AcceptedActionAdmission(
-    bool Accounted,
-    string? FailureCode,
-    IReadOnlyList<string> PriorOpenActionIds,
-    IReadOnlyList<string> InvalidatedStrictCandidateIds,
-    bool StrictTransitionEligible);
-
-public sealed class AcceptedHumanActionLedger
-{
-    private sealed class Entry
-    {
-        public Entry(string actionWitnessId, bool strictTransitionEligible)
-        {
-            ActionWitnessId = actionWitnessId;
-            StrictTransitionEligible = strictTransitionEligible;
-        }
-
-        public string ActionWitnessId { get; }
-        public bool StrictTransitionEligible { get; set; }
-        public string? TerminalKind { get; set; }
-    }
-
-    private readonly int _capacity;
-    private readonly Dictionary<string, Entry> _entries = new(StringComparer.Ordinal);
-    private bool _recoveryBoundaryRequired;
-    private bool _untrackedAcceptedAction;
-
-    public AcceptedHumanActionLedger(int capacity = 64)
-    {
-        if (capacity <= 0)
-            throw new ArgumentOutOfRangeException(nameof(capacity));
-        _capacity = capacity;
-    }
-
-    public int Count => _entries.Count;
-    public bool HasUnresolvedLifecycle => _entries.Values.Any(entry => entry.TerminalKind == null);
-    public bool HasOpenEvidence => _entries.Count > 0;
-    public bool RecoveryBoundaryRequired => _recoveryBoundaryRequired;
-
-    public AcceptedActionAdmission Accept(
-        string actionWitnessId,
-        bool externalCausalEvidenceOpen = false)
-    {
-        if (string.IsNullOrWhiteSpace(actionWitnessId))
-            throw new ArgumentException("Action witness ID is required.", nameof(actionWitnessId));
-        if (_entries.ContainsKey(actionWitnessId))
-        {
-            return new AcceptedActionAdmission(
-                false,
-                "duplicate_native_action_identity",
-                Array.Empty<string>(),
-                Array.Empty<string>(),
-                false);
-        }
-        if (_entries.Count >= _capacity)
-        {
-            string[] capacityPrior = _entries.Keys.ToArray();
-            string[] capacityInvalidated = _entries.Values
-                .Where(entry => entry.StrictTransitionEligible)
-                .Select(entry => entry.ActionWitnessId)
-                .ToArray();
-            foreach (Entry entry in _entries.Values)
-                entry.StrictTransitionEligible = false;
-            _recoveryBoundaryRequired = true;
-            _untrackedAcceptedAction = true;
-            return new AcceptedActionAdmission(
-                false,
-                "native_action_ledger_capacity_exceeded",
-                capacityPrior,
-                capacityInvalidated,
-                false);
-        }
-
-        string[] prior = _entries.Keys.ToArray();
-        bool overlaps = prior.Length > 0
-            || _recoveryBoundaryRequired
-            || externalCausalEvidenceOpen;
-        string[] invalidated = _entries.Values
-            .Where(entry => entry.StrictTransitionEligible)
-            .Select(entry => entry.ActionWitnessId)
-            .ToArray();
-        if (overlaps)
-        {
-            foreach (Entry entry in _entries.Values)
-                entry.StrictTransitionEligible = false;
-            _recoveryBoundaryRequired = true;
-        }
-
-        _entries.Add(actionWitnessId, new Entry(actionWitnessId, !overlaps));
-        return new AcceptedActionAdmission(
-            true,
-            null,
-            prior,
-            invalidated,
-            !overlaps);
-    }
-
-    public bool MarkTerminal(string actionWitnessId, string terminalKind)
-    {
-        if (!NativeActionLifecycleKinds.IsTerminal(terminalKind)
-            || !_entries.TryGetValue(actionWitnessId, out Entry? entry))
-            return false;
-        entry.TerminalKind = terminalKind;
-        if (terminalKind == NativeActionLifecycleKinds.Cancelled)
-        {
-            entry.StrictTransitionEligible = false;
-            _recoveryBoundaryRequired = true;
-        }
-        return true;
-    }
-
-    public bool CanAdmitStrictTransition(string actionWitnessId) =>
-        !_recoveryBoundaryRequired
-        && _entries.Count == 1
-        && _entries.TryGetValue(actionWitnessId, out Entry? entry)
-        && entry.StrictTransitionEligible
-        && entry.TerminalKind == NativeActionLifecycleKinds.Finished;
-
-    public bool CompleteStrictTransition(string actionWitnessId)
-    {
-        if (!CanAdmitStrictTransition(actionWitnessId))
-            return false;
-        _entries.Remove(actionWitnessId);
-        return true;
-    }
-
-    public bool InvalidateStrictTransition(string actionWitnessId)
-    {
-        if (!_entries.TryGetValue(actionWitnessId, out Entry? entry))
-            return false;
-        entry.StrictTransitionEligible = false;
-        _recoveryBoundaryRequired = true;
-        return true;
-    }
-
-    public bool ObserveRecoveryBoundary()
-    {
-        if (!_recoveryBoundaryRequired || HasUnresolvedLifecycle || _untrackedAcceptedAction)
-            return false;
-        _entries.Clear();
-        _recoveryBoundaryRequired = false;
-        _untrackedAcceptedAction = false;
-        return true;
-    }
-
-    public void Reset()
-    {
-        _entries.Clear();
-        _recoveryBoundaryRequired = false;
-        _untrackedAcceptedAction = false;
-    }
-}
-
+/// <summary>
+/// Validator for historical additive native-action-ledger streams. It is not
+/// a runtime admission policy and does not authorize semantic successors.
+/// </summary>
 public static class NativeActionLedgerValidator
 {
     private static readonly HashSet<string> KnownKinds = new(StringComparer.Ordinal)
