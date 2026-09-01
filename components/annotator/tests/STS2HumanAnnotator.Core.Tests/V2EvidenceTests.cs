@@ -642,7 +642,14 @@ public sealed class V2EvidenceTests
                         successor.InteractionId,
                         successor.InteractionKind,
                         successor,
-                        null)));
+                        null)
+                    {
+                        NativeDecisionOwnerReady = new NativeDecisionOwnerReadyEvidence(
+                            successor.InteractionKind,
+                            "combat-state-owner",
+                            "MegaCrit.Sts2.Core.Combat.CombatState",
+                            "CombatManager.TurnStarted->NEndTurnButton.OnTurnStarted.postfix")
+                    }));
                 store.AppendSemanticBoundaryEvents(drafts.Select((draft, index) =>
                     SemanticEvent(manifest, index + 1, draft)).ToArray());
                 store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(

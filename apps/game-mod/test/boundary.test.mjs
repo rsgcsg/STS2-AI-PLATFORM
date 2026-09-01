@@ -207,6 +207,25 @@ test("native discriminator profiles fallback snapshots separately from frame pro
   assert.match(discriminator, /uiFrame == null/u);
 });
 
+test("combat owner-ready uses the exact post-input-owner native seam and a typed fail-closed capture", () => {
+  const patches = read("apps/game-mod/NativeFoundationOwnerPatches.cs");
+  const provider = read("components/native-foundation/src/NativeDecisionOwnerReadyProvider.cs");
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const trace = read("components/annotator/src/STS2HumanAnnotator.Core/SemanticBoundaryTrace.cs");
+
+  assert.match(patches, /typeof\(NEndTurnButton\)[\s\S]*"OnTurnStarted"[\s\S]*typeof\(CombatState\)/u);
+  assert.match(patches, /NativeDecisionOwnerReadyProvider\.ObservePlayerCombatTurnReady\(state\)/u);
+  assert.match(provider, /ReferenceEquals\(CombatManager\.Instance\.DebugOnlyGetState\(\), state\)/u);
+  assert.match(provider, /state\.CurrentSide != CombatSide\.Player/u);
+  assert.match(provider, /NativeCombatDecisionProvider\.IsSemanticPlayPhase\(player, combat\)/u);
+  assert.match(runtime, /NativeDecisionOwnerReadyProvider\.Observed \+= ObserveNativeDecisionOwnerReady/u);
+  assert.match(runtime, /CaptureSemanticFrame\(\)[\s\S]*frame\.Snapshot\.Interaction\.Kind[\s\S]*observation\.Domain/u);
+  assert.match(runtime, /SemanticBoundaryWitnessKinds\.NativeDecisionOwnerReady/u);
+  assert.match(trace, /NativeDecisionOwnerReadyEvidence/u);
+  assert.match(trace, /NativeDecisionOwnerReady\.Domain[\s\S]*InteractionKind/u);
+  assert.doesNotMatch(provider, /Timer|Delay|ProcessFrame|poll/iu);
+});
+
 test("annotator evidence prefixes never become generic STS2 gameplay gates", () => {
   const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
 

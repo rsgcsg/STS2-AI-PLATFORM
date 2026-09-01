@@ -21,6 +21,9 @@ Current bounded ownership:
 - `NativeCardRewardDecisionProvider`: exact card and alternative option lists;
 - `NativeTreasureDecisionProvider`: exact treasure room lifecycle, relic
   collection membership and local vote;
+- `NativeDecisionOwnerReadyProvider`: typed process-local notification from an
+  exact owner-ready seam; consumers must still capture and validate a complete
+  Connector frame at that seam;
 - `NativeDomainOwnerProbe`: cross-domain owner discriminator only.
 
 The owner probe deliberately does not enumerate actions. Each typed provider

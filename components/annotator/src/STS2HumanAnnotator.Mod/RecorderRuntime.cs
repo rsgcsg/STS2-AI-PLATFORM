@@ -138,6 +138,7 @@ internal static class RecorderRuntime
         }
 
         _configuration = configuration;
+        NativeDecisionOwnerReadyProvider.Observed += ObserveNativeDecisionOwnerReady;
         Assembly assembly = typeof(RecorderMod).Assembly;
         _sourceRevision = ReadSourceRevision(assembly);
         DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -1567,7 +1568,8 @@ internal static class RecorderRuntime
     private static void ObserveSemanticDecisionBoundary(
         ProcessLocalNativeWitnessFrame frame,
         string witnessKind,
-        FrozenDecisionFrameV2? completeState = null)
+        FrozenDecisionFrameV2? completeState = null,
+        NativeDecisionOwnerReadyEvidence? nativeDecisionOwnerReady = null)
     {
         if (!_semanticBoundaryTraceHealthy)
             return;
@@ -1588,7 +1590,8 @@ internal static class RecorderRuntime
             frame,
             witnessKind,
             null,
-            completeState);
+            completeState,
+            nativeDecisionOwnerReady);
         if (!boundary.IsCompleteDecisionBoundary)
             return;
         IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
@@ -1601,7 +1604,8 @@ internal static class RecorderRuntime
         ProcessLocalNativeWitnessFrame frame,
         string witnessKind,
         string? immediatelyConsumedByActionWitnessId,
-        FrozenDecisionFrameV2? completeState = null)
+        FrozenDecisionFrameV2? completeState = null,
+        NativeDecisionOwnerReadyEvidence? nativeDecisionOwnerReady = null)
     {
         RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
         IReadOnlyList<string> stateBlockers = SemanticStateBlockers(frame, environment);
@@ -1618,10 +1622,48 @@ internal static class RecorderRuntime
             stateComplete ? completeState ?? FreezeSemanticBoundary(frame, environment) : null,
             immediatelyConsumedByActionWitnessId)
         {
+            NativeDecisionOwnerReady = nativeDecisionOwnerReady,
             StateCompleteness = stateComplete ? "complete" : "partial",
             RequiredReadsStatus = HasSemanticRequiredReads(frame) ? "complete" : "unavailable",
             StateBlockers = stateBlockers
         };
+    }
+
+    private static void ObserveNativeDecisionOwnerReady(
+        NativeDecisionOwnerReadyObservation observation)
+    {
+        if (!_semanticBoundaryTraceHealthy || _store == null)
+            return;
+        lock (Gate)
+        {
+            if (!BoundaryTracker.NeedsBoundaryObservation)
+                return;
+        }
+
+        try
+        {
+            ProcessLocalNativeWitnessFrame frame = CaptureSemanticFrame();
+            if (!string.Equals(
+                    frame.Snapshot.Interaction.Kind,
+                    observation.Domain,
+                    StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            ObserveSemanticDecisionBoundary(
+                frame,
+                SemanticBoundaryWitnessKinds.NativeDecisionOwnerReady,
+                nativeDecisionOwnerReady: new NativeDecisionOwnerReadyEvidence(
+                    observation.Domain,
+                    NativeWitnessIdentity.Get(observation.NativeOwner, "decision_owner"),
+                    observation.NativeOwnerType,
+                    observation.NativeMechanism));
+        }
+        catch (Exception exception)
+        {
+            DisableSemanticBoundaryTrace(exception);
+        }
     }
 
     private static FrozenDecisionFrameV2 FreezeSemanticBoundary(

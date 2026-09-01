@@ -88,7 +88,7 @@ public static class NativeCombatDecisionProvider
             Array.Empty<string>(),
             detail);
 
-    private static bool IsSemanticPlayPhase(Player player, PlayerCombatState combat) =>
+    internal static bool IsSemanticPlayPhase(Player player, PlayerCombatState combat) =>
         combat.Phase == PlayerTurnPhase.Play
         && CombatManager.Instance.IsPartOfPlayerTurn(player)
         && !CombatManager.Instance.PlayerActionsDisabled

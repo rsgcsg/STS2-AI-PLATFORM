@@ -87,6 +87,16 @@ but the artifact has no Human evidence. The predecessor session's failures are
 classification evidence only. See the
 [completion-lineage source closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
 
+The successor repair adds the first production typed owner-ready publisher.
+Exact STS2 call order rejects `RoomEntered`, `CombatBegan` and visual
+`TransitionToActiveCombat` as too early. The player-side combat turn is emitted
+only after semantic `Play`, executor unpause, synchronizer `PlayPhase`, and the
+exact end-turn input-owner callback; Annotator then requires one complete,
+domain-matching Connector frame. This closes the source-level Map-to-Combat
+terminal-recording gap without changing next-root execution handoff or using
+polling, delay, UI stability or later-state backfill. New runtime bytes require
+their own build/load and shortest Human canary.
+
 Semantic state Read requirements are interaction-specific: combat requires
 `run_deck` and `combat_piles`, shop requires `run_deck` and `shop_catalog`, and
 the current ordinary non-combat surfaces require `run_deck`. A failed Read makes

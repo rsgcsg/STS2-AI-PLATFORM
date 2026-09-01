@@ -50,6 +50,24 @@ game's `ActionExecutor`. Generated-card choice remains a visible Connector
 surface, while Annotator records pause/resume against that exact parent. The
 lineage neither enumerates choices nor authorizes input.
 
+### Successor-owner readiness
+
+`NativeDecisionOwnerReadyProvider` publishes a typed process-local fact only
+after an exact STS2 owner-ready seam. It does not publish a Snapshot, action
+catalog, legality result or semantic successor. Annotator synchronously asks
+Connector for the fair-player frame, requires complete state, Reads and action
+catalog, verifies that the frame domain matches the observed owner, and only
+then offers the boundary to the shared tracker.
+
+For shipped `v0.111.0`, the proved production publisher is the player-side
+combat turn after `CombatManager.StartTurn` has entered `Play`, unpaused the
+executor, set `ActionQueueSynchronizer` to `PlayPhase`, fired `TurnStarted`, and
+the exact `NEndTurnButton.OnTurnStarted` input-owner callback has returned.
+`RoomEntered`, `CombatBegan` and `NCombatRoom.TransitionToActiveCombat` are too
+early and are not successor proof. Other domains may add their own typed
+publisher only after equivalent exact call-order proof; next-root pre-execution
+handoff remains valid continuous-play evidence in the meantime.
+
 ### Reward to card reward to map and treasure
 
 `NativeDomainOwnerProbe` distinguishes semantic owner from presentation/input
@@ -100,6 +118,7 @@ T2/T3 rows are non-claims, not implied support.
 | UI catalog as execution-time semantic authority | forbidden | exact Human evidence disproved it for bounded combat |
 | animation, elapsed time, queue-idle completion | forbidden | cannot prove causal settlement |
 | generic `interactive` as canonical next decision | forbidden | interactivity is presentation readiness, not causal S' |
+| room entered / combat began as player-ready proof | forbidden | both precede the authoritative player play phase and complete Connector catalog |
 | Map reachability from `NMapPoint.State` | removed as semantic authority | `RunState` and `MapTravel` own destinations; map nodes only bind delivery |
 | Reward publication from `NRewardButton` | removed as semantic authority | exact `RewardsSet` membership and proceed policy now own the catalog |
 | CardReward options from holders/buttons | removed as semantic authority | exact native option arrays own membership; controls only bind delivery |

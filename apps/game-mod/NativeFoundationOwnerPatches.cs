@@ -1,5 +1,6 @@
 using Godot;
 using HarmonyLib;
+using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.CardRewardAlternatives;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -9,6 +10,7 @@ using MegaCrit.Sts2.Core.Nodes.Screens;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 using MegaCrit.Sts2.Core.Nodes.Rooms;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
+using MegaCrit.Sts2.Core.Nodes.Combat;
 using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 using MegaCrit.Sts2.Core.Rewards;
 using MegaCrit.Sts2.Core.Rooms;
@@ -79,6 +81,15 @@ internal static class NativeFoundationOwnerPatches
             AccessTools.Method(
                 typeof(NativeTreasureRelicCommitPatch),
                 nameof(NativeTreasureRelicCommitPatch.Postfix)));
+        PatchPostfix(
+            harmony,
+            AccessTools.Method(
+                typeof(NEndTurnButton),
+                "OnTurnStarted",
+                new[] { typeof(CombatState) }),
+            AccessTools.Method(
+                typeof(NativeCombatDecisionOwnerReadyPatch),
+                nameof(NativeCombatDecisionOwnerReadyPatch.Postfix)));
         _initialized = true;
     }
 
@@ -90,6 +101,21 @@ internal static class NativeFoundationOwnerPatches
         if (original == null || postfix == null)
             throw new MissingMethodException("A Native Foundation owner seam is unavailable.");
         harmony.Patch(original, postfix: new HarmonyMethod(postfix));
+    }
+}
+
+internal static class NativeCombatDecisionOwnerReadyPatch
+{
+    internal static void Postfix(CombatState state)
+    {
+        try
+        {
+            NativeDecisionOwnerReadyProvider.ObservePlayerCombatTurnReady(state);
+        }
+        catch (Exception exception)
+        {
+            GD.PrintErr($"[STS2 Platform] native combat decision-owner observation failed: {exception}");
+        }
     }
 }
 

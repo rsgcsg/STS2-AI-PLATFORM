@@ -22,12 +22,12 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 | Delivery seam | `CardModel.TryManualPlay`, `PotionModel.EnqueueManualUse`, `PlayerCmd.EndTurn` |
 | Exact binding | process-local card, potion, target and room objects behind Connector referents |
 | Lifecycle | exact `GameAction` accepted/start/pause/resume/cancel/finish observations |
-| Next-decision seam | no universal finish rule; a complete later semantic boundary is required, and End Turn additionally requires the next player play phase |
+| Next-decision seam | typed player-side `TurnStarted` after semantic `Play`/executor unpause/synchronizer `PlayPhase` and the exact `NEndTurnButton.OnTurnStarted` input-owner callback; Connector must independently capture a complete matching frame |
 | Root/continuation | card, potion and End Turn are roots; nested choices remain descendants of the executing root |
 | Current workaround | presentation readiness still uses hand/control state before intersecting the semantic catalog |
 | Heuristic debt | End Turn deliverability depends on the native button; causal `S'` remains Annotator evidence, not Foundation action publication |
 | Ritsu support | card/potion/combat lifecycle events exist, but no generic exact action timeline or causal next-decision replacement was found |
-| Missing evidence | final artifact T2/T3; normal-display versus shipped-headless T2 differential |
+| Missing evidence | owner-ready repair artifact T2/T3, including Map Commit -> Combat ready -> no next Human input -> Close |
 | Migration verdict | Direct Native Foundation implemented; presentation and exact delivery remain Connector-owned |
 
 ## PlayerChoice
@@ -64,10 +64,10 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 | Delivery seam | `NMapScreen.OnMapPointSelectedLocally`; annotation stop on the exact drawing input |
 | Exact binding | public referent binds the process-local `MapPoint`; Connector resolves one current `NMapPoint` only for delivery |
 | Lifecycle | exact `VoteForMapCoordAction` lifecycle proves Commit; room transition remains separate |
-| Next-decision seam | entered room's native decision owner, another explicit map decision, or next-root execution pre; `Finished` alone is not `S'` |
+| Next-decision seam | a proved typed owner-ready publisher (currently Combat player-turn only), another explicit map decision, or next-root execution pre; room entry and `Finished` alone are not `S'` |
 | Root/continuation | route selection is a root; annotation is a non-gameplay UI continuation |
 | Current workaround | private `_isInputDisabled`/`_drawingInput`, FTUE and controller on-screen filtering remain delivery readiness only |
-| Heuristic debt | causal room-entry completion remains outside the decision provider; map annotation is presentation-only |
+| Heuristic debt | non-Combat room owner-ready publishers remain unproved; map annotation is presentation-only |
 | Ritsu support | map-generation and room lifecycle helpers, not exact route-choice authority |
 | Missing evidence | continuation artifact install/load and representative map T2/T3 |
 | Migration verdict | typed native decision adapter implemented; old UI reachability authority removed |

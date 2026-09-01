@@ -619,6 +619,92 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
+    public void NativeOwnerReadyWithoutTypedEvidenceDoesNotSettle()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        tracker.Accept(Action("native-root", 1), State("human-s0"));
+        tracker.ObserveBeforeActionExecution("native-root", Boundary("s0", "native-root"));
+        tracker.Started("native-root");
+        tracker.Finished("native-root");
+
+        var unproved = new SemanticBoundaryObservation(
+            SemanticBoundaryWitnessKinds.NativeDecisionOwnerReady,
+            T0,
+            "s1",
+            "interactive",
+            "complete",
+            "interaction-s1",
+            "combat_turn",
+            State("s1"),
+            null);
+
+        Assert.Empty(tracker.ObserveDecisionBoundary(unproved));
+        Assert.True(tracker.HasUnresolvedActions);
+    }
+
+    [Fact]
+    public void NativeOwnerReadyForDifferentDomainDoesNotSettle()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        tracker.Accept(Action("native-root", 1), State("human-s0"));
+        tracker.ObserveBeforeActionExecution("native-root", Boundary("s0", "native-root"));
+        tracker.Started("native-root");
+        tracker.Finished("native-root");
+
+        SemanticBoundaryObservation wrongDomain = PostCommitBoundary("s1") with
+        {
+            NativeDecisionOwnerReady = new NativeDecisionOwnerReadyEvidence(
+                "map_route",
+                "decision-owner-1",
+                "MegaCrit.Sts2.Core.Combat.CombatState",
+                "exact-native-test-seam")
+        };
+
+        Assert.Empty(tracker.ObserveDecisionBoundary(wrongDomain));
+        Assert.True(tracker.HasUnresolvedActions);
+    }
+
+    [Fact]
+    public void NativeOwnerReadyAndNextRootHandoffCannotDoubleSettle()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        tracker.Accept(Action("first", 1), State("human-s0"));
+        tracker.ObserveBeforeActionExecution("first", Boundary("s0", "first"));
+        tracker.Started("first");
+        tracker.Finished("first");
+
+        SemanticBoundaryTraceDraft proved = Assert.Single(
+            tracker.ObserveDecisionBoundary(PostCommitBoundary("s1")));
+        tracker.Accept(Action("next", 2), State("human-s1"));
+        IReadOnlyList<SemanticBoundaryTraceDraft> handoff =
+            tracker.ObserveBeforeActionExecution("next", Boundary("s1", "next"));
+
+        Assert.Equal("first", proved.Action.ActionWitnessId);
+        Assert.DoesNotContain(handoff, value => value.Action.ActionWitnessId == "first");
+    }
+
+    [Fact]
+    public void NativeOwnerReadyWithIncompleteConnectorFrameDoesNotSettle()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        tracker.Accept(Action("native-root", 1), State("human-s0"));
+        tracker.ObserveBeforeActionExecution("native-root", Boundary("s0", "native-root"));
+        tracker.Started("native-root");
+        tracker.Finished("native-root");
+
+        SemanticBoundaryObservation incomplete = PostCommitBoundary("s1") with
+        {
+            BoundActionsStatus = "unavailable",
+            State = null,
+            StateCompleteness = "partial",
+            RequiredReadsStatus = "unavailable"
+        };
+
+        Assert.Empty(tracker.ObserveDecisionBoundary(incomplete));
+        Assert.True(tracker.HasUnresolvedActions);
+    }
+
+    [Fact]
     public void CardRewardOwnerCommitOpensTheExactChildDecision()
     {
         var tracker = new SemanticBoundaryTracker();
@@ -883,7 +969,14 @@ public sealed class SemanticBoundaryTrackerTests
             $"interaction-{snapshotId}",
             interactionKind,
             State(snapshotId, interactionKind),
-            null);
+            null)
+        {
+            NativeDecisionOwnerReady = new NativeDecisionOwnerReadyEvidence(
+                interactionKind,
+                $"decision-owner-{snapshotId}",
+                "ExactNativeDecisionOwner",
+                "exact-native-test-seam")
+        };
 
     private static SemanticBoundaryObservation IncompleteBoundary(
         string snapshotId,

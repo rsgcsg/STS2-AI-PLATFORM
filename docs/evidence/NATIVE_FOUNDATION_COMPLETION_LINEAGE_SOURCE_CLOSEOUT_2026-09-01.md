@@ -74,13 +74,20 @@ Human Root
 
 | Family | Human root and pre-state | Native Commit | Successor boundary |
 |---|---|---|---|
-| Map | exact `MapPoint` in the frozen Map decision frame | exact `VoteForMapCoordAction.Finished` | entered room owner ready, next map decision, or next exact root execution pre |
-| Reward claim | exact `RewardsSet` and `Reward` | successful bound `SelectLocalReward` Task | CardReward/remaining Reward owner ready or next exact root execution pre |
-| Reward proceed | exact Reward terminal state | successful bound `ProceedFromTerminalRewardsScreen` Task | Map/room owner ready or next exact root execution pre |
-| CardReward | exact active native card option | synchronous `NCardRewardSelectionScreen.SelectCard` completion-source Commit | remaining Reward/Map owner ready or next exact root execution pre |
-| Treasure open | exact `TreasureRoom` closed decision | successful bound normal-reward Task | relic-choice/completed owner ready or next exact root execution pre |
-| Treasure select/skip | exact relic-choice decision | exact `PickRelicAction.Finished` | completed Treasure/Map owner ready or next exact root execution pre |
-| Treasure proceed | exact completed Treasure decision | successful bound terminal-proceed Task | Map/room owner ready or next exact root execution pre |
+| Map | exact `MapPoint` in the frozen Map decision frame | exact `VoteForMapCoordAction.Finished` | proved typed owner-ready publisher or next exact root execution pre; room entry alone is insufficient |
+| Reward claim | exact `RewardsSet` and `Reward` | successful bound `SelectLocalReward` Task | future proved typed owner-ready publisher or next exact root execution pre |
+| Reward proceed | exact Reward terminal state | successful bound `ProceedFromTerminalRewardsScreen` Task | future proved typed owner-ready publisher or next exact root execution pre |
+| CardReward | exact active native card option | synchronous `NCardRewardSelectionScreen.SelectCard` completion-source Commit | future proved typed owner-ready publisher or next exact root execution pre |
+| Treasure open | exact `TreasureRoom` closed decision | successful bound normal-reward Task | future proved typed owner-ready publisher or next exact root execution pre |
+| Treasure select/skip | exact relic-choice decision | exact `PickRelicAction.Finished` | future proved typed owner-ready publisher or next exact root execution pre |
+| Treasure proceed | exact completed Treasure decision | successful bound terminal-proceed Task | future proved typed owner-ready publisher or next exact root execution pre |
+
+Correction after exact runtime review: the original table described possible
+owner-ready outcomes as if they were already production observations. At that
+source there was no production `NativeDecisionOwnerReady` publisher. Continuous
+gameplay was settled by next-root pre-execution handoff; explicit Close after a
+committed final root therefore remained unknown. The successor repair records
+the first proved publisher for a player-ready Combat owner only.
 
 Shop and Rest were source-audited only as generalization probes. Both fit the
 same root/Commit/successor contract with domain adapters; neither requires a

@@ -89,6 +89,16 @@ Periodic frames, UI stability, queue-idle, timers, completion order, and later
 state backfill cannot create proof. A boundary that crosses another Human effect
 is rejected.
 
+An owner-ready event is not self-proving. Durable evidence must name the typed
+domain, exact process-local owner witness/type and exact native mechanism, and
+the synchronously captured Connector frame must independently be complete and
+match that domain. On shipped `v0.111.0`, the first production publisher is the
+player combat turn after STS2 has established its semantic play phase and
+completed the exact end-turn input-owner callback. Earlier room/combat events
+are explicitly insufficient. Domains without a proved publisher continue to
+use next-root pre-execution handoff; Recorder Close cannot promote their final
+committed root and retains it as explicit unknown rather than backfilling it.
+
 ### Legacy role
 
 - `AcceptedHumanActionLedger` and native-action-ledger evidence retain strict-V2

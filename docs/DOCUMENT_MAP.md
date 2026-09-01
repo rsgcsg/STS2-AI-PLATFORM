@@ -47,6 +47,8 @@ Use the smallest route that answers the task.
 - Current Human Root/Native Commit/Successor Boundary authority and source gate:
   [ADR 0005](adr/0005-human-root-commit-successor-evidence.md) and
   [causal evidence source closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
+- PR #6's exact Combat successor-owner repair:
+  [owner-ready source closeout](evidence/PR6_SUCCESSOR_OWNER_READY_SOURCE_CLOSEOUT_2026-09-01.md).
 - Ownership matrix: [Components](COMPONENTS.md).
 - Portable/runtime evidence meanings: [Testing and Evidence](TESTING.md).
 - Component and composition identity: [Versioning](VERSIONING.md) and `platform-bom.json`.

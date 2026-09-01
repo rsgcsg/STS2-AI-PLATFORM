@@ -54,6 +54,12 @@ public sealed record SemanticActionReference(
     public RecordedBoundAction? BoundAction { get; init; }
 }
 
+public sealed record NativeDecisionOwnerReadyEvidence(
+    string Domain,
+    string NativeOwnerWitnessId,
+    string NativeOwnerType,
+    string NativeMechanism);
+
 /// <summary>
 /// One read-only state capture. State completeness, action-catalog completeness,
 /// and causal boundary proof are deliberately independent.
@@ -69,6 +75,7 @@ public sealed record SemanticBoundaryObservation(
     FrozenDecisionFrameV2? State,
     string? ImmediatelyConsumedByActionWitnessId)
 {
+    public NativeDecisionOwnerReadyEvidence? NativeDecisionOwnerReady { get; init; }
     public string StateCompleteness { get; init; } = State == null ? "unavailable" : "complete";
     public string RequiredReadsStatus { get; init; } = State == null ? "unavailable" : "complete";
     public IReadOnlyList<string> StateBlockers { get; init; } = Array.Empty<string>();
@@ -96,10 +103,35 @@ public sealed record SemanticBoundaryObservation(
             SemanticBoundaryWitnessKinds.NativeUiPostCommit,
             StringComparison.Ordinal);
 
+    public bool IsNativeDecisionOwnerReadyBoundary =>
+        IsCompleteDecisionBoundary
+        && string.Equals(
+            WitnessKind,
+            SemanticBoundaryWitnessKinds.NativeDecisionOwnerReady,
+            StringComparison.Ordinal)
+        && NativeDecisionOwnerReady is
+        {
+            Domain.Length: > 0,
+            NativeOwnerWitnessId.Length: > 0,
+            NativeOwnerType.Length: > 0,
+            NativeMechanism.Length: > 0
+        }
+        && string.Equals(
+            NativeDecisionOwnerReady.Domain,
+            InteractionKind,
+            StringComparison.Ordinal);
+
     public bool CanBindExecutionPre => HasCompleteSemanticState && IsExecutionBoundary;
 
     public bool CanProveSemanticBoundary =>
-        HasCompleteSemanticState && (IsExecutionBoundary || IsCompleteDecisionBoundary);
+        HasCompleteSemanticState
+        && (IsExecutionBoundary
+            || (string.Equals(
+                    WitnessKind,
+                    SemanticBoundaryWitnessKinds.NativeDecisionOwnerReady,
+                    StringComparison.Ordinal)
+                ? IsNativeDecisionOwnerReadyBoundary
+                : IsCompleteDecisionBoundary));
 }
 
 public sealed record SemanticBoundaryTraceDraft(
@@ -664,6 +696,8 @@ public sealed class SemanticBoundaryTracker
         IReadOnlyCollection<Entry> entries) =>
         boundary.WitnessKind == SemanticBoundaryWitnessKinds.LegacyV2Successor
         || boundary.WitnessKind == SemanticBoundaryWitnessKinds.NativeUiPostCommit
+        || (boundary.WitnessKind == SemanticBoundaryWitnessKinds.NativeDecisionOwnerReady
+            && !boundary.IsNativeDecisionOwnerReadyBoundary)
         || (boundary.WitnessKind == SemanticBoundaryWitnessKinds.CompleteInteractiveObservation
             && !entries.Any(entry => entry.Paused));
 
@@ -762,6 +796,12 @@ public static class SemanticBoundaryTraceValidator
                     errors.Add("semantic_transition_proof_incomplete");
                 else if (value.SemanticPre.SnapshotId == value.SemanticSuccessor.SnapshotId)
                     errors.Add("semantic_transition_successor_not_different");
+                if (value.Boundary?.WitnessKind
+                        == SemanticBoundaryWitnessKinds.NativeDecisionOwnerReady
+                    && !value.Boundary.IsNativeDecisionOwnerReadyBoundary)
+                {
+                    errors.Add("semantic_native_owner_ready_evidence_invalid");
+                }
 
                 if (value.Action.RequiresNativePostCommit
                     && (value.NativeCompletion is not { Succeeded: true }

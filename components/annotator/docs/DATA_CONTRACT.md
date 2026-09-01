@@ -66,6 +66,12 @@ but is not a successful A. A cancellation after start remains unknown. Audit
 rejects contradictory lifecycle/disposition combinations and duplicate
 dispositions.
 
+A `native_decision_owner_ready` boundary additionally carries typed domain,
+exact process-local owner witness/type and native-mechanism evidence. Audit
+requires that evidence and an exact domain match; the owner signal alone is not
+state, action-space or successor authority. If the synchronous Connector frame
+is partial or mismatched, no proof is emitted.
+
 This sidecar is not `HumanDecisionRecordV2`, corpus admission, or durable
 training authority. Predecessor sessions without it remain valid, and existing
 V1/V2 bytes are never reinterpreted.
