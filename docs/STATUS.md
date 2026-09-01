@@ -34,11 +34,17 @@ improvement. See the [performance source closeout](evidence/PLATFORM_RECORDING_H
 and [deferred-debt register](PREFULLRUN_DEFERRED_DEBT.md).
 
 Portable and exact-game checks, clean build, safe install and cold-load pass for
-the performance candidate `111bcba1... / 7187768f...`, runtime `dd4e2229...`,
-environment `6b7ccbf2...` and exact sole-Platform Modset `05df53c2...`.
-Recorder is Ready with no open session and rollback is available. The remaining
-gate is the paired exact-candidate Human Recorder OFF/ON canary and its durable
-subphase profile; predecessor Human evidence does not transfer.
+the predecessor performance candidate `111bcba1... / 7187768f...`, runtime
+`dd4e2229...`, environment `6b7ccbf2...` and exact sole-Platform Modset
+`05df53c2...`. Its paired Human OFF/ON comparison remains unclaimed. PR #10
+adds a separate narrow Close-boundary repair at source
+`6432b8bf5bd8226916eb5b32dac7bd23136e983e`; its clean exact-game build is
+Annotator `754c7cf6... / 182bb6a3...` and Game Mod `8c08d4ad... /
+562eff75...`. These new bytes have source/test/build evidence only until a
+fresh runtime canary. The repair makes explicit Close terminate unresolved
+roots as `session_closed_before_successor_boundary` terminal unknown, without
+semantic drain or timeout waiting; predecessor Human evidence does not
+transfer. Strict OFF/ON profiling remains deferred performance debt.
 
 ## Native Foundation integration history
 

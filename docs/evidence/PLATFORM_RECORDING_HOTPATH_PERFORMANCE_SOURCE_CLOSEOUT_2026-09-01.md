@@ -3,7 +3,33 @@
 Date: 2026-09-01  
 Base: `develop@2e1a5b67eef25faa897602d237a16b6698127af0`  
 Implementation source: `4b4e1f7e7bad7108f73863262364b8e385fc8412`  
-Evidence level: source, tests, exact build, installed and loaded. Human performance canary pending.
+Evidence level: source, tests, exact build, installed and loaded for the predecessor
+performance candidate; the Close-boundary follow-up below is source/test/exact-build
+only and requires a fresh Human session for runtime qualification.
+
+## PR #10 Close-boundary follow-up
+
+The Recorder Close path now treats an accepted user Close as the recording
+session's terminal boundary. It performs no semantic drain and no five-second
+deadline wait. Any still-open pending native root is invalidated with the
+explicit reason `session_closed_before_successor_boundary`; the semantic
+timeline emits `transition_unknown` with `no_semantic_successor` and no
+`SemanticSuccessor`. Existing root, lifecycle, Commit and invalidation evidence
+remain durable, while generation reset and subscription disposal invalidate late
+native completions. Clean sessions still flush and close normally, and rapid
+overlap remains fail-closed.
+
+This is a runtime behavior change, so the predecessor Human evidence does not
+qualify these bytes. No controlled Recorder OFF/ON performance comparison is
+claimed, and no user-visible stutter elimination claim is made.
+
+The clean exact-game build from PR #10 source `6432b8bf5bd8226916eb5b32dac7bd23136e983e`
+produced Annotator artifact `754c7cf6edc094993f740b86a92b8b8e225222786054f9d311e318d025475ad7 /
+182bb6a3-2ab5-46ff-a696-8035b5984b02` and unified Game Mod artifact
+`8c08d4ad48a7facdfcf22ded8d5fa4c15a33cc6b1f53f7940958a4008500d8d9 /
+562eff75-18c2-4e07-9099-9ac52722ae43`. The build used game `v0.111.0 /
+41cef1ea`, STS2 MVID `57785517-0b16-42b9-8b36-bad6fb28384b`, and clean
+source provenance. It was not installed or Human-exercised in this follow-up.
 
 ## Proven trigger and bounded change
 
