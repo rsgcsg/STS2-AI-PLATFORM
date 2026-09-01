@@ -31,7 +31,11 @@ public Snapshot readiness, Connector delivery/revalidation or tracker successor
 semantics. Decision V2 remains a compatibility projection from the frozen
 Human-time public frame. Historical schema 3/schema 1 evidence remains readable
 and is not upgraded or backfilled. This source requires a fresh exact build,
-load and Human canary; predecessor Human evidence does not transfer. See the
+load and Human canary; predecessor Human evidence does not transfer. The
+follow-on draft-projection repair makes every lifecycle/settlement draft inherit
+the Entry-owned Human observation, native completion and execution action-space
+references, preserving those facts through durable Decision V2/canonical
+projection without changing authority or successor semantics. See the
 [source closeout](evidence/PR11_EXECUTION_SEMANTIC_ACTION_SPACE_SOURCE_CLOSEOUT_2026-09-02.md).
 
 ## Current pre-Full-Run performance work
