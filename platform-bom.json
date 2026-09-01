@@ -1122,6 +1122,37 @@
     }
   },
   "migration_sources": "migration/source-manifest.json",
+  "pr11_execution_semantic_action_space_candidate": {
+    "status": "source_test_build_installed_loaded_human_pending",
+    "workspace_revision": "87f774213b2c38081aeb31cad9a8a68619601a31",
+    "base_revision": "791e27172c39e5c4ce33a415b16fc1ea7f060513",
+    "platform_source_revision": "c1b3144f07ba210c7f7064087d0d37bb3c9a2e66",
+    "connector_source_revision": "f1378ecce0eb3440c8d79c93e8750f674755f71c",
+    "annotator_source_revision": "f1378ecce0eb3440c8d79c93e8750f674755f71c",
+    "game_mod_source_revision": "c1b3144f07ba210c7f7064087d0d37bb3c9a2e66",
+    "artifact_sha256": "351f289891c6dc46a238cc676b43a92efa89b1254231854d93ca6cdabf10992e",
+    "artifact_mvid": "f10bd9b9-0ff3-45b4-9930-8bba8600eda3",
+    "game": {
+      "version": "v0.111.0",
+      "commit": "41cef1ea",
+      "executable_sha256": "ec8c10831dbb424c45859907f5ef6a7711f7a6e9a02f386ad13922ba8a7fcbe7",
+      "main_assembly_sha256": "9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4",
+      "main_assembly_mvid": "57785517-0b16-42b9-8b36-bad6fb28384b"
+    },
+    "runtime": {
+      "runtime_instance_id": "98ad0412c8aa496ea316b0d9949571b8",
+      "environment_fingerprint": "2e2096a6cbb2c0331b8afa51e4de38958263cd6b21d6e190bf0c167366ae43c0",
+      "modset_status": "exact_platform_modset",
+      "modset_fingerprint": "ed0eefc6b5123c8365043fd86a11511a38a11137cd34d1a44caa4d736445a4f8",
+      "loaded_mod_ids": ["STS2_PLATFORM"]
+    },
+    "human_qualification": "pending_new_exact_candidate_canary",
+    "non_claims": [
+      "predecessor_human_evidence_does_not_transfer",
+      "source_build_install_load_are_not_human_validation",
+      "not_exhaustive_full_run_or_stpd_admission"
+    ]
+  },
   "support_level": "human_evidence_v2_semantic_timeline_bounded_live_proved",
   "non_claims": [
     "human_origin_owner_attested_not_machine_proven",
