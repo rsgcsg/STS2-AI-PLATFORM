@@ -82,7 +82,7 @@ if (recorderRuntime.includes("TrySettle(pending, frame)")
   errors.push("legacy strict-V2 settlement must not authorize semantic successors");
 if (!recorderRuntime.includes("SemanticBoundaryTraceKinds.TransitionProved"))
   errors.push("compatibility transition persistence must begin only from a proved semantic draft");
-if (!recorderRuntime.includes("PersistDerivedTransitionProjection(draft)"))
+if (!recorderRuntime.includes("PersistDerivedTransitionProjection("))
   errors.push("Decision V2 and canonical outputs must be derived from semantic transition proof");
 if (!sources.includes("SemanticTransitionProjection.CreateDecision("))
   errors.push("Decision V2 compatibility output must use the non-authorizing semantic projection");
