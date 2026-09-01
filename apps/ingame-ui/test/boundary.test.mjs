@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
@@ -208,4 +209,27 @@ test("Live UI has no standalone packaging or deployment authority", () => {
   for (const file of ["build.mjs", "deploy.mjs", "mod_manifest.json", "STS2PlatformLiveUi.csproj"]) {
     assert.equal(fs.existsSync(path.join(root, file)), false);
   }
+});
+
+test("lifecycle-aware Action Feed fixtures pass without a shell-specific entrypoint", () => {
+  const result = spawnSync(
+    "dotnet",
+    [
+      "test",
+      path.join(root, "test", "STS2PlatformLiveUi.Tests.csproj"),
+      "--configuration",
+      "Release",
+      "--nologo",
+    ],
+    {
+      cwd: root,
+      encoding: "utf8",
+      shell: false,
+    },
+  );
+  assert.equal(
+    result.status,
+    0,
+    `Action Feed lifecycle fixtures failed.\n${result.stdout}\n${result.stderr}`,
+  );
 });
