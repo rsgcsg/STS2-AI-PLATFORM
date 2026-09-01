@@ -22,9 +22,9 @@ public sealed record PlatformLiveLayoutState(
     public static PlatformLiveLayoutState Defaults => new(
         CurrentVersion,
         new Vector2(64, 72),
-        new Vector2(900, 620),
+        new Vector2(820, 560),
         false,
-        new Vector2(24, 96),
+        new Vector2(508, 144),
         false,
         0);
 }

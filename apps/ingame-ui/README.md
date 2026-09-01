@@ -1,9 +1,11 @@
 # Platform Live UI
 
 The Platform Live UI is the in-game presentation component for Environment,
-Policy, Human Data, and Diagnostics. A small click-through HUD remains visible;
-`K` opens the full Live Workspace and `Esc` closes it. The independent Recorder
-card exposes only the typed New/Pause/Resume/Close application commands. The UI
+Policy, Human Data, and Diagnostics. When the Workspace is closed, a small
+click-through HUD remains visible; `K` opens the full Live Workspace and `Esc`
+closes it. The Recorder tool region is mounted on that same Workspace surface,
+never as a second legacy shell, and exposes only the typed New/Pause/Resume/
+Close application commands. The UI
 calls typed Connector observation, Policy Runtime, and Annotator recording
 services; it does not publish, resolve, or submit gameplay actions itself.
 

@@ -25,8 +25,10 @@ Environment, Policy, Human Data, and Diagnostics. Long identities are shown in
 short form with the complete observed value available through the host's normal
 copy/expand affordance; values are never inferred from presentation state.
 
-The Recorder card is independent and supports New Session, Pause, Resume, and
-Close only when the typed Recording Application status allows them. Every
+The Recorder card is a tool region owned by the Workspace presentation surface
+and supports New Session, Pause, Resume, and Close only when the typed Recording
+Application status allows them. It is visible only while the Workspace is open,
+so the compact HUD and Recorder never duplicate the same state. Every
 accepted or rejected command gets a low-noise toast and the next authoritative
 poll remains the source of truth.
 

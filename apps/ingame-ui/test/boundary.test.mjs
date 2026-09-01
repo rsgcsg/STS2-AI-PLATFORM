@@ -37,6 +37,18 @@ test("Workspace is bounded, click-through outside controls, and locally persiste
   assert.match(fs.readFileSync(path.join(root, "PlatformLiveUiPresentation.cs"), "utf8"), /fail-soft/u);
 });
 
+test("one presentation owner prevents legacy and workspace shells from overlapping", () => {
+  assert.equal((mod.match(/new CanvasLayer/g) ?? []).length, 1);
+  assert.equal((mod.match(/BuildRecorderCard\(\);/g) ?? []).length, 1);
+  assert.match(mod, /_workspaceSurface\.AddChild\(_recorderCard\)/u);
+  assert.match(mod, /_workspaceSurface\.AddChild\(_toastStack\)/u);
+  assert.doesNotMatch(mod, /Root\.AddChild\(_recorderCard\)/u);
+  assert.match(mod, /_hud\.Visible = !workspaceVisible/u);
+  assert.match(mod, /_recorderCard\.Visible = workspaceVisible/u);
+  assert.match(mod, /_toastStack\.Visible = workspaceVisible/u);
+  assert.match(mod, /ApplyPresentationVisibility\(\)/u);
+});
+
 test("Recorder and policy controls expose typed state and fail-closed reasons", () => {
   assert.match(mod, /ApplyRecordingAvailability/u);
   assert.match(mod, /RecordingLifecycleState\.Recording/u);

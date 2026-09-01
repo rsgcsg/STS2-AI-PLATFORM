@@ -111,11 +111,15 @@ internal sealed class PlatformLivePanel : IDisposable
     private readonly Dictionary<PlatformCommandMode, Button> _modeButtons = new();
     private readonly Dictionary<STS2HumanAnnotator.Core.RecordingCommandKind, Button> _recordingButtons = new();
     private readonly List<PlatformLiveToast> _toasts = new();
+    private static readonly Color TextPrimary = new("#f3f6fb");
+    private static readonly Color TextSecondary = new("#b9c5d6");
+    private static readonly Color Accent = new("#62c4d8");
     private SceneTree? _tree;
     private Action? _processFrameHandler;
     private Control _hud = null!;
     private Label _hudText = null!;
     private PanelContainer _workspace = null!;
+    private Control _workspaceSurface = null!;
     private Control _workspaceBody = null!;
     private PanelContainer _recorderCard = null!;
     private VBoxContainer _toastStack = null!;
@@ -200,6 +204,8 @@ internal sealed class PlatformLivePanel : IDisposable
             Size = new Vector2(470, 48),
             MouseFilter = MouseFilterEnum.Ignore
         };
+        _hud.AddThemeStyleboxOverride("panel", MakePanelStyle(
+            new Color("#182533e6"), new Color("#3c7084"), 10, 1, 12));
         var hudRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
         _hudText = new Label
         {
@@ -207,6 +213,8 @@ internal sealed class PlatformLivePanel : IDisposable
             VerticalAlignment = VerticalAlignment.Center,
             MouseFilter = MouseFilterEnum.Ignore
         };
+        _hudText.AddThemeFontSizeOverride("font_size", 14);
+        _hudText.AddThemeColorOverride("font_color", TextSecondary);
         hudRow.AddChild(_hudText);
         _hud.AddChild(hudRow);
         Root.AddChild(_hud);
@@ -219,12 +227,16 @@ internal sealed class PlatformLivePanel : IDisposable
             Visible = false,
             MouseFilter = MouseFilterEnum.Stop
         };
+        _workspace.AddThemeStyleboxOverride("panel", MakePanelStyle(
+            new Color("#111c2aeF"), new Color("#4e9bb0"), 12, 2, 16));
         _workspace.GuiInput += OnWorkspaceInput;
         Root.AddChild(_workspace);
 
+        _workspaceSurface = new Control { MouseFilter = MouseFilterEnum.Stop };
+        _workspace.AddChild(_workspaceSurface);
         _workspaceBody = new VBoxContainer { MouseFilter = MouseFilterEnum.Stop };
-        _workspaceBody.AddThemeConstantOverride("separation", 8);
-        _workspace.AddChild(_workspaceBody);
+        _workspaceBody.AddThemeConstantOverride("separation", 12);
+        _workspaceSurface.AddChild(_workspaceBody);
         // Let empty title-bar space bubble to the bounded workspace drag handler;
         // child buttons still stop input themselves.
         var titleRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
@@ -235,6 +247,7 @@ internal sealed class PlatformLivePanel : IDisposable
             MouseFilter = MouseFilterEnum.Ignore
         };
         _workspaceTitle.AddThemeFontSizeOverride("font_size", 20);
+        _workspaceTitle.AddThemeColorOverride("font_color", TextPrimary);
         titleRow.AddChild(_workspaceTitle);
         titleRow.AddChild(BuildCommandButton("Reset layout", ResetLayout, "Restore the local presentation layout."));
         _workspaceCollapse = BuildCommandButton("Collapse", ToggleWorkspaceCollapse);
@@ -248,6 +261,8 @@ internal sealed class PlatformLivePanel : IDisposable
             MouseFilter = MouseFilterEnum.Ignore,
             AutowrapMode = TextServer.AutowrapMode.WordSmart
         };
+        _connection.AddThemeFontSizeOverride("font_size", 15);
+        _connection.AddThemeColorOverride("font_color", TextSecondary);
         _workspaceBody.AddChild(_connection);
 
         var modeRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Stop };
@@ -269,6 +284,8 @@ internal sealed class PlatformLivePanel : IDisposable
             MouseFilter = MouseFilterEnum.Ignore,
             AutowrapMode = TextServer.AutowrapMode.WordSmart
         };
+        _command.AddThemeFontSizeOverride("font_size", 15);
+        _command.AddThemeColorOverride("font_color", Accent);
         _workspaceBody.AddChild(_command);
 
         var tabs = new TabContainer
@@ -276,6 +293,9 @@ internal sealed class PlatformLivePanel : IDisposable
             MouseFilter = MouseFilterEnum.Stop,
             SizeFlagsVertical = SizeFlags.ExpandFill
         };
+        tabs.AddThemeFontSizeOverride("font_size", 14);
+        tabs.AddThemeColorOverride("font_selected_color", TextPrimary);
+        tabs.AddThemeColorOverride("font_unselected_color", TextSecondary);
         _workspaceBody.AddChild(tabs);
         AddPage(tabs, "Overview");
         AddPage(tabs, "Environment");
@@ -292,11 +312,11 @@ internal sealed class PlatformLivePanel : IDisposable
         BuildRecorderCard();
         _toastStack = new VBoxContainer
         {
-            Position = new Vector2(500, 18),
-            Size = new Vector2(380, 180),
+            Position = new Vector2(16, 360),
+            Size = new Vector2(380, 140),
             MouseFilter = MouseFilterEnum.Ignore
         };
-        Root.AddChild(_toastStack);
+        _workspaceSurface.AddChild(_toastStack);
         ApplyLayout();
     }
 
@@ -304,13 +324,16 @@ internal sealed class PlatformLivePanel : IDisposable
     {
         _recorderCard = new PanelContainer
         {
-            Position = _layout.RecorderPosition,
-            Size = new Vector2(360, 188),
+            Position = new Vector2(440, 72),
+            Size = new Vector2(348, 196),
             CustomMinimumSize = new Vector2(320, 120),
             MouseFilter = MouseFilterEnum.Stop
         };
+        _recorderCard.AddThemeStyleboxOverride("panel", MakePanelStyle(
+            new Color("#1b2b32f2"), new Color("#4d9b8c"), 10, 1, 12));
         _recorderCard.GuiInput += OnRecorderInput;
         var body = new VBoxContainer { MouseFilter = MouseFilterEnum.Stop };
+        body.AddThemeConstantOverride("separation", 8);
         _recorderCard.AddChild(body);
         // The card title is the drag surface; lifecycle buttons remain interactive.
         var titleRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
@@ -320,6 +343,8 @@ internal sealed class PlatformLivePanel : IDisposable
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             MouseFilter = MouseFilterEnum.Ignore
         };
+        _recorderTitle.AddThemeFontSizeOverride("font_size", 16);
+        _recorderTitle.AddThemeColorOverride("font_color", TextPrimary);
         titleRow.AddChild(_recorderTitle);
         _recorderCollapse = BuildCommandButton("Collapse", ToggleRecorderCollapse);
         titleRow.AddChild(_recorderCollapse);
@@ -332,7 +357,9 @@ internal sealed class PlatformLivePanel : IDisposable
             body, "Resume", STS2HumanAnnotator.Core.RecordingCommandKind.Resume);
         _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.Close] = BuildRecordingButton(
             body, "Close", STS2HumanAnnotator.Core.RecordingCommandKind.Close);
-        Root.AddChild(_recorderCard);
+        // Recorder is a tool region owned by the same workspace surface. It is
+        // never an independent legacy shell and is gated with workspace visibility.
+        _workspaceSurface.AddChild(_recorderCard);
     }
 
     private Button BuildRecordingButton(
@@ -356,9 +383,11 @@ internal sealed class PlatformLivePanel : IDisposable
                 : $"Set Policy Runtime mode to {text}; the UI never submits a BoundAction directly.",
             FocusMode = FocusModeEnum.None,
             MouseFilter = MouseFilterEnum.Stop,
-            CustomMinimumSize = new Vector2(108, 36),
+            CustomMinimumSize = new Vector2(118, 40),
+            ToggleMode = true,
             Disabled = true
         };
+        ApplyButtonTheme(button, mode == PlatformCommandMode.Human);
         button.Pressed += () => _ = SetRuntimeModeAsync(mode);
         _modeButtons.Add(mode, button);
         return button;
@@ -372,10 +401,55 @@ internal sealed class PlatformLivePanel : IDisposable
             TooltipText = tooltip ?? $"Annotator recording control: {text}",
             FocusMode = FocusModeEnum.None,
             MouseFilter = MouseFilterEnum.Stop,
-            CustomMinimumSize = new Vector2(108, 36)
+            CustomMinimumSize = new Vector2(118, 40)
         };
+        ApplyButtonTheme(button, false);
         button.Pressed += action;
         return button;
+    }
+
+    private static StyleBoxFlat MakePanelStyle(
+        Color background,
+        Color border,
+        int radius,
+        int borderWidth,
+        int padding)
+    {
+        var style = new StyleBoxFlat
+        {
+            BgColor = background,
+            BorderColor = border,
+            CornerRadiusTopLeft = radius,
+            CornerRadiusTopRight = radius,
+            CornerRadiusBottomLeft = radius,
+            CornerRadiusBottomRight = radius,
+            ContentMarginLeft = padding,
+            ContentMarginRight = padding,
+            ContentMarginTop = padding,
+            ContentMarginBottom = padding
+        };
+        style.SetBorderWidthAll(borderWidth);
+        return style;
+    }
+
+    private static void ApplyButtonTheme(Button button, bool selected)
+    {
+        button.AddThemeFontSizeOverride("font_size", 14);
+        button.AddThemeColorOverride("font_color", TextPrimary);
+        button.AddThemeColorOverride("font_hover_color", TextPrimary);
+        button.AddThemeColorOverride("font_pressed_color", TextPrimary);
+        button.AddThemeColorOverride("font_disabled_color", new Color("#708092"));
+        button.AddThemeStyleboxOverride("normal", MakePanelStyle(
+            selected ? new Color("#245b6b") : new Color("#263442"),
+            selected ? Accent : new Color("#4b5c6e"), 7, 1, 8));
+        button.AddThemeStyleboxOverride("hover", MakePanelStyle(
+            new Color("#315267"), Accent, 7, 1, 8));
+        button.AddThemeStyleboxOverride("pressed", MakePanelStyle(
+            new Color("#1e819b"), new Color("#9ae8f5"), 7, 2, 8));
+        button.AddThemeStyleboxOverride("disabled", MakePanelStyle(
+            new Color("#1a232d"), new Color("#34404d"), 7, 1, 8));
+        button.AddThemeStyleboxOverride("focus", MakePanelStyle(
+            new Color("#315267"), Accent, 7, 2, 8));
     }
 
     private void OnWorkspaceInput(InputEvent @event)
@@ -416,6 +490,9 @@ internal sealed class PlatformLivePanel : IDisposable
                     new Rect2(_workspace.Position, _resizeStart + delta), Root.Size);
                 _workspace.Position = clamped.Position;
                 _workspace.Size = clamped.Size;
+                LayoutWorkspaceSurface();
+                _recorderCard.Position = PlatformLiveLayout.ClampRecorder(
+                    _recorderCard.Position, _recorderCard.Size, _workspace.Size);
             }
             else
             {
@@ -449,7 +526,7 @@ internal sealed class PlatformLivePanel : IDisposable
             _recorderCard.Position = PlatformLiveLayout.ClampRecorder(
                 _dragStart + motion.Position - _dragOrigin,
                 _recorderCard.Size,
-                Root.Size);
+                _workspace.Size);
             _recorderCard.GetViewport().SetInputAsHandled();
         }
     }
@@ -487,13 +564,54 @@ internal sealed class PlatformLivePanel : IDisposable
             new Rect2(_layout.WorkspacePosition, _layout.WorkspaceSize), Root.Size);
         _workspace.Position = workspace.Position;
         _workspace.Size = workspace.Size;
+        LayoutWorkspaceSurface();
         SetWorkspaceCollapsed(_layout.WorkspaceCollapsed);
         _workspaceCollapse.Text = _layout.WorkspaceCollapsed ? "Expand" : "Collapse";
+        Vector2 recorderLocal = _layout.RecorderPosition - _workspace.Position;
+        if (recorderLocal.X < 8
+            || recorderLocal.Y < 48
+            || recorderLocal.X + _recorderCard.Size.X > _workspace.Size.X - 8
+            || recorderLocal.Y + _recorderCard.Size.Y > _workspace.Size.Y - 8)
+        {
+            // v1 stored the Recorder as a root-overlay coordinate. Rehome
+            // those legacy coordinates into the Workspace tool column once,
+            // without discarding the user's other presentation state.
+            recorderLocal = new Vector2(
+                Math.Max(8, _workspace.Size.X - _recorderCard.Size.X - 16),
+                72);
+        }
         _recorderCard.Position = PlatformLiveLayout.ClampRecorder(
-            _layout.RecorderPosition, _recorderCard.Size, Root.Size);
+            recorderLocal, _recorderCard.Size, _workspace.Size);
         foreach (Button button in _recordingButtons.Values)
             button.Visible = !_layout.RecorderCollapsed;
         _recorderCollapse.Text = _layout.RecorderCollapsed ? "Expand" : "Collapse";
+        ApplyPresentationVisibility();
+    }
+
+    private void LayoutWorkspaceSurface()
+    {
+        if (_workspaceSurface == null || _workspaceBody == null || _recorderCard == null || _toastStack == null)
+            return;
+        _workspaceSurface.Position = Vector2.Zero;
+        _workspaceSurface.Size = _workspace.Size;
+        _workspaceBody.Position = new Vector2(16, 16);
+        _workspaceBody.Size = new Vector2(
+            Math.Max(300, _workspace.Size.X - _recorderCard.Size.X - 44),
+            Math.Max(220, _workspace.Size.Y - 32));
+        _toastStack.Position = new Vector2(
+            16,
+            Math.Max(80, _workspace.Size.Y - _toastStack.Size.Y - 16));
+    }
+
+    private void ApplyPresentationVisibility()
+    {
+        bool workspaceVisible = _workspace.Visible;
+        // There is exactly one active presentation owner. The compact HUD is
+        // only an entry/status affordance while the full workspace is closed;
+        // recorder controls live on the workspace surface and never duplicate it.
+        _hud.Visible = !workspaceVisible;
+        _recorderCard.Visible = workspaceVisible;
+        _toastStack.Visible = workspaceVisible;
     }
 
     private void SetWorkspaceCollapsed(bool collapsed)
@@ -511,7 +629,7 @@ internal sealed class PlatformLivePanel : IDisposable
         {
             WorkspacePosition = _workspace.Position,
             WorkspaceSize = _workspace.Size,
-            RecorderPosition = _recorderCard.Position
+            RecorderPosition = _workspace.Position + _recorderCard.Position
         };
         if (!PlatformLiveLayout.Save(_layout))
             PushToast("layout.persistence", "Layout could not be saved; using this session only.");
@@ -543,6 +661,7 @@ internal sealed class PlatformLivePanel : IDisposable
                 FocusMode = FocusModeEnum.None,
                 SizeFlagsHorizontal = SizeFlags.ExpandFill
             };
+            ApplyButtonTheme(item, false);
             item.Pressed += () =>
             {
                 _toasts.RemoveAll(current => current.Key == toast.Key);
@@ -568,16 +687,57 @@ internal sealed class PlatformLivePanel : IDisposable
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
             VerticalScrollMode = ScrollContainer.ScrollMode.Auto
         };
+        scroll.AddThemeConstantOverride("separation", 10);
+        var card = new PanelContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        card.AddThemeStyleboxOverride("panel", PageStyle(name));
+        var margin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
+        margin.AddThemeConstantOverride("margin_left", 14);
+        margin.AddThemeConstantOverride("margin_right", 14);
+        margin.AddThemeConstantOverride("margin_top", 12);
+        margin.AddThemeConstantOverride("margin_bottom", 12);
         var label = new Label
         {
             Text = "Waiting for typed Platform live status...",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
             MouseFilter = MouseFilterEnum.Ignore
         };
-        scroll.AddChild(label);
+        label.AddThemeFontSizeOverride("font_size", 15);
+        label.AddThemeColorOverride("font_color", TextPrimary);
+        margin.AddChild(label);
+        card.AddChild(margin);
+        scroll.AddChild(card);
         tabs.AddChild(scroll);
         _pageText.Add(name, label);
+    }
+
+    private static StyleBoxFlat PageStyle(string name)
+    {
+        Color background = name switch
+        {
+            "Overview" => new Color("#1b2d3be8"),
+            "Environment" => new Color("#1c3439e8"),
+            "Policy" => new Color("#28233de8"),
+            "Human Data" => new Color("#20372fe8"),
+            "Diagnostics" => new Color("#3b3025e8"),
+            _ => new Color("#222d38e8")
+        };
+        Color border = name switch
+        {
+            "Overview" => new Color("#3e7992"),
+            "Environment" => new Color("#4b8f87"),
+            "Policy" => new Color("#8276bd"),
+            "Human Data" => new Color("#5b9a78"),
+            "Diagnostics" => new Color("#ad8551"),
+            _ => new Color("#536677")
+        };
+        return MakePanelStyle(background, border, 8, 1, 4);
     }
 
     private void ApplyRecordingCommand(STS2HumanAnnotator.Core.RecordingCommandKind kind)
@@ -610,6 +770,7 @@ internal sealed class PlatformLivePanel : IDisposable
         try
         {
             await _statusClient.SetModeAsync(ToRuntimeMode(mode));
+            ApplyModeButtonState();
             if (mode == PlatformCommandMode.OneStep)
             {
                 await _statusClient.TickAsync();
@@ -693,6 +854,7 @@ internal sealed class PlatformLivePanel : IDisposable
         SetPolicyControlsAvailable(status.PolicyRuntime != null, policyReason);
         if (status.PolicyRuntime != null)
             _mode = ParseRuntimeMode(status.PolicyRuntime.Mode);
+        ApplyModeButtonState();
         ApplyRecordingAvailability(status.Recording);
         _hudText.Text = $"Platform | {status.PolicyRuntime?.Mode ?? "Human"} | Recorder: {status.Recording.Lifecycle.State} | Connector: {status.TransportStatus}";
         _pageText["Overview"].Text = FormatOverview(status);
@@ -715,6 +877,16 @@ internal sealed class PlatformLivePanel : IDisposable
         _tickButton.TooltipText = available
             ? "Ask Policy Runtime for one bounded tick; action authority remains Connector/Runtime."
             : $"Unavailable: {reason ?? "Policy Runtime is unavailable."}";
+        ApplyModeButtonState();
+    }
+
+    private void ApplyModeButtonState()
+    {
+        foreach ((PlatformCommandMode mode, Button button) in _modeButtons)
+        {
+            button.ButtonPressed = mode == _mode;
+            ApplyButtonTheme(button, button.ButtonPressed);
+        }
     }
 
     private void ApplyRecordingAvailability(
@@ -852,15 +1024,17 @@ internal sealed class PlatformLivePanel : IDisposable
             {
                 _workspace.Position = clamped.Position;
                 _workspace.Size = clamped.Size;
+                LayoutWorkspaceSurface();
             }
             _recorderCard.Position = PlatformLiveLayout.ClampRecorder(
-                _recorderCard.Position, _recorderCard.Size, Root.Size);
+                _recorderCard.Position, _recorderCard.Size, _workspace.Size);
         }
 
         bool kPressed = Input.IsKeyPressed(Key.K) || Input.IsPhysicalKeyPressed(Key.K);
         if (kPressed && !_kWasPressed)
         {
             _workspace.Visible = !_workspace.Visible;
+            ApplyPresentationVisibility();
             if (_workspace.Visible)
                 _ = PollAsync();
             GD.Print($"[STS2 Platform Live UI] toggle; input=K; visible={_workspace.Visible.ToString().ToLowerInvariant()}");
@@ -880,6 +1054,7 @@ internal sealed class PlatformLivePanel : IDisposable
     private void HidePanel()
     {
         _workspace.Visible = false;
+        ApplyPresentationVisibility();
         PersistLayout();
         GD.Print("[STS2 Platform Live UI] toggle; input=close; visible=false");
     }
