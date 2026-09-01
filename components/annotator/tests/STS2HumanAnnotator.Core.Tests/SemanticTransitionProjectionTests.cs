@@ -25,7 +25,7 @@ public sealed class SemanticTransitionProjectionTests
 
         Assert.Equal("record-a1", record.RecordId);
         Assert.Equal("ordinary_combat", record.DecisionFamily);
-        Assert.Equal("s0", record.Pre.SnapshotId);
+        Assert.Equal("h0", record.Pre.SnapshotId);
         Assert.Equal("s1", record.Successor.SnapshotId);
         Assert.Equal(T0.AddSeconds(1), record.RecordedAt);
         Assert.Same(environment, record.Environment);
@@ -66,12 +66,98 @@ public sealed class SemanticTransitionProjectionTests
             draft,
             preRef,
             successorRef,
+            null,
             "session-test",
             "timeline-test");
 
         Assert.Equal("game_action", value.NativeMechanism);
         Assert.Equal("game-action-a1", value.ActionWitnessId);
+        Assert.Equal("public_bound_actions", value.ActionSpaceAuthority);
         Assert.Empty(CanonicalTransitionEvidenceValidator.Validate(value));
+    }
+
+    [Theory]
+    [InlineData("play", "card-a1")]
+    [InlineData("end_turn", null)]
+    [InlineData("use", "potion-a1")]
+    public void NativeExecutionCatalogQualifiesWhilePublicCatalogIsSettling(
+        string verb,
+        string? subject)
+    {
+        FrozenDecisionFrameV2 pre = Frame(
+            "s0",
+            "combat_turn",
+            includeChosenAction: false,
+            status: "settling");
+        FrozenDecisionFrameV2 successor = Frame(
+            "s1",
+            "combat_turn",
+            includeChosenAction: false);
+        SemanticBoundaryTraceDraft original = ProvedDraft(pre, successor);
+        RecordedBoundAction selected = original.Action.BoundAction! with
+        {
+            Verb = verb,
+            SubjectReferentId = subject,
+            Arguments = verb == "use"
+                ? new Dictionary<string, string> { ["target"] = "enemy-a1" }
+                : new Dictionary<string, string>()
+        };
+        SemanticActionReference action = original.Action with { BoundAction = selected };
+        ExecutionSemanticActionSpaceEvidence evidence = SemanticActionSpace(action);
+        SemanticBoundaryTraceDraft draft = original with { Action = action };
+        draft = draft with { ExecutionSemanticActionSpace = evidence };
+        var preRef = new SemanticFrameReference("s0", new string('1', 64), "semantic-frames/pre.json");
+        var successorRef = new SemanticFrameReference("s1", new string('2', 64), "semantic-frames/successor.json");
+        var actionSpaceRef = new ExecutionSemanticActionSpaceReference(
+            action.ActionWitnessId,
+            evidence.SemanticStateDigest,
+            evidence.SemanticCatalogDigest,
+            new string('3', 64),
+            "semantic-action-spaces/action.json");
+
+        CanonicalTransitionEvidence value = SemanticTransitionProjection.CreateCanonical(
+            draft,
+            preRef,
+            successorRef,
+            actionSpaceRef,
+            "session-test",
+            "timeline-test");
+
+        Assert.Equal("native_semantic_execution", value.ActionSpaceAuthority);
+        Assert.Same(actionSpaceRef, value.ExecutionSemanticActionSpaceRef);
+        Assert.Empty(CanonicalTransitionEvidenceValidator.Validate(value));
+    }
+
+    [Fact]
+    public void NativeExecutionCatalogMismatchFailsClosed()
+    {
+        FrozenDecisionFrameV2 pre = Frame("s0", "combat_turn", includeChosenAction: false);
+        SemanticBoundaryTraceDraft original = ProvedDraft(
+            pre,
+            Frame("s1", "combat_turn", includeChosenAction: false));
+        ExecutionSemanticActionSpaceEvidence evidence = SemanticActionSpace(original.Action) with
+        {
+            ObservedActionKey = "play|different-card|"
+        };
+        SemanticBoundaryTraceDraft draft = original with
+        {
+            ExecutionSemanticActionSpace = evidence
+        };
+        var reference = new ExecutionSemanticActionSpaceReference(
+            original.Action.ActionWitnessId,
+            evidence.SemanticStateDigest,
+            evidence.SemanticCatalogDigest,
+            new string('3', 64),
+            "semantic-action-spaces/action.json");
+
+        Assert.Throws<InvalidDataException>(() =>
+            SemanticTransitionProjection.CreateCanonical(
+                draft,
+                new SemanticFrameReference("s0", new string('1', 64), "pre.json"),
+                new SemanticFrameReference("s1", new string('2', 64), "successor.json"),
+                reference,
+                "session-test",
+                "timeline-test"));
     }
 
     private static SemanticBoundaryTraceDraft ProvedDraft(
@@ -129,13 +215,17 @@ public sealed class SemanticTransitionProjectionTests
             pre,
             successor,
             null,
-            Array.Empty<string>());
+            Array.Empty<string>())
+        {
+            HumanObservation = Frame("h0", pre.InteractionKind, includeChosenAction: true)
+        };
     }
 
     private static FrozenDecisionFrameV2 Frame(
         string snapshotId,
         string interactionKind,
-        bool includeChosenAction)
+        bool includeChosenAction,
+        string status = "interactive")
     {
         JsonArray actions = includeChosenAction
             ? new JsonArray(new JsonObject
@@ -150,7 +240,7 @@ public sealed class SemanticTransitionProjectionTests
         var snapshot = new JsonObject
         {
             ["snapshot_id"] = snapshotId,
-            ["status"] = "interactive",
+            ["status"] = status,
             ["session"] = new JsonObject
             {
                 ["runtime_instance_id"] = "runtime-test",
@@ -179,6 +269,38 @@ public sealed class SemanticTransitionProjectionTests
             actions.Count,
             snapshot,
             Array.Empty<ReadEvidence>());
+    }
+
+    private static ExecutionSemanticActionSpaceEvidence SemanticActionSpace(
+        SemanticActionReference action)
+    {
+        RecordedBoundAction selected = action.BoundAction!;
+        string key = $"{selected.Verb}|{selected.SubjectReferentId ?? "-"}|";
+        return new ExecutionSemanticActionSpaceEvidence(
+            ExecutionSemanticActionSpaceContract.SchemaVersion,
+            ExecutionSemanticActionSpaceContract.Schema,
+            action.ActionWitnessId,
+            "before_execution",
+            "captured",
+            "combat_play_phase",
+            new string('a', 64),
+            JsonNode.Parse("{\"turn\":1}")!,
+            new string('b', 64),
+            new[]
+            {
+                new ExecutionSemanticAction(
+                    key,
+                    selected.Verb,
+                    selected.SubjectReferentId,
+                    selected.Arguments,
+                    "native_test_validator")
+            },
+            key,
+            "exact_once",
+            1,
+            new[] { "native_test_validator" },
+            new[] { "not_public_delivery_authority" },
+            null);
     }
 
     private static RecorderEnvironmentIdentity Environment() => new(

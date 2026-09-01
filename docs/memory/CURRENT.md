@@ -6,10 +6,9 @@ requests, or dated evidence.
 
 ## Current phase
 
-`develop@2e1a5b67...` contains the completed PR #3, PR #5, PR #6 and PR #9
-production lines. PR #6 is merged and Human-qualified for its explicitly bounded
-scope; PR #9's hardening is merged and the active topic is the independent
-Recorder hot-path performance branch based on that exact merge. The integrated
+`develop@791e271...` contains the completed PR #3, PR #5, PR #6, PR #9 and PR
+#10 production lines. PR #6 is merged and Human-qualified for its explicitly
+bounded scope; PR #11 is the active authority/evidence convergence topic. The integrated
 PR #3 history preserves gameplay-safe commit
 `4384a14...` as a non-release tag and contains a bounded Human-proved read-only
 native semantic sequential lane. Exact session
@@ -53,10 +52,13 @@ The durable result is in the
 
 ## Active workstreams
 
-- `perf/platform/recording-hotpath` is the sole Platform topic owned by this
-  workstream. It is directly based on `develop@2e1a5b67...` and is limited to
-  evidence-safe Recorder hot-path profiling and the proven immutable game
-  identity hashing cost before the next domain expansion.
+- PR #11 `cleanup/platform/authority-evidence-single-source` is the active
+  Platform topic, based on `develop@791e271...`. Its current repair preserves
+  the exact Native Foundation execution `A_sem(S)` as typed durable evidence
+  while leaving `SemanticBoundaryTracker` as the sole causal/successor
+  authority and Connector as the sole public action/delivery authority. Source
+  and automated evidence do not transfer predecessor Human qualification; a
+  fresh exact candidate and bounded owner canary remain required.
 - PR #3, PR #5 and PR #6 are merged integration history. Ritsu research PRs #7 and #8
   are closed without their experimental runtime code; durable findings live in
   ADR 0004 and the final route-decision packet.

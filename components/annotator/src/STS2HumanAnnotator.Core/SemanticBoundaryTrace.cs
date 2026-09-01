@@ -76,6 +76,7 @@ public sealed record SemanticBoundaryObservation(
     string? ImmediatelyConsumedByActionWitnessId)
 {
     public NativeDecisionOwnerReadyEvidence? NativeDecisionOwnerReady { get; init; }
+    public ExecutionSemanticActionSpaceEvidence? ExecutionSemanticActionSpace { get; init; }
     public string StateCompleteness { get; init; } = State == null ? "unavailable" : "complete";
     public string RequiredReadsStatus { get; init; } = State == null ? "unavailable" : "complete";
     public IReadOnlyList<string> StateBlockers { get; init; } = Array.Empty<string>();
@@ -147,6 +148,7 @@ public sealed record SemanticBoundaryTraceDraft(
 {
     public FrozenDecisionFrameV2? HumanObservation { get; init; }
     public NativeCompletionEvidence? NativeCompletion { get; init; }
+    public ExecutionSemanticActionSpaceEvidence? ExecutionSemanticActionSpace { get; init; }
 }
 
 public sealed record SemanticBoundaryTraceEvent(
@@ -170,6 +172,7 @@ public sealed record SemanticBoundaryTraceEvent(
 {
     public FrozenDecisionFrameV2? HumanObservation { get; init; }
     public NativeCompletionEvidence? NativeCompletion { get; init; }
+    public ExecutionSemanticActionSpaceEvidence? ExecutionSemanticActionSpace { get; init; }
 }
 
 /// <summary>
@@ -196,6 +199,7 @@ public sealed class SemanticBoundaryTracker
         public bool Disposed { get; set; }
         public bool NativeLifecycleTerminal { get; set; }
         public NativeCompletionEvidence? NativeCommit { get; set; }
+        public ExecutionSemanticActionSpaceEvidence? ExecutionSemanticActionSpace { get; set; }
         public long? ExecutionOrder { get; set; }
     }
 
@@ -278,6 +282,8 @@ public sealed class SemanticBoundaryTracker
 
         _currentState = boundary.CanBindExecutionPre ? boundary.State : null;
         next.SemanticPre = _currentState;
+        if (boundary.CanBindExecutionPre && boundary.ExecutionSemanticActionSpace != null)
+            next.ExecutionSemanticActionSpace = boundary.ExecutionSemanticActionSpace;
         drafts.Add(Draft(
             SemanticBoundaryTraceKinds.BoundaryObserved,
             next,
@@ -751,7 +757,8 @@ public sealed class SemanticBoundaryTracker
             detail,
             nonClaims)
         {
-            HumanObservation = humanObservation
+            HumanObservation = humanObservation,
+            ExecutionSemanticActionSpace = entry.ExecutionSemanticActionSpace
         };
 }
 
@@ -819,6 +826,12 @@ public static class SemanticBoundaryTraceValidator
                     value.Action.ActionWitnessId,
                     StringComparison.Ordinal))
                 errors.Add("semantic_native_completion_action_identity_mismatch");
+            if (value.ExecutionSemanticActionSpace != null)
+            {
+                errors.AddRange(ExecutionSemanticActionSpaceValidator.Validate(
+                    value.ExecutionSemanticActionSpace,
+                    value.Action));
+            }
         }
 
         foreach (IGrouping<string, SemanticBoundaryTraceEvent> group in events
@@ -832,6 +845,14 @@ public static class SemanticBoundaryTraceValidator
             if (accepted.SchemaVersion == SemanticBoundaryTraceContract.SchemaVersion
                 && (accepted.HumanObservation == null || accepted.SemanticPre != null))
                 errors.Add("semantic_human_observation_not_separated_from_pre");
+            string[] executionSemanticDigests = actionEvents
+                .Where(value => value.ExecutionSemanticActionSpace != null)
+                .Select(value => EvidenceIdentity.Sha256Json(
+                    value.ExecutionSemanticActionSpace!))
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
+            if (executionSemanticDigests.Length > 1)
+                errors.Add("execution_semantic_action_space_changed_within_root");
 
             bool started = actionEvents.Any(value => value.Kind == SemanticBoundaryTraceKinds.ActionStarted);
             if (actionEvents.Count(value => value.Kind == SemanticBoundaryTraceKinds.ActionStarted) > 1)

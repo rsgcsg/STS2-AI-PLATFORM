@@ -13,6 +13,27 @@ GitHub enforcement is an operational fact separate from this source document;
 the workflow records intended rules, while repository settings must be checked
 directly before claiming protection.
 
+## Current PR #11 semantic action-space repair
+
+PR #11 is based on `develop@791e27172c39e5c4ce33a415b16fc1ea7f060513`.
+Its authority convergence correctly retires the mutable legacy admission and
+native-ledger paths, but exact Human session
+`session-20260901T143015Z-98e33382404a46369fffd0140729d815` exposed a separate
+fact-loss regression: 194 of 195 roots proved causal successors, while 139
+ordinary combat roots lacked durable execution action-space evidence. The
+execution public Snapshot was settling or had already withdrawn the chosen
+action; it is not interchangeable with native `A_sem(S)`.
+
+Current source preserves the exact read-only Native Foundation semantic
+state/catalog captured at `ActionExecutor.BeforeActionExecuted`, references it
+from semantic schema 4, and joins it in canonical schema 2 without changing
+public Snapshot readiness, Connector delivery/revalidation or tracker successor
+semantics. Decision V2 remains a compatibility projection from the frozen
+Human-time public frame. Historical schema 3/schema 1 evidence remains readable
+and is not upgraded or backfilled. This source requires a fresh exact build,
+load and Human canary; predecessor Human evidence does not transfer. See the
+[source closeout](evidence/PR11_EXECUTION_SEMANTIC_ACTION_SPACE_SOURCE_CLOSEOUT_2026-09-02.md).
+
 ## Current pre-Full-Run performance work
 
 PR #6 and PR #9 are merged in `develop@2e1a5b67...`. Their exact candidates and

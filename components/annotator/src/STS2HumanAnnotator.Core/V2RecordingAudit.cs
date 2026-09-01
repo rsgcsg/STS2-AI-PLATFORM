@@ -109,7 +109,12 @@ public static class V2RecordingAuditor
             semanticEvents,
             discriminatorEvents,
             errors);
-        ValidateCanonicalTransitions(directory, manifest, recordsById, errors);
+        ValidateCanonicalTransitions(
+            directory,
+            manifest,
+            recordsById,
+            semanticEvents,
+            errors);
         long invalidations = File.Exists(Path.Combine(directory, "invalidations.jsonl"))
             ? Lines(Path.Combine(directory, "invalidations.jsonl")).LongCount()
             : 0;
@@ -133,6 +138,7 @@ public static class V2RecordingAuditor
         string directory,
         RecordingManifestV2? manifest,
         IReadOnlyDictionary<string, HumanDecisionRecordV2> admittedRecords,
+        IReadOnlyList<SemanticBoundaryTraceEvent> semanticEvents,
         IDictionary<string, long> errors)
     {
         string path = Path.Combine(directory, "canonical-transitions.jsonl");
@@ -170,13 +176,18 @@ public static class V2RecordingAuditor
             string recordId = value.TransitionId.StartsWith("canonical-", StringComparison.Ordinal)
                 ? value.TransitionId["canonical-".Length..]
                 : string.Empty;
-            if (!admittedRecords.TryGetValue(recordId, out HumanDecisionRecordV2? record)
-                || record.Sequence != value.ActionSequence
-                || EvidenceIdentity.Sha256Json(record.Action)
-                    != EvidenceIdentity.Sha256Json(value.Action))
+            bool legacy = value.SchemaVersion
+                == CanonicalTransitionEvidenceContract.LegacySchemaVersion;
+            if (legacy)
             {
-                Add(errors, "canonical_transition_decision_mismatch");
-                continue;
+                if (!admittedRecords.TryGetValue(recordId, out HumanDecisionRecordV2? record)
+                    || record.Sequence != value.ActionSequence
+                    || EvidenceIdentity.Sha256Json(record.Action)
+                        != EvidenceIdentity.Sha256Json(value.Action))
+                {
+                    Add(errors, "canonical_transition_decision_mismatch");
+                    continue;
+                }
             }
             FrozenDecisionFrameV2? pre = ReadSemanticFrameReference(
                 directory,
@@ -186,25 +197,170 @@ public static class V2RecordingAuditor
                 directory,
                 value.SuccessorRef,
                 errors);
-            if (pre != null && SemanticFrameDigest(pre) != SemanticFrameDigest(record.Pre))
-                Add(errors, "canonical_transition_pre_mismatch");
-            if (successor == null)
+            if (legacy)
+            {
+                HumanDecisionRecordV2 record = admittedRecords[recordId];
+                if (pre != null && SemanticFrameDigest(pre) != SemanticFrameDigest(record.Pre))
+                    Add(errors, "canonical_transition_pre_mismatch");
+                if (successor == null)
+                    continue;
+                if (successor.SnapshotId != record.Successor.SnapshotId
+                    || successor.InteractionId != record.Successor.InteractionId
+                    || successor.InteractionKind != record.Successor.InteractionKind)
+                    Add(errors, "canonical_transition_successor_identity_mismatch");
+                if (!JsonNode.DeepEquals(successor.Snapshot, record.Successor.Snapshot))
+                    Add(errors, "canonical_transition_successor_snapshot_mismatch");
+                JsonNode? successorReads = JsonSerializer.SerializeToNode(
+                    successor.Reads,
+                    EvidenceJson.Options);
+                JsonNode? recordedReads = JsonSerializer.SerializeToNode(
+                    record.Successor.Reads,
+                    EvidenceJson.Options);
+                if (!JsonNode.DeepEquals(successorReads, recordedReads))
+                    Add(errors, "canonical_transition_successor_reads_mismatch");
                 continue;
-            if (successor.SnapshotId != record.Successor.SnapshotId
-                || successor.InteractionId != record.Successor.InteractionId
-                || successor.InteractionKind != record.Successor.InteractionKind)
-                Add(errors, "canonical_transition_successor_identity_mismatch");
-            if (!JsonNode.DeepEquals(successor.Snapshot, record.Successor.Snapshot))
-                Add(errors, "canonical_transition_successor_snapshot_mismatch");
-            JsonNode? successorReads = JsonSerializer.SerializeToNode(
-                successor.Reads,
-                EvidenceJson.Options);
-            JsonNode? recordedReads = JsonSerializer.SerializeToNode(
-                record.Successor.Reads,
-                EvidenceJson.Options);
-            if (!JsonNode.DeepEquals(successorReads, recordedReads))
-                Add(errors, "canonical_transition_successor_reads_mismatch");
+            }
+
+            SemanticBoundaryTraceEvent[] proofs = semanticEvents.Where(candidate =>
+                    candidate.Kind == SemanticBoundaryTraceKinds.TransitionProved
+                    && candidate.Action.ActionWitnessId == value.ActionWitnessId)
+                .ToArray();
+            if (proofs.Length != 1)
+            {
+                Add(errors, "canonical_transition_semantic_proof_missing_or_duplicate");
+                continue;
+            }
+            SemanticBoundaryTraceEvent proof = proofs[0];
+            if (recordId != proof.Action.RecordId
+                || value.RunId != proof.Action.RunId
+                || value.ActionSequence != proof.Action.ActionSequence
+                || proof.Action.BoundAction == null
+                || EvidenceIdentity.Sha256Json(value.Action)
+                    != EvidenceIdentity.Sha256Json(proof.Action.BoundAction))
+                Add(errors, "canonical_transition_semantic_action_mismatch");
+            if (pre == null || proof.SemanticPre == null
+                || SemanticFrameDigest(pre) != SemanticFrameDigest(proof.SemanticPre))
+                Add(errors, "canonical_transition_semantic_pre_mismatch");
+            if (successor == null || proof.SemanticSuccessor == null
+                || SemanticFrameDigest(successor)
+                    != SemanticFrameDigest(proof.SemanticSuccessor))
+                Add(errors, "canonical_transition_semantic_successor_mismatch");
+
+            if (value.ActionSpaceAuthority == "native_semantic_execution")
+            {
+                ExecutionSemanticActionSpaceEvidence? actionSpace =
+                    ReadExecutionSemanticActionSpaceReference(
+                        directory,
+                        value.ExecutionSemanticActionSpaceRef,
+                        errors);
+                if (actionSpace == null
+                    || proof.ExecutionSemanticActionSpace == null
+                    || EvidenceIdentity.Sha256Json(actionSpace)
+                        != EvidenceIdentity.Sha256Json(proof.ExecutionSemanticActionSpace))
+                    Add(errors, "canonical_transition_execution_semantic_evidence_mismatch");
+                else
+                {
+                    foreach (string error in ExecutionSemanticActionSpaceValidator.Validate(
+                                 actionSpace,
+                                 proof.Action))
+                        Add(errors, error);
+                }
+            }
+            else if (value.ActionSpaceAuthority == "public_bound_actions"
+                     && (pre == null || !PublicCatalogContainsExactlyOnce(pre, value.Action)))
+            {
+                Add(errors, "canonical_transition_public_action_space_invalid");
+            }
         }
+    }
+
+    private static ExecutionSemanticActionSpaceEvidence?
+        ReadExecutionSemanticActionSpaceReference(
+            string directory,
+            ExecutionSemanticActionSpaceReference? reference,
+            IDictionary<string, long> errors,
+            bool required = true)
+    {
+        if (reference == null)
+        {
+            if (required)
+                Add(errors, "execution_semantic_action_space_ref_missing");
+            return null;
+        }
+        string path;
+        try
+        {
+            path = ResolveBelow(directory, reference.ObjectRef);
+        }
+        catch (InvalidDataException)
+        {
+            Add(errors, "execution_semantic_action_space_ref_invalid");
+            return null;
+        }
+        if (!File.Exists(path) || EvidenceIdentity.Sha256File(path) != reference.ContentSha256)
+        {
+            Add(errors, "execution_semantic_action_space_missing_or_changed");
+            return null;
+        }
+        try
+        {
+            ExecutionSemanticActionSpaceEvidence? value =
+                JsonSerializer.Deserialize<ExecutionSemanticActionSpaceEvidence>(
+                    File.ReadAllText(path),
+                    EvidenceJson.Options);
+            if (value == null
+                || value.ActionWitnessId != reference.ActionWitnessId
+                || value.SemanticStateDigest != reference.SemanticStateDigest
+                || value.SemanticCatalogDigest != reference.SemanticCatalogDigest)
+            {
+                Add(errors, "execution_semantic_action_space_identity_mismatch");
+                return null;
+            }
+            return value;
+        }
+        catch (JsonException)
+        {
+            Add(errors, "execution_semantic_action_space_json_invalid");
+            return null;
+        }
+    }
+
+    private static bool PublicCatalogContainsExactlyOnce(
+        FrozenDecisionFrameV2 frame,
+        RecordedBoundAction selected)
+    {
+        if (frame.Snapshot["completeness"]?["status"]?.GetValue<string>() != "complete"
+            || frame.Snapshot["bound_actions"]?["status"]?.GetValue<string>() != "complete"
+            || frame.Snapshot["bound_actions"]?["actions"] is not JsonArray actions
+            || frame.CatalogCount != actions.Count)
+            return false;
+        return actions.Count(candidate =>
+            candidate?["bound_action_id"]?.GetValue<string>() == selected.BoundActionId
+            && candidate?["verb"]?.GetValue<string>() == selected.Verb
+            && candidate?["subject_referent_id"]?.GetValue<string>()
+                == selected.SubjectReferentId
+            && PublicArgumentsMatch(candidate?["arguments"], selected.Arguments)) == 1;
+    }
+
+    private static bool PublicArgumentsMatch(
+        JsonNode? node,
+        IReadOnlyDictionary<string, string> expected)
+    {
+        if (node is not JsonArray values)
+            return expected.Count == 0;
+        var actual = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (JsonNode? value in values)
+        {
+            string? role = value?["role"]?.GetValue<string>();
+            string? referent = value?["referent_id"]?.GetValue<string>();
+            if (string.IsNullOrWhiteSpace(role)
+                || string.IsNullOrWhiteSpace(referent)
+                || !actual.TryAdd(role, referent))
+                return false;
+        }
+        return actual.Count == expected.Count
+            && actual.All(pair => expected.TryGetValue(pair.Key, out string? referent)
+                                  && referent == pair.Value);
     }
 
     private static FrozenDecisionFrameV2? ReadSemanticFrameReference(
@@ -415,7 +571,8 @@ public static class V2RecordingAuditor
                 Add(errors, "semantic_boundary_trace_json_invalid");
                 continue;
             }
-            if (schema == SemanticEvidenceContract.EventSchema)
+            if (schema is SemanticEvidenceContract.EventSchema
+                or SemanticEvidenceContract.LegacyEventSchema)
             {
                 SemanticBoundaryTraceEvent? materialized = MaterializeSemanticEvidenceEvent(
                     directory,
@@ -472,8 +629,7 @@ public static class V2RecordingAuditor
             return null;
         }
         if (value == null
-            || value.SchemaVersion != SemanticEvidenceContract.SchemaVersion
-            || value.Schema != SemanticEvidenceContract.EventSchema
+            || !SemanticEvidenceContract.IsSupported(value.SchemaVersion, value.Schema)
             || manifest == null
             || value.SessionId != manifest.SessionId
             || value.TimelineId != manifest.TimelineId)
@@ -507,6 +663,12 @@ public static class V2RecordingAuditor
                 errors);
             boundary = SemanticBoundaryObservationCodec.Materialize(value.Boundary, state);
         }
+        ExecutionSemanticActionSpaceEvidence? executionSemanticActionSpace =
+            ReadExecutionSemanticActionSpaceReference(
+                directory,
+                value.ExecutionSemanticActionSpaceRef,
+                errors,
+                required: false);
 
         return new SemanticBoundaryTraceEvent(
             SemanticBoundaryTraceContract.SchemaVersion,
@@ -528,7 +690,8 @@ public static class V2RecordingAuditor
             value.NonClaims)
         {
             HumanObservation = humanObservation,
-            NativeCompletion = value.NativeCompletion
+            NativeCompletion = value.NativeCompletion,
+            ExecutionSemanticActionSpace = executionSemanticActionSpace
         };
     }
 

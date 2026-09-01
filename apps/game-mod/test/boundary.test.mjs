@@ -213,6 +213,27 @@ test("native discriminator profiles fallback snapshots separately from frame pro
   assert.match(discriminator, /uiFrame == null/u);
 });
 
+test("execution semantic action space is captured once and preserved without becoming public authority", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const beforeExecution = sourceBetween(
+    runtime,
+    "private static void ObserveBeforeActionExecution",
+    "private static void ObserveSemanticDecisionBoundary"
+  );
+  const snapshot = read("components/connector/host/PlayerEnvironment/Observation/SnapshotBuilder.cs");
+  const projection = read("components/annotator/src/STS2HumanAnnotator.Core/SemanticTransitionProjection.cs");
+
+  assert.match(beforeExecution, /ProcessLocalNativeWitnessFrame frame = CaptureSemanticFrame\(\)/u);
+  assert.match(beforeExecution, /PlayerEnvironmentNativeSemanticWitness\.Capture\(phase, action, frame\)/u);
+  assert.match(beforeExecution, /capturedValue: semanticCapture/u);
+  assert.match(beforeExecution, /executionSemanticActionSpace:[\s\S]*ToExecutionSemanticActionSpace/u);
+  assert.match(projection, /ExecutionSemanticActionSpaceValidator\.Validate/u);
+  assert.match(projection, /native_semantic_execution/u);
+  assert.match(snapshot, /CanPublishMutationAuthority\(draft\.Readiness\)[\s\S]*Array\.Empty<NativeUiBoundAction>/u);
+  assert.doesNotMatch(snapshot, /ExecutionSemanticActionSpace|HumanAnnotator/u);
+  assert.doesNotMatch(runtime, /PendingDecision|AcceptedHumanActionLedger|SerializedEvidenceAdmission/u);
+});
+
 test("combat owner-ready uses the exact post-input-owner native seam and a typed fail-closed capture", () => {
   const patches = read("apps/game-mod/NativeFoundationOwnerPatches.cs");
   const provider = read("components/native-foundation/src/NativeDecisionOwnerReadyProvider.cs");

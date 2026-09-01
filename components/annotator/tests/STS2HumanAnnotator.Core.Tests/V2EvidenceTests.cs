@@ -1017,6 +1017,204 @@ public sealed class V2EvidenceTests
         }
     }
 
+    [Fact]
+    public void ExecutionSemanticActionSpaceRoundTripsIntoCanonicalAudit()
+    {
+        string root = Temp("execution-semantic-action-space-round-trip");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            string session;
+            string actionSpacePath;
+            using (V2RecordingStore store = V2RecordingStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                HumanDecisionRecord source = RecordValidationTests.ValidRecord();
+                HumanDecisionRecordV2 decision = V2Record(
+                    source,
+                    (PersistReads(store, source.Pre.SnapshotId),
+                        PersistReads(store, source.Successor.SnapshotId)));
+                store.AppendDecision(decision);
+
+                JsonNode executionSnapshot = decision.Pre.Snapshot.DeepClone();
+                executionSnapshot["snapshot_id"] = "execution-pre";
+                executionSnapshot["status"] = "settling";
+                executionSnapshot["bound_actions"]!["actions"] = new JsonArray();
+                executionSnapshot["bound_actions"]!["materialized_count"] = 0;
+                executionSnapshot["bound_actions"]!["total_count"] = 0;
+                var executionPre = new FrozenDecisionFrameV2(
+                    "execution-pre",
+                    decision.Pre.InteractionId,
+                    decision.Pre.InteractionKind,
+                    decision.Pre.SurfaceSchema,
+                    EvidenceIdentity.Sha256Json(executionSnapshot["bound_actions"]!),
+                    0,
+                    executionSnapshot,
+                    decision.Pre.Reads);
+                var successor = new FrozenDecisionFrameV2(
+                    decision.Successor.SnapshotId,
+                    decision.Successor.InteractionId,
+                    decision.Successor.InteractionKind,
+                    decision.Pre.SurfaceSchema,
+                    decision.Pre.CatalogDigest,
+                    decision.Pre.CatalogCount,
+                    decision.Successor.Snapshot.DeepClone(),
+                    decision.Successor.Reads);
+                var action = new SemanticActionReference(
+                    "execution-semantic-action",
+                    decision.Sequence,
+                    decision.RecordId,
+                    decision.RunId,
+                    decision.NativeWitness.NativeActionType,
+                    7,
+                    decision.Pre.SnapshotId)
+                {
+                    NativeMechanism = "game_action",
+                    NativeWitness = decision.NativeWitness,
+                    Mapping = decision.Mapping,
+                    BoundAction = decision.Action
+                };
+                string semanticKey = $"{decision.Action.Verb}|{decision.Action.SubjectReferentId ?? "-"}|";
+                var actionSpace = new ExecutionSemanticActionSpaceEvidence(
+                    ExecutionSemanticActionSpaceContract.SchemaVersion,
+                    ExecutionSemanticActionSpaceContract.Schema,
+                    action.ActionWitnessId,
+                    "before_execution",
+                    "captured",
+                    "combat_play_phase",
+                    new string('a', 64),
+                    JsonNode.Parse("{\"player_phase\":\"Play\"}")!,
+                    new string('b', 64),
+                    new[]
+                    {
+                        new ExecutionSemanticAction(
+                            semanticKey,
+                            decision.Action.Verb,
+                            decision.Action.SubjectReferentId,
+                            decision.Action.Arguments,
+                            "CardModel.CanPlayTargeting")
+                    },
+                    semanticKey,
+                    "exact_once",
+                    1,
+                    new[] { "CardModel.CanPlayTargeting" },
+                    new[] { "not_public_bound_action_delivery_authority" },
+                    null);
+                var tracker = new SemanticBoundaryTracker();
+                var drafts = new List<SemanticBoundaryTraceDraft>();
+                drafts.AddRange(tracker.Accept(action, decision.Pre));
+                drafts.AddRange(tracker.ObserveBeforeActionExecution(
+                    action.ActionWitnessId,
+                    new SemanticBoundaryObservation(
+                        SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
+                        DateTimeOffset.UnixEpoch,
+                        executionPre.SnapshotId,
+                        "settling",
+                        "complete",
+                        executionPre.InteractionId,
+                        executionPre.InteractionKind,
+                        executionPre,
+                        action.ActionWitnessId)
+                    {
+                        ExecutionSemanticActionSpace = actionSpace
+                    }));
+                drafts.AddRange(tracker.Started(action.ActionWitnessId));
+                drafts.AddRange(tracker.Finished(action.ActionWitnessId));
+                drafts.AddRange(tracker.ObserveDecisionBoundary(
+                    new SemanticBoundaryObservation(
+                        SemanticBoundaryWitnessKinds.NativeDecisionOwnerReady,
+                        DateTimeOffset.UnixEpoch.AddSeconds(1),
+                        successor.SnapshotId,
+                        "interactive",
+                        "complete",
+                        successor.InteractionId,
+                        successor.InteractionKind,
+                        successor,
+                        null)
+                    {
+                        NativeDecisionOwnerReady = new NativeDecisionOwnerReadyEvidence(
+                            successor.InteractionKind,
+                            "combat-owner",
+                            "CombatState",
+                            "native-test-owner-ready")
+                    }));
+
+                int sequence = 0;
+                foreach (SemanticBoundaryTraceDraft draft in drafts)
+                {
+                    SemanticFrameReference? humanRef = draft.HumanObservation == null
+                        ? null
+                        : store.PersistSemanticFrame(draft.HumanObservation);
+                    SemanticFrameReference? preRef = draft.SemanticPre == null
+                        ? null
+                        : store.PersistSemanticFrame(draft.SemanticPre);
+                    SemanticFrameReference? successorRef = draft.SemanticSuccessor == null
+                        ? null
+                        : store.PersistSemanticFrame(draft.SemanticSuccessor);
+                    ExecutionSemanticActionSpaceReference? actionSpaceRef =
+                        draft.ExecutionSemanticActionSpace == null
+                            ? null
+                            : store.PersistExecutionSemanticActionSpace(
+                                draft.ExecutionSemanticActionSpace);
+                    store.AppendSemanticEvidenceEvents(new[]
+                    {
+                        SemanticEvidenceEvent(
+                            manifest,
+                            ++sequence,
+                            draft.Kind,
+                            draft.Action) with
+                        {
+                            ProofStatus = draft.ProofStatus,
+                            RelatedActionWitnessId = draft.RelatedActionWitnessId,
+                            Boundary = draft.Boundary == null
+                                ? null
+                                : SemanticBoundaryObservationCodec.Encode(
+                                    draft.Boundary,
+                                    store.PersistSemanticFrame),
+                            HumanObservationRef = humanRef,
+                            ExecutionPreRef = preRef,
+                            SuccessorRef = successorRef,
+                            ExecutionSemanticActionSpaceRef = actionSpaceRef,
+                            NativeCompletion = draft.NativeCompletion
+                        }
+                    });
+                }
+
+                SemanticBoundaryTraceDraft proved = drafts.Single(draft =>
+                    draft.Kind == SemanticBoundaryTraceKinds.TransitionProved);
+                SemanticFrameReference canonicalPre = store.PersistSemanticFrame(
+                    proved.SemanticPre!);
+                SemanticFrameReference canonicalSuccessor = store.PersistSemanticFrame(
+                    proved.SemanticSuccessor!);
+                ExecutionSemanticActionSpaceReference canonicalActionSpace =
+                    store.PersistExecutionSemanticActionSpace(
+                        proved.ExecutionSemanticActionSpace!);
+                store.AppendCanonicalTransition(SemanticTransitionProjection.CreateCanonical(
+                    proved,
+                    canonicalPre,
+                    canonicalSuccessor,
+                    canonicalActionSpace,
+                    manifest.SessionId,
+                    manifest.TimelineId));
+                actionSpacePath = Path.Combine(session, canonicalActionSpace.ObjectRef);
+            }
+
+            RecordingAuditResult audit = V2RecordingAuditor.Audit(session);
+            Assert.True(audit.Status == "pass", JsonSerializer.Serialize(audit.Errors));
+            File.AppendAllText(actionSpacePath, "tampered");
+            RecordingAuditResult tampered = V2RecordingAuditor.Audit(session);
+            Assert.Equal("fail", tampered.Status);
+            Assert.True(tampered.Errors.ContainsKey(
+                "execution_semantic_action_space_missing_or_changed"));
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
     private static IReadOnlyList<string> ReadLiveLines(string path)
     {
         using var stream = new FileStream(
@@ -1280,15 +1478,15 @@ public sealed class V2EvidenceTests
         HumanDecisionRecordV2 record,
         SemanticFrameReference preRef,
         SemanticFrameReference successorRef) => new(
-        CanonicalTransitionEvidenceContract.SchemaVersion,
-        CanonicalTransitionEvidenceContract.Schema,
+        CanonicalTransitionEvidenceContract.LegacySchemaVersion,
+        CanonicalTransitionEvidenceContract.LegacySchema,
         $"canonical-{record.RecordId}",
         record.SessionId,
         record.TimelineId,
         record.RunId,
         record.Sequence,
         DateTimeOffset.UnixEpoch,
-        CanonicalTransitionEvidenceContract.CollectionMode,
+        CanonicalTransitionEvidenceContract.LegacyCollectionMode,
         $"epoch-{preRef.ContentSha256}",
         "ui-action-test",
         "direct_ui_commit",

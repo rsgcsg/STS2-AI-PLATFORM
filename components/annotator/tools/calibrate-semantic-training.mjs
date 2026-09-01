@@ -9,14 +9,15 @@ import { fileURLToPath } from "node:url";
 
 const CONTRACT = Object.freeze({
   state: "authoritative fair-player state consumed by the executed Human action",
-  action_space: "complete same-state Player Environment BoundAction catalog",
-  action: "exact executed Human action present exactly once in the same-state catalog",
+  action_space: "typed same-boundary native semantic catalog when present; otherwise the complete public catalog for direct UI decisions",
+  action: "exact Human/native action present exactly once in the authoritative execution action space",
   successor: "next authoritative state after the action and its causally owned continuation",
   non_claims: [
     "human_observation_is_not_semantic_state",
     "acceptance_is_not_execution",
     "interactive_status_alone_does_not_prove_successor",
-    "legacy_v2_admission_does_not_prove_canonical_transition"
+    "legacy_v2_admission_does_not_prove_canonical_transition",
+    "public_delivery_catalog_is_not_native_semantic_legality"
   ]
 });
 
@@ -94,6 +95,36 @@ function frameStatus(frame, action) {
   };
 }
 
+function semanticActionSpaceStatus(value, action, actionWitnessId) {
+  const actions = Array.isArray(value?.actions) ? value.actions : [];
+  const observedKey = value?.observed_action_key;
+  const selected = actions.filter((candidate) => candidate?.key === observedKey);
+  const matches = selected.filter((candidate) =>
+    candidate?.verb === action?.verb
+    && (candidate?.subject_referent_id ?? null) === (action?.subject_referent_id ?? null)
+    && canonical(candidate?.arguments ?? {}) === canonical(normalizedArguments(action)));
+  const complete = Boolean(
+    value
+    && value.schema === "sts2.human-annotator/execution-semantic-action-space-1"
+    && value.schema_version === 1
+    && value.action_witness_id === actionWitnessId
+    && value.phase === "before_execution"
+    && value.status === "captured"
+    && value.scope === "combat_play_phase"
+    && value.semantic_state
+    && typeof value.semantic_state_digest === "string"
+    && typeof value.semantic_catalog_digest === "string"
+    && value.observed_membership === "exact_once"
+    && value.observed_match_count === 1
+    && selected.length === 1);
+  return {
+    complete,
+    catalog_status: complete ? "complete" : "missing_or_incomplete",
+    catalog_count: actions.length,
+    action_match_count: matches.length
+  };
+}
+
 async function discoverRunFiles(root) {
   return (await readdir(root))
     .filter((name) => /^run-.*\.jsonl$/.test(name))
@@ -125,14 +156,14 @@ function sourceForAction(accepted, ledger, legacy) {
   return "missing";
 }
 
-function causalSuccessorStatus({ proved, events, actionsById, loadFrame }) {
+function causalSuccessorStatus({ proved, events, actionsById, loadFrame, loadActionSpace }) {
   if (!proved) return { valid: false, reason: "successor_not_proved" };
   const successor = loadFrame(proved.successor_ref);
   if (!successor)
     return { valid: false, reason: "successor_frame_missing" };
   const successorStatus = frameStatus(successor, null);
-  if (!successorStatus.complete)
-    return { valid: false, reason: "successor_state_action_space_incomplete" };
+  if (successor?.snapshot?.completeness?.status !== "complete")
+    return { valid: false, reason: "successor_state_incomplete" };
 
   if (proved.proof_status === "proved_execution_handoff_boundary") {
     const next = actionsById.get(proved.related_action_witness_id);
@@ -142,8 +173,12 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame }) {
     if (!nextBoundary || !sameRef(proved.successor_ref, nextBoundary.execution_pre_ref))
       return { valid: false, reason: "handoff_does_not_equal_next_execution_pre" };
     const nextAction = next.action;
-    const nextMembership = frameStatus(successor, nextAction);
-    if (nextMembership.action_match_count !== 1)
+    const nextActionSpace = loadActionSpace(next?.events.find((event) =>
+      event.execution_semantic_action_space_ref)?.execution_semantic_action_space_ref);
+    const nextMembership = nextActionSpace
+      ? semanticActionSpaceStatus(nextActionSpace, nextAction, next.id)
+      : frameStatus(successor, nextAction);
+    if (!nextMembership.complete || nextMembership.action_match_count !== 1)
       return { valid: false, reason: "handoff_next_action_not_in_same_state_catalog" };
     return { valid: true, reason: "execution_handoff_exact" };
   }
@@ -152,19 +187,25 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame }) {
     const paused = events.some((event) => event.kind === "action_paused_for_player_choice");
     if (!paused)
       return { valid: false, reason: "player_choice_boundary_without_native_pause" };
-    return { valid: true, reason: "native_player_choice_pause" };
+    return successorStatus.complete
+      ? { valid: true, reason: "native_player_choice_pause" }
+      : { valid: false, reason: "successor_state_action_space_incomplete" };
   }
 
   if (proved.proof_status === "proved_native_post_commit_boundary") {
     if (proved.boundary?.witness_kind !== "after_native_ui_commit")
       return { valid: false, reason: "native_post_commit_witness_missing" };
-    return { valid: true, reason: "native_post_commit_exact" };
+    return successorStatus.complete
+      ? { valid: true, reason: "native_post_commit_exact" }
+      : { valid: false, reason: "successor_state_action_space_incomplete" };
   }
 
   if (proved.proof_status === "proved_native_commit_then_owner_boundary") {
     if (proved.boundary?.witness_kind !== "native_decision_owner_ready")
       return { valid: false, reason: "native_owner_boundary_witness_missing" };
-    return { valid: true, reason: "native_commit_then_owner_boundary_exact" };
+    return successorStatus.complete
+      ? { valid: true, reason: "native_commit_then_owner_boundary_exact" }
+      : { valid: false, reason: "successor_state_action_space_incomplete" };
   }
 
   if (proved.proof_status === "proved_native_commit_then_execution_handoff") {
@@ -174,8 +215,12 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame }) {
       && event.boundary?.immediately_consumed_by_action_witness_id === next.id);
     if (!nextBoundary || !sameRef(proved.successor_ref, nextBoundary.execution_pre_ref))
       return { valid: false, reason: "native_commit_handoff_does_not_equal_next_execution_pre" };
-    const nextMembership = frameStatus(successor, next.action);
-    if (nextMembership.action_match_count !== 1)
+    const nextActionSpace = loadActionSpace(next?.events.find((event) =>
+      event.execution_semantic_action_space_ref)?.execution_semantic_action_space_ref);
+    const nextMembership = nextActionSpace
+      ? semanticActionSpaceStatus(nextActionSpace, next.action, next.id)
+      : frameStatus(successor, next.action);
+    if (!nextMembership.complete || nextMembership.action_match_count !== 1)
       return { valid: false, reason: "native_commit_handoff_action_not_in_same_state_catalog" };
     return { valid: true, reason: "native_commit_then_execution_handoff_exact" };
   }
@@ -244,7 +289,7 @@ export async function calibrate(recordingDirectory) {
   }
 
   const frameCache = new Map();
-  function loadFrame(reference) {
+  function loadObject(reference) {
     if (!reference?.object_ref) return null;
     const relative = path.normalize(reference.object_ref);
     if (path.isAbsolute(relative) || relative.startsWith("..") || relative.includes(`..${path.sep}`))
@@ -259,6 +304,8 @@ export async function calibrate(recordingDirectory) {
     }
     return frameCache.get(relative);
   }
+  const loadFrame = loadObject;
+  const loadActionSpace = loadObject;
 
   const classifications = {};
   const proofReasons = {};
@@ -288,7 +335,15 @@ export async function calibrate(recordingDirectory) {
     const preReference = terminal?.execution_pre_ref
       ?? state.events.find((event) => event.execution_pre_ref)?.execution_pre_ref;
     const pre = loadFrame(preReference);
-    const preStatus = frameStatus(pre, selected);
+    const actionSpaceReference = state.events.find((event) =>
+      event.execution_semantic_action_space_ref)?.execution_semantic_action_space_ref;
+    const semanticActionSpace = loadActionSpace(actionSpaceReference);
+    const actionSpaceAuthority = semanticActionSpace
+      ? "native_semantic_execution"
+      : "public_bound_actions";
+    const preStatus = semanticActionSpace
+      ? semanticActionSpaceStatus(semanticActionSpace, selected, state.id)
+      : frameStatus(pre, selected);
     const humanReference = accepted.human_observation_ref;
     const human = loadFrame(humanReference) ?? ledger?.decision_pre ?? legacy?.pre ?? null;
     const humanStatus = frameStatus(human, selected);
@@ -296,7 +351,8 @@ export async function calibrate(recordingDirectory) {
       proved,
       events: state.events,
       actionsById,
-      loadFrame
+      loadFrame,
+      loadActionSpace
     });
 
     let classification;
@@ -349,6 +405,11 @@ export async function calibrate(recordingDirectory) {
       execution_catalog_status: preStatus.catalog_status,
       execution_catalog_count: preStatus.catalog_count,
       execution_action_match_count: preStatus.action_match_count,
+      execution_action_space_authority: actionSpaceAuthority,
+      execution_semantic_state_digest:
+        semanticActionSpace?.semantic_state_digest ?? null,
+      execution_semantic_catalog_digest:
+        semanticActionSpace?.semantic_catalog_digest ?? null,
       successor_snapshot_id: proved?.successor_ref?.snapshot_id ?? null,
       semantic_proof_status: proved?.proof_status ?? terminal?.proof_status ?? null,
       human_action_match_count: humanStatus.action_match_count
@@ -357,8 +418,8 @@ export async function calibrate(recordingDirectory) {
 
   const acceptedCount = ordered.length;
   return {
-    schema_version: 1,
-    schema: "sts2.human-annotator/semantic-training-calibration-1",
+    schema_version: 2,
+    schema: "sts2.human-annotator/semantic-training-calibration-2",
     contract: CONTRACT,
     session: {
       session_id: manifest.session_id,

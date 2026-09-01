@@ -35,6 +35,33 @@ function frame(snapshotId, actions = [action()]) {
   };
 }
 
+function semanticActionSpace(actionWitnessId, selected) {
+  const key = `${selected.verb}|${selected.subject_referent_id ?? "-"}|`;
+  return {
+    schema_version: 1,
+    schema: "sts2.human-annotator/execution-semantic-action-space-1",
+    action_witness_id: actionWitnessId,
+    phase: "before_execution",
+    status: "captured",
+    scope: "combat_play_phase",
+    semantic_state_digest: "semantic-state",
+    semantic_state: { player_phase: "Play" },
+    semantic_catalog_digest: "semantic-catalog",
+    actions: [{
+      key,
+      verb: selected.verb,
+      subject_referent_id: selected.subject_referent_id,
+      arguments: selected.arguments,
+      native_legality_basis: "native-test-validator"
+    }],
+    observed_action_key: key,
+    observed_membership: "exact_once",
+    observed_match_count: 1,
+    native_evidence: ["native-test-validator"],
+    non_claims: ["not_public_bound_action_delivery_authority"]
+  };
+}
+
 async function fixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), "semantic-calibration-"));
   await writeFile(path.join(root, "recording-manifest.json"), JSON.stringify({
@@ -52,8 +79,76 @@ async function fixture() {
   await store("s0", frame("s0"));
   await store("s1", frame("s1", [action("action-2")]));
   await store("mismatch", frame("mismatch", [action("other")]));
+  await store("settling0", frame("settling0", []));
+  await store("settling1", frame("settling1", []));
+  await store("a1semantic", semanticActionSpace("a1", action()));
+  await store("a2semantic", semanticActionSpace("a2", action("action-2")));
   return { root, refs };
 }
+
+test("uses durable native semantic action space when public execution catalog is empty", async () => {
+  const { root, refs } = await fixture();
+  try {
+    const first = action();
+    const second = action("action-2");
+    const events = [
+      event(1, "action_accepted", "a1", first, { human_observation_ref: refs.s0 }),
+      event(2, "boundary_observed", "a1", first, {
+        execution_pre_ref: refs.settling0,
+        execution_semantic_action_space_ref: refs.a1semantic,
+        boundary: { immediately_consumed_by_action_witness_id: "a1" }
+      }),
+      event(3, "action_started", "a1", first, {
+        execution_pre_ref: refs.settling0,
+        execution_semantic_action_space_ref: refs.a1semantic
+      }),
+      event(4, "action_finished", "a1", first, {
+        execution_pre_ref: refs.settling0,
+        execution_semantic_action_space_ref: refs.a1semantic
+      }),
+      event(5, "transition_proved", "a1", first, {
+        execution_pre_ref: refs.settling0,
+        execution_semantic_action_space_ref: refs.a1semantic,
+        successor_ref: refs.settling1,
+        related_action_witness_id: "a2",
+        proof_status: "proved_execution_handoff_boundary"
+      }),
+      event(6, "action_accepted", "a2", second, { human_observation_ref: refs.s1 }),
+      event(7, "boundary_observed", "a2", second, {
+        execution_pre_ref: refs.settling1,
+        execution_semantic_action_space_ref: refs.a2semantic,
+        boundary: { immediately_consumed_by_action_witness_id: "a2" }
+      }),
+      event(8, "action_started", "a2", second, {
+        execution_pre_ref: refs.settling1,
+        execution_semantic_action_space_ref: refs.a2semantic
+      }),
+      event(9, "action_finished", "a2", second, {
+        execution_pre_ref: refs.settling1,
+        execution_semantic_action_space_ref: refs.a2semantic
+      }),
+      event(10, "transition_unknown", "a2", second, {
+        execution_pre_ref: refs.settling1,
+        execution_semantic_action_space_ref: refs.a2semantic,
+        proof_status: "session_closed_before_successor_boundary"
+      })
+    ];
+    await writeFile(path.join(root, "semantic-boundary-trace.jsonl"),
+      `${events.map(JSON.stringify).join("\n")}\n`);
+    await writeFile(path.join(root, "native-action-ledger.jsonl"), "");
+    await writeFile(path.join(root, "run-0001.jsonl"), "");
+
+    const report = await calibrate(root);
+    assert.equal(report.summary.canonical_s_a_s_prime, 1);
+    assert.equal(report.summary.successor_unresolved, 1);
+    assert.equal(report.summary.state_action_space_unresolved, 0);
+    assert.equal(report.actions[0].execution_action_space_authority,
+      "native_semantic_execution");
+    assert.equal(report.actions[0].execution_action_match_count, 1);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 function event(sequence, kind, id, selected, extra = {}) {
   return {

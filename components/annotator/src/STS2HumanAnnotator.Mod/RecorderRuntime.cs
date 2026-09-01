@@ -1307,25 +1307,26 @@ internal static class RecorderRuntime
     private static void ObserveBeforeActionExecution(GameAction action)
     {
         string actionWitnessId = NativeWitnessIdentity.Get(action, "game_action");
+        string phase = action.State.ToString() == "ReadyToResumeExecuting"
+            ? "before_execution_resume"
+            : "before_execution";
         bool canonicalBoundaryWillCapture;
         lock (Gate)
         {
             canonicalBoundaryWillCapture = _semanticBoundaryTraceHealthy
                 && BoundaryTracker.Contains(actionWitnessId);
         }
-        NativeSemanticDiscriminatorRuntime.Observe(
-            _store,
-            SessionId,
-            TimelineId,
-            _currentRunId,
-            action.State.ToString() == "ReadyToResumeExecuting"
-                ? "before_execution_resume"
-                : "before_execution",
-            action,
-            capture: !canonicalBoundaryWillCapture,
-            detail: canonicalBoundaryWillCapture
-                ? NativeSemanticDiscriminatorContract.CanonicalBoundaryCaptureDelegatedDetail
-                : null);
+        if (!canonicalBoundaryWillCapture)
+        {
+            NativeSemanticDiscriminatorRuntime.Observe(
+                _store,
+                SessionId,
+                TimelineId,
+                _currentRunId,
+                phase,
+                action);
+            return;
+        }
         if (!_semanticBoundaryTraceHealthy || _store == null)
             return;
         lock (Gate)
@@ -1337,10 +1338,25 @@ internal static class RecorderRuntime
         try
         {
             ProcessLocalNativeWitnessFrame frame = CaptureSemanticFrame();
+            ProcessLocalNativeSemanticCapture semanticCapture =
+                PlayerEnvironmentNativeSemanticWitness.Capture(phase, action, frame);
+            NativeSemanticDiscriminatorRuntime.Observe(
+                _store,
+                SessionId,
+                TimelineId,
+                _currentRunId,
+                phase,
+                action,
+                capture: false,
+                detail: NativeSemanticDiscriminatorContract.CanonicalBoundaryCaptureDelegatedDetail,
+                capturedValue: semanticCapture);
             SemanticBoundaryObservation boundary = CreateSemanticBoundaryObservation(
                 frame,
                 SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
-                actionWitnessId);
+                actionWitnessId,
+                executionSemanticActionSpace: phase == "before_execution"
+                    ? ToExecutionSemanticActionSpace(actionWitnessId, semanticCapture)
+                    : null);
             IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
             lock (Gate)
                 drafts = BoundaryTracker.ObserveBeforeActionExecution(actionWitnessId, boundary);
@@ -1392,7 +1408,8 @@ internal static class RecorderRuntime
         string witnessKind,
         string? immediatelyConsumedByActionWitnessId,
         FrozenDecisionFrameV2? completeState = null,
-        NativeDecisionOwnerReadyEvidence? nativeDecisionOwnerReady = null)
+        NativeDecisionOwnerReadyEvidence? nativeDecisionOwnerReady = null,
+        ExecutionSemanticActionSpaceEvidence? executionSemanticActionSpace = null)
     {
         RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
         IReadOnlyList<string> stateBlockers = SemanticStateBlockers(frame, environment);
@@ -1410,10 +1427,48 @@ internal static class RecorderRuntime
             immediatelyConsumedByActionWitnessId)
         {
             NativeDecisionOwnerReady = nativeDecisionOwnerReady,
+            ExecutionSemanticActionSpace = executionSemanticActionSpace,
             StateCompleteness = stateComplete ? "complete" : "partial",
             RequiredReadsStatus = HasSemanticRequiredReads(frame) ? "complete" : "unavailable",
             StateBlockers = stateBlockers
         };
+    }
+
+    private static ExecutionSemanticActionSpaceEvidence? ToExecutionSemanticActionSpace(
+        string actionWitnessId,
+        ProcessLocalNativeSemanticCapture capture)
+    {
+        if (capture.SemanticState == null
+            || string.IsNullOrWhiteSpace(capture.SemanticStateDigest)
+            || capture.ObservedAction is not
+            {
+                Key.Length: > 0,
+                Membership: "exact_once",
+                SemanticMatchCount: 1
+            })
+            return null;
+        return new ExecutionSemanticActionSpaceEvidence(
+            ExecutionSemanticActionSpaceContract.SchemaVersion,
+            ExecutionSemanticActionSpaceContract.Schema,
+            actionWitnessId,
+            capture.Phase,
+            capture.Status,
+            capture.Scope,
+            capture.SemanticStateDigest,
+            capture.SemanticState.DeepClone(),
+            capture.SemanticCatalogDigest,
+            capture.SemanticActions.Select(candidate => new ExecutionSemanticAction(
+                candidate.Key,
+                candidate.Verb,
+                candidate.SubjectReferentId,
+                new Dictionary<string, string>(candidate.Arguments, StringComparer.Ordinal),
+                candidate.NativeLegalityBasis)).ToArray(),
+            capture.ObservedAction.Key,
+            capture.ObservedAction.Membership,
+            capture.ObservedAction.SemanticMatchCount,
+            capture.Evidence.ToArray(),
+            capture.NonClaims.ToArray(),
+            capture.Detail);
     }
 
     private static void ObserveNativeDecisionOwnerReady(
@@ -2076,6 +2131,11 @@ internal static class RecorderRuntime
             SemanticFrameReference? successorRef = draft.SemanticSuccessor == null
                 ? null
                 : store.PersistSemanticFrame(draft.SemanticSuccessor);
+            ExecutionSemanticActionSpaceReference? executionSemanticActionSpaceRef =
+                draft.ExecutionSemanticActionSpace == null
+                    ? null
+                    : store.PersistExecutionSemanticActionSpace(
+                        draft.ExecutionSemanticActionSpace);
             SemanticBoundaryObservationReference? boundary = draft.Boundary == null
                 ? null
                 : ToReference(store, draft.Boundary);
@@ -2099,7 +2159,8 @@ internal static class RecorderRuntime
                 draft.NonClaims ?? Array.Empty<string>())
             {
                 HumanObservationRef = humanObservationRef,
-                NativeCompletion = draft.NativeCompletion
+                NativeCompletion = draft.NativeCompletion,
+                ExecutionSemanticActionSpaceRef = executionSemanticActionSpaceRef
             });
         }
         store.AppendSemanticEvidenceEvents(events);
@@ -2164,10 +2225,16 @@ internal static class RecorderRuntime
             store.AppendDecision(record);
             SemanticFrameReference preRef = store.PersistSemanticFrame(draft.SemanticPre!);
             SemanticFrameReference successorRef = store.PersistSemanticFrame(draft.SemanticSuccessor!);
+            ExecutionSemanticActionSpaceReference? executionSemanticActionSpaceRef =
+                draft.ExecutionSemanticActionSpace == null
+                    ? null
+                    : store.PersistExecutionSemanticActionSpace(
+                        draft.ExecutionSemanticActionSpace);
             CanonicalTransitionEvidence canonical = SemanticTransitionProjection.CreateCanonical(
                 draft,
                 preRef,
                 successorRef,
+                executionSemanticActionSpaceRef,
                 SessionId!,
                 TimelineId!);
             IReadOnlyList<string> canonicalErrors =

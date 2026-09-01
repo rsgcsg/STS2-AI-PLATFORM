@@ -57,12 +57,15 @@ The canonical one-step contract is:
 S_t + A(S_t) -> A_t -> S_(t+1)
 ```
 
-`S_t` is the authoritative fair-player state consumed by `A_t`; `A(S_t)` is
-the complete same-state Connector catalog; and `S_(t+1)` is the next state
-after the action and its causally owned automatic continuation. Human
-observation `H`, native acceptance, lifecycle completion, and an interactive
-poll are independently valuable evidence, but none may be silently relabelled
-as `S_t` or `S_(t+1)`.
+`S_t` is the fair-player semantic state consumed by `A_t`; `A(S_t)` is the
+complete same-state semantic action space produced from STS2-owned rules by a
+typed Native Foundation provider; and `S_(t+1)` is the next state after the
+action and its causally owned automatic continuation. Connector remains the
+only public delivery authority and may project an empty `A_public` while input
+is settling. `A_public` and `A(S_t)` therefore share native facts but are not
+interchangeable evidence. Human observation `H`, native acceptance, lifecycle
+completion, and an interactive poll are independently valuable evidence, but
+none may be silently relabelled as `S_t` or `S_(t+1)`.
 
 `SemanticBoundaryTracker` is the sole current runtime Human causal authority.
 It separately accounts Human Root, exact execution/Commit facts and a later
@@ -74,24 +77,29 @@ prove a successor. `GameAction.Finished`, Task completion, UI post-Commit,
 periodic status frames, timers, queue-idle and generic later interactivity do
 not imply `S'`.
 
-Decision V2 rows and `canonical-transition` records are compatibility
-projections from an already `TransitionProved` semantic draft. The projection
-validates exact root binding, frame identity and the current capture-profile
-schema, but it cannot settle a root, authorize a successor, backfill an unknown
-or introduce a second causal state machine. Exact root environment identity
-retained until projection is metadata only. Historical native-action-ledger
-schemas and validators remain readable for prior/additive evidence; the current
-runtime no longer uses a mutable native ledger or serialized-evidence admission
-policy to adjudicate causality.
+Decision V2 rows and `canonical-transition` records are non-authorizing
+projections from an already `TransitionProved` semantic draft. Decision V2
+retains the frozen Human-time public frame for compatibility. Current canonical
+evidence instead joins the execution state, an exact typed execution-time
+semantic action-space observation (or the exact public catalog for direct UI
+domains), Human/native action correlation, Commit and the tracker-proved
+successor. The projection cannot settle a root, authorize legality or a
+successor, backfill an unknown or introduce a second causal state machine.
+Exact root environment identity retained until projection is metadata only.
+Historical native-action-ledger schemas and validators remain readable for
+prior/additive evidence; the current runtime no longer uses a mutable native
+ledger or serialized-evidence admission policy to adjudicate causality.
 
-The current schema-3 timeline is an accounting/lifecycle trace. Exact-source and
+The current schema-4 timeline is an accounting/lifecycle trace. Exact-source and
 exact-runtime analysis found that normal STS2 UI staging withdraws many accepted
 affordances before execution, while generic later interactivity does not prove
-causal settlement. ADR 0003 records the withdrawn serialized-input candidate;
-it is not current gameplay authority. Native Foundation owns the bounded shared
-combat semantic catalog and exact lifecycle adapter. Connector remains the only
-public state/action authority; Annotator consumes the shared native facts and
-does not reconstruct legality or claim a universal successor.
+causal settlement. Schema 4 preserves a content-addressed read-only projection
+of the already-authoritative execution semantic state/action fact. ADR 0003
+records the withdrawn serialized-input candidate; it is not current gameplay
+authority. Native Foundation owns the bounded shared combat semantic catalog
+and exact lifecycle adapter. Connector remains the only public state/action and
+delivery authority; Annotator records the shared native observation and does
+not reconstruct legality or claim a universal successor.
 
 ADR 0005 records the Root / Commit / Successor split and the fail-closed
 successor rules. Native lifecycle/task completion never implies `S'`; the

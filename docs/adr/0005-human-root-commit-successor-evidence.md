@@ -108,6 +108,24 @@ committed root and retains it as explicit unknown rather than backfilling it.
 - Legacy polling successors remain readable historical evidence and cannot
   satisfy modern causal qualification.
 
+### Semantic state and action-space role
+
+The semantic timeline is the sole Human-root causal-order and successor
+authority; it is not a legality engine. Native Foundation typed providers own
+the read-only projection of STS2 semantic state and `A_sem(S)` at the exact
+execution boundary. Connector separately owns public `Snapshot`, `BoundAction`
+and delivery, so its current `A_public` may be empty after UI staging has begun.
+
+Annotator may durably preserve the exact typed Native Foundation observation
+and join it to the already correlated Human action. That observation cannot
+publish or execute an action, settle a transition or replace Connector
+revalidation. Decision V2 continues to carry the frozen Human-time public frame
+for compatibility; canonical evidence uses execution `S`, exact action
+membership in the authoritative execution action space, and the independently
+proved successor. No additional decision-epoch identity is required while the
+exact action witness and content-addressed state/catalog identities remain
+unique and audited.
+
 ### Fail-closed rules
 
 Duplicate roots, stale session/generation, wrong owner/operand/lineage,

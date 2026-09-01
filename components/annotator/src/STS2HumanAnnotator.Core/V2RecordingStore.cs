@@ -16,6 +16,8 @@ public sealed class V2RecordingStore : IDisposable
         _semanticFrames = new();
     private readonly Dictionary<string, SemanticFrameReference> _semanticFramesByDigest =
         new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ExecutionSemanticActionSpaceReference>
+        _executionSemanticActionSpacesByDigest = new(StringComparer.Ordinal);
     private readonly RecordingPerformanceProfiler _performance = new();
     private readonly FileStream _invalidations;
     private readonly FileStream _journal;
@@ -281,6 +283,61 @@ public sealed class V2RecordingStore : IDisposable
             result = new SemanticFrameReference(frame.SnapshotId, digest, relative);
             _semanticFrames.Add(frame, result);
             _semanticFramesByDigest.Add(digest, result);
+        });
+        return result!;
+    }
+
+    public ExecutionSemanticActionSpaceReference PersistExecutionSemanticActionSpace(
+        ExecutionSemanticActionSpaceEvidence value)
+    {
+        IReadOnlyList<string> errors = ExecutionSemanticActionSpaceValidator.Validate(value);
+        if (errors.Count > 0)
+            throw new InvalidDataException(
+                $"Execution semantic action space failed validation: {string.Join(',', errors)}");
+        EnsureOpen();
+        ExecutionSemanticActionSpaceReference? result = null;
+        ExecuteWrite(() =>
+        {
+            byte[] payload = _performance.Measure(
+                "execution_semantic_action_space_serialize",
+                () =>
+                {
+                    JsonNode node = JsonSerializer.SerializeToNode(value, EvidenceJson.Options)
+                        ?? throw new InvalidDataException(
+                            "Execution semantic action-space serialization returned null.");
+                    return Encoding.UTF8.GetBytes(EvidenceCanonicalJson.Serialize(node));
+                });
+            string digest = _performance.Measure(
+                "execution_semantic_action_space_hash",
+                () => EvidenceIdentity.Sha256Bytes(payload));
+            if (_executionSemanticActionSpacesByDigest.TryGetValue(digest, out result))
+                return;
+            string relative =
+                $"semantic-action-spaces/sha256/{digest[..2]}/{digest}.json";
+            string destination = ResolveRelative(relative);
+            _performance.Measure("execution_semantic_action_space_verify_or_write", () =>
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                if (File.Exists(destination))
+                {
+                    if (EvidenceIdentity.Sha256File(destination) != digest)
+                        throw new IOException(
+                            "Content-addressed execution semantic action-space collision.");
+                }
+                else
+                {
+                    string temporary = destination + $".tmp-{Guid.NewGuid():N}";
+                    File.WriteAllBytes(temporary, payload);
+                    File.Move(temporary, destination);
+                }
+            });
+            result = new ExecutionSemanticActionSpaceReference(
+                value.ActionWitnessId,
+                value.SemanticStateDigest,
+                value.SemanticCatalogDigest,
+                digest,
+                relative);
+            _executionSemanticActionSpacesByDigest.Add(digest, result);
         });
         return result!;
     }
@@ -638,8 +695,7 @@ public sealed class V2RecordingStore : IDisposable
 
     private void ValidateSemanticEvidenceEvent(SemanticEvidenceEvent value)
     {
-        if (value.SchemaVersion != SemanticEvidenceContract.SchemaVersion
-            || value.Schema != SemanticEvidenceContract.EventSchema
+        if (!SemanticEvidenceContract.IsSupported(value.SchemaVersion, value.Schema)
             || value.SessionId != Manifest.SessionId
             || value.TimelineId != Manifest.TimelineId
             || value.Sequence <= 0

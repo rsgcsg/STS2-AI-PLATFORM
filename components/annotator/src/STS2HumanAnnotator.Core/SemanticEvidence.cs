@@ -2,8 +2,14 @@ namespace STS2HumanAnnotator.Core;
 
 public static class SemanticEvidenceContract
 {
-    public const int SchemaVersion = 3;
-    public const string EventSchema = "sts2.human-annotator/semantic-evidence-event-3";
+    public const int SchemaVersion = 4;
+    public const string EventSchema = "sts2.human-annotator/semantic-evidence-event-4";
+    public const int LegacySchemaVersion = 3;
+    public const string LegacyEventSchema = "sts2.human-annotator/semantic-evidence-event-3";
+
+    public static bool IsSupported(int schemaVersion, string schema) =>
+        (schemaVersion == SchemaVersion && schema == EventSchema)
+        || (schemaVersion == LegacySchemaVersion && schema == LegacyEventSchema);
 }
 
 /// <summary>
@@ -131,4 +137,5 @@ public sealed record SemanticEvidenceEvent(
 {
     public SemanticFrameReference? HumanObservationRef { get; init; }
     public NativeCompletionEvidence? NativeCompletion { get; init; }
+    public ExecutionSemanticActionSpaceReference? ExecutionSemanticActionSpaceRef { get; init; }
 }

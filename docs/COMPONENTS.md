@@ -15,14 +15,17 @@
 | STPD | external repository | ResearchTransition, Dataset Views, representation, Qwen, training/evaluation | Host implementation or legality |
 
 Native Foundation is deliberately compiled into the game-side Connector Host
-and unified Mod rather than published as a second runtime service. Connector
-projects fair-player visibility and deliverability from its semantic facts;
-Annotator observes the same lifecycle and facts without gaining authority.
+and unified Mod rather than published as a second runtime service. Its typed
+providers own read-only projections of STS2 semantic state and action space.
+Connector consumes those facts to project fair-player visibility and current
+deliverability; `A_public` may be empty while input is settling without erasing
+the execution semantic action space. Annotator preserves the same typed
+observation for evidence without gaining legality or mutation authority.
 Inside Annotator, `SemanticBoundaryTracker` is the sole current runtime causal
 authority. Decision V2 and canonical-transition files are non-authorizing
-compatibility projections from an already proved semantic transition. The
-historical native-action-ledger contract remains readable for prior/additive
-evidence but is not a current runtime admission state machine.
+projections from an already proved semantic transition. The historical
+native-action-ledger contract remains readable for prior/additive evidence but
+is not a current runtime admission state machine.
 
 Each imported component retains its focused `AGENTS.md`, tests and operational
 documentation. Those files add component-specific constraints but cannot

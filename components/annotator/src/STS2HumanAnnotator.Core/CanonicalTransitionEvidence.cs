@@ -2,9 +2,16 @@ namespace STS2HumanAnnotator.Core;
 
 public static class CanonicalTransitionEvidenceContract
 {
-    public const int SchemaVersion = 1;
-    public const string Schema = "sts2.human-annotator/canonical-transition-evidence-1";
-    public const string CollectionMode = "serialized_human_input";
+    public const int SchemaVersion = 2;
+    public const string Schema = "sts2.human-annotator/canonical-transition-evidence-2";
+    public const string CollectionMode = "causal_human_native_observation";
+    public const int LegacySchemaVersion = 1;
+    public const string LegacySchema = "sts2.human-annotator/canonical-transition-evidence-1";
+    public const string LegacyCollectionMode = "serialized_human_input";
+
+    public static bool IsSupported(int schemaVersion, string schema) =>
+        (schemaVersion == SchemaVersion && schema == Schema)
+        || (schemaVersion == LegacySchemaVersion && schema == LegacySchema);
 }
 
 /// <summary>
@@ -21,7 +28,7 @@ public sealed record CanonicalTransitionEvidence(
     long ActionSequence,
     DateTimeOffset RecordedAt,
     string CollectionMode,
-    string AdmissionEpochId,
+    string? AdmissionEpochId,
     string ActionWitnessId,
     string NativeMechanism,
     SemanticFrameReference PreStateRef,
@@ -29,11 +36,15 @@ public sealed record CanonicalTransitionEvidence(
     SemanticFrameReference SuccessorRef,
     string ProofStatus,
     IReadOnlyList<string> Invariants,
-    IReadOnlyList<string> NonClaims);
+    IReadOnlyList<string> NonClaims)
+{
+    public string? ActionSpaceAuthority { get; init; }
+    public ExecutionSemanticActionSpaceReference? ExecutionSemanticActionSpaceRef { get; init; }
+}
 
 public static class CanonicalTransitionEvidenceValidator
 {
-    private static readonly string[] RequiredInvariants =
+    private static readonly string[] LegacyRequiredInvariants =
     {
         "complete_pre_state_and_catalog",
         "chosen_action_exactly_once_in_pre_catalog",
@@ -43,13 +54,28 @@ public static class CanonicalTransitionEvidenceValidator
         "complete_authoritative_successor"
     };
 
+    private static readonly string[] RequiredInvariants =
+    {
+        "complete_execution_state",
+        "chosen_action_exactly_once_in_authoritative_action_space",
+        "exact_human_native_action_correlation",
+        "native_terminal_or_direct_commit_observed",
+        "no_intervening_human_mutation",
+        "complete_authoritative_successor"
+    };
+
     public static IReadOnlyList<string> Validate(CanonicalTransitionEvidence value)
     {
         var errors = new List<string>();
-        if (value.SchemaVersion != CanonicalTransitionEvidenceContract.SchemaVersion
-            || value.Schema != CanonicalTransitionEvidenceContract.Schema)
+        if (!CanonicalTransitionEvidenceContract.IsSupported(
+                value.SchemaVersion,
+                value.Schema))
             errors.Add("schema_invalid");
-        if (value.CollectionMode != CanonicalTransitionEvidenceContract.CollectionMode)
+        bool legacy = value.SchemaVersion == CanonicalTransitionEvidenceContract.LegacySchemaVersion;
+        string expectedCollectionMode = legacy
+            ? CanonicalTransitionEvidenceContract.LegacyCollectionMode
+            : CanonicalTransitionEvidenceContract.CollectionMode;
+        if (value.CollectionMode != expectedCollectionMode)
             errors.Add("collection_mode_invalid");
         if (value.ActionSequence <= 0)
             errors.Add("action_sequence_invalid");
@@ -59,7 +85,6 @@ public static class CanonicalTransitionEvidenceValidator
                 value.SessionId,
                 value.TimelineId,
                 value.RunId,
-                value.AdmissionEpochId,
                 value.ActionWitnessId,
                 value.NativeMechanism,
                 value.PreStateRef.SnapshotId,
@@ -71,9 +96,18 @@ public static class CanonicalTransitionEvidenceValidator
                 value.SuccessorRef.ObjectRef
             }.Any(string.IsNullOrWhiteSpace))
             errors.Add("identity_missing");
+        if (legacy && string.IsNullOrWhiteSpace(value.AdmissionEpochId))
+            errors.Add("identity_missing");
+        if (!legacy
+            && value.ActionSpaceAuthority is not ("native_semantic_execution" or "public_bound_actions"))
+            errors.Add("action_space_authority_invalid");
+        if (!legacy
+            && value.ActionSpaceAuthority == "native_semantic_execution"
+            && value.ExecutionSemanticActionSpaceRef == null)
+            errors.Add("execution_semantic_action_space_ref_missing");
         if (value.ProofStatus != "canonical_s_a_s_prime")
             errors.Add("proof_status_invalid");
-        foreach (string required in RequiredInvariants)
+        foreach (string required in legacy ? LegacyRequiredInvariants : RequiredInvariants)
         {
             if (!value.Invariants.Contains(required, StringComparer.Ordinal))
                 errors.Add($"invariant_missing:{required}");

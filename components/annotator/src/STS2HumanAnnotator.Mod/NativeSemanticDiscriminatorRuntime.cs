@@ -32,7 +32,8 @@ internal static class NativeSemanticDiscriminatorRuntime
         ProcessLocalNativeWitnessFrame? uiFrame = null,
         string? relatedActionWitnessId = null,
         bool capture = true,
-        string? detail = null)
+        string? detail = null,
+        ProcessLocalNativeSemanticCapture? capturedValue = null)
     {
         if (store == null || sessionId == null || timelineId == null)
             return;
@@ -47,7 +48,7 @@ internal static class NativeSemanticDiscriminatorRuntime
         }
         try
         {
-            ProcessLocalNativeSemanticCapture? value = capture
+            ProcessLocalNativeSemanticCapture? value = capturedValue ?? (capture
                 ? store.Measure(
                     uiFrame == null
                         ? "native_semantic_discriminator_snapshot_capture"
@@ -60,7 +61,7 @@ internal static class NativeSemanticDiscriminatorRuntime
                             store,
                             "native_semantic_discriminator",
                             captured)))
-                : null;
+                : null);
             string actionWitnessId = NativeWitnessIdentity.Get(action, "game_action");
             store.AppendNativeSemanticDiscriminatorEvent(CreateEvent(
                 sessionId,

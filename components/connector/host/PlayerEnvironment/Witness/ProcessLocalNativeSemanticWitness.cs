@@ -69,9 +69,10 @@ public sealed record ProcessLocalNativeSemanticCapture(
     string? Detail);
 
 /// <summary>
-/// Read-only process-local evidence seam for comparing current UI actionability
-/// with gameplay-semantic decisions projected from STS2-owned state. It has no
-/// mutation methods and is intentionally absent from public transport.
+/// Typed read-only process-local observation of gameplay-semantic decisions
+/// projected from STS2-owned state and Native Foundation validators. Connector
+/// public action delivery may consume the same providers, while evidence and
+/// diagnostics may preserve this observation without gaining mutation authority.
 /// </summary>
 public static class PlayerEnvironmentNativeSemanticWitness
 {
@@ -247,8 +248,8 @@ public static class PlayerEnvironmentNativeSemanticWitness
                 decision.Evidence,
                 new[]
                 {
-                    "read_only_experiment_not_action_authority",
-                    "not_a_public_player_environment_contract",
+                    "read_only_semantic_observation_not_mutation_authority",
+                    "not_public_bound_action_delivery_authority",
                     "compact_state_omits_persistent_run_hud_and_on_demand_reads",
                     "end_turn_finished_does_not_alone_prove_turn_commit",
                     "player_choice_options_remain_owned_by_the_current_selector"
