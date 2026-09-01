@@ -99,6 +99,14 @@ Recorder audit also adds separate timings for discriminator fallback Snapshot
 capture versus already-captured-frame projection. It makes no latency or
 regression claim. See the [qualification repair source closeout](evidence/PR6_HUMAN_QUALIFICATION_REPAIR_SOURCE_CLOSEOUT_2026-09-01.md).
 
+That repair is now clean-built, safely installed, and cold-loaded as unified
+artifact `641f543d... / 7ac2fa24...` from build workspace `4fc9702...` and
+semantic source `b0ebd96...`. Runtime `c3e4d2b...`, environment `6655e3a...`,
+and exact sole-Platform Modset `91d2f6e7...` pass loaded verification; Recorder
+is Ready with no session. Rollback is
+`apps/game-mod/.local/deployments/2026-09-01T03-47-46.154Z`. This is T2 loaded
+evidence only. CardReward/Treasure T3 Human qualification remains pending.
+
 A fresh exact clean build is now available as game-Mod artifact
 `f9f616dafe6aa4f7733c81caad3a79ddbe771adbb7b9e46bd79c310138d8efc2 /
 2b2de33c-9f01-41f4-906e-c73cf7d283a2`, with Connector

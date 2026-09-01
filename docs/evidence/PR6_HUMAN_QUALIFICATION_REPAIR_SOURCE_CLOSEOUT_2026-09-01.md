@@ -104,13 +104,24 @@ The repair:
   profiler-routing regression guards.
 
 Targeted Annotator tests pass 117/117 plus all semantic-analysis/calibration
-tests. Game-Mod boundary tests pass 44/44. Exact game-Mod compilation succeeds
-with zero warnings and zero errors. Final root checks, clean artifact identity,
-install/load, and new Human evidence are separate later gates.
+tests. Game-Mod boundary tests pass 44/44. Root `npm run check`, exact-game
+checks, and clean compilation pass with zero warnings and zero errors.
+
+Clean build workspace `4fc9702aa8097a8c9859e79eb3eb7197fc34f1f6`
+contains semantic component source `b0ebd966c7b1aa8395a635965599ec3fbb4db763`.
+The unified artifact is
+`641f543d93bfa2090f6257245d453c8def6734881dbb61f2be990cd77a78e0f8 /
+7ac2fa24-83e5-40cc-af5d-f872946bf802`. Safe install and cold-load pass in
+runtime `c3e4d2b79cef469c91a6065f66bec743`, environment
+`6655e3a862b0e38f4ea01f6e9ed8b209f23b005e98d6badf387fcf3e07ed211e`,
+and sole-Platform Modset
+`91d2f6e71d75f2d4625514db9d3eeab29a6572be1dd616ea0f13f6c50dd1768c`.
+Recorder is Ready with no open session. Rollback is
+`apps/game-mod/.local/deployments/2026-09-01T03-47-46.154Z`.
 
 ## Non-claims and next gate
 
-This audit does not transfer Human qualification to repaired bytes, prove a
+This audit and loaded qualification do not transfer Human evidence to repaired bytes, prove a
 performance improvement, qualify exhaustive Full Run, or admit the two prior
 sessions as repaired evidence. After a clean exact build/install/load, the
 shortest Human canary is: one Reward claim that opens CardReward and one card

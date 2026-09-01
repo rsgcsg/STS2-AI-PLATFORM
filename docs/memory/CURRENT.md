@@ -76,8 +76,10 @@ The durable result is in the
   Commit and later Successor Boundary. Its same-bytes Human sessions prove
   Reward and Map stable but expose CardReward nested-owner and Treasure
   pre-generated/predicted-state seam defects. Current repair source uses exact
-  CardReward `ShowScreen` owner creation and Treasure `OnPicked` Commit; it has
-  no inherited runtime or Human qualification.
+  CardReward `ShowScreen` owner creation and Treasure `OnPicked` Commit. Clean
+  artifact `641f543d... / 7ac2fa24...` is cold-loaded in runtime `c3e4d2b...`,
+  environment `6655e3a...`, sole-Platform Modset `91d2f6e7...`; Human
+  qualification is still pending and no predecessor evidence transfers.
 
 ## Next meaningful gates
 
