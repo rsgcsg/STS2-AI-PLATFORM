@@ -992,7 +992,9 @@ internal sealed class PlatformLivePanel : IDisposable
             foreach (STS2HumanAnnotator.Core.RecordingEvent value in batch.Events)
             {
                 _lastRecordingEventSequence = Math.Max(_lastRecordingEventSequence, value.Sequence);
-                if (!PlatformLiveActionFeed.IsActionEvent(value.Kind))
+                if (sessionId == null
+                    || !string.Equals(value.SessionId, sessionId, StringComparison.Ordinal)
+                    || !PlatformLiveActionFeed.IsActionEvent(value.Kind))
                     continue;
                 _actionFeed.RemoveAll(existing => existing.Sequence == value.Sequence);
                 _actionFeed.Add(value);
