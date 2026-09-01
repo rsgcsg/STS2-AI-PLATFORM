@@ -5,7 +5,7 @@
 | Native Foundation | `components/native-foundation` | STS2-owned semantic decisions, native lifecycle, process-local owner lineage | transport, evidence, public action authority, input execution |
 | Connector | `components/connector` | Player Environment, native binding/execution, REST/MCP, SDK | process lifecycle, strategy, annotation |
 | Host Runtime | `components/host-runtime` | discovery, isolation, launch/reset/stop, headless/managed experiments, qualification | gameplay legality, research models |
-| Human Annotator | `components/annotator` | native-human witness, records, audit/export/bundle, workstation | action authority, research admission |
+| Human Annotator | `components/annotator` | native-human witness, one semantic causal tracker, derived Decision V2/canonical projections, records, audit/export/bundle, workstation | action authority, research admission, a second causal adjudicator |
 | Platform Evidence | `components/evidence` | typed verification, content identity, immutable store, transfer/receiver receipts | research eligibility, corpus policy, mutation |
 | Policy Runtime | `components/policy-runtime` | policy process boundary, Human/Shadow/One-Step/Auto, controller lifecycle, stale/Receipt/successor and Agent-run evidence | model inference, legality, native operands, candidate filtering |
 | Workbench | `apps/workbench` | typed live status, explicit filesystem fallback, bounded Policy Runtime commands | gameplay submission, evidence admission, model loading |
@@ -18,6 +18,11 @@ Native Foundation is deliberately compiled into the game-side Connector Host
 and unified Mod rather than published as a second runtime service. Connector
 projects fair-player visibility and deliverability from its semantic facts;
 Annotator observes the same lifecycle and facts without gaining authority.
+Inside Annotator, `SemanticBoundaryTracker` is the sole current runtime causal
+authority. Decision V2 and canonical-transition files are non-authorizing
+compatibility projections from an already proved semantic transition. The
+historical native-action-ledger contract remains readable for prior/additive
+evidence but is not a current runtime admission state machine.
 
 Each imported component retains its focused `AGENTS.md`, tests and operational
 documentation. Those files add component-specific constraints but cannot
