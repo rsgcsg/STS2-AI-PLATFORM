@@ -99,8 +99,8 @@ test("Recorder owns a bounded canonical Action Feed with explicit unavailable fi
   assert.match(feed, /DecisionRecorded => "✓ Recorded"/u);
   assert.match(feed, /DecisionInvalidated => "✕ Invalidated"/u);
   assert.match(feed, /record:\{value\.RecordId\}/u);
-  assert.match(feed, /bound-action:\{boundActionId\}/u);
-  assert.match(feed, /stable action\/root identity unavailable/u);
+  assert.match(feed, /RecordId action root unavailable/u);
+  assert.doesNotMatch(feed, /return \(`bound-action:/u);
   assert.match(feed, /SubjectReferentId/u);
   assert.match(feed, /Arguments/u);
   assert.match(feed, /EffectSummary/u);

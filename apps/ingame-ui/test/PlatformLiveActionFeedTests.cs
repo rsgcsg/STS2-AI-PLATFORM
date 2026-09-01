@@ -94,7 +94,7 @@ public sealed class PlatformLiveActionFeedTests
     }
 
     [Fact]
-    public void BoundActionIdentityAggregatesOnlyWhenRootIdentityIsAbsent()
+    public void BoundActionIdentityNeverSubstitutesForTheMissingActionRoot()
     {
         var feed = new PlatformLiveActionAggregation();
         RecordingActionProjection action = Action("bound-1", "Defend", null);
@@ -102,10 +102,11 @@ public sealed class PlatformLiveActionFeedTests
         feed.Apply(Event(1, RecordingEventKind.DecisionPending, null, action));
         feed.Apply(Event(2, RecordingEventKind.DecisionRecorded, null, action));
 
-        PlatformLiveActionItem row = Assert.Single(feed.Recent(24));
-        Assert.Equal("bound-action:bound-1", row.CorrelationIdentity);
-        Assert.True(row.HasReliableCorrelation);
-        Assert.Equal(1, feed.Counts.Records);
+        Assert.Equal(2, feed.Count);
+        Assert.False(feed.Counts.Exact);
+        Assert.All(feed.Recent(24), row => Assert.StartsWith(
+            "event:", row.CorrelationIdentity, StringComparison.Ordinal));
+        Assert.All(feed.Recent(24), row => Assert.False(row.HasReliableCorrelation));
     }
 
     [Fact]

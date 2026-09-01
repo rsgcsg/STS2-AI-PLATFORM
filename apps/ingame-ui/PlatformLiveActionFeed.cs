@@ -23,9 +23,10 @@ internal sealed record PlatformLiveActionCounts(
 
 /// <summary>
 /// Read-only, session-local projection of canonical Recorder application events.
-/// RecordId is the preferred Human action root identity. BoundActionId is used
-/// only when the event contract has no RecordId. Events with neither identity
-/// remain event-level and make aggregate disposition counts explicitly inexact.
+/// RecordId is the required Human action root identity. BoundActionId remains
+/// presentation metadata for the state-bound candidate and is never promoted to
+/// a lifecycle correlation root. Events without RecordId remain event-level and
+/// make aggregate disposition counts explicitly inexact.
 /// This class cannot authorize, commit, record or deliver gameplay actions.
 /// </summary>
 internal sealed class PlatformLiveActionAggregation
@@ -132,13 +133,10 @@ internal sealed class PlatformLiveActionAggregation
     {
         if (!string.IsNullOrWhiteSpace(value.RecordId))
             return ($"record:{value.RecordId}", true, null);
-        string? boundActionId = StableBoundActionId(value.Action);
-        if (boundActionId != null)
-            return ($"bound-action:{boundActionId}", true, null);
         return (
             $"event:{value.EventId}",
             false,
-            "stable action/root identity unavailable; event retained without aggregation");
+            "RecordId action root unavailable; event retained without aggregation");
     }
 
     private static string? StableBoundActionId(RecordingActionProjection? action) =>
