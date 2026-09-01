@@ -6,10 +6,11 @@ requests, or dated evidence.
 
 ## Current phase
 
-`develop@a6389de...` contains the completed PR #3, PR #5 and PR #6 production
-lines. PR #6 is merged and Human-qualified for its explicitly bounded scope;
-the active topic is the independent pre-Full-Run hardening branch based on that
-exact `develop` commit. The integrated PR #3 history preserves gameplay-safe commit
+`develop@2e1a5b67...` contains the completed PR #3, PR #5, PR #6 and PR #9
+production lines. PR #6 is merged and Human-qualified for its explicitly bounded
+scope; PR #9's hardening is merged and the active topic is the independent
+Recorder hot-path performance branch based on that exact merge. The integrated
+PR #3 history preserves gameplay-safe commit
 `4384a14...` as a non-release tag and contains a bounded Human-proved read-only
 native semantic sequential lane. Exact session
 `session-20260830T064823Z-...` records 41/41 successful roots as exact-once in
@@ -52,10 +53,10 @@ The durable result is in the
 
 ## Active workstreams
 
-- `refactor/platform/pre-full-run-hardening` is the sole Platform topic owned by
-  this workstream. It is directly based on `develop@a6389de...` and is limited
-  to evidence-mapping, action-composition, identity, current performance
-  evidence and deferred-debt closure before the next domain expansion.
+- `perf/platform/recording-hotpath` is the sole Platform topic owned by this
+  workstream. It is directly based on `develop@2e1a5b67...` and is limited to
+  evidence-safe Recorder hot-path profiling and the proven immutable game
+  identity hashing cost before the next domain expansion.
 - PR #3, PR #5 and PR #6 are merged integration history. Ritsu research PRs #7 and #8
   are closed without their experimental runtime code; durable findings live in
   ADR 0004 and the final route-decision packet.
@@ -102,14 +103,12 @@ The durable result is in the
   `79bdf7ca...`. Session `session-20260901T061040Z-561a204be0bc422da5809e1ec5c148aa`
   passes strict V2, modern 25/25, Map 7/7 and owner-ready 5/5 with no
   unresolved transition or close-drain timeout.
-- The hardening topic must pass portable and exact-game checks, clean build,
-  safe install and exact cold-load. Those automated gates now pass for unified
-  artifact `734098f8... / 889b7a2e...`, runtime `97943a5e...`, environment
-  `c0d853c8...` and sole-Platform Modset `3f9a379f...`; Recorder is Ready with no
-  session and rollback is available. Because Connector composition and
-  Annotator runtime mapping changed compiled bytes, PR #6 Human evidence remains
-  historical. The only remaining gate is the short exact-candidate Human canary
-  in the hardening source closeout.
+- The performance topic passes portable and exact-game checks, clean build, safe
+  install and exact cold-load for unified artifact `111bcba1... / 7187768f...`,
+  runtime `dd4e2229...`, environment `6b7ccbf2...` and sole-Platform Modset
+  `05df53c2...`; Recorder is Ready with no session and rollback is available.
+  The exact-candidate Human OFF/ON canary and subphase profile are still
+  required; no predecessor Human evidence transfers.
 - Shop, Event, Rest, run entry and terminal remain the next Full-Run domain
   expansion after this bounded hardening closeout.
 

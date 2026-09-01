@@ -7,6 +7,22 @@ namespace STS2HumanAnnotator.Core.Tests;
 public sealed class RecordingPerformanceProfilerTests
 {
     [Fact]
+    public void ExplicitSubphaseObservationIsIncludedInReport()
+    {
+        var profiler = new RecordingPerformanceProfiler();
+
+        profiler.ObserveMicroseconds("full_capture.read_rich.game_identity", 17);
+        profiler.ObserveMicroseconds("full_capture.read_rich.game_identity", 23);
+
+        RecordingPerformancePhase phase = Assert.Single(
+            profiler.Snapshot("session-test").Phases);
+        Assert.Equal("full_capture.read_rich.game_identity", phase.Phase);
+        Assert.Equal(2, phase.Count);
+        Assert.Equal(20, phase.MeanUs);
+        Assert.Equal(23, phase.MaxUs);
+    }
+
+    [Fact]
     public void ProfilerReportsOrderedBoundedPhaseStatistics()
     {
         var profiler = new RecordingPerformanceProfiler();

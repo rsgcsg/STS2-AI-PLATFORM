@@ -50,6 +50,10 @@
   centralizes durable semantic-boundary mapping and typed Connector surface
   composition, protects exact candidate identity, records a current performance
   baseline and publishes trigger-bound deferred debt.
+- In progress: bounded Recorder hot-path performance pass. It removes repeated
+  hashing of the immutable loaded game assembly from Snapshot identity reads and
+  adds call-site/subphase profiling; exact candidate Human OFF/ON performance
+  evidence is still required before declaring the owner-reported stutter solved.
 - Next after hardening: migrate Shop,
   Event, Rest, run entry, and terminal by native mechanism. Remove each old
   publication/witness path only after both consumers use the shared adapter.

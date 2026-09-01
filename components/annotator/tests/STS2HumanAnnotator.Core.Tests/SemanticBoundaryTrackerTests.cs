@@ -288,10 +288,12 @@ public sealed class SemanticBoundaryTrackerTests
         tracker.Finished("a1");
 
         SemanticBoundaryTraceDraft result = Assert.Single(
-            tracker.CloseUnknown("recording_closed_before_semantic_boundary"));
+            tracker.CloseUnknown(RecordingClosePolicy.TerminalUnknownReason));
 
         Assert.Equal(SemanticBoundaryTraceKinds.TransitionUnknown, result.Kind);
-        Assert.Equal("recording_closed_before_semantic_boundary", result.ProofStatus);
+        Assert.Equal(RecordingClosePolicy.TerminalUnknownReason, result.ProofStatus);
+        Assert.Null(result.SemanticSuccessor);
+        Assert.Contains("no_semantic_successor", result.NonClaims!);
         Assert.Empty(tracker.CloseUnknown("duplicate_close"));
     }
 

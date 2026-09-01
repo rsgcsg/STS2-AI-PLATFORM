@@ -78,10 +78,8 @@ internal static class RecorderRuntime
     private static long _nativePostCommitGeneration;
     private static DateTimeOffset _lastIdleStatusAt;
     private static volatile bool _statusRefreshRequested;
-    private static DateTimeOffset? _semanticCloseDrainDeadline;
     private static ActionExecutor? _observedActionExecutor;
     private static bool _semanticBoundaryTraceHealthy = true;
-    private static bool _serializedCloseBoundaryRequested;
     private static string _runtimeState = "initializing";
     private static string? _detail;
     private static RecorderEnvironmentIdentity? _lastEnvironment;
@@ -209,9 +207,6 @@ internal static class RecorderRuntime
         if (string.IsNullOrWhiteSpace(command.CommandId))
             return RejectedCommand("invalid_command_id", "Recording command_id is required.");
 
-        if (command.Kind == RecordingCommandKind.Close && AcceptingNewWitnesses())
-            TryPrepareSerializedEvidence(out _);
-
         RecordingCommandResult result;
         RecorderEnvironmentIdentity? environment;
         string? snapshotId;
@@ -295,14 +290,12 @@ internal static class RecorderRuntime
                         _stagedCardFrame = null;
                     if (command.Kind == RecordingCommandKind.Close && result.Accepted)
                     {
-                        _semanticCloseDrainDeadline = DateTimeOffset.UtcNow.AddSeconds(5);
-                        _serializedCloseBoundaryRequested = HasPendingRecordingWorkUnsafe();
                         _closeout = new RecordingCloseoutStatus(
-                            HasPendingRecordingWorkUnsafe() ? "draining" : "closing",
+                            "closing",
                             DateTimeOffset.UtcNow,
                             null,
                             result.Detail);
-                        finalizeClose = !HasPendingRecordingWorkUnsafe();
+                        finalizeClose = true;
                     }
                 }
                 _detail = result.Detail;
@@ -321,7 +314,10 @@ internal static class RecorderRuntime
         if (result.Accepted && command.Kind != RecordingCommandKind.StartNewSession)
             AppendJournal(result.Code, null, snapshotId, result.Detail);
         if (finalizeClose)
+        {
+            TerminateClosePendingWork();
             FinalizeClose();
+        }
         WriteStatus(
             environment,
             snapshotId,
@@ -391,12 +387,10 @@ internal static class RecorderRuntime
         _pending = null;
         ResetNativeActionTrackingUnsafe();
         _semanticBoundaryTraceHealthy = true;
-        _serializedCloseBoundaryRequested = false;
         _stagedCardFrame = null;
         _lastStoreSnapshot = store.GetSnapshot();
         _requiredReadsHealth = "not_checked";
         _lastPublishedHealth = null;
-        _semanticCloseDrainDeadline = null;
         _closeout = RecordingCloseoutStatus.Idle;
         _lifecycle = lifecycle;
         _runtimeState = "waiting_for_player_environment";
@@ -479,13 +473,10 @@ internal static class RecorderRuntime
         IReadOnlyList<SemanticBoundaryTraceDraft> closeDrafts;
         lock (Gate)
         {
-            if (_lifecycle.State != RecordingLifecycleState.Closing
-                || HasNativePendingRecordingWorkUnsafe())
+            if (_lifecycle.State != RecordingLifecycleState.Closing)
                 return;
-            if (BoundaryTracker.HasUnresolvedActions
-                && DateTimeOffset.UtcNow < _semanticCloseDrainDeadline.GetValueOrDefault(DateTimeOffset.MinValue))
-                return;
-            closeDrafts = BoundaryTracker.CloseUnknown("recording_close_drain_timeout");
+            closeDrafts = BoundaryTracker.CloseUnknown(
+                RecordingClosePolicy.TerminalUnknownReason);
         }
         try
         {
@@ -519,10 +510,46 @@ internal static class RecorderRuntime
             _detail = _closeout.Detail;
             _stagedCardFrame = null;
             _requiredReadsHealth = "not_active";
-            _semanticCloseDrainDeadline = null;
             ResetNativeActionTrackingUnsafe();
         }
         PublishApplicationEvent(RecordingEventKind.SessionClosed, detail: _closeout.Detail);
+    }
+
+    private static void TerminateClosePendingWork()
+    {
+        PendingDecision? pending;
+        lock (Gate)
+        {
+            if (_lifecycle.State != RecordingLifecycleState.Closing)
+                return;
+            pending = _pending;
+        }
+
+        if (pending != null)
+        {
+            ClearPendingWithInvalidation(
+                pending,
+                RecordingClosePolicy.TerminalUnknownReason,
+                RecordingClosePolicy.TerminalUnknownDetail,
+                "successor_unknown",
+                finalizeClose: false);
+        }
+
+        lock (Gate)
+        {
+            if (_lifecycle.State != RecordingLifecycleState.Closing)
+                return;
+            Interlocked.Increment(ref _nativePostCommitGeneration);
+            QueuedNativePostCommitCompletions.Clear();
+            NativePostCommitCompletions.Reset();
+            foreach (NativeActionLifecycleSubscription subscription in NativeActionSubscriptions.Values)
+                subscription.Dispose();
+            NativeActionSubscriptions.Clear();
+            NativeActionEvidence.Clear();
+            SemanticOnlyNativeActionIds.Clear();
+            ArmedPotionUses.Clear();
+            NativeActionLedger.Reset();
+        }
     }
 
     private static bool HasPendingRecordingWorkUnsafe() =>
@@ -1363,22 +1390,10 @@ internal static class RecorderRuntime
             foreach (NativeTaskCompletion completion in queuedPostCommitCompletions)
                 ObserveNativePostCommitCompletion(completion);
             PendingDecision? pending;
-            bool closeBoundaryRequested;
             lock (Gate)
             {
                 pending = _pending;
-                closeBoundaryRequested = _serializedCloseBoundaryRequested;
-                _serializedCloseBoundaryRequested = false;
             }
-            if (closeBoundaryRequested)
-            {
-                bool resolved = TryPrepareSerializedEvidence(out _, allowClosing: true);
-                if (!resolved && !HasOpenNativeLifecycle())
-                    FailClosedCloseDrain("serialized_close_boundary_unavailable");
-            }
-
-            if (CloseDrainExpired())
-                FailClosedCloseDrain("recording_close_drain_timeout");
 
             FinalizeClose();
 
@@ -1435,64 +1450,6 @@ internal static class RecorderRuntime
             _runtimeState = "observer_error";
             _detail = exception.Message;
             WriteStatus(null, null, new[] { "player_environment_capture_failed" });
-        }
-    }
-
-    private static bool HasOpenNativeLifecycle()
-    {
-        lock (Gate)
-            return NativeActionLedger.HasUnresolvedLifecycle
-                || SemanticOnlyNativeActionIds.Count > 0;
-    }
-
-    private static bool CloseDrainExpired()
-    {
-        lock (Gate)
-        {
-            return _lifecycle.State == RecordingLifecycleState.Closing
-                && HasPendingRecordingWorkUnsafe()
-                && DateTimeOffset.UtcNow >= _semanticCloseDrainDeadline.GetValueOrDefault(
-                    DateTimeOffset.MaxValue);
-        }
-    }
-
-    private static void FailClosedCloseDrain(string reason)
-    {
-        PendingDecision? pending;
-        lock (Gate)
-        {
-            if (_lifecycle.State != RecordingLifecycleState.Closing)
-                return;
-            pending = _pending;
-        }
-
-        if (pending != null)
-        {
-            ClearPendingWithInvalidation(
-                pending,
-                reason,
-                "Close could not prove a complete authoritative successor; the action remains accounted without a strict transition.",
-                "successor_unknown");
-        }
-
-        lock (Gate)
-        {
-            if (_lifecycle.State != RecordingLifecycleState.Closing)
-                return;
-            Interlocked.Increment(ref _nativePostCommitGeneration);
-            QueuedNativePostCommitCompletions.Clear();
-            NativePostCommitCompletions.Reset();
-            foreach (NativeActionLifecycleSubscription subscription in NativeActionSubscriptions.Values)
-                subscription.Dispose();
-            NativeActionSubscriptions.Clear();
-            NativeActionEvidence.Clear();
-            SemanticOnlyNativeActionIds.Clear();
-            ArmedPotionUses.Clear();
-            NativeActionLedger.Reset();
-            _semanticCloseDrainDeadline = DateTimeOffset.MinValue;
-            _serializedCloseBoundaryRequested = false;
-            _runtimeState = "recording_closing_boundary_unknown";
-            _detail = reason;
         }
     }
 
@@ -2719,8 +2676,6 @@ internal static class RecorderRuntime
                 NativeActionSubscriptions.Remove(subscription.Action);
                 NativeActionEvidence.Remove(subscription.ActionWitnessId);
                 subscription.Dispose();
-                if (_lifecycle.State == RecordingLifecycleState.Closing)
-                    _serializedCloseBoundaryRequested = true;
             }
             FinalizeClose();
         }
@@ -3034,15 +2989,38 @@ internal static class RecorderRuntime
             capabilities.Game.Modset.Fingerprint);
     }
 
-    private static ProcessLocalNativeWitnessFrame CaptureReadRichFrame() =>
-        MeasureStore(
+    private static ProcessLocalNativeWitnessFrame CaptureReadRichFrame()
+    {
+        ProcessLocalNativeWitnessFrame frame = MeasureStore(
             "read_rich_snapshot_capture",
             () => PlayerEnvironmentNativeWitness.Capture(SemanticBoundaryReadPolicy.RequiredKinds));
+        RecordCaptureSubphases("read_rich", frame);
+        return frame;
+    }
 
-    private static ProcessLocalNativeWitnessFrame CaptureSemanticFrame() =>
-        MeasureStore(
+    private static ProcessLocalNativeWitnessFrame CaptureSemanticFrame()
+    {
+        ProcessLocalNativeWitnessFrame frame = MeasureStore(
             "semantic_snapshot_capture",
             () => PlayerEnvironmentNativeWitness.Capture(SemanticBoundaryReadPolicy.RequiredKinds));
+        RecordCaptureSubphases("semantic", frame);
+        return frame;
+    }
+
+    private static void RecordCaptureSubphases(
+        string callSite,
+        ProcessLocalNativeWitnessFrame frame)
+    {
+        V2RecordingStore? store = _store;
+        if (store == null)
+            return;
+        foreach (ProcessLocalCaptureTiming timing in frame.CaptureTimings)
+        {
+            store.ObservePerformance(
+                $"full_capture.{callSite}.{timing.Phase}",
+                timing.ElapsedMicroseconds);
+        }
+    }
 
     private static T MeasureStore<T>(string phase, Func<T> operation)
     {
@@ -3236,7 +3214,8 @@ internal static class RecorderRuntime
         PendingDecision pending,
         string reason,
         string detail,
-        string evidenceLevel)
+        string evidenceLevel,
+        bool finalizeClose = true)
     {
         lock (Gate)
         {
@@ -3266,7 +3245,8 @@ internal static class RecorderRuntime
             if (ReferenceEquals(_pending, pending))
                 _pending = null;
         }
-        FinalizeClose();
+        if (finalizeClose)
+            FinalizeClose();
     }
 
     private static void Quarantine(

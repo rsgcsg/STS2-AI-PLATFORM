@@ -53,6 +53,8 @@ Use the smallest route that answers the task.
   [owner-ready source closeout](evidence/PR6_SUCCESSOR_OWNER_READY_SOURCE_CLOSEOUT_2026-09-01.md).
 - Current bounded pre-Full-Run hardening source/build/load gate:
   [hardening source closeout](evidence/PLATFORM_PREFULLRUN_HARDENING_SOURCE_CLOSEOUT_2026-09-01.md).
+- Current Recorder hot-path performance source gate and Human OFF/ON canary:
+  [recording hot-path performance closeout](evidence/PLATFORM_RECORDING_HOTPATH_PERFORMANCE_SOURCE_CLOSEOUT_2026-09-01.md).
 - Ownership matrix: [Components](COMPONENTS.md).
 - Portable/runtime evidence meanings: [Testing and Evidence](TESTING.md).
 - Component and composition identity: [Versioning](VERSIONING.md) and `platform-bom.json`.

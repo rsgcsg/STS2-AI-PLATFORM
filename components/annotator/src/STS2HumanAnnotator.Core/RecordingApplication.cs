@@ -25,6 +25,13 @@ public enum RecordingCommandKind
     Close
 }
 
+public static class RecordingClosePolicy
+{
+    public const string TerminalUnknownReason = "session_closed_before_successor_boundary";
+    public const string TerminalUnknownDetail =
+        "The session was closed before a complete semantic successor boundary was proved.";
+}
+
 public sealed record RecordingCommand(
     string CommandId,
     RecordingCommandKind Kind,
@@ -323,9 +330,8 @@ public static class RecordingLifecycleStateMachine
                     changedAt,
                     "recording_close_requested",
                     pendingDecision
-                        ? "Close is waiting for the admitted pending decision to settle or invalidate."
-                        : "Close was accepted and the session is ready to flush.",
-                    pendingDecision),
+                        ? $"Close terminates the session before the admitted pending decision's successor boundary; it is retained as terminal unknown ({RecordingClosePolicy.TerminalUnknownReason})."
+                        : "Close was accepted and the session is ready to flush."),
             _ => new RecordingCommandResult(
                 false,
                 false,

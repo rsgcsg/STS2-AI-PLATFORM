@@ -80,8 +80,42 @@ public sealed class RecordingApplicationTests
         Assert.True(paused.Accepted);
         Assert.Contains("still settle", paused.Detail, StringComparison.Ordinal);
         Assert.True(closing.Accepted);
-        Assert.True(closing.Pending);
+        Assert.False(closing.Pending);
+        Assert.Contains(
+            RecordingClosePolicy.TerminalUnknownReason,
+            closing.Detail,
+            StringComparison.Ordinal);
         Assert.Equal(RecordingLifecycleState.Closing, closing.Lifecycle.State);
+    }
+
+    [Fact]
+    public void CloseIsAnImmediateTerminalBoundaryEvenWithPendingWork()
+    {
+        RecordingLifecycleSnapshot recording = new(
+            RecordingLifecycleState.Recording,
+            "session-1",
+            T0,
+            "recording");
+
+        RecordingCommandResult closing = RecordingLifecycleStateMachine.Apply(
+            recording,
+            RecordingCommandKind.Close,
+            null,
+            T0.AddSeconds(1),
+            pendingDecision: true);
+
+        RecordingLifecycleSnapshot closed = RecordingLifecycleStateMachine.MarkClosed(
+            closing.Lifecycle,
+            T0.AddSeconds(1));
+
+        Assert.True(closing.Accepted);
+        Assert.False(closing.Pending);
+        Assert.Equal(RecordingLifecycleState.Closing, closing.Lifecycle.State);
+        Assert.Equal(RecordingLifecycleState.Closed, closed.State);
+        Assert.Contains(
+            RecordingClosePolicy.TerminalUnknownReason,
+            closing.Detail,
+            StringComparison.Ordinal);
     }
 
     [Fact]
