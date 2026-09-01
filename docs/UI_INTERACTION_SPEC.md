@@ -19,8 +19,9 @@ fail-closed boundary.
 
 ## Information hierarchy
 
-The small HUD contains only mode, recorder lifecycle, and Connector/Policy
-transport health. The K-open Workspace contains separate cards for Overview,
+The Platform presentation is fully hidden until K opens the Workspace. There
+is no compact HUD or root-level Recorder surface during ordinary play. The
+K-open Workspace contains separate cards for Overview,
 Environment, Policy, Human Data, and Diagnostics. Long identities are shown in
 short form with the complete observed value available through the host's normal
 copy/expand affordance; values are never inferred from presentation state.
@@ -28,14 +29,14 @@ copy/expand affordance; values are never inferred from presentation state.
 The Recorder card is a tool region owned by the Workspace presentation surface
 and supports New Session, Pause, Resume, and Close only when the typed Recording
 Application status allows them. It is visible only while the Workspace is open,
-so the compact HUD and Recorder never duplicate the same state. Every
+so no second shell can duplicate the same state. Every
 accepted or rejected command gets a low-noise toast and the next authoritative
 poll remains the source of truth.
 
 ## Interaction and persistence
 
 Only panels, buttons, drag handles, and resize handles capture pointer input.
-The overlay root and HUD are click-through so normal STS2 gameplay input is
+The hidden overlay root is click-through outside the Workspace so normal STS2 gameplay input is
 unaffected. K toggles the Workspace and Escape closes it. Workspace and
 Recorder positions, size, collapse state, and selected page are presentation
 state stored in a versioned file under the local application-data directory;

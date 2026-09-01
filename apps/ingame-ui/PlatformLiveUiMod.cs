@@ -117,8 +117,6 @@ internal sealed class PlatformLivePanel : IDisposable
     private static readonly Color Accent = new("#62c4d8");
     private SceneTree? _tree;
     private Action? _processFrameHandler;
-    private Control _hud = null!;
-    private Label _hudText = null!;
     private PanelContainer _workspace = null!;
     private Control _workspaceSurface = null!;
     private Control _workspaceBody = null!;
@@ -185,7 +183,7 @@ internal sealed class PlatformLivePanel : IDisposable
             Root.TreeExiting += Dispose;
             ApplyLayout();
             _ = PollAsync();
-            GD.Print("[STS2 Platform Live UI] panel ready; input=K; visible=false; HUD=visible");
+            GD.Print("[STS2 Platform Live UI] panel ready; input=K; visible=false; HUD=hidden");
         }
         catch (Exception exception)
         {
@@ -205,27 +203,6 @@ internal sealed class PlatformLivePanel : IDisposable
 
     private void BuildUi()
     {
-        _hud = new PanelContainer
-        {
-            Position = new Vector2(16, 16),
-            Size = new Vector2(470, 48),
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        _hud.AddThemeStyleboxOverride("panel", MakePanelStyle(
-            new Color("#182533e6"), new Color("#3c7084"), 10, 1, 12));
-        var hudRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
-        _hudText = new Label
-        {
-            Text = "Platform | Human | Recorder: Ready | Connector: polling",
-            VerticalAlignment = VerticalAlignment.Center,
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        _hudText.AddThemeFontSizeOverride("font_size", 14);
-        _hudText.AddThemeColorOverride("font_color", TextSecondary);
-        hudRow.AddChild(_hudText);
-        _hud.AddChild(hudRow);
-        Root.AddChild(_hud);
-
         _workspace = new PanelContainer
         {
             Position = _layout.WorkspacePosition,
@@ -259,7 +236,7 @@ internal sealed class PlatformLivePanel : IDisposable
         titleRow.AddChild(BuildCommandButton("Reset layout", ResetLayout, "Restore the local presentation layout."));
         _workspaceCollapse = BuildCommandButton("Collapse", ToggleWorkspaceCollapse);
         titleRow.AddChild(_workspaceCollapse);
-        titleRow.AddChild(BuildCommandButton("Close", HidePanel, "Close workspace; HUD remains visible."));
+        titleRow.AddChild(BuildCommandButton("Close", HidePanel, "Close workspace and return to gameplay."));
         _workspaceBody.AddChild(titleRow);
 
         _connection = new Label
@@ -663,10 +640,8 @@ internal sealed class PlatformLivePanel : IDisposable
     private void ApplyPresentationVisibility()
     {
         bool workspaceVisible = _workspace.Visible;
-        // There is exactly one active presentation owner. The compact HUD is
-        // only an entry/status affordance while the full workspace is closed;
-        // recorder controls live on the workspace surface and never duplicate it.
-        _hud.Visible = !workspaceVisible;
+        // There is exactly one active presentation owner. The Workspace is
+        // the only Platform surface; its Recorder and toast regions are children.
         _recorderCard.Visible = workspaceVisible;
         _toastStack.Visible = workspaceVisible;
     }
@@ -898,7 +873,6 @@ internal sealed class PlatformLivePanel : IDisposable
         if (Interlocked.Exchange(ref _pendingPollError, null) is { } error)
         {
             _connection.Text = $"Connector loopback: UI poll failed ({error})";
-            _hudText.Text = $"Platform | Human | Recorder: unknown | Connector: error ({error})";
             PushToast("transport.error", $"Status transport unavailable: {error}");
         }
     }
@@ -914,7 +888,6 @@ internal sealed class PlatformLivePanel : IDisposable
         ApplyModeButtonState();
         ApplyRecordingAvailability(status.Recording);
         RefreshActionFeed(status.Recording);
-        _hudText.Text = $"Platform | {status.PolicyRuntime?.Mode ?? "Human"} | Recorder: {status.Recording.Lifecycle.State} | Connector: {status.TransportStatus}";
         _pageText["Overview"].Text = FormatOverview(status);
         _pageText["Environment"].Text = FormatEnvironment(status);
         _pageText["Policy"].Text = FormatPolicy(status);

@@ -10,7 +10,8 @@ const contracts = fs.readFileSync(path.join(root, "PlatformLiveContracts.cs"), "
 const feed = fs.readFileSync(path.join(root, "PlatformLiveActionFeed.cs"), "utf8");
 
 test("Live UI remains a non-authorizing hidden overlay", () => {
-  assert.match(mod, /Visible = true/u);
+  assert.match(mod, /internal Control Root.*Visible = true/su);
+  assert.doesNotMatch(mod, /_hud|_hudText|HUD=visible/u);
   assert.match(mod, /MouseFilterEnum\.Ignore/u);
   assert.match(mod, /_workspace\.Visible = !_workspace\.Visible/u);
   assert.match(mod, /Key\.K/u);
@@ -45,7 +46,7 @@ test("one presentation owner prevents legacy and workspace shells from overlappi
   assert.match(mod, /_workspaceSurface\.AddChild\(_toastStack\)/u);
   assert.match(mod, /_workspaceSurface\.GuiInput \+= OnWorkspaceInput/u);
   assert.doesNotMatch(mod, /Root\.AddChild\(_recorderCard\)/u);
-  assert.match(mod, /_hud\.Visible = !workspaceVisible/u);
+  assert.doesNotMatch(mod, /Root\.AddChild\(_hud\)/u);
   assert.match(mod, /_recorderCard\.Visible = workspaceVisible/u);
   assert.match(mod, /_toastStack\.Visible = workspaceVisible/u);
   assert.match(mod, /ApplyPresentationVisibility\(\)/u);

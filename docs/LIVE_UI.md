@@ -36,10 +36,10 @@ verification compares those records with installed provenance. `installed`,
 `loaded`, automated input, owner-visible UI, Human recording evidence and
 Agent-run evidence remain separate claims.
 
-The product shell keeps a small click-through HUD visible during ordinary play;
-the full Workspace opens with `K` and closes with `Escape` or its Close button.
-Only one presentation state is active at a time: opening the Workspace hides
-the compact HUD, and the Recorder tool region is mounted on that same
+The product shell is fully hidden during ordinary play; the single Workspace
+opens with `K` and closes with `Escape` or its Close button. There is no compact
+HUD or root-level Recorder surface while it is closed. Only one presentation
+owner is active: the Recorder tool region is mounted inside that same
 Workspace surface rather than as a legacy root overlay. Workspace and Recorder
 cards support bounded drag, resize, collapse, and Reset layout. The Recorder
 offers typed New Session, Pause, Resume, and Close controls. A bounded toast
