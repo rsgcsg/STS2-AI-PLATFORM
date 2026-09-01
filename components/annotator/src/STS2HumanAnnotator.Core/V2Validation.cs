@@ -30,7 +30,7 @@ public static class HumanCaptureProfileValidator
             || profile.Reads.Any(read => !Phases.Contains(read.Phase)
                 || string.IsNullOrWhiteSpace(read.Kind))
             || profile.Reads.Count != profile.Reads
-                .Select(read => $"{read.Phase}\0{read.Kind}")
+                .Select(read => $"{read.Phase}\0{read.Kind}\0{read.InteractionKind}")
                 .Distinct(StringComparer.Ordinal)
                 .Count())
             errors.Add("capture_profile_reads_invalid");
@@ -47,8 +47,13 @@ public static class HumanCaptureProfileValidator
         string family = ResolveActionFamily(record.DecisionFamily, record.Action.Verb);
         if (!profile.SupportedActionFamilies.Contains(family, StringComparer.Ordinal))
             errors.Add("record_action_family_outside_profile");
-        ValidateRequiredReads(profile, record.Pre.Reads, "pre", errors);
-        ValidateRequiredReads(profile, record.Successor.Reads, "successor", errors);
+        ValidateRequiredReads(profile, record.Pre.Reads, "pre", record.Pre.InteractionKind, errors);
+        ValidateRequiredReads(
+            profile,
+            record.Successor.Reads,
+            "successor",
+            record.Successor.InteractionKind,
+            errors);
         return new RecordValidationResult(errors.Count == 0, errors);
     }
 
@@ -63,6 +68,7 @@ public static class HumanCaptureProfileValidator
         HumanCaptureProfile profile,
         IReadOnlyList<ReadEvidence> reads,
         string phase,
+        string interactionKind,
         ICollection<string> errors)
     {
         HashSet<string> materialized = reads
@@ -70,7 +76,10 @@ public static class HumanCaptureProfileValidator
             .Select(read => read.Kind)
             .ToHashSet(StringComparer.Ordinal);
         foreach (CaptureReadRequirement requirement in profile.Reads.Where(read =>
-                     read.Required && string.Equals(read.Phase, phase, StringComparison.Ordinal)))
+                     read.Required
+                     && string.Equals(read.Phase, phase, StringComparison.Ordinal)
+                     && (read.InteractionKind == null
+                         || string.Equals(read.InteractionKind, interactionKind, StringComparison.Ordinal))))
         {
             if (!materialized.Contains(requirement.Kind))
                 errors.Add($"{phase}_required_read_missing_{requirement.Kind}");

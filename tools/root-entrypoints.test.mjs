@@ -28,3 +28,14 @@ test("workspace package test entrypoints do not require shell glob expansion", (
     assert.equal(packageJson.scripts[script], "node --test", relative);
   }
 });
+
+test("exact-game validation builds the Connector before the dependent Annotator", () => {
+  const workspace = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+  const command = workspace.scripts["check:exact-game"];
+  const connectorBuild = command.indexOf("npm --prefix components/connector run build");
+  const annotatorCheck = command.indexOf("npm --prefix components/annotator run check");
+
+  assert.ok(connectorBuild >= 0, "exact-game validation must produce the exact Connector artifact");
+  assert.ok(annotatorCheck > connectorBuild,
+    "Annotator validation must consume the already-built Connector artifact");
+});

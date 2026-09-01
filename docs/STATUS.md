@@ -15,14 +15,145 @@ directly before claiming protection.
 
 ## Native Foundation candidate
 
-An isolated refactor branch, stacked from PR #3 head `72e54f9...`, now contains
-the first Platform-wide Native Foundation vertical slice. Direct Combat cards,
-potions, targets, and End Turn use one STS2-owned semantic catalog consumed by
-Connector and Annotator. PlayerChoice parent lineage and `GameAction` lifecycle
-use one read-only adapter. Reward/CardReward/Map have a source/test owner
-discriminator that creates no action authority. Public protocol 1.0.0 remains
-compatible; `Receipt.Successor` is clarified as an immediate post-delivery
-observation, not canonical causal `S'`.
+PR #3 and PR #5 are integrated in `develop@c751952...` through the protected
+PR flow. Their gameplay-safe semantic baseline, Native Foundation Combat and
+PlayerChoice adapters, exact Windows Human closeout, and final Ritsu route
+decision are now durable integration history. Ritsu remains an external design
+reference only: there is no runtime or package dependency.
+
+PR #6 is the sole active topic and is directly based on that `develop` commit.
+Its continuation source deepens Map, Reward, CardReward and Treasure from
+owner discrimination to four typed Native Foundation decision adapters.
+The providers read `RunState`/`MapTravel`, the exact `RewardsSet`, and exact
+card-reward option arrays. Connector now intersects those native catalogs with
+current delivery controls and revalidates native membership at execution;
+Annotator consumes the same catalog without gaining legality or mutation
+authority. UI-derived reachability/reward/option publication is demoted from
+semantic authority. Restacked Treasure component source `9f89d5e...`
+additionally binds
+the exact `TreasureRoom`/run owner and `TreasureRoomRelicSynchronizer`
+collection, with `closed/opening/relic_choice/resolving/completed` stages and
+exact `open/select/skip/proceed` membership. The pre-restack
+Treasure-continuation artifact `3bc44ddb... / 708ecfab...` built cleanly and
+cold-loaded on macOS in
+Connector runtime `955e5b02...`, environment `722a4149...`, sole-Platform
+Modset `b6b669df...`, with rollback `2026-08-31T03-07-08.478Z`. Startup logs
+contain no Platform or Harmony errors. This evidence does not transfer to the
+restacked source. A build-provenance omission was also
+fixed so every compiled game-Mod composition source is now identity-bound.
+This is predecessor bounded main-menu T2 evidence only. The earlier
+Map/Reward/CardReward
+batch targeted tests and exact clean macOS build pass as
+artifact `3e3ebc3c... / 53568805...` against STS2
+`v0.111.0 / 41cef1ea / 9cb4f1ad... / 57785517...`. Safe install, rollback
+capture and cold-load also pass on macOS in Connector runtime `2c94849e...`,
+environment `8db5a2af...`, exact sole-Platform Modset `2f4b276f...`.
+Annotator initialized Ready/no-session and the startup log contained no
+Platform initialization error. This is predecessor bounded main-menu runtime
+evidence: Map/Reward/CardReward/Treasure decisions and Human recording remain
+unexercised. The current restacked source has source/test claims only until a
+new exact build and runtime qualification are produced. Public
+protocol 1.0.0 remains compatible; `Receipt.Successor` is still an immediate
+post-delivery observation, not canonical causal `S'`. See the
+[continuation source closeout](evidence/NATIVE_FOUNDATION_FULL_RUN_SOURCE_CLOSEOUT_2026-08-31.md)
+and [Treasure closeout](evidence/NATIVE_FOUNDATION_TREASURE_SOURCE_CLOSEOUT_2026-08-31.md).
+
+The PR #6 source-hardening pass keeps those authority boundaries unchanged.
+Native action keys and exact-once membership now use one mechanical Native
+Foundation catalog helper instead of provider-specific copies. Reward capture
+returns its exact unselected native rewards with the action catalog, removing
+repeated weak-owner reads and per-button reward-array allocation. Connector
+builds request-local reference indexes for Map, Reward and CardReward
+presentation intersection, while every delivery still re-captures native
+membership. A dead reward/map handoff helper and a test-only Witness key wrapper
+were removed. Existing profiling identifies full Snapshot capture as the
+dominant recorder cost; this pass proves reduced catalog enumeration and
+allocation only, not a runtime latency improvement. No public protocol,
+semantic authority, loaded artifact, or Human evidence claim changed.
+
+The current continuation extends the Human Annotator profile to Map, Reward,
+CardReward and Treasure, but does not transfer the earlier schema-3 direct-UI
+claims. Native semantic proof now waits for `VoteForMapCoordAction` or
+`PickRelicAction` terminal lifecycle, successful reward/card-reward completion,
+or terminal proceed task completion. The UI callback only accounts for the
+Human root. Legacy V2 successor polling no longer feeds the semantic trace; an
+incomplete native boundary remains explicit unknown. The completion-lineage
+repair now carries session/generation, exact Human root, native family/kind,
+task and optional owner/operand/lineage identity instead of a completion count
+or FIFO match. Map and Reward witnesses use the same native referents as the
+Connector projection, and Treasure public verbs are aligned without exposing
+the private room owner. See the [completion-lineage source
+closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
+
+The latest two same-bytes macOS Human sessions narrowed the remaining PR #6
+gate to CardReward and Treasure lifecycle seams rather than a global Reward or
+Map failure. CardReward nested input arrived while the parent reward Task was
+still intentionally suspended. Treasure relics were pre-generated before the
+chest opened, and `GetPlayerVote` exposed a predicted local vote before
+`PickRelicAction` reached native Commit. Current source therefore commits a
+CardReward parent at exact child-owner creation, classifies unopened Treasure
+independently of `CurrentRelics`, and observes exact
+`TreasureRoomRelicSynchronizer.OnPicked` Commit. The existing Root/Commit/later
+Successor model remains sufficient; only its domain seams changed. The bounded
+Recorder audit also adds separate timings for discriminator fallback Snapshot
+capture versus already-captured-frame projection. It makes no latency or
+regression claim. See the [qualification repair source closeout](evidence/PR6_HUMAN_QUALIFICATION_REPAIR_SOURCE_CLOSEOUT_2026-09-01.md).
+
+That repair is now clean-built, safely installed, and cold-loaded as unified
+artifact `641f543d... / 7ac2fa24...` from build workspace `4fc9702...` and
+semantic source `b0ebd96...`. Runtime `c3e4d2b...`, environment `6655e3a...`,
+and exact sole-Platform Modset `91d2f6e7...` pass loaded verification; Recorder
+is Ready with no session. Rollback is
+`apps/game-mod/.local/deployments/2026-09-01T03-47-46.154Z`. This is T2 loaded
+evidence only. CardReward/Treasure T3 Human qualification remains pending.
+
+The later same-bytes Human qualification run proved the repaired
+CardReward/Treasure seams but exposed one final Map-to-Combat recording boundary:
+Map Commit succeeded and Combat was playable before Close, yet the Map root
+remained successor-unresolved. Exact source inspection confirmed that
+`NativeDecisionOwnerReady` existed only in core/tests; production relied on the
+next Human root's pre-execution frame. Source `c1b3144...` now publishes the
+first typed owner-ready fact from the exact player-side Combat seam after
+semantic `Play`, executor unpause, synchronizer `PlayPhase`, and the
+`NEndTurnButton.OnTurnStarted` input-owner callback. Annotator still requires a
+complete, domain-matching Connector frame and persists exact owner/mechanism
+evidence. Earlier `RoomEntered`, `CombatBegan`, and visual active-combat events
+are rejected as too early. Root/exact checks, clean build, safe install and
+cold-load pass as artifact `627b5b69... / f19b8863...`, runtime `c296ec99...`,
+environment `0c47c311...`, and sole-Platform Modset `c8dd91e3...`; rollback is
+`apps/game-mod/.local/deployments/2026-09-01T05-17-12.536Z`. The
+no-next-Human-input Map canary is the only remaining qualification gate. Prior
+Human evidence does not transfer to these bytes. See the [successor owner-ready
+closeout](evidence/PR6_SUCCESSOR_OWNER_READY_SOURCE_CLOSEOUT_2026-09-01.md).
+
+The latest exact Human-qualified candidate is game-Mod artifact
+`2382b3dd01be009731fdfa02a5f936986487163042a7b4614cc931c3bf6a4f8e /
+b1a7d1f1-6f38-4501-a1ef-9a642d40df53`, built from PR #6 head
+`20b6a6c6adbc2b53ee7a65a29a4f73b412615f0e` (annotator source
+`3ed0a669...`). It is loaded in runtime `a00b1852fcd44c8b9c489233c78301c0`,
+environment `c9cc1a5d...`, exact sole-Platform Modset
+`79bdf7caa3c176fff995c980c350c79cb8a88ecd2b6854481b5873bf0502725e`, with
+rollback `apps/game-mod/.local/deployments/2026-09-01T06-02-50.002Z`.
+Human session `session-20260901T061040Z-561a204be0bc422da5809e1ec5c148aa`
+passes strict V2 (93 valid records), modern semantic 25/25, Map 7/7 and
+owner-ready 5/5; there are no unresolved transitions or close-drain timeout.
+This is owner-attested Human evidence; machine audit does not prove Human
+origin or non-interference.
+
+Historical PR #6 causal-evidence repair was superseded by the current candidate
+above. It made the
+semantic timeline the sole modern accounting authority and separates Human
+Root, Native Commit, and Successor Boundary. Async tasks retain exact root and
+owner/operand/lineage identity beyond the UI scope; shared completion methods
+derive family from the matched root. `GameAction.Finished` and Task completion
+prove Commit only, while `S'` requires a native owner-ready, PlayerChoice, or
+next-root pre-execution boundary. Legacy native-ledger bytes remain strict-V2
+compatibility, and the discriminator remains diagnostic. Clean artifact
+`b637d380... / 9286ca51...` was installed and cold-loaded in runtime
+`583ab4e5...`, environment `ea08bd5d...`, sole-Platform Modset `30b507c5...`.
+Source/tests/build/load passed; its Human qualification was superseded and no
+predecessor evidence transfers. See [ADR 0005](adr/0005-human-root-commit-successor-evidence.md)
+and the updated [source closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
 
 Connector, Annotator, unified-Mod targeted checks and the full portable suite
 pass for component source commit `a3bcd37...`. Clean build, safe install and
@@ -106,6 +237,15 @@ serialization, hashing, object writes and durable appends. The profiler changes
 no action or semantic authority and has source/test evidence only; the Human run
 above cannot supply its timings. See the
 [schema-3 closeout](evidence/SCHEMA3_HUMAN_DATA_LIFECYCLE_CLOSEOUT_2026-08-29.md).
+
+Current source also contains a bounded recorder hardening pass: semantic-frame
+same-object caching no longer strongly retains complete frame graphs, the
+process-local native entity registry prunes dead IDs through a bounded candidate
+queue, and canonical boundary tracking explicitly suppresses a duplicate
+execution-time discriminator snapshot. This is source/test evidence only; it
+does not change action authority or inherit the latency claim of any prior
+artifact. A new build must be cold-loaded and owner-exercised before any
+after-repair frame-stall claim.
 
 The subsequent exact profiler session
 `session-20260829T072035Z-807f6a97b0e8498a828bb25c84e04ae4`, artifact

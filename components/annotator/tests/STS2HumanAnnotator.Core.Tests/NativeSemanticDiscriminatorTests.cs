@@ -99,6 +99,33 @@ public sealed class NativeSemanticDiscriminatorTests
     }
 
     [Fact]
+    public void CanonicalBoundaryCaptureCanDelegateDuplicateExecutionSample()
+    {
+        NativeSemanticDiscriminatorEvent[] events =
+        {
+            Event(1, "accepted", "a1"),
+            Event(2, "before_execution", "a1") with
+            {
+                CaptureStatus = "not_sampled",
+                Scope = "not_sampled",
+                Detail = NativeSemanticDiscriminatorContract
+                    .CanonicalBoundaryCaptureDelegatedDetail
+            },
+            Event(3, "started", "a1"),
+            Event(4, "finished", "a1")
+        };
+
+        NativeSemanticDiscriminatorReport report =
+            NativeSemanticDiscriminatorAnalyzer.Analyze(events);
+
+        Assert.Equal("pass", report.Status);
+        Assert.Equal(1, report.Successful);
+        Assert.Equal(0, report.Unknown);
+        Assert.Equal("successful_capture_delegated", report.Actions[0].Disposition);
+        Assert.Equal("delegated_to_canonical_boundary", report.Actions[0].Membership);
+    }
+
+    [Fact]
     public void DuplicateAcceptanceAndTruncatedSequenceFailClosed()
     {
         NativeSemanticDiscriminatorEvent[] events =
@@ -146,6 +173,54 @@ public sealed class NativeSemanticDiscriminatorTests
         Assert.Equal(1, report.PlayerChoiceResumes);
         NativeSemanticHandoffCandidate handoff = Assert.Single(report.HandoffCandidates);
         Assert.False(handoff.CrossedPlayerChoiceCommit);
+    }
+
+    [Fact]
+    public void LifecycleRowsMayBeUnsampledWithoutChangingActionDisposition()
+    {
+        NativeSemanticDiscriminatorEvent[] events =
+        {
+            Event(1, "accepted", "a1"),
+            Event(2, "before_execution", "a1", membership: "exact_once", state: "s0"),
+            Event(3, "started", "a1") with
+            {
+                CaptureStatus = "not_sampled",
+                Scope = "not_sampled",
+                Detail = NativeSemanticDiscriminatorContract.LifecycleOnlyDetail
+            },
+            Event(4, "paused_for_player_choice", "a1") with
+            {
+                CaptureStatus = "not_sampled",
+                Scope = "not_sampled",
+                Detail = NativeSemanticDiscriminatorContract.LifecycleOnlyDetail
+            },
+            Event(5, "ready_to_resume", "a1") with
+            {
+                CaptureStatus = "not_sampled",
+                Scope = "not_sampled",
+                Detail = NativeSemanticDiscriminatorContract.LifecycleOnlyDetail
+            },
+            Event(6, "resumed", "a1") with
+            {
+                CaptureStatus = "not_sampled",
+                Scope = "not_sampled",
+                Detail = NativeSemanticDiscriminatorContract.LifecycleOnlyDetail
+            },
+            Event(7, "finished", "a1") with
+            {
+                CaptureStatus = "not_sampled",
+                Scope = "not_sampled",
+                Detail = NativeSemanticDiscriminatorContract.LifecycleOnlyDetail
+            }
+        };
+
+        NativeSemanticDiscriminatorReport report =
+            NativeSemanticDiscriminatorAnalyzer.Analyze(events);
+
+        Assert.Equal("pass", report.Status);
+        Assert.Equal(1, report.Successful);
+        Assert.Equal(0, report.Unknown);
+        Assert.Equal("successful_membership_proved", report.Actions[0].Disposition);
     }
 
     [Fact]

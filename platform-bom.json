@@ -4,15 +4,15 @@
   "components": {
     "native_foundation": {
       "version": "0.1.0-rc.1",
-      "source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
-      "component_tree_revision": "981c4667384905b6c359d1bd39ddc8b8f352a968",
-      "component_source_digest_sha256": "098f7215512199e825dbbb910d78f4c9e61b7b0ea7a1a742052e91ffa75dac52"
+      "source_revision": "c1b3144f07ba210c7f7064087d0d37bb3c9a2e66",
+      "component_tree_revision": "69c517894587fa00d507049b1631df317c890164",
+      "component_source_digest_sha256": "0c8f5a1eeb0438e68382cf6e3e2ecebddee37c9519859a96a783e6cdf3cf1af0"
     },
     "connector": {
       "version": "1.2.0-rc.6",
-      "source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
-      "component_tree_revision": "e7e444c07dab20610e9a11bd4fae8111bae4d620",
-      "component_source_digest_sha256": "13656b1ab7c46ffe9410ffbba06d6811f014194cbf8976213c63a388f9ccfbf1"
+      "source_revision": "b0ebd966c7b1aa8395a635965599ec3fbb4db763",
+      "component_tree_revision": "ebb4156c2543a4feb00076c32b79b90f164ff5e0",
+      "component_source_digest_sha256": "0fbd625b606ebccfcdf3a96fe19630f36ec2b235daa25ab998ee48326684436f"
     },
     "host_runtime": {
       "version": "1.1.0-rc.7",
@@ -22,9 +22,9 @@
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "65631c8b72883fb34478f2bde597cab935192f0c",
-      "component_tree_revision": "5a47f6aabf1bc09cee6a8ae50c744418724006d2",
-      "component_source_digest_sha256": "3cc2e6a907703b093ea900dd09321bd85031d25581937cc8100af8c037c0ab88"
+      "source_revision": "3ed0a669dd833c5d3560accf78d0d6b69006317c",
+      "component_tree_revision": "eb3802a28a1af5039e8c5dcae1e06e7f28b2966f",
+      "component_source_digest_sha256": "8fc4838d76d61d91bb2c7423577f07acbde07afa45f33a427997ff053eb9b5a8"
     },
     "evidence": {
       "version": "0.1.0-rc.1",
@@ -52,9 +52,9 @@
     },
     "game_mod": {
       "version": "0.2.0-rc.1",
-      "source_revision": "bcb899eb63977e46dfde5e0a3a22a4662c8120b0",
-      "component_tree_revision": "4076d10d971f283997fad4e2840e979b880418f5",
-      "component_source_digest_sha256": "73d33920fb5e555644716640306595a676b207e5f096dc7635306ed77f99c45b"
+      "source_revision": "c1b3144f07ba210c7f7064087d0d37bb3c9a2e66",
+      "component_tree_revision": "9ad2a10f5648a9d8fb16a66bdbbd2400d88b0fe3",
+      "component_source_digest_sha256": "0b81aabc09d0c0a28ac7eb72ac5e92db2fb79609ec5abbad284b43bd7b8e2078"
     },
     "player_environment_protocol": "1.0.0",
     "typescript_sdk": "1.1.0-rc.1"
@@ -154,8 +154,8 @@
     },
     "connector": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
-      "current_component_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
-      "current_component_source_digest_sha256": "13656b1ab7c46ffe9410ffbba06d6811f014194cbf8976213c63a388f9ccfbf1",
+      "current_component_source_revision": "b0ebd966c7b1aa8395a635965599ec3fbb4db763",
+      "current_component_source_digest_sha256": "0fbd625b606ebccfcdf3a96fe19630f36ec2b235daa25ab998ee48326684436f",
       "source_relation": "loaded_human_v2_artifact_precedes_unified_platform_source",
       "artifact_sha256": "6c66cbf06757dca3e7d910467fb56b89376f109c6d7d0ba47d2bc0260ab4a3d2",
       "artifact_mvid": "11f1da35-558f-4346-8ec9-a493fea95cb8",
@@ -167,8 +167,8 @@
     "annotator": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
       "source_digest_sha256": "8d23f1015a7b0df800f78a7545da5c86bfee521131c4391b398c884ff917918f",
-      "current_component_source_revision": "65631c8b72883fb34478f2bde597cab935192f0c",
-      "current_component_source_digest_sha256": "3cc2e6a907703b093ea900dd09321bd85031d25581937cc8100af8c037c0ab88",
+      "current_component_source_revision": "3ed0a669dd833c5d3560accf78d0d6b69006317c",
+      "current_component_source_digest_sha256": "8fc4838d76d61d91bb2c7423577f07acbde07afa45f33a427997ff053eb9b5a8",
       "source_relation": "loaded_human_v2_artifact_precedes_unified_platform_source",
       "artifact_sha256": "4e911dd616afa55753a5320a42c11ce0cebe9d4d10fefd66c8f8a431884cf105",
       "artifact_mvid": "692e9dd9-4bc7-4203-ae12-511ef95a5331",
@@ -255,8 +255,8 @@
     "connector": {
       "source_revision": "4de52cfd72c6bf5b0d2312538152e81c616dabfb",
       "source_digest_sha256": "8651b47e2fec8e0c77689a8e8774377795d79c188f2d69910a116e72db8f78c1",
-      "current_component_source_revision": "a3bcd373e156fb354a6b4947b72c15236457c4b0",
-      "current_component_source_digest_sha256": "13656b1ab7c46ffe9410ffbba06d6811f014194cbf8976213c63a388f9ccfbf1",
+      "current_component_source_revision": "b0ebd966c7b1aa8395a635965599ec3fbb4db763",
+      "current_component_source_digest_sha256": "0fbd625b606ebccfcdf3a96fe19630f36ec2b235daa25ab998ee48326684436f",
       "source_relation": "loaded_native_source_precedes_current_discriminator_source",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b",
@@ -270,8 +270,8 @@
     "annotator": {
       "source_revision": "cb20bfa6e4e0e64b3ee8fdf0e1d472e8a668450b",
       "source_digest_sha256": "3910bcbc71599610b125c91c62e9860541ce9edea9b2c0a9f41842eb53651071",
-      "current_component_source_revision": "65631c8b72883fb34478f2bde597cab935192f0c",
-      "current_component_source_digest_sha256": "3cc2e6a907703b093ea900dd09321bd85031d25581937cc8100af8c037c0ab88",
+      "current_component_source_revision": "3ed0a669dd833c5d3560accf78d0d6b69006317c",
+      "current_component_source_digest_sha256": "8fc4838d76d61d91bb2c7423577f07acbde07afa45f33a427997ff053eb9b5a8",
       "source_relation": "loaded_native_source_precedes_current_audit_closeout_source",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b"
@@ -643,6 +643,60 @@
       "evidence_transfer_from_predecessor": false,
       "rollback": "apps/game-mod/.local/deployments/2026-08-27T03-41-37.869Z"
     },
+    "native_foundation_full_run_continuation_candidate": {
+      "status": "source_test_exact_build_load_human_qualified",
+      "workspace_revision_at_build": "db083c7d74d5389670a73a3fca0d59a3a629ae79",
+      "platform_source_revision": "c1b3144f07ba210c7f7064087d0d37bb3c9a2e66",
+      "platform_source_digest_sha256": "1f7affe8608bf5be302399f7efc13d6252a94c437583a87a94e7743c2f58090a",
+      "game_mod_component_source_revision": "c1b3144f07ba210c7f7064087d0d37bb3c9a2e66",
+      "game_mod_component_tree_revision": "9ad2a10f5648a9d8fb16a66bdbbd2400d88b0fe3",
+      "game_mod_component_source_digest_sha256": "0b81aabc09d0c0a28ac7eb72ac5e92db2fb79609ec5abbad284b43bd7b8e2078",
+      "game_mod_compiled_input_digest_sha256": "fd5ac5aff5f05919f9a02af7a5911f8978aae63487f59c3cc4c63262bb3d62f2",
+      "connector_source_revision": "61be43df7fe0acf73dd8f634d2f2b9527b85973a",
+      "connector_artifact_sha256": "96ee31d18bca767a17d6fdf1bc9d0f4049cb91c176fd8df80479b973fcd7832d",
+      "connector_artifact_mvid": "5adb2436-8a50-41b4-b210-abf57d5fab1e",
+      "annotator_source_revision": "3ed0a669dd833c5d3560accf78d0d6b69006317c",
+      "annotator_component_source_digest_sha256": "8fc4838d76d61d91bb2c7423577f07acbde07afa45f33a427997ff053eb9b5a8",
+      "annotator_artifact_sha256": "26508406e36ccf1ea279a55e0beb55046a82178aef271abd83c365178eacea40",
+      "annotator_artifact_mvid": "9e468181-3534-484e-be7e-7727b6963449",
+      "game_mod_artifact_sha256": "2382b3dd01be009731fdfa02a5f936986487163042a7b4614cc931c3bf6a4f8e",
+      "game_mod_artifact_mvid": "b1a7d1f1-6f38-4501-a1ef-9a642d40df53",
+      "game": {
+        "version": "v0.111.0",
+        "commit": "41cef1ea",
+        "main_assembly_sha256": "9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4",
+        "main_assembly_mvid": "57785517-0b16-42b9-8b36-bad6fb28384b"
+      },
+      "modset": {
+        "status": "exact_sole_platform_expected",
+        "ids": ["STS2_PLATFORM"]
+      },
+      "protocol": "1.0.0",
+      "built": "pass",
+      "installed": "pass",
+      "loaded": "pass",
+      "runtime_instance_id": "a00b1852fcd44c8b9c489233c78301c0",
+      "environment_fingerprint": "c9cc1a5dadbaa9efa64425fb6925818688d0d05972d3daaa2c1e0e553fdb3d2f",
+      "modset_status": "exact_platform_modset",
+      "modset_fingerprint": "79bdf7caa3c176fff995c980c350c79cb8a88ecd2b6854481b5873bf0502725e",
+      "loaded_mod_ids": ["STS2_PLATFORM"],
+      "rollback": "apps/game-mod/.local/deployments/2026-09-01T06-02-50.002Z",
+      "human_runtime": "pass_owner_attested_exact",
+      "human_qualification": {
+        "session_id": "session-20260901T061040Z-561a204be0bc422da5809e1ec5c148aa",
+        "timeline_id": "timeline-bf658853dc0b4ab7beb132240ee0a7e3",
+        "strict_v2": "PASS",
+        "modern_semantic": "25/25_proved",
+        "map_canonical": "7/7",
+        "owner_ready": "5/5_complete",
+        "unresolved": 0,
+        "recording_close_drain_timeout": 0,
+        "invalidations": 36,
+        "invalidations_by_reason": {"serialized_evidence_overlap": 35, "pre_frame_capture_failed": 1},
+        "identity_contamination": false
+      },
+      "evidence_transfer_from_predecessor": false
+    },
     "full_run_semantic_source_candidate": {
       "status": "semantic_evidence_schema3_bounded_human_pass",
       "workspace_revision_at_build": "750315b3b998a04507439869c96ba78d280787fb",
@@ -777,8 +831,8 @@
       "version": "0.2.0-rc.1",
       "platform_source_revision": "b5389a0b4a1bbed37e6a9718776fdf38f06f50c9",
       "platform_source_digest_sha256": "dbcd6ec1df10cad5ad011eb61a2f2ca533d7a110cd3f1296efa9c154b98d0cea",
-      "current_component_source_revision": "bcb899eb63977e46dfde5e0a3a22a4662c8120b0",
-      "current_component_source_digest_sha256": "73d33920fb5e555644716640306595a676b207e5f096dc7635306ed77f99c45b",
+      "current_component_source_revision": "c1b3144f07ba210c7f7064087d0d37bb3c9a2e66",
+      "current_component_source_digest_sha256": "0b81aabc09d0c0a28ac7eb72ac5e92db2fb79609ec5abbad284b43bd7b8e2078",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b",
       "installed": "pass",

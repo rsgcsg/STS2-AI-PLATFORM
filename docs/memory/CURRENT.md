@@ -6,9 +6,10 @@ requests, or dated evidence.
 
 ## Current phase
 
-`develop` retains the bounded Human-proved schema-2 trace baseline. PR #3
-preserves gameplay-safe commit `4384a14...` as a non-release tag and now has a
-bounded Human-proved read-only native semantic sequential lane. Exact session
+`develop@c751952...` now contains the completed PR #3 and PR #5 production
+lines. The integrated PR #3 history preserves gameplay-safe commit
+`4384a14...` as a non-release tag and contains a bounded Human-proved read-only
+native semantic sequential lane. Exact session
 `session-20260830T064823Z-...` records 41/41 successful roots as exact-once in
 STS2-owned logical `A_sem(S)` at first native execution; it includes PlayCard,
 EndTurn, potion and player-choice pause/resume. The same run proves that
@@ -19,8 +20,8 @@ remain exact; audit-only source `193861a...` repaired cross-stream accounting
 without changing that artifact. ADR 0003 remains a historical candidate, not
 active gameplay authority.
 
-The Native Foundation workstream carries component source
-commit `a3bcd37...`: one bounded combat semantic catalog, one exact lifecycle
+The integrated Native Foundation workstream carries component source commit
+`a3bcd37...`: one bounded combat semantic catalog, one exact lifecycle
 adapter, one PlayerChoice lineage adapter, and a non-authorizing
 Reward/CardReward/Map owner discriminator. It changes native bytes, so no PR #3
 Human evidence transfers. ADR 0004 now freezes RitsuLib as an external
@@ -49,16 +50,14 @@ The durable result is in the
 
 ## Active workstreams
 
-- Full-Run Human Semantic Timeline and evidence representation: PR #3. Keep its
-  runtime semantics and exact Human evidence on this feature branch. Existing
-  schema-3 proof is trace-level only; canonical eligibility comes from
-  `calibrate-semantic-training`.
-- Native Foundation refactor: bounded Human closeout complete; converge after
-  PR #3 through normal protected PR flow, then restack PR #6 on `develop`.
-- Repository System v1: the integrated governance baseline for documentation
-  routing, bounded context, sparse Skills, deterministic checks, and
-  supply-chain configuration. It changes no game behavior or component
-  semantic version.
+- PR #6, `refactor/platform/native-foundation-full-run-mainline`, is the sole
+  open topic. It is directly based on `develop@c751952...` and contains the
+  Map/Reward/CardReward/Treasure Native Foundation continuation.
+- PR #3 and PR #5 are merged integration history. Ritsu research PRs #7 and #8
+  are closed without their experimental runtime code; durable findings live in
+  ADR 0004 and the final route-decision packet.
+- Repository System v1 remains the integrated governance baseline. It changes
+  no game behavior or component semantic version.
 
 ## Current blockers and open questions
 
@@ -71,16 +70,36 @@ The durable result is in the
   Mac, so real-model Shadow, One-Step, Auto, and Agent-run evidence remain
   unexercised.
 - The Native Foundation Human gate is complete for its bounded scope. It is not
-  exhaustive Full-Run qualification; non-combat adapters remain PR #6 work.
+  exhaustive Full-Run qualification. PR #6's current exact candidate and
+  owner-attested Human qualification are recorded below; predecessor evidence
+  does not transfer.
+- Historical PR #6 predecessor source `f320ef6...` separated Human Root, exact Native
+  Commit and later Successor Boundary. Its same-bytes Human sessions prove
+  Reward and Map stable but expose CardReward nested-owner and Treasure
+  pre-generated/predicted-state seam defects. Current repair source uses exact
+  CardReward `ShowScreen` owner creation and Treasure `OnPicked` Commit. Clean
+  artifact `641f543d... / 7ac2fa24...` is cold-loaded in runtime `c3e4d2b...`,
+  environment `6655e3a...`, sole-Platform Modset `91d2f6e7...`; Human
+  qualification was superseded and no predecessor evidence transfers.
+- A subsequent historical repaired-bytes Human run proved CardReward/Treasure and all
+  but its final Map successor. A focused replay proved the final Map Commit and
+  playable Combat before Close, exposing a production observation gap rather
+  than early Close: `NativeDecisionOwnerReady` had no publisher. Source
+  `c1b3144...` adds one exact typed Combat publisher after native play phase and
+  input-owner readiness, plus complete domain-matching Connector capture and
+  durable owner/mechanism evidence. Root/exact checks, clean build, safe install
+  and cold-load pass as artifact `627b5b69... / f19b8863...`, runtime
+  `c296ec99...`, environment `0c47c311...`, sole-Platform Modset
+  `c8dd91e3...`; its canary was superseded by the current qualified session.
 
 ## Next meaningful gates
 
-- Converge completed PR #3 and PR #5 into `develop`, close the superseded Ritsu
-  research branches without their runtime code, and restack PR #6.
-- Extend the execution-bound native semantic
-  lane to the next narrow Full-Run mechanisms. Keep unknown UI playable and
-  fail evidence closed; do not restore global UI serialization, add natural
-  observer polling, or transfer predecessor Human evidence.
+- PR #6 current candidate is Human-qualified: artifact `2382b3dd... /
+  b1a7d1f1...`, runtime `a00b1852...`, environment `c9cc1a5d...`, and Modset
+  `79bdf7ca...`. Session `session-20260901T061040Z-561a204be0bc422da5809e1ec5c148aa`
+  passes strict V2, modern 25/25, Map 7/7 and owner-ready 5/5 with no
+  unresolved transition or close-drain timeout. Remaining work is evidence and
+  PR closeout; broader Full-Run domains remain outside this qualification.
 
 Use `npm run project:context` to start a task and
 `npm run project:closeout` to surface likely documentation, evidence, contract,

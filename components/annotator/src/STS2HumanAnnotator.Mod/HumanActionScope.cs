@@ -5,7 +5,8 @@ namespace STS2HumanAnnotator.Mod;
 
 internal readonly record struct NativeUiScopeEntry(
     bool Entered,
-    bool DeferredFailure);
+    bool DeferredFailure,
+    string? ActionWitnessId = null);
 
 internal sealed class HumanActionContext
 {
@@ -16,11 +17,15 @@ internal sealed class HumanActionContext
         string expectedNativeActionType,
         ProcessLocalObservedAction? expectedAction,
         ProcessLocalNativeWitnessFrame frame,
+        string? actionWitnessId,
+        NativePostCommitCompletionExpectation? completionExpectation,
         DateTimeOffset enteredAt)
     {
         Origin = origin;
         ExpectedAction = expectedAction;
         Frame = frame;
+        ActionWitnessId = actionWitnessId ?? $"scope-action-{Guid.NewGuid():N}";
+        CompletionExpectation = completionExpectation;
         EnteredAt = enteredAt;
         _rootActionGate = new AcceptedRootActionGate(expectedNativeActionType);
     }
@@ -31,6 +36,10 @@ internal sealed class HumanActionContext
 
     internal ProcessLocalNativeWitnessFrame Frame { get; }
 
+    internal string ActionWitnessId { get; }
+
+    internal NativePostCommitCompletionExpectation? CompletionExpectation { get; }
+
     internal DateTimeOffset EnteredAt { get; }
 
     internal bool AcceptsRootAction(string nativeActionType) =>
@@ -38,6 +47,8 @@ internal sealed class HumanActionContext
 
     internal bool TryClaimRootAction(string nativeActionType) =>
         _rootActionGate.TryClaim(nativeActionType);
+
+    internal bool RootActionClaimed => _rootActionGate.IsClaimed;
 }
 
 internal sealed class DeferredHumanActionFailure
@@ -88,7 +99,9 @@ internal static class HumanActionScope
         string origin,
         string expectedNativeActionType,
         ProcessLocalObservedAction? expectedAction,
-        ProcessLocalNativeWitnessFrame frame)
+        ProcessLocalNativeWitnessFrame frame,
+        string? actionWitnessId = null,
+        NativePostCommitCompletionExpectation? completionExpectation = null)
     {
         _stack ??= new Stack<HumanActionContext>();
         _stack.Push(new HumanActionContext(
@@ -96,6 +109,8 @@ internal static class HumanActionScope
             expectedNativeActionType,
             expectedAction,
             frame,
+            actionWitnessId,
+            completionExpectation,
             DateTimeOffset.UtcNow));
     }
 

@@ -48,7 +48,11 @@ internal static class NativeSemanticDiscriminatorRuntime
         try
         {
             ProcessLocalNativeSemanticCapture? value = capture
-                ? PlayerEnvironmentNativeSemanticWitness.Capture(phase, action, uiFrame)
+                ? store.Measure(
+                    uiFrame == null
+                        ? "native_semantic_discriminator_snapshot_capture"
+                        : "native_semantic_discriminator_frame_projection",
+                    () => PlayerEnvironmentNativeSemanticWitness.Capture(phase, action, uiFrame))
                 : null;
             string actionWitnessId = NativeWitnessIdentity.Get(action, "game_action");
             store.AppendNativeSemanticDiscriminatorEvent(CreateEvent(
@@ -94,11 +98,12 @@ internal static class NativeSemanticDiscriminatorRuntime
             return;
         try
         {
-            ProcessLocalNativeSemanticCapture value =
-                PlayerEnvironmentNativeSemanticWitness.Capture(
+            ProcessLocalNativeSemanticCapture value = store.Measure(
+                "native_semantic_discriminator_frame_projection",
+                () => PlayerEnvironmentNativeSemanticWitness.Capture(
                     "player_choice_commit",
                     observedAction: null,
-                    uiFrame: frame);
+                    uiFrame: frame));
             store.AppendNativeSemanticDiscriminatorEvent(CreateEvent(
                 sessionId,
                 timelineId,
@@ -118,6 +123,23 @@ internal static class NativeSemanticDiscriminatorRuntime
                 $"[STS2 Human Annotator] native semantic discriminator direct commit failed: {exception}");
         }
     }
+
+    internal static void ObserveLifecycleOnly(
+        V2RecordingStore? store,
+        string? sessionId,
+        string? timelineId,
+        string runId,
+        string phase,
+        GameAction action) =>
+        Observe(
+            store,
+            sessionId,
+            timelineId,
+            runId,
+            phase,
+            action,
+            capture: false,
+            detail: NativeSemanticDiscriminatorContract.LifecycleOnlyDetail);
 
     private static NativeSemanticDiscriminatorEvent CreateEvent(
         string sessionId,

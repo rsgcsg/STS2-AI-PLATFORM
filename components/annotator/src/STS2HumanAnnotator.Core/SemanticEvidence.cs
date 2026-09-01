@@ -29,7 +29,25 @@ public sealed record SemanticBoundaryObservationReference(
     public string StateCompleteness { get; init; } = StateRef == null ? "unavailable" : "complete";
     public string RequiredReadsStatus { get; init; } = StateRef == null ? "unavailable" : "complete";
     public IReadOnlyList<string> StateBlockers { get; init; } = Array.Empty<string>();
+    // Additive schema-3 evidence. Older events deserialize with null and remain
+    // fail-closed for native-decision-owner-ready proofs.
+    public NativeDecisionOwnerReadyEvidence? NativeDecisionOwnerReady { get; init; }
 }
+
+/// <summary>
+/// Native completion identity attached to the semantic proof it caused. This
+/// is evidence metadata only; it never authorizes or executes an action.
+/// </summary>
+public sealed record NativeCompletionEvidence(
+    string CompletionId,
+    string Family,
+    string Kind,
+    string? ActionWitnessId,
+    string? TaskWitnessId,
+    string? NativeOwnerWitnessId,
+    string? NativeOperandWitnessId,
+    string? NativeLineageWitnessId,
+    bool Succeeded);
 
 /// <summary>
 /// Ordered semantic timeline event. Frames are stored once and referenced by
@@ -55,4 +73,5 @@ public sealed record SemanticEvidenceEvent(
     IReadOnlyList<string> NonClaims)
 {
     public SemanticFrameReference? HumanObservationRef { get; init; }
+    public NativeCompletionEvidence? NativeCompletion { get; init; }
 }

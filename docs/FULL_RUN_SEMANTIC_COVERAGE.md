@@ -37,18 +37,21 @@ from a later Human effect.
 | Combat hand selector select / replace / deselect / confirm | exact hand/container callbacks + direct UI delivery | complete | schema-3 canary: eight confirms; select/replace/deselect not proved |
 | potion use / target / cancel | Human `NPotionHolder.UsePotion` arm -> exact `PotionModel.EnqueueManualUse` commit -> `UsePotionAction` lifecycle; target-picker cancel never enqueues | complete | schema-3 canary: three uses proved; cancel remains unexercised |
 | lethal combat -> reward | existing combat lifecycle + reward Player Environment boundary | complete | repair canary PASS |
-| reward claim | `NRewardButton.OnRelease` direct UI delivery | complete | schema-3 canary: 20 claims proved |
-| reward proceed | `NRewardsScreen.OnProceedButtonPressed` direct UI delivery | complete | schema-3 canary: 10 proceeds proved |
-| card reward select | `NCardRewardSelectionScreen.SelectCard` direct UI delivery | complete | schema-3 canary: three selects proved |
-| map travel | `NMapScreen.OnMapPointSelectedLocally` -> `VoteForMapCoordAction` lifecycle | complete | schema-3 canary: 24 actions proved |
-| event / shop / rest / treasure | Connector observation coverage only | not implemented as Human witnesses | map successors only: event (5), shop (1), rest (2), treasure (1); room-internal actions not exercised |
+| reward claim | `NRewardButton.OnRelease` -> exact bound Task completion, or exact `NCardRewardSelectionScreen.ShowScreen` owner creation for a nested CardReward | source/test complete; Commit remains distinct from successor proof | repaired continuation Human canary pending; prior counts are not transferable |
+| reward proceed | `NRewardsScreen.OnProceedButtonPressed` -> `RunManager.ProceedFromTerminalRewardsScreen` completion | source/test complete; direct UI return is not a successor proof | current continuation Human canary pending; prior direct-UI counts are not transferable |
+| card reward select | `NCardRewardSelectionScreen.SelectCard` -> enclosing `CardReward.OnSelect` completion | source/test complete; option callback alone is not a successor proof | current continuation Human canary pending; prior direct-UI counts are not transferable |
+| map travel | `NMapScreen.OnMapPointSelectedLocally` -> `VoteForMapCoordAction` lifecycle | source/test complete | current continuation Human canary pending; predecessor counts are not transferable |
+| treasure open / relic select / skip / proceed | exact room/synchronizer owner; `PickRelicAction`, normal-reward task and terminal-proceed task seams | source/test complete; visual `OnRelease` is not gameplay authority | current continuation Human canary pending; predecessor counts are not transferable |
+| event / shop / rest | Connector observation coverage only | not implemented as shared native decisions or Human witnesses | map successors only: event (5), shop (1), rest (2); room-internal actions not exercised |
 | run entry / game terminal | observation coverage varies | not implemented as Human witnesses | final `EndTurn -> game_over` observed; run entry and exhaustive Full Run not exercised |
 
 Current source keeps the gameplay-safe observer path and adds an independent
 process-local discriminator for ordinary combat Play/End Turn/Potion. At native
 first execution it records both `A(UI)` and `S_sem + A_sem(S)` from logical hand,
-current potion slots, combat phase and STS2 validators. Generated choice remains
-linked to its paused parent lifecycle rather than becoming a replacement root.
+current potion slots, combat phase and STS2 validators when the canonical
+boundary does not already own that execution sample; otherwise it records an
+explicit lifecycle-only delegation. Generated choice remains linked to its
+paused parent lifecycle rather than becoming a replacement root.
 Exact owner session `session-20260830T064823Z-...` exercises 30 PlayCard, ten
 EndTurn and one potion root plus two player-choice pause/resume pairs. All 41
 successful roots have complete first-execution captures and exact-once native
@@ -60,10 +63,39 @@ cancel/abort, final successor semantics or non-combat Full Run. See the
 
 The stacked Native Foundation candidate moves that bounded combat catalog and
 exact lifecycle observation into one neutral game-side owner consumed by both
-Connector and Annotator. It also adds a non-authorizing
-Reward/CardReward/Map owner discriminator. This is source/test evidence only
-until the new artifact is cold-loaded and exercised; the matrix above retains
-the predecessor artifact's exact Live claims.
+Connector and Annotator. Stacked continuation adds typed native decision
+providers for Map, Reward, CardReward and Treasure: game-owned route/reward/
+option/room membership now precedes presentation intersection, and execute-time
+binding re-captures the same provider. The current Annotator continuation also
+uses exact native completion seams for these four families:
+`VoteForMapCoordAction`/`PickRelicAction` lifecycle, reward synchronizer and
+card-reward completion tasks, and the terminal proceed task. These callbacks
+are queued and captured on the game frame, never treated as an immediate UI
+return or a polling successor. Treasure additionally separates the room-owned
+`closed/opening/relic_choice/resolving/completed` lifecycle from its visible
+chest/holder/proceed controls. The matrix above retains predecessor Live claims
+only where explicitly named; no predecessor Human evidence transfers to the
+current continuation artifact.
+
+The 2026-09-01 causal-evidence source candidate replaces the earlier
+overlapping modern/legacy accounting assumptions. Its semantic timeline is the
+sole modern authority; exact native binding proves Commit, and Commit waits for
+a separate owner-ready or next-root execution boundary before `S'`. Async Task
+identity survives UI scope exit, and shared completion methods no longer
+hard-code a family. Source, cross-layer tests, exact build and cold-load pass,
+but the artifact has no Human evidence. The predecessor session's failures are
+classification evidence only. See the
+[completion-lineage source closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
+
+The successor repair adds the first production typed owner-ready publisher.
+Exact STS2 call order rejects `RoomEntered`, `CombatBegan` and visual
+`TransitionToActiveCombat` as too early. The player-side combat turn is emitted
+only after semantic `Play`, executor unpause, synchronizer `PlayPhase`, and the
+exact end-turn input-owner callback; Annotator then requires one complete,
+domain-matching Connector frame. This closes the source-level Map-to-Combat
+terminal-recording gap without changing next-root execution handoff or using
+polling, delay, UI stability or later-state backfill. New runtime bytes require
+their own build/load and shortest Human canary.
 
 Semantic state Read requirements are interaction-specific: combat requires
 `run_deck` and `combat_piles`, shop requires `run_deck` and `shop_catalog`, and

@@ -22,12 +22,12 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 | Delivery seam | `CardModel.TryManualPlay`, `PotionModel.EnqueueManualUse`, `PlayerCmd.EndTurn` |
 | Exact binding | process-local card, potion, target and room objects behind Connector referents |
 | Lifecycle | exact `GameAction` accepted/start/pause/resume/cancel/finish observations |
-| Next-decision seam | no universal finish rule; a complete later semantic boundary is required, and End Turn additionally requires the next player play phase |
+| Next-decision seam | typed player-side `TurnStarted` after semantic `Play`/executor unpause/synchronizer `PlayPhase` and the exact `NEndTurnButton.OnTurnStarted` input-owner callback; Connector must independently capture a complete matching frame |
 | Root/continuation | card, potion and End Turn are roots; nested choices remain descendants of the executing root |
 | Current workaround | presentation readiness still uses hand/control state before intersecting the semantic catalog |
 | Heuristic debt | End Turn deliverability depends on the native button; causal `S'` remains Annotator evidence, not Foundation action publication |
 | Ritsu support | card/potion/combat lifecycle events exist, but no generic exact action timeline or causal next-decision replacement was found |
-| Missing evidence | final artifact T2/T3; normal-display versus shipped-headless T2 differential |
+| Missing evidence | owner-ready repair artifact T2/T3, including Map Commit -> Combat ready -> no next Human input -> Close |
 | Migration verdict | Direct Native Foundation implemented; presentation and exact delivery remain Connector-owned |
 
 ## PlayerChoice
@@ -55,22 +55,22 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 
 | Field | Exact-version conclusion |
 |---|---|
-| Semantic owner | `RunState` map graph/current coordinate/visited coordinates and native map point state |
-| State source | current act map, `CurrentMapCoord`, reachable `MapPoint` graph and visited history |
-| Semantic action source | native travelable destinations; current Platform still derives the list through bound `NMapPoint` nodes plus `RunState` checks |
-| Native validator | map-point travelable state, run destination membership and tutorial/travel state |
+| Semantic owner | `RunState` map graph, current `MapPoint`, visited coordinates and native `MapTravel` rule |
+| State source | current `ActMap`, `CurrentMapPoint`, `VisitedMapCoords`, starting/boss points and graph children |
+| Semantic action source | `NativeMapDecisionProvider` calls `MapTravel.GetTravelablePointsFrom` or selects the game-owned starting/boss transition point |
+| Native validator | game-owned destination membership; Connector separately rechecks current `NMapPoint.State` and input readiness before delivery |
 | Decision boundary | map is open, travel is enabled, no travel is active and no annotation mode owns input |
 | Presentation owner | `NMapScreen`, `NMapPoint`, `NMapDrawingInput` and current controller mode |
 | Delivery seam | `NMapScreen.OnMapPointSelectedLocally`; annotation stop on the exact drawing input |
-| Exact binding | map-screen identity plus exact `NMapPoint`/coordinate object |
-| Lifecycle | route vote/travel and room transition; annotation is presentation-only |
-| Next-decision seam | entered room's native decision owner or another explicit map decision |
+| Exact binding | public referent binds the process-local `MapPoint`; Connector resolves one current `NMapPoint` only for delivery |
+| Lifecycle | exact `VoteForMapCoordAction` lifecycle proves Commit; room transition remains separate |
+| Next-decision seam | a proved typed owner-ready publisher (currently Combat player-turn only), another explicit map decision, or next-root execution pre; room entry and `Finished` alone are not `S'` |
 | Root/continuation | route selection is a root; annotation is a non-gameplay UI continuation |
-| Current workaround | private `_isInputDisabled`/`_drawingInput`, controller on-screen filtering and bound UI nodes |
-| Heuristic debt | semantic reachability and UI deliverability remain mixed in `MapNavigationSurfaceReader` |
+| Current workaround | private `_isInputDisabled`/`_drawingInput`, FTUE and controller on-screen filtering remain delivery readiness only |
+| Heuristic debt | non-Combat room owner-ready publishers remain unproved; map annotation is presentation-only |
 | Ritsu support | map-generation and room lifecycle helpers, not exact route-choice authority |
-| Missing evidence | native destination provider T1 and final artifact map T2/T3 |
-| Migration verdict | owner discriminator implemented; native decision adapter is the next migration step |
+| Missing evidence | continuation artifact install/load and representative map T2/T3 |
+| Migration verdict | typed native decision adapter implemented; old UI reachability authority removed |
 
 ## Merchant / Shop
 
@@ -99,20 +99,20 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 |---|---|
 | Semantic owner | current room reward set and each native `Reward` object |
 | State source | unclaimed rewards, potion capacity, linked reward sets and reward-screen progression |
-| Semantic action source | native reward collection; current Platform discovers ordinary choices through `NRewardButton` |
-| Native validator | reward-specific selection/procure logic and player capacity; linked sets require their own contract |
+| Semantic action source | `NativeRewardDecisionProvider` projects unselected native rewards, full-belt potion discard operands and native proceed policy from the exact `RewardsSet` |
+| Native validator | `Reward.SuccessfullySelected`, potion slots/`CanUseOrRemovePotions`, `RewardsSet.DisallowSkipping`/`AllRewardsSuccessfullySelected`, and `Hook.ShouldProceedToNextMapPoint`; linked sets remain explicit unsupported |
 | Decision boundary | rewards overlay owns input and has at least one exact claim/discard/proceed operation |
 | Presentation owner | `NRewardsScreen`, `NRewardButton`, potion popup and `NProceedButton` |
 | Delivery seam | exact reward button callback, `DiscardPotionGameAction`, or Proceed control |
-| Exact binding | reward-screen plus exact `Reward`/button or potion slot |
-| Lifecycle | claim may open CardReward or another nested selection; proceed starts room/map transition |
-| Next-decision seam | CardReward owner, remaining reward set, or Map owner after room transition |
+| Exact binding | public referent binds the process-local `Reward` or `PotionModel`; Connector resolves one current button/slot only for delivery |
+| Lifecycle | non-nested claim/proceed uses exact bound Task completion; a CardReward claim commits when exact `ShowScreen` owner creation opens the child decision, while the parent Task remains a later business completion |
+| Next-decision seam | CardReward owner, remaining reward set, Map owner, or next-root execution pre; Task completion alone is not `S'` |
 | Root/continuation | claim/proceed are roots; nested reward choices are continuations |
-| Current workaround | visible buttons are the publication source; linked sets fail closed |
-| Heuristic debt | reward model membership is not yet isolated from screen controls |
+| Current workaround | visible/enabled buttons and popup slots remain current delivery readiness; linked sets fail closed |
+| Heuristic debt | reward-specific `OnSelect` may still return false at native Commit; Receipt remains delivery-only and no business Outcome is inferred |
 | Ritsu support | reward-taken and rewards-screen continuation events, not complete action enumeration/binding |
-| Missing evidence | shared reward provider T0/T1 and final `lethal -> Reward` T3 |
-| Migration verdict | cross-domain owner discriminator implemented; decision adapter pending |
+| Missing evidence | continuation artifact install/load and final `lethal -> Reward` T2/T3 |
+| Migration verdict | typed native decision adapter implemented; visible reward buttons no longer create semantic membership |
 
 ## CardReward
 
@@ -120,20 +120,20 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 |---|---|
 | Semantic owner | native card-reward option collection and alternative reward choices |
 | State source | offered cards, alternatives and skip/proceed policy of the active reward |
-| Semantic action source | current selectable native options; Platform presently reads exact holders/buttons |
-| Native validator | active option membership and reward-specific select/alternative callback |
+| Semantic action source | `NativeCardRewardDecisionProvider` projects the exact `CardCreationResult` and `CardRewardAlternative` arrays supplied to `ShowScreen`/`RefreshOptions` |
+| Native validator | exact current native option membership; current holder/button remains a delivery check only |
 | Decision boundary | `NCardRewardSelectionScreen` is current and one exact option is actionable |
 | Presentation owner | card-reward screen, `NCardHolder` and alternative buttons |
 | Delivery seam | holder `Pressed` signal or exact alternative button callback |
-| Exact binding | screen plus exact card model/holder or alternative control |
-| Lifecycle | selection resolves the reward continuation and returns to rewards/map flow |
-| Next-decision seam | remaining Reward owner or Map after native transition |
+| Exact binding | public referent binds the exact `CardModel` or `CardRewardAlternative`; Connector maps it to one current holder/button for delivery |
+| Lifecycle | the exact selection completion source proves Commit and resolves the reward continuation |
+| Next-decision seam | remaining Reward owner, Map owner, or next-root execution pre; the selection callback does not itself prove `S'` |
 | Root/continuation | continuation of the reward claim that opened it |
-| Current workaround | private `_isClickable` and UI controls define current publication |
-| Heuristic debt | native option owner/validator is not yet a Foundation adapter |
+| Current workaround | private `_isClickable` and enabled alternative buttons remain temporary delivery readiness |
+| Heuristic debt | parent reward root identity is not yet a generic Foundation lineage contract; the typed continuation owner is exact |
 | Ritsu support | no exact card-reward option catalog/parent lineage replacement found |
-| Missing evidence | shared option provider T0/T1 and final artifact T3 |
-| Migration verdict | owner discriminator implemented; typed continuation adapter pending |
+| Missing evidence | continuation artifact install/load and representative CardReward T2/T3 |
+| Migration verdict | typed continuation adapter implemented; holders/buttons no longer create semantic membership |
 
 ## Event
 
@@ -181,22 +181,22 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 
 | Field | Exact-version conclusion |
 |---|---|
-| Semantic owner | current treasure room/chest state and generated relic choice collection |
-| State source | chest-open stage, relic options, skip/completed state and room progression |
-| Semantic action source | native chest/relic collection; current Platform reads exact chest/holders/proceed control |
-| Native validator | current stage, holder membership and room-owned claim/proceed callbacks |
-| Decision boundary | current treasure stage has one exact open/choose/skip/proceed operation |
+| Semantic owner | exact `TreasureRoom`/`IRunState` pair registered by `NTreasureRoom.Create`, plus the current `TreasureRoomRelicSynchronizer` collection |
+| State source | room-owned chest-open/collection lifecycle, pre-generated `CurrentRelics`, exact `OnPicked` local-player Commit observation and room progression |
+| Semantic action source | `NativeTreasureDecisionProvider` projects `open`, exact relic `select`, `skip` and `proceed` from those game-owned operands |
+| Native validator | current room identity/stage, exact relic reference membership and committed local vote; Connector separately rechecks the current delivery control |
+| Decision boundary | provider stage is `closed`, `opening`, `relic_choice`, `resolving` or `completed`; only stage-valid operations are semantic candidates |
 | Presentation owner | chest control, relic holders and `NProceedButton` |
 | Delivery seam | exact chest/holder/proceed callback |
-| Exact binding | treasure room plus chest, relic collection/holder or proceed control |
-| Lifecycle | chest generation, relic claim/skip and room completion |
-| Next-decision seam | relic choice continuation, completed treasure phase, or Map |
+| Exact binding | public room/relic referents bind the process-local `TreasureRoom`/`RelicModel`; UI nodes stay Host-local delivery operands |
+| Lifecycle | bound chest/proceed Task or exact `PickRelicAction` completion proves Commit |
+| Next-decision seam | relic-choice/completed Treasure owner, Map owner, or next-root execution pre; completion alone is not `S'` |
 | Root/continuation | open is a root; relic choice is its continuation; proceed starts room transition |
-| Current workaround | stage is reconstructed from visible nodes and Proceed `IsSkip` |
-| Heuristic debt | no native treasure lifecycle adapter; visibility currently participates in stage truth |
+| Current workaround | removed as semantic authority; visible controls only intersect the provider catalog for delivery |
+| Heuristic debt | exact private lifecycle fields remain version-bound read-only inputs; `CurrentRelics` is pre-generated at room entry and cannot prove chest opening; predicted `GetPlayerVote` state cannot prove relic Commit |
 | Ritsu support | treasure generation hooks are not an exact claim/continuation contract |
-| Missing evidence | preferred next lifecycle discriminator T0/T1/T3 |
-| Migration verdict | direct presentation adapter retained; next lifecycle discriminator |
+| Missing evidence | final continuation artifact T2 cold-load and representative T3 open/select/skip/proceed exercise |
+| Migration verdict | typed Native Foundation provider implemented at T0/T1; Connector presentation adapter retained only for delivery |
 
 ## Run Entry / Room And Act Transition
 

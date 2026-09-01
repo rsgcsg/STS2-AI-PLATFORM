@@ -40,6 +40,15 @@ Use the smallest route that answers the task.
   [Native Seam Matrix](NATIVE_SEAM_MATRIX.md),
   [Architecture Example Suite](NATIVE_FOUNDATION_EXAMPLE_SUITE.md), and
   [ADR 0004](adr/0004-native-foundation-and-ritsu-route.md).
+- Current Map/Reward/CardReward adapter source and build evidence:
+  [Native Foundation Full-Run source closeout](evidence/NATIVE_FOUNDATION_FULL_RUN_SOURCE_CLOSEOUT_2026-08-31.md).
+- Current Treasure adapter source evidence:
+  [Native Foundation Treasure source closeout](evidence/NATIVE_FOUNDATION_TREASURE_SOURCE_CLOSEOUT_2026-08-31.md).
+- Current Human Root/Native Commit/Successor Boundary authority and source gate:
+  [ADR 0005](adr/0005-human-root-commit-successor-evidence.md) and
+  [causal evidence source closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
+- PR #6's exact Combat successor-owner repair:
+  [owner-ready source closeout](evidence/PR6_SUCCESSOR_OWNER_READY_SOURCE_CLOSEOUT_2026-09-01.md).
 - Ownership matrix: [Components](COMPONENTS.md).
 - Portable/runtime evidence meanings: [Testing and Evidence](TESTING.md).
 - Component and composition identity: [Versioning](VERSIONING.md) and `platform-bom.json`.

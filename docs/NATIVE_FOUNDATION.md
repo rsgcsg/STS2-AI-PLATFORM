@@ -50,13 +50,53 @@ game's `ActionExecutor`. Generated-card choice remains a visible Connector
 surface, while Annotator records pause/resume against that exact parent. The
 lineage neither enumerates choices nor authorizes input.
 
-### Reward to card reward to map
+### Successor-owner readiness
+
+`NativeDecisionOwnerReadyProvider` publishes a typed process-local fact only
+after an exact STS2 owner-ready seam. It does not publish a Snapshot, action
+catalog, legality result or semantic successor. Annotator synchronously asks
+Connector for the fair-player frame, requires complete state, Reads and action
+catalog, verifies that the frame domain matches the observed owner, and only
+then offers the boundary to the shared tracker.
+
+For shipped `v0.111.0`, the proved production publisher is the player-side
+combat turn after `CombatManager.StartTurn` has entered `Play`, unpaused the
+executor, set `ActionQueueSynchronizer` to `PlayPhase`, fired `TurnStarted`, and
+the exact `NEndTurnButton.OnTurnStarted` input-owner callback has returned.
+`RoomEntered`, `CombatBegan` and `NCombatRoom.TransitionToActiveCombat` are too
+early and are not successor proof. Other domains may add their own typed
+publisher only after equivalent exact call-order proof; next-root pre-execution
+handoff remains valid continuous-play evidence in the meantime.
+
+### Reward to card reward to map and treasure
 
 `NativeDomainOwnerProbe` distinguishes semantic owner from presentation/input
 owner using `RunState.CurrentRoom`, `NOverlayStack.Peek`, and
-`NMapScreen.IsOpen`. It is a cross-domain discriminator, not an action catalog.
-Existing Connector adapters continue to own fair-player publication and exact
-delivery until each domain receives a proven native decision adapter.
+`NMapScreen.IsOpen`. Three typed decision providers now supply the action
+catalogs behind that route:
+
+- `NativeMapDecisionProvider` reads destinations from `RunState.Map`, the
+  current point and `MapTravel.GetTravelablePointsFrom`;
+- `NativeRewardDecisionProvider` observes the exact `RewardsSet` supplied to
+  `NRewardsScreen.ShowScreen` and projects unclaimed rewards, full-belt potion
+  discard choices and native proceed policy;
+- `NativeCardRewardDecisionProvider` observes the exact option arrays supplied
+  to `NCardRewardSelectionScreen.ShowScreen` and `RefreshOptions`.
+- `NativeTreasureDecisionProvider` binds the exact `TreasureRoom`/run pair from
+  `NTreasureRoom.Create`, then reads the room-owned lifecycle and
+  `TreasureRoomRelicSynchronizer` collection for exact open/select/skip/proceed
+  membership.
+
+The unified Mod registers those exact owner arguments through three bounded,
+read-only Postfix seams. Connector intersects each catalog with current visible
+controls, retains Host-local delivery operands and re-captures native membership
+at execution. Annotator consumes the same catalog without gaining authority.
+
+`NativeSemanticActionCatalog` contains only deterministic key construction,
+exact-once membership and typed subject projection. It does not discover
+legality or bind controls. Exact native owner data is captured once per
+decision; request-local reference sets accelerate presentation intersection
+without surviving a Snapshot or becoming a second state cache.
 
 ## Seam Matrix And Example Suite
 
@@ -78,20 +118,25 @@ T2/T3 rows are non-claims, not implied support.
 | UI catalog as execution-time semantic authority | forbidden | exact Human evidence disproved it for bounded combat |
 | animation, elapsed time, queue-idle completion | forbidden | cannot prove causal settlement |
 | generic `interactive` as canonical next decision | forbidden | interactivity is presentation readiness, not causal S' |
-| per-surface owner detection | temporarily retained | needed for current delivery; owner probe makes duplication visible |
+| room entered / combat began as player-ready proof | forbidden | both precede the authoritative player play phase and complete Connector catalog |
+| Map reachability from `NMapPoint.State` | removed as semantic authority | `RunState` and `MapTravel` own destinations; map nodes only bind delivery |
+| Reward publication from `NRewardButton` | removed as semantic authority | exact `RewardsSet` membership and proceed policy now own the catalog |
+| CardReward options from holders/buttons | removed as semantic authority | exact native option arrays own membership; controls only bind delivery |
+| Treasure stage from chest/holder/proceed visibility | removed as semantic authority | exact room lifecycle and synchronizer vote own the catalog; controls only bind delivery |
+| per-surface owner detection | retained for presentation routing only | semantic owner and action source now come from typed Foundation providers |
+| duplicated action-key and exact-membership helpers | removed | one stateless Native Foundation catalog helper serves all typed providers without owning legality |
 | duplicated Describe/Start dispatch in source adapters | migration debt | consolidate only when a native domain adapter is proved |
 | SnapshotBuilder source-specific special paths | migration debt | move facts before actions when owning domains migrate |
 
 ## Migration Map
 
 1. Keep Direct Combat and PlayerChoice as regression oracles.
-2. Validate the Reward/CardReward/Map owner discriminator in one exact-runtime
-   journey without changing authority.
-3. Add native decision adapters only where STS2 exposes a stable semantic
-   owner and validator/command seam; retain source-local delivery adapters.
-4. Use Treasure as the next lifecycle discriminator, then migrate Shop,
-   Event, Rest, run entry, and terminal by native mechanism rather than screen.
-5. Remove old owner/publication branches only after their Connector consumer
+2. Keep Map/Reward/CardReward/Treasure typed decision adapters source-local and validate
+   their exact owner registration, presentation intersection and execution-time
+   revalidation on a new artifact.
+3. Use Shop as the next domain migration, then Event, Rest, run entry, and
+   terminal by native mechanism rather than screen.
+4. Remove old owner/publication branches only after their Connector consumer
    and Annotator witness both use the shared adapter.
 
 No migration may introduce a second legality model, UI allowlist, arbitrary

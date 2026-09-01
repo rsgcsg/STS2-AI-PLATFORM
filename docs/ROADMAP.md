@@ -7,8 +7,18 @@
   logical/native catalog.
 - Complete at source/test: route Annotator action lifecycle and PlayerChoice
   parent lineage through one read-only Foundation adapter.
-- Complete at source/test: distinguish Reward/CardReward/Map semantic owner
-  from input owner without adding legality or execution.
+- Complete at source/test/build on PR #6: route
+  Map destinations, Reward choices/proceed and CardReward options through
+  typed shared Native Foundation decision providers. Connector intersects
+  presentation/delivery and Annotator consumes the same catalog.
+- Complete at source/test: route Treasure chest, exact relic choice, skip and
+  proceed through `NativeTreasureDecisionProvider`; visible controls remain
+  delivery bindings only.
+- Complete at source/test on PR #6: remove provider-specific action-key and
+  membership copies, carry exact unselected rewards in one native capture, and
+  use request-local reference indexes for Map/Reward/CardReward presentation
+  intersection. This is allocation/enumeration hardening, not runtime latency
+  or Human qualification evidence.
 - Complete and frozen: PR #7/#8 retrofit and Ritsu-first evidence preserve the
   `RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY` route in ADR 0004; useful
   findings are retained without merging research runtime code.
@@ -24,7 +34,17 @@
   accounting, potion, three PlayerChoice pause/resume pairs, repeated
   `lethal -> Reward -> CardReward -> Map`, and Recorder New/Pause/Resume/Close.
   See the [Human closeout](evidence/NATIVE_FOUNDATION_WINDOWS_HUMAN_CLOSEOUT_2026-08-31.md).
-- Next: Treasure lifecycle discriminator, then migrate Shop,
+- Complete on predecessor PR #6 artifact `3bc44ddb... / 708ecfab...`: exact
+  build, safe install/rollback and bounded main-menu cold-load on macOS. This
+  evidence does not transfer across the restack.
+- Complete at source/test/build/load on PR #6: one modern semantic timeline now
+  separates Human Root, exact native Commit, and later Successor Boundary.
+  Async Tasks carry durable root/owner/operand/lineage identity; shared methods
+  are family-neutral; strict-V2 ledger and discriminator are non-authoritative.
+  Exact artifact `b637d380... / 9286ca51...` is cold-loaded with sole
+  `STS2_PLATFORM`. Representative Map/Reward/CardReward/Treasure Human runtime
+  remains pending; no predecessor Human evidence transfers.
+- Next after PR #6 requalification: migrate Shop,
   Event, Rest, run entry, and terminal by native mechanism. Remove each old
   publication/witness path only after both consumers use the shared adapter.
 
@@ -41,9 +61,10 @@
 - Historical candidate only: serialized mutation admission and artifact
   `b805474d... / 3ab1e10e...`. They are not active gameplay authority.
 - Complete at source/test: preserve gameplay-safe input and add a read-only
-  native semantic discriminator at first execution, with STS2-owned logical
-  state/native validators, exact action identity and cancellation/abort/player-
-  choice accounting.
+  native semantic discriminator at first execution when the canonical boundary
+  does not already own the sample, with STS2-owned logical state/native
+  validators, exact action identity and cancellation/abort/player-choice
+  accounting.
 - Complete: current Managed Exact rebuild plus 80-action/158-Read reset,
   stale, idempotency and bounded performance measurement.
 - Complete bounded exact-runtime canary: 41/41 successful roots are exact-once
@@ -254,9 +275,10 @@ action-family expansion remain outside this bounded baseline.
 - Complete at source/test: semantic state Reads are interaction-specific instead
   of inheriting the combat-only profile.
 - Complete at source/test: lethal combat may settle at the first complete reward
-  boundary; reward claim/proceed and card reward select use exact direct UI
-  delivery witnesses; map travel reuses the game-owned
-  `VoteForMapCoordAction` lifecycle.
+  boundary; reward claim/proceed, card reward select and Treasure roots use
+  exact native completion/lifecycle witnesses; map travel reuses the game-owned
+  `VoteForMapCoordAction` lifecycle. Direct UI return and legacy V2 successor
+  polling do not create canonical semantic proof.
 - Failed predecessor runtime gate: the first owner canary exposed direct-UI
   execution binding and paused-parent lifecycle defects; strengthened audit
   rejects its truncated trace rather than transferring its evidence.

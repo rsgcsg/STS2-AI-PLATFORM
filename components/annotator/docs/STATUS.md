@@ -16,6 +16,23 @@ ledger debt, makes status capture lifecycle-requested rather than periodic, and
 buffers append streams until one durable Close seal. The repair remains
 source/test-only. Root `../../../docs/STATUS.md` is authoritative for the
 current runtime boundary.
+
+The latest source-only performance hardening removes two avoidable cumulative
+costs without changing Human evidence semantics. Persisted semantic frames now
+use weak-key same-object caching, so the store does not strongly retain every
+complete frame graph for the whole session. The process-local native entity
+registry now performs bounded dead-reference maintenance from a candidate queue
+rather than retaining dead IDs until they are individually resolved. When the
+canonical semantic boundary already captures an execution sample, the additive
+discriminator records an explicit lifecycle-only delegation instead of building
+the same semantic snapshot a second time. These changes require a new artifact
+and owner canary; predecessor latency and runtime claims do not transfer.
+The PR #6 qualification audit found that fallback discriminator Snapshots for
+legacy first-execution samples were not included in those profiler totals.
+Current repair source records fallback Snapshot capture separately from the
+cheaper projection of an already captured frame. This is observability only:
+it removes no evidence, changes no Human/semantic authority, and makes no
+latency improvement claim.
 Latest exact session `session-20260829T084437Z-...` rejects the natural observer
 as canonical one-step training authority: 933 accepted actions mechanically
 yield zero canonical rows. The later global serialization candidate is retained

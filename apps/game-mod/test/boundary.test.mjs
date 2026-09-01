@@ -3,10 +3,28 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { compiledSourceDigest } from "../source-identity.mjs";
+import {
+  compiledSourceDigest,
+  isGameModCompiledSource
+} from "../source-identity.mjs";
 
 const root = path.resolve(import.meta.dirname, "../../..");
 const read = (relative) => fs.readFileSync(path.join(root, relative), "utf8");
+const sourceBetween = (source, start, end) => {
+  const startAt = source.indexOf(start);
+  const endAt = source.indexOf(end, startAt + start.length);
+  if (startAt < 0 || endAt < 0)
+    throw new Error(`Could not isolate source span: ${start} -> ${end}`);
+  return source.slice(startAt, endAt);
+};
+const harmonyPatchContaining = (source, target, from = 0) => {
+  const targetAt = source.indexOf(target, from);
+  const patchStart = source.lastIndexOf("[HarmonyPatch]", targetAt);
+  const nextPatch = source.indexOf("[HarmonyPatch]", targetAt + target.length);
+  if (from < 0 || targetAt < 0 || patchStart < 0 || nextPatch < 0)
+    throw new Error(`Could not isolate Harmony patch containing: ${target}`);
+  return source.slice(patchStart, nextPatch);
+};
 
 test("game Mod test discovery is shell-neutral", () => {
   const packageJson = JSON.parse(read("apps/game-mod/package.json"));
@@ -50,6 +68,14 @@ test("compiled identity ignores repository-only provenance", () => {
 
   assert.equal(repositoryOnlyDrift, baseline);
   assert.notEqual(nativeDrift, baseline);
+});
+
+test("game-Mod provenance covers every compiled composition source", () => {
+  assert.equal(isGameModCompiledSource("UnifiedPlatformMod.cs"), true);
+  assert.equal(isGameModCompiledSource("NativeFoundationOwnerPatches.cs"), true);
+  assert.equal(isGameModCompiledSource("STS2Platform.GameMod.csproj"), true);
+  assert.equal(isGameModCompiledSource("mod_manifest.json"), true);
+  assert.equal(isGameModCompiledSource("test/boundary.test.mjs"), false);
 });
 
 test("component initializers are disabled only in the unified build", () => {
@@ -155,6 +181,51 @@ test("native card staging reuses one exact evidence frame without a second captu
   assert.doesNotMatch(runtime, /cached\.Frame\.Snapshot\.SnapshotId,[\s\S]*current\.Snapshot\.SnapshotId/u);
 });
 
+test("native lifecycle observation does not materialize a semantic frame", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const discriminator = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeSemanticDiscriminatorRuntime.cs");
+
+  assert.equal(
+    (runtime.match(/NativeSemanticDiscriminatorRuntime\.ObserveLifecycleOnly\(/gu) ?? []).length,
+    2
+  );
+  assert.match(
+    discriminator,
+    /capture: false,[\s\S]*NativeSemanticDiscriminatorContract\.LifecycleOnlyDetail/u
+  );
+  assert.doesNotMatch(
+    runtime,
+    /NativeSemanticDiscriminatorRuntime\.Observe\([\s\S]*capture: kind is NativeActionLifecycleKinds\./u
+  );
+});
+
+test("native discriminator profiles fallback snapshots separately from frame projections", () => {
+  const discriminator = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeSemanticDiscriminatorRuntime.cs");
+
+  assert.match(discriminator, /native_semantic_discriminator_snapshot_capture/u);
+  assert.match(discriminator, /native_semantic_discriminator_frame_projection/u);
+  assert.match(discriminator, /uiFrame == null/u);
+});
+
+test("combat owner-ready uses the exact post-input-owner native seam and a typed fail-closed capture", () => {
+  const patches = read("apps/game-mod/NativeFoundationOwnerPatches.cs");
+  const provider = read("components/native-foundation/src/NativeDecisionOwnerReadyProvider.cs");
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const trace = read("components/annotator/src/STS2HumanAnnotator.Core/SemanticBoundaryTrace.cs");
+
+  assert.match(patches, /typeof\(NEndTurnButton\)[\s\S]*"OnTurnStarted"[\s\S]*typeof\(CombatState\)/u);
+  assert.match(patches, /NativeDecisionOwnerReadyProvider\.ObservePlayerCombatTurnReady\(state\)/u);
+  assert.match(provider, /ReferenceEquals\(CombatManager\.Instance\.DebugOnlyGetState\(\), state\)/u);
+  assert.match(provider, /state\.CurrentSide != CombatSide\.Player/u);
+  assert.match(provider, /NativeCombatDecisionProvider\.IsSemanticPlayPhase\(player, combat\)/u);
+  assert.match(runtime, /NativeDecisionOwnerReadyProvider\.Observed \+= ObserveNativeDecisionOwnerReady/u);
+  assert.match(runtime, /CaptureSemanticFrame\(\)[\s\S]*frame\.Snapshot\.Interaction\.Kind[\s\S]*observation\.Domain/u);
+  assert.match(runtime, /SemanticBoundaryWitnessKinds\.NativeDecisionOwnerReady/u);
+  assert.match(trace, /NativeDecisionOwnerReadyEvidence/u);
+  assert.match(trace, /NativeDecisionOwnerReady\.Domain[\s\S]*InteractionKind/u);
+  assert.doesNotMatch(provider, /Timer|Delay|ProcessFrame|poll/iu);
+});
+
 test("annotator evidence prefixes never become generic STS2 gameplay gates", () => {
   const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
 
@@ -225,11 +296,195 @@ test("Native Foundation is the single combat semantic and lifecycle seam", () =>
   assert.doesNotMatch(lifecycle, /\.BeforeExecuted \+=/u);
 });
 
+test("non-combat native owners are observed by explicit read-only seams", () => {
+  const initializer = read("apps/game-mod/UnifiedPlatformMod.cs");
+  const patches = read("apps/game-mod/NativeFoundationOwnerPatches.cs");
+
+  assert.match(
+    initializer,
+    /NativeFoundationOwnerPatches\.Initialize\(\);[\s\S]*ConnectorMod\.Initialize\(\);[\s\S]*RecorderMod\.Initialize\(\);/u
+  );
+  assert.match(patches, /typeof\(NRewardsScreen\), nameof\(NRewardsScreen\.ShowScreen\)/u);
+  assert.match(patches, /typeof\(NCardRewardSelectionScreen\),[\s\S]*nameof\(NCardRewardSelectionScreen\.ShowScreen\)/u);
+  assert.match(patches, /typeof\(NCardRewardSelectionScreen\),[\s\S]*nameof\(NCardRewardSelectionScreen\.RefreshOptions\)/u);
+  assert.match(patches, /typeof\(NTreasureRoom\),[\s\S]*nameof\(NTreasureRoom\.Create\)/u);
+  assert.match(patches, /typeof\(NTreasureRoom\),[\s\S]*"OnChestButtonReleased"/u);
+  assert.equal((patches.match(/harmony\.Patch\(original, postfix:/gu) ?? []).length, 1);
+  assert.doesNotMatch(patches, /PatchAll|prefix:|finalizer:|transpiler:|static\s+bool\s+Prefix/u);
+});
+
+test("non-combat Human witnesses use public bindings and exact native completion operands", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+
+  assert.match(
+    patches,
+    /native_map_choice_ui[\s\S]*new ProcessLocalObservedAction\([\s\S]*"activate",\s*point\.Point/u
+  );
+  assert.match(
+    patches,
+    /native_reward_claim_ui[\s\S]*new ProcessLocalObservedAction\([\s\S]*"activate",\s*__instance\.Reward/u
+  );
+  assert.match(
+    patches,
+    /native_treasure_chest_ui[\s\S]*new ProcessLocalObservedAction\([\s\S]*"open",\s*null/u
+  );
+  assert.match(
+    patches,
+    /native_treasure_relic_ui[\s\S]*new ProcessLocalObservedAction\([\s\S]*"activate",\s*relic/u
+  );
+  assert.match(
+    patches,
+    /class NativeTreasureProceedPatch[\s\S]*string verb = isGameAction \? "skip" : "activate"/u
+  );
+  assert.match(
+    patches,
+    /class NativeTreasureNormalRewardsPatch[\s\S]*"OneOffSynchronizer\.DoLocalTreasureRoomRewards"[\s\S]*nativeOperand: NativeTreasureUiContext\.CurrentRoom\(\)/u
+  );
+  assert.match(patches, /ProceedFromTerminalRewardsScreen[\s\S]*QueueNativePostCommitBoundary/u);
+});
+
+test("terminal rewards completion is family-neutral at the shared native seam", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+  const completionMarker = "NativeTreasureProceedCompletionPatch";
+  const sharedCompletionPatch = harmonyPatchContaining(
+    patches,
+    "ProceedFromTerminalRewardsScreen",
+    patches.indexOf(completionMarker)
+  );
+
+  assert.ok(sharedCompletionPatch.length > 0);
+  assert.match(sharedCompletionPatch, /QueueNativePostCommitBoundary\(\s*__result,/u);
+  assert.doesNotMatch(sharedCompletionPatch, /"(?:reward|treasure)_proceed"/u);
+});
+
+test("task completion correlation does not consult HumanActionScope.Current", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const queueMethod = sourceBetween(
+    runtime,
+    "private static void QueueNativePostCommitBoundary<TTask>",
+    "private static void PersistSemanticBoundaryDrafts"
+  );
+  const completionMethod = sourceBetween(
+    runtime,
+    "private static void ObserveNativePostCommitCompletion",
+    "private static NativeCompletionEvidence ToCompletionEvidence"
+  );
+
+  assert.match(queueMethod, /NativeTaskCompletion signal = new/u);
+  assert.doesNotMatch(queueMethod, /HumanActionScope\.Current/u);
+  assert.match(completionMethod, /NativePostCommitCompletions\.CompleteTask\(taskCompletion\)/u);
+  assert.doesNotMatch(completionMethod, /HumanActionScope\.Current/u);
+});
+
+test("GameAction Finished and task completion remain evidence-only before boundary handling", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const lifecycleMethod = sourceBetween(
+    runtime,
+    "private static void ObserveSemanticOnlyNativeActionLifecycle",
+    "private static void ObserveNativeCommit"
+  );
+  const completionMethod = sourceBetween(
+    runtime,
+    "private static void ObserveNativePostCommitCompletion",
+    "private static NativeCompletionEvidence ToCompletionEvidence"
+  );
+
+  assert.match(lifecycleMethod, /NativeActionLifecycleKinds\.Finished/u);
+  assert.doesNotMatch(
+    lifecycleMethod,
+    /ObserveNativePostCommitBoundary|CaptureSemanticFrame|TrySettle/u
+  );
+  assert.doesNotMatch(
+    completionMethod,
+    /ObserveNativePostCommitBoundary|CaptureSemanticFrame|TrySettle/u
+  );
+});
+
+test("a committed unresolved root admits the next exact root for execution handoff", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const preparation = sourceBetween(
+    runtime,
+    "private static bool TryPrepareSerializedEvidence",
+    "internal static void StageCardPlay"
+  );
+
+  assert.match(preparation, /semanticExecutionHandoffReady = BoundaryTracker\.CanOpenNextRoot/u);
+  assert.match(
+    preparation,
+    /!BoundaryTracker\.HasUnresolvedActions\s*\|\| BoundaryTracker\.CanOpenNextRoot/u
+  );
+  assert.doesNotMatch(preparation, /Task\.Delay|Thread\.Sleep|Stopwatch|\bTimer\b/u);
+});
+
+test("native completion proof has no FIFO, count, timer, or polling fallback", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const queueMethod = sourceBetween(
+    runtime,
+    "private static void QueueNativePostCommitBoundary<TTask>",
+    "private static void PersistSemanticBoundaryDrafts"
+  );
+  const completionMethod = sourceBetween(
+    runtime,
+    "private static void ObserveNativePostCommitCompletion",
+    "private static NativeCompletionEvidence ToCompletionEvidence"
+  );
+  const proofFallback = /(?:\bFIFO\b|\.Count\b|FirstOrDefault|LastOrDefault|TryDequeue|\bDequeue\(|Task\.Delay|Task\.Wait|WaitAsync|Task\.WhenAny|Thread\.Sleep|Stopwatch|System\.Timers|\bTimer\b|\bPoll(?:ing)?\b|TrySettle)/u;
+
+  // The queue is only cross-thread transport; proof stays in the exact ledger.
+  assert.match(queueMethod, /QueuedNativePostCommitCompletions\.Enqueue\(signal\)/u);
+  assert.doesNotMatch(queueMethod, proofFallback);
+  assert.doesNotMatch(completionMethod, proofFallback);
+});
+
+test("treasure semantic stages come from Native Foundation rather than UI publication", () => {
+  const reader = read("components/connector/host/LiveHost/TreasureRoomSurfaceReader.cs");
+  const witness = read("components/connector/host/PlayerEnvironment/Witness/ProcessLocalNativeSemanticWitness.cs");
+  const provider = read("components/native-foundation/src/NativeTreasureDecisionProvider.cs");
+
+  assert.match(reader, /NativeTreasureDecisionProvider\.Capture/u);
+  assert.match(reader, /NativeSemanticActionCatalog\.ContainsExactlyOnce/u);
+  assert.match(provider, /ObserveRelicPickCommitted/u);
+  assert.match(provider, /LocalRelicVoteCommitted/u);
+  assert.doesNotMatch(provider, /GetPlayerVote/u);
+  assert.doesNotMatch(provider, /public static bool Contains/u);
+  assert.doesNotMatch(reader, /ChestOpenedField|CollectionOpenField|TreasureLifecycleFacts/u);
+  assert.match(witness, /NativeTreasureDecisionProvider\.Capture/u);
+});
+
+test("treasure skip keeps its exact bound family when sharing PickRelicAction", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+
+  assert.match(runtime, /SupportedFamilyForNativeAction\(nativeActionType, match\)/u);
+  assert.match(
+    runtime,
+    /nativeActionType == nameof\(PickRelicAction\)[\s\S]*?match\?\.BoundAction\?\.Verb[\s\S]*?treasure_room\.skip/u
+  );
+  assert.match(runtime, /"NTreasureRoom\.OnProceedButtonPressed" => "treasure_room\.proceed"/u);
+});
+
+test("card reward owner creation commits the parent claim before the child decision", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+
+  assert.match(
+    patches,
+    /reward is CardReward[\s\S]*?NCardRewardSelectionScreen\.ShowScreen/u
+  );
+  assert.match(
+    patches,
+    /ObserveSemanticUiNativeCommit\([\s\S]*?"reward_claim"[\s\S]*?"NCardRewardSelectionScreen\.ShowScreen"/u
+  );
+  assert.match(
+    patches,
+    /if \(reward is CardReward\)[\s\S]*?return;[\s\S]*?QueueNativePostCommitBoundary/u
+  );
+});
+
 test("Native Foundation remains semantic-only and Ritsu-free", () => {
   const foundationFiles = [
     "components/native-foundation/src/NativeDecisionContracts.cs",
     "components/native-foundation/src/NativeCombatDecisionProvider.cs",
     "components/native-foundation/src/NativeDomainOwnerProbe.cs",
+    "components/native-foundation/src/NativeTreasureDecisionProvider.cs",
     "components/native-foundation/src/NativeActionLifecycleObserver.cs"
   ];
   const source = foundationFiles.map(read).join("\n");

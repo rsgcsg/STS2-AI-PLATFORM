@@ -369,6 +369,9 @@ public sealed class PlayerEnvironmentContractTests
     [InlineData("confirm_interaction", "confirm_selection", "confirm")]
     [InlineData("activate_control", "open_shop", "open")]
     [InlineData("activate_control", "leave_shop", "close")]
+    [InlineData("choose", "choose_treasure_relic", "activate")]
+    [InlineData("choose", "skip_treasure_relic", "skip")]
+    [InlineData("activate_control", "proceed_treasure_room", "activate")]
     public void GenericUiActionsDoNotExposeBusinessOperationAsTheWireVerb(
         string command,
         string operation,
