@@ -1124,7 +1124,7 @@
   "migration_sources": "migration/source-manifest.json",
   "pr11_execution_semantic_action_space_candidate": {
     "status": "source_test_build_installed_loaded_human_pending",
-    "workspace_revision": "87f774213b2c38081aeb31cad9a8a68619601a31",
+    "workspace_revision": "0b3b83122306708756781b84b99fcf1cc319e772",
     "base_revision": "791e27172c39e5c4ce33a415b16fc1ea7f060513",
     "platform_source_revision": "c1b3144f07ba210c7f7064087d0d37bb3c9a2e66",
     "connector_source_revision": "f1378ecce0eb3440c8d79c93e8750f674755f71c",
