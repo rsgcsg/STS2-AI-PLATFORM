@@ -13,32 +13,32 @@ GitHub enforcement is an operational fact separate from this source document;
 the workflow records intended rules, while repository settings must be checked
 directly before claiming protection.
 
-## Current pre-Full-Run hardening
+## Current pre-Full-Run performance work
 
-PR #6 is merged in `develop@a6389de...`. Its final exact candidate and bounded
-Human qualification are recorded below. The active hardening topic is based on
-that exact develop commit and changes only durable evidence mapping, Connector
-surface composition/exact candidate identity, tests, current performance
-evidence and closeout documentation. It does not add a Full-Run domain or alter
-STS2/Connector/Annotator authority.
+PR #6 and PR #9 are merged in `develop@2e1a5b67...`. Their exact candidates and
+bounded Human qualifications are recorded below. The active performance topic
+is based on that exact merge and changes only evidence-safe Recorder hot-path
+profiling plus process-immutable game assembly identity reuse. It does not add
+a Full-Run domain or alter STS2/Connector/Annotator authority.
 
-The latest exact performance baseline is the PR #6 Human session
-`session-20260901T061040Z-561a204be0bc422da5809e1ec5c148aa`. Snapshot capture,
+The latest exact performance baseline is the PR #9 Human session
+`session-20260901T085236Z-b17e8578c5ff4b7db6bfa598b59493d6` on artifact
+`734098f8458e7369b4e1eb6013b7516fa0c5dc126621aad11109196dd3a8bf2f`, runtime
+`97943a5ec5164da389d244a279bb4ab7`. Snapshot capture,
 not frame projection or append serialization, remains the dominant synchronous
 cost. Exact trace inspection found no safely removable same-boundary duplicate:
 the discriminator captures are distinct execution/resume compatibility
 boundaries, and canonical Map capture already delegates instead of recapturing.
-No performance rewrite is justified in this topic. See the
-[deferred-debt register](PREFULLRUN_DEFERRED_DEBT.md).
+The performance topic has not yet claimed a controlled Recorder OFF/ON
+improvement. See the [performance source closeout](evidence/PLATFORM_RECORDING_HOTPATH_PERFORMANCE_SOURCE_CLOSEOUT_2026-09-01.md)
+and [deferred-debt register](PREFULLRUN_DEFERRED_DEBT.md).
 
 Portable and exact-game checks, clean build, safe install and cold-load pass for
-the new unified artifact `734098f8... / 889b7a2e...`, runtime `97943a5e...`,
-environment `c0d853c8...` and exact sole-Platform Modset `3f9a379f...`.
-Recorder is Ready with no open session and rollback is available. These bytes
-change Connector composition and Annotator durable mapping, so the merged PR #6
-Human evidence is backward-compatibility evidence only. The remaining gate is
-the short exact-candidate Human canary in the [hardening source
-closeout](evidence/PLATFORM_PREFULLRUN_HARDENING_SOURCE_CLOSEOUT_2026-09-01.md).
+the performance candidate `111bcba1... / 7187768f...`, runtime `dd4e2229...`,
+environment `6b7ccbf2...` and exact sole-Platform Modset `05df53c2...`.
+Recorder is Ready with no open session and rollback is available. The remaining
+gate is the paired exact-candidate Human Recorder OFF/ON canary and its durable
+subphase profile; predecessor Human evidence does not transfer.
 
 ## Native Foundation integration history
 
