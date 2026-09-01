@@ -65,24 +65,35 @@ if (!recorderRuntime.includes("RecordingCommandKind.StartNewSession"))
   errors.push("recording session creation must be an explicit typed command");
 if (!recorderRuntime.includes("TerminateClosePendingWork()"))
   errors.push("user Close must terminate pending work at the recording boundary");
-if (!recorderRuntime.includes("NativeActionLedger.CanAdmitStrictTransition"))
-  errors.push("strict V2 settlement must require exact native terminal lifecycle");
-if (!recorderRuntime.includes("displaced != null && displaced.NativeActionWitnessId == null"))
-  errors.push("a missing prior pending action must not be treated as an overlapping UI causal window");
+if (recorderRuntime.includes("PendingDecision")
+    || recorderRuntime.includes("AcceptedHumanActionLedger")
+    || recorderRuntime.includes("SerializedEvidenceAdmission"))
+  errors.push("current runtime must not retain a second mutable Human causal authority");
+if (!recorderRuntime.includes("private static bool CanOpenSemanticEvidenceWindow()"))
+  errors.push("current Human admission must use the semantic evidence-window gate");
+if (!recorderRuntime.includes("BoundaryTracker.CanOpenNextRoot"))
+  errors.push("rapid next-root admission must be decided by the semantic boundary tracker");
+if (!recorderRuntime.includes("BoundaryTracker.ObserveBeforeActionExecution("))
+  errors.push("the exact next Human execution boundary must settle only through the semantic tracker");
 if (recorderRuntime.includes("overlapping_action_before_successor"))
-  errors.push("overlap must be accounted in the native ledger rather than dropped");
-if (!recorderRuntime.includes("SerializedEvidenceAdmission.Evaluate"))
-  errors.push("canonical Human collection must use the one-strict-evidence-window admission policy");
-if (!recorderRuntime.includes("TrySettle(pending, frame)"))
-  errors.push("the next input boundary must reuse one authoritative frame for predecessor settlement");
+  errors.push("legacy overlap settlement reasons must not survive in the current causal path");
+if (recorderRuntime.includes("TrySettle(pending, frame)")
+    || recorderRuntime.includes("NativeActionLedger.CanAdmitStrictTransition"))
+  errors.push("legacy strict-V2 settlement must not authorize semantic successors");
+if (!recorderRuntime.includes("SemanticBoundaryTraceKinds.TransitionProved"))
+  errors.push("compatibility transition persistence must begin only from a proved semantic draft");
+if (!recorderRuntime.includes("PersistDerivedTransitionProjection(draft)"))
+  errors.push("Decision V2 and canonical outputs must be derived from semantic transition proof");
+if (!sources.includes("SemanticTransitionProjection.CreateDecision("))
+  errors.push("Decision V2 compatibility output must use the non-authorizing semantic projection");
+if (!sources.includes("SemanticTransitionProjection.CreateCanonical("))
+  errors.push("canonical compatibility output must use the non-authorizing semantic projection");
+if (!sources.includes("draft.Kind != SemanticBoundaryTraceKinds.TransitionProved"))
+  errors.push("semantic compatibility projection must reject non-proved drafts");
 if (recorderRuntime.includes("TryObserveSemanticDecisionBoundary();"))
   errors.push("semantic successor collection must not poll a complete Snapshot every process frame");
-if (recorderRuntime.includes("ObserveSemanticAccepted(pending")
-    || recorderRuntime.includes("ObserveSemanticUiAction(pending")
-    || recorderRuntime.includes("else\n            ObserveSemanticLifecycle(subscription, kind);"))
-  errors.push("canonical mutations must not feed the legacy semantic tracker in parallel");
 if (!recorderRuntime.includes("if (!BoundaryTracker.HasUnresolvedActions)"))
-  errors.push("legacy semantic boundary materialization requires real tracker debt");
+  errors.push("semantic boundary materialization requires real tracker debt");
 if (recorderRuntime.includes("_serializedCloseBoundaryRequested")
     || recorderRuntime.includes("_semanticCloseDrainDeadline")
     || recorderRuntime.includes("recording_close_drain_timeout"))
@@ -95,8 +106,8 @@ if (/AllowMutation|BlockMutation/u.test(sources))
   errors.push("evidence admission must not create gameplay mutation authority");
 if (!nativeUiPatches.includes("RecorderRuntime.StageCardPlay(card);"))
   errors.push("card staging must observe the exact pre-action frame without controlling native input");
-if (!recorderRuntime.includes("native input continues without strict transition evidence"))
-  errors.push("unresolved evidence must fail closed without blocking native Human input");
+if (!recorderRuntime.includes("native input continues without a canonical transition claim"))
+  errors.push("unresolved evidence must fail closed for canonical claims without blocking native Human input");
 
 console.log(JSON.stringify({ status: errors.length === 0 ? "pass" : "fail", errors }, null, 2));
 if (errors.length) process.exit(1);
