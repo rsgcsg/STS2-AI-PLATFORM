@@ -103,10 +103,13 @@ The durable result is in the
   passes strict V2, modern 25/25, Map 7/7 and owner-ready 5/5 with no
   unresolved transition or close-drain timeout.
 - The hardening topic must pass portable and exact-game checks, clean build,
-  safe install and exact cold-load. Because its Connector composition and
-  Annotator runtime mapping change compiled bytes, PR #6 Human evidence remains
-  historical and a short exact-candidate runtime/Human gate must be stated
-  explicitly rather than transferred.
+  safe install and exact cold-load. Those automated gates now pass for unified
+  artifact `734098f8... / 889b7a2e...`, runtime `97943a5e...`, environment
+  `c0d853c8...` and sole-Platform Modset `3f9a379f...`; Recorder is Ready with no
+  session and rollback is available. Because Connector composition and
+  Annotator runtime mapping changed compiled bytes, PR #6 Human evidence remains
+  historical. The only remaining gate is the short exact-candidate Human canary
+  in the hardening source closeout.
 - Shop, Event, Rest, run entry and terminal remain the next Full-Run domain
   expansion after this bounded hardening closeout.
 

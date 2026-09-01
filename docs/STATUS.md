@@ -31,6 +31,15 @@ boundaries, and canonical Map capture already delegates instead of recapturing.
 No performance rewrite is justified in this topic. See the
 [deferred-debt register](PREFULLRUN_DEFERRED_DEBT.md).
 
+Portable and exact-game checks, clean build, safe install and cold-load pass for
+the new unified artifact `734098f8... / 889b7a2e...`, runtime `97943a5e...`,
+environment `c0d853c8...` and exact sole-Platform Modset `3f9a379f...`.
+Recorder is Ready with no open session and rollback is available. These bytes
+change Connector composition and Annotator durable mapping, so the merged PR #6
+Human evidence is backward-compatibility evidence only. The remaining gate is
+the short exact-candidate Human canary in the [hardening source
+closeout](evidence/PLATFORM_PREFULLRUN_HARDENING_SOURCE_CLOSEOUT_2026-09-01.md).
+
 ## Native Foundation integration history
 
 PR #3, PR #5 and PR #6 are integrated in `develop@a6389de...` through the protected
