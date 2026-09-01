@@ -1,14 +1,23 @@
 # Platform Live UI
 
 The Platform Live UI is the in-game presentation component for Environment,
-Policy, Human Data, and Diagnostics. It starts hidden and toggles with `K`. It calls
-typed Connector observation, Policy Runtime, and Annotator recording services;
-it does not publish, resolve, or submit gameplay actions itself.
+Policy, Human Data, and Diagnostics. A small click-through HUD remains visible;
+`K` opens the full Live Workspace and `Esc` closes it. The independent Recorder
+card exposes only the typed New/Pause/Resume/Close application commands. The UI
+calls typed Connector observation, Policy Runtime, and Annotator recording
+services; it does not publish, resolve, or submit gameplay actions itself.
 
 The Runtime loopback defaults to `http://127.0.0.1:15527`. Connector Snapshot
 and Read opportunities, recording state, and loaded component identities remain
 available when no policy artifact is running; only policy scores/modes/Receipts
 are then unavailable.
+
+Workspace and Recorder layout (position, size, collapse state, and selected
+page) are versioned presentation-only state under the Windows local application
+data directory. Persistence is fail-soft and never enters runtime evidence or
+contains secrets, action operands, model weights, or raw Human data. See the
+canonical [UI and interaction specification](../../docs/UI_INTERACTION_SPEC.md)
+for the shared Workbench/In-Game vocabulary.
 
 ## Ownership
 

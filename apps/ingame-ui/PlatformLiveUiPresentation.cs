@@ -1,0 +1,141 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using Godot;
+
+namespace STS2PlatformLiveUi;
+
+/// <summary>
+/// Presentation-only layout state. It is deliberately independent from Connector,
+/// Policy Runtime and Human evidence; it may be persisted locally and fail-soft.
+/// </summary>
+public sealed record PlatformLiveLayoutState(
+    int Version,
+    Vector2 WorkspacePosition,
+    Vector2 WorkspaceSize,
+    bool WorkspaceCollapsed,
+    Vector2 RecorderPosition,
+    bool RecorderCollapsed,
+    int LastPage)
+{
+    public const int CurrentVersion = 1;
+
+    public static PlatformLiveLayoutState Defaults => new(
+        CurrentVersion,
+        new Vector2(64, 72),
+        new Vector2(900, 620),
+        false,
+        new Vector2(24, 96),
+        false,
+        0);
+}
+
+public static class PlatformLiveLayout
+{
+    private static readonly JsonSerializerOptions Options = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
+        WriteIndented = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
+    static PlatformLiveLayout()
+    {
+        Options.Converters.Add(new Vector2JsonConverter());
+    }
+
+    private sealed class Vector2JsonConverter : JsonConverter<Vector2>
+    {
+        public override Vector2 Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            using JsonDocument document = JsonDocument.ParseValue(ref reader);
+            JsonElement value = document.RootElement;
+            return new Vector2(value.GetProperty("x").GetSingle(), value.GetProperty("y").GetSingle());
+        }
+
+        public override void Write(Utf8JsonWriter writer, Vector2 value, JsonSerializerOptions options)
+        {
+            writer.WriteStartObject();
+            writer.WriteNumber("x", value.X);
+            writer.WriteNumber("y", value.Y);
+            writer.WriteEndObject();
+        }
+    }
+
+    public static string LocalPath()
+    {
+        string root = System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData);
+        return Path.Combine(root, "STS2Platform", "live-ui-layout-v1.json");
+    }
+
+    public static PlatformLiveLayoutState Load()
+    {
+        try
+        {
+            string path = LocalPath();
+            if (!File.Exists(path))
+                return PlatformLiveLayoutState.Defaults;
+            PlatformLiveLayoutState? state = JsonSerializer.Deserialize<PlatformLiveLayoutState>(
+                File.ReadAllText(path), Options);
+            return state is { Version: PlatformLiveLayoutState.CurrentVersion }
+                ? state
+                : PlatformLiveLayoutState.Defaults;
+        }
+        catch
+        {
+            return PlatformLiveLayoutState.Defaults;
+        }
+    }
+
+    public static bool Save(PlatformLiveLayoutState state)
+    {
+        try
+        {
+            string path = LocalPath();
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            string temporary = path + ".tmp";
+            File.WriteAllText(temporary, JsonSerializer.Serialize(state, Options));
+            File.Move(temporary, path, true);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    public static Rect2 ClampWorkspace(Rect2 requested, Vector2 viewport)
+    {
+        Vector2 min = new(560, 360);
+        Vector2 max = new(Math.Max(min.X, viewport.X - 32), Math.Max(min.Y, viewport.Y - 48));
+        Vector2 size = new(
+            Math.Clamp(requested.Size.X, min.X, max.X),
+            Math.Clamp(requested.Size.Y, min.Y, max.Y));
+        Vector2 position = new(
+            Math.Clamp(requested.Position.X, 8, Math.Max(8, viewport.X - size.X - 8)),
+            Math.Clamp(requested.Position.Y, 8, Math.Max(8, viewport.Y - size.Y - 8)));
+        return new Rect2(position, size);
+    }
+
+    public static Vector2 ClampRecorder(Vector2 requested, Vector2 cardSize, Vector2 viewport)
+    {
+        return new(
+            Math.Clamp(requested.X, 8, Math.Max(8, viewport.X - cardSize.X - 8)),
+            Math.Clamp(requested.Y, 48, Math.Max(48, viewport.Y - cardSize.Y - 8)));
+    }
+
+    public static string PolicyUnavailableReason(PlatformLiveStatus status)
+    {
+        if (status.PolicyRuntime != null)
+        {
+            if (status.PolicyRuntime.Tainted)
+                return $"Policy Runtime tainted: {status.PolicyRuntime.TaintReason ?? "unknown reason"}.";
+            if (status.PolicyRuntime.Lifecycle != "running")
+                return $"Policy Runtime is {status.PolicyRuntime.Lifecycle}; Human remains in control.";
+        }
+        if (status.PolicyRuntimeTransportStatus != "connected")
+            return status.PolicyRuntimeTransportDetail ?? "Policy Runtime transport is unavailable.";
+        return "Policy Runtime has not exposed a usable status.";
+    }
+}
+
+public sealed record PlatformLiveToast(string Key, string Message, DateTimeOffset ExpiresAt);

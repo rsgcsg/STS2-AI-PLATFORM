@@ -106,10 +106,31 @@ internal enum PlatformCommandMode
 internal sealed class PlatformLivePanel : IDisposable
 {
     private readonly PlatformLiveStatusClient _statusClient = new();
+    private readonly PlatformLiveLayoutState _defaultLayout = PlatformLiveLayoutState.Defaults;
     private readonly Dictionary<string, Label> _pageText = new(StringComparer.Ordinal);
     private readonly Dictionary<PlatformCommandMode, Button> _modeButtons = new();
+    private readonly Dictionary<STS2HumanAnnotator.Core.RecordingCommandKind, Button> _recordingButtons = new();
+    private readonly List<PlatformLiveToast> _toasts = new();
     private SceneTree? _tree;
     private Action? _processFrameHandler;
+    private Control _hud = null!;
+    private Label _hudText = null!;
+    private PanelContainer _workspace = null!;
+    private Control _workspaceBody = null!;
+    private PanelContainer _recorderCard = null!;
+    private VBoxContainer _toastStack = null!;
+    private Label _workspaceTitle = null!;
+    private Label _recorderTitle = null!;
+    private Button _workspaceCollapse = null!;
+    private Button _recorderCollapse = null!;
+    private Vector2 _dragOrigin;
+    private Vector2 _dragStart;
+    private Vector2 _resizeOrigin;
+    private Vector2 _resizeStart;
+    private bool _draggingWorkspace;
+    private bool _draggingRecorder;
+    private bool _resizingWorkspace;
+    private PlatformLiveLayoutState _layout;
     private Label _connection = null!;
     private Label _command = null!;
     private Button _tickButton = null!;
@@ -123,14 +144,14 @@ internal sealed class PlatformLivePanel : IDisposable
 
     internal Control Root { get; } = new()
     {
-        Visible = false,
-        MouseFilter = MouseFilterEnum.Stop
+        Visible = true,
+        MouseFilter = MouseFilterEnum.Ignore
     };
 
     internal PlatformLivePanel()
     {
         Root.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        Root.GuiInput += ConsumeGuiInput;
+        _layout = PlatformLiveLayout.Load();
         BuildUi();
 
         var timer = new Godot.Timer
@@ -151,8 +172,9 @@ internal sealed class PlatformLivePanel : IDisposable
             _processFrameHandler = OnProcessFrame;
             tree.ProcessFrame += _processFrameHandler;
             Root.TreeExiting += Dispose;
+            ApplyLayout();
             _ = PollAsync();
-            GD.Print("[STS2 Platform Live UI] panel ready; input=K; visible=false");
+            GD.Print("[STS2 Platform Live UI] panel ready; input=K; visible=false; HUD=visible");
         }
         catch (Exception exception)
         {
@@ -172,51 +194,59 @@ internal sealed class PlatformLivePanel : IDisposable
 
     private void BuildUi()
     {
-        var margin = new MarginContainer
+        _hud = new PanelContainer
         {
-            MouseFilter = MouseFilterEnum.Stop,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill
-        };
-        margin.AddThemeConstantOverride("margin_left", 28);
-        margin.AddThemeConstantOverride("margin_top", 28);
-        margin.AddThemeConstantOverride("margin_right", 28);
-        margin.AddThemeConstantOverride("margin_bottom", 28);
-        Root.AddChild(margin);
-
-        var panel = new PanelContainer
-        {
-            MouseFilter = MouseFilterEnum.Stop,
-            CustomMinimumSize = new Vector2(860, 580)
-        };
-        margin.AddChild(panel);
-
-        var body = new VBoxContainer
-        {
-            MouseFilter = MouseFilterEnum.Stop
-        };
-        body.AddThemeConstantOverride("separation", 10);
-        panel.AddChild(body);
-
-        var title = new Label
-        {
-            Text = "STS2 PLATFORM / LIVE",
+            Position = new Vector2(16, 16),
+            Size = new Vector2(470, 48),
             MouseFilter = MouseFilterEnum.Ignore
         };
-        title.AddThemeFontSizeOverride("font_size", 24);
+        var hudRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        _hudText = new Label
+        {
+            Text = "Platform | Human | Recorder: Ready | Connector: polling",
+            VerticalAlignment = VerticalAlignment.Center,
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        hudRow.AddChild(_hudText);
+        _hud.AddChild(hudRow);
+        Root.AddChild(_hud);
+
+        _workspace = new PanelContainer
+        {
+            Position = _layout.WorkspacePosition,
+            Size = _layout.WorkspaceSize,
+            CustomMinimumSize = new Vector2(560, 360),
+            Visible = false,
+            MouseFilter = MouseFilterEnum.Stop
+        };
+        _workspace.GuiInput += OnWorkspaceInput;
+        Root.AddChild(_workspace);
+
+        _workspaceBody = new VBoxContainer { MouseFilter = MouseFilterEnum.Stop };
+        _workspaceBody.AddThemeConstantOverride("separation", 8);
+        _workspace.AddChild(_workspaceBody);
         var titleRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Stop };
-        titleRow.AddChild(title);
-        var spacer = new Control { SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        titleRow.AddChild(spacer);
-        titleRow.AddChild(BuildCommandButton("Close", HidePanel));
-        body.AddChild(titleRow);
+        _workspaceTitle = new Label
+        {
+            Text = "STS2 PLATFORM / LIVE WORKSPACE",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        _workspaceTitle.AddThemeFontSizeOverride("font_size", 20);
+        titleRow.AddChild(_workspaceTitle);
+        titleRow.AddChild(BuildCommandButton("Reset layout", ResetLayout, "Restore the local presentation layout."));
+        _workspaceCollapse = BuildCommandButton("Collapse", ToggleWorkspaceCollapse);
+        titleRow.AddChild(_workspaceCollapse);
+        titleRow.AddChild(BuildCommandButton("Close", HidePanel, "Close workspace; HUD remains visible."));
+        _workspaceBody.AddChild(titleRow);
 
         _connection = new Label
         {
-            Text = "Connector loopback: polling...",
-            MouseFilter = MouseFilterEnum.Ignore
+            Text = "Connector: polling...",
+            MouseFilter = MouseFilterEnum.Ignore,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart
         };
-        body.AddChild(_connection);
+        _workspaceBody.AddChild(_connection);
 
         var modeRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Stop };
         modeRow.AddChild(BuildModeButton("Human", PlatformCommandMode.Human));
@@ -226,40 +256,91 @@ internal sealed class PlatformLivePanel : IDisposable
         _tickButton = BuildCommandButton(
             "Tick",
             () => _ = TickRuntimeAsync(),
-            "Ask Policy Runtime for one bounded tick. Any action remains Connector-authorized and Runtime-submitted.");
+            "Ask Policy Runtime for one bounded tick; action authority remains Connector/Runtime.");
         _tickButton.Disabled = true;
         modeRow.AddChild(_tickButton);
-        body.AddChild(modeRow);
-
-        var recordingRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Stop };
-        recordingRow.AddChild(BuildCommandButton("New Session", () => ApplyRecordingCommand(
-            STS2HumanAnnotator.Core.RecordingCommandKind.StartNewSession)));
-        recordingRow.AddChild(BuildCommandButton("Pause", () => ApplyRecordingCommand(
-            STS2HumanAnnotator.Core.RecordingCommandKind.Pause)));
-        recordingRow.AddChild(BuildCommandButton("Resume", () => ApplyRecordingCommand(
-            STS2HumanAnnotator.Core.RecordingCommandKind.Resume)));
-        recordingRow.AddChild(BuildCommandButton("Close", () => ApplyRecordingCommand(
-            STS2HumanAnnotator.Core.RecordingCommandKind.Close)));
-        body.AddChild(recordingRow);
+        _workspaceBody.AddChild(modeRow);
 
         _command = new Label
         {
-            Text = "Mode Human. These controls do not submit gameplay actions.",
-            MouseFilter = MouseFilterEnum.Ignore
+            Text = "Human is the safe default. UI never submits gameplay actions.",
+            MouseFilter = MouseFilterEnum.Ignore,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart
         };
-        body.AddChild(_command);
+        _workspaceBody.AddChild(_command);
 
         var tabs = new TabContainer
         {
             MouseFilter = MouseFilterEnum.Stop,
             SizeFlagsVertical = SizeFlags.ExpandFill
         };
-        body.AddChild(tabs);
+        _workspaceBody.AddChild(tabs);
         AddPage(tabs, "Overview");
         AddPage(tabs, "Environment");
         AddPage(tabs, "Policy");
         AddPage(tabs, "Human Data");
         AddPage(tabs, "Diagnostics");
+        tabs.CurrentTab = Math.Clamp(_layout.LastPage, 0, 4);
+        tabs.TabChanged += page =>
+        {
+            _layout = _layout with { LastPage = (int)page };
+            PersistLayout();
+        };
+
+        BuildRecorderCard();
+        _toastStack = new VBoxContainer
+        {
+            Position = new Vector2(500, 18),
+            Size = new Vector2(380, 180),
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        Root.AddChild(_toastStack);
+        ApplyLayout();
+    }
+
+    private void BuildRecorderCard()
+    {
+        _recorderCard = new PanelContainer
+        {
+            Position = _layout.RecorderPosition,
+            Size = new Vector2(360, 188),
+            CustomMinimumSize = new Vector2(320, 120),
+            MouseFilter = MouseFilterEnum.Stop
+        };
+        _recorderCard.GuiInput += OnRecorderInput;
+        var body = new VBoxContainer { MouseFilter = MouseFilterEnum.Stop };
+        _recorderCard.AddChild(body);
+        var titleRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Stop };
+        _recorderTitle = new Label
+        {
+            Text = "RECORDER / Ready",
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        titleRow.AddChild(_recorderTitle);
+        _recorderCollapse = BuildCommandButton("Collapse", ToggleRecorderCollapse);
+        titleRow.AddChild(_recorderCollapse);
+        body.AddChild(titleRow);
+        _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.StartNewSession] = BuildRecordingButton(
+            body, "New Session", STS2HumanAnnotator.Core.RecordingCommandKind.StartNewSession);
+        _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.Pause] = BuildRecordingButton(
+            body, "Pause", STS2HumanAnnotator.Core.RecordingCommandKind.Pause);
+        _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.Resume] = BuildRecordingButton(
+            body, "Resume", STS2HumanAnnotator.Core.RecordingCommandKind.Resume);
+        _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.Close] = BuildRecordingButton(
+            body, "Close", STS2HumanAnnotator.Core.RecordingCommandKind.Close);
+        Root.AddChild(_recorderCard);
+    }
+
+    private Button BuildRecordingButton(
+        VBoxContainer body,
+        string text,
+        STS2HumanAnnotator.Core.RecordingCommandKind kind)
+    {
+        var button = BuildCommandButton(text, () => ApplyRecordingCommand(kind));
+        button.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        body.AddChild(button);
+        return button;
     }
 
     private Button BuildModeButton(string text, PlatformCommandMode mode)
@@ -292,6 +373,187 @@ internal sealed class PlatformLivePanel : IDisposable
         };
         button.Pressed += action;
         return button;
+    }
+
+    private void OnWorkspaceInput(InputEvent @event)
+    {
+        if (@event is InputEventMouseButton mouseButton)
+        {
+            if (mouseButton.ButtonIndex == MouseButton.Left && mouseButton.Pressed)
+            {
+                if (mouseButton.Position.X >= _workspace.Size.X - 32
+                    && mouseButton.Position.Y >= _workspace.Size.Y - 32)
+                {
+                    _resizingWorkspace = true;
+                    _resizeOrigin = mouseButton.Position;
+                    _resizeStart = _workspace.Size;
+                    _workspace.GetViewport().SetInputAsHandled();
+                }
+                else
+                {
+                    _draggingWorkspace = true;
+                    _dragOrigin = mouseButton.Position;
+                    _dragStart = _workspace.Position;
+                }
+            }
+            else if (mouseButton.ButtonIndex == MouseButton.Left && !mouseButton.Pressed)
+            {
+                if (_resizingWorkspace || _draggingWorkspace)
+                    PersistLayout();
+                _resizingWorkspace = false;
+                _draggingWorkspace = false;
+            }
+        }
+        else if (@event is InputEventMouseMotion motion && (_resizingWorkspace || _draggingWorkspace))
+        {
+            if (_resizingWorkspace)
+            {
+                Vector2 delta = motion.Position - _resizeOrigin;
+                Rect2 clamped = PlatformLiveLayout.ClampWorkspace(
+                    new Rect2(_workspace.Position, _resizeStart + delta), Root.Size);
+                _workspace.Position = clamped.Position;
+                _workspace.Size = clamped.Size;
+            }
+            else
+            {
+                _workspace.Position = PlatformLiveLayout.ClampWorkspace(
+                    new Rect2(_dragStart + motion.Position - _dragOrigin, _workspace.Size), Root.Size).Position;
+            }
+            _workspace.GetViewport().SetInputAsHandled();
+        }
+    }
+
+    private void OnRecorderInput(InputEvent @event)
+    {
+        if (@event is InputEventMouseButton mouseButton
+            && mouseButton.ButtonIndex == MouseButton.Left)
+        {
+            if (mouseButton.Pressed)
+            {
+                _draggingRecorder = true;
+                _dragOrigin = mouseButton.Position;
+                _dragStart = _recorderCard.Position;
+            }
+            else
+            {
+                if (_draggingRecorder)
+                    PersistLayout();
+                _draggingRecorder = false;
+            }
+        }
+        else if (@event is InputEventMouseMotion motion && _draggingRecorder)
+        {
+            _recorderCard.Position = PlatformLiveLayout.ClampRecorder(
+                _dragStart + motion.Position - _dragOrigin,
+                _recorderCard.Size,
+                Root.Size);
+            _recorderCard.GetViewport().SetInputAsHandled();
+        }
+    }
+
+    private void ToggleWorkspaceCollapse()
+    {
+        _layout = _layout with { WorkspaceCollapsed = !_layout.WorkspaceCollapsed };
+        SetWorkspaceCollapsed(_layout.WorkspaceCollapsed);
+        _workspaceCollapse.Text = _layout.WorkspaceCollapsed ? "Expand" : "Collapse";
+        PersistLayout();
+        PushToast("layout.workspace", _layout.WorkspaceCollapsed ? "Workspace collapsed." : "Workspace expanded.");
+    }
+
+    private void ToggleRecorderCollapse()
+    {
+        _layout = _layout with { RecorderCollapsed = !_layout.RecorderCollapsed };
+        foreach (Button button in _recordingButtons.Values)
+            button.Visible = !_layout.RecorderCollapsed;
+        _recorderCollapse.Text = _layout.RecorderCollapsed ? "Expand" : "Collapse";
+        PersistLayout();
+        PushToast("layout.recorder", _layout.RecorderCollapsed ? "Recorder card collapsed." : "Recorder card expanded.");
+    }
+
+    private void ResetLayout()
+    {
+        _layout = _defaultLayout;
+        ApplyLayout();
+        PersistLayout();
+        PushToast("layout.reset", "Layout reset to defaults.");
+    }
+
+    private void ApplyLayout()
+    {
+        Rect2 workspace = PlatformLiveLayout.ClampWorkspace(
+            new Rect2(_layout.WorkspacePosition, _layout.WorkspaceSize), Root.Size);
+        _workspace.Position = workspace.Position;
+        _workspace.Size = workspace.Size;
+        SetWorkspaceCollapsed(_layout.WorkspaceCollapsed);
+        _workspaceCollapse.Text = _layout.WorkspaceCollapsed ? "Expand" : "Collapse";
+        _recorderCard.Position = PlatformLiveLayout.ClampRecorder(
+            _layout.RecorderPosition, _recorderCard.Size, Root.Size);
+        foreach (Button button in _recordingButtons.Values)
+            button.Visible = !_layout.RecorderCollapsed;
+        _recorderCollapse.Text = _layout.RecorderCollapsed ? "Expand" : "Collapse";
+    }
+
+    private void SetWorkspaceCollapsed(bool collapsed)
+    {
+        _workspaceBody.Visible = true;
+        var children = _workspaceBody.GetChildren();
+        for (int index = 1; index < children.Count; index++)
+            if (children[index] is CanvasItem item)
+                item.Visible = !collapsed;
+    }
+
+    private void PersistLayout()
+    {
+        _layout = _layout with
+        {
+            WorkspacePosition = _workspace.Position,
+            WorkspaceSize = _workspace.Size,
+            RecorderPosition = _recorderCard.Position
+        };
+        if (!PlatformLiveLayout.Save(_layout))
+            PushToast("layout.persistence", "Layout could not be saved; using this session only.");
+    }
+
+    private void PushToast(string key, string message)
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        _toasts.RemoveAll(toast => toast.Key == key);
+        _toasts.Add(new PlatformLiveToast(key, message, now.AddSeconds(4)));
+        while (_toasts.Count > 4)
+            _toasts.RemoveAt(0);
+        RenderToasts();
+    }
+
+    private void RenderToasts()
+    {
+        if (_toastStack == null)
+            return;
+        foreach (Node child in _toastStack.GetChildren())
+            child.QueueFree();
+        foreach (PlatformLiveToast toast in _toasts)
+        {
+            var item = new Button
+            {
+                Text = $"{toast.Message}  ×",
+                TooltipText = "Dismiss notification",
+                MouseFilter = MouseFilterEnum.Stop,
+                FocusMode = FocusModeEnum.None,
+                SizeFlagsHorizontal = SizeFlags.ExpandFill
+            };
+            item.Pressed += () =>
+            {
+                _toasts.RemoveAll(current => current.Key == toast.Key);
+                RenderToasts();
+            };
+            _toastStack.AddChild(item);
+        }
+    }
+
+    private void ExpireToasts()
+    {
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        if (_toasts.RemoveAll(toast => toast.ExpiresAt <= now) > 0)
+            RenderToasts();
     }
 
     private void AddPage(TabContainer tabs, string name)
@@ -327,6 +589,12 @@ internal sealed class PlatformLivePanel : IDisposable
         _command.Text = result.Accepted
             ? $"Recording: {authoritative.Lifecycle.State}. {authoritative.Detail}"
             : $"Recording control rejected: {result.Detail}";
+        PushToast(
+            $"recording.{kind}",
+            result.Accepted
+                ? $"Recording {kind.ToString().Replace("StartNewSession", "started", StringComparison.Ordinal).ToLowerInvariant()}."
+                : $"Recording command rejected: {result.Detail}");
+        ApplyRecordingAvailability(authoritative);
         _ = PollAsync();
     }
 
@@ -348,11 +616,13 @@ internal sealed class PlatformLivePanel : IDisposable
             {
                 _command.Text = $"Policy Runtime mode set to {ToRuntimeMode(mode)}.";
             }
+            PushToast("policy.mode", $"Policy mode: {ToRuntimeMode(mode)}.");
             _ = PollAsync();
         }
         catch (Exception exception)
         {
             _command.Text = $"Policy Runtime unavailable: {exception.Message}";
+            PushToast("policy.error", $"Policy command rejected: {exception.Message}");
             SetPolicyControlsAvailable(false);
         }
     }
@@ -364,11 +634,13 @@ internal sealed class PlatformLivePanel : IDisposable
         {
             await _statusClient.TickAsync();
             _command.Text = "Policy Runtime tick completed.";
+            PushToast("policy.tick", "Policy Runtime tick completed.");
             _ = PollAsync();
         }
         catch (Exception exception)
         {
             _command.Text = $"Policy Runtime unavailable: {exception.Message}";
+            PushToast("policy.error", $"Policy tick rejected: {exception.Message}");
             SetPolicyControlsAvailable(false);
         }
     }
@@ -405,6 +677,8 @@ internal sealed class PlatformLivePanel : IDisposable
         if (Interlocked.Exchange(ref _pendingPollError, null) is { } error)
         {
             _connection.Text = $"Connector loopback: UI poll failed ({error})";
+            _hudText.Text = $"Platform | Human | Recorder: unknown | Connector: error ({error})";
+            PushToast("transport.error", $"Status transport unavailable: {error}");
         }
     }
 
@@ -412,9 +686,12 @@ internal sealed class PlatformLivePanel : IDisposable
     {
         _connection.Text =
             $"Connector: {status.TransportStatus} | Policy Runtime: {status.PolicyRuntimeTransportStatus} | observed {status.ObservedAt:HH:mm:ss} UTC";
-        SetPolicyControlsAvailable(status.PolicyRuntime != null);
+        string policyReason = PlatformLiveLayout.PolicyUnavailableReason(status);
+        SetPolicyControlsAvailable(status.PolicyRuntime != null, policyReason);
         if (status.PolicyRuntime != null)
             _mode = ParseRuntimeMode(status.PolicyRuntime.Mode);
+        ApplyRecordingAvailability(status.Recording);
+        _hudText.Text = $"Platform | {status.PolicyRuntime?.Mode ?? "Human"} | Recorder: {status.Recording.Lifecycle.State} | Connector: {status.TransportStatus}";
         _pageText["Overview"].Text = FormatOverview(status);
         _pageText["Environment"].Text = FormatEnvironment(status);
         _pageText["Policy"].Text = FormatPolicy(status);
@@ -422,11 +699,38 @@ internal sealed class PlatformLivePanel : IDisposable
         _pageText["Diagnostics"].Text = FormatDiagnostics(status);
     }
 
-    private void SetPolicyControlsAvailable(bool available)
+    private void SetPolicyControlsAvailable(bool available, string? reason = null)
     {
         foreach (Button button in _modeButtons.Values)
+        {
             button.Disabled = !available;
+            button.TooltipText = available
+                ? button.TooltipText
+                : $"Unavailable: {reason ?? "Policy Runtime is unavailable."}";
+        }
         _tickButton.Disabled = !available;
+        _tickButton.TooltipText = available
+            ? "Ask Policy Runtime for one bounded tick; action authority remains Connector/Runtime."
+            : $"Unavailable: {reason ?? "Policy Runtime is unavailable."}";
+    }
+
+    private void ApplyRecordingAvailability(
+        STS2HumanAnnotator.Core.RecordingApplicationStatus recording)
+    {
+        if (_recorderTitle == null)
+            return;
+        _recorderTitle.Text = $"RECORDER / {recording.Lifecycle.State} · {recording.Counters.Records} records";
+        STS2HumanAnnotator.Core.RecordingLifecycleState state = recording.Lifecycle.State;
+        _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.StartNewSession].Disabled =
+            state is not (STS2HumanAnnotator.Core.RecordingLifecycleState.Ready
+                or STS2HumanAnnotator.Core.RecordingLifecycleState.Closed);
+        _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.Pause].Disabled =
+            state != STS2HumanAnnotator.Core.RecordingLifecycleState.Recording;
+        _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.Resume].Disabled =
+            state != STS2HumanAnnotator.Core.RecordingLifecycleState.Paused;
+        _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.Close].Disabled =
+            state is not (STS2HumanAnnotator.Core.RecordingLifecycleState.Recording
+                or STS2HumanAnnotator.Core.RecordingLifecycleState.Paused);
     }
 
     private static string FormatOverview(PlatformLiveStatus status) => string.Join('\n', new[]
@@ -532,30 +836,37 @@ internal sealed class PlatformLivePanel : IDisposable
             ? $"{name}: unavailable"
             : $"{name}: {artifact.Product} {artifact.Version} | rev={artifact.SourceRevision ?? "unknown"} | module={artifact.ModuleVersionId ?? "unknown"} | sha={artifact.ArtifactSha256 ?? "unknown"}";
 
-    private void ConsumeGuiInput(InputEvent @event)
-    {
-        if (Root.Visible)
-            Root.GetViewport().SetInputAsHandled();
-    }
-
     private void OnProcessFrame()
     {
         ApplyPendingStatus();
         ApplyPendingPollError();
+        ExpireToasts();
+        if (!_draggingWorkspace && !_draggingRecorder && !_resizingWorkspace)
+        {
+            Rect2 clamped = PlatformLiveLayout.ClampWorkspace(
+                new Rect2(_workspace.Position, _workspace.Size), Root.Size);
+            if (clamped.Position != _workspace.Position || clamped.Size != _workspace.Size)
+            {
+                _workspace.Position = clamped.Position;
+                _workspace.Size = clamped.Size;
+            }
+            _recorderCard.Position = PlatformLiveLayout.ClampRecorder(
+                _recorderCard.Position, _recorderCard.Size, Root.Size);
+        }
 
         bool kPressed = Input.IsKeyPressed(Key.K) || Input.IsPhysicalKeyPressed(Key.K);
         if (kPressed && !_kWasPressed)
         {
-            Root.Visible = !Root.Visible;
-            if (Root.Visible)
+            _workspace.Visible = !_workspace.Visible;
+            if (_workspace.Visible)
                 _ = PollAsync();
-            GD.Print($"[STS2 Platform Live UI] toggle; input=K; visible={Root.Visible.ToString().ToLowerInvariant()}");
+            GD.Print($"[STS2 Platform Live UI] toggle; input=K; visible={_workspace.Visible.ToString().ToLowerInvariant()}");
             Root.GetViewport().SetInputAsHandled();
         }
         _kWasPressed = kPressed;
 
         bool escapePressed = Input.IsKeyPressed(Key.Escape);
-        if (Root.Visible && escapePressed && !_escapeWasPressed)
+        if (_workspace.Visible && escapePressed && !_escapeWasPressed)
         {
             HidePanel();
             Root.GetViewport().SetInputAsHandled();
@@ -565,7 +876,8 @@ internal sealed class PlatformLivePanel : IDisposable
 
     private void HidePanel()
     {
-        Root.Visible = false;
+        _workspace.Visible = false;
+        PersistLayout();
         GD.Print("[STS2 Platform Live UI] toggle; input=close; visible=false");
     }
 

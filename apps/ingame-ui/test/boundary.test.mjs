@@ -9,16 +9,41 @@ const client = fs.readFileSync(path.join(root, "PlatformLiveStatusClient.cs"), "
 const contracts = fs.readFileSync(path.join(root, "PlatformLiveContracts.cs"), "utf8");
 
 test("Live UI remains a non-authorizing hidden overlay", () => {
-  assert.match(mod, /Visible = false/u);
+  assert.match(mod, /Visible = true/u);
+  assert.match(mod, /MouseFilterEnum\.Ignore/u);
+  assert.match(mod, /_workspace\.Visible = !_workspace\.Visible/u);
   assert.match(mod, /Key\.K/u);
   assert.match(mod, /tree\.ProcessFrame \+= _processFrameHandler/u);
   assert.match(mod, /Input\.IsPhysicalKeyPressed/u);
   assert.match(mod, /Key\.Escape/u);
   assert.doesNotMatch(`${mod}\n${client}`, /player-environment\/actions/u);
   assert.doesNotMatch(`${mod}\n${client}`, /bound_action_id/u);
-  assert.doesNotMatch(`${mod}\n${client}`, /Input\.ParseInputEvent|InputEventMouseMotion/u);
+  assert.match(mod, /InputEventMouseMotion/u);
+  assert.match(mod, /OnWorkspaceInput/u);
+  assert.match(mod, /OnRecorderInput/u);
   assert.doesNotMatch(mod, /override void _(Ready|Process|Input)/u);
   assert.doesNotMatch(`${mod}\n${client}`, /Key\.F\d+/u);
+});
+
+test("Workspace is bounded, click-through outside controls, and locally persistent", () => {
+  assert.match(mod, /Root.*MouseFilterEnum\.Ignore/su);
+  assert.match(mod, /CustomMinimumSize = new Vector2\(560, 360\)/u);
+  assert.match(mod, /ClampWorkspace/u);
+  assert.match(mod, /ClampRecorder/u);
+  assert.match(mod, /ResetLayout/u);
+  assert.match(mod, /PlatformLiveLayout\.Load\(\)/u);
+  assert.match(mod, /PlatformLiveLayout\.Save\(/u);
+  assert.match(fs.readFileSync(path.join(root, "PlatformLiveUiPresentation.cs"), "utf8"), /LocalApplicationData/u);
+  assert.match(fs.readFileSync(path.join(root, "PlatformLiveUiPresentation.cs"), "utf8"), /fail-soft/u);
+});
+
+test("Recorder and policy controls expose typed state and fail-closed reasons", () => {
+  assert.match(mod, /ApplyRecordingAvailability/u);
+  assert.match(mod, /RecordingLifecycleState\.Recording/u);
+  assert.match(mod, /PolicyUnavailableReason/u);
+  assert.match(mod, /PushToast\("policy\.error"/u);
+  assert.match(mod, /PushToast\(/u);
+  assert.match(mod, /Human is the safe default/u);
 });
 
 test("Policy view uses only the typed Policy Runtime status", () => {

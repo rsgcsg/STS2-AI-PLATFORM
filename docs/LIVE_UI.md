@@ -36,6 +36,20 @@ verification compares those records with installed provenance. `installed`,
 `loaded`, automated input, owner-visible UI, Human recording evidence and
 Agent-run evidence remain separate claims.
 
+The product shell keeps a small click-through HUD visible during ordinary play;
+the full Workspace opens with `K` and closes with `Escape` or its Close button.
+Workspace and Recorder cards support bounded drag, resize, collapse, and Reset
+layout. The Recorder is an independent card with typed New Session, Pause,
+Resume, and Close controls. A bounded toast stack reports accepted/rejected
+commands and transport recovery, deduplicates repeated state changes, expires
+automatically, and can be dismissed. Layout is versioned local presentation
+state with fail-soft defaults; it is never written to evidence or sent to the
+Policy Runtime. The root overlay is click-through outside interactive controls,
+so gameplay input remains owned by STS2.
+
+The shared status vocabulary and interaction rules are defined in the canonical
+[UI and interaction specification](UI_INTERACTION_SPEC.md).
+
 See `apps/game-mod/README.md` for commands and `apps/ingame-ui/README.md` for the
 presentation boundary. The predecessor three-Mod artifact passed exact
 install/cold-load identity verification, but its F10 input was not observed.
