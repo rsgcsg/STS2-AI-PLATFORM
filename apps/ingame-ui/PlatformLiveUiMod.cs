@@ -225,7 +225,9 @@ internal sealed class PlatformLivePanel : IDisposable
         _workspaceBody = new VBoxContainer { MouseFilter = MouseFilterEnum.Stop };
         _workspaceBody.AddThemeConstantOverride("separation", 8);
         _workspace.AddChild(_workspaceBody);
-        var titleRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Stop };
+        // Let empty title-bar space bubble to the bounded workspace drag handler;
+        // child buttons still stop input themselves.
+        var titleRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
         _workspaceTitle = new Label
         {
             Text = "STS2 PLATFORM / LIVE WORKSPACE",
@@ -310,7 +312,8 @@ internal sealed class PlatformLivePanel : IDisposable
         _recorderCard.GuiInput += OnRecorderInput;
         var body = new VBoxContainer { MouseFilter = MouseFilterEnum.Stop };
         _recorderCard.AddChild(body);
-        var titleRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Stop };
+        // The card title is the drag surface; lifecycle buttons remain interactive.
+        var titleRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
         _recorderTitle = new Label
         {
             Text = "RECORDER / Ready",
