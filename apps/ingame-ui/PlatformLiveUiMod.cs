@@ -119,25 +119,28 @@ internal sealed class PlatformLivePanel : IDisposable
     private Action? _processFrameHandler;
     private PanelContainer _workspace = null!;
     private Control _workspaceSurface = null!;
-    private Control _workspaceBody = null!;
-    private PanelContainer _recorderPage = null!;
+    private VBoxContainer _workspaceBody = null!;
+    private VBoxContainer _workspaceContent = null!;
+    private Control _bodyViewport = null!;
+    private ScrollContainer _recorderPage = null!;
     private Control _recorderDetails = null!;
+    private ScrollContainer _toastViewport = null!;
     private VBoxContainer _toastStack = null!;
+    private readonly List<Control> _pages = new();
     private Label _workspaceTitle = null!;
     private Label _recorderTitle = null!;
     private Label _recorderHealth = null!;
     private Label _lastAction = null!;
     private VBoxContainer _actionFeedList = null!;
-    private ScrollContainer _actionFeedScroll = null!;
+    private ScrollContainer _recorderScroll = null!;
     private Button _workspaceCollapse = null!;
-    private Button _recorderCollapse = null!;
     private Vector2 _dragOrigin;
     private Vector2 _dragStart;
     private Vector2 _resizeOrigin;
     private Vector2 _resizeStart;
     private bool _draggingWorkspace;
     private bool _resizingWorkspace;
-    private TabContainer _tabs = null!;
+    private TabBar _tabBar = null!;
     private PlatformLiveLayoutState _layout;
     private Label _connection = null!;
     private Label _command = null!;
@@ -209,49 +212,98 @@ internal sealed class PlatformLivePanel : IDisposable
         {
             Position = _layout.WorkspacePosition,
             Size = _layout.WorkspaceSize,
-            CustomMinimumSize = new Vector2(560, 360),
+            CustomMinimumSize = new Vector2(640, 420),
             Visible = false,
-            MouseFilter = MouseFilterEnum.Stop
+            MouseFilter = MouseFilterEnum.Stop,
+            ClipContents = true
         };
         _workspace.AddThemeStyleboxOverride("panel", MakePanelStyle(
-            new Color("#111c2aeF"), new Color("#4e9bb0"), 12, 2, 16));
+            new Color("#111c2aef"), new Color("#4e9bb0"), 12, 2, 0));
         Root.AddChild(_workspace);
 
-        _workspaceSurface = new Control { MouseFilter = MouseFilterEnum.Stop };
+        _workspaceSurface = new Control
+        {
+            MouseFilter = MouseFilterEnum.Stop,
+            ClipContents = true
+        };
+        _workspaceSurface.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         _workspaceSurface.GuiInput += OnWorkspaceInput;
         _workspace.AddChild(_workspaceSurface);
-        _workspaceBody = new VBoxContainer { MouseFilter = MouseFilterEnum.Stop };
+
+        var workspaceMargin = new MarginContainer
+        {
+            MouseFilter = MouseFilterEnum.Pass,
+            ClipContents = true
+        };
+        workspaceMargin.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        workspaceMargin.AddThemeConstantOverride("margin_left", 12);
+        workspaceMargin.AddThemeConstantOverride("margin_right", 12);
+        workspaceMargin.AddThemeConstantOverride("margin_top", 10);
+        workspaceMargin.AddThemeConstantOverride("margin_bottom", 10);
+        _workspaceSurface.AddChild(workspaceMargin);
+
+        _workspaceBody = new VBoxContainer
+        {
+            MouseFilter = MouseFilterEnum.Pass,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            ClipContents = true
+        };
         _workspaceBody.AddThemeConstantOverride("separation", 7);
-        _workspaceSurface.AddChild(_workspaceBody);
+        workspaceMargin.AddChild(_workspaceBody);
         // Let empty title-bar space bubble to the bounded workspace drag handler;
         // child buttons still stop input themselves.
-        var titleRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        var titleRow = new HBoxContainer
+        {
+            MouseFilter = MouseFilterEnum.Pass,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            ClipContents = true
+        };
+        titleRow.AddThemeConstantOverride("separation", 4);
         _workspaceTitle = new Label
         {
             Text = "STS2 PLATFORM / LIVE WORKSPACE",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            MouseFilter = MouseFilterEnum.Ignore
+            MouseFilter = MouseFilterEnum.Ignore,
+            ClipText = true,
+            TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis
         };
-        _workspaceTitle.AddThemeFontSizeOverride("font_size", 20);
+        _workspaceTitle.AddThemeFontSizeOverride("font_size", 18);
         _workspaceTitle.AddThemeColorOverride("font_color", TextPrimary);
         titleRow.AddChild(_workspaceTitle);
-        titleRow.AddChild(BuildCommandButton("Reset layout", ResetLayout, "Restore the local presentation layout."));
-        _workspaceCollapse = BuildCommandButton("Collapse", ToggleWorkspaceCollapse);
+        titleRow.AddChild(BuildHeaderButton("Reset", ResetLayout, "Restore position, size, Recorder tab and scroll geometry."));
+        _workspaceCollapse = BuildHeaderButton("Collapse", ToggleActiveTabBody, "Collapse or restore the active tab body.");
         titleRow.AddChild(_workspaceCollapse);
-        titleRow.AddChild(BuildCommandButton("Close", HidePanel, "Close workspace and return to gameplay."));
+        titleRow.AddChild(BuildHeaderButton("Close", HidePanel, "Close workspace and return to gameplay."));
         _workspaceBody.AddChild(titleRow);
+
+        _workspaceContent = new VBoxContainer
+        {
+            MouseFilter = MouseFilterEnum.Pass,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            ClipContents = true
+        };
+        _workspaceContent.AddThemeConstantOverride("separation", 6);
+        _workspaceBody.AddChild(_workspaceContent);
 
         _connection = new Label
         {
             Text = "Connector: polling...",
             MouseFilter = MouseFilterEnum.Ignore,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            ClipText = true
         };
         _connection.AddThemeFontSizeOverride("font_size", 13);
         _connection.AddThemeColorOverride("font_color", TextSecondary);
-        _workspaceBody.AddChild(_connection);
+        _workspaceContent.AddChild(_connection);
 
-        var modeRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Stop };
+        var modeRow = new HBoxContainer
+        {
+            MouseFilter = MouseFilterEnum.Pass,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            ClipContents = true
+        };
         modeRow.AddThemeConstantOverride("separation", 4);
         modeRow.AddChild(BuildModeButton("Human", PlatformCommandMode.Human));
         modeRow.AddChild(BuildModeButton("Shadow", PlatformCommandMode.Shadow));
@@ -263,7 +315,7 @@ internal sealed class PlatformLivePanel : IDisposable
             "Ask Policy Runtime for one bounded tick; action authority remains Connector/Runtime.");
         _tickButton.Disabled = true;
         modeRow.AddChild(_tickButton);
-        _workspaceBody.AddChild(modeRow);
+        _workspaceContent.AddChild(modeRow);
 
         _command = new Label
         {
@@ -273,51 +325,94 @@ internal sealed class PlatformLivePanel : IDisposable
         };
         _command.AddThemeFontSizeOverride("font_size", 13);
         _command.AddThemeColorOverride("font_color", Accent);
-        _workspaceBody.AddChild(_command);
+        _workspaceContent.AddChild(_command);
 
-        var tabs = new TabContainer
+        _tabBar = new TabBar
         {
             MouseFilter = MouseFilterEnum.Stop,
-            SizeFlagsVertical = SizeFlags.ExpandFill
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            ClipTabs = true
         };
-        _tabs = tabs;
-        tabs.AddThemeFontSizeOverride("font_size", 13);
-        tabs.AddThemeColorOverride("font_selected_color", TextPrimary);
-        tabs.AddThemeColorOverride("font_unselected_color", TextSecondary);
-        _workspaceBody.AddChild(tabs);
-        BuildRecorderPage(tabs);
-        AddPage(tabs, "Overview");
-        AddPage(tabs, "Environment");
-        AddPage(tabs, "Policy");
-        AddPage(tabs, "Human Data");
-        AddPage(tabs, "Diagnostics");
-        tabs.CurrentTab = Math.Clamp(_layout.LastPage, 0, 5);
-        tabs.TabChanged += page =>
+        _tabBar.AddThemeFontSizeOverride("font_size", 13);
+        _tabBar.AddThemeColorOverride("font_selected_color", TextPrimary);
+        _tabBar.AddThemeColorOverride("font_unselected_color", TextSecondary);
+        foreach (string name in new[] { "Recorder", "Overview", "Environment", "Policy", "Human Data", "Diagnostics" })
+            _tabBar.AddTab(name);
+        _tabBar.TabClicked += OnTabClicked;
+        _workspaceContent.AddChild(_tabBar);
+
+        _bodyViewport = new Control
         {
-            _layout = _layout with { LastPage = (int)page };
-            PersistLayout();
+            MouseFilter = MouseFilterEnum.Stop,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 150),
+            ClipContents = true
         };
+        _workspaceContent.AddChild(_bodyViewport);
+        BuildRecorderPage(_bodyViewport);
+        AddPage(_bodyViewport, "Overview");
+        AddPage(_bodyViewport, "Environment");
+        AddPage(_bodyViewport, "Policy");
+        AddPage(_bodyViewport, "Human Data");
+        AddPage(_bodyViewport, "Diagnostics");
 
         _toastStack = new VBoxContainer
         {
-            Position = new Vector2(16, 360),
-            Size = new Vector2(380, 140),
-            MouseFilter = MouseFilterEnum.Ignore
+            MouseFilter = MouseFilterEnum.Pass,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill
         };
-        _workspaceSurface.AddChild(_toastStack);
+        _toastViewport = new ScrollContainer
+        {
+            MouseFilter = MouseFilterEnum.Stop,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 46),
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
+            ClipContents = true,
+            Visible = false
+        };
+        _toastViewport.AddChild(_toastStack);
+        _workspaceContent.AddChild(_toastViewport);
+
+        var resizeHandle = new Label
+        {
+            Text = "↘",
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            CustomMinimumSize = new Vector2(26, 26),
+            Size = new Vector2(26, 26),
+            MouseFilter = MouseFilterEnum.Stop,
+            MouseDefaultCursorShape = CursorShape.Fdiagsize
+        };
+        resizeHandle.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomRight, LayoutPresetMode.KeepSize);
+        resizeHandle.GuiInput += OnResizeHandleInput;
+        _workspaceSurface.AddChild(resizeHandle);
+        ApplyTabPresentation(resizeWorkspace: false);
         ApplyLayout();
     }
 
-    private void BuildRecorderPage(TabContainer tabs)
+    private void BuildRecorderPage(Control bodyViewport)
     {
-        _recorderPage = new PanelContainer
+        _recorderPage = new ScrollContainer
         {
             Name = "Recorder",
+            MouseFilter = MouseFilterEnum.Stop,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
+            ClipContents = true
+        };
+        _recorderPage.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        _recorderScroll = _recorderPage;
+
+        var card = new PanelContainer
+        {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
-            MouseFilter = MouseFilterEnum.Stop
+            MouseFilter = MouseFilterEnum.Pass,
+            ClipContents = true
         };
-        _recorderPage.AddThemeStyleboxOverride("panel", PageStyle("Recorder"));
+        card.AddThemeStyleboxOverride("panel", PageStyle("Recorder"));
         var body = new VBoxContainer { MouseFilter = MouseFilterEnum.Stop };
         body.AddThemeConstantOverride("separation", 8);
         body.SizeFlagsHorizontal = SizeFlags.ExpandFill;
@@ -330,18 +425,9 @@ internal sealed class PlatformLivePanel : IDisposable
         margin.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         margin.SizeFlagsVertical = SizeFlags.ExpandFill;
         margin.AddChild(body);
-        var contentScroll = new ScrollContainer
-        {
-            MouseFilter = MouseFilterEnum.Stop,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-            VerticalScrollMode = ScrollContainer.ScrollMode.Auto
-        };
-        contentScroll.AddChild(margin);
-        _recorderPage.AddChild(contentScroll);
+        card.AddChild(margin);
+        _recorderPage.AddChild(card);
         // Recorder is a first-class Workspace tab; lifecycle buttons remain interactive.
-        var titleRow = new HBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
         _recorderTitle = new Label
         {
             Text = "RECORDER",
@@ -350,11 +436,7 @@ internal sealed class PlatformLivePanel : IDisposable
         };
         _recorderTitle.AddThemeFontSizeOverride("font_size", 17);
         _recorderTitle.AddThemeColorOverride("font_color", TextPrimary);
-        titleRow.AddChild(_recorderTitle);
-        _recorderCollapse = BuildCommandButton("Collapse", ToggleRecorderCollapse);
-        _recorderCollapse.CustomMinimumSize = new Vector2(88, 32);
-        titleRow.AddChild(_recorderCollapse);
-        body.AddChild(titleRow);
+        body.AddChild(_recorderTitle);
 
         _recorderDetails = new VBoxContainer
         {
@@ -406,24 +488,16 @@ internal sealed class PlatformLivePanel : IDisposable
         feedHeading.AddThemeFontSizeOverride("font_size", 12);
         feedHeading.AddThemeColorOverride("font_color", TextPrimary);
         _recorderDetails.AddChild(feedHeading);
-        _actionFeedScroll = new ScrollContainer
-        {
-            CustomMinimumSize = new Vector2(0, 132),
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-            VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
-            MouseFilter = MouseFilterEnum.Stop
-        };
         _actionFeedList = new VBoxContainer
         {
             MouseFilter = MouseFilterEnum.Ignore,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            CustomMinimumSize = new Vector2(0, 84)
         };
         _actionFeedList.AddThemeConstantOverride("separation", 4);
-        _actionFeedScroll.AddChild(_actionFeedList);
-        _recorderDetails.AddChild(_actionFeedScroll);
-        tabs.AddChild(_recorderPage);
+        _recorderDetails.AddChild(_actionFeedList);
+        bodyViewport.AddChild(_recorderPage);
+        _pages.Add(_recorderPage);
     }
 
     private Button BuildRecordingButton(
@@ -471,6 +545,15 @@ internal sealed class PlatformLivePanel : IDisposable
         };
         ApplyButtonTheme(button, false);
         button.Pressed += action;
+        return button;
+    }
+
+    private static Button BuildHeaderButton(string text, Action action, string? tooltip = null)
+    {
+        Button button = BuildCommandButton(text, action, tooltip);
+        button.CustomMinimumSize = new Vector2(88, 34);
+        button.AddThemeFontSizeOverride("font_size", 12);
+        button.ClipText = true;
         return button;
     }
 
@@ -554,73 +637,122 @@ internal sealed class PlatformLivePanel : IDisposable
             {
                 Vector2 delta = motion.Position - _resizeOrigin;
                 Rect2 clamped = PlatformLiveLayout.ClampWorkspace(
-                    new Rect2(_workspace.Position, _resizeStart + delta), Root.Size);
+                    new Rect2(_workspace.Position, _resizeStart + delta),
+                    Root.Size,
+                    _layout.BodyCollapsed);
                 _workspace.Position = clamped.Position;
                 _workspace.Size = clamped.Size;
-                LayoutWorkspaceSurface();
             }
             else
             {
                 _workspace.Position = PlatformLiveLayout.ClampWorkspace(
-                    new Rect2(_dragStart + motion.Position - _dragOrigin, _workspace.Size), Root.Size).Position;
+                    new Rect2(_dragStart + motion.Position - _dragOrigin, _workspace.Size),
+                    Root.Size,
+                    _layout.BodyCollapsed).Position;
             }
             _workspace.GetViewport().SetInputAsHandled();
         }
     }
 
-    private void ToggleWorkspaceCollapse()
+    private void OnResizeHandleInput(InputEvent @event)
     {
-        _layout = _layout with { WorkspaceCollapsed = !_layout.WorkspaceCollapsed };
-        SetWorkspaceCollapsed(_layout.WorkspaceCollapsed);
-        _workspaceCollapse.Text = _layout.WorkspaceCollapsed ? "Expand" : "Collapse";
-        PersistLayout();
-        PushToast("layout.workspace", _layout.WorkspaceCollapsed ? "Workspace collapsed." : "Workspace expanded.");
+        if (@event is InputEventMouseButton mouseButton
+            && mouseButton.ButtonIndex == MouseButton.Left)
+        {
+            if (mouseButton.Pressed)
+            {
+                _resizingWorkspace = true;
+                _resizeOrigin = mouseButton.GlobalPosition;
+                _resizeStart = _workspace.Size;
+            }
+            else
+            {
+                if (_resizingWorkspace)
+                    PersistLayout();
+                _resizingWorkspace = false;
+            }
+            _workspace.GetViewport().SetInputAsHandled();
+        }
+        else if (@event is InputEventMouseMotion motion && _resizingWorkspace)
+        {
+            Vector2 delta = motion.GlobalPosition - _resizeOrigin;
+            Rect2 clamped = PlatformLiveLayout.ClampWorkspace(
+                new Rect2(_workspace.Position, _resizeStart + delta),
+                Root.Size,
+                _layout.BodyCollapsed);
+            _workspace.Position = clamped.Position;
+            _workspace.Size = clamped.Size;
+            _workspace.GetViewport().SetInputAsHandled();
+        }
     }
 
-    private void ToggleRecorderCollapse()
+    private void OnTabClicked(long tab) => SelectTab((int)tab);
+
+    private void ToggleActiveTabBody() => SelectTab(_layout.ActiveTab);
+
+    private void SelectTab(int tab)
     {
-        _layout = _layout with { RecorderCollapsed = !_layout.RecorderCollapsed };
-        _recorderDetails.Visible = !_layout.RecorderCollapsed;
-        _recorderCollapse.Text = _layout.RecorderCollapsed ? "Expand" : "Collapse";
+        if (!_layout.BodyCollapsed)
+            _layout = _layout with { WorkspaceSize = _workspace.Size };
+        PlatformLiveLayoutState next = PlatformLiveLayout.SelectTab(_layout, tab, _pages.Count);
+        if (next == _layout)
+            return;
+        _layout = next;
+        ApplyTabPresentation();
         PersistLayout();
-        PushToast("layout.recorder", _layout.RecorderCollapsed ? "Recorder details collapsed." : "Recorder details expanded.");
+        PushToast(
+            "layout.body",
+            _layout.BodyCollapsed
+                ? $"{_tabBar.GetTabTitle(_layout.ActiveTab)} body collapsed."
+                : $"{_tabBar.GetTabTitle(_layout.ActiveTab)} body expanded.");
+    }
+
+    private void ApplyTabPresentation(bool resizeWorkspace = true)
+    {
+        int activeTab = Math.Clamp(_layout.ActiveTab, 0, Math.Max(0, _pages.Count - 1));
+        if (activeTab != _layout.ActiveTab)
+            _layout = _layout with { ActiveTab = activeTab };
+        _tabBar.CurrentTab = activeTab;
+        for (int index = 0; index < _pages.Count; index++)
+            _pages[index].Visible = index == activeTab;
+        _bodyViewport.Visible = !_layout.BodyCollapsed;
+        _workspaceCollapse.Text = _layout.BodyCollapsed ? "Expand" : "Collapse";
+        if (resizeWorkspace)
+            ApplyWorkspaceBounds();
     }
 
     private void ResetLayout()
     {
         _layout = _defaultLayout;
         ApplyLayout();
+        foreach (Control page in _pages)
+            if (page is ScrollContainer scroll)
+                scroll.ScrollVertical = 0;
         PersistLayout();
         PushToast("layout.reset", "Layout reset to defaults.");
     }
 
     private void ApplyLayout()
     {
-        Rect2 workspace = PlatformLiveLayout.ClampWorkspace(
-            new Rect2(_layout.WorkspacePosition, _layout.WorkspaceSize), Root.Size);
-        _workspace.Position = workspace.Position;
-        _workspace.Size = workspace.Size;
-        LayoutWorkspaceSurface();
-        SetWorkspaceCollapsed(_layout.WorkspaceCollapsed);
-        _workspaceCollapse.Text = _layout.WorkspaceCollapsed ? "Expand" : "Collapse";
-        _recorderDetails.Visible = !_layout.RecorderCollapsed;
-        _recorderCollapse.Text = _layout.RecorderCollapsed ? "Expand" : "Collapse";
+        ApplyWorkspaceBounds();
+        ApplyTabPresentation(resizeWorkspace: false);
         ApplyPresentationVisibility();
     }
 
-    private void LayoutWorkspaceSurface()
+    private void ApplyWorkspaceBounds()
     {
-        if (_workspaceSurface == null || _workspaceBody == null || _recorderPage == null || _toastStack == null)
-            return;
-        _workspaceSurface.Position = Vector2.Zero;
-        _workspaceSurface.Size = _workspace.Size;
-        _workspaceBody.Position = new Vector2(16, 16);
-        _workspaceBody.Size = new Vector2(
-            Math.Max(360, _workspace.Size.X - 32),
-            Math.Max(260, _workspace.Size.Y - 32));
-        _toastStack.Position = new Vector2(
-            16,
-            Math.Max(80, _workspace.Size.Y - _toastStack.Size.Y - 16));
+        _workspace.CustomMinimumSize = _layout.BodyCollapsed
+            ? new Vector2(640, PlatformLiveLayout.CollapsedWorkspaceHeight)
+            : new Vector2(640, 420);
+        Vector2 requestedSize = _layout.BodyCollapsed
+            ? new Vector2(_layout.WorkspaceSize.X, PlatformLiveLayout.CollapsedWorkspaceHeight)
+            : _layout.WorkspaceSize;
+        Rect2 workspace = PlatformLiveLayout.ClampWorkspace(
+            new Rect2(_layout.WorkspacePosition, requestedSize),
+            Root.Size,
+            _layout.BodyCollapsed);
+        _workspace.Position = workspace.Position;
+        _workspace.Size = workspace.Size;
     }
 
     private void ApplyPresentationVisibility()
@@ -628,16 +760,7 @@ internal sealed class PlatformLivePanel : IDisposable
         bool workspaceVisible = _workspace.Visible;
         // There is exactly one active presentation owner. The Workspace is
         // the only Platform surface; its Recorder and toast regions are children.
-        _toastStack.Visible = workspaceVisible;
-    }
-
-    private void SetWorkspaceCollapsed(bool collapsed)
-    {
-        _workspaceBody.Visible = true;
-        var children = _workspaceBody.GetChildren();
-        for (int index = 1; index < children.Count; index++)
-            if (children[index] is CanvasItem item)
-                item.Visible = !collapsed;
+        _toastViewport.Visible = workspaceVisible && !_layout.BodyCollapsed && _toasts.Count > 0;
     }
 
     private void PersistLayout()
@@ -645,7 +768,9 @@ internal sealed class PlatformLivePanel : IDisposable
         _layout = _layout with
         {
             WorkspacePosition = _workspace.Position,
-            WorkspaceSize = _workspace.Size
+            WorkspaceSize = _layout.BodyCollapsed
+                ? new Vector2(_workspace.Size.X, _layout.WorkspaceSize.Y)
+                : _workspace.Size
         };
         if (!PlatformLiveLayout.Save(_layout))
             PushToast("layout.persistence", "Layout could not be saved; using this session only.");
@@ -675,7 +800,8 @@ internal sealed class PlatformLivePanel : IDisposable
                 TooltipText = "Dismiss notification",
                 MouseFilter = MouseFilterEnum.Stop,
                 FocusMode = FocusModeEnum.None,
-                SizeFlagsHorizontal = SizeFlags.ExpandFill
+                SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                ClipText = true
             };
             ApplyButtonTheme(item, false);
             item.Pressed += () =>
@@ -685,6 +811,7 @@ internal sealed class PlatformLivePanel : IDisposable
             };
             _toastStack.AddChild(item);
         }
+        ApplyPresentationVisibility();
     }
 
     private void ExpireToasts()
@@ -694,25 +821,23 @@ internal sealed class PlatformLivePanel : IDisposable
             RenderToasts();
     }
 
-    private void AddPage(TabContainer tabs, string name)
+    private void AddPage(Control bodyViewport, string name)
     {
         var scroll = new ScrollContainer
         {
             Name = name,
             MouseFilter = MouseFilterEnum.Stop,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(0, 240),
             HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-            VerticalScrollMode = ScrollContainer.ScrollMode.Auto
+            VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
+            ClipContents = true
         };
-        scroll.AddThemeConstantOverride("separation", 10);
+        scroll.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
         var card = new PanelContainer
         {
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             SizeFlagsVertical = SizeFlags.ExpandFill,
-            CustomMinimumSize = new Vector2(360, 220),
-            MouseFilter = MouseFilterEnum.Ignore
+            MouseFilter = MouseFilterEnum.Pass,
+            ClipContents = true
         };
         card.AddThemeStyleboxOverride("panel", PageStyle(name));
         var margin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
@@ -733,7 +858,8 @@ internal sealed class PlatformLivePanel : IDisposable
         margin.AddChild(label);
         card.AddChild(margin);
         scroll.AddChild(card);
-        tabs.AddChild(scroll);
+        bodyViewport.AddChild(scroll);
+        _pages.Add(scroll);
         _pageText.Add(name, label);
     }
 
@@ -1028,7 +1154,7 @@ internal sealed class PlatformLivePanel : IDisposable
             item.AddChild(label);
             _actionFeedList.AddChild(item);
         }
-        _actionFeedScroll.ScrollVertical = 0;
+        _recorderScroll.ScrollVertical = 0;
     }
 
     private static string FormatOverview(PlatformLiveStatus status) => string.Join('\n', new[]
@@ -1131,12 +1257,13 @@ internal sealed class PlatformLivePanel : IDisposable
         if (!_draggingWorkspace && !_resizingWorkspace)
         {
             Rect2 clamped = PlatformLiveLayout.ClampWorkspace(
-                new Rect2(_workspace.Position, _workspace.Size), Root.Size);
+                new Rect2(_workspace.Position, _workspace.Size),
+                Root.Size,
+                _layout.BodyCollapsed);
             if (clamped.Position != _workspace.Position || clamped.Size != _workspace.Size)
             {
                 _workspace.Position = clamped.Position;
                 _workspace.Size = clamped.Size;
-                LayoutWorkspaceSurface();
             }
         }
 
@@ -1144,11 +1271,15 @@ internal sealed class PlatformLivePanel : IDisposable
         if (kPressed && !_kWasPressed)
         {
             _workspace.Visible = !_workspace.Visible;
-            ApplyPresentationVisibility();
             if (_workspace.Visible)
             {
-                _tabs.CurrentTab = 0;
+                _layout = _layout with { ActiveTab = 0, BodyCollapsed = false };
+                ApplyLayout();
                 _ = PollAsync();
+            }
+            else
+            {
+                ApplyPresentationVisibility();
             }
             GD.Print($"[STS2 Platform Live UI] toggle; input=K; visible={_workspace.Visible.ToString().ToLowerInvariant()}");
             Root.GetViewport().SetInputAsHandled();

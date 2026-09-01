@@ -8,6 +8,7 @@ const mod = fs.readFileSync(path.join(root, "PlatformLiveUiMod.cs"), "utf8");
 const client = fs.readFileSync(path.join(root, "PlatformLiveStatusClient.cs"), "utf8");
 const contracts = fs.readFileSync(path.join(root, "PlatformLiveContracts.cs"), "utf8");
 const feed = fs.readFileSync(path.join(root, "PlatformLiveActionFeed.cs"), "utf8");
+const presentation = fs.readFileSync(path.join(root, "PlatformLiveUiPresentation.cs"), "utf8");
 
 test("Live UI remains a non-authorizing hidden overlay", () => {
   assert.match(mod, /internal Control Root.*Visible = true/su);
@@ -28,52 +29,64 @@ test("Live UI remains a non-authorizing hidden overlay", () => {
 
 test("Workspace is bounded, click-through outside controls, and locally persistent", () => {
   assert.match(mod, /Root.*MouseFilterEnum\.Ignore/su);
-  assert.match(mod, /CustomMinimumSize = new Vector2\(560, 360\)/u);
+  assert.match(mod, /CustomMinimumSize = new Vector2\(640, 420\)/u);
+  assert.match(mod, /_workspace.*ClipContents = true/su);
+  assert.match(mod, /_workspaceSurface\.SetAnchorsAndOffsetsPreset\(LayoutPreset\.FullRect\)/u);
   assert.match(mod, /ClampWorkspace/u);
   assert.match(mod, /ResetLayout/u);
   assert.match(mod, /PlatformLiveLayout\.Load\(\)/u);
   assert.match(mod, /PlatformLiveLayout\.Save\(/u);
-  assert.match(fs.readFileSync(path.join(root, "PlatformLiveUiPresentation.cs"), "utf8"), /LocalApplicationData/u);
-  assert.match(fs.readFileSync(path.join(root, "PlatformLiveUiPresentation.cs"), "utf8"), /fail-soft/u);
+  assert.match(presentation, /LocalApplicationData/u);
+  assert.match(presentation, /fail-soft/u);
 });
 
-test("compact layout keeps content width and reset presentation-only", () => {
-  const presentation = fs.readFileSync(path.join(root, "PlatformLiveUiPresentation.cs"), "utf8");
-  assert.match(presentation, /CurrentVersion = 2/u);
-  assert.match(presentation, /new Vector2\(660, 440\)/u);
-  assert.match(mod, /Math\.Max\(360, _workspace\.Size\.X - 32\)/u);
-  assert.match(mod, /CustomMinimumSize = new Vector2\(360, 220\)/u);
+test("responsive layout has bounded small, default, expanded and collapsed geometry", () => {
+  assert.match(presentation, /CurrentVersion = 3/u);
+  assert.match(presentation, /new Vector2\(760, 500\)/u);
+  assert.match(presentation, /new Vector2\(640, 420\)/u);
+  assert.match(presentation, /CollapsedWorkspaceHeight = 220/u);
+  assert.match(presentation, /viewport\.X - 32/u);
+  assert.match(presentation, /viewport\.Y - 48/u);
+  assert.doesNotMatch(mod, /_workspaceBody\.(Position|Size)\s*=/u);
+  assert.doesNotMatch(mod, /_toastStack\.(Position|Size)\s*=/u);
+  assert.doesNotMatch(mod, /CustomMinimumSize = new Vector2\(360, 220\)/u);
   assert.match(mod, /_layout = _defaultLayout/u);
+  assert.match(mod, /scroll\.ScrollVertical = 0/u);
   assert.doesNotMatch(mod, /RecordingApplicationService\.Instance\.Execute.*ResetLayout/su);
 });
 
 test("one presentation owner prevents legacy and workspace shells from overlapping", () => {
   assert.equal((mod.match(/new CanvasLayer/g) ?? []).length, 1);
-  assert.equal((mod.match(/BuildRecorderPage\(tabs\);/g) ?? []).length, 1);
-  assert.match(mod, /tabs\.AddChild\(_recorderPage\)/u);
-  assert.match(mod, /_workspaceSurface\.AddChild\(_toastStack\)/u);
+  assert.equal((mod.match(/BuildRecorderPage\(_bodyViewport\);/g) ?? []).length, 1);
+  assert.match(mod, /bodyViewport\.AddChild\(_recorderPage\)/u);
+  assert.match(mod, /_toastViewport\.AddChild\(_toastStack\)/u);
+  assert.match(mod, /_workspaceContent\.AddChild\(_toastViewport\)/u);
   assert.match(mod, /_workspaceSurface\.GuiInput \+= OnWorkspaceInput/u);
   assert.doesNotMatch(mod, /_recorderPage\.Position/u);
   assert.doesNotMatch(mod, /Root\.AddChild\(_hud\)/u);
-  assert.match(mod, /_toastStack\.Visible = workspaceVisible/u);
+  assert.doesNotMatch(mod, /_workspaceSurface\.AddChild\(_recorderPage\)/u);
+  assert.match(mod, /_toastViewport\.Visible = workspaceVisible && !_layout\.BodyCollapsed && _toasts\.Count > 0/u);
   assert.match(mod, /ApplyPresentationVisibility\(\)/u);
 });
 
 test("Recorder is the default Workspace tab and never a floating overlay", () => {
   assert.match(mod, /Name = "Recorder"/u);
-  assert.match(mod, /BuildRecorderPage\(tabs\)/u);
-  assert.match(mod, /_tabs\.CurrentTab = 0/u);
-  assert.match(mod, /tabs\.CurrentTab = Math\.Clamp\(_layout\.LastPage, 0, 5\)/u);
+  assert.match(mod, /BuildRecorderPage\(_bodyViewport\)/u);
+  assert.match(mod, /new\[\] \{ "Recorder", "Overview", "Environment", "Policy", "Human Data", "Diagnostics" \}/u);
+  assert.match(mod, /_layout = _layout with \{ ActiveTab = 0, BodyCollapsed = false \}/u);
+  assert.match(mod, /_tabBar\.CurrentTab = activeTab/u);
   assert.match(mod, /_recorderPage\.AddChild\(/u);
   assert.doesNotMatch(mod, /_workspaceSurface\.AddChild\(_recorderPage\)/u);
   assert.doesNotMatch(mod, /_recorderPage\.GuiInput/u);
+  assert.doesNotMatch(`${mod}\n${presentation}`, /RecorderCollapsed|ToggleRecorderCollapse/u);
 });
 
 test("Recorder owns a bounded canonical Action Feed with explicit unavailable fields", () => {
   assert.match(mod, /QueryEvents\(/u);
   assert.match(mod, /RefreshActionFeed\(status\.Recording\)/u);
-  assert.match(mod, /_recorderDetails\.AddChild\(_actionFeedScroll\)/u);
-  assert.match(mod, /_actionFeedScroll = new ScrollContainer/u);
+  assert.match(mod, /_recorderPage = new ScrollContainer/u);
+  assert.match(mod, /_recorderScroll = _recorderPage/u);
+  assert.match(mod, /_recorderDetails\.AddChild\(_actionFeedList\)/u);
   assert.match(mod, /SizeFlagsHorizontal = SizeFlags\.ExpandFill/u);
   assert.match(mod, /while \(_actionFeed\.Count > PlatformLiveActionFeed\.MaxEntries\)/u);
   assert.match(mod, /value\.SessionId, sessionId/u);
@@ -87,6 +100,42 @@ test("Recorder owns a bounded canonical Action Feed with explicit unavailable fi
   assert.match(feed, /unavailable \(not present in canonical evidence\)/u);
   assert.match(client, /RecordingApplicationService\.Instance\.QueryStatus\(\)/u);
   assert.doesNotMatch(feed, /InputEventMouseButton|InputEventMouseMotion|frame.*delay/isu);
+});
+
+test("header controls and all presentation regions stay inside the Workspace hierarchy", () => {
+  assert.match(mod, /_workspace\.AddChild\(_workspaceSurface\)/u);
+  assert.match(mod, /_workspaceSurface\.AddChild\(workspaceMargin\)/u);
+  assert.match(mod, /workspaceMargin\.AddChild\(_workspaceBody\)/u);
+  assert.match(mod, /_workspaceBody\.AddChild\(titleRow\)/u);
+  assert.match(mod, /_workspaceBody\.AddChild\(_workspaceContent\)/u);
+  assert.equal((mod.match(/titleRow\.AddChild\(BuildHeaderButton/g) ?? []).length, 2);
+  assert.match(mod, /_workspaceCollapse = BuildHeaderButton/u);
+  assert.match(mod, /button\.CustomMinimumSize = new Vector2\(88, 34\)/u);
+  assert.match(mod, /button\.ClipText = true/u);
+  assert.doesNotMatch(mod, /Root\.AddChild\((_toast|_recorder|_body|_tab)/u);
+});
+
+test("all tabs share one clipped viewport and overflow vertically", () => {
+  assert.match(mod, /_workspaceContent\.AddChild\(_tabBar\)/u);
+  assert.match(mod, /_workspaceContent\.AddChild\(_bodyViewport\)/u);
+  assert.match(mod, /_bodyViewport.*ClipContents = true/su);
+  assert.match(mod, /_recorderPage\.SetAnchorsAndOffsetsPreset\(LayoutPreset\.FullRect\)/u);
+  assert.match(mod, /scroll\.SetAnchorsAndOffsetsPreset\(LayoutPreset\.FullRect\)/u);
+  assert.match(mod, /HorizontalScrollMode = ScrollContainer\.ScrollMode\.Disabled/u);
+  assert.match(mod, /VerticalScrollMode = ScrollContainer\.ScrollMode\.Auto/u);
+  assert.match(mod, /_pages\.Add\(_recorderPage\)/u);
+  assert.match(mod, /_pages\.Add\(scroll\)/u);
+  assert.doesNotMatch(mod, /AddPage\(TabContainer|BuildRecorderPage\(TabContainer/u);
+});
+
+test("active-tab clicks use one collapse state and other tabs expand", () => {
+  assert.match(mod, /_tabBar\.TabClicked \+= OnTabClicked/u);
+  assert.match(presentation, /selectedTab == state\.ActiveTab/u);
+  assert.match(presentation, /BodyCollapsed = !state\.BodyCollapsed/u);
+  assert.match(presentation, /ActiveTab = selectedTab, BodyCollapsed = false/u);
+  assert.match(mod, /_bodyViewport\.Visible = !_layout\.BodyCollapsed/u);
+  assert.match(mod, /ToggleActiveTabBody\(\) => SelectTab\(_layout\.ActiveTab\)/u);
+  assert.doesNotMatch(`${mod}\n${presentation}`, /WorkspaceCollapsed|RecorderCollapsed/u);
 });
 
 test("canonical action fixtures cover ordinary, targeted, choice and end-turn shapes", () => {
