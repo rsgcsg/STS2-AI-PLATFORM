@@ -49,6 +49,14 @@ versioned local presentation state with fail-soft defaults; it is never written
 to evidence or sent to the Policy Runtime. The root overlay is click-through
 outside interactive controls, so gameplay input remains owned by STS2.
 
+The Recorder's Recent Actions list and Last Action detail are a read-only
+projection of the Annotator `RecordingApplicationService` event stream. They
+show canonical lifecycle (`Observed`, `Recorded`, `Invalidated`) plus any
+already-owned bound-action subject/argument IDs and labels. Effect text or
+other metadata absent from canonical evidence is explicitly `unavailable`; the
+UI never infers it from pointer input, coordinates, timing, or a later frame,
+and a visible feed row is not itself recording proof.
+
 The shared status vocabulary and interaction rules are defined in the canonical
 [UI and interaction specification](UI_INTERACTION_SPEC.md).
 

@@ -110,6 +110,7 @@ internal sealed class PlatformLivePanel : IDisposable
     private readonly Dictionary<string, Label> _pageText = new(StringComparer.Ordinal);
     private readonly Dictionary<PlatformCommandMode, Button> _modeButtons = new();
     private readonly Dictionary<STS2HumanAnnotator.Core.RecordingCommandKind, Button> _recordingButtons = new();
+    private readonly List<STS2HumanAnnotator.Core.RecordingEvent> _actionFeed = new();
     private readonly List<PlatformLiveToast> _toasts = new();
     private static readonly Color TextPrimary = new("#f3f6fb");
     private static readonly Color TextSecondary = new("#b9c5d6");
@@ -125,6 +126,10 @@ internal sealed class PlatformLivePanel : IDisposable
     private VBoxContainer _toastStack = null!;
     private Label _workspaceTitle = null!;
     private Label _recorderTitle = null!;
+    private Label _recorderHealth = null!;
+    private Label _lastAction = null!;
+    private VBoxContainer _actionFeedList = null!;
+    private ScrollContainer _actionFeedScroll = null!;
     private Button _workspaceCollapse = null!;
     private Button _recorderCollapse = null!;
     private Vector2 _dragOrigin;
@@ -145,6 +150,8 @@ internal sealed class PlatformLivePanel : IDisposable
     private int _pollInFlight;
     private PlatformLiveStatus? _pendingStatus;
     private string? _pendingPollError;
+    private long _lastRecordingEventSequence;
+    private string? _actionFeedSessionId;
 
     internal Control Root { get; } = new()
     {
@@ -325,8 +332,8 @@ internal sealed class PlatformLivePanel : IDisposable
         _recorderCard = new PanelContainer
         {
             Position = new Vector2(440, 72),
-            Size = new Vector2(348, 196),
-            CustomMinimumSize = new Vector2(320, 120),
+            Size = new Vector2(348, 388),
+            CustomMinimumSize = new Vector2(320, 300),
             MouseFilter = MouseFilterEnum.Stop
         };
         _recorderCard.AddThemeStyleboxOverride("panel", MakePanelStyle(
@@ -347,28 +354,77 @@ internal sealed class PlatformLivePanel : IDisposable
         _recorderTitle.AddThemeColorOverride("font_color", TextPrimary);
         titleRow.AddChild(_recorderTitle);
         _recorderCollapse = BuildCommandButton("Collapse", ToggleRecorderCollapse);
+        _recorderCollapse.CustomMinimumSize = new Vector2(88, 34);
         titleRow.AddChild(_recorderCollapse);
         body.AddChild(titleRow);
+
+        _recorderHealth = new Label
+        {
+            Text = "Session: none · health: waiting",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        _recorderHealth.AddThemeFontSizeOverride("font_size", 12);
+        _recorderHealth.AddThemeColorOverride("font_color", TextSecondary);
+        body.AddChild(_recorderHealth);
+
+        var controls = new HBoxContainer { MouseFilter = MouseFilterEnum.Stop };
+        controls.AddThemeConstantOverride("separation", 5);
+        body.AddChild(controls);
         _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.StartNewSession] = BuildRecordingButton(
-            body, "New Session", STS2HumanAnnotator.Core.RecordingCommandKind.StartNewSession);
+            controls, "New Session", STS2HumanAnnotator.Core.RecordingCommandKind.StartNewSession);
         _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.Pause] = BuildRecordingButton(
-            body, "Pause", STS2HumanAnnotator.Core.RecordingCommandKind.Pause);
+            controls, "Pause", STS2HumanAnnotator.Core.RecordingCommandKind.Pause);
         _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.Resume] = BuildRecordingButton(
-            body, "Resume", STS2HumanAnnotator.Core.RecordingCommandKind.Resume);
+            controls, "Resume", STS2HumanAnnotator.Core.RecordingCommandKind.Resume);
         _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.Close] = BuildRecordingButton(
-            body, "Close", STS2HumanAnnotator.Core.RecordingCommandKind.Close);
+            controls, "Close", STS2HumanAnnotator.Core.RecordingCommandKind.Close);
+
+        _lastAction = new Label
+        {
+            Text = "LAST ACTION\nNone observed yet.",
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            CustomMinimumSize = new Vector2(0, 72),
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        _lastAction.AddThemeFontSizeOverride("font_size", 12);
+        _lastAction.AddThemeColorOverride("font_color", Accent);
+        body.AddChild(_lastAction);
+
+        var feedHeading = new Label
+        {
+            Text = "RECENT ACTIONS · canonical evidence",
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        feedHeading.AddThemeFontSizeOverride("font_size", 12);
+        feedHeading.AddThemeColorOverride("font_color", TextPrimary);
+        body.AddChild(feedHeading);
+        _actionFeedScroll = new ScrollContainer
+        {
+            CustomMinimumSize = new Vector2(0, 150),
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
+            MouseFilter = MouseFilterEnum.Stop
+        };
+        _actionFeedList = new VBoxContainer { MouseFilter = MouseFilterEnum.Ignore };
+        _actionFeedList.AddThemeConstantOverride("separation", 4);
+        _actionFeedScroll.AddChild(_actionFeedList);
+        body.AddChild(_actionFeedScroll);
         // Recorder is a tool region owned by the same workspace surface. It is
         // never an independent legacy shell and is gated with workspace visibility.
         _workspaceSurface.AddChild(_recorderCard);
     }
 
     private Button BuildRecordingButton(
-        VBoxContainer body,
+        Container body,
         string text,
         STS2HumanAnnotator.Core.RecordingCommandKind kind)
     {
         var button = BuildCommandButton(text, () => ApplyRecordingCommand(kind));
         button.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        button.CustomMinimumSize = new Vector2(76, 34);
+        button.AddThemeFontSizeOverride("font_size", 12);
         body.AddChild(button);
         return button;
     }
@@ -857,6 +913,7 @@ internal sealed class PlatformLivePanel : IDisposable
             _mode = ParseRuntimeMode(status.PolicyRuntime.Mode);
         ApplyModeButtonState();
         ApplyRecordingAvailability(status.Recording);
+        RefreshActionFeed(status.Recording);
         _hudText.Text = $"Platform | {status.PolicyRuntime?.Mode ?? "Human"} | Recorder: {status.Recording.Lifecycle.State} | Connector: {status.TransportStatus}";
         _pageText["Overview"].Text = FormatOverview(status);
         _pageText["Environment"].Text = FormatEnvironment(status);
@@ -896,6 +953,8 @@ internal sealed class PlatformLivePanel : IDisposable
         if (_recorderTitle == null)
             return;
         _recorderTitle.Text = $"RECORDER / {recording.Lifecycle.State} · {recording.Counters.Records} records";
+        _recorderHealth.Text =
+            $"Session: {recording.Session?.SessionId ?? "none"} · health: {recording.Health.Append}/{recording.Health.Disk} · pending: {recording.PendingDecision?.RecordId ?? "none"}";
         STS2HumanAnnotator.Core.RecordingLifecycleState state = recording.Lifecycle.State;
         _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.StartNewSession].Disabled =
             state is not (STS2HumanAnnotator.Core.RecordingLifecycleState.Ready
@@ -907,6 +966,88 @@ internal sealed class PlatformLivePanel : IDisposable
         _recordingButtons[STS2HumanAnnotator.Core.RecordingCommandKind.Close].Disabled =
             state is not (STS2HumanAnnotator.Core.RecordingLifecycleState.Recording
                 or STS2HumanAnnotator.Core.RecordingLifecycleState.Paused);
+    }
+
+    private void RefreshActionFeed(
+        STS2HumanAnnotator.Core.RecordingApplicationStatus recording)
+    {
+        string? sessionId = recording.Session?.SessionId;
+        if (!string.Equals(_actionFeedSessionId, sessionId, StringComparison.Ordinal))
+        {
+            _actionFeedSessionId = sessionId;
+            _lastRecordingEventSequence = 0;
+            _actionFeed.Clear();
+        }
+
+        try
+        {
+            STS2HumanAnnotator.Core.RecordingEventBatch batch =
+                STS2HumanAnnotator.Mod.RecordingApplicationService.Instance.QueryEvents(
+                    _lastRecordingEventSequence);
+            if (batch.Gap)
+            {
+                _actionFeed.Clear();
+                _lastRecordingEventSequence = Math.Max(0, batch.OldestAvailableSequence - 1);
+            }
+            foreach (STS2HumanAnnotator.Core.RecordingEvent value in batch.Events)
+            {
+                _lastRecordingEventSequence = Math.Max(_lastRecordingEventSequence, value.Sequence);
+                if (!PlatformLiveActionFeed.IsActionEvent(value.Kind))
+                    continue;
+                _actionFeed.RemoveAll(existing => existing.Sequence == value.Sequence);
+                _actionFeed.Add(value);
+            }
+            _lastRecordingEventSequence = Math.Max(_lastRecordingEventSequence, batch.LatestSequence);
+            while (_actionFeed.Count > PlatformLiveActionFeed.MaxEntries)
+                _actionFeed.RemoveAt(0);
+            RenderActionFeed();
+        }
+        catch (Exception exception)
+        {
+            _lastAction.Text = "LAST ACTION\nUnavailable (canonical event projection failed).";
+            PushToast("recording.feed", $"Action Feed unavailable: {exception.Message}");
+        }
+    }
+
+    private void RenderActionFeed()
+    {
+        if (_actionFeedList == null || _lastAction == null)
+            return;
+        foreach (Node child in _actionFeedList.GetChildren())
+            child.QueueFree();
+
+        STS2HumanAnnotator.Core.RecordingEvent? newest = _actionFeed
+            .OrderByDescending(value => value.Sequence)
+            .FirstOrDefault();
+        _lastAction.Text = newest == null
+            ? "LAST ACTION\nNone observed yet."
+            : $"LAST ACTION\n{PlatformLiveActionFeed.FormatDetail(newest)}";
+
+        foreach (STS2HumanAnnotator.Core.RecordingEvent value in _actionFeed
+                     .OrderByDescending(item => item.Sequence))
+        {
+            var item = new PanelContainer { MouseFilter = MouseFilterEnum.Ignore };
+            Color border = value.Kind switch
+            {
+                STS2HumanAnnotator.Core.RecordingEventKind.DecisionRecorded => new Color("#4fa77c"),
+                STS2HumanAnnotator.Core.RecordingEventKind.DecisionInvalidated => new Color("#c26b69"),
+                _ => new Color("#4f91a6")
+            };
+            item.AddThemeStyleboxOverride("panel", MakePanelStyle(
+                new Color("#16222de8"), border, 6, 1, 7));
+            var label = new Label
+            {
+                Text = PlatformLiveActionFeed.FormatEntry(value),
+                AutowrapMode = TextServer.AutowrapMode.WordSmart,
+                MouseFilter = MouseFilterEnum.Ignore,
+                SizeFlagsHorizontal = SizeFlags.ExpandFill
+            };
+            label.AddThemeFontSizeOverride("font_size", 12);
+            label.AddThemeColorOverride("font_color", TextPrimary);
+            item.AddChild(label);
+            _actionFeedList.AddChild(item);
+        }
+        _actionFeedScroll.ScrollVertical = 0;
     }
 
     private static string FormatOverview(PlatformLiveStatus status) => string.Join('\n', new[]

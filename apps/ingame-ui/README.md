@@ -5,7 +5,10 @@ Policy, Human Data, and Diagnostics. When the Workspace is closed, a small
 click-through HUD remains visible; `K` opens the full Live Workspace and `Esc`
 closes it. The Recorder tool region is mounted on that same Workspace surface,
 never as a second legacy shell, and exposes only the typed New/Pause/Resume/
-Close application commands. The UI
+Close application commands. The Recorder also contains a bounded Recent
+Actions feed and Last Action detail sourced only from the typed canonical
+recording event projection; missing card, target or effect metadata is shown
+as unavailable. The UI
 calls typed Connector observation, Policy Runtime, and Annotator recording
 services; it does not publish, resolve, or submit gameplay actions itself.
 

@@ -7,6 +7,7 @@ const root = path.resolve(import.meta.dirname, "..");
 const mod = fs.readFileSync(path.join(root, "PlatformLiveUiMod.cs"), "utf8");
 const client = fs.readFileSync(path.join(root, "PlatformLiveStatusClient.cs"), "utf8");
 const contracts = fs.readFileSync(path.join(root, "PlatformLiveContracts.cs"), "utf8");
+const feed = fs.readFileSync(path.join(root, "PlatformLiveActionFeed.cs"), "utf8");
 
 test("Live UI remains a non-authorizing hidden overlay", () => {
   assert.match(mod, /Visible = true/u);
@@ -48,6 +49,35 @@ test("one presentation owner prevents legacy and workspace shells from overlappi
   assert.match(mod, /_recorderCard\.Visible = workspaceVisible/u);
   assert.match(mod, /_toastStack\.Visible = workspaceVisible/u);
   assert.match(mod, /ApplyPresentationVisibility\(\)/u);
+});
+
+test("Recorder owns a bounded canonical Action Feed with explicit unavailable fields", () => {
+  assert.match(mod, /QueryEvents\(/u);
+  assert.match(mod, /RefreshActionFeed\(status\.Recording\)/u);
+  assert.match(mod, /_workspaceSurface\.AddChild\(_recorderCard\)/u);
+  assert.match(mod, /_actionFeedScroll = new ScrollContainer/u);
+  assert.match(mod, /while \(_actionFeed\.Count > PlatformLiveActionFeed\.MaxEntries\)/u);
+  assert.match(feed, /DecisionPending => "Observed"/u);
+  assert.match(feed, /DecisionRecorded => "Recorded"/u);
+  assert.match(feed, /DecisionInvalidated => "Invalidated"/u);
+  assert.match(feed, /SubjectReferentId/u);
+  assert.match(feed, /Arguments/u);
+  assert.match(feed, /EffectSummary/u);
+  assert.match(feed, /unavailable \(not present in canonical evidence\)/u);
+  assert.match(client, /RecordingApplicationService\.Instance\.QueryStatus\(\)/u);
+  assert.doesNotMatch(feed, /InputEventMouseButton|InputEventMouseMotion|frame.*delay/isu);
+});
+
+test("canonical action fixtures cover ordinary, targeted, choice and end-turn shapes", () => {
+  assert.match(feed, /FormatEntry\(RecordingEvent value\)/u);
+  assert.match(feed, /FormatDetail\(RecordingEvent value\)/u);
+  assert.match(feed, /Stable subject\/card ID/u);
+  assert.match(feed, /Target IDs/u);
+  assert.match(feed, /Card \/ choice display/u);
+  assert.match(feed, /Action kind/u);
+  assert.match(feed, /RecordingEventKind\.DecisionPending/u);
+  assert.match(feed, /RecordingEventKind\.DecisionRecorded/u);
+  assert.match(feed, /RecordingEventKind\.DecisionInvalidated/u);
 });
 
 test("Recorder and policy controls expose typed state and fail-closed reasons", () => {
