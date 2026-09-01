@@ -70,17 +70,18 @@ The durable result is in the
   Mac, so real-model Shadow, One-Step, Auto, and Agent-run evidence remain
   unexercised.
 - The Native Foundation Human gate is complete for its bounded scope. It is not
-  exhaustive Full-Run qualification. PR #6's restacked bytes have no inherited
-  runtime or Human qualification.
-- PR #6 predecessor source `f320ef6...` separated Human Root, exact Native
+  exhaustive Full-Run qualification. PR #6's current exact candidate and
+  owner-attested Human qualification are recorded below; predecessor evidence
+  does not transfer.
+- Historical PR #6 predecessor source `f320ef6...` separated Human Root, exact Native
   Commit and later Successor Boundary. Its same-bytes Human sessions prove
   Reward and Map stable but expose CardReward nested-owner and Treasure
   pre-generated/predicted-state seam defects. Current repair source uses exact
   CardReward `ShowScreen` owner creation and Treasure `OnPicked` Commit. Clean
   artifact `641f543d... / 7ac2fa24...` is cold-loaded in runtime `c3e4d2b...`,
   environment `6655e3a...`, sole-Platform Modset `91d2f6e7...`; Human
-  qualification is still pending and no predecessor evidence transfers.
-- The subsequent repaired-bytes Human run proved CardReward/Treasure and all
+  qualification was superseded and no predecessor evidence transfers.
+- A subsequent historical repaired-bytes Human run proved CardReward/Treasure and all
   but its final Map successor. A focused replay proved the final Map Commit and
   playable Combat before Close, exposing a production observation gap rather
   than early Close: `NativeDecisionOwnerReady` had no publisher. Source
@@ -89,17 +90,16 @@ The durable result is in the
   durable owner/mechanism evidence. Root/exact checks, clean build, safe install
   and cold-load pass as artifact `627b5b69... / f19b8863...`, runtime
   `c296ec99...`, environment `0c47c311...`, sole-Platform Modset
-  `c8dd91e3...`; only the new Human canary remains and no predecessor Human
-  qualification transfers.
+  `c8dd91e3...`; its canary was superseded by the current qualified session.
 
 ## Next meaningful gates
 
-- After exact clean build/install/load, exercise the successor repair with the
-  shortest discriminating canary: Map travel into a genuinely ready Combat,
-  perform no next Human gameplay action, then Close. The Map root must settle
-  once from typed owner-ready evidence with no unresolved lifecycle. Keep
-  unknown UI playable and do not add polling, delay, backfill or transfer
-  predecessor Human evidence.
+- PR #6 current candidate is Human-qualified: artifact `2382b3dd... /
+  b1a7d1f1...`, runtime `a00b1852...`, environment `c9cc1a5d...`, and Modset
+  `79bdf7ca...`. Session `session-20260901T061040Z-561a204be0bc422da5809e1ec5c148aa`
+  passes strict V2, modern 25/25, Map 7/7 and owner-ready 5/5 with no
+  unresolved transition or close-drain timeout. Remaining work is evidence and
+  PR closeout; broader Full-Run domains remain outside this qualification.
 
 Use `npm run project:context` to start a task and
 `npm run project:closeout` to surface likely documentation, evidence, contract,

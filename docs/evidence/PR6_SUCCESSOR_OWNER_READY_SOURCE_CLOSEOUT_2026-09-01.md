@@ -2,7 +2,7 @@
 
 Date: 2026-09-01  
 Evidence level: exact-native inspection, source, deterministic tests, exact
-clean build, safe install and cold-load. Human qualification is pending.
+clean build, safe install, cold-load and owner-attested Human qualification.
 
 ## Counterexample and root cause
 
@@ -52,31 +52,34 @@ Shop, Event, Rest, Run Entry and non-Combat terminal transitions still require
 typed domain adapters/seams. This repair does not require them to modify root
 identity, global admission, Commit semantics, completion ledgers or Close.
 
-## Automated evidence and next gate
+## Automated and Human evidence
 
-Annotator Core passes 121 tests, including missing/mismatched/incomplete owner
+Annotator Core passes 122 tests, including missing/mismatched/incomplete owner
 evidence and owner-ready-versus-next-root double settlement. The persisted
 root/Commit/owner-ready path audits end to end. Game-Mod boundary tests pass 45
 tests and exact compilation resolves the private shipped method with zero
 warnings. Root portable and exact-game checks pass.
 
-Clean build workspace `7dd4e5a34c0e426ba54d2baf02420d8e0db08691`
+Clean build workspace `db083c7d74d5389670a73a3fca0d59a3a629ae79`
 contains semantic source `c1b3144f07ba210c7f7064087d0d37bb3c9a2e66`.
 The unified artifact is
-`627b5b6980c8477bbfd42631140e18dd75177299c2c84ff650854024fbae4858 /
-f19b8863-a15f-4574-89ac-68954fee5944`. Safe install and cold-load pass in
-Connector runtime `c296ec997abd4d7dbbfbfa1ec74596f1`, environment
-`0c47c311da4d775232e9e920a70044a5f5ca4aad38555fefe82b5313f332816e`,
+`2382b3dd01be009731fdfa02a5f936986487163042a7b4614cc931c3bf6a4f8 /
+b1a7d1f1-6f38-4501-a1ef-9a642d40df53`. Safe install and cold-load pass in
+Connector runtime `a00b1852fcd44c8b9c489233c78301c0`, environment
+`c9cc1a5dadbaa9efa64425fb6925818688d0d05972d3daaa2c1e0e553fdb3d2f`,
 and exact sole-Platform Modset
-`c8dd91e3283d347f17f886b9ad81063ccb9660dc3d4637cffb8b02b5763d67ce`.
+`79bdf7caa3c176fff995c980c350c79cb8a88ecd2b6854481b5873bf0502725e`.
 Recorder is Ready with no open session. Rollback is
-`apps/game-mod/.local/deployments/2026-09-01T05-17-12.536Z`. Startup contains
-no Platform, Harmony, Native Foundation or Annotator error.
+`apps/game-mod/.local/deployments/2026-09-01T06-02-50.002Z`.
 
-Because production bytes changed, prior Human sessions remain historical
-evidence only. The shortest new gate is exact Map travel into Combat, wait until
-cards/end-turn are genuinely usable, perform no next Human gameplay action,
-then Close. The Map root must contain typed owner-ready evidence, become one
-canonical transition, and Close with no unresolved lifecycle. One ordinary
-continuous action afterward in a separate short recording is the bounded
-double-settlement regression.
+Human session `session-20260901T061040Z-561a204be0bc422da5809e1ec5c148aa`
+(`timeline-bf658853dc0b4ab7beb132240ee0a7e3`) passes strict V2 with 93 valid
+records, modern semantic calibration 25/25, Map 7/7 canonical and typed
+owner-ready evidence 5/5 complete. It has zero unresolved transitions and no
+`recording_close_drain_timeout`; 36 invalidations are recorded (35 serialized
+overlap, 1 pre-frame capture) without audit-invalid records. Human origin and
+non-interference remain owner-attested, not machine-proven.
+
+No predecessor evidence was transferred; this session exercised the exact
+artifact/runtime identity above. Broader Full-Run domains remain outside the
+PR #6 Human qualification claim.

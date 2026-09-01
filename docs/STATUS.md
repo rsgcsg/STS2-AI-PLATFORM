@@ -126,22 +126,22 @@ no-next-Human-input Map canary is the only remaining qualification gate. Prior
 Human evidence does not transfer to these bytes. See the [successor owner-ready
 closeout](evidence/PR6_SUCCESSOR_OWNER_READY_SOURCE_CLOSEOUT_2026-09-01.md).
 
-A fresh exact clean build is now available as game-Mod artifact
-`f9f616dafe6aa4f7733c81caad3a79ddbe771adbb7b9e46bd79c310138d8efc2 /
-2b2de33c-9f01-41f4-906e-c73cf7d283a2`, with Connector
-`6215718eafb3bc16042d4b94bb0bf6acafaadc7c4aa09ce2dd35010bf4c9aeb9 /
-cb205b8e-95b0-483f-877d-b2747f402e68` and Annotator
-`d915c0e14fc1989c97a778a8d1652450c69cf8028a019191916c4b32d23b9ddd /
-47130865-befc-405e-9b2d-379730c9a2bf`, against STS2
-`v0.111.0 / 41cef1ea` and game assembly
-`9cb4f1ad... / 57785517...`. These are source/build candidates only: they
-are installed and cold-loaded in runtime `e64e508d...` with environment
-`8002d9e3...`, sole `STS2_PLATFORM` Modset `207b71f1...`, and rollback
-`apps/game-mod/.local/deployments/2026-08-31T16-40-27.256Z`. Loaded identity
-matches the artifact exactly. They have not been Human-exercised; a fresh exact
-runtime canary covering all four families remains required.
+The latest exact Human-qualified candidate is game-Mod artifact
+`2382b3dd01be009731fdfa02a5f936986487163042a7b4614cc931c3bf6a4f8e /
+b1a7d1f1-6f38-4501-a1ef-9a642d40df53`, built from PR #6 head
+`20b6a6c6adbc2b53ee7a65a29a4f73b412615f0e` (annotator source
+`3ed0a669...`). It is loaded in runtime `a00b1852fcd44c8b9c489233c78301c0`,
+environment `c9cc1a5d...`, exact sole-Platform Modset
+`79bdf7caa3c176fff995c980c350c79cb8a88ecd2b6854481b5873bf0502725e`, with
+rollback `apps/game-mod/.local/deployments/2026-09-01T06-02-50.002Z`.
+Human session `session-20260901T061040Z-561a204be0bc422da5809e1ec5c148aa`
+passes strict V2 (93 valid records), modern semantic 25/25, Map 7/7 and
+owner-ready 5/5; there are no unresolved transitions or close-drain timeout.
+This is owner-attested Human evidence; machine audit does not prove Human
+origin or non-interference.
 
-The latest PR #6 causal-evidence repair supersedes that candidate. It makes the
+Historical PR #6 causal-evidence repair was superseded by the current candidate
+above. It made the
 semantic timeline the sole modern accounting authority and separates Human
 Root, Native Commit, and Successor Boundary. Async tasks retain exact root and
 owner/operand/lineage identity beyond the UI scope; shared completion methods
@@ -149,9 +149,9 @@ derive family from the matched root. `GameAction.Finished` and Task completion
 prove Commit only, while `S'` requires a native owner-ready, PlayerChoice, or
 next-root pre-execution boundary. Legacy native-ledger bytes remain strict-V2
 compatibility, and the discriminator remains diagnostic. Clean artifact
-`b637d380... / 9286ca51...` is installed and cold-loaded in runtime
+`b637d380... / 9286ca51...` was installed and cold-loaded in runtime
 `583ab4e5...`, environment `ea08bd5d...`, sole-Platform Modset `30b507c5...`.
-Source/tests/build/load pass; fresh Human qualification is pending and no
+Source/tests/build/load passed; its Human qualification was superseded and no
 predecessor evidence transfers. See [ADR 0005](adr/0005-human-root-commit-successor-evidence.md)
 and the updated [source closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
 
