@@ -204,6 +204,6 @@ public sealed class SemanticTransitionProjectionTests
         "sts2.player-environment/1",
         "runtime-test",
         new string('e', 64),
-        "exact_recording_modset",
+        "exact_platform_modset",
         new string('3', 64));
 }
