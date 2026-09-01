@@ -253,7 +253,6 @@ public sealed class SemanticBoundaryTracker
                 entry,
                 "human_observation_recorded",
                 detail: "The Human observation is retained separately; acceptance does not establish semantic S.",
-                humanObservation: humanObservation,
                 nonClaims: new[] { "acceptance_does_not_bind_semantic_pre" })
         };
     }
@@ -744,7 +743,6 @@ public sealed class SemanticBoundaryTracker
         FrozenDecisionFrameV2? semanticPre = null,
         FrozenDecisionFrameV2? semanticSuccessor = null,
         string? detail = null,
-        FrozenDecisionFrameV2? humanObservation = null,
         IReadOnlyList<string>? nonClaims = null) =>
         new(
             kind,
@@ -757,7 +755,8 @@ public sealed class SemanticBoundaryTracker
             detail,
             nonClaims)
         {
-            HumanObservation = humanObservation,
+            HumanObservation = entry.HumanObservation,
+            NativeCompletion = entry.NativeCommit,
             ExecutionSemanticActionSpace = entry.ExecutionSemanticActionSpace
         };
 }

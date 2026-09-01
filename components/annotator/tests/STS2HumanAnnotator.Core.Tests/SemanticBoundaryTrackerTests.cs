@@ -215,6 +215,65 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
+    public void DraftProjectionCarriesEntryEvidenceAcrossLifecycleAndSettlement()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference action = Action("a1", 1) with
+        {
+            RequiresNativePostCommit = true
+        };
+        FrozenDecisionFrameV2 humanObservation = State("human-s0");
+        ExecutionSemanticActionSpaceEvidence actionSpace = new(
+            ExecutionSemanticActionSpaceContract.SchemaVersion,
+            ExecutionSemanticActionSpaceContract.Schema,
+            action.ActionWitnessId,
+            "before_execution",
+            "captured",
+            "combat_play_phase",
+            new string('a', 64),
+            JsonNode.Parse("{\"turn\":1}")!,
+            new string('b', 64),
+            new[]
+            {
+                new ExecutionSemanticAction(
+                    "play|card-a1|",
+                    "play",
+                    "card-a1",
+                    new Dictionary<string, string>(),
+                    "native-test")
+            },
+            "play|card-a1|",
+            "exact_once",
+            1,
+            new[] { "native-test" },
+            new[] { "not_public_delivery_authority" },
+            null);
+
+        SemanticBoundaryTraceDraft accepted = Assert.Single(
+            tracker.Accept(action, humanObservation));
+        SemanticBoundaryObservation execution = Boundary("s0", action.ActionWitnessId) with
+        {
+            ExecutionSemanticActionSpace = actionSpace
+        };
+        tracker.ObserveBeforeActionExecution(action.ActionWitnessId, execution);
+        tracker.Started(action.ActionWitnessId);
+        tracker.Finished(action.ActionWitnessId);
+        NativeCompletionEvidence completion = Completion(action.ActionWitnessId);
+        SemanticBoundaryTraceDraft committed = Assert.Single(
+            tracker.ObserveNativeCommit(action.ActionWitnessId, completion));
+        SemanticBoundaryTraceDraft proved = Assert.Single(
+            tracker.ObserveDecisionBoundary(PostCommitBoundary("s1")));
+
+        Assert.Same(humanObservation, accepted.HumanObservation);
+        Assert.Same(humanObservation, committed.HumanObservation);
+        Assert.Same(humanObservation, proved.HumanObservation);
+        Assert.Same(completion, committed.NativeCompletion);
+        Assert.Same(completion, proved.NativeCompletion);
+        Assert.Same(actionSpace, committed.ExecutionSemanticActionSpace);
+        Assert.Same(actionSpace, proved.ExecutionSemanticActionSpace);
+    }
+
+    [Fact]
     public void UnknownPreDoesNotPoisonACompleteLaterExecutionBoundary()
     {
         var tracker = new SemanticBoundaryTracker();

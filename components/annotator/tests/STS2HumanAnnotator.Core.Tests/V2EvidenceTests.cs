@@ -1018,6 +1018,221 @@ public sealed class V2EvidenceTests
     }
 
     [Fact]
+    public void TrackerSettlementProjectsDurableDecisionAndCanonicalEvidence()
+    {
+        string root = Temp("tracker-settlement-projection");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            RecordingManifestV2 manifest = Manifest(profile);
+            string session;
+            using (V2RecordingStore store = V2RecordingStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                HumanDecisionRecord source = RecordValidationTests.ValidRecord();
+                HumanDecisionRecordV2 seed = V2Record(
+                    source,
+                    (PersistReads(store, source.Pre.SnapshotId),
+                        PersistReads(store, source.Successor.SnapshotId)));
+                FrozenDecisionFrameV2 humanObservation = seed.Pre;
+                FrozenDecisionFrameV2 successor = new(
+                    seed.Successor.SnapshotId,
+                    seed.Successor.InteractionId,
+                    seed.Successor.InteractionKind,
+                    seed.Pre.SurfaceSchema,
+                    seed.Pre.CatalogDigest,
+                    seed.Pre.CatalogCount,
+                    seed.Successor.Snapshot,
+                    seed.Successor.Reads);
+                SemanticActionReference action = new(
+                    "tracker-settlement-action",
+                    source.Sequence,
+                    source.RecordId,
+                    source.RunId,
+                    source.NativeWitness.NativeActionType,
+                    null,
+                    humanObservation.SnapshotId)
+                {
+                    NativeMechanism = "game_action",
+                    RequiresNativePostCommit = true,
+                    NativeWitness = source.NativeWitness,
+                    Mapping = source.Mapping,
+                    BoundAction = source.Action
+                };
+                string semanticKey =
+                    $"{source.Action.Verb}|{source.Action.SubjectReferentId ?? "-"}|";
+                var actionSpace = new ExecutionSemanticActionSpaceEvidence(
+                    ExecutionSemanticActionSpaceContract.SchemaVersion,
+                    ExecutionSemanticActionSpaceContract.Schema,
+                    action.ActionWitnessId,
+                    "before_execution",
+                    "captured",
+                    "combat_play_phase",
+                    new string('a', 64),
+                    JsonNode.Parse("{\"turn\":1}")!,
+                    new string('b', 64),
+                    new[]
+                    {
+                        new ExecutionSemanticAction(
+                            semanticKey,
+                            source.Action.Verb,
+                            source.Action.SubjectReferentId,
+                            source.Action.Arguments,
+                            "native_test_validator")
+                    },
+                    semanticKey,
+                    "exact_once",
+                    1,
+                    new[] { "native_test_validator" },
+                    new[] { "not_public_delivery_authority" },
+                    null);
+                var tracker = new SemanticBoundaryTracker();
+                var drafts = new List<SemanticBoundaryTraceDraft>();
+                drafts.AddRange(tracker.Accept(action, humanObservation));
+                drafts.AddRange(tracker.ObserveBeforeActionExecution(
+                    action.ActionWitnessId,
+                    new SemanticBoundaryObservation(
+                        SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
+                        DateTimeOffset.UnixEpoch,
+                        humanObservation.SnapshotId,
+                        "settling",
+                        "complete",
+                        humanObservation.InteractionId,
+                        humanObservation.InteractionKind,
+                        humanObservation,
+                        action.ActionWitnessId)
+                    {
+                        ExecutionSemanticActionSpace = actionSpace
+                    }));
+                drafts.AddRange(tracker.Started(action.ActionWitnessId));
+                drafts.AddRange(tracker.Finished(action.ActionWitnessId));
+                NativeCompletionEvidence completion = new(
+                    "tracker-settlement-completion",
+                    "ordinary_combat",
+                    "native.test.commit",
+                    action.ActionWitnessId,
+                    "task-tracker-settlement",
+                    "owner-tracker-settlement",
+                    "operand-tracker-settlement",
+                    null,
+                    true);
+                drafts.AddRange(tracker.ObserveNativeCommit(action.ActionWitnessId, completion));
+                IReadOnlyList<SemanticBoundaryTraceDraft> provedDrafts =
+                    tracker.ObserveDecisionBoundary(
+                        new SemanticBoundaryObservation(
+                            SemanticBoundaryWitnessKinds.NativeDecisionOwnerReady,
+                            DateTimeOffset.UnixEpoch.AddSeconds(1),
+                            successor.SnapshotId,
+                            "interactive",
+                            "complete",
+                            successor.InteractionId,
+                            successor.InteractionKind,
+                            successor,
+                            null)
+                        {
+                            NativeDecisionOwnerReady = new NativeDecisionOwnerReadyEvidence(
+                                successor.InteractionKind,
+                                "owner-tracker-settlement",
+                                "CombatState",
+                                "native.test.owner-ready")
+                        });
+                SemanticBoundaryTraceDraft proved = Assert.Single(provedDrafts);
+                drafts.AddRange(provedDrafts);
+
+                Assert.Same(humanObservation, proved.HumanObservation);
+                Assert.Same(completion, proved.NativeCompletion);
+                Assert.Same(actionSpace, proved.ExecutionSemanticActionSpace);
+
+                var semanticEvents = new List<SemanticEvidenceEvent>(drafts.Count);
+                long sequence = 0;
+                foreach (SemanticBoundaryTraceDraft draft in drafts)
+                {
+                    SemanticFrameReference? humanRef = draft.HumanObservation == null
+                        ? null
+                        : store.PersistSemanticFrame(draft.HumanObservation);
+                    SemanticFrameReference? preRef = draft.SemanticPre == null
+                        ? null
+                        : store.PersistSemanticFrame(draft.SemanticPre);
+                    SemanticFrameReference? successorFrameRef = draft.SemanticSuccessor == null
+                        ? null
+                        : store.PersistSemanticFrame(draft.SemanticSuccessor);
+                    ExecutionSemanticActionSpaceReference? actionSpaceRef =
+                        draft.ExecutionSemanticActionSpace == null
+                            ? null
+                            : store.PersistExecutionSemanticActionSpace(
+                                draft.ExecutionSemanticActionSpace);
+                    semanticEvents.Add(new SemanticEvidenceEvent(
+                        SemanticEvidenceContract.SchemaVersion,
+                        SemanticEvidenceContract.EventSchema,
+                        $"tracker-semantic-event-{++sequence}",
+                        manifest.SessionId,
+                        manifest.TimelineId,
+                        draft.Action.RunId,
+                        sequence,
+                        DateTimeOffset.UnixEpoch.AddMilliseconds(sequence),
+                        draft.Kind,
+                        draft.Action,
+                        draft.ProofStatus,
+                        draft.RelatedActionWitnessId,
+                        draft.Boundary == null
+                            ? null
+                            : SemanticBoundaryObservationCodec.Encode(
+                                draft.Boundary,
+                                store.PersistSemanticFrame),
+                        preRef,
+                        successorFrameRef,
+                        draft.Detail,
+                        draft.NonClaims ?? Array.Empty<string>())
+                    {
+                        HumanObservationRef = humanRef,
+                        NativeCompletion = draft.NativeCompletion,
+                        ExecutionSemanticActionSpaceRef = actionSpaceRef
+                    });
+                }
+                store.AppendSemanticEvidenceEvents(semanticEvents);
+
+                HumanDecisionRecordV2 decision = SemanticTransitionProjection.CreateDecision(
+                    proved,
+                    source.Environment,
+                    manifest.SessionId,
+                    manifest.TimelineId,
+                    profile.ProfileId);
+                store.AppendDecision(decision);
+                SemanticFrameReference preStateRef = store.PersistSemanticFrame(proved.SemanticPre!);
+                SemanticFrameReference successorRef = store.PersistSemanticFrame(
+                    proved.SemanticSuccessor!);
+                ExecutionSemanticActionSpaceReference canonicalActionSpaceRef =
+                    store.PersistExecutionSemanticActionSpace(
+                        proved.ExecutionSemanticActionSpace!);
+                store.AppendCanonicalTransition(SemanticTransitionProjection.CreateCanonical(
+                    proved,
+                    preStateRef,
+                    successorRef,
+                    canonicalActionSpaceRef,
+                    manifest.SessionId,
+                    manifest.TimelineId));
+            }
+
+            RecordingAuditResult audit = V2RecordingAuditor.Audit(session);
+            Assert.True(audit.Status == "pass", JsonSerializer.Serialize(audit.Errors));
+            Assert.Single(V2RecordingAuditor.ReadAdmitted(session));
+            Assert.Single(File.ReadLines(Path.Combine(session, "canonical-transitions.jsonl")));
+            JsonObject provedEvent = JsonNode.Parse(
+                    File.ReadLines(Path.Combine(session, "semantic-boundary-trace.jsonl"))
+                        .Single(line => line.Contains("transition_proved", StringComparison.Ordinal)))!
+                .AsObject();
+            Assert.NotNull(provedEvent["human_observation_ref"]);
+            Assert.NotNull(provedEvent["native_completion"]);
+            Assert.NotNull(provedEvent["execution_semantic_action_space_ref"]);
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
     public void ExecutionSemanticActionSpaceRoundTripsIntoCanonicalAudit()
     {
         string root = Temp("execution-semantic-action-space-round-trip");
