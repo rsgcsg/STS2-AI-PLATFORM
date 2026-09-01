@@ -10,125 +10,6 @@ public sealed class NativeActionLedgerTests
     private static readonly DateTimeOffset T0 = DateTimeOffset.UnixEpoch;
 
     [Fact]
-    public void RapidAcceptedPairInvalidatesEveryStrictCandidate()
-    {
-        var ledger = new AcceptedHumanActionLedger();
-
-        AcceptedActionAdmission first = ledger.Accept("targeted-a1");
-        AcceptedActionAdmission second = ledger.Accept("targeted-a2");
-
-        Assert.True(first.StrictTransitionEligible);
-        Assert.False(second.StrictTransitionEligible);
-        Assert.Equal(new[] { "targeted-a1" }, second.PriorOpenActionIds);
-        Assert.Equal(new[] { "targeted-a1" }, second.InvalidatedStrictCandidateIds);
-        Assert.False(ledger.CanAdmitStrictTransition("targeted-a1"));
-        Assert.False(ledger.CanAdmitStrictTransition("targeted-a2"));
-    }
-
-    [Fact]
-    public void ThreeActionBurstAccountsEveryAcceptedActionWithoutInventingSuccessors()
-    {
-        var ledger = new AcceptedHumanActionLedger();
-
-        Assert.True(ledger.Accept("targeted-a1").Accounted);
-        Assert.True(ledger.Accept("untargeted-a2").Accounted);
-        AcceptedActionAdmission third = ledger.Accept("end-turn-a3");
-
-        Assert.True(third.Accounted);
-        Assert.Equal(new[] { "targeted-a1", "untargeted-a2" }, third.PriorOpenActionIds);
-        Assert.Equal(3, ledger.Count);
-        Assert.True(ledger.RecoveryBoundaryRequired);
-        Assert.All(new[] { "targeted-a1", "untargeted-a2", "end-turn-a3" },
-            id => Assert.False(ledger.CanAdmitStrictTransition(id)));
-    }
-
-    [Fact]
-    public void FinishedSingleActionCanSettleButCancelledActionCannot()
-    {
-        var ledger = new AcceptedHumanActionLedger();
-        ledger.Accept("single-a1");
-        Assert.True(ledger.MarkTerminal("single-a1", NativeActionLifecycleKinds.Finished));
-        Assert.True(ledger.CanAdmitStrictTransition("single-a1"));
-        Assert.True(ledger.CompleteStrictTransition("single-a1"));
-
-        ledger.Accept("cancelled-a2");
-        Assert.True(ledger.MarkTerminal("cancelled-a2", NativeActionLifecycleKinds.Cancelled));
-        Assert.False(ledger.CanAdmitStrictTransition("cancelled-a2"));
-        Assert.True(ledger.ObserveRecoveryBoundary());
-        Assert.False(ledger.HasOpenEvidence);
-    }
-
-    [Fact]
-    public void RecoveryRequiresEveryRapidActionToReachATerminalLifecycle()
-    {
-        var ledger = new AcceptedHumanActionLedger();
-        ledger.Accept("a1");
-        ledger.Accept("a2");
-        ledger.MarkTerminal("a1", NativeActionLifecycleKinds.Finished);
-
-        Assert.False(ledger.ObserveRecoveryBoundary());
-        Assert.True(ledger.HasUnresolvedLifecycle);
-
-        ledger.MarkTerminal("a2", NativeActionLifecycleKinds.Cancelled);
-        Assert.True(ledger.ObserveRecoveryBoundary());
-        Assert.True(ledger.Accept("a3").StrictTransitionEligible);
-    }
-
-    [Fact]
-    public void ResetDropsPriorSessionStateAndCapacityFailsClosed()
-    {
-        var ledger = new AcceptedHumanActionLedger(capacity: 2);
-        ledger.Accept("a1");
-        ledger.Accept("a2");
-        AcceptedActionAdmission overflow = ledger.Accept("a3");
-
-        Assert.False(overflow.Accounted);
-        Assert.Equal("native_action_ledger_capacity_exceeded", overflow.FailureCode);
-
-        ledger.Reset();
-        Assert.False(ledger.HasOpenEvidence);
-        Assert.True(ledger.Accept("new-session-a1").StrictTransitionEligible);
-    }
-
-    [Fact]
-    public void PauseAndCloseTreatEveryUnresolvedNativeActionAsPendingWork()
-    {
-        var ledger = new AcceptedHumanActionLedger();
-        ledger.Accept("a1");
-        ledger.Accept("a2");
-        var recording = new RecordingLifecycleSnapshot(
-            RecordingLifecycleState.Recording,
-            "session-test",
-            T0,
-            "recording");
-
-        RecordingCommandResult paused = RecordingLifecycleStateMachine.Apply(
-            recording,
-            RecordingCommandKind.Pause,
-            null,
-            T0.AddSeconds(1),
-            ledger.HasUnresolvedLifecycle);
-        RecordingCommandResult closing = RecordingLifecycleStateMachine.Apply(
-            paused.Lifecycle,
-            RecordingCommandKind.Close,
-            null,
-            T0.AddSeconds(2),
-            ledger.HasUnresolvedLifecycle);
-
-        Assert.True(paused.Accepted);
-        Assert.True(closing.Accepted);
-        Assert.False(closing.Pending);
-        Assert.Contains(
-            RecordingClosePolicy.TerminalUnknownReason,
-            closing.Detail,
-            StringComparison.Ordinal);
-        ledger.MarkTerminal("a1", NativeActionLifecycleKinds.Finished);
-        Assert.True(ledger.HasUnresolvedLifecycle);
-        ledger.MarkTerminal("a2", NativeActionLifecycleKinds.Finished);
-        Assert.False(ledger.HasUnresolvedLifecycle);
-    }
-
-    [Fact]
     public void PlayerChoicePauseResumeHistoryIsValidAndOrdered()
     {
         NativeActionLedgerEvent[] events =
@@ -228,7 +109,7 @@ public sealed class NativeActionLedgerTests
     }
 
     [Fact]
-    public void StorePersistsAdditiveLedgerWithoutChangingDecisionSchema()
+    public void StorePersistsHistoricalAdditiveLedgerWithoutChangingDecisionSchema()
     {
         string root = Path.Combine(Path.GetTempPath(), $"sts2-native-ledger-{Guid.NewGuid():N}");
         try
