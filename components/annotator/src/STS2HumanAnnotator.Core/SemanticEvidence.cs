@@ -29,6 +29,9 @@ public sealed record SemanticBoundaryObservationReference(
     public string StateCompleteness { get; init; } = StateRef == null ? "unavailable" : "complete";
     public string RequiredReadsStatus { get; init; } = StateRef == null ? "unavailable" : "complete";
     public IReadOnlyList<string> StateBlockers { get; init; } = Array.Empty<string>();
+    // Additive schema-3 evidence. Older events deserialize with null and remain
+    // fail-closed for native-decision-owner-ready proofs.
+    public NativeDecisionOwnerReadyEvidence? NativeDecisionOwnerReady { get; init; }
 }
 
 /// <summary>

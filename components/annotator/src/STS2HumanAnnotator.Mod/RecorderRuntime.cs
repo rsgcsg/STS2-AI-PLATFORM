@@ -2347,7 +2347,8 @@ internal static class RecorderRuntime
         {
             StateCompleteness = boundary.StateCompleteness,
             RequiredReadsStatus = boundary.RequiredReadsStatus,
-            StateBlockers = boundary.StateBlockers
+            StateBlockers = boundary.StateBlockers,
+            NativeDecisionOwnerReady = boundary.NativeDecisionOwnerReady
         };
 
     private static void DisableSemanticBoundaryTrace(Exception exception)

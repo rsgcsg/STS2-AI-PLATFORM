@@ -518,7 +518,8 @@ public static class V2RecordingAuditor
             {
                 StateCompleteness = value.Boundary.StateCompleteness,
                 RequiredReadsStatus = value.Boundary.RequiredReadsStatus,
-                StateBlockers = value.Boundary.StateBlockers
+                StateBlockers = value.Boundary.StateBlockers,
+                NativeDecisionOwnerReady = value.Boundary.NativeDecisionOwnerReady
             };
         }
 
