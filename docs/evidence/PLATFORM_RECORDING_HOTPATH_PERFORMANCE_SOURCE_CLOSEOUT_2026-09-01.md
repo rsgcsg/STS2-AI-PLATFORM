@@ -1,8 +1,8 @@
 # Platform Recording Hot-Path Performance Source Closeout
 
-Date: 2026-09-01  
-Base: `develop@2e1a5b67eef25faa897602d237a16b6698127af0`  
-Implementation source: `4b4e1f7e7bad7108f73863262364b8e385fc8412`  
+Date: 2026-09-01
+Base: `develop@2e1a5b67eef25faa897602d237a16b6698127af0`
+Implementation source: `4b4e1f7e7bad7108f73863262364b8e385fc8412`
 Evidence level: source, tests, exact build, installed and loaded for the predecessor
 performance candidate; the Close-boundary follow-up below is source/test/exact-build
 only and requires a fresh Human session for runtime qualification.
