@@ -85,6 +85,20 @@ Connector projection, and Treasure public verbs are aligned without exposing
 the private room owner. See the [completion-lineage source
 closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
 
+The latest two same-bytes macOS Human sessions narrowed the remaining PR #6
+gate to CardReward and Treasure lifecycle seams rather than a global Reward or
+Map failure. CardReward nested input arrived while the parent reward Task was
+still intentionally suspended. Treasure relics were pre-generated before the
+chest opened, and `GetPlayerVote` exposed a predicted local vote before
+`PickRelicAction` reached native Commit. Current source therefore commits a
+CardReward parent at exact child-owner creation, classifies unopened Treasure
+independently of `CurrentRelics`, and observes exact
+`TreasureRoomRelicSynchronizer.OnPicked` Commit. The existing Root/Commit/later
+Successor model remains sufficient; only its domain seams changed. The bounded
+Recorder audit also adds separate timings for discriminator fallback Snapshot
+capture versus already-captured-frame projection. It makes no latency or
+regression claim. See the [qualification repair source closeout](evidence/PR6_HUMAN_QUALIFICATION_REPAIR_SOURCE_CLOSEOUT_2026-09-01.md).
+
 A fresh exact clean build is now available as game-Mod artifact
 `f9f616dafe6aa4f7733c81caad3a79ddbe771adbb7b9e46bd79c310138d8efc2 /
 2b2de33c-9f01-41f4-906e-c73cf7d283a2`, with Connector

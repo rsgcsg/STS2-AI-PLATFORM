@@ -15,6 +15,7 @@ using MegaCrit.Sts2.Core.Nodes.Rewards;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Nodes.Screens;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
+using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
 using MegaCrit.Sts2.Core.Nodes.Screens.Map;
 using MegaCrit.Sts2.Core.Nodes.Screens.TreasureRoomRelic;
 using MegaCrit.Sts2.Core.Nodes.Rooms;
@@ -697,13 +698,16 @@ internal static class NativeRewardClaimStartPatch
                     "activate",
                     __instance.Reward,
                     new Dictionary<string, object>(StringComparer.Ordinal)),
-                new NativePostCommitCompletionExpectation(
-                    "reward_claim",
-                    "RewardsSetSynchronizer.SelectLocalReward",
-                    NativeOperandWitnessId: NativeWitnessIdentity.Get(
-                        __instance.Reward,
-                        "native_operand")));
+                RewardClaimCompletion(__instance.Reward));
     }
+
+    private static NativePostCommitCompletionExpectation RewardClaimCompletion(Reward reward) =>
+        new(
+            "reward_claim",
+            reward is CardReward
+                ? "NCardRewardSelectionScreen.ShowScreen"
+                : "RewardsSetSynchronizer.SelectLocalReward",
+            NativeOperandWitnessId: NativeWitnessIdentity.Get(reward, "native_operand"));
 
     private static void Postfix(NRewardButton __instance, NativeUiScopeEntry __state)
     {
@@ -723,6 +727,17 @@ internal static class NativeRewardClaimStartPatch
                 DateTimeOffset.UtcNow),
             captureImmediatePostCommitBoundary: false,
             actionWitnessId: __state.ActionWitnessId);
+        if (__instance.Reward is CardReward reward
+            && __state.ActionWitnessId is { } actionWitnessId
+            && NOverlayStack.Instance?.Peek() is NCardRewardSelectionScreen screen)
+        {
+            RecorderRuntime.ObserveSemanticUiNativeCommit(
+                actionWitnessId,
+                "reward_claim",
+                "NCardRewardSelectionScreen.ShowScreen",
+                nativeOwner: screen,
+                nativeOperand: reward);
+        }
     }
 
     private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
@@ -873,10 +888,18 @@ internal static class NativeRewardClaimCompletionPatch
     private static void Postfix(
         RewardsSetSynchronizer __instance,
         [HarmonyArgument(0)] Reward reward,
-        Task<bool> __result) =>
+        Task<bool> __result)
+    {
+        // CardReward opens a nested native decision before SelectLocalReward's
+        // Task can complete. That exact ShowScreen owner is the claim Commit;
+        // the Task remains the later business outcome and must not block the
+        // child Human decision.
+        if (reward is CardReward)
+            return;
         RecorderRuntime.QueueNativePostCommitBoundary(
             __result,
             "RewardsSetSynchronizer.SelectLocalReward",
             nativeOwner: __instance,
             nativeOperand: reward);
+    }
 }

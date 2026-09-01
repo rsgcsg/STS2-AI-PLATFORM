@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes.Rooms;
 using MegaCrit.Sts2.Core.Rooms;
@@ -27,6 +28,7 @@ public static class NativeTreasureDecisionProvider
         public TreasureRoom Room { get; } = room;
         public IRunState RunState { get; } = runState;
         public bool ChestOpeningObserved { get; set; }
+        public bool LocalRelicVoteCommitted { get; set; }
     }
 
     private static readonly ConditionalWeakTable<NTreasureRoom, Owner> Owners = new();
@@ -44,6 +46,18 @@ public static class NativeTreasureDecisionProvider
     {
         if (Owners.TryGetValue(screen, out Owner? owner))
             owner.ChestOpeningObserved = true;
+    }
+
+    public static void ObserveRelicPickCommitted(
+        NTreasureRoom screen,
+        Player player)
+    {
+        if (Owners.TryGetValue(screen, out Owner? owner)
+            && owner.RunState.Players.Count == 1
+            && ReferenceEquals(owner.RunState.Players[0], player))
+        {
+            owner.LocalRelicVoteCommitted = true;
+        }
     }
 
     public static NativeTreasureDecision Capture(
@@ -78,20 +92,12 @@ public static class NativeTreasureDecisionProvider
 
             IReadOnlyList<RelicModel>? currentRelics =
                 RunManager.Instance.TreasureRoomRelicSynchronizer.CurrentRelics;
-            bool localVoteReceived = false;
-            if (collectionOpen && currentRelics != null)
-            {
-                localVoteReceived = RunManager.Instance.TreasureRoomRelicSynchronizer
-                    .GetPlayerVote(owner.RunState.Players[0])
-                    .voteReceived;
-            }
-
             string stage = ClassifyStage(
                 chestOpened,
                 collectionOpen,
                 owner.ChestOpeningObserved,
                 currentRelics,
-                localVoteReceived);
+                owner.LocalRelicVoteCommitted);
             RelicModel[] relics = currentRelics?.ToArray() ?? Array.Empty<RelicModel>();
             string roomId = identities.GetId(owner.Room, "treasure_room");
             var actions = new List<NativeSemanticAction>();
@@ -140,7 +146,7 @@ public static class NativeTreasureDecisionProvider
                     "NTreasureRoom.Create exact TreasureRoom+IRunState owner",
                     "NTreasureRoom._hasChestBeenOpened+_isRelicCollectionOpen",
                     "NTreasureRoom.OnChestButtonReleased accepted callback",
-                    "TreasureRoomRelicSynchronizer.CurrentRelics+GetPlayerVote"
+                    "TreasureRoomRelicSynchronizer.CurrentRelics+OnPicked Commit"
                 },
                 actions.Count == 0
                     ? $"The treasure lifecycle is {stage}; no Human decision is open."
@@ -159,17 +165,17 @@ public static class NativeTreasureDecisionProvider
         bool collectionOpen,
         bool chestOpeningObserved,
         IReadOnlyList<RelicModel>? currentRelics,
-        bool localVoteReceived)
+        bool localVoteCommitted)
     {
         if (!chestOpened)
         {
-            return chestOpeningObserved || currentRelics != null
+            return chestOpeningObserved
                 ? "opening"
                 : "closed";
         }
         if (!collectionOpen)
             return "completed";
-        return currentRelics is { Count: 1 } && !localVoteReceived
+        return currentRelics is { Count: 1 } && !localVoteCommitted
             ? "relic_choice"
             : "resolving";
     }

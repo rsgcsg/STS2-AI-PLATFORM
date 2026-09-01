@@ -619,6 +619,59 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
+    public void CardRewardOwnerCommitOpensTheExactChildDecision()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference claim = Action(
+            "reward-claim",
+            1,
+            "NRewardButton.OnRelease") with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(claim, State("reward-s0", "reward_claim"));
+        tracker.ObserveBeforeActionExecution(
+            claim.ActionWitnessId,
+            Boundary("reward-s0", claim.ActionWitnessId, "reward_claim"));
+        tracker.Started(claim.ActionWitnessId);
+        tracker.Finished(claim.ActionWitnessId);
+        tracker.ObserveNativeCommit(
+            claim.ActionWitnessId,
+            new NativeCompletionEvidence(
+                "card-owner-ready",
+                "reward_claim",
+                "NCardRewardSelectionScreen.ShowScreen",
+                claim.ActionWitnessId,
+                null,
+                "card-reward-screen",
+                "card-reward",
+                null,
+                true));
+
+        Assert.True(tracker.CanOpenNextRoot);
+
+        SemanticActionReference select = Action(
+            "card-select",
+            2,
+            "NCardRewardSelectionScreen.SelectCard") with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(select, State("cards-s1", "card_reward_selection"));
+        IReadOnlyList<SemanticBoundaryTraceDraft> handoff =
+            tracker.ObserveBeforeActionExecution(
+                select.ActionWitnessId,
+                Boundary("cards-s1", select.ActionWitnessId, "card_reward_selection"));
+
+        SemanticBoundaryTraceDraft proved = Assert.Single(
+            handoff,
+            value => value.Action.ActionWitnessId == claim.ActionWitnessId
+                     && value.Kind == SemanticBoundaryTraceKinds.TransitionProved);
+        Assert.Equal("reward-s0", proved.SemanticPre!.SnapshotId);
+        Assert.Equal("cards-s1", proved.SemanticSuccessor!.SnapshotId);
+    }
+
+    [Fact]
     public void FailedNativeCompletionIsAccountedWithoutAFalseSuccessor()
     {
         var tracker = new SemanticBoundaryTracker();

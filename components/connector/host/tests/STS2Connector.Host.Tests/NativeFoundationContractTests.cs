@@ -207,7 +207,7 @@ public sealed class NativeFoundationContractTests
     [Theory]
     [InlineData(false, false, false, false, false, "closed")]
     [InlineData(false, false, true, false, false, "opening")]
-    [InlineData(false, false, false, true, false, "opening")]
+    [InlineData(false, false, false, true, false, "closed")]
     [InlineData(true, true, true, true, false, "relic_choice")]
     [InlineData(true, true, true, true, true, "resolving")]
     [InlineData(true, true, true, false, false, "resolving")]
@@ -217,7 +217,7 @@ public sealed class NativeFoundationContractTests
         bool collectionOpen,
         bool chestOpeningObserved,
         bool hasRelicCollection,
-        bool localVoteReceived,
+        bool localVoteCommitted,
         string expected)
     {
         IReadOnlyList<MegaCrit.Sts2.Core.Models.RelicModel>? relics =
@@ -230,7 +230,7 @@ public sealed class NativeFoundationContractTests
             collectionOpen,
             chestOpeningObserved,
             relics,
-            localVoteReceived));
+            localVoteCommitted));
     }
 
     [Fact]

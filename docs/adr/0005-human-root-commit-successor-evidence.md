@@ -64,11 +64,16 @@ the callback does not hard-code it.
 A root receives a `Native Commit` only from its exact STS2 operation:
 
 - the domain-proved successful native lifecycle point for a `GameAction`; or
-- successful completion of the exact bound native task.
+- successful completion of the exact bound native task; or
+- creation of an exact nested native decision owner when STS2 deliberately
+  suspends the parent task until that child decision completes.
 
-UI callbacks, discriminator observations, and delivery receipts do not prove
-Commit. Cancelled, faulted, stale, unmatched, or ambiguous operations fail
-closed.
+The CardReward claim is the concrete third case: successful
+`NCardRewardSelectionScreen.ShowScreen` owner creation commits the parent claim
+before the child Human selection, while `SelectLocalReward` remains a later
+business completion. Generic UI callbacks, discriminator observations, and
+delivery receipts do not prove Commit. Cancelled, faulted, stale, unmatched,
+or ambiguous operations fail closed.
 
 ### Successor rule
 

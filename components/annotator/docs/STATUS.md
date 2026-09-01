@@ -27,6 +27,12 @@ canonical semantic boundary already captures an execution sample, the additive
 discriminator records an explicit lifecycle-only delegation instead of building
 the same semantic snapshot a second time. These changes require a new artifact
 and owner canary; predecessor latency and runtime claims do not transfer.
+The PR #6 qualification audit found that fallback discriminator Snapshots for
+legacy first-execution samples were not included in those profiler totals.
+Current repair source records fallback Snapshot capture separately from the
+cheaper projection of an already captured frame. This is observability only:
+it removes no evidence, changes no Human/semantic authority, and makes no
+latency improvement claim.
 Latest exact session `session-20260829T084437Z-...` rejects the natural observer
 as canonical one-step training authority: 933 accepted actions mechanically
 yield zero canonical rows. The later global serialization candidate is retained

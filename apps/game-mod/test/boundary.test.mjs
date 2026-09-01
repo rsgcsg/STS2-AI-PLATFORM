@@ -199,6 +199,14 @@ test("native lifecycle observation does not materialize a semantic frame", () =>
   );
 });
 
+test("native discriminator profiles fallback snapshots separately from frame projections", () => {
+  const discriminator = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeSemanticDiscriminatorRuntime.cs");
+
+  assert.match(discriminator, /native_semantic_discriminator_snapshot_capture/u);
+  assert.match(discriminator, /native_semantic_discriminator_frame_projection/u);
+  assert.match(discriminator, /uiFrame == null/u);
+});
+
 test("annotator evidence prefixes never become generic STS2 gameplay gates", () => {
   const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
 
@@ -416,6 +424,9 @@ test("treasure semantic stages come from Native Foundation rather than UI public
 
   assert.match(reader, /NativeTreasureDecisionProvider\.Capture/u);
   assert.match(reader, /NativeSemanticActionCatalog\.ContainsExactlyOnce/u);
+  assert.match(provider, /ObserveRelicPickCommitted/u);
+  assert.match(provider, /LocalRelicVoteCommitted/u);
+  assert.doesNotMatch(provider, /GetPlayerVote/u);
   assert.doesNotMatch(provider, /public static bool Contains/u);
   assert.doesNotMatch(reader, /ChestOpenedField|CollectionOpenField|TreasureLifecycleFacts/u);
   assert.match(witness, /NativeTreasureDecisionProvider\.Capture/u);
@@ -430,6 +441,23 @@ test("treasure skip keeps its exact bound family when sharing PickRelicAction", 
     /nativeActionType == nameof\(PickRelicAction\)[\s\S]*?match\?\.BoundAction\?\.Verb[\s\S]*?treasure_room\.skip/u
   );
   assert.match(runtime, /"NTreasureRoom\.OnProceedButtonPressed" => "treasure_room\.proceed"/u);
+});
+
+test("card reward owner creation commits the parent claim before the child decision", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+
+  assert.match(
+    patches,
+    /reward is CardReward[\s\S]*?NCardRewardSelectionScreen\.ShowScreen/u
+  );
+  assert.match(
+    patches,
+    /ObserveSemanticUiNativeCommit\([\s\S]*?"reward_claim"[\s\S]*?"NCardRewardSelectionScreen\.ShowScreen"/u
+  );
+  assert.match(
+    patches,
+    /if \(reward is CardReward\)[\s\S]*?return;[\s\S]*?QueueNativePostCommitBoundary/u
+  );
 });
 
 test("Native Foundation remains semantic-only and Ritsu-free", () => {

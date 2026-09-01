@@ -72,15 +72,17 @@ The durable result is in the
 - The Native Foundation Human gate is complete for its bounded scope. It is not
   exhaustive Full-Run qualification. PR #6's restacked bytes have no inherited
   runtime or Human qualification.
-- PR #6 source `f320ef6...` now separates Human Root, exact Native Commit and
-  later Successor Boundary. Clean artifact `b637d380... / 9286ca51...` is
-  installed and cold-loaded with sole `STS2_PLATFORM`; Human qualification of
-  Map/Reward/CardReward/Treasure remains pending.
+- PR #6 predecessor source `f320ef6...` separated Human Root, exact Native
+  Commit and later Successor Boundary. Its same-bytes Human sessions prove
+  Reward and Map stable but expose CardReward nested-owner and Treasure
+  pre-generated/predicted-state seam defects. Current repair source uses exact
+  CardReward `ShowScreen` owner creation and Treasure `OnPicked` Commit; it has
+  no inherited runtime or Human qualification.
 
 ## Next meaningful gates
 
-- Exercise the loaded PR #6 artifact through representative
-  Map/Reward/CardReward/Treasure decisions and one natural rapid case. Keep unknown UI
+- After exact clean build/install/load, exercise the repaired PR #6 artifact
+  through the shortest CardReward and Treasure canary plus one Map handoff. Keep unknown UI
   playable and fail evidence closed; do not restore global UI serialization,
   add natural observer polling, or transfer predecessor Human evidence.
 

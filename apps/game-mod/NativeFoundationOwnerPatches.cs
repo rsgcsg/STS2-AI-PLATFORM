@@ -2,6 +2,9 @@ using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Entities.CardRewardAlternatives;
 using MegaCrit.Sts2.Core.Entities.Cards;
+using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.Multiplayer.Game;
+using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Nodes.Screens;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 using MegaCrit.Sts2.Core.Nodes.Rooms;
@@ -67,6 +70,15 @@ internal static class NativeFoundationOwnerPatches
             AccessTools.Method(
                 typeof(NativeTreasureChestPatch),
                 nameof(NativeTreasureChestPatch.Postfix)));
+        PatchPostfix(
+            harmony,
+            AccessTools.Method(
+                typeof(TreasureRoomRelicSynchronizer),
+                nameof(TreasureRoomRelicSynchronizer.OnPicked),
+                new[] { typeof(Player), typeof(int?) }),
+            AccessTools.Method(
+                typeof(NativeTreasureRelicCommitPatch),
+                nameof(NativeTreasureRelicCommitPatch.Postfix)));
         _initialized = true;
     }
 
@@ -112,6 +124,23 @@ internal static class NativeTreasureChestPatch
         catch (Exception exception)
         {
             GD.PrintErr($"[STS2 Platform] native treasure lifecycle observation failed: {exception}");
+        }
+    }
+}
+
+internal static class NativeTreasureRelicCommitPatch
+{
+    internal static void Postfix(Player player)
+    {
+        if (NRun.Instance?.TreasureRoom is not { } screen)
+            return;
+        try
+        {
+            NativeTreasureDecisionProvider.ObserveRelicPickCommitted(screen, player);
+        }
+        catch (Exception exception)
+        {
+            GD.PrintErr($"[STS2 Platform] native treasure relic Commit observation failed: {exception}");
         }
     }
 }

@@ -105,7 +105,7 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 | Presentation owner | `NRewardsScreen`, `NRewardButton`, potion popup and `NProceedButton` |
 | Delivery seam | exact reward button callback, `DiscardPotionGameAction`, or Proceed control |
 | Exact binding | public referent binds the process-local `Reward` or `PotionModel`; Connector resolves one current button/slot only for delivery |
-| Lifecycle | exact bound claim/proceed Task completion proves Commit; claim may open CardReward or another nested selection |
+| Lifecycle | non-nested claim/proceed uses exact bound Task completion; a CardReward claim commits when exact `ShowScreen` owner creation opens the child decision, while the parent Task remains a later business completion |
 | Next-decision seam | CardReward owner, remaining reward set, Map owner, or next-root execution pre; Task completion alone is not `S'` |
 | Root/continuation | claim/proceed are roots; nested reward choices are continuations |
 | Current workaround | visible/enabled buttons and popup slots remain current delivery readiness; linked sets fail closed |
@@ -182,9 +182,9 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 | Field | Exact-version conclusion |
 |---|---|
 | Semantic owner | exact `TreasureRoom`/`IRunState` pair registered by `NTreasureRoom.Create`, plus the current `TreasureRoomRelicSynchronizer` collection |
-| State source | room-owned chest-open/collection lifecycle, `CurrentRelics`, exact local player vote and room progression |
+| State source | room-owned chest-open/collection lifecycle, pre-generated `CurrentRelics`, exact `OnPicked` local-player Commit observation and room progression |
 | Semantic action source | `NativeTreasureDecisionProvider` projects `open`, exact relic `select`, `skip` and `proceed` from those game-owned operands |
-| Native validator | current room identity/stage, exact relic reference membership and local vote; Connector separately rechecks the current delivery control |
+| Native validator | current room identity/stage, exact relic reference membership and committed local vote; Connector separately rechecks the current delivery control |
 | Decision boundary | provider stage is `closed`, `opening`, `relic_choice`, `resolving` or `completed`; only stage-valid operations are semantic candidates |
 | Presentation owner | chest control, relic holders and `NProceedButton` |
 | Delivery seam | exact chest/holder/proceed callback |
@@ -193,7 +193,7 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 | Next-decision seam | relic-choice/completed Treasure owner, Map owner, or next-root execution pre; completion alone is not `S'` |
 | Root/continuation | open is a root; relic choice is its continuation; proceed starts room transition |
 | Current workaround | removed as semantic authority; visible controls only intersect the provider catalog for delivery |
-| Heuristic debt | exact private lifecycle fields remain version-bound read-only inputs; chest callback observation prevents transient empty-option republishing |
+| Heuristic debt | exact private lifecycle fields remain version-bound read-only inputs; `CurrentRelics` is pre-generated at room entry and cannot prove chest opening; predicted `GetPlayerVote` state cannot prove relic Commit |
 | Ritsu support | treasure generation hooks are not an exact claim/continuation contract |
 | Missing evidence | final continuation artifact T2 cold-load and representative T3 open/select/skip/proceed exercise |
 | Migration verdict | typed Native Foundation provider implemented at T0/T1; Connector presentation adapter retained only for delivery |
