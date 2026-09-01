@@ -107,6 +107,21 @@ is Ready with no session. Rollback is
 `apps/game-mod/.local/deployments/2026-09-01T03-47-46.154Z`. This is T2 loaded
 evidence only. CardReward/Treasure T3 Human qualification remains pending.
 
+The later same-bytes Human qualification run proved the repaired
+CardReward/Treasure seams but exposed one final Map-to-Combat recording boundary:
+Map Commit succeeded and Combat was playable before Close, yet the Map root
+remained successor-unresolved. Exact source inspection confirmed that
+`NativeDecisionOwnerReady` existed only in core/tests; production relied on the
+next Human root's pre-execution frame. Source `c1b3144...` now publishes the
+first typed owner-ready fact from the exact player-side Combat seam after
+semantic `Play`, executor unpause, synchronizer `PlayPhase`, and the
+`NEndTurnButton.OnTurnStarted` input-owner callback. Annotator still requires a
+complete, domain-matching Connector frame and persists exact owner/mechanism
+evidence. Earlier `RoomEntered`, `CombatBegan`, and visual active-combat events
+are rejected as too early. Source/tests pass; exact clean build/install/load and
+the no-next-Human-input Map canary remain pending. Prior Human evidence does not
+transfer to these bytes. See the [successor owner-ready closeout](evidence/PR6_SUCCESSOR_OWNER_READY_SOURCE_CLOSEOUT_2026-09-01.md).
+
 A fresh exact clean build is now available as game-Mod artifact
 `f9f616dafe6aa4f7733c81caad3a79ddbe771adbb7b9e46bd79c310138d8efc2 /
 2b2de33c-9f01-41f4-906e-c73cf7d283a2`, with Connector

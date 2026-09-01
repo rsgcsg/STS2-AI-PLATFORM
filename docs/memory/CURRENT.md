@@ -80,13 +80,23 @@ The durable result is in the
   artifact `641f543d... / 7ac2fa24...` is cold-loaded in runtime `c3e4d2b...`,
   environment `6655e3a...`, sole-Platform Modset `91d2f6e7...`; Human
   qualification is still pending and no predecessor evidence transfers.
+- The subsequent repaired-bytes Human run proved CardReward/Treasure and all
+  but its final Map successor. A focused replay proved the final Map Commit and
+  playable Combat before Close, exposing a production observation gap rather
+  than early Close: `NativeDecisionOwnerReady` had no publisher. Source
+  `c1b3144...` adds one exact typed Combat publisher after native play phase and
+  input-owner readiness, plus complete domain-matching Connector capture and
+  durable owner/mechanism evidence. Source/tests pass; new build/load/Human
+  evidence is pending and no predecessor Human qualification transfers.
 
 ## Next meaningful gates
 
-- After exact clean build/install/load, exercise the repaired PR #6 artifact
-  through the shortest CardReward and Treasure canary plus one Map handoff. Keep unknown UI
-  playable and fail evidence closed; do not restore global UI serialization,
-  add natural observer polling, or transfer predecessor Human evidence.
+- After exact clean build/install/load, exercise the successor repair with the
+  shortest discriminating canary: Map travel into a genuinely ready Combat,
+  perform no next Human gameplay action, then Close. The Map root must settle
+  once from typed owner-ready evidence with no unresolved lifecycle. Keep
+  unknown UI playable and do not add polling, delay, backfill or transfer
+  predecessor Human evidence.
 
 Use `npm run project:context` to start a task and
 `npm run project:closeout` to surface likely documentation, evidence, contract,
