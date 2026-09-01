@@ -536,7 +536,7 @@ public sealed class SemanticBoundaryTracker
                 entry,
                 proofStatus,
                 semanticPre: entry.SemanticPre,
-                detail: "The recording drain ended before another complete semantic boundary was proved.",
+                detail: RecordingClosePolicy.TerminalUnknownDetail,
                 nonClaims: new[] { "no_semantic_successor" }));
         }
         _currentState = null;

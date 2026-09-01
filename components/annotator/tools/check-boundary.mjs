@@ -63,8 +63,8 @@ if (!recorderRuntime.includes("RecordingLifecycleSnapshot.Ready(now)"))
   errors.push("runtime initialization must stop at Ready without creating a session");
 if (!recorderRuntime.includes("RecordingCommandKind.StartNewSession"))
   errors.push("recording session creation must be an explicit typed command");
-if (!recorderRuntime.includes("|| HasPendingRecordingWorkUnsafe())"))
-  errors.push("close must wait for strict candidates and unresolved native lifecycle witnesses");
+if (!recorderRuntime.includes("TerminateClosePendingWork()"))
+  errors.push("user Close must terminate pending work at the recording boundary");
 if (!recorderRuntime.includes("NativeActionLedger.CanAdmitStrictTransition"))
   errors.push("strict V2 settlement must require exact native terminal lifecycle");
 if (!recorderRuntime.includes("displaced != null && displaced.NativeActionWitnessId == null"))
@@ -83,10 +83,12 @@ if (recorderRuntime.includes("ObserveSemanticAccepted(pending")
   errors.push("canonical mutations must not feed the legacy semantic tracker in parallel");
 if (!recorderRuntime.includes("if (!BoundaryTracker.HasUnresolvedActions)"))
   errors.push("legacy semantic boundary materialization requires real tracker debt");
-if (!recorderRuntime.includes("_serializedCloseBoundaryRequested = HasPendingRecordingWorkUnsafe();"))
-  errors.push("Close must request one action-local boundary instead of waiting for a second command");
-if (!recorderRuntime.includes("FailClosedCloseDrain(\"serialized_close_boundary_unavailable\")"))
-  errors.push("an unavailable Close boundary must become explicit unknown without retry");
+if (recorderRuntime.includes("_serializedCloseBoundaryRequested")
+    || recorderRuntime.includes("_semanticCloseDrainDeadline")
+    || recorderRuntime.includes("recording_close_drain_timeout"))
+  errors.push("user Close must not wait on a semantic drain deadline or report a timeout");
+if (!recorderRuntime.includes("RecordingClosePolicy.TerminalUnknownReason"))
+  errors.push("user Close must preserve an explicit terminal successor-unknown reason");
 if (/\b(?:internal|private)\s+static\s+bool\s+Prefix\s*\(/u.test(nativeUiPatches))
   errors.push("annotator Prefixes must never skip a native STS2 method");
 if (/AllowMutation|BlockMutation/u.test(sources))

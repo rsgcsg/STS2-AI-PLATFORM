@@ -117,7 +117,11 @@ public sealed class NativeActionLedgerTests
 
         Assert.True(paused.Accepted);
         Assert.True(closing.Accepted);
-        Assert.True(closing.Pending);
+        Assert.False(closing.Pending);
+        Assert.Contains(
+            RecordingClosePolicy.TerminalUnknownReason,
+            closing.Detail,
+            StringComparison.Ordinal);
         ledger.MarkTerminal("a1", NativeActionLifecycleKinds.Finished);
         Assert.True(ledger.HasUnresolvedLifecycle);
         ledger.MarkTerminal("a2", NativeActionLifecycleKinds.Finished);
