@@ -1071,11 +1071,13 @@ internal sealed class PlatformLivePanel : IDisposable
         STS2HumanAnnotator.Core.RecordingApplicationStatus recording)
     {
         string? sessionId = recording.Session?.SessionId;
+        bool feedChanged = false;
         if (!string.Equals(_actionFeedSessionId, sessionId, StringComparison.Ordinal))
         {
             _actionFeedSessionId = sessionId;
             _lastRecordingEventSequence = 0;
             _actionFeed.Clear();
+            feedChanged = true;
         }
 
         try
@@ -1087,6 +1089,7 @@ internal sealed class PlatformLivePanel : IDisposable
             {
                 _actionFeed.Clear();
                 _lastRecordingEventSequence = Math.Max(0, batch.OldestAvailableSequence - 1);
+                feedChanged = true;
             }
             foreach (STS2HumanAnnotator.Core.RecordingEvent value in batch.Events)
             {
@@ -1097,11 +1100,16 @@ internal sealed class PlatformLivePanel : IDisposable
                     continue;
                 _actionFeed.RemoveAll(existing => existing.Sequence == value.Sequence);
                 _actionFeed.Add(value);
+                feedChanged = true;
             }
             _lastRecordingEventSequence = Math.Max(_lastRecordingEventSequence, batch.LatestSequence);
             while (_actionFeed.Count > PlatformLiveActionFeed.MaxEntries)
+            {
                 _actionFeed.RemoveAt(0);
-            RenderActionFeed();
+                feedChanged = true;
+            }
+            if (feedChanged)
+                RenderActionFeed();
         }
         catch (Exception exception)
         {

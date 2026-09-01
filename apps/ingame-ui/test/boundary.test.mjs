@@ -87,6 +87,8 @@ test("Recorder owns a bounded canonical Action Feed with explicit unavailable fi
   assert.match(mod, /_recorderPage = new ScrollContainer/u);
   assert.match(mod, /_recorderScroll = _recorderPage/u);
   assert.match(mod, /_recorderDetails\.AddChild\(_actionFeedList\)/u);
+  assert.match(mod, /bool feedChanged = false/u);
+  assert.match(mod, /if \(feedChanged\)\s+RenderActionFeed\(\)/u);
   assert.match(mod, /SizeFlagsHorizontal = SizeFlags\.ExpandFill/u);
   assert.match(mod, /while \(_actionFeed\.Count > PlatformLiveActionFeed\.MaxEntries\)/u);
   assert.match(mod, /value\.SessionId, sessionId/u);
