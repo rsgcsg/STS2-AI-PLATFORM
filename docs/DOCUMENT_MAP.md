@@ -23,6 +23,8 @@ Use the smallest route that answers the task.
   [Schema-3 Human and data-lifecycle closeout](evidence/SCHEMA3_HUMAN_DATA_LIFECYCLE_CLOSEOUT_2026-08-29.md).
 - Latest exact recorder-lag attribution and repair boundary:
   [Recorder causal performance baseline](evidence/RECORDER_CAUSAL_PERFORMANCE_BASELINE_2026-08-29.md).
+- Current pre-Full-Run performance baseline and trigger-bound debt:
+  [Pre-Full-Run Deferred Debt](PREFULLRUN_DEFERRED_DEBT.md).
 - Canonical H/S/A(S)/A/S' calibration and bounded architecture decision:
   [Recorder canonical causality decision](evidence/RECORDER_CANONICAL_CAUSALITY_DECISION_2026-08-29.md)
   and [ADR 0003](adr/0003-serialize-human-input-for-canonical-one-step-evidence.md).
@@ -49,6 +51,8 @@ Use the smallest route that answers the task.
   [causal evidence source closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
 - PR #6's exact Combat successor-owner repair:
   [owner-ready source closeout](evidence/PR6_SUCCESSOR_OWNER_READY_SOURCE_CLOSEOUT_2026-09-01.md).
+- Current bounded pre-Full-Run hardening source/build/load gate:
+  [hardening source closeout](evidence/PLATFORM_PREFULLRUN_HARDENING_SOURCE_CLOSEOUT_2026-09-01.md).
 - Ownership matrix: [Components](COMPONENTS.md).
 - Portable/runtime evidence meanings: [Testing and Evidence](TESTING.md).
 - Component and composition identity: [Versioning](VERSIONING.md) and `platform-bom.json`.

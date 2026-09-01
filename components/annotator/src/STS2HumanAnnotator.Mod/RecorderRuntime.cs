@@ -2334,22 +2334,7 @@ internal static class RecorderRuntime
     private static SemanticBoundaryObservationReference ToReference(
         V2RecordingStore store,
         SemanticBoundaryObservation boundary) =>
-        new(
-            boundary.WitnessKind,
-            boundary.ObservedAt,
-            boundary.SnapshotId,
-            boundary.Status,
-            boundary.BoundActionsStatus,
-            boundary.InteractionId,
-            boundary.InteractionKind,
-            boundary.State == null ? null : store.PersistSemanticFrame(boundary.State),
-            boundary.ImmediatelyConsumedByActionWitnessId)
-        {
-            StateCompleteness = boundary.StateCompleteness,
-            RequiredReadsStatus = boundary.RequiredReadsStatus,
-            StateBlockers = boundary.StateBlockers,
-            NativeDecisionOwnerReady = boundary.NativeDecisionOwnerReady
-        };
+        SemanticBoundaryObservationCodec.Encode(boundary, store.PersistSemanticFrame);
 
     private static void DisableSemanticBoundaryTrace(Exception exception)
     {

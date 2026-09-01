@@ -13,50 +13,12 @@ using STS2Connector.LiveHost;
 using STS2Connector.LiveHost.Contracts;
 namespace STS2Connector.NativeUi;
 
-internal static class NativeUiActionRuntime
+internal static partial class NativeUiActionRuntime
 {
     private static NativeEntityRegistry Entities => NativeUiRuntime.Entities;
     internal static IReadOnlyList<NativeUiBoundAction> BuildBindings(
-        LiveObservation draft)
-    {
-        if (draft.Surface is CombatTurnSurface combatTurn)
-            return BuildCombatBindings(draft, combatTurn);
-        if (draft.Surface is ShopRoomSurface shopRoom)
-            return BuildShopRoomBindings(draft, shopRoom);
-        if (draft.Surface is MapNavigationSurface map)
-            return BuildMapBindings(draft, map);
-        if (draft.Surface is DeckEnchantSelectionSurface deckEnchant)
-            return BuildDeckEnchantBindings(draft, deckEnchant);
-        if (draft.Surface is EventDialogueSurface eventDialogue)
-            return BuildEventDialogueBindings(draft, eventDialogue);
-        if (draft.Surface is EventOptionSurface eventOptions)
-            return BuildEventOptionBindings(draft, eventOptions);
-        if (draft.Surface is TreasureRoomSurface treasureRoom)
-            return BuildTreasureRoomBindings(draft, treasureRoom);
-        if (draft.Surface is RewardClaimSurface rewards)
-            return BuildRewardClaimBindings(draft, rewards);
-        if (draft.Surface is CardRewardSelectionSurface cardRewards)
-            return BuildCardRewardBindings(draft, cardRewards);
-        if (draft.Surface is ShopInventorySurface shopInventory)
-            return BuildShopInventoryBindings(draft, shopInventory);
-        if (draft.Surface is MainMenuSurface mainMenu)
-            return BuildMainMenuBindings(draft, mainMenu);
-        if (draft.Surface is SingleplayerMenuSurface singleplayerMenu)
-            return BuildSingleplayerMenuBindings(draft, singleplayerMenu);
-        if (draft.Surface is CharacterSelectSurface characterSelect)
-            return BuildCharacterSelectBindings(draft, characterSelect);
-        if (draft.Surface is TutorialSurface tutorial)
-            return BuildTutorialBindings(draft, tutorial);
-        if (draft.Surface is GameOverSurface gameOver)
-            return BuildGameOverBindings(draft, gameOver);
-        if (draft.Surface is CombatHandCardSelectionSurface combatHand)
-            return BuildCombatHandBindings(draft, combatHand);
-        if (draft.Surface is CardBundleSelectionSurface cardBundle)
-            return BuildCardBundleBindings(draft, cardBundle);
-        if (draft.Surface is DeckTransformSelectionSurface deckTransform)
-            return BuildDeckTransformBindings(draft, deckTransform);
-        return Array.Empty<NativeUiBoundAction>();
-    }
+        LiveObservation draft) => FindSurfaceAdapter(draft.Surface)?.BuildBindings(draft)
+            ?? Array.Empty<NativeUiBoundAction>();
 
     private static IReadOnlyList<NativeUiBoundAction> BuildCombatBindings(
         LiveObservation draft,
@@ -856,11 +818,7 @@ internal static class NativeUiActionRuntime
                 .ToArray();
             result.Add(binding with
             {
-                Candidate = binding.Candidate with
-                {
-                    Operands = operands,
-                    EntityBindings = entityBindings
-                }
+                Candidate = RebindCandidate(binding.Candidate, operands, entityBindings)
             });
         }
         return result;
@@ -1162,7 +1120,7 @@ internal static class NativeUiActionRuntime
             bindingKind);
     }
 
-    private static string BuildCandidateId(
+    internal static string BuildCandidateId(
         string command,
         string operation,
         IReadOnlyDictionary<string, string> operands) =>
@@ -1172,6 +1130,23 @@ internal static class NativeUiActionRuntime
             operation,
             operands = operands.OrderBy(pair => pair.Key, StringComparer.Ordinal).ToArray()
         })[..20];
+
+    internal static NativeUiActionCandidate RebindCandidate(
+        NativeUiActionCandidate candidate,
+        IReadOnlyDictionary<string, string> operands,
+        IReadOnlyList<ActionEntityBinding> entityBindings) => candidate with
+        {
+            CandidateId = BuildCandidateId(
+                candidate.Command,
+                candidate.Operation,
+                operands.Concat(candidate.OperandDomains.Select(pair =>
+                        new KeyValuePair<string, string>(
+                            pair.Key,
+                            string.Join("|", pair.Value.EntityIds))))
+                    .ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal)),
+            Operands = operands,
+            EntityBindings = entityBindings
+        };
 
     internal static Dictionary<string, string> BuildCommandOperands(
         string operation,
@@ -1227,55 +1202,17 @@ internal static class NativeUiActionRuntime
         NativeUiInput request,
         NativeUiBoundAction binding)
     {
-        if (binding.Candidate.BindingKind is
-            "native_ui_binding" or "player_environment_native_binding")
+        if (binding.Candidate.BindingKind is not
+            ("native_ui_binding" or "player_environment_native_binding"))
         {
-            return draft.Surface.Kind switch
-            {
-                "combat_turn" => StartCombatCommand(draft, request),
-                "shop_room" => StartShopRoomCommand(draft, request),
-                "shop_inventory" => StartShopInventoryCommand(
-                    draft,
-                    request,
-                    binding),
-                "map_navigation" => StartMapCommand(draft, request),
-                "event_option" => StartEventOptionCommand(
-                    draft,
-                    request,
-                    binding),
-                "event_dialogue" => StartEventDialogueCommand(draft, request, binding),
-                "reward_claim" => StartRewardClaimCommand(
-                    draft,
-                    request,
-                    binding),
-                "card_reward_selection" => StartCardRewardCommand(
-                    draft,
-                    request,
-                    binding),
-                "treasure_room" => StartTreasureRoomCommand(
-                    draft,
-                    request,
-                    binding),
-                "deck_enchant_selection" => StartDeckEnchantCommand(
-                    draft,
-                    request,
-                    binding),
-                "main_menu" => StartMainMenuCommand(draft, request, binding),
-                "singleplayer_menu" => StartSingleplayerMenuCommand(draft, request, binding),
-                "character_select" => StartCharacterSelectCommand(draft, request, binding),
-                "tutorial" => StartTutorialCommand(draft, request, binding),
-                "combat_hand_card_selection" => StartCombatHandCommand(draft, request, binding),
-                "card_bundle_selection" => StartCardBundleCommand(draft, request, binding),
-                "deck_transform_selection" => StartDeckTransformCommand(draft, request, binding),
-                "game_over" => StartGameOverCommand(draft, request, binding),
-                _ => NativeInputResult.Rejected(
-                    "native_command_owner_unsupported",
-                    "The current owner has no native UI command resolver.")
-            };
+            return NativeInputResult.Rejected(
+                "native_command_binding_required",
+                "The command has no current native UI binding.");
         }
-        return NativeInputResult.Rejected(
-            "native_command_binding_required",
-            "The command has no current native UI binding.");
+        return FindSurfaceAdapter(draft.Surface)?.Start(draft, request, binding)
+            ?? NativeInputResult.Rejected(
+                "native_command_owner_unsupported",
+                "The current owner has no native UI command resolver.");
     }
 
     private static NativeInputResult StartMainMenuCommand(

@@ -37,11 +37,11 @@ from a later Human effect.
 | Combat hand selector select / replace / deselect / confirm | exact hand/container callbacks + direct UI delivery | complete | schema-3 canary: eight confirms; select/replace/deselect not proved |
 | potion use / target / cancel | Human `NPotionHolder.UsePotion` arm -> exact `PotionModel.EnqueueManualUse` commit -> `UsePotionAction` lifecycle; target-picker cancel never enqueues | complete | schema-3 canary: three uses proved; cancel remains unexercised |
 | lethal combat -> reward | existing combat lifecycle + reward Player Environment boundary | complete | repair canary PASS |
-| reward claim | `NRewardButton.OnRelease` -> exact bound Task completion, or exact `NCardRewardSelectionScreen.ShowScreen` owner creation for a nested CardReward | source/test complete; Commit remains distinct from successor proof | repaired continuation Human canary pending; prior counts are not transferable |
-| reward proceed | `NRewardsScreen.OnProceedButtonPressed` -> `RunManager.ProceedFromTerminalRewardsScreen` completion | source/test complete; direct UI return is not a successor proof | current continuation Human canary pending; prior direct-UI counts are not transferable |
-| card reward select | `NCardRewardSelectionScreen.SelectCard` -> enclosing `CardReward.OnSelect` completion | source/test complete; option callback alone is not a successor proof | current continuation Human canary pending; prior direct-UI counts are not transferable |
-| map travel | `NMapScreen.OnMapPointSelectedLocally` -> `VoteForMapCoordAction` lifecycle | source/test complete | current continuation Human canary pending; predecessor counts are not transferable |
-| treasure open / relic select / skip / proceed | exact room/synchronizer owner; `PickRelicAction`, normal-reward task and terminal-proceed task seams | source/test complete; visual `OnRelease` is not gameplay authority | current continuation Human canary pending; predecessor counts are not transferable |
+| reward claim | `NRewardButton.OnRelease` -> exact bound Task completion, or exact `NCardRewardSelectionScreen.ShowScreen` owner creation for a nested CardReward | source/test complete; Commit remains distinct from successor proof | final PR #6 session: 10 canonical |
+| reward proceed | `NRewardsScreen.OnProceedButtonPressed` -> `RunManager.ProceedFromTerminalRewardsScreen` completion | source/test complete; direct UI return is not a successor proof | final PR #6 session: 4 canonical |
+| card reward select | `NCardRewardSelectionScreen.SelectCard` -> enclosing `CardReward.OnSelect` completion | source/test complete; option callback alone is not a successor proof | final PR #6 session: 4 canonical |
+| map travel | `NMapScreen.OnMapPointSelectedLocally` -> `VoteForMapCoordAction` lifecycle | source/test complete | final PR #6 session: 7/7 canonical; five typed owner-ready successors complete |
+| treasure open / relic select / skip / proceed | exact room/synchronizer owner; `PickRelicAction`, normal-reward task and terminal-proceed task seams | source/test complete; visual `OnRelease` is not gameplay authority | predecessor repair sessions exercised the seam; the final exact PR #6 session did not exercise Treasure |
 | event / shop / rest | Connector observation coverage only | not implemented as shared native decisions or Human witnesses | map successors only: event (5), shop (1), rest (2); room-internal actions not exercised |
 | run entry / game terminal | observation coverage varies | not implemented as Human witnesses | final `EndTurn -> game_over` observed; run entry and exhaustive Full Run not exercised |
 
@@ -77,14 +77,16 @@ chest/holder/proceed controls. The matrix above retains predecessor Live claims
 only where explicitly named; no predecessor Human evidence transfers to the
 current continuation artifact.
 
-The 2026-09-01 causal-evidence source candidate replaces the earlier
+The merged 2026-09-01 causal-evidence implementation replaces the earlier
 overlapping modern/legacy accounting assumptions. Its semantic timeline is the
 sole modern authority; exact native binding proves Commit, and Commit waits for
 a separate owner-ready or next-root execution boundary before `S'`. Async Task
 identity survives UI scope exit, and shared completion methods no longer
-hard-code a family. Source, cross-layer tests, exact build and cold-load pass,
-but the artifact has no Human evidence. The predecessor session's failures are
-classification evidence only. See the
+hard-code a family. Source, cross-layer tests, exact build, cold-load and the
+bounded final Human qualification pass. The final exact session proves 25/25
+modern rows, including Map 7/7 and typed owner-ready 5/5, without unresolved
+transitions or Close drain timeout. Predecessor sessions remain classification
+evidence only. See the
 [completion-lineage source closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
 
 The successor repair adds the first production typed owner-ready publisher.
@@ -94,8 +96,9 @@ only after semantic `Play`, executor unpause, synchronizer `PlayPhase`, and the
 exact end-turn input-owner callback; Annotator then requires one complete,
 domain-matching Connector frame. This closes the source-level Map-to-Combat
 terminal-recording gap without changing next-root execution handoff or using
-polling, delay, UI stability or later-state backfill. New runtime bytes require
-their own build/load and shortest Human canary.
+polling, delay, UI stability or later-state backfill. The final PR #6 runtime
+passed its exact shortest Human canary; any later runtime bytes require their
+own build/load and may not inherit that qualification.
 
 Semantic state Read requirements are interaction-specific: combat requires
 `run_deck` and `combat_piles`, shop requires `run_deck` and `shop_catalog`, and

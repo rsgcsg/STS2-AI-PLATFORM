@@ -1,6 +1,6 @@
 # ADR 0005: Separate Human Root, Native Commit, and Successor Boundary
 
-Status: accepted for PR #6 source migration; Human runtime qualification pending.
+Status: accepted; PR #6 exact Human runtime qualification passed and merged.
 
 ## Context
 
