@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -10,7 +11,6 @@ const requiredPaths = [
   "docs/adr/README.md",
   ".agents/skills/README.md",
   ".github/PULL_REQUEST_TEMPLATE.md",
-  ".github/pull_request_template.md",
   "tools/check-governance.mjs",
   "tools/check-governance.test.mjs"
 ];
@@ -91,16 +91,39 @@ export function durableTruthFindings(workspaceRoot = root) {
   return findings;
 }
 
-export function pullRequestTemplateFindings(workspaceRoot = root) {
+export function pullRequestTemplatePathFindings(trackedPaths) {
+  const canonical = ".github/PULL_REQUEST_TEMPLATE.md";
+  const aliases = trackedPaths.filter((entry) => entry.toLowerCase() === canonical.toLowerCase());
   const findings = [];
-  const upper = ".github/PULL_REQUEST_TEMPLATE.md";
-  const lower = ".github/pull_request_template.md";
-  if (!has(workspaceRoot, upper) || !has(workspaceRoot, lower)) return findings;
-  const upperSource = read(workspaceRoot, upper).trim();
-  const lowerSource = read(workspaceRoot, lower).trim();
-  if (upperSource !== lowerSource) {
-    findings.push(finding("pull-request-template-drift", ".github", "case-variant templates must remain identical until one is explicitly removed"));
+  if (aliases.length !== 1 || aliases[0] !== canonical) {
+    findings.push(finding(
+      "pull-request-template-path-invalid",
+      ".github",
+      `track exactly ${canonical}; found ${aliases.join(", ") || "none"}`
+    ));
   }
+  return findings;
+}
+
+function trackedPaths(workspaceRoot) {
+  try {
+    return execFileSync("git", ["ls-files"], {
+      cwd: workspaceRoot,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).replace(/\r\n?/gu, "\n").split("\n").filter(Boolean);
+  } catch {
+    const github = path.join(workspaceRoot, ".github");
+    if (!fs.existsSync(github)) return [];
+    return fs.readdirSync(github).map((name) => `.github/${name}`);
+  }
+}
+
+export function pullRequestTemplateFindings(workspaceRoot = root) {
+  const findings = pullRequestTemplatePathFindings(trackedPaths(workspaceRoot));
+  const canonical = ".github/PULL_REQUEST_TEMPLATE.md";
+  if (!has(workspaceRoot, canonical)) return findings;
+  const source = read(workspaceRoot, canonical).trim();
   const requiredTokens = [
     "Change class (`G0`-`G6`)",
     "Owning fact / layer",
@@ -111,8 +134,8 @@ export function pullRequestTemplateFindings(workspaceRoot = root) {
     "Remaining non-claims"
   ];
   for (const token of requiredTokens) {
-    if (!upperSource.includes(token)) {
-      findings.push(finding("pull-request-template-field-missing", upper, token));
+    if (!source.includes(token)) {
+      findings.push(finding("pull-request-template-field-missing", canonical, token));
     }
   }
   return findings;

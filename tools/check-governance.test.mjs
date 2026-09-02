@@ -9,7 +9,7 @@ import {
   durableTruthFindings,
   governanceFindings,
   packageFindings,
-  pullRequestTemplateFindings,
+  pullRequestTemplatePathFindings,
   skillIndexFindings
 } from "./check-governance.mjs";
 
@@ -41,7 +41,6 @@ function validFixture(root) {
   write(root, ".agents/skills/example/SKILL.md", "---\nname: example\ndescription: Example.\n---\n");
   write(root, ".agents/skills/README.md", "[example](example/SKILL.md)\n");
   write(root, ".github/PULL_REQUEST_TEMPLATE.md", pr);
-  write(root, ".github/pull_request_template.md", pr);
   write(root, "tools/check-governance.mjs", "export {};\n");
   write(root, "tools/check-governance.test.mjs", "export {};\n");
   write(root, "AGENTS.md", "docs/ENGINEERING_GOVERNANCE.md\n");
@@ -73,15 +72,16 @@ test("a complete governance fixture passes", () => {
   }
 });
 
-test("case-variant pull request templates cannot drift", () => {
-  const root = fixture();
-  try {
-    write(root, ".github/PULL_REQUEST_TEMPLATE.md", "Change class (`G0`-`G6`)\n");
-    write(root, ".github/pull_request_template.md", "different\n");
-    assert.ok(pullRequestTemplateFindings(root).some((item) => item.code === "pull-request-template-drift"));
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
-  }
+test("case-variant pull request template paths cannot coexist", () => {
+  const findings = pullRequestTemplatePathFindings([
+    ".github/PULL_REQUEST_TEMPLATE.md",
+    ".github/pull_request_template.md"
+  ]);
+  assert.equal(findings[0]?.code, "pull-request-template-path-invalid");
+  assert.deepEqual(
+    pullRequestTemplatePathFindings([".github/PULL_REQUEST_TEMPLATE.md"]),
+    []
+  );
 });
 
 test("ADR and Skill indexes must enumerate exact current entrypoints once", () => {
