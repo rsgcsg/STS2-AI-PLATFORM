@@ -5,21 +5,22 @@ using System.Runtime.CompilerServices;
 
 namespace STS2HumanAnnotator.Core;
 
-public sealed class V2RecordingStore : IDisposable
+public sealed class RecordingSessionStore : IDisposable
 {
     private static readonly Encoding Utf8NoBom = new UTF8Encoding(false);
     private readonly object _gate = new();
     private readonly Dictionary<string, FileStream> _decisionFiles = new(StringComparer.Ordinal);
     // Keep the fast same-object lookup without retaining complete frame graphs
     // for the lifetime of a recording session.
-    private readonly ConditionalWeakTable<FrozenDecisionFrameV2, SemanticFrameReference>
+    private readonly ConditionalWeakTable<CurrentDecisionFrame, SemanticFrameReference>
         _semanticFrames = new();
     private readonly Dictionary<string, SemanticFrameReference> _semanticFramesByDigest =
         new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ExecutionSemanticActionSpaceReference>
+        _executionSemanticActionSpacesByDigest = new(StringComparer.Ordinal);
     private readonly RecordingPerformanceProfiler _performance = new();
     private readonly FileStream _invalidations;
     private readonly FileStream _journal;
-    private readonly FileStream _nativeActionLedger;
     private readonly FileStream _semanticBoundaryTrace;
     private readonly FileStream _canonicalTransitions;
     private readonly FileStream _nativeSemanticDiscriminator;
@@ -39,9 +40,9 @@ public sealed class V2RecordingStore : IDisposable
     private string? _lastError;
     private bool _closed;
 
-    private V2RecordingStore(
+    private RecordingSessionStore(
         string directory,
-        RecordingManifestV2 manifest,
+        CurrentRecordingManifest manifest,
         HumanCaptureProfile captureProfile)
     {
         DirectoryPath = directory;
@@ -56,7 +57,6 @@ public sealed class V2RecordingStore : IDisposable
             JsonSerializer.Serialize(captureProfile, EvidenceJson.IndentedOptions));
         _invalidations = OpenBufferedAppend(Path.Combine(directory, "invalidations.jsonl"));
         _journal = OpenBufferedAppend(Path.Combine(directory, "run-journal.jsonl"));
-        _nativeActionLedger = OpenBufferedAppend(Path.Combine(directory, "native-action-ledger.jsonl"));
         _semanticBoundaryTrace = OpenBufferedAppend(
             Path.Combine(directory, "semantic-boundary-trace.jsonl"));
         _canonicalTransitions = OpenBufferedAppend(
@@ -67,7 +67,7 @@ public sealed class V2RecordingStore : IDisposable
     }
 
     public string DirectoryPath { get; }
-    public RecordingManifestV2 Manifest { get; }
+    public CurrentRecordingManifest Manifest { get; }
     public HumanCaptureProfile CaptureProfile { get; }
 
     public T Measure<T>(string phase, Func<T> operation) =>
@@ -101,21 +101,21 @@ public sealed class V2RecordingStore : IDisposable
         }
     }
 
-    public static V2RecordingStore Create(
+    public static RecordingSessionStore Create(
         string root,
-        RecordingManifestV2 manifest,
+        CurrentRecordingManifest manifest,
         HumanCaptureProfile captureProfile)
     {
         RecordValidationResult profileValidation = HumanCaptureProfileValidator.Validate(captureProfile);
         if (!profileValidation.Valid)
             throw new InvalidDataException(
                 $"Capture profile failed validation: {string.Join(',', profileValidation.Errors)}");
-        if (manifest.SchemaVersion != HumanRecorderV2Contract.SchemaVersion
-            || manifest.Schema != HumanRecorderV2Contract.ManifestSchema
+        if (manifest.SchemaVersion != CurrentRecordingContract.SchemaVersion
+            || manifest.Schema != CurrentRecordingContract.ManifestSchema
             || manifest.CaptureProfileId != captureProfile.ProfileId
             || manifest.CaptureProfileSha256 != EvidenceIdentity.Sha256Json(captureProfile))
-            throw new InvalidDataException("V2 recording manifest does not bind the capture profile.");
-        return new V2RecordingStore(
+            throw new InvalidDataException("Current recording manifest does not bind the capture profile.");
+        return new RecordingSessionStore(
             Path.Combine(Path.GetFullPath(root), SafeId(manifest.SessionId, nameof(manifest.SessionId))),
             manifest,
             captureProfile);
@@ -147,8 +147,8 @@ public sealed class V2RecordingStore : IDisposable
         if (capture.Status != "materialized")
         {
             return new ReadEvidence(
-                HumanRecorderV2Contract.SchemaVersion,
-                HumanRecorderV2Contract.ReadEvidenceSchema,
+                CurrentRecordingContract.SchemaVersion,
+                CurrentRecordingContract.ReadEvidenceSchema,
                 evidenceId,
                 capture.ReadId,
                 capture.Kind,
@@ -193,8 +193,8 @@ public sealed class V2RecordingStore : IDisposable
             }
         });
         return new ReadEvidence(
-            HumanRecorderV2Contract.SchemaVersion,
-            HumanRecorderV2Contract.ReadEvidenceSchema,
+            CurrentRecordingContract.SchemaVersion,
+            CurrentRecordingContract.ReadEvidenceSchema,
             evidenceId,
             capture.ReadId,
             capture.Kind,
@@ -236,7 +236,7 @@ public sealed class V2RecordingStore : IDisposable
         }
     }
 
-    public SemanticFrameReference PersistSemanticFrame(FrozenDecisionFrameV2 frame)
+    public SemanticFrameReference PersistSemanticFrame(CurrentDecisionFrame frame)
     {
         EnsureOpen();
         SemanticFrameReference? result = null;
@@ -285,15 +285,71 @@ public sealed class V2RecordingStore : IDisposable
         return result!;
     }
 
-    public void AppendDecision(HumanDecisionRecordV2 record)
+    public ExecutionSemanticActionSpaceReference PersistExecutionSemanticActionSpace(
+        ExecutionSemanticActionSpaceEvidence value)
+    {
+        IReadOnlyList<string> errors = ExecutionSemanticActionSpaceValidator.Validate(value);
+        if (errors.Count > 0
+            || !ExecutionSemanticActionSpaceContract.IsCurrent(value.SchemaVersion, value.Schema))
+            throw new InvalidDataException(
+                $"Execution semantic action space failed validation: {string.Join(',', errors)}");
+        EnsureOpen();
+        ExecutionSemanticActionSpaceReference? result = null;
+        ExecuteWrite(() =>
+        {
+            byte[] payload = _performance.Measure(
+                "execution_semantic_action_space_serialize",
+                () =>
+                {
+                    JsonNode node = JsonSerializer.SerializeToNode(value, EvidenceJson.Options)
+                        ?? throw new InvalidDataException(
+                            "Execution semantic action-space serialization returned null.");
+                    return Encoding.UTF8.GetBytes(EvidenceCanonicalJson.Serialize(node));
+                });
+            string digest = _performance.Measure(
+                "execution_semantic_action_space_hash",
+                () => EvidenceIdentity.Sha256Bytes(payload));
+            if (_executionSemanticActionSpacesByDigest.TryGetValue(digest, out result))
+                return;
+            string relative =
+                $"semantic-action-spaces/sha256/{digest[..2]}/{digest}.json";
+            string destination = ResolveRelative(relative);
+            _performance.Measure("execution_semantic_action_space_verify_or_write", () =>
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                if (File.Exists(destination))
+                {
+                    if (EvidenceIdentity.Sha256File(destination) != digest)
+                        throw new IOException(
+                            "Content-addressed execution semantic action-space collision.");
+                }
+                else
+                {
+                    string temporary = destination + $".tmp-{Guid.NewGuid():N}";
+                    File.WriteAllBytes(temporary, payload);
+                    File.Move(temporary, destination);
+                }
+            });
+            result = new ExecutionSemanticActionSpaceReference(
+                value.ActionWitnessId,
+                value.SemanticStateDigest,
+                value.SemanticCatalogDigest,
+                digest,
+                relative);
+            _executionSemanticActionSpacesByDigest.Add(digest, result);
+        });
+        return result!;
+    }
+
+    public void AppendDecision(CurrentDecisionRecord record)
     {
         EnsureOpen();
-        RecordValidationResult validation = HumanDecisionRecordV2Validator.Validate(record);
+        RecordValidationResult validation = CurrentDecisionRecordValidator.Validate(record);
         RecordValidationResult profileValidation =
             HumanCaptureProfileValidator.ValidateRecord(CaptureProfile, record);
         if (!validation.Valid || !profileValidation.Valid)
             throw new InvalidDataException(
-                $"V2 decision record failed validation: {string.Join(',', validation.Errors.Concat(profileValidation.Errors))}");
+                $"Current decision record failed validation: {string.Join(',', validation.Errors.Concat(profileValidation.Errors))}");
         _performance.Measure(
             "decision_read_blob_verify",
             () => VerifyReadBlobs(record.Pre.Reads.Concat(record.Successor.Reads)));
@@ -319,8 +375,8 @@ public sealed class V2RecordingStore : IDisposable
 
     public void AppendRunEvent(RunJournalEvent value)
     {
-        if (value.SchemaVersion != HumanRecorderV2Contract.SchemaVersion
-            || value.Schema != HumanRecorderV2Contract.RunJournalSchema
+        if (value.SchemaVersion != CurrentRecordingContract.SchemaVersion
+            || value.Schema != CurrentRecordingContract.RunJournalSchema
             || value.SessionId != Manifest.SessionId
             || value.TimelineId != Manifest.TimelineId
             || value.Sequence <= 0
@@ -329,26 +385,6 @@ public sealed class V2RecordingStore : IDisposable
         EnsureOpen();
         ExecuteWrite(() =>
             _performance.Measure("journal_append_buffered", () => AppendBufferedLine(_journal, value)));
-    }
-
-    public void AppendNativeActionEvent(NativeActionLedgerEvent value)
-    {
-        if (!NativeActionLedgerContract.IsSupported(value.SchemaVersion, value.Schema)
-            || value.SessionId != Manifest.SessionId
-            || value.TimelineId != Manifest.TimelineId
-            || value.Sequence <= 0
-            || value.ActionSequence <= 0
-            || string.IsNullOrWhiteSpace(value.EventId)
-            || string.IsNullOrWhiteSpace(value.ActionWitnessId)
-            || string.IsNullOrWhiteSpace(value.RecordId)
-            || string.IsNullOrWhiteSpace(value.Kind)
-            || string.IsNullOrWhiteSpace(value.NativeActionType))
-            throw new InvalidDataException("Native action ledger event is invalid for this recording.");
-        EnsureOpen();
-        ExecuteWrite(() =>
-            _performance.Measure(
-                "native_ledger_append_buffered",
-                () => AppendBufferedLine(_nativeActionLedger, value)));
     }
 
     public void AppendSemanticBoundaryEvent(SemanticBoundaryTraceEvent value) =>
@@ -395,6 +431,7 @@ public sealed class V2RecordingStore : IDisposable
     {
         IReadOnlyList<string> errors = CanonicalTransitionEvidenceValidator.Validate(value);
         if (errors.Count > 0
+            || !CanonicalTransitionEvidenceContract.IsCurrent(value.SchemaVersion, value.Schema)
             || value.SessionId != Manifest.SessionId
             || value.TimelineId != Manifest.TimelineId)
         {
@@ -430,6 +467,13 @@ public sealed class V2RecordingStore : IDisposable
 
     public void AppendInvalidation(InvalidationRecord invalidation)
     {
+        if (invalidation.SchemaVersion != CurrentRecordingContract.SchemaVersion
+            || invalidation.Schema != CurrentRecordingContract.InvalidationSchema
+            || invalidation.SessionId != Manifest.SessionId
+            || string.IsNullOrWhiteSpace(invalidation.InvalidationId)
+            || string.IsNullOrWhiteSpace(invalidation.ReasonCode)
+            || HumanActionOccurrenceEvidenceValidator.Validate(invalidation.HumanOccurrence).Count > 0)
+            throw new InvalidDataException("Invalidation is invalid for this current recording.");
         EnsureOpen();
         ExecuteWrite(() =>
         {
@@ -468,7 +512,6 @@ public sealed class V2RecordingStore : IDisposable
                     stream.Flush(flushToDisk: true);
                 _invalidations.Flush(flushToDisk: true);
                 _journal.Flush(flushToDisk: true);
-                _nativeActionLedger.Flush(flushToDisk: true);
                 _semanticBoundaryTrace.Flush(flushToDisk: true);
                 _canonicalTransitions.Flush(flushToDisk: true);
                 _nativeSemanticDiscriminator.Flush(flushToDisk: true);
@@ -477,7 +520,6 @@ public sealed class V2RecordingStore : IDisposable
                 stream.Dispose();
             _invalidations.Dispose();
             _journal.Dispose();
-            _nativeActionLedger.Dispose();
             _semanticBoundaryTrace.Dispose();
             _canonicalTransitions.Dispose();
             _nativeSemanticDiscriminator.Dispose();
@@ -505,7 +547,7 @@ public sealed class V2RecordingStore : IDisposable
         lock (_gate)
         {
             if (_closed)
-                throw new ObjectDisposedException(nameof(V2RecordingStore));
+                throw new ObjectDisposedException(nameof(RecordingSessionStore));
         }
     }
 
@@ -514,7 +556,7 @@ public sealed class V2RecordingStore : IDisposable
         lock (_gate)
         {
             if (_closed)
-                throw new ObjectDisposedException(nameof(V2RecordingStore));
+                throw new ObjectDisposedException(nameof(RecordingSessionStore));
             try
             {
                 operation();
@@ -564,9 +606,9 @@ public sealed class V2RecordingStore : IDisposable
 
     private void WriteCoverage()
     {
-        var coverage = new CoverageSummaryV2(
-            HumanRecorderV2Contract.SchemaVersion,
-            HumanRecorderV2Contract.CoverageSchema,
+        var coverage = new CurrentCoverageSummary(
+            CurrentRecordingContract.SchemaVersion,
+            CurrentRecordingContract.CoverageSchema,
             Manifest.SessionId,
             _admittedCount,
             _invalidationCount,
@@ -626,7 +668,7 @@ public sealed class V2RecordingStore : IDisposable
 
     private void ValidateSemanticBoundaryEvent(SemanticBoundaryTraceEvent value)
     {
-        if (!SemanticBoundaryTraceContract.IsSupported(value.SchemaVersion, value.Schema)
+        if (!SemanticBoundaryTraceContract.IsCurrent(value.SchemaVersion, value.Schema)
             || value.SessionId != Manifest.SessionId
             || value.TimelineId != Manifest.TimelineId
             || value.Sequence <= 0
@@ -638,8 +680,7 @@ public sealed class V2RecordingStore : IDisposable
 
     private void ValidateSemanticEvidenceEvent(SemanticEvidenceEvent value)
     {
-        if (value.SchemaVersion != SemanticEvidenceContract.SchemaVersion
-            || value.Schema != SemanticEvidenceContract.EventSchema
+        if (!SemanticEvidenceContract.IsCurrent(value.SchemaVersion, value.Schema)
             || value.SessionId != Manifest.SessionId
             || value.TimelineId != Manifest.TimelineId
             || value.Sequence <= 0

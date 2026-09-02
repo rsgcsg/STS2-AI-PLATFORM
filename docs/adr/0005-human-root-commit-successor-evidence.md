@@ -68,6 +68,13 @@ A root receives a `Native Commit` only from its exact STS2 operation:
 - creation of an exact nested native decision owner when STS2 deliberately
   suspends the parent task until that child decision completes.
 
+For a `GameAction` PlayerChoice, `BeforePausedForPlayerChoice` is the exact
+typed parent-continuation seam. It may satisfy the parent Commit prerequisite
+for the immediate nested choice handoff, while explicitly not claiming that the
+parent has finished. `BeforeReadyToResumeAfterPlayerChoice` and the later
+resume callback reference the same parent and are lifecycle facts only; they
+cannot create a second Human root or prove `P -> P`.
+
 The CardReward claim is the concrete third case: successful
 `NCardRewardSelectionScreen.ShowScreen` owner creation commits the parent claim
 before the child Human selection, while `SelectLocalReward` remains a later
@@ -89,6 +96,14 @@ Periodic frames, UI stability, queue-idle, timers, completion order, and later
 state backfill cannot create proof. A boundary that crosses another Human effect
 is rejected.
 
+Human-root capture admission is separate from successor settlement. An
+unresolved or uncommitted prior root must not prevent an STS2-accepted later
+root from entering the same causal tracker. The later root records its Human
+observation first and binds semantic pre only at its own authoritative
+execution boundary. This permits rapid accepted inputs without treating
+acceptance as execution, while preserving fail-closed overlap and unknown
+dispositions when the native boundary is unavailable.
+
 An owner-ready event is not self-proving. Durable evidence must name the typed
 domain, exact process-local owner witness/type and exact native mechanism, and
 the synchronously captured Connector frame must independently be complete and
@@ -108,12 +123,41 @@ committed root and retains it as explicit unknown rather than backfilling it.
 - Legacy polling successors remain readable historical evidence and cannot
   satisfy modern causal qualification.
 
+### Semantic state and action-space role
+
+The semantic timeline is the sole Human-root causal-order and successor
+authority; it is not a legality engine. Native Foundation typed providers own
+the read-only projection of STS2 semantic state and `A_sem(S)` at the exact
+native action-binding boundary. For `GameAction` roots this is
+`BeforeActionExecuted`; for source-local callback roots it is the callback's
+pre-admission boundary, joined to the accepted mutation by the same exact Human
+scope and native owner/operand identity. Connector separately owns public `Snapshot`, `BoundAction`
+and delivery, so its current `A_public` may be empty after UI staging has begun.
+
+Annotator may durably preserve the exact typed Native Foundation observation
+and join it to the already correlated Human action. That observation cannot
+publish or execute an action, settle a transition or replace Connector
+revalidation. Decision V2 continues to carry the frozen Human-time public frame
+for compatibility; canonical evidence uses typed semantic `S`, exact action
+membership in its authoritative native action space, and the independently
+proved successor. Decision V2 compatibility validation cannot veto that modern
+canonical row. No additional decision-epoch identity is required while the
+exact action witness, Human BoundAction ID and content-addressed state/catalog
+identities remain unique and audited.
+
 ### Fail-closed rules
 
 Duplicate roots, stale session/generation, wrong owner/operand/lineage,
 ambiguous task binding, cancellation, fault, unmatched completion, intervening
 Human effects, and missing successor boundaries produce explicit invalidation or
 unknown evidence. They are never retried or backfilled.
+
+For each STS2-accepted Human gameplay decision, current recording must retain
+one durable auditable occurrence/disposition: canonical, honest unknown,
+cancelled/rejected, unsupported, or failed closed. Canonical failure therefore
+cannot silently erase a known accepted mutation. A failed-closed occurrence may
+retain exact source-local subject/operands, owner and parent lineage, but is not
+an admission ledger, legality claim, Commit or successor proof.
 
 ## Generalization probes
 

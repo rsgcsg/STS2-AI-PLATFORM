@@ -75,6 +75,34 @@ public sealed class NativePostCommitCompletionLedgerTests
     }
 
     [Fact]
+    public void OneNativeRootMayBindOneOfSeveralExactSts2CommitRoutes()
+    {
+        var ledger = new NativePostCommitCompletionLedger();
+        Assert.True(ledger.Register(new NativePostCommitCompletionRegistration(
+            "session-a",
+            1,
+            "reward-proceed",
+            new NativePostCommitCompletionExpectation(
+                "reward_proceed",
+                "RunManager.ProceedFromTerminalRewardsScreen",
+                AlternativeKinds: new[]
+                {
+                    "RewardsSetSynchronizer.SkipLocalRewardsSet"
+                }))));
+
+        NativeTaskBindingResolution binding = ledger.BindTask(
+            new NativeTaskObservation(
+                "session-a",
+                1,
+                "RewardsSetSynchronizer.SkipLocalRewardsSet",
+                "sync-operation-a"));
+
+        Assert.True(binding.IsMatched);
+        Assert.Equal("RewardsSetSynchronizer.SkipLocalRewardsSet", binding.Binding!.Kind);
+        Assert.Equal("reward-proceed", binding.Binding.ActionWitnessId);
+    }
+
+    [Fact]
     public void AmbiguousTaskBindingFailsClosedWithoutConsumingRoots()
     {
         var ledger = new NativePostCommitCompletionLedger();

@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 
 namespace STS2HumanAnnotator.Core;
 
-public static class V2RecordingAuditor
+public static class RecordingSessionAuditor
 {
     public static RecordingAuditResult Audit(string recordingDirectory)
     {
@@ -12,15 +12,15 @@ public static class V2RecordingAuditor
         var errors = new Dictionary<string, long>(StringComparer.Ordinal);
         long valid = 0;
         long invalid = 0;
-        var recordsById = new Dictionary<string, HumanDecisionRecordV2>(StringComparer.Ordinal);
+        var recordIds = new HashSet<string>(StringComparer.Ordinal);
         long previousSequence = 0;
-        RecordingManifestV2? manifest = ReadOrError<RecordingManifestV2>(
+        CurrentRecordingManifest? manifest = ReadOrError<CurrentRecordingManifest>(
             Path.Combine(directory, "recording-manifest.json"), errors, "manifest_invalid");
         HumanCaptureProfile? profile = ReadOrError<HumanCaptureProfile>(
             Path.Combine(directory, "capture-profile.json"), errors, "capture_profile_invalid");
         if (manifest != null && profile != null
-            && (manifest.Schema != HumanRecorderV2Contract.ManifestSchema
-                || manifest.SchemaVersion != HumanRecorderV2Contract.SchemaVersion
+            && (manifest.Schema != CurrentRecordingContract.ManifestSchema
+                || manifest.SchemaVersion != CurrentRecordingContract.SchemaVersion
                 || manifest.CaptureProfileId != profile.ProfileId
                 || manifest.CaptureProfileSha256 != EvidenceIdentity.Sha256Json(profile)))
             Add(errors, "manifest_capture_profile_mismatch");
@@ -44,10 +44,10 @@ public static class V2RecordingAuditor
             {
                 foreach ((string line, int lineNumber) in Lines(path))
                 {
-                    HumanDecisionRecordV2? record;
+                    CurrentDecisionRecord? record;
                     try
                     {
-                        record = JsonSerializer.Deserialize<HumanDecisionRecordV2>(line, EvidenceJson.Options);
+                        record = JsonSerializer.Deserialize<CurrentDecisionRecord>(line, EvidenceJson.Options);
                     }
                     catch (JsonException)
                     {
@@ -55,7 +55,7 @@ public static class V2RecordingAuditor
                         Add(errors, $"json_invalid_at_{Path.GetFileName(path)}_line_{lineNumber}");
                         continue;
                     }
-                    RecordValidationResult result = HumanDecisionRecordV2Validator.Validate(record);
+                    RecordValidationResult result = CurrentDecisionRecordValidator.Validate(record);
                     RecordValidationResult profileResult = profile == null || record == null
                         ? new RecordValidationResult(false, new[] { "capture_profile_missing" })
                         : HumanCaptureProfileValidator.ValidateRecord(profile, record);
@@ -66,7 +66,7 @@ public static class V2RecordingAuditor
                             Add(errors, error);
                         continue;
                     }
-                    if (!recordsById.TryAdd(record!.RecordId, record))
+                    if (!recordIds.Add(record!.RecordId))
                     {
                         invalid++;
                         Add(errors, "duplicate_record_id");
@@ -93,26 +93,13 @@ public static class V2RecordingAuditor
         }
 
         ValidateJournal(directory, manifest, errors);
-        IReadOnlyList<NativeActionLedgerEvent> nativeEvents = ValidateNativeActionLedger(
-            directory,
-            manifest,
-            recordsById,
-            errors);
         IReadOnlyList<SemanticBoundaryTraceEvent> semanticEvents = ValidateSemanticBoundaryTrace(
             directory,
             manifest,
             errors);
-        IReadOnlyList<NativeSemanticDiscriminatorEvent> discriminatorEvents =
-            ValidateNativeSemanticDiscriminator(directory, manifest, errors);
-        ValidateSchemaTwoSemanticAccounting(
-            nativeEvents,
-            semanticEvents,
-            discriminatorEvents,
-            errors);
-        ValidateCanonicalTransitions(directory, manifest, recordsById, errors);
-        long invalidations = File.Exists(Path.Combine(directory, "invalidations.jsonl"))
-            ? Lines(Path.Combine(directory, "invalidations.jsonl")).LongCount()
-            : 0;
+        ValidateNativeSemanticDiscriminator(directory, manifest, errors);
+        ValidateCanonicalTransitions(directory, manifest, semanticEvents, errors);
+        long invalidations = ValidateInvalidations(directory, manifest, errors);
         return new RecordingAuditResult(
             errors.Count == 0 && invalid == 0 ? "pass" : "fail",
             directory,
@@ -129,14 +116,93 @@ public static class V2RecordingAuditor
             });
     }
 
+    private static long ValidateInvalidations(
+        string directory,
+        CurrentRecordingManifest? manifest,
+        IDictionary<string, long> errors)
+    {
+        string path = Path.Combine(directory, "invalidations.jsonl");
+        if (!File.Exists(path))
+            return 0;
+
+        long count = 0;
+        foreach ((string line, int lineNumber) in Lines(path))
+        {
+            count++;
+            InvalidationRecord? value;
+            try
+            {
+                value = JsonSerializer.Deserialize<InvalidationRecord>(line, EvidenceJson.Options);
+            }
+            catch (JsonException)
+            {
+                Add(errors, $"invalidation_json_invalid_at_line_{lineNumber}");
+                continue;
+            }
+            if (value == null
+                || value.SchemaVersion != CurrentRecordingContract.SchemaVersion
+                || value.Schema != CurrentRecordingContract.InvalidationSchema
+                || manifest == null
+                || value.SessionId != manifest.SessionId)
+            {
+                Add(errors, "invalidation_identity_invalid");
+                continue;
+            }
+            foreach (string error in HumanActionOccurrenceEvidenceValidator.Validate(value.HumanOccurrence))
+                Add(errors, error);
+            if (value.NativeActionType is "NChooseACardSelectionScreen.SelectHolder"
+                or "NChooseACardSelectionScreen.OnSkipButtonReleased")
+            {
+                ValidateGeneratedChoiceOccurrence(value.HumanOccurrence, value.NativeActionType, errors);
+            }
+        }
+        return count;
+    }
+
+    private static void ValidateGeneratedChoiceOccurrence(
+        HumanActionOccurrenceEvidence? occurrence,
+        string nativeActionType,
+        IDictionary<string, long> errors)
+    {
+        if (occurrence == null)
+        {
+            Add(errors, "generated_choice_human_occurrence_missing");
+            return;
+        }
+        if (!string.Equals(occurrence.NativeActionType, nativeActionType, StringComparison.Ordinal)
+            || !string.Equals(occurrence.NativeMechanism, nativeActionType, StringComparison.Ordinal))
+        {
+            Add(errors, "generated_choice_human_occurrence_identity_mismatch");
+        }
+        if (string.IsNullOrWhiteSpace(occurrence.NativeOwnerWitnessId))
+            Add(errors, "generated_choice_owner_missing");
+        if (nativeActionType == "NChooseACardSelectionScreen.SelectHolder")
+        {
+            if (string.IsNullOrWhiteSpace(occurrence.NativeSubjectWitnessId))
+                Add(errors, "generated_choice_subject_missing");
+            if (!occurrence.NativeOperands.TryGetValue("selected_card_holder", out string? holder)
+                || string.IsNullOrWhiteSpace(holder))
+            {
+                Add(errors, "generated_choice_selected_holder_missing");
+            }
+        }
+        if (occurrence.PausedParentActionWitnessId != null
+            && (string.IsNullOrWhiteSpace(occurrence.PausedParentActionType)
+                || string.IsNullOrWhiteSpace(occurrence.PausedParentState)))
+        {
+            Add(errors, "generated_choice_parent_lineage_incomplete");
+        }
+    }
+
     private static void ValidateCanonicalTransitions(
         string directory,
-        RecordingManifestV2? manifest,
-        IReadOnlyDictionary<string, HumanDecisionRecordV2> admittedRecords,
+        CurrentRecordingManifest? manifest,
+        IReadOnlyList<SemanticBoundaryTraceEvent> semanticEvents,
         IDictionary<string, long> errors)
     {
         string path = Path.Combine(directory, "canonical-transitions.jsonl");
-        // Pre-serialized recordings remain readable without this additive stream.
+        // A current session may omit canonical rows until semantic proof is
+        // persisted; archival streams are not promoted by this audit.
         if (!File.Exists(path))
             return;
         var seen = new HashSet<string>(StringComparer.Ordinal);
@@ -159,6 +225,13 @@ public static class V2RecordingAuditor
                 Add(errors, "canonical_transition_null");
                 continue;
             }
+            if (!CanonicalTransitionEvidenceContract.IsCurrent(
+                    value.SchemaVersion,
+                    value.Schema))
+            {
+                Add(errors, "canonical_transition_current_schema_required");
+                continue;
+            }
             foreach (string error in CanonicalTransitionEvidenceValidator.Validate(value))
                 Add(errors, error);
             if (manifest == null
@@ -170,44 +243,168 @@ public static class V2RecordingAuditor
             string recordId = value.TransitionId.StartsWith("canonical-", StringComparison.Ordinal)
                 ? value.TransitionId["canonical-".Length..]
                 : string.Empty;
-            if (!admittedRecords.TryGetValue(recordId, out HumanDecisionRecordV2? record)
-                || record.Sequence != value.ActionSequence
-                || EvidenceIdentity.Sha256Json(record.Action)
-                    != EvidenceIdentity.Sha256Json(value.Action))
-            {
-                Add(errors, "canonical_transition_decision_mismatch");
-                continue;
-            }
-            FrozenDecisionFrameV2? pre = ReadSemanticFrameReference(
+            CurrentDecisionFrame? pre = ReadSemanticFrameReference(
                 directory,
                 value.PreStateRef,
                 errors);
-            FrozenDecisionFrameV2? successor = ReadSemanticFrameReference(
+            CurrentDecisionFrame? successor = ReadSemanticFrameReference(
                 directory,
                 value.SuccessorRef,
                 errors);
-            if (pre != null && SemanticFrameDigest(pre) != SemanticFrameDigest(record.Pre))
-                Add(errors, "canonical_transition_pre_mismatch");
-            if (successor == null)
+            SemanticBoundaryTraceEvent[] proofs = semanticEvents.Where(candidate =>
+                    candidate.Kind == SemanticBoundaryTraceKinds.TransitionProved
+                    && candidate.Action.ActionWitnessId == value.ActionWitnessId)
+                .ToArray();
+            if (proofs.Length != 1)
+            {
+                Add(errors, "canonical_transition_semantic_proof_missing_or_duplicate");
                 continue;
-            if (successor.SnapshotId != record.Successor.SnapshotId
-                || successor.InteractionId != record.Successor.InteractionId
-                || successor.InteractionKind != record.Successor.InteractionKind)
-                Add(errors, "canonical_transition_successor_identity_mismatch");
-            if (!JsonNode.DeepEquals(successor.Snapshot, record.Successor.Snapshot))
-                Add(errors, "canonical_transition_successor_snapshot_mismatch");
-            JsonNode? successorReads = JsonSerializer.SerializeToNode(
-                successor.Reads,
-                EvidenceJson.Options);
-            JsonNode? recordedReads = JsonSerializer.SerializeToNode(
-                record.Successor.Reads,
-                EvidenceJson.Options);
-            if (!JsonNode.DeepEquals(successorReads, recordedReads))
-                Add(errors, "canonical_transition_successor_reads_mismatch");
+            }
+            SemanticBoundaryTraceEvent proof = proofs[0];
+            if (recordId != proof.Action.RecordId
+                || value.RunId != proof.Action.RunId
+                || value.ActionSequence != proof.Action.ActionSequence
+                || proof.Action.BoundAction == null
+                || EvidenceIdentity.Sha256Json(value.Action)
+                    != EvidenceIdentity.Sha256Json(proof.Action.BoundAction))
+                Add(errors, "canonical_transition_semantic_action_mismatch");
+            if (pre == null || proof.SemanticPre == null
+                || SemanticFrameDigest(pre) != SemanticFrameDigest(proof.SemanticPre))
+                Add(errors, "canonical_transition_semantic_pre_mismatch");
+            if (successor == null || proof.SemanticSuccessor == null
+                || SemanticFrameDigest(successor)
+                    != SemanticFrameDigest(proof.SemanticSuccessor))
+                Add(errors, "canonical_transition_semantic_successor_mismatch");
+
+            if (value.ActionSpaceAuthority == "native_semantic_execution")
+            {
+                ExecutionSemanticActionSpaceEvidence? actionSpace =
+                    ReadExecutionSemanticActionSpaceReference(
+                        directory,
+                        value.ExecutionSemanticActionSpaceRef,
+                        errors);
+                if (actionSpace == null
+                    || proof.ExecutionSemanticActionSpace == null
+                    || EvidenceIdentity.Sha256Json(actionSpace)
+                        != EvidenceIdentity.Sha256Json(proof.ExecutionSemanticActionSpace))
+                    Add(errors, "canonical_transition_execution_semantic_evidence_mismatch");
+                else
+                {
+                    foreach (string error in ExecutionSemanticActionSpaceValidator.Validate(
+                                 actionSpace,
+                                 proof.Action))
+                        Add(errors, error);
+                }
+            }
+            else if (value.ActionSpaceAuthority == "public_bound_actions"
+                     && (pre == null || !PublicCatalogContainsExactlyOnce(pre, value.Action)))
+            {
+                Add(errors, "canonical_transition_public_action_space_invalid");
+            }
         }
     }
 
-    private static FrozenDecisionFrameV2? ReadSemanticFrameReference(
+    private static ExecutionSemanticActionSpaceEvidence?
+        ReadExecutionSemanticActionSpaceReference(
+            string directory,
+            ExecutionSemanticActionSpaceReference? reference,
+            IDictionary<string, long> errors,
+            bool required = true)
+    {
+        if (reference == null)
+        {
+            if (required)
+                Add(errors, "execution_semantic_action_space_ref_missing");
+            return null;
+        }
+        string path;
+        try
+        {
+            path = ResolveBelow(directory, reference.ObjectRef);
+        }
+        catch (InvalidDataException)
+        {
+            Add(errors, "execution_semantic_action_space_ref_invalid");
+            return null;
+        }
+        if (!File.Exists(path) || EvidenceIdentity.Sha256File(path) != reference.ContentSha256)
+        {
+            Add(errors, "execution_semantic_action_space_missing_or_changed");
+            return null;
+        }
+        try
+        {
+            ExecutionSemanticActionSpaceEvidence? value =
+                JsonSerializer.Deserialize<ExecutionSemanticActionSpaceEvidence>(
+                    File.ReadAllText(path),
+                    EvidenceJson.Options);
+            if (value == null)
+            {
+                Add(errors, "execution_semantic_action_space_identity_mismatch");
+                return null;
+            }
+            if (!ExecutionSemanticActionSpaceContract.IsCurrent(
+                    value.SchemaVersion,
+                    value.Schema))
+            {
+                Add(errors, "execution_semantic_action_space_current_schema_required");
+                return null;
+            }
+            if (value.ActionWitnessId != reference.ActionWitnessId
+                || value.SemanticStateDigest != reference.SemanticStateDigest
+                || value.SemanticCatalogDigest != reference.SemanticCatalogDigest)
+            {
+                Add(errors, "execution_semantic_action_space_identity_mismatch");
+                return null;
+            }
+            return value;
+        }
+        catch (JsonException)
+        {
+            Add(errors, "execution_semantic_action_space_json_invalid");
+            return null;
+        }
+    }
+
+    private static bool PublicCatalogContainsExactlyOnce(
+        CurrentDecisionFrame frame,
+        RecordedBoundAction selected)
+    {
+        if (frame.Snapshot["completeness"]?["status"]?.GetValue<string>() != "complete"
+            || frame.Snapshot["bound_actions"]?["status"]?.GetValue<string>() != "complete"
+            || frame.Snapshot["bound_actions"]?["actions"] is not JsonArray actions
+            || frame.CatalogCount != actions.Count)
+            return false;
+        return actions.Count(candidate =>
+            candidate?["bound_action_id"]?.GetValue<string>() == selected.BoundActionId
+            && candidate?["verb"]?.GetValue<string>() == selected.Verb
+            && candidate?["subject_referent_id"]?.GetValue<string>()
+                == selected.SubjectReferentId
+            && PublicArgumentsMatch(candidate?["arguments"], selected.Arguments)) == 1;
+    }
+
+    private static bool PublicArgumentsMatch(
+        JsonNode? node,
+        IReadOnlyDictionary<string, string> expected)
+    {
+        if (node is not JsonArray values)
+            return expected.Count == 0;
+        var actual = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (JsonNode? value in values)
+        {
+            string? role = value?["role"]?.GetValue<string>();
+            string? referent = value?["referent_id"]?.GetValue<string>();
+            if (string.IsNullOrWhiteSpace(role)
+                || string.IsNullOrWhiteSpace(referent)
+                || !actual.TryAdd(role, referent))
+                return false;
+        }
+        return actual.Count == expected.Count
+            && actual.All(pair => expected.TryGetValue(pair.Key, out string? referent)
+                                  && referent == pair.Value);
+    }
+
+    private static CurrentDecisionFrame? ReadSemanticFrameReference(
         string directory,
         SemanticFrameReference reference,
         IDictionary<string, long> errors)
@@ -229,7 +426,7 @@ public static class V2RecordingAuditor
         }
         try
         {
-            FrozenDecisionFrameV2? frame = JsonSerializer.Deserialize<FrozenDecisionFrameV2>(
+            CurrentDecisionFrame? frame = JsonSerializer.Deserialize<CurrentDecisionFrame>(
                 File.ReadAllText(path),
                 EvidenceJson.Options);
             if (frame == null || frame.SnapshotId != reference.SnapshotId)
@@ -246,35 +443,35 @@ public static class V2RecordingAuditor
         }
     }
 
-    private static string SemanticFrameDigest(FrozenDecisionFrameV2 frame)
+    private static string SemanticFrameDigest(CurrentDecisionFrame frame)
     {
         JsonNode node = JsonSerializer.SerializeToNode(frame, EvidenceJson.Options)
             ?? throw new InvalidDataException("Semantic frame serialization returned null.");
         return EvidenceIdentity.Sha256Text(EvidenceCanonicalJson.Serialize(node));
     }
 
-    public static IReadOnlyList<HumanDecisionRecordV2> ReadAdmitted(string recordingDirectory)
+    public static IReadOnlyList<CurrentDecisionRecord> ReadAdmitted(string recordingDirectory)
     {
         RecordingAuditResult audit = Audit(recordingDirectory);
         if (audit.Status != "pass")
-            throw new InvalidDataException("V2 recording audit must pass before records are read.");
+            throw new InvalidDataException("Current recording audit must pass before records are read.");
         return DecisionPaths(Path.GetFullPath(recordingDirectory))
             .SelectMany(path => Lines(path).Select(item =>
-                JsonSerializer.Deserialize<HumanDecisionRecordV2>(item.Line, EvidenceJson.Options)
-                ?? throw new InvalidDataException("V2 decision record is null.")))
+                JsonSerializer.Deserialize<CurrentDecisionRecord>(item.Line, EvidenceJson.Options)
+                ?? throw new InvalidDataException("Current decision record is null.")))
             .ToArray();
     }
 
     public static long ExportAdmitted(string recordingDirectory, string outputPath)
     {
-        IReadOnlyList<HumanDecisionRecordV2> records = ReadAdmitted(recordingDirectory);
+        IReadOnlyList<CurrentDecisionRecord> records = ReadAdmitted(recordingDirectory);
         string destination = Path.GetFullPath(outputPath);
         Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
         string temporary = destination + $".tmp-{Guid.NewGuid():N}";
         using (var writer = new StreamWriter(temporary, false, new UTF8Encoding(false)))
         {
             writer.NewLine = "\n";
-            foreach (HumanDecisionRecordV2 record in records)
+            foreach (CurrentDecisionRecord record in records)
                 writer.WriteLine(JsonSerializer.Serialize(record, EvidenceJson.Options));
         }
         File.Move(temporary, destination, true);
@@ -283,7 +480,7 @@ public static class V2RecordingAuditor
 
     private static void ValidateJournal(
         string directory,
-        RecordingManifestV2? manifest,
+        CurrentRecordingManifest? manifest,
         IDictionary<string, long> errors)
     {
         string path = Path.Combine(directory, "run-journal.jsonl");
@@ -306,8 +503,8 @@ public static class V2RecordingAuditor
                 continue;
             }
             if (value == null
-                || value.Schema != HumanRecorderV2Contract.RunJournalSchema
-                || value.SchemaVersion != HumanRecorderV2Contract.SchemaVersion
+                || value.Schema != CurrentRecordingContract.RunJournalSchema
+                || value.SchemaVersion != CurrentRecordingContract.SchemaVersion
                 || value.Sequence <= previous
                 || manifest == null
                 || value.SessionId != manifest.SessionId
@@ -322,84 +519,19 @@ public static class V2RecordingAuditor
             Add(errors, "run_journal_empty");
     }
 
-    private static IReadOnlyList<NativeActionLedgerEvent> ValidateNativeActionLedger(
-        string directory,
-        RecordingManifestV2? manifest,
-        IReadOnlyDictionary<string, HumanDecisionRecordV2> admittedRecords,
-        IDictionary<string, long> errors)
-    {
-        string path = Path.Combine(directory, "native-action-ledger.jsonl");
-        // V2 recordings sealed before the additive ledger remain readable.
-        if (!File.Exists(path))
-            return Array.Empty<NativeActionLedgerEvent>();
-
-        var events = new List<NativeActionLedgerEvent>();
-        foreach ((string line, _) in Lines(path))
-        {
-            NativeActionLedgerEvent? value;
-            try
-            {
-                value = JsonSerializer.Deserialize<NativeActionLedgerEvent>(line, EvidenceJson.Options);
-            }
-            catch (JsonException)
-            {
-                Add(errors, "native_action_ledger_json_invalid");
-                continue;
-            }
-            if (value == null
-                || manifest == null
-                || value.SessionId != manifest.SessionId
-                || value.TimelineId != manifest.TimelineId)
-            {
-                Add(errors, "native_action_ledger_session_mismatch");
-                continue;
-            }
-            events.Add(value);
-        }
-        foreach (string error in NativeActionLedgerValidator.Validate(events))
-            Add(errors, error);
-        foreach (NativeActionLedgerEvent disposition in events.Where(value =>
-                     value.Kind is NativeActionLifecycleKinds.StrictTransitionAdmitted
-                         or NativeActionLifecycleKinds.StrictTransitionInvalidated))
-        {
-            bool admitted = admittedRecords.ContainsKey(disposition.RecordId);
-            if (disposition.Kind == NativeActionLifecycleKinds.StrictTransitionAdmitted && !admitted)
-                Add(errors, "native_action_admission_record_missing");
-            if (disposition.Kind == NativeActionLifecycleKinds.StrictTransitionInvalidated && admitted)
-                Add(errors, "native_action_invalidated_record_admitted");
-        }
-        foreach (NativeActionLedgerEvent accepted in events.Where(value =>
-                     value.Kind == NativeActionLifecycleKinds.Accepted
-                     && value.SchemaVersion == NativeActionLedgerContract.SchemaVersion
-                     && admittedRecords.ContainsKey(value.RecordId)))
-        {
-            HumanDecisionRecordV2 record = admittedRecords[accepted.RecordId];
-            if (accepted.DecisionPre == null
-                || accepted.NativeWitness == null
-                || accepted.Mapping == null
-                || accepted.BoundAction == null
-                || EvidenceIdentity.Sha256Json(accepted.DecisionPre) != EvidenceIdentity.Sha256Json(record.Pre)
-                || EvidenceIdentity.Sha256Json(accepted.NativeWitness) != EvidenceIdentity.Sha256Json(record.NativeWitness)
-                || EvidenceIdentity.Sha256Json(accepted.Mapping) != EvidenceIdentity.Sha256Json(record.Mapping)
-                || EvidenceIdentity.Sha256Json(accepted.BoundAction) != EvidenceIdentity.Sha256Json(record.Action))
-                Add(errors, "native_action_decision_record_mismatch");
-        }
-        return events;
-    }
-
     private static IReadOnlyList<SemanticBoundaryTraceEvent> ValidateSemanticBoundaryTrace(
         string directory,
-        RecordingManifestV2? manifest,
+        CurrentRecordingManifest? manifest,
         IDictionary<string, long> errors)
     {
         string path = Path.Combine(directory, "semantic-boundary-trace.jsonl");
-        // The observation-only trace is additive; predecessor V2 sessions do
-        // not gain or lose validity based on its absence.
+        // The semantic trace is current evidence. A pre-trace recording is
+        // archival input and is not promoted by this current audit.
         if (!File.Exists(path))
             return Array.Empty<SemanticBoundaryTraceEvent>();
 
         var events = new List<SemanticBoundaryTraceEvent>();
-        var semanticFrames = new Dictionary<string, FrozenDecisionFrameV2>(StringComparer.Ordinal);
+        var semanticFrames = new Dictionary<string, CurrentDecisionFrame>(StringComparer.Ordinal);
         foreach ((string line, _) in Lines(path))
         {
             string? schema;
@@ -425,6 +557,11 @@ public static class V2RecordingAuditor
                     errors);
                 if (materialized != null)
                     events.Add(materialized);
+                continue;
+            }
+            if (schema != SemanticBoundaryTraceContract.EventSchema)
+            {
+                Add(errors, "semantic_boundary_trace_current_schema_required");
                 continue;
             }
             SemanticBoundaryTraceEvent? value;
@@ -456,9 +593,9 @@ public static class V2RecordingAuditor
 
     private static SemanticBoundaryTraceEvent? MaterializeSemanticEvidenceEvent(
         string directory,
-        RecordingManifestV2? manifest,
+        CurrentRecordingManifest? manifest,
         string line,
-        IDictionary<string, FrozenDecisionFrameV2> semanticFrames,
+        IDictionary<string, CurrentDecisionFrame> semanticFrames,
         IDictionary<string, long> errors)
     {
         SemanticEvidenceEvent? value;
@@ -472,8 +609,7 @@ public static class V2RecordingAuditor
             return null;
         }
         if (value == null
-            || value.SchemaVersion != SemanticEvidenceContract.SchemaVersion
-            || value.Schema != SemanticEvidenceContract.EventSchema
+            || !SemanticEvidenceContract.IsCurrent(value.SchemaVersion, value.Schema)
             || manifest == null
             || value.SessionId != manifest.SessionId
             || value.TimelineId != manifest.TimelineId)
@@ -482,17 +618,17 @@ public static class V2RecordingAuditor
             return null;
         }
 
-        FrozenDecisionFrameV2? humanObservation = ResolveSemanticFrame(
+        CurrentDecisionFrame? humanObservation = ResolveSemanticFrame(
             directory,
             value.HumanObservationRef,
             semanticFrames,
             errors);
-        FrozenDecisionFrameV2? executionPre = ResolveSemanticFrame(
+        CurrentDecisionFrame? executionPre = ResolveSemanticFrame(
             directory,
             value.ExecutionPreRef,
             semanticFrames,
             errors);
-        FrozenDecisionFrameV2? successor = ResolveSemanticFrame(
+        CurrentDecisionFrame? successor = ResolveSemanticFrame(
             directory,
             value.SuccessorRef,
             semanticFrames,
@@ -500,13 +636,19 @@ public static class V2RecordingAuditor
         SemanticBoundaryObservation? boundary = null;
         if (value.Boundary != null)
         {
-            FrozenDecisionFrameV2? state = ResolveSemanticFrame(
+            CurrentDecisionFrame? state = ResolveSemanticFrame(
                 directory,
                 value.Boundary.StateRef,
                 semanticFrames,
                 errors);
             boundary = SemanticBoundaryObservationCodec.Materialize(value.Boundary, state);
         }
+        ExecutionSemanticActionSpaceEvidence? executionSemanticActionSpace =
+            ReadExecutionSemanticActionSpaceReference(
+                directory,
+                value.ExecutionSemanticActionSpaceRef,
+                errors,
+                required: false);
 
         return new SemanticBoundaryTraceEvent(
             SemanticBoundaryTraceContract.SchemaVersion,
@@ -528,20 +670,22 @@ public static class V2RecordingAuditor
             value.NonClaims)
         {
             HumanObservation = humanObservation,
-            NativeCompletion = value.NativeCompletion
+            NativeCompletion = value.NativeCompletion,
+            NativeContinuation = value.NativeContinuation,
+            ExecutionSemanticActionSpace = executionSemanticActionSpace
         };
     }
 
-    private static FrozenDecisionFrameV2? ResolveSemanticFrame(
+    private static CurrentDecisionFrame? ResolveSemanticFrame(
         string directory,
         SemanticFrameReference? reference,
-        IDictionary<string, FrozenDecisionFrameV2> semanticFrames,
+        IDictionary<string, CurrentDecisionFrame> semanticFrames,
         IDictionary<string, long> errors)
     {
         if (reference == null)
             return null;
         string cacheKey = $"{reference.ContentSha256}\n{reference.ObjectRef}";
-        if (semanticFrames.TryGetValue(cacheKey, out FrozenDecisionFrameV2? cached))
+        if (semanticFrames.TryGetValue(cacheKey, out CurrentDecisionFrame? cached))
         {
             if (cached.SnapshotId != reference.SnapshotId)
             {
@@ -559,7 +703,7 @@ public static class V2RecordingAuditor
                 Add(errors, "semantic_frame_missing_or_changed");
                 return null;
             }
-            FrozenDecisionFrameV2? frame = JsonSerializer.Deserialize<FrozenDecisionFrameV2>(
+            CurrentDecisionFrame? frame = JsonSerializer.Deserialize<CurrentDecisionFrame>(
                 File.ReadAllText(path),
                 EvidenceJson.Options);
             if (frame == null || frame.SnapshotId != reference.SnapshotId)
@@ -578,69 +722,17 @@ public static class V2RecordingAuditor
         }
     }
 
-    private static void ValidateSchemaTwoSemanticAccounting(
-        IReadOnlyList<NativeActionLedgerEvent> nativeEvents,
-        IReadOnlyList<SemanticBoundaryTraceEvent> semanticEvents,
-        IReadOnlyList<NativeSemanticDiscriminatorEvent> discriminatorEvents,
-        IDictionary<string, long> errors)
-    {
-        // Current evidence can account a native root through either the
-        // semantic timeline or the execution-bound discriminator. Older
-        // sessions with neither stream retain their original meaning.
-        bool hasSchemaTwoTrace = semanticEvents.Any(value =>
-            value.SchemaVersion == SemanticBoundaryTraceContract.SchemaVersion
-            && value.Schema == SemanticBoundaryTraceContract.EventSchema);
-        if (!hasSchemaTwoTrace && discriminatorEvents.Count == 0)
-            return;
-
-        HashSet<string> semanticAcceptedRecordIds = semanticEvents
-            .Where(value =>
-                value.SchemaVersion == SemanticBoundaryTraceContract.SchemaVersion
-                && value.Kind == SemanticBoundaryTraceKinds.ActionAccepted)
-            .Select(value => value.Action.RecordId)
-            .ToHashSet(StringComparer.Ordinal);
-        HashSet<string> semanticAcceptedActionIds = semanticEvents
-            .Where(value =>
-                value.SchemaVersion == SemanticBoundaryTraceContract.SchemaVersion
-                && value.Kind == SemanticBoundaryTraceKinds.ActionAccepted)
-            .Select(value => value.Action.ActionWitnessId)
-            .ToHashSet(StringComparer.Ordinal);
-        HashSet<string> discriminatorAcceptedActionIds = discriminatorEvents
-            .Where(value => value.Phase == "accepted")
-            .Select(value => value.ActionWitnessId)
-            .ToHashSet(StringComparer.Ordinal);
-        HashSet<string> nativeAcceptedActionIds = nativeEvents
-            .Where(value =>
-                value.SchemaVersion == NativeActionLedgerContract.SchemaVersion
-                && value.Kind == NativeActionLifecycleKinds.Accepted)
-            .Select(value => value.ActionWitnessId)
-            .ToHashSet(StringComparer.Ordinal);
-        foreach (NativeActionLedgerEvent accepted in nativeEvents.Where(value =>
-                     value.SchemaVersion == NativeActionLedgerContract.SchemaVersion
-                     && value.Kind == NativeActionLifecycleKinds.Accepted))
-        {
-            if (!semanticAcceptedRecordIds.Contains(accepted.RecordId)
-                && !discriminatorAcceptedActionIds.Contains(accepted.ActionWitnessId))
-                Add(errors, "semantic_trace_missing_accepted_native_action");
-        }
-        foreach (string discriminatorActionId in discriminatorAcceptedActionIds)
-        {
-            if (!nativeAcceptedActionIds.Contains(discriminatorActionId)
-                && !semanticAcceptedActionIds.Contains(discriminatorActionId))
-                Add(errors, "native_semantic_discriminator_accepted_without_canonical_accounting");
-        }
-    }
-
-    private static IReadOnlyList<NativeSemanticDiscriminatorEvent>
+    private static void
         ValidateNativeSemanticDiscriminator(
             string directory,
-            RecordingManifestV2? manifest,
+            CurrentRecordingManifest? manifest,
             IDictionary<string, long> errors)
     {
         string path = Path.Combine(directory, "native-semantic-discriminator.jsonl");
-        // The stream is additive. Historical recordings remain valid without it.
+        // The stream is diagnostic-only. It can report integrity failures, but
+        // per-action coverage/membership never becomes current causal authority.
         if (!File.Exists(path))
-            return Array.Empty<NativeSemanticDiscriminatorEvent>();
+            return;
 
         var events = new List<NativeSemanticDiscriminatorEvent>();
         foreach ((string line, _) in Lines(path))
@@ -669,13 +761,13 @@ public static class V2RecordingAuditor
             events.Add(value);
         }
         if (events.Count == 0)
-            return events;
+            return;
 
         NativeSemanticDiscriminatorReport report =
             NativeSemanticDiscriminatorAnalyzer.Analyze(events);
-        foreach (string _ in report.Errors)
+        foreach (string _ in report.Errors.Where(error =>
+                     !NativeSemanticDiscriminatorAnalyzer.IsDiagnosticOnlyError(error)))
             Add(errors, "native_semantic_discriminator_analysis_failed");
-        return events;
     }
 
     private static T? ReadOrError<T>(string path, IDictionary<string, long> errors, string error)

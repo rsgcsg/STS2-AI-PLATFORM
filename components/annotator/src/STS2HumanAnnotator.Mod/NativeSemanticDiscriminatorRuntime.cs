@@ -6,7 +6,7 @@ namespace STS2HumanAnnotator.Mod;
 
 /// <summary>
 /// Additive read-only runtime experiment. Failures here never affect gameplay,
-/// Human action admission, or the canonical Decision V2/timeline streams.
+/// Human action admission, or the current canonical/timeline streams.
 /// </summary>
 internal static class NativeSemanticDiscriminatorRuntime
 {
@@ -23,7 +23,7 @@ internal static class NativeSemanticDiscriminatorRuntime
     }
 
     internal static void Observe(
-        V2RecordingStore? store,
+        RecordingSessionStore? store,
         string? sessionId,
         string? timelineId,
         string runId,
@@ -32,7 +32,8 @@ internal static class NativeSemanticDiscriminatorRuntime
         ProcessLocalNativeWitnessFrame? uiFrame = null,
         string? relatedActionWitnessId = null,
         bool capture = true,
-        string? detail = null)
+        string? detail = null,
+        ProcessLocalNativeSemanticCapture? capturedValue = null)
     {
         if (store == null || sessionId == null || timelineId == null)
             return;
@@ -47,7 +48,7 @@ internal static class NativeSemanticDiscriminatorRuntime
         }
         try
         {
-            ProcessLocalNativeSemanticCapture? value = capture
+            ProcessLocalNativeSemanticCapture? value = capturedValue ?? (capture
                 ? store.Measure(
                     uiFrame == null
                         ? "native_semantic_discriminator_snapshot_capture"
@@ -60,7 +61,7 @@ internal static class NativeSemanticDiscriminatorRuntime
                             store,
                             "native_semantic_discriminator",
                             captured)))
-                : null;
+                : null);
             string actionWitnessId = NativeWitnessIdentity.Get(action, "game_action");
             store.AppendNativeSemanticDiscriminatorEvent(CreateEvent(
                 sessionId,
@@ -92,7 +93,7 @@ internal static class NativeSemanticDiscriminatorRuntime
     }
 
     private static void RecordCaptureSubphases(
-        V2RecordingStore store,
+        RecordingSessionStore store,
         string callSite,
         ProcessLocalNativeWitnessFrame frame)
     {
@@ -105,7 +106,7 @@ internal static class NativeSemanticDiscriminatorRuntime
     }
 
     internal static void ObserveDirectCommit(
-        V2RecordingStore? store,
+        RecordingSessionStore? store,
         string? sessionId,
         string? timelineId,
         string runId,
@@ -145,7 +146,7 @@ internal static class NativeSemanticDiscriminatorRuntime
     }
 
     internal static void ObserveLifecycleOnly(
-        V2RecordingStore? store,
+        RecordingSessionStore? store,
         string? sessionId,
         string? timelineId,
         string runId,

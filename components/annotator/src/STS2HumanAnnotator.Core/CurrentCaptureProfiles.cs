@@ -6,11 +6,11 @@ public static class HumanCaptureProfiles
     /// The current bounded Full-Run profile. Read requirements are scoped by
     /// interaction so non-combat states do not inherit combat-only reads.
     /// </summary>
-    public static HumanCaptureProfile FullRunReadRichV2 { get; } = new(
-        HumanRecorderV2Contract.SchemaVersion,
-        HumanRecorderV2Contract.CaptureProfileSchema,
+    public static HumanCaptureProfile FullRunReadRich { get; } = new(
+        CurrentRecordingContract.SchemaVersion,
+        CurrentRecordingContract.CaptureProfileSchema,
         "human-full-run-read-rich-v2",
-        HumanRecorderV2Contract.RecordSchema,
+        CurrentRecordingContract.RecordSchema,
         new[]
         {
             "ordinary_combat.play_card",
@@ -45,12 +45,14 @@ public static class HumanCaptureProfiles
             "non_combat_successor_requires_exact_native_post_commit_or_execution_handoff"
         });
 
-    // Kept as the historical profile identity for old V2 fixtures and bundles.
-    public static HumanCaptureProfile CombatReadRichV2 { get; } = new(
-        HumanRecorderV2Contract.SchemaVersion,
-        HumanRecorderV2Contract.CaptureProfileSchema,
+    // Kept as a bounded current profile identity for existing schema-2 combat
+    // fixtures; the CLR path is current and the wire suffix remains evidence
+    // identity rather than a parallel runtime product.
+    public static HumanCaptureProfile CombatReadRich { get; } = new(
+        CurrentRecordingContract.SchemaVersion,
+        CurrentRecordingContract.CaptureProfileSchema,
         "human-combat-read-rich-v2",
-        HumanRecorderV2Contract.RecordSchema,
+        CurrentRecordingContract.RecordSchema,
         new[]
         {
             "ordinary_combat.play_card",

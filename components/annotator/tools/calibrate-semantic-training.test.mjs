@@ -35,6 +35,34 @@ function frame(snapshotId, actions = [action()]) {
   };
 }
 
+function semanticActionSpace(actionWitnessId, selected) {
+  const key = `${selected.verb}|${selected.subject_referent_id ?? "-"}|`;
+  return {
+    schema_version: 2,
+    schema: "sts2.human-annotator/execution-semantic-action-space-2",
+    action_witness_id: actionWitnessId,
+    phase: "before_execution",
+    status: "captured",
+    scope: "combat_play_phase",
+    semantic_state_digest: "semantic-state",
+    semantic_state: { player_phase: "Play" },
+    semantic_catalog_digest: "semantic-catalog",
+    actions: [{
+      key,
+      verb: selected.verb,
+      subject_referent_id: selected.subject_referent_id,
+      arguments: selected.arguments,
+      native_legality_basis: "native-test-validator"
+    }],
+    observed_action_key: key,
+    observed_membership: "exact_once",
+    observed_match_count: 1,
+    human_bound_action_id: selected.bound_action_id,
+    native_evidence: ["native-test-validator"],
+    non_claims: ["not_public_bound_action_delivery_authority"]
+  };
+}
+
 async function fixture() {
   const root = await mkdtemp(path.join(os.tmpdir(), "semantic-calibration-"));
   await writeFile(path.join(root, "recording-manifest.json"), JSON.stringify({
@@ -52,8 +80,84 @@ async function fixture() {
   await store("s0", frame("s0"));
   await store("s1", frame("s1", [action("action-2")]));
   await store("mismatch", frame("mismatch", [action("other")]));
+  await store("settling0", frame("settling0", []));
+  await store("settling1", frame("settling1", []));
+  await store("a1semantic", semanticActionSpace("a1", action()));
+  await store("a2semantic", semanticActionSpace("a2", action("action-2")));
   return { root, refs };
 }
+
+test("uses durable native semantic action space when public execution catalog is empty", async () => {
+  const { root, refs } = await fixture();
+  try {
+    const first = action();
+    const second = action("action-2");
+    const events = [
+      event(1, "action_accepted", "a1", first, { human_observation_ref: refs.s0 }),
+      event(2, "boundary_observed", "a1", first, {
+        execution_pre_ref: refs.settling0,
+        execution_semantic_action_space_ref: refs.a1semantic,
+        boundary: { immediately_consumed_by_action_witness_id: "a1" }
+      }),
+      event(3, "action_started", "a1", first, {
+        execution_pre_ref: refs.settling0,
+        execution_semantic_action_space_ref: refs.a1semantic
+      }),
+      event(4, "action_finished", "a1", first, {
+        execution_pre_ref: refs.settling0,
+        execution_semantic_action_space_ref: refs.a1semantic
+      }),
+      event(5, "transition_proved", "a1", first, {
+        execution_pre_ref: refs.settling0,
+        execution_semantic_action_space_ref: refs.a1semantic,
+        successor_ref: refs.settling1,
+        related_action_witness_id: "a2",
+        proof_status: "proved_execution_handoff_boundary"
+      }),
+      event(6, "action_accepted", "a2", second, { human_observation_ref: refs.s1 }),
+      event(7, "boundary_observed", "a2", second, {
+        execution_pre_ref: refs.settling1,
+        execution_semantic_action_space_ref: refs.a2semantic,
+        boundary: { immediately_consumed_by_action_witness_id: "a2" }
+      }),
+      event(8, "action_started", "a2", second, {
+        execution_pre_ref: refs.settling1,
+        execution_semantic_action_space_ref: refs.a2semantic
+      }),
+      event(9, "action_finished", "a2", second, {
+        execution_pre_ref: refs.settling1,
+        execution_semantic_action_space_ref: refs.a2semantic
+      }),
+      event(10, "transition_unknown", "a2", second, {
+        execution_pre_ref: refs.settling1,
+        execution_semantic_action_space_ref: refs.a2semantic,
+        proof_status: "session_closed_before_successor_boundary"
+      })
+    ];
+    await writeFile(path.join(root, "semantic-boundary-trace.jsonl"),
+      `${events.map(JSON.stringify).join("\n")}\n`);
+    await writeFile(path.join(root, "run-0001.jsonl"), "");
+    await writeFile(path.join(root, "canonical-transitions.jsonl"),
+      `${JSON.stringify({
+        schema_version: 2,
+        schema: "sts2.human-annotator/canonical-transition-evidence-2",
+        collection_mode: "causal_human_native_observation",
+        action_witness_id: "a1"
+      })}\n`);
+
+    const report = await calibrate(root);
+    assert.equal(report.summary.semantic_candidate_s_a_s_prime, 1);
+    assert.equal(report.summary.durable_canonical, 1);
+    assert.equal(report.summary.semantic_candidate_without_durable_canonical, 0);
+    assert.equal(report.summary.successor_unresolved, 1);
+    assert.equal(report.summary.state_action_space_unresolved, 0);
+    assert.equal(report.actions[0].execution_action_space_authority,
+      "native_semantic_execution");
+    assert.equal(report.actions[0].execution_action_match_count, 1);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 function event(sequence, kind, id, selected, extra = {}) {
   return {
@@ -73,7 +177,7 @@ function event(sequence, kind, id, selected, extra = {}) {
       run_id: "run-1",
       native_action_type: "PlayCardAction",
       human_observation_snapshot_id: "s0",
-      native_mechanism: "game_action",
+      native_mechanism: extra.native_mechanism ?? "game_action",
       ...(selected ? { bound_action: selected } : {})
     },
     proof_status: extra.proof_status ?? "test",
@@ -87,18 +191,26 @@ test("classifies exact handoff, polling successor, and mismatched execution cata
     const events = [
       event(1, "action_accepted", "a1", action(), { human_observation_ref: refs.s0 }),
       event(2, "boundary_observed", "a1", action(), { execution_pre_ref: refs.s0,
+        execution_semantic_action_space_ref: refs.a1semantic,
         boundary: { immediately_consumed_by_action_witness_id: "a1" } }),
-      event(3, "action_started", "a1", action(), { execution_pre_ref: refs.s0 }),
-      event(4, "action_finished", "a1", action(), { execution_pre_ref: refs.s0 }),
+      event(3, "action_started", "a1", action(), { execution_pre_ref: refs.s0,
+        execution_semantic_action_space_ref: refs.a1semantic }),
+      event(4, "action_finished", "a1", action(), { execution_pre_ref: refs.s0,
+        execution_semantic_action_space_ref: refs.a1semantic }),
       event(5, "transition_proved", "a1", action(), { execution_pre_ref: refs.s0,
+        execution_semantic_action_space_ref: refs.a1semantic,
         successor_ref: refs.s1, related_action_witness_id: "a2",
         proof_status: "proved_execution_handoff_boundary" }),
       event(6, "action_accepted", "a2", action("action-2"), { human_observation_ref: refs.s1 }),
       event(7, "boundary_observed", "a2", action("action-2"), { execution_pre_ref: refs.s1,
+        execution_semantic_action_space_ref: refs.a2semantic,
         boundary: { immediately_consumed_by_action_witness_id: "a2" } }),
-      event(8, "action_started", "a2", action("action-2"), { execution_pre_ref: refs.s1 }),
-      event(9, "action_finished", "a2", action("action-2"), { execution_pre_ref: refs.s1 }),
+      event(8, "action_started", "a2", action("action-2"), { execution_pre_ref: refs.s1,
+        execution_semantic_action_space_ref: refs.a2semantic }),
+      event(9, "action_finished", "a2", action("action-2"), { execution_pre_ref: refs.s1,
+        execution_semantic_action_space_ref: refs.a2semantic }),
       event(10, "transition_proved", "a2", action("action-2"), { execution_pre_ref: refs.s1,
+        execution_semantic_action_space_ref: refs.a2semantic,
         successor_ref: refs.s0, proof_status: "proved_interactive_decision_boundary" }),
       event(11, "action_accepted", "a3", action(), { human_observation_ref: refs.s0 }),
       event(12, "boundary_observed", "a3", action(), { execution_pre_ref: refs.mismatch,
@@ -110,17 +222,16 @@ test("classifies exact handoff, polling successor, and mismatched execution cata
     ];
     await writeFile(path.join(root, "semantic-boundary-trace.jsonl"),
       `${events.map(JSON.stringify).join("\n")}\n`);
-    await writeFile(path.join(root, "native-action-ledger.jsonl"), "");
     await writeFile(path.join(root, "run-0001.jsonl"), "");
 
     const report = await calibrate(root);
     assert.deepEqual(report.summary.classifications, {
-      canonical_s_a_s_prime: 1,
+      semantic_candidate_s_a_s_prime: 1,
       state_action_space_unresolved: 1,
       successor_unresolved: 1
     });
     assert.equal(report.summary.rapid_rebind_valid, 1);
-    assert.equal(report.summary.canonical_s_a, 2);
+    assert.equal(report.summary.semantic_candidate_s_a, 2);
     assert.equal(report.summary.future_action_chain_candidate, 1);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -132,28 +243,39 @@ test("accepts only an exact native UI post-commit boundary for direct UI proof",
   try {
     const direct = action();
     const events = [
-      event(1, "action_accepted", "a1", direct, { human_observation_ref: refs.s0 }),
+      event(1, "action_accepted", "a1", direct, {
+        human_observation_ref: refs.s0,
+        native_mechanism: "direct_ui_commit"
+      }),
       event(2, "boundary_observed", "a1", direct, {
         execution_pre_ref: refs.s0,
         boundary: { witness_kind: "after_native_ui_commit" }
       }),
-      event(3, "action_started", "a1", direct, { execution_pre_ref: refs.s0 }),
-      event(4, "action_finished", "a1", direct, { execution_pre_ref: refs.s0 }),
+      event(3, "action_started", "a1", direct, {
+        execution_pre_ref: refs.s0,
+        native_mechanism: "direct_ui_commit"
+      }),
+      event(4, "action_finished", "a1", direct, {
+        execution_pre_ref: refs.s0,
+        native_mechanism: "direct_ui_commit"
+      }),
       event(5, "transition_proved", "a1", direct, {
         execution_pre_ref: refs.s0,
         successor_ref: refs.s1,
         proof_status: "proved_native_post_commit_boundary",
+        native_mechanism: "direct_ui_commit",
         boundary: { witness_kind: "after_native_ui_commit" }
       })
     ];
     await writeFile(path.join(root, "semantic-boundary-trace.jsonl"),
       `${events.map(JSON.stringify).join("\n")}\n`);
-    await writeFile(path.join(root, "native-action-ledger.jsonl"), "");
     await writeFile(path.join(root, "run-0001.jsonl"), "");
 
     const report = await calibrate(root);
-    assert.equal(report.summary.canonical_s_a_s_prime, 1);
+    assert.equal(report.summary.semantic_candidate_s_a_s_prime, 1);
     assert.equal(report.summary.proof_reasons.native_post_commit_exact, 1);
+    assert.equal(report.actions[0].execution_action_space_authority,
+      "public_bound_actions");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -165,7 +287,10 @@ test("accepts a native Commit followed by an exact owner-ready boundary", async 
     const selected = action();
     const events = [
       event(1, "action_accepted", "a1", selected, { human_observation_ref: refs.s0 }),
-      event(2, "boundary_observed", "a1", selected, { execution_pre_ref: refs.s0 }),
+      event(2, "boundary_observed", "a1", selected, {
+        execution_pre_ref: refs.s0,
+        execution_semantic_action_space_ref: refs.a1semantic
+      }),
       event(3, "action_started", "a1", selected, { execution_pre_ref: refs.s0 }),
       event(4, "native_commit_observed", "a1", selected, { execution_pre_ref: refs.s0 }),
       event(5, "action_finished", "a1", selected, { execution_pre_ref: refs.s0 }),
@@ -178,11 +303,10 @@ test("accepts a native Commit followed by an exact owner-ready boundary", async 
     ];
     await writeFile(path.join(root, "semantic-boundary-trace.jsonl"),
       `${events.map(JSON.stringify).join("\n")}\n`);
-    await writeFile(path.join(root, "native-action-ledger.jsonl"), "");
     await writeFile(path.join(root, "run-0001.jsonl"), "");
 
     const report = await calibrate(root);
-    assert.equal(report.summary.canonical_s_a_s_prime, 1);
+    assert.equal(report.summary.semantic_candidate_s_a_s_prime, 1);
     assert.equal(report.summary.proof_reasons.native_commit_then_owner_boundary_exact, 1);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -196,7 +320,10 @@ test("accepts a native Commit handoff only when it equals the next execution pre
     const second = action("action-2");
     const events = [
       event(1, "action_accepted", "a1", first, { human_observation_ref: refs.s0 }),
-      event(2, "boundary_observed", "a1", first, { execution_pre_ref: refs.s0 }),
+      event(2, "boundary_observed", "a1", first, {
+        execution_pre_ref: refs.s0,
+        execution_semantic_action_space_ref: refs.a1semantic
+      }),
       event(3, "action_started", "a1", first, { execution_pre_ref: refs.s0 }),
       event(4, "native_commit_observed", "a1", first, { execution_pre_ref: refs.s0 }),
       event(5, "action_finished", "a1", first, { execution_pre_ref: refs.s0 }),
@@ -209,6 +336,7 @@ test("accepts a native Commit handoff only when it equals the next execution pre
       event(7, "action_accepted", "a2", second, { human_observation_ref: refs.s1 }),
       event(8, "boundary_observed", "a2", second, {
         execution_pre_ref: refs.s1,
+        execution_semantic_action_space_ref: refs.a2semantic,
         boundary: { immediately_consumed_by_action_witness_id: "a2" }
       }),
       event(9, "action_started", "a2", second, { execution_pre_ref: refs.s1 }),
@@ -219,11 +347,10 @@ test("accepts a native Commit handoff only when it equals the next execution pre
     ];
     await writeFile(path.join(root, "semantic-boundary-trace.jsonl"),
       `${events.map(JSON.stringify).join("\n")}\n`);
-    await writeFile(path.join(root, "native-action-ledger.jsonl"), "");
     await writeFile(path.join(root, "run-0001.jsonl"), "");
 
     const report = await calibrate(root);
-    assert.equal(report.summary.canonical_s_a_s_prime, 1);
+    assert.equal(report.summary.semantic_candidate_s_a_s_prime, 1);
     assert.equal(report.summary.proof_reasons.native_commit_then_execution_handoff_exact, 1);
   } finally {
     await rm(root, { recursive: true, force: true });
@@ -240,7 +367,6 @@ test("fails closed when a content-addressed semantic frame is tampered", async (
       }))}\n${JSON.stringify(event(2, "transition_unknown", "a1", action(), {
         execution_pre_ref: refs.s0
       }))}\n`);
-    await writeFile(path.join(root, "native-action-ledger.jsonl"), "");
     await writeFile(path.join(root, "run-0001.jsonl"), "");
     await assert.rejects(() => calibrate(root), /digest mismatch/);
   } finally {

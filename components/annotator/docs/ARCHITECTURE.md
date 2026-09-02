@@ -4,42 +4,39 @@
 
 ```text
 STS2 native UI and action queue  game truth and accepted action
-STS2-Connector                  fair-player state, complete A(S), exact Host bindings
-Human Annotator                 correlation, lifecycle/boundary observation, raw evidence
+Native Foundation               typed read-only semantic S, A_sem(S), lifecycle facts
+STS2-Connector                  fair-player projection, A_public, exact Host bindings/delivery
+Human Annotator                 correlation, causal boundary observation, raw evidence
 STPD                            research projection and dataset admission
 ```
 
-The only production Human-action correlation path is:
+The current production Human-action path is:
 
 ```text
-native `StartCardPlay` stages the exact complete Connector frame while the card
-is still in the hand -> final UI Prefix selects current or same-card staged frame
--> game native validation/Commit
--> GameAction.OnEnqueued Postfix -> exact reference match and lifecycle witness
--> legacy V2 waits for a provably action-local stable interactive S'
--> append record
-```
-
-An additive semantic timeline consumes the same exact accepted-action identity
-without changing that path:
-
-```text
-frozen Human observation H (observation evidence only) + exact accepted action
--> game-owned started / choice pause-resume / cancelled / finished lifecycle
--> exact execution captures an adjacent state boundary
--> state-complete execution handoff or complete interactive observation
--> trace disposition, followed by independent canonical training calibration
+Human UI scope captures H and exact public BoundAction binding
+-> STS2 accepts one exact native root
+-> Native Foundation captures S and typed A_sem(S) at the exact native action-binding boundary
+   (pre-admission for source-local callbacks, or BeforeActionExecuted for GameAction roots)
+-> typed native lifecycle proves Commit
+-> SemanticBoundaryTracker proves a separate causal successor boundary
+-> non-authorizing projections write the current Decision record and canonical evidence
 ```
 
 `SemanticBoundaryTracker` never publishes or executes actions. Human H is not
-silently promoted to semantic S. The current tracker can establish a
-state-causal trace boundary while the UI catalog has not republished; state,
-Read and catalog completeness are recorded independently. Such a boundary is
-not canonical sequential S without complete same-state A(S) and exact action
-membership. An arbitrary settling poll cannot prove a causal training boundary.
-`GameAction.Finished` is lifecycle evidence, not universal completion. The
-legacy V2 adapter and semantic timeline share action identity, but neither is
-authority for the other.
+silently promoted to semantic S. It is the sole current authority for Human-root
+causal order and successor settlement, not for semantic legality. The native
+decision observation and fair-player state frame are related but distinct facts.
+The Native Foundation provider captures the STS2-owned `S` and `A_sem(S)` at the
+exact native action-binding boundary; the Connector separately supplies the
+fair-player frame used for Human/public evidence. A source-local callback can
+carry the typed native observation forward through admission, while a
+`GameAction` root uses the exact `BeforeActionExecuted` boundary when no earlier
+sidecar exists.
+Connector's public catalog may already be empty because input is settling; that
+does not erase the independently observed semantic action space and does not
+make the frame publicly interactive. An arbitrary settling poll cannot prove a
+causal successor. `GameAction.Finished` is lifecycle/Commit evidence, not
+universal `S'`.
 
 Acceptance sequence is evidence order, not causal execution order. Every action
 binds S only at its real execution boundary, so a later accepted source-local
@@ -56,15 +53,16 @@ action. Connector-origin actions call a different native entry path and do not
 enter the human UI scope.
 
 Starting a native card play moves its holder out of the active hand before
-`TryPlayCard(target)` commits. The recorder stages S at `StartCardPlay`, then
+`TryPlayCard(target)` commits. The recorder stages H at `StartCardPlay`, then
 uses it only when the exact same card reference, runtime, environment,
-interaction and target resolve to one frozen BoundAction within 30 seconds.
-There is no latest-frame fallback: card play uses only the current exact frame
-or that same-card staged frame, while end turn requires the current exact
-frame. Each scope admits exactly one expected root action; game-owned actions
-caused by that root are ignored rather than mislabeled as additional human
-decisions. A same-type action cannot claim the root until its exact native card
-and target resolve uniquely against the frozen catalog.
+interaction and target resolve to one frozen public BoundAction within 30
+seconds. There is no latest-frame fallback. This Human-time binding proves the
+chosen public action and correlation; it is not execution S or execution
+legality. At first native execution the typed Native Foundation provider
+independently describes the same native operand and requires exact-once
+membership in `A_sem(S)`. Each scope admits exactly one expected root action;
+game-owned actions caused by that root are ignored rather than mislabeled as
+additional Human decisions.
 
 ## Exact Mapping
 
@@ -87,18 +85,18 @@ Runtime initialization stops at `Ready`; it does not create evidence or bind a
 session. `RecordingService` owns the application contract:
 
 ```text
-Ready -> StartNewSession -> Recording <-> Paused -> Closing/Draining -> Closed
+Ready -> StartNewSession -> Recording <-> Paused -> Closing -> Closed
   ^                                                            |
   +--------------------- StartNewSession -----------------------+
 ```
 
 Every session receives a new session ID, timeline, store, counters and run
 sequence. Pause blocks new witness scopes while already admitted work settles.
-Close blocks new scopes, drains native lifecycle and semantic-boundary work, and
-only then flushes and disposes the RunJournal/evidence streams. A five-second
-drain limit may classify a still-unproved semantic edge unknown; elapsed time
-never proves S'. Audit/pack/verify/store/transfer remain offline Evidence
-operations.
+Close blocks new scopes, immediately disposes any still-unproved final root as
+`session_closed_before_successor_boundary`, then durably flushes and disposes
+the RunJournal/evidence streams. Close does not wait for a semantic drain and
+never captures or promotes a replacement `S'`. Audit/pack/verify/store/transfer
+remain offline Evidence operations.
 
 The frame loop is not observation authority. It performs no Player Environment
 capture while an idle recording has no explicit status or Close work. Canonical
@@ -115,36 +113,46 @@ derived coverage summary, then `Flush(true)` seals every stream before Closed is
 published. An interrupted session is partial inspectable evidence, not a durable
 Human evidence seal.
 
-Only a complete interactive pre-frame is eligible. One non-overlapping accepted
-root may remain a strict transition candidate. Every exact-correlated native
-root enters a bounded ledger at `GameAction.OnEnqueued`, after STS2 assigns its
-queue ID and before queue notification or execution. The observer subscribes to
-the action's game-owned started, player-choice pause/resume, cancelled and
-finished events without changing the action.
+Every exact-correlated native root enters `SemanticBoundaryTracker` at
+`GameAction.OnEnqueued`, after STS2 assigns its queue ID and before queue
+notification or execution. The observer subscribes to the action's game-owned
+started, PlayerChoice pause/resume, cancelled and finished events without
+changing the action. A later root may be accepted and tracked without blocking
+Human input. Its exact pre-execution frame may settle only the immediately
+preceding committed root and simultaneously becomes that later root's own S;
+proof never crosses the later Human effect.
 
-If another Human root is accepted before the first candidate has both finished
-and reached an action-local stable successor, every action in that causal window
-is explicitly accounted with its own frozen decision pre-frame and BoundAction,
-but loses strict transition eligibility. The next decision pre-frame is not
-evidence of the prior action's successor. Recovery is allowed only after every
-tracked action is terminal and a fresh complete interactive boundary is
-observed. Timeout, overlap, cancellation, runtime drift, lifecycle persistence
-uncertainty, root-contract error, or mapping failure is fail-closed. Native
-lifecycle, invalidated-decision facts and `semantic-boundary-trace.jsonl` are
-additive sidecar evidence; `HumanDecisionRecordV2` bytes and meaning are
-unchanged. Schema-3 events reference exact content-addressed frozen frames by
-H/S/S' role, eliminating repeated inline frames without normalizing away
-snapshot or Read provenance. The semantic trace is observation-only and audited
-independently; historical schema-1/2 rows remain readable.
+STS2 `GameAction.PauseForPlayerChoice` is a typed continuation seam, not a
+second Human root and not a completed parent. The exact
+`BeforePausedForPlayerChoice` lifecycle callback identifies the still-running
+parent; it permits the immediately nested choice's pre-execution boundary to
+settle `S0 + parent -> S_choice`. The later
+`BeforeReadyToResumeAfterPlayerChoice`/resume callback references that same
+parent and is lifecycle evidence only: it cannot rebind semantic pre-state or
+self-settle `P -> P`. The generated-card select/skip callbacks are narrow
+STS2 source-local mutation seams. When Connector's exact pre-choice frame is
+complete they enter the normal direct-UI root path; when it is not, their
+accepted mutation is durably retained as a fail-closed occurrence with exact
+subject, choice owner and paused-parent lineage rather than silently dropped.
+Neither path uses screen visibility, timing, polling, queue-idle or a later
+frame as semantic proof.
+
+Cancellation, runtime drift, lifecycle persistence uncertainty, root-contract
+error, mapping failure, incomplete semantic action space or missing successor
+is fail-closed. Schema-4 events reference exact content-addressed H/S/S' frames
+and, when present, one exact execution semantic action-space object. Historical
+schema-1/2/3 rows and native ledgers remain readable only through explicit
+archival readers; they are not current mutable admission or causal authorities.
+Persistence failure disables the modern trace for the session, surfaces
+`semantic_boundary_trace_unavailable`, and never retries or invents a later
+boundary.
 Audit rejects a proved transition whose semantic pre does not match its complete
 pre-execution boundary, or whose causal window contains another Human action
 start after A begins and before S'.
-Persistence failure disables that trace for the session, surfaces
-`semantic_boundary_trace_unavailable` in RecordingStatus, and never retries or
-invents a later boundary.
 
 The current combat implementation uses existing typed `GameAction` lifecycle
-events and `ActionExecutor.BeforeActionExecuted`. One exact-build read-only
+events and carries an admission-boundary semantic sidecar through staging when
+available; otherwise it captures at `ActionExecutor.BeforeActionExecuted`. One exact-build read-only
 Prefix observes `NCardPlayQueue.RemoveCardFromQueueForCancellation(PlayCardAction)`
 because the pile-missing execution branch returns with native state `Finished`
 without spending resources or running `OnPlay`; this is classified as
@@ -163,16 +171,17 @@ action.
 
 ## Canonical Sequential Collection Decision
 
-Exact runtime calibration shows that native UI staging removes PlayCard,
-UsePotion and EndTurn affordances before execution, while generic interactive
-polling does not prove causal S'. ADR 0003 therefore uses serialized Human
-input. For migrated families `_pending`, the native ledger and direct-Commit
-witness are the only causal state owners; the old schema-3 tracker is not fed in
-parallel. Additional mutation is blocked while lifecycle is open, never queued
-or replayed. An unavailable boundary is explicit unknown. The additive
-`canonical-transitions.jsonl` binds each admitted Decision V2 row to exact
-content-addressed pre/successor frames. This source candidate still needs a new
-artifact owner canary.
+Exact runtime evidence shows that native UI staging removes PlayCard,
+UsePotion and EndTurn from the public catalog before execution even though the
+STS2-owned semantic decision still contains them. Current canonical evidence
+therefore binds execution S to a content-addressed typed `A_sem(S)` observation
+for those families, joined to the exact Human `BoundActionId` captured at the
+native binding boundary. Direct UI domains may use their exact complete public
+execution catalog when that catalog itself is the typed delivery surface.
+The current Decision record separately preserves the frozen Human-time public
+frame for durable compatibility. The projector only joins already-proved facts and cannot settle
+the root or manufacture action-space membership. ADR 0003 remains a withdrawn
+serialized-input candidate, not current authority.
 
 The application event stream is typed, process-local and bounded. A consumer
 queries current status, then requests events after sequence N. A gap means the

@@ -96,6 +96,20 @@ public sealed class NativeSemanticDiscriminatorTests
         Assert.Equal(1, report.Unknown);
         Assert.Contains(report.Errors, value =>
             value.EndsWith("successful_action_not_exact_once_in_semantic_catalog", StringComparison.Ordinal));
+        Assert.True(NativeSemanticDiscriminatorAnalyzer.IsDiagnosticOnlyError(
+            report.Errors.Single(value =>
+                value.EndsWith("successful_action_not_exact_once_in_semantic_catalog", StringComparison.Ordinal))));
+    }
+
+    [Fact]
+    public void EnvelopeIntegrityErrorsRemainFatalWhileCoverageErrorsStayDiagnostic()
+    {
+        Assert.True(NativeSemanticDiscriminatorAnalyzer.IsDiagnosticOnlyError(
+            "a1:successful_action_not_exact_once_in_semantic_catalog"));
+        Assert.False(NativeSemanticDiscriminatorAnalyzer.IsDiagnosticOnlyError(
+            "native_semantic_discriminator_sequence_gap"));
+        Assert.False(NativeSemanticDiscriminatorAnalyzer.IsDiagnosticOnlyError(
+            "a1:action_run_identity_changed"));
     }
 
     [Fact]
@@ -229,21 +243,21 @@ public sealed class NativeSemanticDiscriminatorTests
         string root = Path.Combine(Path.GetTempPath(), $"sts2-native-semantic-{Guid.NewGuid():N}");
         try
         {
-            HumanCaptureProfile profile = HumanCaptureProfiles.CombatReadRichV2;
-            var manifest = new RecordingManifestV2(
-                HumanRecorderV2Contract.SchemaVersion,
-                HumanRecorderV2Contract.ManifestSchema,
+            HumanCaptureProfile profile = HumanCaptureProfiles.CombatReadRich;
+            var manifest = new CurrentRecordingManifest(
+                CurrentRecordingContract.SchemaVersion,
+                CurrentRecordingContract.ManifestSchema,
                 "session-test",
                 "timeline-test",
                 DateTimeOffset.UnixEpoch,
-                HumanRecorderContract.ProductVersion,
+                CurrentRecordingContract.ProductVersion,
                 new string('a', 40),
                 "test-runtime",
                 profile.ProfileId,
                 EvidenceIdentity.Sha256Json(profile),
                 profile.SupportedActionFamilies,
                 profile.NonClaims);
-            using (V2RecordingStore store = V2RecordingStore.Create(root, manifest, profile))
+            using (RecordingSessionStore store = RecordingSessionStore.Create(root, manifest, profile))
                 store.AppendNativeSemanticDiscriminatorEvent(Event(1, "accepted", "a1"));
 
             string path = Path.Combine(

@@ -1,5 +1,15 @@
 # Roadmap
 
+## Current recording-format hard cut (PR #11, 2026-09-02)
+
+The active Platform recording path is converged on one current semantic trace,
+current Decision/canonical projection, and current Store/Audit/Bundle contract.
+The `*-2` wire names are retained as evidence identity, not as a parallel V2
+runtime. Historical V1/V2 readers and native-action-ledger validation remain
+isolated archival tooling; the current recorder does not produce ledger
+sidecars, and STPD format adaptation is a separate follow-on. New runtime
+bytes from this source change require their own exact build/load/Human gates.
+
 ## Native Foundation Migration
 
 - Complete at source/test: introduce a semantic-only game-side Native

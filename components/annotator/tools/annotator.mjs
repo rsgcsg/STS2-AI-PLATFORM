@@ -732,8 +732,6 @@ function packSession() {
     throw new Error("Commit or remove Annotator worktree changes before evidence packing.");
   const directory = resolveCliPath(args[0] || readJson(runtimeStatus).recording_directory);
   const manifest = readJson(path.join(directory, "recording-manifest.json"));
-  const v2 = manifest.schema === "sts2.human-annotator/recording-manifest-2";
-  const profile = v2 ? null : path.resolve(option("--profile"));
   const worker = option("--worker");
   const campaign = option("--campaign");
   if (!args.includes("--attest-human-origin"))
@@ -747,9 +745,18 @@ function packSession() {
     if (path.resolve(status.recording_directory) === directory && processAlive(status.process_id))
       throw new Error("The active recording session must be closed before packing.");
   }
-  const command = v2
-    ? [toolDll, "pack-session-v2", directory, worker, campaign, output, source.head, "human_origin_attested"]
-    : [toolDll, "pack-session", directory, profile, worker, campaign, output, source.head, "human_origin_attested"];
+  if (manifest.schema !== "sts2.human-annotator/recording-manifest-2")
+    throw new Error("The current recorder requires recording-manifest-2; historical V1 sessions are archival-only.");
+  const command = [
+    toolDll,
+    "pack-session",
+    directory,
+    worker,
+    campaign,
+    output,
+    source.head,
+    "human_origin_attested"
+  ];
   run("dotnet", command);
 }
 

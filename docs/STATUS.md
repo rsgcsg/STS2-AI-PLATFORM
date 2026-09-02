@@ -1,5 +1,41 @@
 # Current Status
 
+## PR #11 current recording-format hard cut (source/test, 2026-09-02)
+
+The active Platform recorder now has one current CLR/data path: immutable
+Human/native observations feed the semantic boundary trace, current Decision
+and canonical projections, and the current store/audit/bundle tools. The wire
+suffix `-2` remains part of the current evidence identity; it is not a second
+runtime product. The current store never writes or consults
+`native-action-ledger.jsonl`, current audit rejects non-current recording
+containers, and the current bundle packer excludes the archival ledger.
+Historical V1/V2 records, schema-1/2/3 traces and ledger validators remain
+explicit archival readers only. The native semantic discriminator remains a
+diagnostic stream: envelope/identity corruption is fatal, while diagnostic
+coverage cannot veto healthy current canonical evidence. This hard cut changes
+recording product shape and source identities only; it does not claim a new
+runtime load or Human qualification, and STPD adaptation is deferred.
+
+The dated implementation and evidence sections below preserve predecessor
+recording formats and claims for historical context. Their V1/V2, ledger and
+legacy labels are archival evidence labels, not active current runtime
+authorities; the current path is the hard-cut contract above. The final PR #11
+source candidate also records STS2 `GameAction`
+`BeforePausedForPlayerChoice` as an exact parent continuation seam. It opens an
+immediate nested PlayerChoice handoff but is neither parent completion nor a
+new parent root; same-parent ready/resume remains lifecycle-only. An accepted
+generated-card select/skip that cannot canonicalize retains an immutable
+failed-closed occurrence with exact native subject/holder, owner and available
+parent lineage rather than silently disappearing.
+
+The rapid-input admission repair at head `3ee15fe8c70da4cd7d8070ca5344f331dec8a2cf`
+keeps capture admission independent from prior-root settlement. An unresolved
+prior root no longer prevents an STS2-correlated later Human root from entering
+the causal tracker; each root still binds semantic pre only at its own
+authoritative execution boundary, with fail-closed overlap preserved. This is a
+new runtime candidate, not a Human qualification claim; the prior Human session
+and artifact do not transfer.
+
 ## Repository governance
 
 Public `main` commit `5604050ef0e0f55f13bf2fdb720e5c215d774fd5`
@@ -12,6 +48,44 @@ history was rewritten. See [Development Workflow](DEVELOPMENT_WORKFLOW.md).
 GitHub enforcement is an operational fact separate from this source document;
 the workflow records intended rules, while repository settings must be checked
 directly before claiming protection.
+
+## Current PR #11 semantic action-space repair
+
+PR #11 is based on `develop@791e27172c39e5c4ce33a415b16fc1ea7f060513`.
+Its authority convergence correctly retires the mutable legacy admission and
+native-ledger paths, but the pre-hard-cut exact Human session
+`session-20260901T143015Z-98e33382404a46369fffd0140729d815` exposed a separate
+fact-loss regression: 194 of 195 roots proved causal successors, while 139
+ordinary combat roots lacked durable execution action-space evidence. The
+execution public Snapshot was settling or had already withdrawn the chosen
+action; it is not interchangeable with native `A_sem(S)`.
+
+Current source preserves the exact read-only Native Foundation semantic
+state/catalog at the native action-binding boundary: source-local callbacks
+capture it before admission, while GameAction roots capture it at
+`ActionExecutor.BeforeActionExecuted` when no earlier sidecar exists. It is
+referenced from semantic schema 4 and joined in canonical schema 2 without
+changing public Snapshot readiness, Connector delivery/revalidation or tracker
+successor semantics. Decision V2 remains a compatibility projection from the
+frozen Human-time public frame. Historical schema 3/schema 1 evidence remains
+readable and is not upgraded or backfilled. The action-space sidecar is schema 2
+with schema 1 read compatibility and carries the exact Human `BoundActionId`.
+The final PR11 source/test/build/install/load candidate is artifact
+`0b398d7aa0590533e4edeb9874ab5a77b4ce3108d2141b94b5b7a2d4d3e52d95` / MVID
+`ca8d7d3a-e816-4a2a-ae4f-490dab1ce781`, built from workspace
+`cab6b1b7e6a1506362d5a698c1db7f50009412cb`, cold-loaded in Connector runtime
+`931f5eded63b426784680a5e8141d141` under exact Modset
+`10a9c94fbb68883768e4c3d343c9f6a1eb024b432fdfdef4b747a8acf79eb166`.
+The associated Annotator component source is
+`75af9e5cf934222d99e7091535d495753da39988`; exact STS2 remains
+`v0.111.0 / 41cef1ea`. A fresh Human canary for these bytes remains pending;
+neither predecessor Human evidence nor pre-final artifacts transfer. The
+follow-on draft-projection repair makes
+every lifecycle/settlement draft inherit the Entry-owned Human observation,
+native completion and execution action-space references, preserving those facts
+through durable Decision V2/canonical projection without changing authority or
+successor semantics. See the
+[source closeout](evidence/PR11_EXECUTION_SEMANTIC_ACTION_SPACE_SOURCE_CLOSEOUT_2026-09-02.md).
 
 ## Current pre-Full-Run performance work
 

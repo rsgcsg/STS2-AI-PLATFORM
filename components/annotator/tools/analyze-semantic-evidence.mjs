@@ -228,9 +228,15 @@ async function* storedRepresentationLines(frameFiles, trace) {
 }
 
 function semanticFormat(value) {
-  return value.schema === "sts2.human-annotator/semantic-evidence-event-3"
-    ? "normalized-v3"
-    : "legacy-inline";
+  if (value.schema === "sts2.human-annotator/semantic-evidence-event-4")
+    return "normalized-v4";
+  if (value.schema === "sts2.human-annotator/semantic-evidence-event-3")
+    return "normalized-v3";
+  return "legacy-inline";
+}
+
+function isNormalizedFormat(value) {
+  return value === "normalized-v3" || value === "normalized-v4";
 }
 
 function collectStoredReference(reference, role, counts, digests, snapshotIds) {
@@ -291,7 +297,7 @@ export async function analyze(recordingDirectory) {
     if (value.kind === "action_aborted_before_commit") aborted++;
     if (!firstAt || value.observed_at < firstAt) firstAt = value.observed_at;
     if (!lastAt || value.observed_at > lastAt) lastAt = value.observed_at;
-    if (format === "normalized-v3") {
+    if (isNormalizedFormat(format)) {
       projectedEventBytes += rawBytes;
       collectStoredReference(value.human_observation_ref, "human_observation",
         storedRoleCounts, storedFrameDigests, storedSnapshotIds);
@@ -323,17 +329,17 @@ export async function analyze(recordingDirectory) {
     file.includes(`${path.sep}semantic-frames${path.sep}sha256${path.sep}`));
   const storedFrameBytes = semanticFrameFiles.reduce((sum, file) =>
     sum + fileBytes[path.relative(root, file)], 0);
-  const normalizedFrameBytes = inputFormat === "normalized-v3"
+  const normalizedFrameBytes = isNormalizedFormat(inputFormat)
     ? storedFrameBytes
     : collector.uniqueFrameRecordBytes;
   const normalizedTotalBytes = projectedEventBytes + normalizedFrameBytes;
   const existingTraceGzipBytes = await gzipSize(textLines(trace));
-  const normalizedGzipBytes = await gzipSize(inputFormat === "normalized-v3"
+  const normalizedGzipBytes = await gzipSize(isNormalizedFormat(inputFormat)
     ? storedRepresentationLines(semanticFrameFiles, trace)
     : normalizedLines(trace));
-  const roleCounts = inputFormat === "normalized-v3" ? storedRoleCounts : collector.roles;
+  const roleCounts = isNormalizedFormat(inputFormat) ? storedRoleCounts : collector.roles;
   const roleCount = Object.values(roleCounts).reduce((sum, value) => sum + value, 0);
-  const uniqueFrameCount = inputFormat === "normalized-v3"
+  const uniqueFrameCount = isNormalizedFormat(inputFormat)
     ? storedFrameDigests.size
     : collector.uniqueFrameCount;
 
@@ -386,12 +392,12 @@ export async function analyze(recordingDirectory) {
       unique_frame_bytes: normalizedFrameBytes,
       frame_record_count: uniqueFrameCount,
       total_bytes: normalizedTotalBytes,
-      legacy_structural_reduction_ratio: inputFormat === "normalized-v3"
+      legacy_structural_reduction_ratio: isNormalizedFormat(inputFormat)
         ? null
         : semanticTraceBytes ? normalizedTotalBytes / semanticTraceBytes : 0,
       gzip_bytes: normalizedGzipBytes
     },
-    legacy_to_normalized: inputFormat === "normalized-v3" ? null : {
+    legacy_to_normalized: isNormalizedFormat(inputFormat) ? null : {
       legacy_event_count: eventCount,
       normalized_event_count: eventCount,
       legacy_inline_frame_occurrences: Object.values(collector.roles)

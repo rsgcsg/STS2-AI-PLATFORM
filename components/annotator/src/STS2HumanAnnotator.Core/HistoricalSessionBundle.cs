@@ -14,7 +14,11 @@ public sealed record SessionBundleResult(
     string ExportSha256,
     string ChecksumsSha256);
 
-public static class SessionBundlePacker
+/// <summary>
+/// Explicit reader/packer for the pre-current Decision V1 bundle format.
+/// The current recorder never emits or dispatches this product.
+/// </summary>
+public static class HistoricalSessionBundlePacker
 {
     private const string ProfileSchema = "stpd/human-collection-profile-v1";
     private const string AttestationMethod = "explicit_owner_pack";
@@ -37,12 +41,12 @@ public static class SessionBundlePacker
 
         string source = Path.GetFullPath(recordingDirectory);
         string destination = Path.GetFullPath(outputDirectory);
-        RecordingAuditResult audit = RecordingAuditor.Audit(source);
+        RecordingAuditResult audit = HistoricalRecordingAuditor.Audit(source);
         if (!string.Equals(audit.Status, "pass", StringComparison.Ordinal))
             throw new InvalidDataException("Recording audit must pass before packing.");
-        RecordingManifest recordingManifest = ReadJson<RecordingManifest>(
+        HistoricalRecordingManifest recordingManifest = ReadJson<HistoricalRecordingManifest>(
             Path.Combine(source, "recording-manifest.json"));
-        IReadOnlyList<HumanDecisionRecord> records = RecordingAuditor.ReadAdmitted(source);
+        IReadOnlyList<HistoricalDecisionRecord> records = HistoricalRecordingAuditor.ReadAdmitted(source);
         if (records.Count == 0)
             throw new InvalidDataException("A session bundle requires admitted records.");
 
@@ -80,7 +84,7 @@ public static class SessionBundlePacker
 
             var auditDocument = new JsonObject
             {
-                ["schema"] = HumanRecorderContract.SessionBundleAuditSchema,
+                ["schema"] = HistoricalRecordingContract.SessionBundleAuditSchema,
                 ["status"] = audit.Status,
                 ["valid_records"] = audit.ValidRecords,
                 ["invalid_records"] = audit.InvalidRecords,
@@ -92,7 +96,7 @@ public static class SessionBundlePacker
                 Path.Combine(auditDirectory, "audit-report.json"),
                 CanonicalJson(auditDocument) + "\n");
             string exportPath = Path.Combine(exportDirectory, "decisions.jsonl");
-            RecordingAuditor.ExportAdmitted(source, exportPath);
+            HistoricalRecordingAuditor.ExportAdmitted(source, exportPath);
             string exportSha = EvidenceIdentity.Sha256File(exportPath);
 
             var rawChecksums = new JsonObject();
@@ -111,7 +115,7 @@ public static class SessionBundlePacker
             };
             var identity = new JsonObject
             {
-                ["schema"] = HumanRecorderContract.SessionBundleSchema,
+                ["schema"] = HistoricalRecordingContract.SessionBundleSchema,
                 ["session_id"] = recordingManifest.SessionId,
                 ["collection_profile_id"] = profileId,
                 ["collection_profile_sha256"] = profileSha,
@@ -136,7 +140,7 @@ public static class SessionBundlePacker
             var bundleManifest = new JsonObject
             {
                 ["schema_version"] = 1,
-                ["schema"] = HumanRecorderContract.SessionBundleSchema,
+                ["schema"] = HistoricalRecordingContract.SessionBundleSchema,
                 ["bundle_content_id"] = contentId,
                 ["session_id"] = recordingManifest.SessionId,
                 ["collection_profile_id"] = profileId,
@@ -148,7 +152,7 @@ public static class SessionBundlePacker
                 ["packer"] = new JsonObject
                 {
                     ["product"] = "STS2 Native UI Human Annotator Tool",
-                    ["version"] = HumanRecorderContract.ProductVersion,
+                    ["version"] = HistoricalRecordingContract.ProductVersion,
                     ["source_revision"] = packerSourceRevision
                 },
                 ["record_count"] = records.Count,
@@ -193,15 +197,15 @@ public static class SessionBundlePacker
 
     private static void ValidateProfile(
         JsonObject profile,
-        RecordingManifest manifest,
-        IReadOnlyList<HumanDecisionRecord> records)
+        HistoricalRecordingManifest manifest,
+        IReadOnlyList<HistoricalDecisionRecord> records)
     {
         if (RequiredText(profile, "schema") != ProfileSchema)
             throw new InvalidDataException("Unsupported collection profile schema.");
         RequiredText(profile, "profile_id");
         if (RequiredText(profile, "platform") != manifest.Platform)
             throw new InvalidDataException("Collection profile platform drift.");
-        if (RequiredText(profile, "record_schema") != HumanRecorderContract.RecordSchema)
+        if (RequiredText(profile, "record_schema") != HistoricalRecordingContract.RecordSchema)
             throw new InvalidDataException("Collection profile record schema drift.");
         string protocol = RequiredText(profile, "player_environment_protocol");
         JsonObject game = RequiredObject(profile, "game");
@@ -215,7 +219,7 @@ public static class SessionBundlePacker
         if (families.Count == 0)
             throw new InvalidDataException("Collection profile has no allowed action families.");
 
-        foreach (HumanDecisionRecord record in records)
+        foreach (HistoricalDecisionRecord record in records)
         {
             if (record.SessionId != manifest.SessionId)
                 throw new InvalidDataException("Decision session ID differs from recording manifest.");

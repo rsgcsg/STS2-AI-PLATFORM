@@ -1,5 +1,17 @@
 # Status
 
+## Current recording-format hard cut (PR #11, 2026-09-02)
+
+The active recorder/store/audit/bundle/tool path is current-only and uses the
+schema-2 wire identities as one current format. Current CLR names are
+`CurrentDecisionRecord`, `RecordingSessionStore`, `RecordingSessionAuditor`
+and `SessionBundlePacker`; the current recorder does not create or consult a
+native-action ledger. Historical V1/V2 readers, schema-1/2/3 trace handling and
+ledger validation remain explicit archival tooling. The discriminator remains
+diagnostic-only and cannot veto healthy current canonical evidence, although
+malformed or identity-inconsistent diagnostic envelopes remain fatal. This is
+source/test evidence only; no new runtime or Human qualification claim is made.
+
 Historical Annotator evidence below remains bound to its original source and
 artifact. Annotator `0.3.0-rc.1` is the current read-rich V2 source. Schema 3 is
 bounded Human-proved for trace accounting on exact artifact `4fa67570... / 51c7c37b...`, runtime
@@ -50,6 +62,20 @@ commits used a non-canonical boundary name. Current source repairs both and
 strengthens audit so a stopped schema-2 trace cannot pass beside a continuing
 native ledger. The repair is source/test/build evidence only.
 
+PR #11 pre-hard-cut source carried the Native Foundation semantic decision through
+the modern path as a typed action-space sidecar. Combat roots capture it at the
+native admission boundary when available and otherwise at
+`ActionExecutor.BeforeActionExecuted`; source-local Map, Reward, CardReward and
+Treasure adapters carry their exact typed owner/operand facts. Semantic schema
+4 and canonical schema 2 retain the exact Human `BoundActionId` join while
+public settling frames may still expose zero actions. The sidecar contract is
+schema 2 with schema 1 read compatibility, and calibration counts only durable
+canonical rows as canonical. That pre-hard-cut repair has exact
+source/test/build/install/load evidence as unified artifact `3d54c8b8... /
+601bfbf9...` in runtime `2b0fed44...`; it is historical after the current
+recording-format hard cut. A fresh Human canary for the current bytes remains
+pending and predecessor Human evidence does not transfer.
+
 Rapid-input artifact `080701b3... / 142054a5...` is cold-loaded and Live-proved
 in runtime `39fa2d2e...`. Its closed owner session
 `session-20260826T062916Z-957f201043a4456a89d13407682f0541` audits 12/12 strict
@@ -91,6 +117,13 @@ authoritative Closed state after the first Close. Those latest changes are
 cold-loaded as `887630f4... / 14761ed4...` and do not inherit predecessor
 evidence. Exact owner session `session-20260826T025703Z-...` now
 audits 19/19 records and explicitly separates 16 native-accepted failures.
+
+## Historical implementation inventory
+
+The implementation inventory below preserves dated evidence from predecessor
+recording products. Its V1/V2/ledger labels are historical evidence labels,
+not names of active runtime authorities; the current path is the hard-cut
+format described above.
 
 ## Implemented
 

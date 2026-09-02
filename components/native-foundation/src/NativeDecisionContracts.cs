@@ -73,6 +73,10 @@ public sealed record NativeRewardDecision(
     IReadOnlyList<string> Evidence,
     string? Detail);
 
+public sealed record NativeRewardDecisionOwner(
+    RewardsSet RewardsSet,
+    bool IsTerminal);
+
 public sealed record NativeCardRewardDecision(
     string Status,
     string Scope,
@@ -177,6 +181,95 @@ public static class NativeSemanticActionCatalog
             .Select(action => action.NativeSubject)
             .OfType<T>()
             .ToArray();
+
+    /// <summary>
+    /// Describes one exact native selection against an already captured
+    /// STS2-owned catalog. This is a mechanical identity join, not legality
+    /// discovery: the provider that produced <paramref name="actions"/>
+    /// remains the sole owner of action availability.
+    /// </summary>
+    public static NativeObservedSemanticAction Describe(
+        IEnumerable<NativeSemanticAction> actions,
+        string nativeActionType,
+        string verb,
+        object? subject,
+        IReadOnlyDictionary<string, object>? operands = null)
+    {
+        IReadOnlyDictionary<string, object> expectedOperands = operands
+            ?? new Dictionary<string, object>(StringComparer.Ordinal);
+        NativeSemanticAction[] matches = actions.Where(action =>
+                action.Verb == verb
+                && (subject == null
+                    ? action.NativeSubject == null
+                    : ReferenceEquals(action.NativeSubject, subject))
+                && HasExactOperands(action, expectedOperands))
+            .ToArray();
+        return DescribeMatches(nativeActionType, matches);
+    }
+
+    /// <summary>
+    /// Describes a native action whose public/native selection intentionally
+    /// has no subject. The catalog may retain an opaque native owner for that
+    /// action (for example, the local player on End Turn); exact-once verb and
+    /// operand membership remain required.
+    /// </summary>
+    public static NativeObservedSemanticAction DescribeWithoutSubject(
+        IEnumerable<NativeSemanticAction> actions,
+        string nativeActionType,
+        string verb,
+        IReadOnlyDictionary<string, object>? operands = null)
+    {
+        IReadOnlyDictionary<string, object> expectedOperands = operands
+            ?? new Dictionary<string, object>(StringComparer.Ordinal);
+        NativeSemanticAction[] matches = actions.Where(action =>
+                action.Verb == verb
+                && HasExactOperands(action, expectedOperands))
+            .ToArray();
+        return DescribeMatches(nativeActionType, matches);
+    }
+
+    /// <summary>
+    /// Describes an exact selection when a delivery adapter intentionally uses
+    /// a different public verb for the same native subject. The subject and all
+    /// operands must still identify exactly one action in the captured catalog.
+    /// </summary>
+    public static NativeObservedSemanticAction DescribeByIdentity(
+        IEnumerable<NativeSemanticAction> actions,
+        string nativeActionType,
+        object subject,
+        IReadOnlyDictionary<string, object>? operands = null)
+    {
+        IReadOnlyDictionary<string, object> expectedOperands = operands
+            ?? new Dictionary<string, object>(StringComparer.Ordinal);
+        NativeSemanticAction[] matches = actions.Where(action =>
+                ReferenceEquals(action.NativeSubject, subject)
+                && HasExactOperands(action, expectedOperands))
+            .ToArray();
+        return DescribeMatches(nativeActionType, matches);
+    }
+
+    private static bool HasExactOperands(
+        NativeSemanticAction action,
+        IReadOnlyDictionary<string, object> expectedOperands) =>
+        action.Operands.Count == expectedOperands.Count
+        && action.Operands.All(operand =>
+            expectedOperands.TryGetValue(operand.Role, out object? value)
+            && ReferenceEquals(operand.NativeValue, value));
+
+    private static NativeObservedSemanticAction DescribeMatches(
+        string nativeActionType,
+        IReadOnlyList<NativeSemanticAction> matches) =>
+        new(
+            nativeActionType,
+            matches.Count == 1 ? matches[0].Key : null,
+            matches.Count == 1 ? "described" : "not_described",
+            matches.Count,
+            matches.Count == 1 ? "exact_once" : matches.Count == 0 ? "absent" : "ambiguous",
+            matches.Count == 0
+                ? "The exact native subject and operands are absent from the captured semantic catalog."
+                : matches.Count > 1
+                    ? "The exact native subject and operands occur more than once in the captured semantic catalog."
+                    : null);
 }
 
 public sealed record NativePlayerChoiceLineage(

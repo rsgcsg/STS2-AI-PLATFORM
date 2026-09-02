@@ -2,21 +2,22 @@
 
 import { createHash } from "node:crypto";
 import { createReadStream, readFileSync } from "node:fs";
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { access, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
 
 const CONTRACT = Object.freeze({
   state: "authoritative fair-player state consumed by the executed Human action",
-  action_space: "complete same-state Player Environment BoundAction catalog",
-  action: "exact executed Human action present exactly once in the same-state catalog",
+  action_space: "typed same-boundary native semantic catalog when present; otherwise the complete public catalog for direct UI decisions",
+  action: "exact Human/native action present exactly once in the authoritative execution action space",
   successor: "next authoritative state after the action and its causally owned continuation",
   non_claims: [
     "human_observation_is_not_semantic_state",
     "acceptance_is_not_execution",
     "interactive_status_alone_does_not_prove_successor",
-    "legacy_v2_admission_does_not_prove_canonical_transition"
+    "historical_recording_formats_are_archival_only",
+    "public_delivery_catalog_is_not_native_semantic_legality"
   ]
 });
 
@@ -94,11 +95,39 @@ function frameStatus(frame, action) {
   };
 }
 
-async function discoverRunFiles(root) {
-  return (await readdir(root))
-    .filter((name) => /^run-.*\.jsonl$/.test(name))
-    .sort()
-    .map((name) => path.join(root, name));
+function semanticActionSpaceStatus(value, action, actionWitnessId) {
+  const actions = Array.isArray(value?.actions) ? value.actions : [];
+  const observedKey = value?.observed_action_key;
+  const selected = actions.filter((candidate) => candidate?.key === observedKey);
+  const current = value?.schema === "sts2.human-annotator/execution-semantic-action-space-2"
+    && value?.schema_version === 2;
+  const matches = selected.filter(() =>
+    current && value?.human_bound_action_id === action?.bound_action_id);
+  const complete = Boolean(
+    value
+    && current
+    && value.action_witness_id === actionWitnessId
+    && ["before_execution", "before_native_action_admission"].includes(value.phase)
+    && value.status === "captured"
+    && value.scope !== "unavailable"
+    && value.semantic_state
+    && typeof value.semantic_state_digest === "string"
+    && value.semantic_state_digest.length > 0
+    && typeof value.semantic_catalog_digest === "string"
+    && value.semantic_catalog_digest.length > 0
+    && value.observed_membership === "exact_once"
+    && value.observed_match_count === 1
+    && selected.length === 1
+    && Array.isArray(value.native_evidence)
+    && value.native_evidence.length > 0
+    && typeof value.human_bound_action_id === "string"
+    && value.human_bound_action_id.length > 0);
+  return {
+    complete,
+    catalog_status: complete ? "complete" : "missing_or_incomplete",
+    catalog_count: actions.length,
+    action_match_count: matches.length
+  };
 }
 
 function disposition(events) {
@@ -111,28 +140,23 @@ function disposition(events) {
   return terminal;
 }
 
-function actionFromSources(accepted, ledger, legacy) {
-  return accepted?.action?.bound_action
-    ?? ledger?.bound_action
-    ?? legacy?.action
-    ?? null;
+function actionFromSources(accepted) {
+  return accepted?.action?.bound_action ?? null;
 }
 
-function sourceForAction(accepted, ledger, legacy) {
+function sourceForAction(accepted) {
   if (accepted?.action?.bound_action) return "semantic_trace";
-  if (ledger?.bound_action) return "native_ledger";
-  if (legacy?.action) return "legacy_v2_record";
   return "missing";
 }
 
-function causalSuccessorStatus({ proved, events, actionsById, loadFrame }) {
+function causalSuccessorStatus({ proved, events, actionsById, loadFrame, loadActionSpace }) {
   if (!proved) return { valid: false, reason: "successor_not_proved" };
   const successor = loadFrame(proved.successor_ref);
   if (!successor)
     return { valid: false, reason: "successor_frame_missing" };
   const successorStatus = frameStatus(successor, null);
-  if (!successorStatus.complete)
-    return { valid: false, reason: "successor_state_action_space_incomplete" };
+  if (successor?.snapshot?.completeness?.status !== "complete")
+    return { valid: false, reason: "successor_state_incomplete" };
 
   if (proved.proof_status === "proved_execution_handoff_boundary") {
     const next = actionsById.get(proved.related_action_witness_id);
@@ -142,8 +166,12 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame }) {
     if (!nextBoundary || !sameRef(proved.successor_ref, nextBoundary.execution_pre_ref))
       return { valid: false, reason: "handoff_does_not_equal_next_execution_pre" };
     const nextAction = next.action;
-    const nextMembership = frameStatus(successor, nextAction);
-    if (nextMembership.action_match_count !== 1)
+    const nextActionSpace = loadActionSpace(next?.events.find((event) =>
+      event.execution_semantic_action_space_ref)?.execution_semantic_action_space_ref);
+    const nextMembership = nextActionSpace
+      ? semanticActionSpaceStatus(nextActionSpace, nextAction, next.id)
+      : frameStatus(successor, nextAction);
+    if (!nextMembership.complete || nextMembership.action_match_count !== 1)
       return { valid: false, reason: "handoff_next_action_not_in_same_state_catalog" };
     return { valid: true, reason: "execution_handoff_exact" };
   }
@@ -152,19 +180,25 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame }) {
     const paused = events.some((event) => event.kind === "action_paused_for_player_choice");
     if (!paused)
       return { valid: false, reason: "player_choice_boundary_without_native_pause" };
-    return { valid: true, reason: "native_player_choice_pause" };
+    return successorStatus.complete
+      ? { valid: true, reason: "native_player_choice_pause" }
+      : { valid: false, reason: "successor_state_action_space_incomplete" };
   }
 
   if (proved.proof_status === "proved_native_post_commit_boundary") {
     if (proved.boundary?.witness_kind !== "after_native_ui_commit")
       return { valid: false, reason: "native_post_commit_witness_missing" };
-    return { valid: true, reason: "native_post_commit_exact" };
+    return successorStatus.complete
+      ? { valid: true, reason: "native_post_commit_exact" }
+      : { valid: false, reason: "successor_state_action_space_incomplete" };
   }
 
   if (proved.proof_status === "proved_native_commit_then_owner_boundary") {
     if (proved.boundary?.witness_kind !== "native_decision_owner_ready")
       return { valid: false, reason: "native_owner_boundary_witness_missing" };
-    return { valid: true, reason: "native_commit_then_owner_boundary_exact" };
+    return successorStatus.complete
+      ? { valid: true, reason: "native_commit_then_owner_boundary_exact" }
+      : { valid: false, reason: "successor_state_action_space_incomplete" };
   }
 
   if (proved.proof_status === "proved_native_commit_then_execution_handoff") {
@@ -174,8 +208,12 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame }) {
       && event.boundary?.immediately_consumed_by_action_witness_id === next.id);
     if (!nextBoundary || !sameRef(proved.successor_ref, nextBoundary.execution_pre_ref))
       return { valid: false, reason: "native_commit_handoff_does_not_equal_next_execution_pre" };
-    const nextMembership = frameStatus(successor, next.action);
-    if (nextMembership.action_match_count !== 1)
+    const nextActionSpace = loadActionSpace(next?.events.find((event) =>
+      event.execution_semantic_action_space_ref)?.execution_semantic_action_space_ref);
+    const nextMembership = nextActionSpace
+      ? semanticActionSpaceStatus(nextActionSpace, next.action, next.id)
+      : frameStatus(successor, next.action);
+    if (!nextMembership.complete || nextMembership.action_match_count !== 1)
       return { valid: false, reason: "native_commit_handoff_action_not_in_same_state_catalog" };
     return { valid: true, reason: "native_commit_then_execution_handoff_exact" };
   }
@@ -183,27 +221,9 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame }) {
   return { valid: false, reason: "interactive_polling_is_not_causal_successor_proof" };
 }
 
-function mechanicallyLegacyUsable(record) {
-  const action = record?.action;
-  const pre = record?.pre;
-  const successor = record?.successor;
-  const preStatus = frameStatus(pre, action);
-  const successorStatus = frameStatus(
-    successor?.snapshot ? { snapshot: successor.snapshot, catalog_count:
-      successor.snapshot.bound_actions?.materialized_count } : null,
-    null);
-  return record?.eligibility?.status === "admitted"
-    && preStatus.complete
-    && preStatus.action_match_count === 1
-    && successor?.status === "interactive"
-    && successor?.snapshot_id !== pre?.snapshot_id
-    && successorStatus.complete;
-}
-
 export async function calibrate(recordingDirectory) {
   const root = path.resolve(recordingDirectory);
   const tracePath = path.join(root, "semantic-boundary-trace.jsonl");
-  const ledgerPath = path.join(root, "native-action-ledger.jsonl");
   const manifest = JSON.parse(await readFile(path.join(root, "recording-manifest.json"), "utf8"));
 
   const actionsById = new Map();
@@ -224,27 +244,24 @@ export async function calibrate(recordingDirectory) {
     if (value.action?.bound_action) state.action = value.action.bound_action;
   }
 
-  const ledgerAccepted = new Map();
-  let ledgerSha;
-  {
-    const ledgerBytes = await readFile(ledgerPath);
-    ledgerSha = sha256(ledgerBytes);
-  }
-  for await (const { value } of jsonLines(ledgerPath)) {
-    if (value.kind === "accepted") ledgerAccepted.set(value.action_witness_id, value);
-  }
-
-  const legacyByRecord = new Map();
-  let legacyUsable = 0;
-  for (const runFile of await discoverRunFiles(root)) {
-    for await (const { value } of jsonLines(runFile)) {
-      if (value.record_id) legacyByRecord.set(value.record_id, value);
-      if (mechanicallyLegacyUsable(value)) legacyUsable++;
+  const durableCanonicalByWitness = new Map();
+  const canonicalPath = path.join(root, "canonical-transitions.jsonl");
+  try {
+    await access(canonicalPath);
+    for await (const { value } of jsonLines(canonicalPath)) {
+      if (value.schema_version === 2
+        && value.schema === "sts2.human-annotator/canonical-transition-evidence-2"
+        && value.collection_mode === "causal_human_native_observation"
+        && value.action_witness_id) {
+        durableCanonicalByWitness.set(value.action_witness_id, value);
+      }
     }
+  } catch {
+    // Older recordings predate the additive canonical stream.
   }
 
   const frameCache = new Map();
-  function loadFrame(reference) {
+  function loadObject(reference) {
     if (!reference?.object_ref) return null;
     const relative = path.normalize(reference.object_ref);
     if (path.isAbsolute(relative) || relative.startsWith("..") || relative.includes(`..${path.sep}`))
@@ -259,6 +276,8 @@ export async function calibrate(recordingDirectory) {
     }
     return frameCache.get(relative);
   }
+  const loadFrame = loadObject;
+  const loadActionSpace = loadObject;
 
   const classifications = {};
   const proofReasons = {};
@@ -278,25 +297,42 @@ export async function calibrate(recordingDirectory) {
     if (!accepted) throw new Error(`Action has no accepted event: ${state.id}`);
     const terminals = disposition(state.events);
     const nativeType = accepted.action.native_action_type;
-    const ledger = ledgerAccepted.get(state.id);
-    const legacy = legacyByRecord.get(accepted.action.record_id);
-    const selected = actionFromSources(accepted, ledger, legacy);
+    const selected = actionFromSources(accepted);
     state.action = selected;
-    const selectedSource = sourceForAction(accepted, ledger, legacy);
+    const selectedSource = sourceForAction(accepted);
     const terminal = terminals[0];
     const proved = terminals.find((event) => event.kind === "transition_proved");
     const preReference = terminal?.execution_pre_ref
       ?? state.events.find((event) => event.execution_pre_ref)?.execution_pre_ref;
     const pre = loadFrame(preReference);
-    const preStatus = frameStatus(pre, selected);
+    const actionSpaceReference = state.events.find((event) =>
+      event.execution_semantic_action_space_ref)?.execution_semantic_action_space_ref;
+    const semanticActionSpace = loadActionSpace(actionSpaceReference);
+    const publicFallbackAllowed = accepted.action.native_mechanism === "direct_ui_commit";
+    const actionSpaceAuthority = semanticActionSpace
+      ? "native_semantic_execution"
+      : publicFallbackAllowed
+        ? "public_bound_actions"
+        : "missing_execution_semantic";
+    const preStatus = semanticActionSpace
+      ? semanticActionSpaceStatus(semanticActionSpace, selected, state.id)
+      : publicFallbackAllowed
+        ? frameStatus(pre, selected)
+        : {
+          complete: false,
+          catalog_status: "missing",
+          catalog_count: 0,
+          action_match_count: 0
+        };
     const humanReference = accepted.human_observation_ref;
-    const human = loadFrame(humanReference) ?? ledger?.decision_pre ?? legacy?.pre ?? null;
+    const human = loadFrame(humanReference);
     const humanStatus = frameStatus(human, selected);
     const successor = causalSuccessorStatus({
       proved,
       events: state.events,
       actionsById,
-      loadFrame
+      loadFrame,
+      loadActionSpace
     });
 
     let classification;
@@ -321,14 +357,14 @@ export async function calibrate(recordingDirectory) {
       classification = "successor_unresolved";
       reason = successor.reason;
     } else {
-      classification = "canonical_s_a_s_prime";
+      classification = "semantic_candidate_s_a_s_prime";
       reason = successor.reason;
     }
 
     if (humanStatus.complete && humanStatus.action_match_count === 1
       && classification === "state_action_space_unresolved")
       futureActionChainCandidate++;
-    if (classification === "canonical_s_a_s_prime"
+    if (classification === "semantic_candidate_s_a_s_prime"
       && reason === "execution_handoff_exact")
       rapidRebindValid++;
 
@@ -349,16 +385,22 @@ export async function calibrate(recordingDirectory) {
       execution_catalog_status: preStatus.catalog_status,
       execution_catalog_count: preStatus.catalog_count,
       execution_action_match_count: preStatus.action_match_count,
+      execution_action_space_authority: actionSpaceAuthority,
+      execution_semantic_state_digest:
+        semanticActionSpace?.semantic_state_digest ?? null,
+      execution_semantic_catalog_digest:
+        semanticActionSpace?.semantic_catalog_digest ?? null,
       successor_snapshot_id: proved?.successor_ref?.snapshot_id ?? null,
       semantic_proof_status: proved?.proof_status ?? terminal?.proof_status ?? null,
-      human_action_match_count: humanStatus.action_match_count
+      human_action_match_count: humanStatus.action_match_count,
+      durable_canonical: durableCanonicalByWitness.has(state.id)
     });
   }
 
   const acceptedCount = ordered.length;
   return {
-    schema_version: 1,
-    schema: "sts2.human-annotator/semantic-training-calibration-1",
+    schema_version: 2,
+    schema: "sts2.human-annotator/semantic-training-calibration-2",
     contract: CONTRACT,
     session: {
       session_id: manifest.session_id,
@@ -369,18 +411,21 @@ export async function calibrate(recordingDirectory) {
       capture_profile_id: manifest.capture_profile_id,
       capture_profile_sha256: manifest.capture_profile_sha256,
       source_directory: root,
-      semantic_trace_sha256: traceSha,
-      native_ledger_sha256: ledgerSha
+      semantic_trace_sha256: traceSha
     },
     summary: {
       accepted_actions: acceptedCount,
       uniquely_classified_actions: details.length,
       classifications: Object.fromEntries(Object.entries(classifications).sort()),
       proof_reasons: Object.fromEntries(Object.entries(proofReasons).sort()),
-      legacy_usable: legacyUsable,
-      canonical_s_a: (classifications.canonical_s_a_s_prime ?? 0)
+      semantic_candidate_s_a: (classifications.semantic_candidate_s_a_s_prime ?? 0)
         + (classifications.successor_unresolved ?? 0),
-      canonical_s_a_s_prime: classifications.canonical_s_a_s_prime ?? 0,
+      semantic_candidate_s_a_s_prime:
+        classifications.semantic_candidate_s_a_s_prime ?? 0,
+      durable_canonical: durableCanonicalByWitness.size,
+      semantic_candidate_without_durable_canonical: details.filter((value) =>
+        value.classification === "semantic_candidate_s_a_s_prime"
+        && !value.durable_canonical).length,
       rapid_rebind_valid: rapidRebindValid,
       state_action_space_unresolved: classifications.state_action_space_unresolved ?? 0,
       successor_unresolved: classifications.successor_unresolved ?? 0,

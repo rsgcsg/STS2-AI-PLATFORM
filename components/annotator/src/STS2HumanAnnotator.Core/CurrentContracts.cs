@@ -2,13 +2,20 @@ using System.Text.Json.Nodes;
 
 namespace STS2HumanAnnotator.Core;
 
-public static class HumanRecorderV2Contract
+/// <summary>
+/// The current recording contract. The <c>*-2</c> wire names are retained as
+/// evidence identities; they describe one current format rather than a
+/// parallel V2 product.
+/// </summary>
+public static class CurrentRecordingContract
 {
+    public const string ProductVersion = "0.3.0-rc.1";
     public const int SchemaVersion = 2;
     public const string RecordSchema = "sts2.human-annotator/decision-record-2";
     public const string ManifestSchema = "sts2.human-annotator/recording-manifest-2";
     public const string InvalidationSchema = "sts2.human-annotator/invalidation-2";
     public const string CoverageSchema = "sts2.human-annotator/coverage-2";
+    public const string RuntimeStatusSchema = "sts2.human-annotator/runtime-status-2";
     public const string CaptureProfileSchema = "sts2.ai-platform/human-capture-profile-2";
     public const string ReadEvidenceSchema = "sts2.human-annotator/read-evidence-2";
     public const string RunJournalSchema = "sts2.human-annotator/run-journal-event-2";
@@ -63,7 +70,7 @@ public sealed record CapturedReadPayload(
     string? ErrorCode,
     string? Detail);
 
-public sealed record FrozenDecisionFrameV2(
+public sealed record CurrentDecisionFrame(
     string SnapshotId,
     string InteractionId,
     string InteractionKind,
@@ -73,7 +80,7 @@ public sealed record FrozenDecisionFrameV2(
     JsonNode Snapshot,
     IReadOnlyList<ReadEvidence> Reads);
 
-public sealed record StableSuccessorV2(
+public sealed record CurrentSuccessor(
     string SnapshotId,
     string Status,
     string InteractionId,
@@ -82,7 +89,7 @@ public sealed record StableSuccessorV2(
     JsonNode Snapshot,
     IReadOnlyList<ReadEvidence> Reads);
 
-public sealed record HumanDecisionRecordV2(
+public sealed record CurrentDecisionRecord(
     int SchemaVersion,
     string Schema,
     string RecordId,
@@ -93,11 +100,11 @@ public sealed record HumanDecisionRecordV2(
     DateTimeOffset RecordedAt,
     RecorderEnvironmentIdentity Environment,
     string CaptureProfileId,
-    FrozenDecisionFrameV2 Pre,
+    CurrentDecisionFrame Pre,
     NativeWitnessEvidence NativeWitness,
     ExactMappingEvidence Mapping,
     RecordedBoundAction Action,
-    StableSuccessorV2 Successor,
+    CurrentSuccessor Successor,
     string DecisionFamily,
     string Surface,
     RecordEligibility Eligibility);
@@ -116,7 +123,7 @@ public sealed record RunJournalEvent(
     string? SnapshotId,
     string? Detail);
 
-public sealed record RecordingManifestV2(
+public sealed record CurrentRecordingManifest(
     int SchemaVersion,
     string Schema,
     string SessionId,
@@ -130,7 +137,7 @@ public sealed record RecordingManifestV2(
     IReadOnlyList<string> SupportedFamilies,
     IReadOnlyList<string> NonClaims);
 
-public sealed record CoverageSummaryV2(
+public sealed record CurrentCoverageSummary(
     int SchemaVersion,
     string Schema,
     string SessionId,

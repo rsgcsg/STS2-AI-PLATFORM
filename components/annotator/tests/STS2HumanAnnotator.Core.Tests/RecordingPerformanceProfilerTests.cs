@@ -44,10 +44,10 @@ public sealed class RecordingPerformanceProfilerTests
         string root = Path.Combine(Path.GetTempPath(), $"annotator-profile-{Guid.NewGuid():N}");
         try
         {
-            HumanCaptureProfile profile = HumanCaptureProfiles.CombatReadRichV2;
-            var manifest = new RecordingManifestV2(
-                HumanRecorderV2Contract.SchemaVersion,
-                HumanRecorderV2Contract.ManifestSchema,
+            HumanCaptureProfile profile = HumanCaptureProfiles.CombatReadRich;
+            var manifest = new CurrentRecordingManifest(
+                CurrentRecordingContract.SchemaVersion,
+                CurrentRecordingContract.ManifestSchema,
                 "session-profile",
                 "timeline-profile",
                 DateTimeOffset.UtcNow,
@@ -59,12 +59,12 @@ public sealed class RecordingPerformanceProfilerTests
                 profile.SupportedActionFamilies,
                 Array.Empty<string>());
             string directory;
-            using (V2RecordingStore store = V2RecordingStore.Create(root, manifest, profile))
+            using (RecordingSessionStore store = RecordingSessionStore.Create(root, manifest, profile))
             {
                 directory = store.DirectoryPath;
                 store.AppendRunEvent(new RunJournalEvent(
-                    HumanRecorderV2Contract.SchemaVersion,
-                    HumanRecorderV2Contract.RunJournalSchema,
+                    CurrentRecordingContract.SchemaVersion,
+                    CurrentRecordingContract.RunJournalSchema,
                     "event-profile",
                     "session-profile",
                     "run-1",

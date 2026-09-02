@@ -16,25 +16,25 @@ public sealed class RecordingApplicationTests
             RecordingCommandKind.StartNewSession,
             "session-1",
             T0.AddSeconds(1),
-            pendingDecision: false);
+            pendingRoot: false);
         RecordingCommandResult paused = RecordingLifecycleStateMachine.Apply(
             first.Lifecycle,
             RecordingCommandKind.Pause,
             null,
             T0.AddSeconds(2),
-            pendingDecision: false);
+            pendingRoot: false);
         RecordingCommandResult resumed = RecordingLifecycleStateMachine.Apply(
             paused.Lifecycle,
             RecordingCommandKind.Resume,
             null,
             T0.AddSeconds(3),
-            pendingDecision: false);
+            pendingRoot: false);
         RecordingCommandResult closing = RecordingLifecycleStateMachine.Apply(
             resumed.Lifecycle,
             RecordingCommandKind.Close,
             null,
             T0.AddSeconds(4),
-            pendingDecision: false);
+            pendingRoot: false);
         RecordingLifecycleSnapshot closed = RecordingLifecycleStateMachine.MarkClosed(
             closing.Lifecycle,
             T0.AddSeconds(5));
@@ -43,7 +43,7 @@ public sealed class RecordingApplicationTests
             RecordingCommandKind.StartNewSession,
             "session-2",
             T0.AddSeconds(6),
-            pendingDecision: false);
+            pendingRoot: false);
 
         Assert.True(first.Accepted);
         Assert.True(paused.Accepted);
@@ -56,7 +56,7 @@ public sealed class RecordingApplicationTests
     }
 
     [Fact]
-    public void PauseAndClosePreserveAnAdmittedPendingDecision()
+    public void PauseAndClosePreserveAnAdmittedPendingRoot()
     {
         RecordingLifecycleSnapshot recording = new(
             RecordingLifecycleState.Recording,
@@ -69,13 +69,13 @@ public sealed class RecordingApplicationTests
             RecordingCommandKind.Pause,
             null,
             T0.AddSeconds(1),
-            pendingDecision: true);
+            pendingRoot: true);
         RecordingCommandResult closing = RecordingLifecycleStateMachine.Apply(
             paused.Lifecycle,
             RecordingCommandKind.Close,
             null,
             T0.AddSeconds(2),
-            pendingDecision: true);
+            pendingRoot: true);
 
         Assert.True(paused.Accepted);
         Assert.Contains("still settle", paused.Detail, StringComparison.Ordinal);
@@ -102,7 +102,7 @@ public sealed class RecordingApplicationTests
             RecordingCommandKind.Close,
             null,
             T0.AddSeconds(1),
-            pendingDecision: true);
+            pendingRoot: true);
 
         RecordingLifecycleSnapshot closed = RecordingLifecycleStateMachine.MarkClosed(
             closing.Lifecycle,
@@ -127,7 +127,7 @@ public sealed class RecordingApplicationTests
             RecordingCommandKind.Pause,
             null,
             T0.AddSeconds(1),
-            pendingDecision: false);
+            pendingRoot: false);
 
         Assert.False(paused.Accepted);
         Assert.Equal("invalid_transition", paused.Code);

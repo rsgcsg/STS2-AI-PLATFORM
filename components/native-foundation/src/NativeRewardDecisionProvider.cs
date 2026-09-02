@@ -30,6 +30,11 @@ public static class NativeRewardDecisionProvider
         Owners.Add(screen, new Owner(set, isTerminal));
     }
 
+    public static NativeRewardDecisionOwner? ObserveOwner(NRewardsScreen screen) =>
+        Owners.TryGetValue(screen, out Owner? owner)
+            ? new NativeRewardDecisionOwner(owner.Set, owner.IsTerminal)
+            : null;
+
     public static NativeRewardDecision Capture(
         NRewardsScreen screen,
         INativeReferentIdentity identities)

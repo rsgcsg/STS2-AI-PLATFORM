@@ -4,7 +4,7 @@ using System.Text.Json.Nodes;
 
 namespace STS2HumanAnnotator.Core;
 
-public static class V2SessionBundlePacker
+public static class SessionBundlePacker
 {
     public static SessionBundleResult Pack(
         string recordingDirectory,
@@ -22,16 +22,16 @@ public static class V2SessionBundlePacker
             throw new InvalidDataException("Packer source revision must be an exact Git SHA.");
         string source = Path.GetFullPath(recordingDirectory);
         string destination = Path.GetFullPath(outputDirectory);
-        RecordingAuditResult audit = V2RecordingAuditor.Audit(source);
+        RecordingAuditResult audit = RecordingSessionAuditor.Audit(source);
         if (audit.Status != "pass")
-            throw new InvalidDataException("V2 recording audit must pass before packing.");
-        RecordingManifestV2 manifest = Read<RecordingManifestV2>(
+            throw new InvalidDataException("Current recording audit must pass before packing.");
+        CurrentRecordingManifest manifest = Read<CurrentRecordingManifest>(
             Path.Combine(source, "recording-manifest.json"));
         HumanCaptureProfile profile = Read<HumanCaptureProfile>(
             Path.Combine(source, "capture-profile.json"));
-        IReadOnlyList<HumanDecisionRecordV2> records = V2RecordingAuditor.ReadAdmitted(source);
+        IReadOnlyList<CurrentDecisionRecord> records = RecordingSessionAuditor.ReadAdmitted(source);
         if (records.Count == 0)
-            throw new InvalidDataException("A V2 session bundle requires admitted records.");
+            throw new InvalidDataException("A current session bundle requires admitted records.");
 
         string parent = Path.GetDirectoryName(destination)
             ?? throw new InvalidDataException("Bundle destination has no parent.");
@@ -54,7 +54,7 @@ public static class V2SessionBundlePacker
 
             var auditDocument = new JsonObject
             {
-                ["schema"] = HumanRecorderV2Contract.SessionBundleAuditSchema,
+                ["schema"] = CurrentRecordingContract.SessionBundleAuditSchema,
                 ["status"] = audit.Status,
                 ["valid_records"] = audit.ValidRecords,
                 ["invalid_records"] = audit.InvalidRecords,
@@ -65,7 +65,7 @@ public static class V2SessionBundlePacker
             Write(Path.Combine(auditDirectory, "audit-report.json"),
                 EvidenceCanonicalJson.Serialize(auditDocument) + "\n");
             string exportPath = Path.Combine(exportDirectory, "decisions.jsonl");
-            V2RecordingAuditor.ExportAdmitted(source, exportPath);
+            RecordingSessionAuditor.ExportAdmitted(source, exportPath);
             string exportSha = EvidenceIdentity.Sha256File(exportPath);
             string[] runIds = records.Select(record => record.RunId)
                 .Distinct(StringComparer.Ordinal)
@@ -81,7 +81,7 @@ public static class V2SessionBundlePacker
             JsonObject rawSha = RecursiveChecksums(raw);
             var identity = new JsonObject
             {
-                ["schema"] = HumanRecorderV2Contract.SessionBundleSchema,
+                ["schema"] = CurrentRecordingContract.SessionBundleSchema,
                 ["session_id"] = manifest.SessionId,
                 ["timeline_id"] = manifest.TimelineId,
                 ["capture_profile_id"] = profile.ProfileId,
@@ -105,8 +105,8 @@ public static class V2SessionBundlePacker
             string contentId = EvidenceIdentity.Sha256Text(EvidenceCanonicalJson.Serialize(identity));
             var bundleManifest = new JsonObject
             {
-                ["schema_version"] = HumanRecorderV2Contract.SchemaVersion,
-                ["schema"] = HumanRecorderV2Contract.SessionBundleSchema,
+                ["schema_version"] = CurrentRecordingContract.SchemaVersion,
+                ["schema"] = CurrentRecordingContract.SessionBundleSchema,
                 ["bundle_content_id"] = contentId,
                 ["session_id"] = manifest.SessionId,
                 ["timeline_id"] = manifest.TimelineId,
@@ -119,7 +119,7 @@ public static class V2SessionBundlePacker
                 ["packer"] = new JsonObject
                 {
                     ["product"] = "STS2 Native UI Human Annotator Tool",
-                    ["version"] = HumanRecorderContract.ProductVersion,
+                    ["version"] = CurrentRecordingContract.ProductVersion,
                     ["source_revision"] = packerSourceRevision
                 },
                 ["record_count"] = records.Count,
@@ -136,7 +136,7 @@ public static class V2SessionBundlePacker
             if (Directory.Exists(destination))
             {
                 if (!DirectoriesEqual(temporary, destination))
-                    throw new IOException("An immutable V2 bundle already exists with different bytes.");
+                    throw new IOException("An immutable current bundle already exists with different bytes.");
                 Directory.Delete(temporary, true);
             }
             else
@@ -183,7 +183,16 @@ public static class V2SessionBundlePacker
                 : Path.Combine(destination, relative));
         }
         foreach (string file in Directory.GetFiles(source, "*", SearchOption.AllDirectories))
+        {
+            // The retired native-action ledger is an archival reader input,
+            // never part of a current bundle or its identity.
+            if (string.Equals(
+                    Path.GetFileName(file),
+                    "native-action-ledger.jsonl",
+                    StringComparison.Ordinal))
+                continue;
             File.Copy(file, Path.Combine(destination, Path.GetRelativePath(source, file)));
+        }
     }
 
     private static void WriteChecksums(string directory)

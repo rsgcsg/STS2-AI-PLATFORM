@@ -33,7 +33,7 @@ test("Annotator package, native Mod, and Connector dependency versions agree", (
     "utf8"
   ));
   const contracts = fs.readFileSync(
-    path.join(root, "src", "STS2HumanAnnotator.Core", "Contracts.cs"),
+    path.join(root, "src", "STS2HumanAnnotator.Core", "CurrentContracts.cs"),
     "utf8"
   );
   const connectorManifest = JSON.parse(fs.readFileSync(

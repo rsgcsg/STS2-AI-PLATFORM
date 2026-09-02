@@ -37,12 +37,12 @@ semantic-boundary-trace.jsonl
   -> optional boundary_state_ref
 
 semantic-frames/sha256/<prefix>/<digest>.json
-  one canonical uncompressed FrozenDecisionFrame per unique content digest
+  one canonical uncompressed CurrentDecisionFrame per unique content digest
   -> existing content-addressed Read payloads
 
 canonical-transitions.jsonl
   serialized-lane S + A(S) -> A -> S' references
-  -> exact Decision V2 action
+  -> exact current Decision action projection
   -> exact pre/successor semantic frame objects
 ```
 
@@ -50,14 +50,14 @@ The digest is over canonical uncompressed frame content. Physical compression
 is optional cold-storage encoding and never changes semantic identity. Event
 records preserve the role of each reference and do not embed full frames.
 
-The writer may cache a frame by immutable Snapshot identity within one session
-to avoid repeated serialization and hashing. The independent auditor resolves
+The current writer may cache a frame by immutable Snapshot identity within one
+session to avoid repeated serialization and hashing. The independent auditor resolves
 each reference, verifies path containment and content digest, reconstructs the
-semantic timeline, and applies the same causal invariants as the legacy trace
+semantic timeline, and applies the same causal invariants as the archival trace
 auditor.
 
-The canonical stream is additive and absent from predecessor sessions. Its
-auditor also binds frame content back to the matching Decision V2 record; a
+The canonical stream is current and absent from predecessor sessions. Its
+auditor also binds frame content back to the matching current Decision record; a
 valid object from another action cannot be substituted. It does not reinterpret
 schema-3 `transition_proved` as canonical eligibility.
 
@@ -78,13 +78,13 @@ proof. No timing, animation, queue-idle or later-state inference is introduced.
 ## Compatibility and projections
 
 - Historical schema-1 and schema-2 sessions remain byte-preserved and auditable
-  through legacy readers.
+  through explicit archival readers; the current audit does not promote them.
 - The new writer does not keep producing repeated inline schema-2 frames merely
   for compatibility.
 - A conversion or portable export has its own digest and provenance and never
   replaces the owner-attested raw session.
-- Decision V2 may remain an offline materialized compatibility projection for
-  existing verified consumers. It is not the canonical semantic store.
+- The current Decision record remains an offline materialized non-authorizing
+  projection for verified consumers. It is not the canonical semantic store.
 - STPD continues to own `ResearchTransition`, corpus admission and Parquet/Zstd
   training datasets. Platform raw evidence does not acquire research semantics.
 
@@ -100,7 +100,7 @@ proof. No timing, animation, queue-idle or later-state inference is introduced.
 ## Operational performance profile
 
 Current source records bounded per-stage counts and latency quantiles at Close
-for separately named recovery, semantic and legacy probes, Read-rich/semantic
+for separately named recovery, semantic and archival-compatibility probes, Read-rich/semantic
 capture, serialization, hashing, object writes, buffered append and durable
 Close flush. The profile is diagnostic output, not Human evidence; it cannot
 authorize actions or alter H/S/A/S'. The analyzer derives capture call rate,
@@ -109,7 +109,7 @@ from older sessions and must not be synthesized from event timestamps.
 
 Hot append-only streams flush bytes to the OS so immediate write failures remain
 visible, but they do not fsync each lifecycle callback. Close flushes every
-Decision, invalidation, RunJournal, native-ledger and semantic stream durably
+current Decision, invalidation, RunJournal and semantic stream durably
 before publishing Closed. Only a successfully closed session is a durable
 evidence seal; interrupted sessions remain inspectable partial evidence.
 
