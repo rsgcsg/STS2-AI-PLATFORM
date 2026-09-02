@@ -513,7 +513,7 @@
         "semantic_boundary_trace_sha256": "0b48fb2dec30469f1f2ecdb79d530601274bf993f7e2a77b9ccc38c40ee068b5",
         "canonical_transitions_sha256": "fb2021a6bad3a84cc50751cd33dfed6377d2fe70e3cc14772a5a7ab4cfeed86c",
         "invalidations_sha256": "f8606a728cee1ae0c6b1f755104a349d48978446d79dcb4e64dc5b5223bac403",
-        "game_log_sha256": "d63463f88304800be0e52cc6291ed83dfe063958e7bd4f658000df30b9e154",
+        "game_log_sha256": "d63463f88304800be0e52cc6291ed83dfe063958e7bd4f2b0bd7de78bb5fbefe",
         "evidence_transfer_from_predecessor": false
       },
       "automated_headless": {
@@ -581,7 +581,7 @@
       "workspace_revision_at_build": "246eb6ab81b2174f7257f7df87668e3de6eda934",
       "annotator_source_revision": "fed721c7b5131cf35d71025a3dd877266b5332fc",
       "annotator_source_digest_sha256": "b5830e4f301dd1bb996583dd595410cf14fc05cc63dabad6d84d429475839720",
-      "trace_schema": "sts2.human-annotator/semantic-evidence-event-3",
+      "trace_schema": "sts2.human-annotator/semantic-boundary-trace-event-2",
       "artifact_sha256": "eb7ed0728f0b908d3f82826fc7f8f63ec7d1d7b9ce9d2968bf423ca925fc872b",
       "artifact_mvid": "34a36a2b-6ffa-4951-b53c-3fe72d37dd85",
       "built": "pass",
