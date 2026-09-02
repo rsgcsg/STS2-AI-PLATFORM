@@ -7,7 +7,8 @@ are `Recorder`, `Overview`, `Environment`, `Policy`, `Human Data`, and
 `Diagnostics`; Recorder is a peer tab, never a floating card or root overlay.
 The Recorder tab exposes only the typed New/Pause/Resume/Close application
 commands, plus a bounded Recent Actions feed and Last Action detail sourced
-only from the typed canonical recording event projection; missing card, target
+only from the typed Annotator application-event projection of already-owned
+semantic root/lifecycle facts; missing card, target
 or effect metadata is shown as unavailable. The UI
 calls typed Connector observation, Policy Runtime, and Annotator recording
 services; it does not publish, resolve, or submit gameplay actions itself.

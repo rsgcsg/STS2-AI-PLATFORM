@@ -1,5 +1,18 @@
 # Current Status
 
+## Historical Live UI reconciliation candidate (2026-09-03)
+
+The historical `ui-testing` line has been audited from merge base
+`2e1a5b67eef25faa897602d237a16b6698127af0` and selectively ported from current
+`develop`, rather than merged. The candidate preserves one bounded,
+hidden-by-default Workspace and reimplements its Action Feed as a read-only
+projection after the current post-PR #11 semantic owner persists root and
+disposition facts. Historical BOM, mutable status, artifacts, sessions, and
+Human claims did not transfer. Portable, exact-game, build, install, and cold
+load gates pass for artifact `04fcb6e7... / 40fd1f1f...`; Human-visible UI
+interaction remains pending and is not implied by loaded identity. See the
+[dated integration closeout](evidence/LIVE_UI_HISTORY_INTEGRATION_SOURCE_CLOSEOUT_2026-09-03.md).
+
 ## PR #11 current recording-format hard cut (source/test, 2026-09-02)
 
 The active Platform recorder now has one current CLR/data path: immutable

@@ -6,7 +6,7 @@ with the uncommon letter key `K`; `Escape` closes it.
 
 | Page | Source |
 |---|---|
-| Recorder | Annotator recording lifecycle and canonical action feed |
+| Recorder | Annotator recording lifecycle and read-only action projection |
 | Overview | combined typed status and exact identity |
 | Environment | Connector Snapshot/capabilities plus in-process Annotator and Live UI identity |
 | Policy | Policy Runtime status, scores, selected action, Receipt |
@@ -51,9 +51,11 @@ to evidence or sent to the Policy Runtime. The root overlay is click-through
 outside interactive controls, so gameplay input remains owned by STS2.
 
 The Recorder's Recent Actions list and Last Action detail are a read-only
-projection of the Annotator `RecordingApplicationService` event stream. They
-show canonical lifecycle (`Observed`, `Recorded`, `Invalidated`) plus any
-already-owned bound-action subject/argument IDs and labels. Effect text or
+projection of the Annotator `RecordingApplicationService` event stream. A
+pending row is published only after the current semantic owner has persisted
+the admitted root; recorded/invalidated states project its subsequent owning
+disposition. Rows include any already-owned bound-action subject/argument IDs
+and labels. Effect text or
 other metadata absent from canonical evidence is explicitly `unavailable`; the
 UI never infers it from pointer input, coordinates, timing, or a later frame,
 and a visible feed row is not itself recording proof.
