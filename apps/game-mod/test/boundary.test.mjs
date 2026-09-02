@@ -226,12 +226,52 @@ test("execution semantic action space is captured once and preserved without bec
   assert.match(beforeExecution, /ProcessLocalNativeWitnessFrame frame = CaptureSemanticFrame\(\)/u);
   assert.match(beforeExecution, /PlayerEnvironmentNativeSemanticWitness\.Capture\(phase, action, frame\)/u);
   assert.match(beforeExecution, /capturedValue: semanticCapture/u);
-  assert.match(beforeExecution, /executionSemanticActionSpace:[\s\S]*ToExecutionSemanticActionSpace/u);
+  assert.match(beforeExecution, /ToExecutionSemanticActionSpace[\s\S]*executionSemanticActionSpace: actionSpace/u);
   assert.match(projection, /ExecutionSemanticActionSpaceValidator\.Validate/u);
   assert.match(projection, /native_semantic_execution/u);
   assert.match(snapshot, /CanPublishMutationAuthority\(draft\.Readiness\)[\s\S]*Array\.Empty<NativeUiBoundAction>/u);
   assert.doesNotMatch(snapshot, /ExecutionSemanticActionSpace|HumanAnnotator/u);
   assert.doesNotMatch(runtime, /PendingDecision|AcceptedHumanActionLedger|SerializedEvidenceAdmission/u);
+});
+
+test("combat roots carry the Native Foundation decision from admission through execution", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const uiPatches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+  const witness = read("components/connector/host/PlayerEnvironment/Witness/ProcessLocalNativeSemanticWitness.cs");
+
+  assert.match(runtime, /TryEnterCardScope[\s\S]*semanticSelection: observed/u);
+  assert.match(runtime, /before_native_action_admission[\s\S]*semanticNativeActionType: nameof\(UsePotionAction\)/u);
+  assert.match(uiPatches, /native_end_turn_ui[\s\S]*semanticSelection:[\s\S]*end_turn/u);
+  assert.match(witness, /semanticObserved.Subject == null[\s\S]*DescribeWithoutSubject/u);
+});
+
+test("typed non-combat native decisions bind exact Human actions without Annotator legality", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const witness = read("components/connector/host/PlayerEnvironment/Witness/ProcessLocalNativeSemanticWitness.cs");
+  const catalog = read("components/native-foundation/src/NativeDecisionContracts.cs");
+
+  assert.match(runtime, /before_native_action_admission/u);
+  assert.match(runtime, /subscription\?\.NativeSemanticDecision/u);
+  assert.match(witness, /DescribeDomainSelection/u);
+  assert.match(witness, /NativeSemanticActionCatalog\.DescribeByIdentity/u);
+  assert.match(catalog, /mechanical identity join, not legality/u);
+  assert.doesNotMatch(runtime, /outside_direct_native_catalog/u);
+});
+
+test("legacy Decision V2 compatibility cannot gate durable modern canonical evidence", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const projection = sourceBetween(
+    runtime,
+    "private static void PersistDerivedTransitionProjection",
+    "private static bool IsTerminalWithoutNativeCompletion"
+  );
+
+  assert.ok(
+    projection.indexOf("store.AppendCanonicalTransition(canonical)")
+      < projection.indexOf("SemanticTransitionProjection.CreateDecision")
+  );
+  assert.match(projection, /decision_v2_compatibility_omitted/u);
+  assert.doesNotMatch(projection, /semantic_projection_not_eligible/u);
 });
 
 test("combat owner-ready uses the exact post-input-owner native seam and a typed fail-closed capture", () => {
@@ -515,6 +555,14 @@ test("card reward owner creation commits the parent claim before the child decis
     patches,
     /if \(reward is CardReward\)[\s\S]*?return;[\s\S]*?QueueNativePostCommitBoundary/u
   );
+});
+
+test("reward proceed observes actual native commit routes and never treats act-ready enqueue as Commit", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+
+  assert.match(patches, /RewardsSetSynchronizer\.SkipLocalRewardsSet[\s\S]*ObserveSemanticUiNativeCommit/u);
+  assert.match(patches, /RunManager\.ProceedFromTerminalRewardsScreen/u);
+  assert.doesNotMatch(patches, /ActChangeSynchronizer\.SetLocalPlayerReady[\s\S]*ObserveSemanticUiNativeCommit/u);
 });
 
 test("Native Foundation remains semantic-only and Ritsu-free", () => {

@@ -15,7 +15,8 @@ The current production Human-action path is:
 ```text
 Human UI scope captures H and exact public BoundAction binding
 -> STS2 accepts one exact native root
--> ActionExecutor.BeforeActionExecuted captures execution S and typed A_sem(S)
+-> Native Foundation captures S and typed A_sem(S) at the exact native action-binding boundary
+   (pre-admission for source-local callbacks, or BeforeActionExecuted for GameAction roots)
 -> typed native lifecycle proves Commit
 -> SemanticBoundaryTracker proves a separate causal successor boundary
 -> non-authorizing projections write Decision V2 and canonical evidence
@@ -23,9 +24,14 @@ Human UI scope captures H and exact public BoundAction binding
 
 `SemanticBoundaryTracker` never publishes or executes actions. Human H is not
 silently promoted to semantic S. It is the sole current authority for Human-root
-causal order and successor settlement, not for semantic legality. At the exact
-execution boundary the same process-local capture supplies a fair-player state
-frame and a typed read-only Native Foundation observation of `A_sem(S)`.
+causal order and successor settlement, not for semantic legality. The native
+decision observation and fair-player state frame are related but distinct facts.
+The Native Foundation provider captures the STS2-owned `S` and `A_sem(S)` at the
+exact native action-binding boundary; the Connector separately supplies the
+fair-player frame used for Human/public evidence. A source-local callback can
+carry the typed native observation forward through admission, while a
+`GameAction` root uses the exact `BeforeActionExecuted` boundary when no earlier
+sidecar exists.
 Connector's public catalog may already be empty because input is settling; that
 does not erase the independently observed semantic action space and does not
 make the frame publicly interactive. An arbitrary settling poll cannot prove a
@@ -129,7 +135,8 @@ pre-execution boundary, or whose causal window contains another Human action
 start after A begins and before S'.
 
 The current combat implementation uses existing typed `GameAction` lifecycle
-events and `ActionExecutor.BeforeActionExecuted`. One exact-build read-only
+events and carries an admission-boundary semantic sidecar through staging when
+available; otherwise it captures at `ActionExecutor.BeforeActionExecuted`. One exact-build read-only
 Prefix observes `NCardPlayQueue.RemoveCardFromQueueForCancellation(PlayCardAction)`
 because the pile-missing execution branch returns with native state `Finished`
 without spending resources or running `OnPlay`; this is classified as
@@ -152,7 +159,8 @@ Exact runtime evidence shows that native UI staging removes PlayCard,
 UsePotion and EndTurn from the public catalog before execution even though the
 STS2-owned semantic decision still contains them. Current canonical evidence
 therefore binds execution S to a content-addressed typed `A_sem(S)` observation
-for those families. Direct UI domains may use their exact complete public
+for those families, joined to the exact Human `BoundActionId` captured at the
+native binding boundary. Direct UI domains may use their exact complete public
 execution catalog when that catalog itself is the typed delivery surface.
 Decision V2 separately preserves the frozen Human-time public frame for durable
 compatibility. The projector only joins already-proved facts and cannot settle

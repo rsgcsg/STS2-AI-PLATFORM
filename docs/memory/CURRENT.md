@@ -54,11 +54,13 @@ The durable result is in the
 
 - PR #11 `cleanup/platform/authority-evidence-single-source` is the active
   Platform topic, based on `develop@791e271...`. Its current repair preserves
-  the exact Native Foundation execution `A_sem(S)` as typed durable evidence
-  while leaving `SemanticBoundaryTracker` as the sole causal/successor
-  authority and Connector as the sole public action/delivery authority. Source
-  and automated evidence do not transfer predecessor Human qualification; a
-  fresh exact candidate and bounded owner canary remain required.
+  the exact Native Foundation execution `A_sem(S)` as typed durable evidence,
+  with a schema-2 action-space sidecar carrying the exact Human
+  `BoundActionId`, while leaving `SemanticBoundaryTracker` as the sole
+  causal/successor authority and Connector as the sole public action/delivery
+  authority. Source and automated evidence do not transfer predecessor Human
+  qualification; a fresh exact candidate and bounded owner canary remain
+  required.
 - PR #3, PR #5 and PR #6 are merged integration history. Ritsu research PRs #7 and #8
   are closed without their experimental runtime code; durable findings live in
   ADR 0004 and the final route-decision packet.

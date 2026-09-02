@@ -24,6 +24,7 @@ using MegaCrit.Sts2.Core.Rewards;
 using MegaCrit.Sts2.Core.Runs;
 using STS2Connector.PlayerEnvironment.Witness;
 using STS2HumanAnnotator.Core;
+using STS2Platform.NativeFoundation;
 
 namespace STS2HumanAnnotator.Mod;
 
@@ -119,7 +120,11 @@ internal static class NativeEndTurnPatch
     {
         __state = RecorderRuntime.TryEnterScope(
             "native_end_turn_ui",
-            nameof(EndPlayerTurnAction));
+            nameof(EndPlayerTurnAction),
+            semanticSelection: new ProcessLocalObservedAction(
+                "end_turn",
+                null,
+                new Dictionary<string, object>(StringComparer.Ordinal)));
     }
 
     internal static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
@@ -136,7 +141,11 @@ internal static class NativeFtueEndTurnPatch
     {
         __state = RecorderRuntime.TryEnterScope(
             "native_ftue_end_turn_ui",
-            nameof(EndPlayerTurnAction));
+            nameof(EndPlayerTurnAction),
+            semanticSelection: new ProcessLocalObservedAction(
+                "end_turn",
+                null,
+                new Dictionary<string, object>(StringComparer.Ordinal)));
     }
 
     internal static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
@@ -425,6 +434,10 @@ internal static class NativeMapChoicePatch
             new ProcessLocalObservedAction(
                 "activate",
                 point.Point,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            nativeSemanticSelection: new ProcessLocalObservedAction(
+                "travel",
+                point.Point,
                 new Dictionary<string, object>(StringComparer.Ordinal)));
     }
 
@@ -476,7 +489,11 @@ internal static class NativeTreasureChestChoicePatch
                 new NativePostCommitCompletionExpectation(
                     "treasure_open",
                     "OneOffSynchronizer.DoLocalTreasureRoomRewards",
-                    NativeOperandWitnessId: NativeWitnessIdentity.Get(room, "native_operand")));
+                    NativeOperandWitnessId: NativeWitnessIdentity.Get(room, "native_operand")),
+                nativeSemanticSelection: new ProcessLocalObservedAction(
+                    "open",
+                    room,
+                    new Dictionary<string, object>(StringComparer.Ordinal)));
     }
 
     private static void Postfix(NativeUiScopeEntry __state)
@@ -538,6 +555,10 @@ internal static class NativeTreasureRelicChoicePatch
                     NativeActionType,
                     new ProcessLocalObservedAction(
                         "activate",
+                        relic,
+                        new Dictionary<string, object>(StringComparer.Ordinal)),
+                    nativeSemanticSelection: new ProcessLocalObservedAction(
+                        "select",
                         relic,
                         new Dictionary<string, object>(StringComparer.Ordinal))),
             relic);
@@ -602,7 +623,11 @@ internal static class NativeTreasureProceedPatch
                     : new NativePostCommitCompletionExpectation(
                         "treasure_proceed",
                         "RunManager.ProceedFromTerminalRewardsScreen",
-                        NativeOperandWitnessId: NativeWitnessIdentity.Get(room, "native_operand"))),
+                        NativeOperandWitnessId: NativeWitnessIdentity.Get(room, "native_operand")),
+                nativeSemanticSelection: new ProcessLocalObservedAction(
+                    isGameAction ? "skip" : "proceed",
+                    room,
+                    new Dictionary<string, object>(StringComparer.Ordinal))),
             room,
             verb,
             isGameAction);
@@ -698,7 +723,11 @@ internal static class NativeRewardClaimStartPatch
                     "activate",
                     __instance.Reward,
                     new Dictionary<string, object>(StringComparer.Ordinal)),
-                RewardClaimCompletion(__instance.Reward));
+                RewardClaimCompletion(__instance.Reward),
+                new ProcessLocalObservedAction(
+                    "claim",
+                    __instance.Reward,
+                    new Dictionary<string, object>(StringComparer.Ordinal)));
     }
 
     private static NativePostCommitCompletionExpectation RewardClaimCompletion(Reward reward) =>
@@ -756,8 +785,10 @@ internal static class NativeRewardProceedPatch
         AccessTools.Method(typeof(NRewardsScreen), "OnProceedButtonPressed")
         ?? throw new MissingMethodException(typeof(NRewardsScreen).FullName, "OnProceedButtonPressed");
 
-    private static void Prefix(out NativeUiScopeEntry __state)
+    private static void Prefix(NRewardsScreen __instance, out NativeUiScopeEntry __state)
     {
+        NativeRewardDecisionOwner? owner =
+            NativeRewardDecisionProvider.ObserveOwner(__instance);
         __state = RecorderRuntime.TryEnterSemanticScope(
             "native_reward_proceed_ui",
             NativeActionType,
@@ -768,9 +799,16 @@ internal static class NativeRewardProceedPatch
             new NativePostCommitCompletionExpectation(
                 "reward_proceed",
                 "RunManager.ProceedFromTerminalRewardsScreen",
-                NativeOwnerWitnessId: NativeWitnessIdentity.Get(
-                    RunManager.Instance,
-                    "native_owner")));
+                AlternativeKinds: new[]
+                {
+                    "RewardsSetSynchronizer.SkipLocalRewardsSet"
+                }),
+            nativeSemanticSelection: owner == null
+                ? null
+                : new ProcessLocalObservedAction(
+                    "proceed",
+                    owner.RewardsSet,
+                    new Dictionary<string, object>(StringComparer.Ordinal)));
     }
 
     private static void Postfix(NativeUiScopeEntry __state)
@@ -798,6 +836,16 @@ internal static class NativeRewardProceedPatch
         RecorderRuntime.ExitNativeUiScope(__state);
         return __exception;
     }
+}
+
+[HarmonyPatch(typeof(RewardsSetSynchronizer), nameof(RewardsSetSynchronizer.SkipLocalRewardsSet))]
+internal static class NativeRewardSkipCommitPatch
+{
+    private static void Postfix(RewardsSetSynchronizer __instance) =>
+        RecorderRuntime.ObserveSemanticUiNativeCommit(
+            "reward_proceed",
+            "RewardsSetSynchronizer.SkipLocalRewardsSet",
+            nativeOwner: __instance);
 }
 
 [HarmonyPatch]

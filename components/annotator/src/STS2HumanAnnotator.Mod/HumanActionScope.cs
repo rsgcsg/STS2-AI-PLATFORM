@@ -17,6 +17,7 @@ internal sealed class HumanActionContext
         string expectedNativeActionType,
         ProcessLocalObservedAction? expectedAction,
         ProcessLocalNativeWitnessFrame frame,
+        ProcessLocalNativeSemanticCapture? nativeSemanticDecision,
         string? actionWitnessId,
         NativePostCommitCompletionExpectation? completionExpectation,
         DateTimeOffset enteredAt)
@@ -24,6 +25,7 @@ internal sealed class HumanActionContext
         Origin = origin;
         ExpectedAction = expectedAction;
         Frame = frame;
+        NativeSemanticDecision = nativeSemanticDecision;
         ActionWitnessId = actionWitnessId ?? $"scope-action-{Guid.NewGuid():N}";
         CompletionExpectation = completionExpectation;
         EnteredAt = enteredAt;
@@ -35,6 +37,8 @@ internal sealed class HumanActionContext
     internal ProcessLocalObservedAction? ExpectedAction { get; }
 
     internal ProcessLocalNativeWitnessFrame Frame { get; }
+
+    internal ProcessLocalNativeSemanticCapture? NativeSemanticDecision { get; }
 
     internal string ActionWitnessId { get; }
 
@@ -100,6 +104,7 @@ internal static class HumanActionScope
         string expectedNativeActionType,
         ProcessLocalObservedAction? expectedAction,
         ProcessLocalNativeWitnessFrame frame,
+        ProcessLocalNativeSemanticCapture? nativeSemanticDecision = null,
         string? actionWitnessId = null,
         NativePostCommitCompletionExpectation? completionExpectation = null)
     {
@@ -109,6 +114,7 @@ internal static class HumanActionScope
             expectedNativeActionType,
             expectedAction,
             frame,
+            nativeSemanticDecision,
             actionWitnessId,
             completionExpectation,
             DateTimeOffset.UtcNow));

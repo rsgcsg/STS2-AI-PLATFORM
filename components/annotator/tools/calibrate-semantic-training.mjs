@@ -2,7 +2,7 @@
 
 import { createHash } from "node:crypto";
 import { createReadStream, readFileSync } from "node:fs";
-import { readFile, readdir, writeFile } from "node:fs/promises";
+import { access, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -99,24 +99,36 @@ function semanticActionSpaceStatus(value, action, actionWitnessId) {
   const actions = Array.isArray(value?.actions) ? value.actions : [];
   const observedKey = value?.observed_action_key;
   const selected = actions.filter((candidate) => candidate?.key === observedKey);
-  const matches = selected.filter((candidate) =>
-    candidate?.verb === action?.verb
-    && (candidate?.subject_referent_id ?? null) === (action?.subject_referent_id ?? null)
-    && canonical(candidate?.arguments ?? {}) === canonical(normalizedArguments(action)));
+  const current = value?.schema === "sts2.human-annotator/execution-semantic-action-space-2"
+    && value?.schema_version === 2;
+  const legacy = value?.schema === "sts2.human-annotator/execution-semantic-action-space-1"
+    && value?.schema_version === 1;
+  const matches = current
+    ? selected.filter(() => value?.human_bound_action_id === action?.bound_action_id)
+    : selected.filter((candidate) =>
+      candidate?.verb === action?.verb
+      && (candidate?.subject_referent_id ?? null) === (action?.subject_referent_id ?? null)
+      && canonical(candidate?.arguments ?? {}) === canonical(normalizedArguments(action)));
   const complete = Boolean(
     value
-    && value.schema === "sts2.human-annotator/execution-semantic-action-space-1"
-    && value.schema_version === 1
+    && (current || legacy)
     && value.action_witness_id === actionWitnessId
-    && value.phase === "before_execution"
+    && ["before_execution", "before_native_action_admission"].includes(value.phase)
     && value.status === "captured"
-    && value.scope === "combat_play_phase"
+    && value.scope !== "unavailable"
     && value.semantic_state
     && typeof value.semantic_state_digest === "string"
+    && value.semantic_state_digest.length > 0
     && typeof value.semantic_catalog_digest === "string"
+    && value.semantic_catalog_digest.length > 0
     && value.observed_membership === "exact_once"
     && value.observed_match_count === 1
-    && selected.length === 1);
+    && selected.length === 1
+    && Array.isArray(value.native_evidence)
+    && value.native_evidence.length > 0
+    && (!current
+      || typeof value.human_bound_action_id === "string"
+        && value.human_bound_action_id.length > 0));
   return {
     complete,
     catalog_status: complete ? "complete" : "missing_or_incomplete",
@@ -288,6 +300,25 @@ export async function calibrate(recordingDirectory) {
     }
   }
 
+  const durableCanonicalByWitness = new Map();
+  let legacyDurableCanonical = 0;
+  const canonicalPath = path.join(root, "canonical-transitions.jsonl");
+  try {
+    await access(canonicalPath);
+    for await (const { value } of jsonLines(canonicalPath)) {
+      if (value.schema_version === 2
+        && value.schema === "sts2.human-annotator/canonical-transition-evidence-2"
+        && value.collection_mode === "causal_human_native_observation"
+        && value.action_witness_id) {
+        durableCanonicalByWitness.set(value.action_witness_id, value);
+      } else if (value.schema_version === 1) {
+        legacyDurableCanonical++;
+      }
+    }
+  } catch {
+    // Older recordings predate the additive canonical stream.
+  }
+
   const frameCache = new Map();
   function loadObject(reference) {
     if (!reference?.object_ref) return null;
@@ -338,12 +369,22 @@ export async function calibrate(recordingDirectory) {
     const actionSpaceReference = state.events.find((event) =>
       event.execution_semantic_action_space_ref)?.execution_semantic_action_space_ref;
     const semanticActionSpace = loadActionSpace(actionSpaceReference);
+    const publicFallbackAllowed = accepted.action.native_mechanism === "direct_ui_commit";
     const actionSpaceAuthority = semanticActionSpace
       ? "native_semantic_execution"
-      : "public_bound_actions";
+      : publicFallbackAllowed
+        ? "public_bound_actions"
+        : "missing_execution_semantic";
     const preStatus = semanticActionSpace
       ? semanticActionSpaceStatus(semanticActionSpace, selected, state.id)
-      : frameStatus(pre, selected);
+      : publicFallbackAllowed
+        ? frameStatus(pre, selected)
+        : {
+          complete: false,
+          catalog_status: "missing",
+          catalog_count: 0,
+          action_match_count: 0
+        };
     const humanReference = accepted.human_observation_ref;
     const human = loadFrame(humanReference) ?? ledger?.decision_pre ?? legacy?.pre ?? null;
     const humanStatus = frameStatus(human, selected);
@@ -377,14 +418,14 @@ export async function calibrate(recordingDirectory) {
       classification = "successor_unresolved";
       reason = successor.reason;
     } else {
-      classification = "canonical_s_a_s_prime";
+      classification = "semantic_candidate_s_a_s_prime";
       reason = successor.reason;
     }
 
     if (humanStatus.complete && humanStatus.action_match_count === 1
       && classification === "state_action_space_unresolved")
       futureActionChainCandidate++;
-    if (classification === "canonical_s_a_s_prime"
+    if (classification === "semantic_candidate_s_a_s_prime"
       && reason === "execution_handoff_exact")
       rapidRebindValid++;
 
@@ -412,7 +453,8 @@ export async function calibrate(recordingDirectory) {
         semanticActionSpace?.semantic_catalog_digest ?? null,
       successor_snapshot_id: proved?.successor_ref?.snapshot_id ?? null,
       semantic_proof_status: proved?.proof_status ?? terminal?.proof_status ?? null,
-      human_action_match_count: humanStatus.action_match_count
+      human_action_match_count: humanStatus.action_match_count,
+      durable_canonical: durableCanonicalByWitness.has(state.id)
     });
   }
 
@@ -439,9 +481,15 @@ export async function calibrate(recordingDirectory) {
       classifications: Object.fromEntries(Object.entries(classifications).sort()),
       proof_reasons: Object.fromEntries(Object.entries(proofReasons).sort()),
       legacy_usable: legacyUsable,
-      canonical_s_a: (classifications.canonical_s_a_s_prime ?? 0)
+      semantic_candidate_s_a: (classifications.semantic_candidate_s_a_s_prime ?? 0)
         + (classifications.successor_unresolved ?? 0),
-      canonical_s_a_s_prime: classifications.canonical_s_a_s_prime ?? 0,
+      semantic_candidate_s_a_s_prime:
+        classifications.semantic_candidate_s_a_s_prime ?? 0,
+      durable_canonical: durableCanonicalByWitness.size,
+      legacy_durable_canonical: legacyDurableCanonical,
+      semantic_candidate_without_durable_canonical: details.filter((value) =>
+        value.classification === "semantic_candidate_s_a_s_prime"
+        && !value.durable_canonical).length,
       rapid_rebind_valid: rapidRebindValid,
       state_action_space_unresolved: classifications.state_action_space_unresolved ?? 0,
       successor_unresolved: classifications.successor_unresolved ?? 0,

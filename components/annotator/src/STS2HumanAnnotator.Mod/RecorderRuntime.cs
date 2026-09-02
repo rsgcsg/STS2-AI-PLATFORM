@@ -615,13 +615,16 @@ internal static class RecorderRuntime
     internal static NativeUiScopeEntry TryEnterCardScope(CardModel card, Creature? target)
     {
         var arguments = new Dictionary<string, object>(StringComparer.Ordinal);
+        ProcessLocalObservedAction observed;
         if (target != null)
             arguments["target"] = target;
+        observed = new ProcessLocalObservedAction("play", card, arguments);
         return TryEnterScope(
             "native_card_play_ui",
             nameof(PlayCardAction),
-            new ProcessLocalObservedAction("play", card, arguments),
-            card);
+            observed,
+            card,
+            semanticSelection: observed);
     }
 
     internal readonly record struct PotionUseArmHandle(
@@ -779,11 +782,18 @@ internal static class RecorderRuntime
             return new NativeUiScopeEntry(false, true);
         }
 
+        ProcessLocalNativeSemanticCapture semanticDecision =
+            PlayerEnvironmentNativeSemanticWitness.Capture(
+                "before_native_action_admission",
+                uiFrame: decision.Frame,
+                semanticNativeActionType: nameof(UsePotionAction),
+                semanticSelection: observed);
         HumanActionScope.Enter(
             "native_potion_use_ui",
             nameof(UsePotionAction),
             observed,
-            decision.Frame);
+            decision.Frame,
+            semanticDecision);
         return new NativeUiScopeEntry(true, false);
     }
 
@@ -860,7 +870,8 @@ internal static class RecorderRuntime
         string origin,
         string expectedNativeActionType,
         ProcessLocalObservedAction? expectedAction = null,
-        CardModel? stagedCard = null)
+        CardModel? stagedCard = null,
+        ProcessLocalObservedAction? semanticSelection = null)
     {
         if (!AcceptingNewWitnesses())
             return default;
@@ -926,12 +937,24 @@ internal static class RecorderRuntime
                 return new NativeUiScopeEntry(false, true);
             }
 
+            ProcessLocalNativeSemanticCapture? semanticDecision = semanticSelection == null
+                ? null
+                : PlayerEnvironmentNativeSemanticWitness.Capture(
+                    "before_native_action_admission",
+                    uiFrame: selected,
+                    semanticNativeActionType: expectedNativeActionType,
+                    semanticSelection: semanticSelection);
             lock (Gate)
             {
                 if (!_initialized
                     || _lifecycle.State != RecordingLifecycleState.Recording)
                     return default;
-                HumanActionScope.Enter(origin, expectedNativeActionType, expectedAction, selected);
+                HumanActionScope.Enter(
+                    origin,
+                    expectedNativeActionType,
+                    expectedAction,
+                    selected,
+                    semanticDecision);
             }
             return new NativeUiScopeEntry(true, false);
         }
@@ -951,7 +974,8 @@ internal static class RecorderRuntime
         string origin,
         string nativeActionType,
         ProcessLocalObservedAction observed,
-        NativePostCommitCompletionExpectation? completionExpectation = null)
+        NativePostCommitCompletionExpectation? completionExpectation = null,
+        ProcessLocalObservedAction? nativeSemanticSelection = null)
     {
         if (!AcceptingNewWitnesses() || HumanActionScope.Current != null)
             return default;
@@ -968,6 +992,12 @@ internal static class RecorderRuntime
         try
         {
             ProcessLocalNativeWitnessFrame frame = CaptureSemanticFrame();
+            ProcessLocalNativeSemanticCapture semanticDecision =
+                PlayerEnvironmentNativeSemanticWitness.Capture(
+                    "before_native_action_admission",
+                    uiFrame: frame,
+                    semanticNativeActionType: nativeActionType,
+                    semanticSelection: nativeSemanticSelection ?? observed);
             RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
             IReadOnlyList<string> blockers = SemanticWitnessBlockers(frame, environment);
             ProcessLocalNativeMatch match = frame.Resolve(observed);
@@ -1022,6 +1052,7 @@ internal static class RecorderRuntime
                     nativeActionType,
                     observed,
                     frame,
+                    semanticDecision,
                     actionWitnessId,
                     completionExpectation);
                 return new NativeUiScopeEntry(true, false, actionWitnessId);
@@ -1174,6 +1205,7 @@ internal static class RecorderRuntime
             }
             StartSemanticUiAction(
                 context.Frame,
+                context.NativeSemanticDecision,
                 BuildEnvironment(context.Frame),
                 nativeActionType,
                 witness,
@@ -1340,6 +1372,17 @@ internal static class RecorderRuntime
             ProcessLocalNativeWitnessFrame frame = CaptureSemanticFrame();
             ProcessLocalNativeSemanticCapture semanticCapture =
                 PlayerEnvironmentNativeSemanticWitness.Capture(phase, action, frame);
+            NativeActionLifecycleSubscription? subscription;
+            lock (Gate)
+                NativeActionSubscriptions.TryGetValue(action, out subscription);
+            ExecutionSemanticActionSpaceEvidence? actionSpace =
+                subscription?.NativeSemanticDecision;
+            actionSpace ??= phase == "before_execution"
+                ? ToExecutionSemanticActionSpace(
+                    actionWitnessId,
+                    semanticCapture,
+                    subscription?.HumanBoundActionId)
+                : null;
             NativeSemanticDiscriminatorRuntime.Observe(
                 _store,
                 SessionId,
@@ -1354,9 +1397,7 @@ internal static class RecorderRuntime
                 frame,
                 SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
                 actionWitnessId,
-                executionSemanticActionSpace: phase == "before_execution"
-                    ? ToExecutionSemanticActionSpace(actionWitnessId, semanticCapture)
-                    : null);
+                executionSemanticActionSpace: actionSpace);
             IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
             lock (Gate)
                 drafts = BoundaryTracker.ObserveBeforeActionExecution(actionWitnessId, boundary);
@@ -1436,7 +1477,8 @@ internal static class RecorderRuntime
 
     private static ExecutionSemanticActionSpaceEvidence? ToExecutionSemanticActionSpace(
         string actionWitnessId,
-        ProcessLocalNativeSemanticCapture capture)
+        ProcessLocalNativeSemanticCapture capture,
+        string? humanBoundActionId)
     {
         if (capture.SemanticState == null
             || string.IsNullOrWhiteSpace(capture.SemanticStateDigest)
@@ -1468,7 +1510,10 @@ internal static class RecorderRuntime
             capture.ObservedAction.SemanticMatchCount,
             capture.Evidence.ToArray(),
             capture.NonClaims.ToArray(),
-            capture.Detail);
+            capture.Detail)
+        {
+            HumanBoundActionId = humanBoundActionId
+        };
     }
 
     private static void ObserveNativeDecisionOwnerReady(
@@ -1554,6 +1599,7 @@ internal static class RecorderRuntime
 
     private static void StartSemanticUiAction(
         ProcessLocalNativeWitnessFrame frame,
+        ProcessLocalNativeSemanticCapture? nativeSemanticDecision,
         RecorderEnvironmentIdentity environment,
         string nativeActionType,
         NativeWitnessEvidence witness,
@@ -1597,7 +1643,13 @@ internal static class RecorderRuntime
             frame,
             SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
             actionWitnessId,
-            humanObservation);
+            humanObservation,
+            executionSemanticActionSpace: nativeSemanticDecision == null
+                ? null
+                : ToExecutionSemanticActionSpace(
+                    actionWitnessId,
+                    nativeSemanticDecision,
+                    match.BoundAction!.BoundActionId));
         IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
         lock (Gate)
         {
@@ -1649,10 +1701,38 @@ internal static class RecorderRuntime
         string kind,
         object? nativeOwner = null,
         object? nativeOperand = null,
-        object? nativeLineage = null)
+        object? nativeLineage = null) =>
+        ObserveSemanticUiNativeCommitCore(
+            actionWitnessId,
+            family,
+            kind,
+            nativeOwner,
+            nativeOperand,
+            nativeLineage);
+
+    internal static void ObserveSemanticUiNativeCommit(
+        string family,
+        string kind,
+        object? nativeOwner = null,
+        object? nativeOperand = null,
+        object? nativeLineage = null) =>
+        ObserveSemanticUiNativeCommitCore(
+            null,
+            family,
+            kind,
+            nativeOwner,
+            nativeOperand,
+            nativeLineage);
+
+    private static void ObserveSemanticUiNativeCommitCore(
+        string? expectedActionWitnessId,
+        string family,
+        string kind,
+        object? nativeOwner,
+        object? nativeOperand,
+        object? nativeLineage)
     {
-        if (string.IsNullOrWhiteSpace(actionWitnessId)
-            || string.IsNullOrWhiteSpace(family)
+        if (string.IsNullOrWhiteSpace(family)
             || string.IsNullOrWhiteSpace(kind))
             return;
         try
@@ -1695,7 +1775,8 @@ internal static class RecorderRuntime
                             true));
             }
             if (!resolution.IsMatched
-                || resolution.Registration?.ActionWitnessId != actionWitnessId
+                || expectedActionWitnessId != null
+                    && resolution.Registration?.ActionWitnessId != expectedActionWitnessId
                 || resolution.Completion is not { } nativeCompletion
                 || !string.Equals(nativeCompletion.Family, family, StringComparison.Ordinal))
             {
@@ -1707,6 +1788,7 @@ internal static class RecorderRuntime
                     "decision_and_lifecycle_only");
                 return;
             }
+            string actionWitnessId = resolution.Registration!.ActionWitnessId;
             NativeCompletionEvidence completion = ToCompletionEvidence(
                 nativeCompletion,
                 actionWitnessId);
@@ -1750,6 +1832,7 @@ internal static class RecorderRuntime
         }
 
         FrozenDecisionFrameV2 humanObservation = FreezeSemanticBoundary(context.Frame, environment);
+        PlayerEnvironmentBoundAction boundAction = match.BoundAction!;
         long sequence = Interlocked.Increment(ref _sequence);
         string recordId = $"semantic-record-{sequence:D8}-{Guid.NewGuid():N}";
         string actionWitnessId = NativeWitnessIdentity.Get(action, "game_action");
@@ -1770,12 +1853,21 @@ internal static class RecorderRuntime
         lock (Gate)
         {
             SemanticProjectionEnvironments[actionWitnessId] = environment;
+            ExecutionSemanticActionSpaceEvidence? nativeDecision =
+                context.NativeSemanticDecision == null
+                    ? null
+                    : ToExecutionSemanticActionSpace(
+                        actionWitnessId,
+                        context.NativeSemanticDecision,
+                        boundAction.BoundActionId);
             drafts = BoundaryTracker.Accept(semanticAction, humanObservation);
             var subscription = new NativeActionLifecycleSubscription(
                 action,
                 actionWitnessId,
                 sequence,
                 recordId,
+                boundAction.BoundActionId,
+                nativeDecision,
                 ObserveSemanticOnlyNativeActionLifecycle);
             NativeActionSubscriptions.Add(action, subscription);
             SemanticOnlyNativeActionIds.Add(actionWitnessId);
@@ -2186,43 +2278,8 @@ internal static class RecorderRuntime
             || !CaptureProfile.SupportedActionFamilies.Contains(family, StringComparer.Ordinal))
             return;
 
-        RecorderEnvironmentIdentity? environment;
-        lock (Gate)
-            SemanticProjectionEnvironments.TryGetValue(draft.Action.ActionWitnessId, out environment);
-        if (environment == null)
-        {
-            Quarantine(
-                "semantic_projection_environment_missing",
-                "The proved semantic transition has no exact root environment for Decision V2 compatibility projection.",
-                draft.SemanticPre?.SnapshotId,
-                draft.Action.NativeActionType,
-                "projection_unavailable");
-            return;
-        }
-
         try
         {
-            HumanDecisionRecordV2 record = SemanticTransitionProjection.CreateDecision(
-                draft,
-                environment,
-                SessionId!,
-                TimelineId!,
-                CaptureProfile.ProfileId);
-            RecordValidationResult recordValidation = HumanDecisionRecordV2Validator.Validate(record);
-            RecordValidationResult profileValidation =
-                HumanCaptureProfileValidator.ValidateRecord(CaptureProfile, record);
-            if (!recordValidation.Valid || !profileValidation.Valid)
-            {
-                Quarantine(
-                    "semantic_projection_not_eligible",
-                    string.Join(",", recordValidation.Errors.Concat(profileValidation.Errors)),
-                    draft.SemanticPre?.SnapshotId,
-                    draft.Action.NativeActionType,
-                    "projection_unavailable");
-                return;
-            }
-
-            store.AppendDecision(record);
             SemanticFrameReference preRef = store.PersistSemanticFrame(draft.SemanticPre!);
             SemanticFrameReference successorRef = store.PersistSemanticFrame(draft.SemanticSuccessor!);
             ExecutionSemanticActionSpaceReference? executionSemanticActionSpaceRef =
@@ -2243,19 +2300,66 @@ internal static class RecorderRuntime
                 throw new InvalidDataException(
                     $"Canonical semantic projection failed validation: {string.Join(',', canonicalErrors)}");
             store.AppendCanonicalTransition(canonical);
+
+            RecorderEnvironmentIdentity? environment;
+            lock (Gate)
+                SemanticProjectionEnvironments.TryGetValue(
+                    draft.Action.ActionWitnessId,
+                    out environment);
+            HumanDecisionRecordV2? record = null;
+            bool decisionV2Appended = false;
+            IReadOnlyList<string> compatibilityErrors;
+            if (environment == null)
+            {
+                compatibilityErrors = new[] { "root_environment_missing" };
+            }
+            else
+            {
+                record = SemanticTransitionProjection.CreateDecision(
+                    draft,
+                    environment,
+                    SessionId!,
+                    TimelineId!,
+                    CaptureProfile.ProfileId);
+                RecordValidationResult recordValidation =
+                    HumanDecisionRecordV2Validator.Validate(record);
+                RecordValidationResult profileValidation =
+                    HumanCaptureProfileValidator.ValidateRecord(CaptureProfile, record);
+                compatibilityErrors = recordValidation.Errors
+                    .Concat(profileValidation.Errors)
+                    .Distinct(StringComparer.Ordinal)
+                    .ToArray();
+                if (recordValidation.Valid && profileValidation.Valid)
+                {
+                    store.AppendDecision(record);
+                    decisionV2Appended = true;
+                }
+            }
+
+            string eventId = decisionV2Appended
+                ? record!.RecordId
+                : canonical.TransitionId;
             AppendJournal(
-                "decision_recorded",
-                record.RecordId,
-                record.Successor.SnapshotId,
-                record.Action.Verb);
+                "canonical_transition_recorded",
+                eventId,
+                canonical.SuccessorRef.SnapshotId,
+                canonical.Action.Verb);
+            if (compatibilityErrors.Count > 0)
+            {
+                AppendJournal(
+                    "decision_v2_compatibility_omitted",
+                    canonical.TransitionId,
+                    canonical.SuccessorRef.SnapshotId,
+                    string.Join(",", compatibilityErrors));
+            }
             PublishApplicationEvent(
                 RecordingEventKind.DecisionRecorded,
-                record.RecordId,
-                record.Action.Verb);
+                eventId,
+                canonical.Action.Verb);
             _runtimeState = "record_appended";
-            _detail = record.RecordId;
-            WriteStatus(environment, record.Successor.SnapshotId, Array.Empty<string>());
-            GD.Print($"[STS2 Human Annotator] admitted {record.RecordId} {record.Action.Verb} from semantic proof");
+            _detail = canonical.TransitionId;
+            WriteStatus(environment, canonical.SuccessorRef.SnapshotId, Array.Empty<string>());
+            GD.Print($"[STS2 Human Annotator] admitted {canonical.TransitionId} {canonical.Action.Verb} from semantic proof");
         }
         catch (Exception exception)
         {

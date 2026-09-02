@@ -102,6 +102,10 @@ public static class CanonicalTransitionEvidenceValidator
             && value.ActionSpaceAuthority is not ("native_semantic_execution" or "public_bound_actions"))
             errors.Add("action_space_authority_invalid");
         if (!legacy
+            && value.ActionSpaceAuthority == "public_bound_actions"
+            && value.NativeMechanism != "direct_ui_commit")
+            errors.Add("public_action_space_authority_invalid");
+        if (!legacy
             && value.ActionSpaceAuthority == "native_semantic_execution"
             && value.ExecutionSemanticActionSpaceRef == null)
             errors.Add("execution_semantic_action_space_ref_missing");

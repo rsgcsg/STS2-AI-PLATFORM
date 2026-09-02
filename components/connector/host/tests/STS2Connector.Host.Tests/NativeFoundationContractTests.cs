@@ -164,6 +164,34 @@ public sealed class NativeFoundationContractTests
             new object()));
     }
 
+    [Fact]
+    public void NativeSelectionJoinsPublicAliasByExactIdentityWithoutCreatingLegality()
+    {
+        var destination = new object();
+        var other = new object();
+        NativeSemanticAction[] catalog =
+        {
+            Action("travel-destination", destination, "travel"),
+            Action("travel-other", other, "travel")
+        };
+
+        NativeObservedSemanticAction exact =
+            NativeSemanticActionCatalog.DescribeByIdentity(
+                catalog,
+                "VoteForMapCoordAction",
+                destination);
+        NativeObservedSemanticAction absent =
+            NativeSemanticActionCatalog.DescribeByIdentity(
+                catalog,
+                "VoteForMapCoordAction",
+                new object());
+
+        Assert.Equal("exact_once", exact.Membership);
+        Assert.Equal("travel-destination", exact.Key);
+        Assert.Equal("absent", absent.Membership);
+        Assert.Null(absent.Key);
+    }
+
     [Theory]
     [InlineData("CombatRoom", "NRewardsScreen", false, "room_rewards", "reward_claim")]
     [InlineData("CombatRoom", "NCardRewardSelectionScreen", false, "card_reward", "card_reward_selection")]

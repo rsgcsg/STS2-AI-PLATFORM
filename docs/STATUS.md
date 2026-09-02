@@ -25,17 +25,21 @@ execution public Snapshot was settling or had already withdrawn the chosen
 action; it is not interchangeable with native `A_sem(S)`.
 
 Current source preserves the exact read-only Native Foundation semantic
-state/catalog captured at `ActionExecutor.BeforeActionExecuted`, references it
-from semantic schema 4, and joins it in canonical schema 2 without changing
-public Snapshot readiness, Connector delivery/revalidation or tracker successor
-semantics. Decision V2 remains a compatibility projection from the frozen
-Human-time public frame. Historical schema 3/schema 1 evidence remains readable
-and is not upgraded or backfilled. This source requires a fresh exact build,
-load and Human canary; predecessor Human evidence does not transfer. The
-follow-on draft-projection repair makes every lifecycle/settlement draft inherit
-the Entry-owned Human observation, native completion and execution action-space
-references, preserving those facts through durable Decision V2/canonical
-projection without changing authority or successor semantics. See the
+state/catalog at the native action-binding boundary: source-local callbacks
+capture it before admission, while GameAction roots capture it at
+`ActionExecutor.BeforeActionExecuted` when no earlier sidecar exists. It is
+referenced from semantic schema 4 and joined in canonical schema 2 without
+changing public Snapshot readiness, Connector delivery/revalidation or tracker
+successor semantics. Decision V2 remains a compatibility projection from the
+frozen Human-time public frame. Historical schema 3/schema 1 evidence remains
+readable and is not upgraded or backfilled. The action-space sidecar is schema 2
+with schema 1 read compatibility and carries the exact Human `BoundActionId`.
+This source requires a fresh exact build, load and Human canary; predecessor
+Human evidence does not transfer. The follow-on draft-projection repair makes
+every lifecycle/settlement draft inherit the Entry-owned Human observation,
+native completion and execution action-space references, preserving those facts
+through durable Decision V2/canonical projection without changing authority or
+successor semantics. See the
 [source closeout](evidence/PR11_EXECUTION_SEMANTIC_ACTION_SPACE_SOURCE_CLOSEOUT_2026-09-02.md).
 
 ## Current pre-Full-Run performance work

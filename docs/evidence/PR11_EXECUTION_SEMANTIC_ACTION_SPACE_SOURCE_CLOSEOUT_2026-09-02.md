@@ -9,8 +9,9 @@ override earlier descriptions. Starting source is
 `cleanup/platform/authority-evidence-single-source`, based on
 `develop@791e27172c39e5c4ce33a415b16fc1ea7f060513`.
 
-The repair has source/test evidence only. No predecessor Human evidence
-qualifies the resulting bytes.
+The current repair has source/test evidence only. No predecessor Human evidence
+qualifies the resulting bytes. The exact final source/artifact identity is
+recorded only after a clean build.
 
 ## Historical reconstruction
 
@@ -27,8 +28,9 @@ The exact historical session
 contains 41 accepted and 41 successful native semantic roots: PlayCard 30,
 EndTurn 10 and UsePotion 1. All 41 are exact-once members of the semantic
 catalog captured synchronously in the `ActionExecutor.BeforeActionExecuted`
-phase. This is the state consumed by native execution, not an acceptance or
-precommit approximation. For `game_action_9bccc666_7`, the execution sample has
+phase from the same STS2 validators that own the current native decision. It is
+not the Human observation or public delivery catalog; STS2 may already have
+staged the selected object before this phase. For `game_action_9bccc666_7`, the execution sample has
 semantic membership `exact_once` while the same capture's public UI frame is
 `settling`, has zero actions and reports `frame_not_authoritative`.
 
@@ -91,46 +93,94 @@ evidence without carrying the independent native semantic capture. Source tests
 constructed execution frames that still contained the chosen public action, so
 they protected helper shape but not the real settling/withdrawal condition.
 
+A later exact canary,
+`session-20260901T170545Z-89e82a21530041edbb73b013962f00e3`, exposed the
+cross-domain half of the same ownership error. Its tracker classified 145
+semantic candidates, while `canonical-transitions.jsonl` contained only 38
+durable rows. Nine `VoteForMapCoordAction` roots and one `PickRelicAction` root
+had real typed Map/Treasure catalogs but the diagnostic adapter labelled the
+executed action `outside_direct_native_catalog`. Most other missing rows were
+modern rapid successors rejected by the older Decision V2 requirement that
+`S'` be an interactive public frame. Thus 145 was a classifier candidate count,
+not durable canonical truth; 38 was the actual durable count.
+
 ## Repair
 
-The repair preserves one capture at the exact first-execution boundary and
-projects two distinct facts from it:
+The repair preserves one capture at the exact native action-binding boundary
+and projects distinct facts from it:
 
 ```text
 STS2 native state
 -> Native Foundation typed semantic providers: S + A_sem(S)
 -> Connector process-local read-only observation
    + independent public Snapshot/A_public projection
--> Annotator records H/correlation and typed execution semantic reference
+   + exact selected-native-action identity join
+-> Annotator records H/correlation and typed semantic-decision reference
 -> SemanticBoundaryTracker orders Root / Commit / S'
 -> projector joins only already-authoritative facts
 -> durable schema-4 semantic event + canonical schema-2 row
 ```
 
-The discriminator consumes the same immutable capture as a diagnostic. It is
-not promoted to authority. Public Snapshot publication and execute-time
-revalidation are unchanged; a settling Snapshot may still publish zero
-BoundActions. The action witness, semantic state digest and catalog digest are
-sufficient exact identities, so no new DecisionEpoch is introduced.
+For `GameAction` roots the exact native decision may be captured at the
+pre-admission binding boundary and carried through staging; if no sidecar is
+available, the binding phase is `ActionExecutor.BeforeActionExecuted`. The
+execution-time fair-player frame remains a separate observation and is never
+combined with a later state to form a semantic epoch. Map/Treasure UI roots
+retain the typed decision captured before native admission and join it to the
+exact accepted `GameAction`; direct callbacks retain the same pre-admission
+decision and exact owner/operand Commit witness. Public and native verbs may differ
+(`activate` versus `travel`, `claim` or `select`), so action-space schema 2 binds
+the exact Human `BoundActionId` to the selected native catalog key instead of
+equating presentation strings.
 
-Semantic evidence schema 4 and canonical evidence schema 2 are additive schema
-bumps because both formats acquire new durable semantics and references.
-Auditors continue to read semantic schema 3 and canonical schema 1 without
-reinterpretation or backfill. Missing, changed, mismatched or incomplete typed
-action-space evidence fails closed.
+The discriminator consumes the same immutable capture as a diagnostic and is
+not promoted to authority. Modern canonical persistence precedes and is
+independent of Decision V2 compatibility materialization. Calibration reports
+semantic candidates and explicitly joins the durable canonical file; it no
+longer creates a second canonical count. Public Snapshot publication and
+execute-time revalidation are unchanged; a settling Snapshot may still publish
+zero BoundActions. The action witness, Human BoundAction ID, semantic state
+digest and catalog digest are sufficient exact identities, so no new
+DecisionEpoch is introduced.
+
+Exact v0.111.0 decompilation also confirms that the shared invariant does not
+require a universal CLR lifecycle:
+
+- Combat uses the native decision provider plus exact `GameAction` identity;
+- Map binds the exact `MapPoint` selected by the UI to the travel catalog and
+  then to the accepted `VoteForMapCoordAction`;
+- Treasure select/skip bind the exact relic/room choice to
+  `PickRelicAction`, whose real Commit is `TreasureRoomRelicSynchronizer.OnPicked`;
+- Reward/CardReward/Treasure callback roots capture their typed provider before
+  admission and retain the source-local owner/operand Commit witness;
+- non-terminal Reward proceed commits through
+  `RewardsSetSynchronizer.SkipLocalRewardsSet`, while terminal branches that
+  actually call `ProceedFromTerminalRewardsScreen` retain the Task seam.
+
+The boss/victory act-change branch only enqueues `VoteToMoveToNextActAction` at
+`SetLocalPlayerReady`; that call is deliberately not promoted to Commit. Until
+that exact nested action is migrated, the branch remains fail-closed rather
+than borrowing the terminal Task claim.
+
+Semantic evidence schema 4 and canonical evidence schema 2 remain unchanged.
+The action-space sidecar alone moves to schema 2 to add the exact Human binding
+and phase; schema 1 remains readable under its original same-verb identity
+rules. Missing, changed, mismatched or incomplete typed action-space evidence
+fails closed.
 
 ## Verification and non-claims
 
 Targeted tests cover PlayCard, EndTurn and UsePotion exact membership with an
 empty public execution catalog; exact Human/native join; persistence, reload and
-audit; content tampering; public-catalog direct UI fallback; rapid execution
+audit; content tampering; typed Map and Treasure identity joins; rapid execution
 handoff; terminal Close unknown; cancellation/abort; and projection's inability
-to settle. Existing Map, Reward, CardReward and Treasure paths remain on the
-same tracker.
+to settle. Map, Reward, CardReward and Treasure remain on the same tracker; their
+native providers and callback/GameAction adapters own only typed decision and
+Commit facts.
 
 Both historical sessions still audit with their original meanings: the
 2026-08-30 session is V2 40/40 valid and the PR11 canary is V2 7/7 valid. Running
-the new calibrator on the old PR11 bytes still reports the same 55 canonical,
+the new calibrator on the old PR11 bytes still reports the same 55 semantic candidates,
 139 state/action-space unresolved and one successor unresolved; the repair does
 not manufacture evidence for predecessor bytes.
 

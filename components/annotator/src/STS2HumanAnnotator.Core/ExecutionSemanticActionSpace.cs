@@ -4,14 +4,22 @@ namespace STS2HumanAnnotator.Core;
 
 public static class ExecutionSemanticActionSpaceContract
 {
-    public const int SchemaVersion = 1;
+    public const int SchemaVersion = 2;
     public const string Schema =
+        "sts2.human-annotator/execution-semantic-action-space-2";
+    public const int LegacySchemaVersion = 1;
+    public const string LegacySchema =
         "sts2.human-annotator/execution-semantic-action-space-1";
+
+    public static bool IsSupported(int schemaVersion, string schema) =>
+        (schemaVersion == SchemaVersion && schema == Schema)
+        || (schemaVersion == LegacySchemaVersion && schema == LegacySchema);
 }
 
 /// <summary>
-/// One action in the STS2-owned semantic decision captured immediately before
-/// an exact Human-correlated native action executes. These are observation
+/// One action in an STS2-owned semantic decision captured at the exact native
+/// binding boundary: before GameAction execution, or before a source-local
+/// callback admits the corresponding native mutation. These are observation
 /// facts, not public delivery authority or an Annotator legality engine.
 /// </summary>
 public sealed record ExecutionSemanticAction(
@@ -22,9 +30,9 @@ public sealed record ExecutionSemanticAction(
     string NativeLegalityBasis);
 
 /// <summary>
-/// Durable projection of the read-only Native Foundation decision observed at
-/// the exact execution boundary. Semantic state/action ownership remains with
-/// STS2 and Native Foundation; this value only preserves that observation.
+/// Durable projection of the read-only Native Foundation decision joined to an
+/// exact Human-correlated mutation. Semantic state/action ownership remains
+/// with STS2 and Native Foundation; this value only preserves that observation.
 /// </summary>
 public sealed record ExecutionSemanticActionSpaceEvidence(
     int SchemaVersion,
@@ -42,7 +50,14 @@ public sealed record ExecutionSemanticActionSpaceEvidence(
     int ObservedMatchCount,
     IReadOnlyList<string> NativeEvidence,
     IReadOnlyList<string> NonClaims,
-    string? Detail);
+    string? Detail)
+{
+    /// <summary>
+    /// Exact Connector BoundAction selected by the Human root that was bound
+    /// to <see cref="ObservedActionKey"/>. Public and native verbs may differ.
+    /// </summary>
+    public string? HumanBoundActionId { get; init; }
+}
 
 public sealed record ExecutionSemanticActionSpaceReference(
     string ActionWitnessId,
@@ -63,8 +78,9 @@ public static class ExecutionSemanticActionSpaceValidator
             errors.Add("execution_semantic_action_space_missing");
             return errors;
         }
-        if (value.SchemaVersion != ExecutionSemanticActionSpaceContract.SchemaVersion
-            || value.Schema != ExecutionSemanticActionSpaceContract.Schema)
+        if (!ExecutionSemanticActionSpaceContract.IsSupported(
+                value.SchemaVersion,
+                value.Schema))
             errors.Add("execution_semantic_action_space_schema_invalid");
         if (new[]
             {
@@ -78,10 +94,13 @@ public static class ExecutionSemanticActionSpaceValidator
                 value.ObservedMembership
             }.Any(string.IsNullOrWhiteSpace))
             errors.Add("execution_semantic_action_space_identity_missing");
-        if (value.Phase != "before_execution")
+        if (value.Phase is not ("before_execution" or "before_native_action_admission"))
             errors.Add("execution_semantic_action_space_phase_invalid");
+        if (value.SchemaVersion == ExecutionSemanticActionSpaceContract.SchemaVersion
+            && string.IsNullOrWhiteSpace(value.HumanBoundActionId))
+            errors.Add("execution_semantic_human_binding_missing");
         if (value.Status != "captured"
-            || value.Scope != "combat_play_phase"
+            || value.Scope == "unavailable"
             || value.Actions.Count == 0
             || value.NativeEvidence.Count == 0)
             errors.Add("execution_semantic_action_space_incomplete");
@@ -111,10 +130,14 @@ public static class ExecutionSemanticActionSpaceValidator
             {
                 ExecutionSemanticAction? selected = value.Actions.SingleOrDefault(candidate =>
                     candidate.Key == value.ObservedActionKey);
-                if (selected == null
-                    || selected.Verb != action.BoundAction.Verb
-                    || selected.SubjectReferentId != action.BoundAction.SubjectReferentId
-                    || !SameArguments(selected.Arguments, action.BoundAction.Arguments))
+                bool exactBinding = value.SchemaVersion
+                    == ExecutionSemanticActionSpaceContract.SchemaVersion
+                    ? value.HumanBoundActionId == action.BoundAction.BoundActionId
+                    : selected != null
+                      && selected.Verb == action.BoundAction.Verb
+                      && selected.SubjectReferentId == action.BoundAction.SubjectReferentId
+                      && SameArguments(selected.Arguments, action.BoundAction.Arguments);
+                if (!exactBinding)
                 {
                     errors.Add("execution_semantic_human_action_mismatch");
                 }
@@ -129,4 +152,5 @@ public static class ExecutionSemanticActionSpaceValidator
         left.Count == right.Count
         && left.All(pair => right.TryGetValue(pair.Key, out string? value)
                             && value == pair.Value);
+
 }

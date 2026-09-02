@@ -58,7 +58,13 @@ public sealed class SemanticTransitionProjectionTests
     {
         FrozenDecisionFrameV2 pre = Frame("s0", "combat_turn", includeChosenAction: true);
         FrozenDecisionFrameV2 successor = Frame("s1", "combat_turn", includeChosenAction: false);
-        SemanticBoundaryTraceDraft draft = ProvedDraft(pre, successor);
+        SemanticBoundaryTraceDraft draft = ProvedDraft(pre, successor) with
+        {
+            Action = ProvedDraft(pre, successor).Action with
+            {
+                NativeMechanism = "direct_ui_commit"
+            }
+        };
         var preRef = new SemanticFrameReference("s0", new string('1', 64), "semantic-frames/pre.json");
         var successorRef = new SemanticFrameReference("s1", new string('2', 64), "semantic-frames/successor.json");
 
@@ -70,10 +76,26 @@ public sealed class SemanticTransitionProjectionTests
             "session-test",
             "timeline-test");
 
-        Assert.Equal("game_action", value.NativeMechanism);
+        Assert.Equal("direct_ui_commit", value.NativeMechanism);
         Assert.Equal("game-action-a1", value.ActionWitnessId);
         Assert.Equal("public_bound_actions", value.ActionSpaceAuthority);
         Assert.Empty(CanonicalTransitionEvidenceValidator.Validate(value));
+    }
+
+    [Fact]
+    public void GameActionWithoutTypedExecutionActionSpaceFailsClosed()
+    {
+        FrozenDecisionFrameV2 pre = Frame("s0", "combat_turn", includeChosenAction: true);
+        FrozenDecisionFrameV2 successor = Frame("s1", "combat_turn", includeChosenAction: false);
+        SemanticBoundaryTraceDraft draft = ProvedDraft(pre, successor);
+
+        Assert.Throws<InvalidDataException>(() => SemanticTransitionProjection.CreateCanonical(
+            draft,
+            new SemanticFrameReference("s0", new string('1', 64), "semantic-frames/pre.json"),
+            new SemanticFrameReference("s1", new string('2', 64), "semantic-frames/successor.json"),
+            null,
+            "session-test",
+            "timeline-test"));
     }
 
     [Theory]
@@ -158,6 +180,82 @@ public sealed class SemanticTransitionProjectionTests
                 reference,
                 "session-test",
                 "timeline-test"));
+    }
+
+    [Fact]
+    public void NativeSemanticDecisionWithDifferentHumanBindingFailsClosed()
+    {
+        SemanticBoundaryTraceDraft original = ProvedDraft(
+            Frame("s0", "combat_turn", includeChosenAction: false),
+            Frame("s1", "combat_turn", includeChosenAction: false));
+        ExecutionSemanticActionSpaceEvidence evidence = SemanticActionSpace(original.Action) with
+        {
+            HumanBoundActionId = "different-human-bound-action"
+        };
+
+        Assert.Throws<InvalidDataException>(() =>
+            SemanticTransitionProjection.CreateCanonical(
+                original with { ExecutionSemanticActionSpace = evidence },
+                new SemanticFrameReference("s0", new string('1', 64), "pre.json"),
+                new SemanticFrameReference("s1", new string('2', 64), "successor.json"),
+                new ExecutionSemanticActionSpaceReference(
+                    original.Action.ActionWitnessId,
+                    evidence.SemanticStateDigest,
+                    evidence.SemanticCatalogDigest,
+                    new string('3', 64),
+                    "native-semantic-decisions/action.json"),
+                "session-test",
+                "timeline-test"));
+    }
+
+    [Fact]
+    public void ExactHumanBindingMayJoinDifferentPublicAndNativeVerbs()
+    {
+        SemanticBoundaryTraceDraft original = ProvedDraft(
+            Frame("map-pre", "map_navigation", includeChosenAction: false),
+            Frame("combat-ready", "combat_turn", includeChosenAction: false));
+        RecordedBoundAction publicAction = original.Action.BoundAction! with
+        {
+            Verb = "activate",
+            SubjectReferentId = "map-point-a1"
+        };
+        SemanticActionReference action = original.Action with { BoundAction = publicAction };
+        ExecutionSemanticActionSpaceEvidence evidence = SemanticActionSpace(action) with
+        {
+            Phase = "before_native_action_admission",
+            Scope = "map_navigation",
+            Actions = new[]
+            {
+                new ExecutionSemanticAction(
+                    "travel|map-point-a1|",
+                    "travel",
+                    "map-point-a1",
+                    new Dictionary<string, string>(),
+                    "MapTravel.GetTravelablePointsFrom")
+            },
+            ObservedActionKey = "travel|map-point-a1|"
+        };
+        SemanticBoundaryTraceDraft draft = original with
+        {
+            Action = action,
+            ExecutionSemanticActionSpace = evidence
+        };
+
+        CanonicalTransitionEvidence canonical = SemanticTransitionProjection.CreateCanonical(
+            draft,
+            new SemanticFrameReference("map-pre", new string('1', 64), "pre.json"),
+            new SemanticFrameReference("combat-ready", new string('2', 64), "successor.json"),
+            new ExecutionSemanticActionSpaceReference(
+                action.ActionWitnessId,
+                evidence.SemanticStateDigest,
+                evidence.SemanticCatalogDigest,
+                new string('3', 64),
+                "native-semantic-decisions/action.json"),
+            "session-test",
+            "timeline-test");
+
+        Assert.Equal("activate", canonical.Action.Verb);
+        Assert.Equal("native_semantic_execution", canonical.ActionSpaceAuthority);
     }
 
     private static SemanticBoundaryTraceDraft ProvedDraft(
@@ -300,7 +398,10 @@ public sealed class SemanticTransitionProjectionTests
             1,
             new[] { "native_test_validator" },
             new[] { "not_public_delivery_authority" },
-            null);
+            null)
+        {
+            HumanBoundActionId = selected.BoundActionId
+        };
     }
 
     private static RecorderEnvironmentIdentity Environment() => new(

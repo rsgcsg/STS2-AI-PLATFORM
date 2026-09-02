@@ -30,19 +30,22 @@ or expose native references on a wire.
   source/test coverage adds lethal-to-reward settlement, reward claim/proceed,
   card reward select and map travel without expanding Decision V2. Neither the
   schema name nor `transition_proved` grants canonical one-step eligibility.
-- Current source writes semantic evidence schema 3: ordered lifecycle and
-  disposition events reference content-addressed Human and boundary frames
-  instead of embedding the same frame repeatedly. The independent auditor
-  resolves and hashes every reference and applies the trace-level causal
-  invariants. Historical schema-1/2 traces remain readable. The latest exact
-  owner session proves schema-3 accounting but calibrates to zero canonical
-  `S + A(S) -> A -> S'` rows; see the current status and ADR 0003.
+- Current source writes semantic evidence schema 4: ordered lifecycle and
+  disposition events reference content-addressed Human and boundary frames,
+  plus a typed execution semantic action-space sidecar with the exact Human
+  `BoundActionId` and native binding phase. The independent auditor resolves
+  and hashes every reference and applies the trace-level causal invariants.
+  Historical schema-1/2/3 traces remain readable. The action-space sidecar is
+  schema 2 (schema 1 remains readable); missing or mismatched native evidence
+  fails closed, while calibration joins proved candidates to the durable
+  canonical stream rather than creating a second authority.
 - A typed RecordingService exposes Query/Status, Command and ordered Event
   contracts to Platform views. Runtime startup is `Ready`; `StartNewSession`
   opens an isolated session, Pause/Resume gate new witness admission, and Close
-  waits for an admitted pending decision before flushing. A closed session can
-  be followed by another session in the same STS2 process. The service never
-  invokes a game action.
+  immediately marks any final unresolved root as
+  `session_closed_before_successor_boundary` before the normal durable flush.
+  A closed session can be followed by another session in the same STS2 process.
+  The service never invokes a game action.
 - RecordingStatus revision 3 exposes the CaptureProfile boundary as four
   explicit views: recorded, native-accepted-but-failed-closed,
   supported-not-observed, and declared out of scope. A family may have both
@@ -127,7 +130,7 @@ Zero or multiple matches, no current or same-card staged stable pre-frame,
 runtime drift, an unproven overlapping causal window, or a missing stable
 successor are quarantined rather than guessed. Overlap still retains accepted
 action identity and lifecycle evidence; it does not emit a strict V2 record.
-Schema-3 `transition_proved` is a trace disposition, not canonical training
+Schema-4 `transition_proved` is a trace disposition, not canonical training
 authority. Run the mechanical calibration before making any one-step claim:
 
 ```bash

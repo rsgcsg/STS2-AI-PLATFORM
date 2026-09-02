@@ -79,11 +79,14 @@ not imply `S'`.
 
 Decision V2 rows and `canonical-transition` records are non-authorizing
 projections from an already `TransitionProved` semantic draft. Decision V2
-retains the frozen Human-time public frame for compatibility. Current canonical
-evidence instead joins the execution state, an exact typed execution-time
-semantic action-space observation (or the exact public catalog for direct UI
-domains), Human/native action correlation, Commit and the tracker-proved
-successor. The projection cannot settle a root, authorize legality or a
+retains the frozen Human-time public frame for compatibility and may be omitted
+when its older interactive-shell constraints do not fit an otherwise valid
+modern transition. Current canonical evidence independently joins the semantic
+state, a typed native decision/action catalog captured at the exact action-
+binding boundary, exact Human/native correlation, Commit and the tracker-proved
+successor. A source-local callback may bind before native admission while a
+`GameAction` binds at `BeforeActionExecuted`; both retain their phase and exact
+identity. The projection cannot settle a root, authorize legality or a
 successor, backfill an unknown or introduce a second causal state machine.
 Exact root environment identity retained until projection is metadata only.
 Historical native-action-ledger schemas and validators remain readable for

@@ -83,7 +83,9 @@ public static class PlayerEnvironmentNativeSemanticWitness
         string phase,
         GameAction? observedAction = null,
         ProcessLocalNativeWitnessFrame? uiFrame = null,
-        Action<ProcessLocalNativeWitnessFrame>? capturedUiFrame = null)
+        Action<ProcessLocalNativeWitnessFrame>? capturedUiFrame = null,
+        string? semanticNativeActionType = null,
+        ProcessLocalObservedAction? semanticSelection = null)
     {
         if (uiFrame == null)
         {
@@ -101,6 +103,8 @@ public static class PlayerEnvironmentNativeSemanticWitness
                 return DomainOwnerCapture(
                     phase,
                     observedAction,
+                    semanticNativeActionType,
+                    semanticSelection,
                     ui,
                     domain,
                     NativeUiRuntime.Entities);
@@ -227,9 +231,27 @@ public static class PlayerEnvironmentNativeSemanticWitness
                         StringComparer.Ordinal),
                     action.NativeLegalityBasis))
                 .ToArray();
-            ProcessLocalObservedSemanticAction? observed = observedAction == null
+            ProcessLocalObservedAction? semanticObserved = semanticSelection
+                ?? TryDescribeForUi(observedAction);
+            ProcessLocalObservedSemanticAction? observed = semanticObserved == null
                 ? null
-                : ToLegacyObserved(decision.Describe(observedAction, entities));
+                : ToLegacyObserved(
+                    semanticObserved.Subject == null
+                        ? NativeSemanticActionCatalog.DescribeWithoutSubject(
+                            decision.Actions,
+                            semanticNativeActionType
+                                ?? observedAction?.GetType().Name
+                                ?? "native_ui_action",
+                            semanticObserved.Verb,
+                            semanticObserved.Arguments)
+                        : NativeSemanticActionCatalog.Describe(
+                            decision.Actions,
+                            semanticNativeActionType
+                                ?? observedAction?.GetType().Name
+                                ?? "native_ui_action",
+                            semanticObserved.Verb,
+                            semanticObserved.Subject,
+                            semanticObserved.Arguments));
             string scope = observedAction?.State.ToString() == "ReadyToResumeExecuting"
                 ? "player_choice_continuation"
                 : localPlayPhase ? "combat_play_phase" : "combat_non_decision";
@@ -299,13 +321,15 @@ public static class PlayerEnvironmentNativeSemanticWitness
     private static ProcessLocalNativeSemanticCapture DomainOwnerCapture(
         string phase,
         GameAction? observedAction,
+        string? semanticNativeActionType,
+        ProcessLocalObservedAction? semanticSelection,
         ProcessLocalUiCatalogObservation ui,
         NativeDomainOwnerObservation domain,
         NativeEntityRegistry entities)
     {
-        (string status, IReadOnlyList<NativeSemanticAction> nativeActions,
+        (string status, string scope, IReadOnlyList<NativeSemanticAction> nativeActions,
             IReadOnlyList<string> nativeEvidence, string? nativeDetail) =
-            CaptureDomainDecision(domain, entities);
+            CaptureDomainDecision(domain, entities, semanticNativeActionType);
         IReadOnlyList<ProcessLocalSemanticAction> actions = nativeActions
             .Select(action => new ProcessLocalSemanticAction(
                 action.Key,
@@ -327,24 +351,32 @@ public static class PlayerEnvironmentNativeSemanticWitness
                 semanticState,
                 ConnectorMod._jsonOptions)
             ?? new JsonObject();
+        NativeObservedSemanticAction? selected = semanticSelection == null
+            ? null
+            : DescribeDomainSelection(
+                nativeActions,
+                semanticNativeActionType ?? observedAction?.GetType().Name ?? "native_ui_action",
+                semanticSelection);
         return new ProcessLocalNativeSemanticCapture(
             Schema,
             status,
-            domain.SemanticDomain,
+            scope,
             phase,
             StableIdentityHash.Object(semanticState),
             state,
             CatalogDigest(actions),
             actions,
-            observedAction == null
-                ? null
-                : new ProcessLocalObservedSemanticAction(
-                    observedAction.GetType().Name,
-                    null,
-                    "outside_direct_native_catalog",
-                    0,
-                    "not_applicable",
-                    "The current non-combat adapter does not describe this GameAction lifecycle."),
+            selected != null
+                ? ToLegacyObserved(selected)
+                : observedAction == null
+                    ? null
+                    : new ProcessLocalObservedSemanticAction(
+                        observedAction.GetType().Name,
+                        null,
+                        "outside_direct_native_catalog",
+                        0,
+                        "not_applicable",
+                        "No typed native selection was supplied for this non-combat lifecycle."),
             ui,
             domain.Evidence.Concat(nativeEvidence).Distinct(StringComparer.Ordinal).ToArray(),
             domain.NonClaims,
@@ -352,41 +384,84 @@ public static class PlayerEnvironmentNativeSemanticWitness
             ?? $"semantic_owner={domain.SemanticDomain};input_owner={domain.InputDomain}");
     }
 
+    private static NativeObservedSemanticAction DescribeDomainSelection(
+        IReadOnlyList<NativeSemanticAction> actions,
+        string nativeActionType,
+        ProcessLocalObservedAction selection)
+    {
+        NativeObservedSemanticAction exact = NativeSemanticActionCatalog.Describe(
+            actions,
+            nativeActionType,
+            selection.Verb,
+            selection.Subject,
+            selection.Arguments);
+        if (exact.Membership == "exact_once" || selection.Subject == null)
+            return exact;
+
+        // Public delivery may intentionally call a native travel/claim/select
+        // operation "activate". Exact process-local subject/operand identity,
+        // not the presentation verb, is the binding authority in that case.
+        return NativeSemanticActionCatalog.DescribeByIdentity(
+            actions,
+            nativeActionType,
+            selection.Subject,
+            selection.Arguments);
+    }
+
     private static (
         string Status,
+        string Scope,
         IReadOnlyList<NativeSemanticAction> Actions,
         IReadOnlyList<string> Evidence,
         string? Detail) CaptureDomainDecision(
         NativeDomainOwnerObservation domain,
-        NativeEntityRegistry entities)
+        NativeEntityRegistry entities,
+        string? semanticNativeActionType)
     {
+        // The exact native root type outranks a stale overlay during room
+        // transitions. This selects a typed provider; it does not infer an
+        // action or its legality.
+        if (semanticNativeActionType == nameof(VoteForMapCoordAction)
+            && NMapScreen.Instance?.IsOpen == true)
+        {
+            NativeMapDecision decision = NativeMapDecisionProvider.Capture(entities);
+            return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);
+        }
+        if (semanticNativeActionType == nameof(PickRelicAction)
+            && NRun.Instance?.TreasureRoom is { } exactTreasure)
+        {
+            NativeTreasureDecision decision =
+                NativeTreasureDecisionProvider.Capture(exactTreasure, entities);
+            return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);
+        }
         object? overlay = NOverlayStack.Instance?.Peek();
         if (overlay is NRewardsScreen rewards)
         {
             NativeRewardDecision decision =
                 NativeRewardDecisionProvider.Capture(rewards, entities);
-            return (decision.Status, decision.Actions, decision.Evidence, decision.Detail);
+            return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);
         }
         if (overlay is NCardRewardSelectionScreen cardReward)
         {
             NativeCardRewardDecision decision =
                 NativeCardRewardDecisionProvider.Capture(cardReward, entities);
-            return (decision.Status, decision.Actions, decision.Evidence, decision.Detail);
+            return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);
         }
         if (NMapScreen.Instance?.IsOpen == true)
         {
             NativeMapDecision decision = NativeMapDecisionProvider.Capture(entities);
-            return (decision.Status, decision.Actions, decision.Evidence, decision.Detail);
+            return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);
         }
         if (RunManager.Instance.DebugOnlyGetState()?.CurrentRoom is TreasureRoom
             && NRun.Instance?.TreasureRoom is { } treasure)
         {
             NativeTreasureDecision decision =
                 NativeTreasureDecisionProvider.Capture(treasure, entities);
-            return (decision.Status, decision.Actions, decision.Evidence, decision.Detail);
+            return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);
         }
         return (
             domain.Status,
+            domain.SemanticDomain,
             Array.Empty<NativeSemanticAction>(),
             Array.Empty<string>(),
             "No migrated native decision adapter owns the current domain.");

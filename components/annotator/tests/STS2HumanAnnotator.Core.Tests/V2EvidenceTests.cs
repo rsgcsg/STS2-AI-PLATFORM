@@ -1086,7 +1086,10 @@ public sealed class V2EvidenceTests
                     1,
                     new[] { "native_test_validator" },
                     new[] { "not_public_delivery_authority" },
-                    null);
+                    null)
+                {
+                    HumanBoundActionId = source.Action.BoundActionId
+                };
                 var tracker = new SemanticBoundaryTracker();
                 var drafts = new List<SemanticBoundaryTraceDraft>();
                 drafts.AddRange(tracker.Accept(action, humanObservation));
@@ -1316,7 +1319,10 @@ public sealed class V2EvidenceTests
                     1,
                     new[] { "CardModel.CanPlayTargeting" },
                     new[] { "not_public_bound_action_delivery_authority" },
-                    null);
+                    null)
+                {
+                    HumanBoundActionId = decision.Action.BoundActionId
+                };
                 var tracker = new SemanticBoundaryTracker();
                 var drafts = new List<SemanticBoundaryTraceDraft>();
                 drafts.AddRange(tracker.Accept(action, decision.Pre));

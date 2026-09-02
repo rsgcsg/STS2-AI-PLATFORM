@@ -48,14 +48,19 @@ snapshot identity before applying the same causal validator. Roles remain
 distinct even when they reference identical content.
 
 An execution event may additionally reference one
-`sts2.human-annotator/execution-semantic-action-space-1` object below
+`sts2.human-annotator/execution-semantic-action-space-2` object below
 `semantic-action-spaces/sha256/`. It preserves the exact read-only Native
-Foundation semantic state/catalog captured synchronously at
-`ActionExecutor.BeforeActionExecuted`, the described native action and its
-exact-once membership. Audit binds the content digest, action witness, semantic
-state/catalog digests and typed Human/native action identity. This object is
-evidence of an STS2-owned semantic decision, not an Annotator legality engine or
-Connector delivery catalog.
+Foundation semantic state/catalog captured at the native action-binding
+boundary, the described native action and its exact-once membership. For a
+`GameAction` this boundary is `ActionExecutor.BeforeActionExecuted`; for a
+source-local callback it is the callback's pre-admission seam. Schema 2 also
+records the exact Human `BoundActionId` joined to the native selection, so
+public and native verbs may differ without losing identity. Audit binds the
+content digest, action witness, semantic state/catalog digests and typed
+Human/native action identity. Schema 1 remains readable historical evidence
+under its original same-verb matching rules. This object is evidence of an
+STS2-owned semantic decision, not an Annotator legality engine or Connector
+delivery catalog.
 
 The timeline stores Human observation H separately from execution-adjacent
 state evidence and records exact action identity,
@@ -100,13 +105,17 @@ change Decision V2, admit training rows, prove End Turn completion by itself, or
 claim Full-Run semantic completeness.
 
 `canonical-transitions.jsonl` schema 2 is the non-authorizing current canonical
-projection. A row is written only after one complete execution state, exact-once
-selected action in the authoritative execution action space, exact Human/native
+projection and the sole durable canonical truth. A row is written only after
+one complete semantic state, exact-once selected action in the authoritative
+native action space, exact Human/native
 correlation, native terminal/direct Commit, no intervening Human effect and one
 complete causal successor are all present. It references immutable semantic
-frame and, for combat roots, semantic action-space objects. Direct UI domains
-may name `public_bound_actions` only when their exact execution frame itself has
-the complete typed public catalog and contains the action exactly once. Audit
+frame and typed semantic action-space objects. The action-space object records
+whether it was captured before `GameAction` execution or before a source-local
+native callback admission, plus the exact Human BoundAction binding. Historical
+or not-yet-migrated direct UI evidence may name `public_bound_actions` only when
+its exact frame has the complete typed public catalog and contains the action
+exactly once. Audit
 verifies hashes, identities, the unique tracker proof and action membership.
 Schema-1 serialized-input rows remain readable historical evidence.
 
@@ -121,9 +130,10 @@ define S. Acceptance does not define execution order. Execution S is eligible
 only when its same-boundary authoritative action space contains A exactly once;
 current public deliverability is not substituted for that semantic fact. A
 generic later interactive Snapshot is not causal S' merely because it is
-interactive. `calibrate-semantic-training` mechanically enforces these rules,
-joins immutable typed facts, and never promotes a legacy V2 admission or a
-`transition_proved` label by terminology alone.
+interactive. `calibrate-semantic-training` mechanically classifies semantic
+candidates and joins them to the durable canonical stream. It never creates
+canonical truth or promotes a legacy V2 admission or a `transition_proved`
+label by terminology alone.
 
 `SemanticActionReference` may add exact process-local witness, mapping,
 BoundAction and native-mechanism metadata. Missing metadata on historical rows

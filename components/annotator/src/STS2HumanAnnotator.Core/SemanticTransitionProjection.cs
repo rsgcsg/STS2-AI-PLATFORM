@@ -133,6 +133,14 @@ public static class SemanticTransitionProjection
         }
         else
         {
+            if (!string.Equals(
+                    draft.Action.NativeMechanism,
+                    "direct_ui_commit",
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(
+                    "A game-action transition requires a typed native execution action space.");
+            }
             if (!PublicCatalogContainsExactlyOnce(draft.SemanticPre, draft.Action.BoundAction))
                 throw new InvalidDataException(
                     "No complete authoritative execution action space contains the Human action.");

@@ -10,7 +10,13 @@ public sealed record NativePostCommitCompletionExpectation(
     string Kind,
     string? NativeOwnerWitnessId = null,
     string? NativeOperandWitnessId = null,
-    string? NativeLineageWitnessId = null);
+    string? NativeLineageWitnessId = null,
+    IReadOnlyList<string>? AlternativeKinds = null)
+{
+    public bool AcceptsKind(string kind) =>
+        string.Equals(Kind, kind, StringComparison.Ordinal)
+        || AlternativeKinds?.Contains(kind, StringComparer.Ordinal) == true;
+}
 
 public sealed record NativePostCommitCompletionRegistration(
     string SessionId,
@@ -166,7 +172,7 @@ public sealed class NativePostCommitCompletionLedger
             registration.Generation,
             registration.ActionWitnessId,
             expectation.Family,
-            expectation.Kind,
+            observation.Kind,
             observation.TaskWitnessId,
             observation.NativeOwnerWitnessId,
             observation.NativeOperandWitnessId,
@@ -253,7 +259,7 @@ public sealed class NativePostCommitCompletionLedger
         NativePostCommitCompletionExpectation expectation = registration.Expectation;
         return string.Equals(registration.SessionId, observation.SessionId, StringComparison.Ordinal)
                && registration.Generation == observation.Generation
-               && string.Equals(expectation.Kind, observation.Kind, StringComparison.Ordinal)
+               && expectation.AcceptsKind(observation.Kind)
                && MatchesOptional(expectation.NativeOwnerWitnessId, observation.NativeOwnerWitnessId)
                && MatchesOptional(expectation.NativeOperandWitnessId, observation.NativeOperandWitnessId)
                && MatchesOptional(expectation.NativeLineageWitnessId, observation.NativeLineageWitnessId);

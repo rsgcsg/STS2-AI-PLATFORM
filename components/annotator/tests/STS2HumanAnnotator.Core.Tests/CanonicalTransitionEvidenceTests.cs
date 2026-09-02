@@ -94,4 +94,31 @@ public sealed class CanonicalTransitionEvidenceTests
             "execution_semantic_action_space_ref_missing",
             CanonicalTransitionEvidenceValidator.Validate(value));
     }
+
+    [Fact]
+    public void CurrentGameActionCannotUsePublicDeliveryCatalogAsSemanticAuthority()
+    {
+        CanonicalTransitionEvidence value = Valid() with
+        {
+            SchemaVersion = CanonicalTransitionEvidenceContract.SchemaVersion,
+            Schema = CanonicalTransitionEvidenceContract.Schema,
+            CollectionMode = CanonicalTransitionEvidenceContract.CollectionMode,
+            AdmissionEpochId = null,
+            NativeMechanism = "game_action",
+            ActionSpaceAuthority = "public_bound_actions",
+            Invariants = new[]
+            {
+                "complete_execution_state",
+                "chosen_action_exactly_once_in_authoritative_action_space",
+                "exact_human_native_action_correlation",
+                "native_terminal_or_direct_commit_observed",
+                "no_intervening_human_mutation",
+                "complete_authoritative_successor"
+            }
+        };
+
+        Assert.Contains(
+            "public_action_space_authority_invalid",
+            CanonicalTransitionEvidenceValidator.Validate(value));
+    }
 }
