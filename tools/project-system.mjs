@@ -87,6 +87,10 @@ function relativePath(workspaceRoot, file) {
   return path.relative(workspaceRoot, file).split(path.sep).join("/");
 }
 
+function splitLines(source) {
+  return source.split(/\r?\n/u);
+}
+
 function walkFiles(directory, output = []) {
   if (!fs.existsSync(directory)) return output;
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
@@ -250,10 +254,11 @@ export function documentedCommandFindings(workspaceRoot = root) {
 }
 
 function parseSkillFrontmatter(source) {
-  const match = source.match(/^---\n([\s\S]*?)\n---\n/u);
+  const normalized = source.replace(/\r\n?/gu, "\n");
+  const match = normalized.match(/^---\n([\s\S]*?)\n---(?:\n|$)/u);
   if (!match) return null;
   const fields = {};
-  for (const line of match[1].split("\n")) {
+  for (const line of splitLines(match[1])) {
     const field = line.match(/^([a-z_]+):\s*(.*)$/u);
     if (!field) continue;
     fields[field[1]] = field[2].trim().replace(/^(["'])(.*)\1$/u, "$2");
@@ -413,7 +418,7 @@ export function freshnessWarnings(workspaceRoot = root) {
   const current = path.join(workspaceRoot, "docs", "memory", "CURRENT.md");
   if (fs.existsSync(current)) {
     const source = fs.readFileSync(current, "utf8");
-    if (Buffer.byteLength(source) > 4096 || source.split("\n").length > 80) {
+    if (Buffer.byteLength(source) > 4096 || splitLines(source).length > 80) {
       warnings.push(finding("current-context-growth", "docs/memory/CURRENT.md", "review bounded handoff scope"));
     }
   }
@@ -560,7 +565,7 @@ function changedFiles(workspaceRoot) {
   ];
   for (const args of commands) {
     const output = git(workspaceRoot, args, "");
-    for (const file of output.split("\n").filter(Boolean)) files.add(file);
+    for (const file of splitLines(output).filter(Boolean)) files.add(file);
   }
   return [...files].sort();
 }
