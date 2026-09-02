@@ -4,13 +4,13 @@
   "components": {
     "native_foundation": {
       "version": "0.1.0-rc.1",
-      "source_revision": "aa03c84d2ca503a19635456c267419c71c6f1bbe",
+      "source_revision": "a898b38e1cd116bc7bda4642e5f2ec529faf1e85",
       "component_tree_revision": "1f138855cd73acc9ab44747931ef372763f4b768",
       "component_source_digest_sha256": "3ef78400660a774adca54b88b48ba29e5c4b3645237b5f422488f00f7b712fc5"
     },
     "connector": {
       "version": "1.2.0-rc.6",
-      "source_revision": "aa03c84d2ca503a19635456c267419c71c6f1bbe",
+      "source_revision": "a898b38e1cd116bc7bda4642e5f2ec529faf1e85",
       "component_tree_revision": "fa9f9a3a9450321bce7fb1ca4e76cf32bc88d9b5",
       "component_source_digest_sha256": "af2ee41d5054ed222a89fdacdf40208b953c8e160b46431f4e32cdbc1bf1f8b1"
     },
@@ -22,7 +22,7 @@
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "3ee15fe8c70da4cd7d8070ca5344f331dec8a2cf",
+      "source_revision": "a898b38e1cd116bc7bda4642e5f2ec529faf1e85",
       "component_tree_revision": "61c13a4f3c65ca01638d8ab4ff4f5af3ba2137ce",
       "component_source_digest_sha256": "cabebd3740bd226ed4290fb525ce47084ebee902a7ea12410db7b2a740201fc3"
     },
@@ -46,13 +46,13 @@
     },
     "live_ui": {
       "version": "0.1.0-rc.1",
-      "source_revision": "e91033be0c5e868251c4ab4363441a20dfd89747",
+      "source_revision": "a898b38e1cd116bc7bda4642e5f2ec529faf1e85",
       "component_tree_revision": "ed2f026c6f58c00d0b3e35de78af3404e37e95ef",
       "component_source_digest_sha256": "57b83fca74d5c777d3fef825046e3a9c6b8e37609b6dd30b421571e24af18e8a"
     },
     "game_mod": {
       "version": "0.2.0-rc.1",
-      "source_revision": "3ee15fe8c70da4cd7d8070ca5344f331dec8a2cf",
+      "source_revision": "a898b38e1cd116bc7bda4642e5f2ec529faf1e85",
       "component_tree_revision": "814db63173b67ad49b97158d96bc7991120eb6c9",
       "component_source_digest_sha256": "5b5335359a06753cc40742deb92b2b39d64bd5caf0498cf66fd7e5f112712c7d"
     },
@@ -513,7 +513,7 @@
         "semantic_boundary_trace_sha256": "0b48fb2dec30469f1f2ecdb79d530601274bf993f7e2a77b9ccc38c40ee068b5",
         "canonical_transitions_sha256": "fb2021a6bad3a84cc50751cd33dfed6377d2fe70e3cc14772a5a7ab4cfeed86c",
         "invalidations_sha256": "f8606a728cee1ae0c6b1f755104a349d48978446d79dcb4e64dc5b5223bac403",
-        "game_log_sha256": "d63463f88304800be0e52cc6291ed83dfe063958e7bd4f2b0bd7de78bb5fbefe",
+        "game_log_sha256": "d63463f88304800be0e52cc6291ed83dfe063958e7bd4f658000df30b9e154",
         "evidence_transfer_from_predecessor": false
       },
       "automated_headless": {
@@ -581,7 +581,7 @@
       "workspace_revision_at_build": "246eb6ab81b2174f7257f7df87668e3de6eda934",
       "annotator_source_revision": "fed721c7b5131cf35d71025a3dd877266b5332fc",
       "annotator_source_digest_sha256": "b5830e4f301dd1bb996583dd595410cf14fc05cc63dabad6d84d429475839720",
-      "trace_schema": "sts2.human-annotator/semantic-boundary-trace-event-2",
+      "trace_schema": "sts2.human-annotator/semantic-evidence-event-3",
       "artifact_sha256": "eb7ed0728f0b908d3f82826fc7f8f63ec7d1d7b9ce9d2968bf423ca925fc872b",
       "artifact_mvid": "34a36a2b-6ffa-4951-b53c-3fe72d37dd85",
       "built": "pass",
