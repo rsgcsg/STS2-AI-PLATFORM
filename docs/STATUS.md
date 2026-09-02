@@ -19,7 +19,14 @@ runtime load or Human qualification, and STPD adaptation is deferred.
 The dated implementation and evidence sections below preserve predecessor
 recording formats and claims for historical context. Their V1/V2, ledger and
 legacy labels are archival evidence labels, not active current runtime
-authorities; the current path is the hard-cut contract above.
+authorities; the current path is the hard-cut contract above. The final PR #11
+source candidate also records STS2 `GameAction`
+`BeforePausedForPlayerChoice` as an exact parent continuation seam. It opens an
+immediate nested PlayerChoice handoff but is neither parent completion nor a
+new parent root; same-parent ready/resume remains lifecycle-only. An accepted
+generated-card select/skip that cannot canonicalize retains an immutable
+failed-closed occurrence with exact native subject/holder, owner and available
+parent lineage rather than silently disappearing.
 
 ## Repository governance
 
@@ -55,14 +62,17 @@ successor semantics. Decision V2 remains a compatibility projection from the
 frozen Human-time public frame. Historical schema 3/schema 1 evidence remains
 readable and is not upgraded or backfilled. The action-space sidecar is schema 2
 with schema 1 read compatibility and carries the exact Human `BoundActionId`.
-The pre-hard-cut source/test/build/install/load evidence was sealed for artifact
-`3d54c8b85431f899654e060722f6b76226f6dc457418eac0998a7319faf498fa` / MVID
-`601bfbf9-7bb0-4881-8913-cb8f9b70dd2d` in runtime
-`cac58962784d41d1a530e6e891ee655a` under exact Modset
-`e8a7f7c39a212ec9680a92284a1a7e3060347e0fecf099f1dba3bd1b4f12e026`.
-A fresh Human canary for the hard-cut bytes remains pending; neither this
-pre-hard-cut artifact nor predecessor Human evidence transfers. The follow-on
-draft-projection repair makes
+The final PR11 source/test/build/install/load candidate is artifact
+`0b398d7aa0590533e4edeb9874ab5a77b4ce3108d2141b94b5b7a2d4d3e52d95` / MVID
+`ca8d7d3a-e816-4a2a-ae4f-490dab1ce781`, built from workspace
+`cab6b1b7e6a1506362d5a698c1db7f50009412cb`, cold-loaded in Connector runtime
+`931f5eded63b426784680a5e8141d141` under exact Modset
+`10a9c94fbb68883768e4c3d343c9f6a1eb024b432fdfdef4b747a8acf79eb166`.
+The associated Annotator component source is
+`75af9e5cf934222d99e7091535d495753da39988`; exact STS2 remains
+`v0.111.0 / 41cef1ea`. A fresh Human canary for these bytes remains pending;
+neither predecessor Human evidence nor pre-final artifacts transfer. The
+follow-on draft-projection repair makes
 every lifecycle/settlement draft inherit the Entry-owned Human observation,
 native completion and execution action-space references, preserving those facts
 through durable Decision V2/canonical projection without changing authority or

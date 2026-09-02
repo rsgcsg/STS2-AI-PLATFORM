@@ -59,10 +59,12 @@ The durable result is in the
   with a schema-2 action-space sidecar carrying the exact Human
   `BoundActionId`, while leaving `SemanticBoundaryTracker` as the sole
   causal/successor authority and Connector as the sole public action/delivery
-  authority. The earlier pre-hard-cut source/test/build/install/load evidence
-  was sealed for artifact `3d54c8b8... / 601bfbf9...` in runtime `cac58962...`
-  under the sole exact Platform Modset; it is historical and does not qualify
-  the hard-cut bytes. A fresh bounded owner canary remains required.
+  authority. The final candidate is artifact `0b398d7a... / ca8d7d3a...`,
+  built from workspace `cab6b1b...`, installed and cold-loaded in runtime
+  `931f5ede...` under sole exact Platform Modset `10a9c94f...`. It adds exact
+  PlayerChoice parent-continuation evidence and durable fail-closed generated
+  choice occurrence/disposition, but it has no Human qualification yet. A
+  fresh bounded owner canary remains required.
 - PR #3, PR #5 and PR #6 are merged integration history. Ritsu research PRs #7 and #8
   are closed without their experimental runtime code; durable findings live in
   ADR 0004 and the final route-decision packet.

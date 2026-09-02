@@ -11,15 +11,15 @@ override earlier descriptions. Starting source is
 
 The current repair has source/test/build/install/load evidence. No predecessor
 Human evidence qualifies the resulting bytes. The exact candidate was built
-from workspace `727bdb5be91d2b2eae94d6f9a9f89cc75389b278`, installed as the sole
-`STS2_PLATFORM` Mod and cold-loaded before the Human gate.
+from workspace `cab6b1b7e6a1506362d5a698c1db7f50009412cb`, installed as the
+sole `STS2_PLATFORM` Mod and cold-loaded before the Human gate.
 
 Candidate seal:
 
-- unified Game Mod artifact `3d54c8b85431f899654e060722f6b76226f6dc457418eac0998a7319faf498fa`, MVID `601bfbf9-7bb0-4881-8913-cb8f9b70dd2d`;
-- Native Foundation / Connector / Annotator component source `aa03c84d2ca503a19635456c267419c71c6f1bbe`; Game Mod component source `c1b3144f07ba210c7f7064087d0d37bb3c9a2e66`;
+- unified Game Mod artifact `0b398d7aa0590533e4edeb9874ab5a77b4ce3108d2141b94b5b7a2d4d3e52d95`, MVID `ca8d7d3a-e816-4a2a-ae4f-490dab1ce781`;
+- Native Foundation / Connector component source `aa03c84d2ca503a19635456c267419c71c6f1bbe`; Annotator component source `75af9e5cf934222d99e7091535d495753da39988`; compiled Game Mod component source `c1b3144f07ba210c7f7064087d0d37bb3c9a2e66`;
 - exact STS2 `v0.111.0 / 41cef1ea`, `sts2.dll` SHA `9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4`, MVID `57785517-0b16-42b9-8b36-bad6fb28384b`;
-- loaded Connector runtime `cac58962784d41d1a530e6e891ee655a`, environment `f079e1f45a3dfa04bd368e5563c0e6ca45dad36bfd6647791c21fc7d970ec637`, exact Modset `e8a7f7c39a212ec9680a92284a1a7e3060347e0fecf099f1dba3bd1b4f12e026`;
+- loaded Connector runtime `931f5eded63b426784680a5e8141d141`, environment `e28413098e312c2e76368abc53a55ec776d9f42484d22499027e8600ff95f62c`, exact Modset `10a9c94fbb68883768e4c3d343c9f6a1eb024b432fdfdef4b747a8acf79eb166`;
 - install/load PASS, runtime Ready with no recording session; Human canary remains pending.
 
 ## Historical reconstruction
@@ -206,6 +206,12 @@ handoff; terminal Close unknown; cancellation/abort; and projection's inability
 to settle. Map, Reward, CardReward and Treasure remain on the same tracker; their
 native providers and callback/GameAction adapters own only typed decision and
 Commit facts.
+
+The final source gate passed `npm run check`, `npm run check:exact-game`,
+`node tools/check-platform-bom.mjs`, `npm run project:closeout` and
+`git diff --check`. The exact candidate install and cold-load verification also
+passed. These are build/install/load evidence only; they do not establish a
+Human action, canonical count, PlayerChoice outcome or qualification result.
 
 Both historical sessions still audit with their original meanings: the
 2026-08-30 session is V2 40/40 valid and the PR11 canary is V2 7/7 valid. Running
