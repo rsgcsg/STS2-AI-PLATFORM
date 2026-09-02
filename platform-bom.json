@@ -1124,14 +1124,14 @@
   "migration_sources": "migration/source-manifest.json",
   "pr11_execution_semantic_action_space_candidate": {
     "status": "source_test_build_installed_loaded_human_pending",
-    "workspace_revision": "7a9ca8b0eec010993e5ec6f5e9a8c9a5ce81fd4a",
+    "workspace_revision": "727bdb5be91d2b2eae94d6f9a9f89cc75389b278",
     "base_revision": "791e27172c39e5c4ce33a415b16fc1ea7f060513",
     "platform_source_revision": "c1b3144f07ba210c7f7064087d0d37bb3c9a2e66",
-    "connector_source_revision": "f1378ecce0eb3440c8d79c93e8750f674755f71c",
-    "annotator_source_revision": "7a9ca8b0eec010993e5ec6f5e9a8c9a5ce81fd4a",
+    "connector_source_revision": "aa03c84d2ca503a19635456c267419c71c6f1bbe",
+    "annotator_source_revision": "aa03c84d2ca503a19635456c267419c71c6f1bbe",
     "game_mod_source_revision": "c1b3144f07ba210c7f7064087d0d37bb3c9a2e66",
-    "artifact_sha256": "0fdf432077497c4514151fc811120b986182a26952bc11789c8fab7b5158aaea",
-    "artifact_mvid": "db114a42-b046-4236-8a9c-08bf3bcb6018",
+    "artifact_sha256": "3d54c8b85431f899654e060722f6b76226f6dc457418eac0998a7319faf498fa",
+    "artifact_mvid": "601bfbf9-7bb0-4881-8913-cb8f9b70dd2d",
     "game": {
       "version": "v0.111.0",
       "commit": "41cef1ea",
@@ -1140,10 +1140,10 @@
       "main_assembly_mvid": "57785517-0b16-42b9-8b36-bad6fb28384b"
     },
     "runtime": {
-      "runtime_instance_id": "f4c9a25a81f2463b99503a16bcfda657",
-      "environment_fingerprint": "967c475262d2f2a46d41fb9b9bc6016f26ec75b57321ee352fa6538d6d0e2fb8",
+      "runtime_instance_id": "2b0fed44f098477dbd97073d988ccc12",
+      "environment_fingerprint": "f079e1f45a3dfa04bd368e5563c0e6ca45dad36bfd6647791c21fc7d970ec637",
       "modset_status": "exact_platform_modset",
-      "modset_fingerprint": "46b3395a6cbd495829d28cb3f36a0c8c0a3d7925546c65f27168c17923de46f2",
+      "modset_fingerprint": "e8a7f7c39a212ec9680a92284a1a7e3060347e0fecf099f1dba3bd1b4f12e026",
       "loaded_mod_ids": ["STS2_PLATFORM"]
     },
     "human_qualification": "pending_new_exact_candidate_canary",

@@ -58,8 +58,10 @@ Treasure adapters carry their exact typed owner/operand facts. Semantic schema
 4 and canonical schema 2 retain the exact Human `BoundActionId` join while
 public settling frames may still expose zero actions. The sidecar contract is
 schema 2 with schema 1 read compatibility, and calibration counts only durable
-canonical rows as canonical. This repair is source/test/build evidence only;
-predecessor Human evidence does not transfer.
+canonical rows as canonical. This repair has exact source/test/build/install/load
+evidence as unified artifact `3d54c8b8... / 601bfbf9...` in runtime
+`2b0fed44...`; a fresh Human canary remains pending and predecessor Human
+evidence does not transfer.
 
 Rapid-input artifact `080701b3... / 142054a5...` is cold-loaded and Live-proved
 in runtime `39fa2d2e...`. Its closed owner session
