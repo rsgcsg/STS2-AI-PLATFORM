@@ -67,9 +67,27 @@ Before editing:
 5. keep one primary responsibility per PR.
 
 Normal topic PRs target `develop`; release and hotfix PRs follow the branch
-rules above. Prefer squash merge for topic PRs. Preserve an explicit release
-boundary when merging a release branch. Refactors and behavior changes should
-be separate when either is substantial.
+rules above. Refactors and behavior changes should be separate when either is
+substantial.
+
+### Merge method and component provenance
+
+Current component `source_revision` is path-scoped commit provenance. The
+component-identity suite proves that a normal merge commit preserves the topic
+component revision, while squash/rebase integration rewrites it even when the
+component tree and source digest are unchanged.
+
+Therefore:
+
+- **any PR that changes a component source path uses a normal merge commit**;
+- do not use `Squash and merge` or `Rebase and merge` for such a PR;
+- docs/governance-only PRs that do not change component source may be squashed;
+- if a source branch needs history cleanup, do it before the final exact-head CI
+  and then treat that rewritten head as a new source identity;
+- never repair a post-squash BOM failure by weakening identity/BOM validation.
+
+This rule remains until the source-provenance/BOM schema is deliberately
+changed. The exact testing rationale is in [Testing and Evidence](TESTING.md).
 
 Every PR records repository, base branch/SHA, workstream, owner, scope,
 non-goals, affected contract, cross-repository dependencies, exact identities,
@@ -121,6 +139,11 @@ game binaries, decompiled source, secrets and model weights stay outside Git.
 Reviewed evidence documents contain exact identity, aggregate results,
 reproducible commands, rollback and non-claims.
 
+GitHub-hosted CI deliberately stops at source/test portability. Exact-game
+build/install/load/Human gates remain local or otherwise explicitly controlled
+because they require an exact STS2 installation and admitted runtime identity.
+See [Testing and Evidence](TESTING.md) for the gate matrix.
+
 Release branches may change only release blockers, versions, packages,
 manifests, BOM, release notes and exact closeout evidence. A release reaches
 `main` only when its advertised scope is internally consistent and rollback is
@@ -129,8 +152,17 @@ artifact identity remain separate.
 
 ## GitHub enforcement
 
-Both `main` and `develop` should require pull requests, the `portable` status
-check and resolved conversations, and should block deletion and force pushes.
+`main` and `develop` require pull requests, the `portable` status and resolved
+conversations, and block deletion and force pushes. The `portable` workflow
+status is an aggregate: it succeeds only when both the Linux and Windows full
+portable root suites succeed. It must not be redefined as a Linux-only alias.
+
+CI runs for every pull request, and push CI is limited to integration/release
+branches so an open topic PR does not create a redundant second push run.
+Concurrency cancels stale runs for the same PR/ref. Third-party Actions remain
+commit-SHA pinned and checkout remains read-only with full history for identity
+and migration checks.
+
 Approval requirements may be raised as the reviewer pool grows; an owner must
 not use administrator bypass as the normal workflow. Repository settings and
 their actual enforcement state are audited separately from this document.
