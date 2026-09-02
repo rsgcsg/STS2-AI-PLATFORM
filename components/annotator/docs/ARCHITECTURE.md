@@ -122,6 +122,21 @@ Human input. Its exact pre-execution frame may settle only the immediately
 preceding committed root and simultaneously becomes that later root's own S;
 proof never crosses the later Human effect.
 
+STS2 `GameAction.PauseForPlayerChoice` is a typed continuation seam, not a
+second Human root and not a completed parent. The exact
+`BeforePausedForPlayerChoice` lifecycle callback identifies the still-running
+parent; it permits the immediately nested choice's pre-execution boundary to
+settle `S0 + parent -> S_choice`. The later
+`BeforeReadyToResumeAfterPlayerChoice`/resume callback references that same
+parent and is lifecycle evidence only: it cannot rebind semantic pre-state or
+self-settle `P -> P`. The generated-card select/skip callbacks are narrow
+STS2 source-local mutation seams. When Connector's exact pre-choice frame is
+complete they enter the normal direct-UI root path; when it is not, their
+accepted mutation is durably retained as a fail-closed occurrence with exact
+subject, choice owner and paused-parent lineage rather than silently dropped.
+Neither path uses screen visibility, timing, polling, queue-idle or a later
+frame as semantic proof.
+
 Cancellation, runtime drift, lifecycle persistence uncertainty, root-contract
 error, mapping failure, incomplete semantic action space or missing successor
 is fail-closed. Schema-4 events reference exact content-addressed H/S/S' frames

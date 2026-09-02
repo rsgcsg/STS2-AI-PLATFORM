@@ -49,6 +49,22 @@ references. Each reference resolves below the session's
 snapshot identity before applying the same causal validator. Roles remain
 distinct even when they reference identical content.
 
+Every STS2-accepted Human gameplay decision has one durable auditable
+occurrence/disposition: canonical, honest unknown, cancelled/rejected,
+unsupported, or failed closed. This does not mean every pointer click is a
+decision and it does not require `canonical == clicks`. When an exact accepted
+source-local mutation cannot form a root, `invalidations.jsonl` carries an
+immutable `human_occurrence` object with its action family/verb, exact native
+subject and operands when available, owner, paused-parent lineage, mechanism
+and `failed_closed` disposition. For current generated-card select/skip rows,
+audit requires that object and validates the exact callback identity, native
+owner, and, for select, card and holder identities; available paused-parent
+lineage must be structurally complete. These optional additive fields keep the
+current schema readable by current readers, while records emitted by current
+bytes are held to that stronger audit requirement. It is evidence of an
+occurrence, not a mutable
+admission ledger, legality engine or second canonical truth.
+
 An execution event may additionally reference one
 `sts2.human-annotator/execution-semantic-action-space-2` object below
 `semantic-action-spaces/sha256/`. It preserves the exact read-only Native
@@ -88,6 +104,15 @@ requires that evidence and an exact domain match; the owner signal alone is not
 state, action-space or successor authority. If the synchronous Connector frame
 is partial or mismatched, no proof is emitted.
 
+`native_continuation_observed` records the exact
+`GameAction.BeforePausedForPlayerChoice` parent witness. A successful
+continuation is a typed parent Commit seam for opening the immediate nested
+Human choice; it is not `GameAction.Finished`, a child action, or `S'`. The
+parent's later ready/resume/finish callbacks retain their own lifecycle
+meaning. A canonical parent row may therefore name a native terminal/direct
+Commit **or** this exact PlayerChoice continuation, but still requires a
+separate causal successor and no intervening Human effect.
+
 This stream is not corpus admission or research authority. Current audit only
 promotes current schema containers; predecessor sessions retain their original
 claims only through an explicit archival reader. Evidence is never transferred
@@ -118,7 +143,8 @@ errors, identity mismatches, and orphan cross-stream identities remain fatal.
 projection and the sole durable canonical truth. A row is written only after
 one complete semantic state, exact-once selected action in the authoritative
 native action space, exact Human/native
-correlation, native terminal/direct Commit, no intervening Human effect and one
+correlation, exact native terminal/direct Commit or PlayerChoice continuation,
+no intervening Human effect and one
 complete causal successor are all present. It references immutable semantic
 frame and typed semantic action-space objects. The action-space object records
 whether it was captured before `GameAction` execution or before a source-local

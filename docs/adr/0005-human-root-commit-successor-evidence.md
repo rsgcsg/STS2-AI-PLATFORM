@@ -68,6 +68,13 @@ A root receives a `Native Commit` only from its exact STS2 operation:
 - creation of an exact nested native decision owner when STS2 deliberately
   suspends the parent task until that child decision completes.
 
+For a `GameAction` PlayerChoice, `BeforePausedForPlayerChoice` is the exact
+typed parent-continuation seam. It may satisfy the parent Commit prerequisite
+for the immediate nested choice handoff, while explicitly not claiming that the
+parent has finished. `BeforeReadyToResumeAfterPlayerChoice` and the later
+resume callback reference the same parent and are lifecycle facts only; they
+cannot create a second Human root or prove `P -> P`.
+
 The CardReward claim is the concrete third case: successful
 `NCardRewardSelectionScreen.ShowScreen` owner creation commits the parent claim
 before the child Human selection, while `SelectLocalReward` remains a later
@@ -136,6 +143,13 @@ Duplicate roots, stale session/generation, wrong owner/operand/lineage,
 ambiguous task binding, cancellation, fault, unmatched completion, intervening
 Human effects, and missing successor boundaries produce explicit invalidation or
 unknown evidence. They are never retried or backfilled.
+
+For each STS2-accepted Human gameplay decision, current recording must retain
+one durable auditable occurrence/disposition: canonical, honest unknown,
+cancelled/rejected, unsupported, or failed closed. Canonical failure therefore
+cannot silently erase a known accepted mutation. A failed-closed occurrence may
+retain exact source-local subject/operands, owner and parent lineage, but is not
+an admission ledger, legality claim, Commit or successor proof.
 
 ## Generalization probes
 

@@ -116,6 +116,20 @@ public sealed record NativeCompletionEvidence(
     bool Succeeded);
 
 /// <summary>
+/// Exact native continuation identity attached when STS2 pauses one accepted
+/// GameAction to obtain a nested player choice. It is neither a second action
+/// authority nor a successor: it proves only that the same native parent has
+/// reached STS2's PlayerChoice continuation seam.
+/// </summary>
+public sealed record NativeContinuationEvidence(
+    string ContinuationId,
+    string Kind,
+    string ActionWitnessId,
+    string? NativeOwnerWitnessId,
+    string? NativeLineageWitnessId,
+    bool Succeeded);
+
+/// <summary>
 /// Ordered semantic timeline event. Frames are stored once and referenced by
 /// role so lifecycle facts stay compact without weakening causal validation.
 /// </summary>
@@ -140,5 +154,6 @@ public sealed record SemanticEvidenceEvent(
 {
     public SemanticFrameReference? HumanObservationRef { get; init; }
     public NativeCompletionEvidence? NativeCompletion { get; init; }
+    public NativeContinuationEvidence? NativeContinuation { get; init; }
     public ExecutionSemanticActionSpaceReference? ExecutionSemanticActionSpaceRef { get; init; }
 }

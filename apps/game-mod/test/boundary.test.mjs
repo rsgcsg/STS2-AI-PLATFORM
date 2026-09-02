@@ -324,11 +324,42 @@ test("capture failures become invalidations only after the native action is acce
   const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
 
   assert.match(runtime, /HumanActionScope\.EnterDeferredFailure/u);
-  assert.match(runtime, /TryQuarantineDeferredAcceptedAction\(action\.GetType\(\)\.Name\)/u);
-  assert.match(runtime, /TryQuarantineDeferredAcceptedAction\(nativeActionType\)/u);
+  assert.match(
+    runtime,
+    /TryQuarantineDeferredAcceptedAction\(\s*action\.GetType\(\)\.Name,[\s\S]*occurrence: new HumanActionOccurrenceEvidence/u
+  );
+  assert.match(runtime, /TryQuarantineDeferredAcceptedAction\(nativeActionType, observed, witness\)/u);
+  assert.match(runtime, /failure\.Occurrence \?\? occurrence \?\? \(observed != null && witness != null/u);
   assert.match(scope, /AcceptedRootActionGate/u);
   assert.match(patches, /RecorderRuntime\.ExitNativeUiScope/u);
   assert.doesNotMatch(runtime, /if \(selected == null\)[\s\S]{0,500}Quarantine\(/u);
+});
+
+test("PlayerChoice continuation uses STS2 lifecycle and generated choices retain failed-closed lineage", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+  const trace = read("components/annotator/src/STS2HumanAnnotator.Core/SemanticBoundaryTrace.cs");
+  const lifecycle = sourceBetween(
+    runtime,
+    "private static void ObserveSemanticOnlyNativeActionLifecycle",
+    "private static void ObserveNativeCommit"
+  );
+  const generatedChoice = sourceBetween(
+    runtime,
+    "internal static NativeUiScopeEntry TryEnterGeneratedChoiceCardScope",
+    "internal static void ObserveGeneratedChoiceCard"
+  );
+
+  assert.match(lifecycle, /PausedForPlayerChoice[\s\S]*ObserveNativeContinuation\([\s\S]*GameAction\.BeforePausedForPlayerChoice/u);
+  assert.match(lifecycle, /NativeWitnessIdentity\.Get\(subscription\.Action, "game_action"\)/u);
+  assert.match(generatedChoice, /GeneratedChoiceOccurrence[\s\S]*NChooseACardSelectionScreen\.SelectHolder/u);
+  assert.match(generatedChoice, /NChooseACardSelectionScreen\.OnSkipButtonReleased/u);
+  assert.match(runtime, /NativePlayerChoiceLineage\.Capture\(\)[\s\S]*NativeWitnessIdentity\.Get\(lineage\.ParentAction, "game_action"\)[\s\S]*lineage\.ParentActionType[\s\S]*lineage\.ParentState/u);
+  assert.match(patches, /TryEnterGeneratedChoiceCardScope\(__instance, holder\)/u);
+  assert.match(patches, /TryEnterGeneratedChoiceSkipScope\(__instance\)/u);
+  assert.match(trace, /NativeContinuationObserved/u);
+  assert.match(trace, /semantic_native_continuation_without_pause/u);
+  assert.doesNotMatch(trace, /PendingDecision|AcceptedHumanActionLedger|SerializedEvidenceAdmission/u);
 });
 
 test("rapid accepted actions use one causal tracker and never fabricate successors", () => {

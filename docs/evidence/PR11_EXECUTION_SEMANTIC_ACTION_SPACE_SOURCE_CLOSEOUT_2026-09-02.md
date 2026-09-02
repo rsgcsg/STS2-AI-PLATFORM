@@ -177,6 +177,26 @@ and phase; schema 1 remains readable under its original same-verb identity
 rules. Missing, changed, mismatched or incomplete typed action-space evidence
 fails closed.
 
+## PlayerChoice continuation and occurrence closure (source/test only)
+
+Exact `v0.111.0 / 41cef1ea` inspection shows that
+`GameActionPlayerChoiceContext.SignalPlayerChoiceBegun` calls
+`ActionQueueSet.PauseActionForPlayerChoice(parent, options)`, which raises
+`GameAction.BeforePausedForPlayerChoice` on the still-running exact parent.
+The same context later requests resume for that same action, and STS2 raises
+ready-to-resume/resume before eventual finish. PR11 now records that pause as a
+typed native continuation. It opens only the immediate nested Human choice
+handoff; it is neither a child root nor a completed parent, and resume remains
+same-parent lifecycle evidence.
+
+The generated-card `SelectHolder`/skip source-local mutation callbacks now
+preserve an accepted child occurrence even when canonical capture must fail
+closed. The invalidation retains exact card/holder when applicable, choice
+owner, paused parent witness/type/state and mutation mechanism. This evidence
+does not backfill `S`, `A(S)`, Commit or `S'`, and it does not create a second
+ledger. A fresh exact artifact and Human canary are still required; predecessor
+sessions do not qualify the changed bytes.
+
 ## Verification and non-claims
 
 Targeted tests cover PlayCard, EndTurn and UsePotion exact membership with an

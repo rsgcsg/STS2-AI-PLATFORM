@@ -76,7 +76,7 @@ public static class SemanticTransitionProjection
                     "exact_unique_reference_mapping",
                     "trusted_semantic_successor_boundary",
                     "no_intervening_human_mutation",
-                    "native_terminal_or_direct_commit_observed"
+                    "native_terminal_direct_commit_or_player_choice_continuation_observed"
                 },
                 new[]
                 {
@@ -169,7 +169,7 @@ public static class SemanticTransitionProjection
                 "complete_execution_state",
                 "chosen_action_exactly_once_in_authoritative_action_space",
                 "exact_human_native_action_correlation",
-                "native_terminal_or_direct_commit_observed",
+                "native_terminal_direct_commit_or_player_choice_continuation_observed",
                 "no_intervening_human_mutation",
                 "complete_authoritative_successor"
             },

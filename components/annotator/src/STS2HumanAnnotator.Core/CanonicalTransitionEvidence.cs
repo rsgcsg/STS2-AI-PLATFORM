@@ -63,9 +63,14 @@ public static class CanonicalTransitionEvidenceValidator
         "complete_execution_state",
         "chosen_action_exactly_once_in_authoritative_action_space",
         "exact_human_native_action_correlation",
-        "native_terminal_or_direct_commit_observed",
         "no_intervening_human_mutation",
         "complete_authoritative_successor"
+    };
+
+    private static readonly string[] CurrentNativeCommitInvariants =
+    {
+        "native_terminal_or_direct_commit_observed",
+        "native_terminal_direct_commit_or_player_choice_continuation_observed"
     };
 
     public static IReadOnlyList<string> Validate(CanonicalTransitionEvidence value)
@@ -119,6 +124,11 @@ public static class CanonicalTransitionEvidenceValidator
         {
             if (!value.Invariants.Contains(required, StringComparer.Ordinal))
                 errors.Add($"invariant_missing:{required}");
+        }
+        if (!legacy && !value.Invariants.Any(invariant =>
+                CurrentNativeCommitInvariants.Contains(invariant, StringComparer.Ordinal)))
+        {
+            errors.Add("invariant_missing:native_commit_or_player_choice_continuation_observed");
         }
         if (value.PreStateRef.SnapshotId == value.SuccessorRef.SnapshotId)
             errors.Add("successor_snapshot_not_advanced");

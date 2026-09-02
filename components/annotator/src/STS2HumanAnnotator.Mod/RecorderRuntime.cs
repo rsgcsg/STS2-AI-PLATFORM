@@ -10,6 +10,8 @@ using MegaCrit.Sts2.Core.GameActions;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Potions;
 using MegaCrit.Sts2.Core.Multiplayer.Game;
+using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
+using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 using MegaCrit.Sts2.Core.Runs;
 using STS2Connector.PlayerEnvironment.Protocol;
 using STS2Connector.PlayerEnvironment.Witness;
@@ -820,23 +822,36 @@ internal static class RecorderRuntime
         }
     }
 
-    internal static NativeUiScopeEntry TryEnterGeneratedChoiceCardScope(CardModel card) =>
+    internal static NativeUiScopeEntry TryEnterGeneratedChoiceCardScope(
+        NChooseACardSelectionScreen screen,
+        NCardHolder holder) =>
         TryEnterScope(
             "native_generated_card_choice_ui",
             "NChooseACardSelectionScreen.SelectHolder",
             new ProcessLocalObservedAction(
                 "select",
-                card,
-                new Dictionary<string, object>(StringComparer.Ordinal)));
+                holder.CardModel,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            occurrence: GeneratedChoiceOccurrence(
+                "NChooseACardSelectionScreen.SelectHolder",
+                "select",
+                screen,
+                holder.CardModel,
+                holder));
 
-    internal static NativeUiScopeEntry TryEnterGeneratedChoiceSkipScope() =>
+    internal static NativeUiScopeEntry TryEnterGeneratedChoiceSkipScope(
+        NChooseACardSelectionScreen screen) =>
         TryEnterScope(
             "native_generated_card_choice_skip_ui",
             "NChooseACardSelectionScreen.OnSkipButtonReleased",
             new ProcessLocalObservedAction(
                 "skip",
                 null,
-                new Dictionary<string, object>(StringComparer.Ordinal)));
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            occurrence: GeneratedChoiceOccurrence(
+                "NChooseACardSelectionScreen.OnSkipButtonReleased",
+                "skip",
+                screen));
 
     internal static void ObserveGeneratedChoiceCard(CardModel card) =>
         ObserveAcceptedUiAction(
@@ -871,7 +886,8 @@ internal static class RecorderRuntime
         string expectedNativeActionType,
         ProcessLocalObservedAction? expectedAction = null,
         CardModel? stagedCard = null,
-        ProcessLocalObservedAction? semanticSelection = null)
+        ProcessLocalObservedAction? semanticSelection = null,
+        HumanActionOccurrenceEvidence? occurrence = null)
     {
         if (!AcceptingNewWitnesses())
             return default;
@@ -882,7 +898,8 @@ internal static class RecorderRuntime
                 "semantic_causal_overlap",
                 "A prior Human root is not ready for an exact next-root handoff; native input continues without a canonical transition claim.",
                 _lastSnapshotId,
-                "decision_and_lifecycle_only");
+                "decision_and_lifecycle_only",
+                occurrence);
             return new NativeUiScopeEntry(false, true);
         }
 
@@ -933,7 +950,8 @@ internal static class RecorderRuntime
                         ? new[] { "no_same_context_authoritative_frame" }
                         : currentBlockers.Append("no_same_context_authoritative_frame")),
                     current?.Snapshot.SnapshotId,
-                    "fail_closed");
+                    "fail_closed",
+                    occurrence);
                 return new NativeUiScopeEntry(false, true);
             }
 
@@ -954,7 +972,8 @@ internal static class RecorderRuntime
                     expectedNativeActionType,
                     expectedAction,
                     selected,
-                    semanticDecision);
+                    semanticDecision,
+                    occurrence: occurrence);
             }
             return new NativeUiScopeEntry(true, false);
         }
@@ -965,7 +984,8 @@ internal static class RecorderRuntime
                 "pre_frame_capture_failed",
                 exception.Message,
                 null,
-                "implemented_runtime_error");
+                "implemented_runtime_error",
+                occurrence);
             return new NativeUiScopeEntry(false, true);
         }
     }
@@ -1098,7 +1118,21 @@ internal static class RecorderRuntime
         HumanActionContext? context = HumanActionScope.Current;
         if (context == null)
         {
-            TryQuarantineDeferredAcceptedAction(action.GetType().Name);
+            TryQuarantineDeferredAcceptedAction(
+                action.GetType().Name,
+                occurrence: new HumanActionOccurrenceEvidence(
+                    $"human-occurrence-{Guid.NewGuid():N}",
+                    action.GetType().Name,
+                    SupportedFamilyForNativeAction(action.GetType().Name) ?? action.GetType().Name,
+                    action.GetType().Name,
+                    NativeWitnessIdentity.Get(action, "game_action"),
+                    new Dictionary<string, string>(StringComparer.Ordinal),
+                    null,
+                    null,
+                    null,
+                    null,
+                    "GameAction.accepted",
+                    "failed_closed"));
             return;
         }
         string nativeActionType = action.GetType().Name;
@@ -1180,7 +1214,7 @@ internal static class RecorderRuntime
         HumanActionContext? context = HumanActionScope.Current;
         if (context == null)
         {
-            TryQuarantineDeferredAcceptedAction(nativeActionType);
+            TryQuarantineDeferredAcceptedAction(nativeActionType, observed, witness);
             return;
         }
         if (!context.AcceptsRootAction(nativeActionType))
@@ -1188,7 +1222,21 @@ internal static class RecorderRuntime
         try
         {
             ProcessLocalNativeMatch match = context.Frame.Resolve(observed);
-            if (!IsExact(match) || !context.TryClaimRootAction(nativeActionType))
+            if (!IsExact(match))
+            {
+                if (context.TryClaimRootAction(nativeActionType))
+                {
+                    Quarantine(
+                        "human_action_exact_mapping_failed",
+                        "The accepted native mutation did not retain its exact pre-action BoundAction mapping.",
+                        context.Frame.Snapshot.SnapshotId,
+                        nativeActionType,
+                        "failed_closed",
+                        context.Occurrence ?? OccurrenceFrom(nativeActionType, observed, witness));
+                }
+                return;
+            }
+            if (!context.TryClaimRootAction(nativeActionType))
                 return;
             ProcessLocalNativeWitnessFrame? postCommitFrame = null;
             if (captureImmediatePostCommitBoundary)
@@ -1222,7 +1270,11 @@ internal static class RecorderRuntime
         }
     }
 
-    private static void TryQuarantineDeferredAcceptedAction(string nativeActionType)
+    private static void TryQuarantineDeferredAcceptedAction(
+        string nativeActionType,
+        ProcessLocalObservedAction? observed = null,
+        NativeWitnessEvidence? witness = null,
+        HumanActionOccurrenceEvidence? occurrence = null)
     {
         DeferredHumanActionFailure? failure = HumanActionScope.CurrentDeferredFailure;
         if (failure == null || !failure.TryClaim(nativeActionType))
@@ -1232,7 +1284,10 @@ internal static class RecorderRuntime
             failure.Detail,
             failure.SnapshotId,
             nativeActionType,
-            failure.EvidenceLevel);
+            failure.EvidenceLevel,
+            failure.Occurrence ?? occurrence ?? (observed != null && witness != null
+                ? OccurrenceFrom(nativeActionType, observed, witness)
+                : null));
     }
 
     internal static void OnProcessFrame()
@@ -2017,6 +2072,18 @@ internal static class RecorderRuntime
             kind,
             subscription.Action);
         ObserveSemanticLifecycle(subscription, kind);
+        if (kind == NativeActionLifecycleKinds.PausedForPlayerChoice)
+        {
+            ObserveNativeContinuation(
+                subscription.ActionWitnessId,
+                new NativeContinuationEvidence(
+                    $"native-continuation-{Guid.NewGuid():N}",
+                    "GameAction.BeforePausedForPlayerChoice",
+                    subscription.ActionWitnessId,
+                    NativeWitnessIdentity.Get(subscription.Action, "game_action"),
+                    NativeWitnessIdentity.Get(subscription.Action, "game_action"),
+                    true));
+        }
         if (kind == NativeActionLifecycleKinds.Finished)
         {
             ObserveNativeCommit(
@@ -2057,6 +2124,27 @@ internal static class RecorderRuntime
                 drafts = BoundaryTracker.ObserveNativeCommit(
                     actionWitnessId,
                     completion);
+            }
+            PersistSemanticBoundaryDrafts(drafts);
+        }
+        catch (Exception exception)
+        {
+            DisableSemanticBoundaryTrace(exception);
+        }
+    }
+
+    private static void ObserveNativeContinuation(
+        string actionWitnessId,
+        NativeContinuationEvidence continuation)
+    {
+        try
+        {
+            IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
+            lock (Gate)
+            {
+                drafts = BoundaryTracker.ObserveNativeContinuation(
+                    actionWitnessId,
+                    continuation);
             }
             PersistSemanticBoundaryDrafts(drafts);
         }
@@ -2288,6 +2376,7 @@ internal static class RecorderRuntime
             {
                 HumanObservationRef = humanObservationRef,
                 NativeCompletion = draft.NativeCompletion,
+                NativeContinuation = draft.NativeContinuation,
                 ExecutionSemanticActionSpaceRef = executionSemanticActionSpaceRef
             });
         }
@@ -2765,12 +2854,61 @@ internal static class RecorderRuntime
         };
     }
 
+    private static HumanActionOccurrenceEvidence GeneratedChoiceOccurrence(
+        string nativeActionType,
+        string verb,
+        NChooseACardSelectionScreen screen,
+        CardModel? card = null,
+        NCardHolder? holder = null)
+    {
+        NativePlayerChoiceLineage lineage = NativePlayerChoiceLineage.Capture();
+        return new HumanActionOccurrenceEvidence(
+            $"human-occurrence-{Guid.NewGuid():N}",
+            nativeActionType,
+            "generated_card_choice",
+            verb,
+            card == null ? null : NativeWitnessIdentity.Get(card, "card"),
+            holder == null
+                ? new Dictionary<string, string>(StringComparer.Ordinal)
+                : new Dictionary<string, string>(StringComparer.Ordinal)
+                {
+                    ["selected_card_holder"] = NativeWitnessIdentity.Get(holder, "card_holder")
+                },
+            NativeWitnessIdentity.Get(screen, "choice_owner"),
+            lineage.ParentAction == null
+                ? null
+                : NativeWitnessIdentity.Get(lineage.ParentAction, "game_action"),
+            lineage.ParentActionType,
+            lineage.ParentState,
+            nativeActionType,
+            "failed_closed");
+    }
+
+    private static HumanActionOccurrenceEvidence OccurrenceFrom(
+        string nativeActionType,
+        ProcessLocalObservedAction observed,
+        NativeWitnessEvidence witness) =>
+        new(
+            $"human-occurrence-{Guid.NewGuid():N}",
+            nativeActionType,
+            SupportedFamilyForNativeAction(nativeActionType) ?? nativeActionType,
+            observed.Verb,
+            witness.SubjectWitnessId,
+            new Dictionary<string, string>(StringComparer.Ordinal),
+            null,
+            null,
+            null,
+            null,
+            witness.NativeActionType,
+            "failed_closed");
+
     private static void Quarantine(
         string reason,
         string detail,
         string? snapshotId,
         string? nativeActionType,
-        string evidenceLevel)
+        string evidenceLevel,
+        HumanActionOccurrenceEvidence? humanOccurrence = null)
     {
         try
         {
@@ -2785,7 +2923,10 @@ internal static class RecorderRuntime
                 detail,
                 snapshotId,
                 nativeActionType,
-                evidenceLevel));
+                evidenceLevel)
+            {
+                HumanOccurrence = humanOccurrence
+            });
             AppendJournal("decision_invalidated", null, snapshotId, $"{reason}: {detail}");
             PublishApplicationEvent(
                 RecordingEventKind.DecisionInvalidated,

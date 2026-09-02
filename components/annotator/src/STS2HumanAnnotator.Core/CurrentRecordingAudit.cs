@@ -99,9 +99,7 @@ public static class RecordingSessionAuditor
             errors);
         ValidateNativeSemanticDiscriminator(directory, manifest, errors);
         ValidateCanonicalTransitions(directory, manifest, semanticEvents, errors);
-        long invalidations = File.Exists(Path.Combine(directory, "invalidations.jsonl"))
-            ? Lines(Path.Combine(directory, "invalidations.jsonl")).LongCount()
-            : 0;
+        long invalidations = ValidateInvalidations(directory, manifest, errors);
         return new RecordingAuditResult(
             errors.Count == 0 && invalid == 0 ? "pass" : "fail",
             directory,
@@ -116,6 +114,84 @@ public static class RecordingSessionAuditor
                 "audit_does_not_qualify_unseen_families",
                 "read_capture_is_player_visible_evidence_not_hidden_state"
             });
+    }
+
+    private static long ValidateInvalidations(
+        string directory,
+        CurrentRecordingManifest? manifest,
+        IDictionary<string, long> errors)
+    {
+        string path = Path.Combine(directory, "invalidations.jsonl");
+        if (!File.Exists(path))
+            return 0;
+
+        long count = 0;
+        foreach ((string line, int lineNumber) in Lines(path))
+        {
+            count++;
+            InvalidationRecord? value;
+            try
+            {
+                value = JsonSerializer.Deserialize<InvalidationRecord>(line, EvidenceJson.Options);
+            }
+            catch (JsonException)
+            {
+                Add(errors, $"invalidation_json_invalid_at_line_{lineNumber}");
+                continue;
+            }
+            if (value == null
+                || value.SchemaVersion != CurrentRecordingContract.SchemaVersion
+                || value.Schema != CurrentRecordingContract.InvalidationSchema
+                || manifest == null
+                || value.SessionId != manifest.SessionId)
+            {
+                Add(errors, "invalidation_identity_invalid");
+                continue;
+            }
+            foreach (string error in HumanActionOccurrenceEvidenceValidator.Validate(value.HumanOccurrence))
+                Add(errors, error);
+            if (value.NativeActionType is "NChooseACardSelectionScreen.SelectHolder"
+                or "NChooseACardSelectionScreen.OnSkipButtonReleased")
+            {
+                ValidateGeneratedChoiceOccurrence(value.HumanOccurrence, value.NativeActionType, errors);
+            }
+        }
+        return count;
+    }
+
+    private static void ValidateGeneratedChoiceOccurrence(
+        HumanActionOccurrenceEvidence? occurrence,
+        string nativeActionType,
+        IDictionary<string, long> errors)
+    {
+        if (occurrence == null)
+        {
+            Add(errors, "generated_choice_human_occurrence_missing");
+            return;
+        }
+        if (!string.Equals(occurrence.NativeActionType, nativeActionType, StringComparison.Ordinal)
+            || !string.Equals(occurrence.NativeMechanism, nativeActionType, StringComparison.Ordinal))
+        {
+            Add(errors, "generated_choice_human_occurrence_identity_mismatch");
+        }
+        if (string.IsNullOrWhiteSpace(occurrence.NativeOwnerWitnessId))
+            Add(errors, "generated_choice_owner_missing");
+        if (nativeActionType == "NChooseACardSelectionScreen.SelectHolder")
+        {
+            if (string.IsNullOrWhiteSpace(occurrence.NativeSubjectWitnessId))
+                Add(errors, "generated_choice_subject_missing");
+            if (!occurrence.NativeOperands.TryGetValue("selected_card_holder", out string? holder)
+                || string.IsNullOrWhiteSpace(holder))
+            {
+                Add(errors, "generated_choice_selected_holder_missing");
+            }
+        }
+        if (occurrence.PausedParentActionWitnessId != null
+            && (string.IsNullOrWhiteSpace(occurrence.PausedParentActionType)
+                || string.IsNullOrWhiteSpace(occurrence.PausedParentState)))
+        {
+            Add(errors, "generated_choice_parent_lineage_incomplete");
+        }
     }
 
     private static void ValidateCanonicalTransitions(
@@ -595,6 +671,7 @@ public static class RecordingSessionAuditor
         {
             HumanObservation = humanObservation,
             NativeCompletion = value.NativeCompletion,
+            NativeContinuation = value.NativeContinuation,
             ExecutionSemanticActionSpace = executionSemanticActionSpace
         };
     }

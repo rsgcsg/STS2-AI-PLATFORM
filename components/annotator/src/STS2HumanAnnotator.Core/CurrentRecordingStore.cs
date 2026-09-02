@@ -471,7 +471,8 @@ public sealed class RecordingSessionStore : IDisposable
             || invalidation.Schema != CurrentRecordingContract.InvalidationSchema
             || invalidation.SessionId != Manifest.SessionId
             || string.IsNullOrWhiteSpace(invalidation.InvalidationId)
-            || string.IsNullOrWhiteSpace(invalidation.ReasonCode))
+            || string.IsNullOrWhiteSpace(invalidation.ReasonCode)
+            || HumanActionOccurrenceEvidenceValidator.Validate(invalidation.HumanOccurrence).Count > 0)
             throw new InvalidDataException("Invalidation is invalid for this current recording.");
         EnsureOpen();
         ExecuteWrite(() =>

@@ -152,6 +152,89 @@ public sealed class CurrentEvidenceTests
     }
 
     [Fact]
+    public void GeneratedChoiceFailedClosedOccurrenceRoundTripsAndIsAudited()
+    {
+        string root = Temp("generated-choice-occurrence");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            CurrentRecordingManifest manifest = Manifest(profile);
+            string session;
+            using (var store = RecordingSessionStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                HistoricalDecisionRecord source = RecordValidationTests.ValidRecord();
+                store.AppendDecision(CurrentRecord(source, (
+                    PersistReads(store, source.Pre.SnapshotId),
+                    PersistReads(store, source.Successor.SnapshotId))));
+                store.AppendInvalidation(new InvalidationRecord(
+                    CurrentRecordingContract.SchemaVersion,
+                    CurrentRecordingContract.InvalidationSchema,
+                    "invalidation-generated-choice",
+                    manifest.SessionId,
+                    source.RunId,
+                    DateTimeOffset.UnixEpoch,
+                    "semantic_causal_overlap",
+                    "The parent continuation was not available for canonical child proof.",
+                    source.Pre.SnapshotId,
+                    "NChooseACardSelectionScreen.SelectHolder",
+                    "decision_and_lifecycle_only")
+                {
+                    HumanOccurrence = new HumanActionOccurrenceEvidence(
+                        "occurrence-generated-choice",
+                        "NChooseACardSelectionScreen.SelectHolder",
+                        "generated_card_choice",
+                        "select",
+                        "card:exact",
+                        new Dictionary<string, string>
+                        {
+                            ["selected_card_holder"] = "card_holder:exact"
+                        },
+                        "choice_owner:exact",
+                        "game_action:parent",
+                        "GenericHookGameAction",
+                        "gatheringplayerchoice",
+                        "NChooseACardSelectionScreen.SelectHolder",
+                        "failed_closed")
+                });
+            }
+
+            InvalidationRecord persisted = JsonSerializer.Deserialize<InvalidationRecord>(
+                File.ReadLines(Path.Combine(session, "invalidations.jsonl")).Single(),
+                EvidenceJson.Options)!;
+            Assert.Equal("card:exact", persisted.HumanOccurrence!.NativeSubjectWitnessId);
+            Assert.Equal("game_action:parent", persisted.HumanOccurrence.PausedParentActionWitnessId);
+            Assert.Equal("pass", RecordingSessionAuditor.Audit(session).Status);
+
+            string original = File.ReadLines(Path.Combine(session, "invalidations.jsonl")).Single();
+            JsonObject missing = JsonNode.Parse(original)!.AsObject();
+            missing.Remove("human_occurrence");
+            File.WriteAllText(
+                Path.Combine(session, "invalidations.jsonl"),
+                missing.ToJsonString(EvidenceJson.Options) + "\n");
+            RecordingAuditResult audit = RecordingSessionAuditor.Audit(session);
+            Assert.Equal("fail", audit.Status);
+            Assert.True(audit.Errors.ContainsKey("generated_choice_human_occurrence_missing"));
+
+            JsonObject incomplete = JsonNode.Parse(original)!.AsObject();
+            incomplete["human_occurrence"]!["native_subject_witness_id"] = null;
+            incomplete["human_occurrence"]!["native_operands"]!["selected_card_holder"] = null;
+            File.WriteAllText(
+                Path.Combine(session, "invalidations.jsonl"),
+                incomplete.ToJsonString(EvidenceJson.Options) + "\n");
+            RecordingAuditResult incompleteAudit = RecordingSessionAuditor.Audit(session);
+            Assert.Equal("fail", incompleteAudit.Status);
+            Assert.True(incompleteAudit.Errors.ContainsKey("generated_choice_subject_missing"));
+            Assert.True(incompleteAudit.Errors.ContainsKey("generated_choice_selected_holder_missing"));
+        }
+        finally
+        {
+            Delete(root);
+        }
+    }
+
+    [Fact]
     public void HistoricalNativeLedgerSidecarIsIgnoredByCurrentAuditAndBundle()
     {
         string root = Temp("current-archival-ledger");

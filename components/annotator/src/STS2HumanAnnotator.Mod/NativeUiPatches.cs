@@ -205,7 +205,7 @@ internal static class NativeGeneratedChoiceCardPatch
     {
         CardModel? card = holder.CardModel;
         __state = new PatchState(
-            card != null ? RecorderRuntime.TryEnterGeneratedChoiceCardScope(card) : default,
+            card != null ? RecorderRuntime.TryEnterGeneratedChoiceCardScope(__instance, holder) : default,
             CardSelected(__instance),
             card);
     }
@@ -246,7 +246,7 @@ internal static class NativeGeneratedChoiceSkipPatch
         out PatchState __state)
     {
         __state = new PatchState(
-            RecorderRuntime.TryEnterGeneratedChoiceSkipScope(),
+            RecorderRuntime.TryEnterGeneratedChoiceSkipScope(__instance),
             ScreenComplete(__instance));
     }
 

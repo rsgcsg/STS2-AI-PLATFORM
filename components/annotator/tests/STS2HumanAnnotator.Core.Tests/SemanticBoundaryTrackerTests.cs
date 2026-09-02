@@ -192,6 +192,116 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
+    public void ExactPlayerChoiceContinuationLetsNestedHumanChoiceSettleParentWithoutFinish()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference parent = Action("choice-parent", 1) with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(parent, State("human-parent"));
+        tracker.ObserveBeforeActionExecution(
+            parent.ActionWitnessId,
+            Boundary("combat-before", parent.ActionWitnessId));
+        tracker.Started(parent.ActionWitnessId);
+        tracker.PausedForPlayerChoice(parent.ActionWitnessId);
+
+        Assert.False(tracker.CanOpenNextRoot);
+        NativeContinuationEvidence continuation = new(
+            "continuation-choice-parent",
+            "GameAction.BeforePausedForPlayerChoice",
+            parent.ActionWitnessId,
+            "game_action:choice-parent",
+            "game_action:choice-parent",
+            true);
+        SemanticBoundaryTraceDraft continuationDraft = Assert.Single(
+            tracker.ObserveNativeContinuation(parent.ActionWitnessId, continuation));
+
+        Assert.Equal(SemanticBoundaryTraceKinds.NativeContinuationObserved, continuationDraft.Kind);
+        Assert.True(tracker.CanOpenNextRoot);
+
+        SemanticActionReference child = Action(
+            "choice-child",
+            2,
+            "NChooseACardSelectionScreen.SelectHolder");
+        tracker.Accept(child, State("choice-human-observation"));
+        SemanticBoundaryTraceDraft parentProved = Assert.Single(
+            tracker.ObserveBeforeActionExecution(
+                child.ActionWitnessId,
+                Boundary("choice-state", child.ActionWitnessId)),
+            value => value.Kind == SemanticBoundaryTraceKinds.TransitionProved);
+
+        Assert.Equal(parent.ActionWitnessId, parentProved.Action.ActionWitnessId);
+        Assert.Equal("proved_player_choice_boundary", parentProved.ProofStatus);
+        Assert.Same(continuation, parentProved.NativeContinuation);
+        Assert.Equal(("combat-before", "choice-state"), TransitionIds(parentProved));
+
+        tracker.Started(child.ActionWitnessId);
+        tracker.Finished(child.ActionWitnessId);
+        tracker.ReadyToResume(parent.ActionWitnessId);
+        tracker.BeforeExecutionResume(parent.ActionWitnessId);
+        tracker.Resumed(parent.ActionWitnessId);
+        SemanticBoundaryTraceDraft parentFinished = Assert.Single(tracker.Finished(parent.ActionWitnessId));
+
+        Assert.Equal("lifecycle_finished_after_semantic_disposition", parentFinished.ProofStatus);
+        Assert.Empty(tracker.ObserveDecisionBoundary(Boundary("later-state")));
+    }
+
+    [Fact]
+    public void PlayerChoiceContinuationTraceRequiresExactPauseAndRoundTripsAsParentCommitEvidence()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference parent = Action("choice-parent", 1) with
+        {
+            RequiresNativePostCommit = true
+        };
+        SemanticActionReference child = Action(
+            "choice-child",
+            2,
+            "NChooseACardSelectionScreen.SelectHolder");
+        var drafts = new List<SemanticBoundaryTraceDraft>();
+        drafts.AddRange(tracker.Accept(parent, State("human-parent")));
+        drafts.AddRange(tracker.ObserveBeforeActionExecution(
+            parent.ActionWitnessId,
+            Boundary("combat-before", parent.ActionWitnessId)));
+        drafts.AddRange(tracker.Started(parent.ActionWitnessId));
+        drafts.AddRange(tracker.PausedForPlayerChoice(parent.ActionWitnessId));
+        NativeContinuationEvidence continuation = new(
+            "continuation-choice-parent",
+            "GameAction.BeforePausedForPlayerChoice",
+            parent.ActionWitnessId,
+            "game_action:choice-parent",
+            "game_action:choice-parent",
+            true);
+        drafts.AddRange(tracker.ObserveNativeContinuation(parent.ActionWitnessId, continuation));
+        drafts.AddRange(tracker.Accept(child, State("human-child")));
+        drafts.AddRange(tracker.ObserveBeforeActionExecution(
+            child.ActionWitnessId,
+            Boundary("choice-state", child.ActionWitnessId)));
+        drafts.AddRange(tracker.Started(child.ActionWitnessId));
+        drafts.AddRange(tracker.Finished(child.ActionWitnessId));
+        drafts.AddRange(tracker.ObserveDecisionBoundary(PostCommitBoundary("after-choice")));
+
+        SemanticBoundaryTraceEvent[] events = drafts
+            .Select((draft, index) => Event(index + 1, draft))
+            .ToArray();
+        Assert.Empty(SemanticBoundaryTraceValidator.Validate(events));
+        SemanticBoundaryTraceEvent proved = Assert.Single(events,
+            value => value.Kind == SemanticBoundaryTraceKinds.TransitionProved
+                     && value.Action.ActionWitnessId == parent.ActionWitnessId);
+        Assert.Equal(parent.ActionWitnessId, proved.Action.ActionWitnessId);
+        Assert.Equal(child.ActionWitnessId, proved.RelatedActionWitnessId);
+        Assert.Same(continuation, proved.NativeContinuation);
+
+        SemanticBoundaryTraceEvent[] missingPause = events
+            .Where(value => value.Kind != SemanticBoundaryTraceKinds.ActionPausedForPlayerChoice)
+            .ToArray();
+        Assert.Contains(
+            "semantic_native_continuation_without_pause",
+            SemanticBoundaryTraceValidator.Validate(missingPause));
+    }
+
+    [Fact]
     public void IncompleteCaptureBeforeNextActionFailsClosedAndDoesNotUseLaterState()
     {
         var tracker = new SemanticBoundaryTracker();
@@ -946,7 +1056,7 @@ public sealed class SemanticBoundaryTrackerTests
         };
 
         Assert.Contains(
-            "semantic_native_completion_identity_missing",
+            "semantic_native_commit_identity_missing",
             SemanticBoundaryTraceValidator.Validate(events));
     }
 
@@ -1173,7 +1283,10 @@ public sealed class SemanticBoundaryTrackerTests
             draft.Detail,
             draft.NonClaims ?? Array.Empty<string>())
         {
-            HumanObservation = draft.HumanObservation
+            HumanObservation = draft.HumanObservation,
+            NativeCompletion = draft.NativeCompletion,
+            NativeContinuation = draft.NativeContinuation,
+            ExecutionSemanticActionSpace = draft.ExecutionSemanticActionSpace
         };
 
     private static NativeCompletionEvidence Completion(string actionWitnessId) => new(
