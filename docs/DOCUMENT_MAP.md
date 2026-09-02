@@ -10,8 +10,14 @@ Use the smallest route that answers the task.
 ## Working on the repository
 
 - [Root agent guide](../AGENTS.md): hard shell and change loop.
+- [Engineering Governance](ENGINEERING_GOVERNANCE.md): fact ownership,
+  architecture and abstraction review, change classes, test selection,
+  Human/Agent collaboration, external dependencies, and cloud evolution.
 - [Development Workflow](DEVELOPMENT_WORKFLOW.md): branches, PRs, releases, and evidence reporting.
+- [Testing and Evidence](TESTING.md): executable test/evidence ladder and CI placement.
 - [Project System](PROJECT_SYSTEM.md): documentation, style, Skills, and anti-drift governance.
+- [ADR policy and index](adr/README.md): durable decision admission, status, and supersession.
+- [Repository Skill index](../.agents/skills/README.md): high-risk repeatable workflows; ordinary implementation usually needs no Skill.
 - Owning component: its local `AGENTS.md` when present, then its README/docs and exact tests.
 
 ## Finding technical truth

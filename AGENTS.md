@@ -13,12 +13,17 @@ the authorities of its components.
 4. the relevant component `AGENTS.md` or guide and exact code/tests
 
 Before ordinary development, also read `docs/DEVELOPMENT_WORKFLOW.md` and
-`docs/TESTING.md`. Normal work starts from current `origin/develop`, uses one
-short-lived topic branch and targets `develop` by pull request. Do not
-direct-push `main` or `develop`, share a writable branch between agents, or
-create permanent component develop lines. Use
-`npm run project:context -- --component <name>` for a bounded routing map; load
-`docs/STATUS.md` and dated evidence only when current claims matter.
+`docs/TESTING.md`. Read `docs/ENGINEERING_GOVERNANCE.md` when the task changes
+architecture, authority, a public contract, evidence/identity, cross-layer
+behavior, test strategy, Agent collaboration, Skill policy, or cloud/runtime
+promotion.
+
+Normal work starts from current `origin/develop`, uses one short-lived topic
+branch and targets `develop` by pull request. Do not direct-push `main` or
+`develop`, share a writable branch between agents, or create permanent component
+develop lines. Use `npm run project:context -- --component <name>` for a bounded
+routing map; load `docs/STATUS.md` and dated evidence only when current claims
+matter.
 
 ## Hard Shell
 
@@ -63,15 +68,19 @@ checks merely to accommodate a provenance-rewriting merge method.
 
 ## Change Loop
 
-Identify the owning component, preserve dependency direction, add fail-closed
-tests, run the component check and root check, then report evidence at its exact
-level. Hosted CI must remain source/test-only; game-bound changes additionally
-use the local exact-game/build/runtime gates defined in `docs/TESTING.md`.
-Never commit game files, decompiled source, raw human data, `.local/`,
-credentials, model weights or installed artifacts.
+Classify the change (`G0`-`G6`), identify the first incorrect fact and owning
+layer, preserve dependency direction, add the lowest-cost faithful regression,
+run the component and root gates, then report evidence at its exact level.
+Hosted CI must remain source/test-only; game-bound changes additionally use the
+local exact-game/build/runtime gates defined in `docs/TESTING.md`.
 
-Record the base branch/SHA, workstream, cross-repository pin, evidence level,
-rollback and non-claims in every PR. A merge never promotes source/test evidence
-to build, loaded, runtime, Human or qualification evidence.
-Run `npm run project:closeout` before the PR so documentation, evidence,
-contract, version, and governance impacts stay visible.
+Never commit game files, decompiled source, raw human data, `.local/`,
+credentials, model weights or installed artifacts. Worker or conversation
+output is not evidence until the lead verifies exact code, tests, refs, and
+runtime records.
+
+Record the base branch/SHA, latest head, workstream, change class, owning fact,
+cross-repository pin, evidence level, rollback and non-claims in every PR. A
+merge never promotes source/test evidence to build, loaded, runtime, Human or
+qualification evidence. Run `npm run project:closeout` before the PR so
+documentation, evidence, contract, version, and governance impacts stay visible.

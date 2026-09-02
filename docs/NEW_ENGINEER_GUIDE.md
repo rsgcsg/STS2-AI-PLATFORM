@@ -1,8 +1,7 @@
 # New Engineer Guide
 
 This is the shortest safe path from a fresh checkout to a legitimate first
-Platform pull request. It should take roughly 15–30 minutes on a machine with
-the portable toolchains installed.
+Platform pull request.
 
 ## 1. Know the boundary
 
@@ -26,13 +25,13 @@ Authority is deliberately split:
 - External consumers: strategy, research projection, training, and evaluation.
 
 If a change would move one of those responsibilities, stop and read
-[Architecture](ARCHITECTURE.md) and the relevant ADR before editing.
+[Architecture](ARCHITECTURE.md),
+[Engineering Governance](ENGINEERING_GOVERNANCE.md), and the relevant ADR.
 
 ## 2. Prepare the checkout
 
-Portable CI currently uses Node.js 20, .NET 9, and Python 3.11. The root package
-requires Node.js 20 or newer. Git and npm are required; GitHub CLI is useful but
-not required for local checks.
+Portable CI uses the repository-declared Node, .NET, and Python toolchains. Git
+and npm are required.
 
 ```bash
 git fetch --prune origin
@@ -51,16 +50,11 @@ npm run doctor
 npm run check
 ```
 
-`doctor` reports component prerequisites and may say `action_required` when the
-local game/runtime toolchain is absent. The root check is the portable
-source/test gate and must not require proprietary STS2 files. If the baseline
-is not green, determine whether the failure is pre-existing before changing
-code.
+The root check is the portable source/test gate and must not require proprietary
+STS2 files. Neither command proves build, installation, load, live mutation, a
+journey, Human origin, or qualification.
 
-Neither command proves build, installation, load, live mutation, a journey,
-Human origin, or qualification.
-
-## 4. Choose the owner and reading path
+## 4. Choose the owner and change class
 
 Run a bounded context map:
 
@@ -69,16 +63,20 @@ npm run project:context
 npm run project:context -- --component connector
 ```
 
-Choose the narrowest component that owns the behavior. Then read, in order:
+Choose the narrowest owner, identify the first incorrect fact, and classify the
+change using [Engineering Governance](ENGINEERING_GOVERNANCE.md):
 
-1. root `AGENTS.md`;
-2. the component-local `AGENTS.md` when one exists;
-3. the component README or document map;
-4. the exact contract, implementation, and neighboring tests.
+- `G0`: docs/governance/portable repository tooling;
+- `G1`: portable implementation;
+- `G2`: public contract or cross-component behavior;
+- `G3`: game-native source;
+- `G4`: package/install/load/runtime lifecycle;
+- `G5`: Human/causal evidence;
+- `G6`: cloud/infrastructure promotion.
 
-Local `AGENTS.md` files add subtree-specific safety and evidence rules. They do
-not override the root hard shell. Simple presentation leaves may use a README
-instead of a local agent guide; `project:context` points to the applicable path.
+Then read root `AGENTS.md`, the component-local guide when present, the exact
+contract and implementation, and neighboring tests. Simple presentation leaves
+may use a README instead of a local agent guide.
 
 ## 5. Understand evidence language
 
@@ -86,58 +84,66 @@ Evidence levels are distinct:
 
 ```text
 source -> test -> build -> package -> installed -> loaded
-       -> live_exercised -> journey -> human_validated -> qualified
+  -> live_exercised -> journey -> human_validated -> qualified
 ```
 
 Passing one level does not imply the next. A predecessor artifact's report does
-not qualify rebuilt bytes. Record exact source/artifact/runtime identities for
-game-bound claims and state non-claims explicitly.
+not qualify rebuilt bytes.
 
 ## 6. Make one legitimate change
 
-1. Confirm the owning component and dependency direction.
-2. Change the smallest relevant implementation or document.
-3. Add a positive or fail-closed regression test when behavior changes.
-4. Follow `.editorconfig`, compiler/type settings, public wire contracts, and
-   the nearest stable code pattern. Do not mass-reformat neighboring code.
-5. Run the owning component check and the root portable check.
+1. Confirm the owning fact/layer and dependency direction.
+2. Change the smallest clean causal implementation or document.
+3. Add a faithful regression when behavior changes; if existing coverage is
+   exact, explain why.
+4. Follow machine-readable style and the nearest stable code pattern.
+5. Run the lowest affected suite, owning component check, and root portable
+   check.
 6. Run `npm run project:closeout` and review every reported impact.
-7. Update canonical docs only when their truth changed.
-8. Open a PR to `develop` using the repository template.
+7. Update canonical docs or an ADR only when their truth changed.
+8. Open a PR to `develop` using the repository template and latest head.
 
 At minimum:
 
 ```bash
 npm run project:check
+npm run check:governance
 npm run check
 npm run project:closeout
 git diff --check
 ```
 
 Game-bound behavior also requires the exact-game and runtime gates named by the
-owning component. Do not run deploy/rollback operations merely to validate a
-documentation or repository-system change.
+owning component. Do not deploy merely to validate a G0 change.
+
+## Repository Skills
+
+The current repo-owned Skills are indexed in
+[`.agents/skills`](../.agents/skills/README.md). Use them for exact runtime
+qualification, native-Human evidence, or explicit Skill maintenance. Ordinary
+implementation and review normally use canonical docs directly; do not create a
+new Skill for one task or mutable project state.
 
 ## Common traps
 
 - Inventing legality, native operands, coordinates, indexes, or hidden state in
   a consumer.
-- Retrying after an `unknown` delivery.
+- Retrying after an `unknown` delivery or backfilling from a later Human effect.
+- Treating presentation state as semantic truth.
 - Treating a workspace commit as every component's semantic identity.
-- Copying versions or artifact hashes into a second prose or JSON registry.
+- Copying versions or artifact hashes into a second registry.
 - Treating fixtures, compilation, or CI as loaded/Human/qualification proof.
-- Loading the entire dated evidence archive for an ordinary code change.
-- Putting current branch names, long evidence timelines, or transient blockers
-  into durable workflow docs or Skills.
+- Loading the entire evidence archive for an ordinary change.
+- Putting current branch names, long timelines, or transient blockers into
+  durable governance docs or Skills.
 - Committing `.local/`, game files, raw recordings, credentials, build output,
   installed artifacts, or model weights.
 
 ## Ready to work
 
 - [ ] I can explain what Platform owns and what it does not.
-- [ ] `npm ci`, `npm run doctor`, and `npm run check` have been run.
-- [ ] I selected one owning component and read its local guidance.
-- [ ] I know the evidence level my change can actually prove.
+- [ ] I selected one owning fact/layer and change class.
+- [ ] I know the cheapest faithful regression and required evidence level.
 - [ ] I am on a short-lived branch based on current `origin/develop`.
 - [ ] I know the focused check, root check, PR target, rollback, and non-claims.
 
