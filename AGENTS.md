@@ -12,12 +12,13 @@ the authorities of its components.
 3. `docs/ARCHITECTURE.md` and `docs/COMPONENTS.md`
 4. the relevant component `AGENTS.md` or guide and exact code/tests
 
-Before ordinary development, also read `docs/DEVELOPMENT_WORKFLOW.md`. Normal
-work starts from current `origin/develop`, uses one short-lived topic branch and
-targets `develop` by pull request. Do not direct-push `main` or `develop`, share
-a writable branch between agents, or create permanent component develop lines.
-Use `npm run project:context -- --component <name>` for a bounded routing map;
-load `docs/STATUS.md` and dated evidence only when current claims matter.
+Before ordinary development, also read `docs/DEVELOPMENT_WORKFLOW.md` and
+`docs/TESTING.md`. Normal work starts from current `origin/develop`, uses one
+short-lived topic branch and targets `develop` by pull request. Do not
+direct-push `main` or `develop`, share a writable branch between agents, or
+create permanent component develop lines. Use
+`npm run project:context -- --component <name>` for a bounded routing map; load
+`docs/STATUS.md` and dated evidence only when current claims matter.
 
 ## Hard Shell
 
@@ -49,15 +50,24 @@ automatic retry after an `unknown` delivery.
 ## Component Identity
 
 The workspace commit is provenance, not a component semantic identity. Every
-component has its own path-scoped source digest, contract digest, version and
-artifact identity. An unrelated component edit must not silently change another
-component's source identity.
+component has its own path-scoped source revision, source digest, contract
+digest, version and artifact identity. An unrelated component edit must not
+silently change another component's source identity.
+
+The current path-scoped `source_revision` is commit provenance. A normal merge
+commit preserves the topic component revision; squash/rebase integration does
+not. Until that provenance contract is deliberately changed, any PR that
+changes component source uses a normal merge commit. Docs/governance-only PRs
+that do not change component source may be squashed. Never weaken BOM/identity
+checks merely to accommodate a provenance-rewriting merge method.
 
 ## Change Loop
 
 Identify the owning component, preserve dependency direction, add fail-closed
 tests, run the component check and root check, then report evidence at its exact
-level. Never commit game files, decompiled source, raw human data, `.local/`,
+level. Hosted CI must remain source/test-only; game-bound changes additionally
+use the local exact-game/build/runtime gates defined in `docs/TESTING.md`.
+Never commit game files, decompiled source, raw human data, `.local/`,
 credentials, model weights or installed artifacts.
 
 Record the base branch/SHA, workstream, cross-repository pin, evidence level,
