@@ -428,7 +428,8 @@ internal static class RecorderRuntime
     private static void PublishApplicationEvent(
         RecordingEventKind kind,
         string? recordId = null,
-        string? detail = null)
+        string? detail = null,
+        RecordingActionProjection? action = null)
     {
         string? sessionId;
         string? runId;
@@ -443,8 +444,18 @@ internal static class RecorderRuntime
             sessionId,
             runId,
             recordId,
-            detail);
+            detail,
+            action);
     }
+
+    private static RecordingActionProjection ToActionProjection(RecordedBoundAction action) =>
+        new(
+            action.Verb,
+            action.BoundActionId,
+            action.SubjectReferentId,
+            new Dictionary<string, string>(action.Arguments, StringComparer.Ordinal),
+            action.Label,
+            null);
 
     private static void FinalizeClose()
     {
@@ -2371,12 +2382,34 @@ internal static class RecorderRuntime
         store.AppendSemanticEvidenceEvents(events);
 
         foreach (SemanticBoundaryTraceDraft draft in drafts.Where(value =>
+                     value.Kind == SemanticBoundaryTraceKinds.ActionAccepted
+                     && SupportedFamilyForSemanticAction(value.Action) is { } family
+                     && CaptureProfile.SupportedActionFamilies.Contains(family, StringComparer.Ordinal)
+                     && value.Action.BoundAction != null))
+        {
+            PublishApplicationEvent(
+                RecordingEventKind.RootPending,
+                draft.Action.RecordId,
+                draft.Action.NativeActionType,
+                ToActionProjection(draft.Action.BoundAction!));
+        }
+
+        foreach (SemanticBoundaryTraceDraft draft in drafts.Where(value =>
                      value.Kind == SemanticBoundaryTraceKinds.TransitionProved))
         {
             PersistDerivedTransitionProjection(store, draft);
         }
         foreach (SemanticBoundaryTraceDraft draft in drafts.Where(IsSemanticDisposition))
         {
+            if (draft.Kind != SemanticBoundaryTraceKinds.TransitionProved
+                && draft.Action.BoundAction != null)
+            {
+                PublishApplicationEvent(
+                    RecordingEventKind.DecisionInvalidated,
+                    draft.Action.RecordId,
+                    $"{draft.Kind}: {draft.Detail}",
+                    ToActionProjection(draft.Action.BoundAction));
+            }
             lock (Gate)
                 SemanticProjectionEnvironments.Remove(draft.Action.ActionWitnessId);
         }
@@ -2468,7 +2501,8 @@ internal static class RecorderRuntime
             PublishApplicationEvent(
                 RecordingEventKind.DecisionRecorded,
                 eventId,
-                canonical.Action.Verb);
+                canonical.Action.Verb,
+                ToActionProjection(canonical.Action));
             _runtimeState = "record_appended";
             _detail = canonical.TransitionId;
             WriteStatus(environment, canonical.SuccessorRef.SnapshotId, Array.Empty<string>());

@@ -14,7 +14,7 @@ public sealed class PlatformLiveActionFeedTests
     {
         var feed = new PlatformLiveActionAggregation();
 
-        Assert.True(feed.Apply(Event(1, RecordingEventKind.DecisionPending, "record-1")));
+        Assert.True(feed.Apply(Event(1, RecordingEventKind.RootPending, "record-1")));
         Assert.True(feed.Apply(Event(2, RecordingEventKind.DecisionRecorded, "record-1")));
 
         PlatformLiveActionItem row = Assert.Single(feed.Recent(24));
@@ -29,7 +29,7 @@ public sealed class PlatformLiveActionFeedTests
     {
         var feed = new PlatformLiveActionAggregation();
 
-        feed.Apply(Event(1, RecordingEventKind.DecisionPending, "record-1"));
+        feed.Apply(Event(1, RecordingEventKind.RootPending, "record-1"));
 
         Assert.Equal(new PlatformLiveActionCounts(0, 1, 0, true), feed.Counts);
         Assert.Contains("waiting for canonical settlement", PlatformLiveActionFeed.FormatDetail(
@@ -40,7 +40,7 @@ public sealed class PlatformLiveActionFeedTests
     public void RecordedSettlementMovesTheSameActionFromPendingToRecords()
     {
         var feed = new PlatformLiveActionAggregation();
-        feed.Apply(Event(1, RecordingEventKind.DecisionPending, "record-1"));
+        feed.Apply(Event(1, RecordingEventKind.RootPending, "record-1"));
 
         feed.Apply(Event(2, RecordingEventKind.DecisionRecorded, "record-1"));
 
@@ -53,7 +53,7 @@ public sealed class PlatformLiveActionFeedTests
     public void InvalidatedSettlementMovesTheSameActionWithoutIncreasingRecords()
     {
         var feed = new PlatformLiveActionAggregation();
-        feed.Apply(Event(1, RecordingEventKind.DecisionPending, "record-1"));
+        feed.Apply(Event(1, RecordingEventKind.RootPending, "record-1"));
 
         feed.Apply(Event(
             2,
@@ -73,8 +73,8 @@ public sealed class PlatformLiveActionFeedTests
         var feed = new PlatformLiveActionAggregation();
         RecordingActionProjection action = Action("bound-shared", "Strike", "enemy-1");
 
-        feed.Apply(Event(1, RecordingEventKind.DecisionPending, "record-1", action));
-        feed.Apply(Event(2, RecordingEventKind.DecisionPending, "record-2", action));
+        feed.Apply(Event(1, RecordingEventKind.RootPending, "record-1", action));
+        feed.Apply(Event(2, RecordingEventKind.RootPending, "record-2", action));
 
         Assert.Equal(2, feed.Count);
         Assert.Equal(2, feed.Counts.Pending);
@@ -85,8 +85,8 @@ public sealed class PlatformLiveActionFeedTests
     {
         var feed = new PlatformLiveActionAggregation();
 
-        feed.Apply(Event(1, RecordingEventKind.DecisionPending, "record-1"));
-        feed.Apply(Event(2, RecordingEventKind.DecisionPending, "record-1"));
+        feed.Apply(Event(1, RecordingEventKind.RootPending, "record-1"));
+        feed.Apply(Event(2, RecordingEventKind.RootPending, "record-1"));
         feed.Apply(Event(3, RecordingEventKind.DecisionRecorded, "record-1"));
 
         Assert.Single(feed.Recent(24));
@@ -99,7 +99,7 @@ public sealed class PlatformLiveActionFeedTests
         var feed = new PlatformLiveActionAggregation();
         RecordingActionProjection action = Action("bound-1", "Defend", null);
 
-        feed.Apply(Event(1, RecordingEventKind.DecisionPending, null, action));
+        feed.Apply(Event(1, RecordingEventKind.RootPending, null, action));
         feed.Apply(Event(2, RecordingEventKind.DecisionRecorded, null, action));
 
         Assert.Equal(2, feed.Count);
@@ -113,7 +113,7 @@ public sealed class PlatformLiveActionFeedTests
     public void MissingMetadataIsExplicitAndNeverProducesAnEmptyRow()
     {
         var feed = new PlatformLiveActionAggregation();
-        feed.Apply(Event(1, RecordingEventKind.DecisionPending, "record-1", omitAction: true));
+        feed.Apply(Event(1, RecordingEventKind.RootPending, "record-1", omitAction: true));
 
         PlatformLiveActionItem row = Assert.Single(feed.Recent(24));
         string entry = PlatformLiveActionFeed.FormatEntry(row);
@@ -149,7 +149,7 @@ public sealed class PlatformLiveActionFeedTests
     {
         var feed = new PlatformLiveActionAggregation();
         feed.Apply(Event(1, RecordingEventKind.DecisionRecorded, "record-1"));
-        feed.Apply(Event(2, RecordingEventKind.DecisionPending, "record-2"));
+        feed.Apply(Event(2, RecordingEventKind.RootPending, "record-2"));
         feed.Apply(Event(3, RecordingEventKind.DecisionInvalidated, "record-3"));
 
         Assert.Equal(3, feed.Count);
@@ -160,8 +160,8 @@ public sealed class PlatformLiveActionFeedTests
     public void LifecycleUpdatesDoNotReorderHumanActionHistory()
     {
         var feed = new PlatformLiveActionAggregation();
-        feed.Apply(Event(1, RecordingEventKind.DecisionPending, "record-1"));
-        feed.Apply(Event(2, RecordingEventKind.DecisionPending, "record-2"));
+        feed.Apply(Event(1, RecordingEventKind.RootPending, "record-1"));
+        feed.Apply(Event(2, RecordingEventKind.RootPending, "record-2"));
         feed.Apply(Event(3, RecordingEventKind.DecisionRecorded, "record-1"));
 
         IReadOnlyList<PlatformLiveActionItem> rows = feed.Recent(24);

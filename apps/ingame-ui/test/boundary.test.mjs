@@ -95,7 +95,7 @@ test("Recorder owns a bounded canonical Action Feed with explicit unavailable fi
   assert.match(mod, /feedChanged \|= _actionFeed\.Apply\(value\)/u);
   assert.match(mod, /value\.SessionId, sessionId/u);
   assert.match(mod, /sessionId == null/u);
-  assert.match(feed, /DecisionPending => "… Observed"/u);
+  assert.match(feed, /RootPending => "… Observed"/u);
   assert.match(feed, /DecisionRecorded => "✓ Recorded"/u);
   assert.match(feed, /DecisionInvalidated => "✕ Invalidated"/u);
   assert.match(feed, /record:\{value\.RecordId\}/u);
@@ -156,7 +156,7 @@ test("canonical action fixtures cover lifecycle aggregation and explicit evidenc
   assert.match(mod, /Pending \{pending\}/u);
   assert.match(mod, /Invalidated \{invalidated\}/u);
   assert.match(mod, /Recent Actions also includes Pending \/ Invalidated/u);
-  assert.match(feed, /RecordingEventKind\.DecisionPending/u);
+  assert.match(feed, /RecordingEventKind\.RootPending/u);
   assert.match(feed, /RecordingEventKind\.DecisionRecorded/u);
   assert.match(feed, /RecordingEventKind\.DecisionInvalidated/u);
 });

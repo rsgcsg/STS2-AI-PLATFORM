@@ -50,7 +50,7 @@ internal sealed class PlatformLiveActionAggregation
             bool exact = _sourceComplete && _items.Values.All(value => value.HasReliableCorrelation);
             return new PlatformLiveActionCounts(
                 _items.Values.Count(value => value.Kind == RecordingEventKind.DecisionRecorded),
-                _items.Values.Count(value => value.Kind == RecordingEventKind.DecisionPending),
+                _items.Values.Count(value => value.Kind == RecordingEventKind.RootPending),
                 _items.Values.Count(value => value.Kind == RecordingEventKind.DecisionInvalidated),
                 exact);
         }
@@ -152,7 +152,7 @@ internal static class PlatformLiveActionFeed
     internal const int MaxEntries = 24;
 
     internal static bool IsActionEvent(RecordingEventKind kind) =>
-        kind is RecordingEventKind.DecisionPending
+        kind is RecordingEventKind.RootPending
             or RecordingEventKind.DecisionRecorded
             or RecordingEventKind.DecisionInvalidated;
 
@@ -193,7 +193,7 @@ internal static class PlatformLiveActionFeed
 
     internal static string FormatLifecycle(RecordingEventKind kind) => kind switch
     {
-        RecordingEventKind.DecisionPending => "… Observed",
+        RecordingEventKind.RootPending => "… Observed",
         RecordingEventKind.DecisionRecorded => "✓ Recorded",
         RecordingEventKind.DecisionInvalidated => "✕ Invalidated",
         _ => "unavailable"
@@ -201,7 +201,7 @@ internal static class PlatformLiveActionFeed
 
     private static string FormatLifecycleDetail(PlatformLiveActionItem value) => value.Kind switch
     {
-        RecordingEventKind.DecisionPending =>
+        RecordingEventKind.RootPending =>
             "Status: … Observed · waiting for canonical settlement",
         RecordingEventKind.DecisionRecorded => "Status: ✓ Recorded",
         RecordingEventKind.DecisionInvalidated => "Status: ✕ Invalidated",

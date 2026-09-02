@@ -157,6 +157,37 @@ public sealed class RecordingApplicationTests
     }
 
     [Fact]
+    public void EventStreamPreservesNonAuthorizingActionProjectionFacts()
+    {
+        var action = new RecordingActionProjection(
+            "play",
+            "bound-card-1",
+            "card-strike",
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["target"] = "creature-jaw-worm"
+            },
+            "Strike");
+        var stream = new RecordingEventStream();
+
+        stream.Publish(
+            RecordingEventKind.RootPending,
+            T0,
+            "session-1",
+            "run-1",
+            "semantic-record-1",
+            "PlayCardAction",
+            action);
+
+        RecordingEvent value = Assert.Single(stream.ReadAfter(0).Events);
+        Assert.Equal("semantic-record-1", value.RecordId);
+        Assert.Equal("bound-card-1", value.Action?.BoundActionId);
+        Assert.Equal("card-strike", value.Action?.SubjectReferentId);
+        Assert.Equal("creature-jaw-worm", value.Action?.Arguments["target"]);
+        Assert.Null(value.Action?.EffectSummary);
+    }
+
+    [Fact]
     public void CommandLedgerReturnsTheOriginalResultForDuplicateRequests()
     {
         var ledger = new RecordingCommandLedger(capacity: 2);
