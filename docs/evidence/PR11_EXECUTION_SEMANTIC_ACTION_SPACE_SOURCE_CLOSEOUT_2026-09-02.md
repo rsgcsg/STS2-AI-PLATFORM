@@ -19,7 +19,7 @@ Candidate seal:
 - unified Game Mod artifact `3d54c8b85431f899654e060722f6b76226f6dc457418eac0998a7319faf498fa`, MVID `601bfbf9-7bb0-4881-8913-cb8f9b70dd2d`;
 - Native Foundation / Connector / Annotator component source `aa03c84d2ca503a19635456c267419c71c6f1bbe`; Game Mod component source `c1b3144f07ba210c7f7064087d0d37bb3c9a2e66`;
 - exact STS2 `v0.111.0 / 41cef1ea`, `sts2.dll` SHA `9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4`, MVID `57785517-0b16-42b9-8b36-bad6fb28384b`;
-- loaded Connector runtime `2b0fed44f098477dbd97073d988ccc12`, environment `f079e1f45a3dfa04bd368e5563c0e6ca45dad36bfd6647791c21fc7d970ec637`, exact Modset `e8a7f7c39a212ec9680a92284a1a7e3060347e0fecf099f1dba3bd1b4f12e026`;
+- loaded Connector runtime `cac58962784d41d1a530e6e891ee655a`, environment `f079e1f45a3dfa04bd368e5563c0e6ca45dad36bfd6647791c21fc7d970ec637`, exact Modset `e8a7f7c39a212ec9680a92284a1a7e3060347e0fecf099f1dba3bd1b4f12e026`;
 - install/load PASS, runtime Ready with no recording session; Human canary remains pending.
 
 ## Historical reconstruction
