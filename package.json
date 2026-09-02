@@ -20,6 +20,7 @@
   ],
   "scripts": {
     "identity": "node tools/component-identity.mjs",
+    "check:ci": "node --test tools/check-ci-contract.test.mjs && node tools/check-ci-contract.mjs",
     "check:identity": "node --test tools/component-identity.test.mjs && node tools/component-identity.mjs --quiet",
     "check:entrypoints": "node --test tools/root-entrypoints.test.mjs",
     "check:bom": "node --test tools/check-platform-bom.test.mjs && node tools/check-platform-bom.mjs",
@@ -29,7 +30,7 @@
     "project:context": "node tools/project-system.mjs context",
     "project:check": "node --test tools/project-system.test.mjs && node tools/project-system.mjs check",
     "project:closeout": "node tools/project-system.mjs closeout",
-    "check": "npm run project:check && npm run check:identity && npm run check:entrypoints && npm run check:bom && npm run check:boundaries && npm run check:history && npm run check:components",
+    "check": "npm run project:check && npm run check:ci && npm run check:identity && npm run check:entrypoints && npm run check:bom && npm run check:boundaries && npm run check:history && npm run check:components",
     "check:exact-game": "npm --prefix components/connector run check && npm --prefix components/connector run build && npm --prefix components/annotator run check && npm --prefix apps/game-mod run build",
     "build": "npm --prefix components/policy-runtime run build && npm --prefix apps/game-mod run build",
     "doctor": "node tools/platform-doctor.mjs",
