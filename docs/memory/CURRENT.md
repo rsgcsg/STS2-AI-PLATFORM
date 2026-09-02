@@ -27,10 +27,11 @@ The current bounded topic is the selective reconciliation of historical
 narrow Annotator application-event projection. It is classified `G4`: the
 game-bound component and runtime lifecycle require exact build/install/load,
 while Human origin, causal admission, and durable evidence semantics are
-unchanged. Portable, exact-game, install, and cold-load
-evidence are recorded in the dated Live UI integration closeout; a new Human UI
-canary remains the next honest gate. Resolve the exact topic branch, pull
-request, and latest head from GitHub rather than this handoff.
+unchanged. Portable, exact-game, install, cold-load, and a bounded
+owner-operated Human UI canary are recorded in the dated Live UI integration
+closeout. The remaining integration action is review and a normal merge through
+the protected pull-request flow. Resolve the exact topic branch, pull request,
+and latest head from GitHub rather than this handoff.
 
 ## Remaining Platform non-claims
 

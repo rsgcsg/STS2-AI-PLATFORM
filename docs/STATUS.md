@@ -9,9 +9,11 @@ hidden-by-default Workspace and reimplements its Action Feed as a read-only
 projection after the current post-PR #11 semantic owner persists root and
 disposition facts. Historical BOM, mutable status, artifacts, sessions, and
 Human claims did not transfer. Portable, exact-game, build, install, and cold
-load gates pass for artifact `04fcb6e7... / 40fd1f1f...`; Human-visible UI
-interaction remains pending and is not implied by loaded identity. See the
-[dated integration closeout](evidence/LIVE_UI_HISTORY_INTEGRATION_SOURCE_CLOSEOUT_2026-09-03.md).
+load gates pass for artifact `04fcb6e7... / 40fd1f1f...`. The owner-operated
+bounded Human UI canary on those exact bytes passed; its current-format session
+audits 9/9 records with zero invalid records and zero invalidations. This is UI
+interaction evidence, not exhaustive semantic or Human-evidence qualification.
+See the [dated integration closeout](evidence/LIVE_UI_HISTORY_INTEGRATION_SOURCE_CLOSEOUT_2026-09-03.md).
 
 ## PR #11 current recording-format hard cut (source/test, 2026-09-02)
 

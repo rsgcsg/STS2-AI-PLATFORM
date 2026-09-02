@@ -3,8 +3,8 @@
 ## Scope and exact topology
 
 This report records the read-only archaeology and selective integration of the
-historical `ui-testing` line. It does not qualify the resulting UI through
-Human interaction.
+historical `ui-testing` line, plus the bounded owner-operated Human UI canary
+performed on the exact cold-loaded candidate.
 
 - refreshed `origin/develop`: `6667b24828af41b38a6ad2f66c3d160397a25049`
 - preserved `origin/ui-testing`: `99bf05c982bf604d8f7296724e09e66c539d249c`
@@ -113,11 +113,32 @@ The exact loaded source revisions are Annotator and Live UI `b36790cabc85814f33a
 The current BOM binds their current component identities while retaining old
 loaded/Human evidence as historical, non-transferred facts.
 
+## Bounded Human UI canary
+
+The owner attested PASS on 2026-09-03 for the requested shortest meaningful UI
+canary on the exact candidate above. The exercised scope covered hidden-default
+and `K`/Escape/Close visibility, the sole bounded Workspace, Recorder as a peer
+tab, drag/resize/reset/tab-body toggle and scrolling, gameplay click-through,
+Recorder controls, and the read-only Action Feed lifecycle presentation. No
+historical `ui-testing` Human result was transferred.
+
+The corresponding current-format session is
+`session-20260902T164749Z-e9823523f1234dca8b5038495d4ff46e`. Its runtime status
+binds PID `37284`, runtime instance `9a30638bc08e4009890015008850ecfd`, and the
+artifact SHA/MVID above; it ended `recording_closed`. Repository-native audit
+passes with nine valid records, zero invalid records, and zero invalidations.
+That audit corroborates format/integrity only: Human origin remains
+owner-attested, and the bounded UI canary does not qualify unexercised action
+families or semantic correctness. The game was safely closed after the canary,
+so a later `verify-loaded` correctly reported no running STS2 process; the
+pre-interaction cold-load identity remains the load evidence.
+
 ## Remaining non-claims
 
-- cold-load/identity verification is not Human-visible UI validation
-- the historical `ui-testing` Human canary does not transfer to these bytes
-- this source closeout does not qualify Action Feed behavior in a new Human run
+- the bounded Human UI canary is not exhaustive gameplay, semantic, or durable
+  evidence qualification
+- repository-native session audit does not independently prove Human origin or
+  non-interference
 - no Shop/Event/Rest/Full-Run expansion is claimed
 - no policy or STPD qualification is claimed
 - `origin/ui-testing` remains untouched and may be considered for archival only
