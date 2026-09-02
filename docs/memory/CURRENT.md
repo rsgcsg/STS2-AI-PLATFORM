@@ -6,120 +6,91 @@ requests, or dated evidence.
 
 ## Current phase
 
-`develop@791e271...` contains the completed PR #3, PR #5, PR #6, PR #9 and PR
-#10 production lines. PR #6 is merged and Human-qualified for its explicitly
-bounded scope; PR #11 is the active authority/evidence convergence topic. The integrated
-PR #3 history preserves gameplay-safe commit
-`4384a14...` as a non-release tag and contains a bounded Human-proved read-only
-native semantic sequential lane. Exact session
-`session-20260830T064823Z-...` records 41/41 successful roots as exact-once in
-STS2-owned logical `A_sem(S)` at first native execution; it includes PlayCard,
-EndTurn, potion and player-choice pause/resume. The same run proves that
-execution-time `A(UI)` is not the semantic action authority. The discriminator
-cannot authorize, block or execute UI. Loaded native artifact
-`d3b59bed... / 04acd691...`, runtime `f015b026...`, and Modset `968a30c3...`
-remain exact; audit-only source `193861a...` repaired cross-stream accounting
-without changing that artifact. ADR 0003 remains a historical candidate, not
-active gameplay authority.
+PR #11 `cleanup/platform/authority-evidence-single-source` has completed its
+explicitly bounded source/test/build/install/load/Human qualification scope and
+is merge-ready pending the final docs-only head CI / PR merge gate.
 
-The integrated Native Foundation workstream carries component source commit
-`a3bcd37...`: one bounded combat semantic catalog, one exact lifecycle
-adapter, one PlayerChoice lineage adapter, and a non-authorizing
-Reward/CardReward/Map owner discriminator. It changes native bytes, so no PR #3
-Human evidence transfers. ADR 0004 now freezes RitsuLib as an external
-reference with no runtime dependency after both retrofit and Ritsu-first
-counterfactual evaluation. Portable source/tests, clean build, safe install,
-cold-load, non-mutating controller/stale/idempotency gates and shipped-headless
-H0 pass for `9a89f1fe... / b1c34f90...`. Live/headless canonical parity is
-proved only at the main menu. No predecessor Human evidence transfers.
+Base before merge:
 
-The independent Windows candidate is built and Human-qualified as
-`a681f8b1... / 7c42c4c3...` against shipped STS2
-`v0.111.0 / 41cef1ea / 0861bfa1...`. Safe artifact/native-settings rollback,
-sole `STS2_PLATFORM` Modset `e5693d19...`, bounded visible Connector gates, and
-root-invoked shipped-headless H0 pass. Visible runtime `7a1942b6...` and
-headless runtime `49f34fbf...` have equal main-menu-only canonical digest
-`eaf8516d...`. Exact runtime `d8a10ba2...`, environment `9e0e0cfe...`, and
-sole-Platform Modset `1f1bdecc...` bind closed session
-`session-20260831T072650Z-b0608291ae7f416d96b058078f441794`. It passes 35/35
-Decision V2 records, 37/37 native-root dispositions, potion, three PlayerChoice
-pause/resume pairs, repeated lethal-to-Reward/CardReward/Map handoffs, and
-Recorder New/Pause/Resume/Close. The macOS and PR #3 Human evidence do not
-transfer. See the
-[Windows pre-Human gate](../evidence/NATIVE_FOUNDATION_WINDOWS_PRE_HUMAN_GATE_2026-08-31.md).
-The durable result is in the
-[Windows Human closeout](../evidence/NATIVE_FOUNDATION_WINDOWS_HUMAN_CLOSEOUT_2026-08-31.md).
+- `develop@791e27172c39e5c4ce33a415b16fc1ea7f060513`
+- qualified code/head before docs-only closeout: `5185d47bc961f57f31bff66913dc2ca7d58c535f`
+- runtime-changing source: `3ee15fe8c70da4cd7d8070ca5344f331dec8a2cf`
 
-## Active workstreams
+The active recorder has one current causal/evidence path. `SemanticBoundaryTracker`
+is the sole current Human causal/successor authority; canonical transition is
+the sole durable training-transition truth. Historical V1/V2/native-ledger
+readers remain archival only. NativeSemanticDiscriminator remains diagnostic:
+coverage/membership unknown cannot veto healthy authoritative evidence, while
+structural/identity/cross-stream corruption remains fatal.
 
-- PR #11 `cleanup/platform/authority-evidence-single-source` is the active
-  Platform topic, based on `develop@791e271...`. Its current recording-format
-  hard cut preserves
-  the exact Native Foundation execution `A_sem(S)` as typed durable evidence,
-  with a schema-2 action-space sidecar carrying the exact Human
-  `BoundActionId`, while leaving `SemanticBoundaryTracker` as the sole
-  causal/successor authority and Connector as the sole public action/delivery
-  authority. The latest candidate is source `3ee15fe8...`, artifact
-  `085a70f3... / d08ee098...`, installed and cold-loaded in runtime
-  `b4985ac7...` under sole exact Platform Modset `f80770c0...`. It adds exact
-  PlayerChoice parent-continuation evidence and durable fail-closed generated
-  choice occurrence/disposition, but it has no Human qualification yet. A
-  fresh bounded owner canary remains required.
-- PR #3, PR #5 and PR #6 are merged integration history. Ritsu research PRs #7 and #8
-  are closed without their experimental runtime code; durable findings live in
-  ADR 0004 and the final route-decision packet.
-- Repository System v1 remains the integrated governance baseline. It changes
-  no game behavior or component semantic version.
+## Exact qualified PR #11 candidate
 
-## Current blockers and open questions
+- Human session: `session-20260902T120248Z-71a3cf217c3b4fbea8d8c81053e95cb7`
+- unified Game Mod artifact: `085a70f3cbf436bbe20784f8519494b2bfd8e26371977c2e6bc3e270e426e647`
+- artifact MVID: `d08ee098-e9f1-417e-a03f-d9986ef61cc4`
+- loaded runtime: `b24fc95928dd4f97aeea8f1071b6ecaa`
+- environment: `e34d7ed2777ea169195d060d79f44c18b0d2c1d9d81852ba8b31beec42da16a5`
+- exact Modset: `exact_platform_modset`
+- Modset fingerprint: `f80770c0eb87c49b54bb3871976610bf9cbf8d0b63258e989e9049393007bdc1`
+- STS2: `v0.111.0 / 41cef1ea`
+- `sts2.dll` SHA-256: `9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4`
+- `sts2.dll` MVID: `57785517-0b16-42b9-8b36-bad6fb28384b`
 
-- True overlapping accepted roots/execution reorder and native cancel/abort did
-  not occur in the bounded discriminator canary and remain targeted Live gates.
-- Adjacent first-execution digests are causal handoff candidates, not proof of
-  final successor/business outcome semantics; non-combat Full-Run native
-  adapters remain to be implemented.
-- The S1 checkpoint named by the current Policy Manifest is unavailable on this
-  Mac, so real-model Shadow, One-Step, Auto, and Agent-run evidence remain
-  unexercised.
-- The Native Foundation Human gate is complete for PR #6's bounded scope. It is
-  not exhaustive Full-Run qualification. The exact merged candidate and
-  owner-attested Human qualification are recorded below; predecessor evidence
-  does not transfer to it or from it to new runtime bytes.
-- Historical PR #6 predecessor source `f320ef6...` separated Human Root, exact Native
-  Commit and later Successor Boundary. Its same-bytes Human sessions prove
-  Reward and Map stable but expose CardReward nested-owner and Treasure
-  pre-generated/predicted-state seam defects. Current repair source uses exact
-  CardReward `ShowScreen` owner creation and Treasure `OnPicked` Commit. Clean
-  artifact `641f543d... / 7ac2fa24...` is cold-loaded in runtime `c3e4d2b...`,
-  environment `6655e3a...`, sole-Platform Modset `91d2f6e7...`; Human
-  qualification was superseded and no predecessor evidence transfers.
-- A subsequent historical repaired-bytes Human run proved CardReward/Treasure and all
-  but its final Map successor. A focused replay proved the final Map Commit and
-  playable Combat before Close, exposing a production observation gap rather
-  than early Close: `NativeDecisionOwnerReady` had no publisher. Source
-  `c1b3144...` adds one exact typed Combat publisher after native play phase and
-  input-owner readiness, plus complete domain-matching Connector capture and
-  durable owner/mechanism evidence. Root/exact checks, clean build, safe install
-  and cold-load pass as artifact `627b5b69... / f19b8863...`, runtime
-  `c296ec99...`, environment `0c47c311...`, sole-Platform Modset
-  `c8dd91e3...`; its canary was superseded by the current qualified session.
+The final Human audit reports:
 
-## Next meaningful gates
+- current recorder audit: `185` admitted, `0` invalid records, `35` explicit invalidations;
+- semantic trace: `705` accepted, `678` proved, `26` unknown, `1` cancelled;
+- durable canonical: `627`, all transition IDs unique;
+- `state_action_space_unresolved = 0`;
+- no rapid-admission `semantic_causal_overlap`;
+- PlayerChoice pause/resume `11/11`, no same-parent self-settle;
+- no duplicate canonical, cross-session identity contamination, false success,
+  fabricated successor, or later-frame backfill;
+- clean `session_closed`, no `recording_close_drain_timeout`.
 
-- PR #6's merged candidate remains Human-qualified: artifact `2382b3dd... /
-  b1a7d1f1...`, runtime `a00b1852...`, environment `c9cc1a5d...`, and Modset
-  `79bdf7ca...`. Session `session-20260901T061040Z-561a204be0bc422da5809e1ec5c148aa`
-  passes strict V2, modern 25/25, Map 7/7 and owner-ready 5/5 with no
-  unresolved transition or close-drain timeout.
-- The performance topic passes portable and exact-game checks, clean build, safe
-  install and exact cold-load for unified artifact `111bcba1... / 7187768f...`,
-  runtime `dd4e2229...`, environment `6b7ccbf2...` and sole-Platform Modset
-  `05df53c2...`; Recorder is Ready with no session and rollback is available.
-  The exact-candidate Human OFF/ON canary and subphase profile are still
-  required; no predecessor Human evidence transfers.
-- Shop, Event, Rest, run entry and terminal remain the next Full-Run domain
-  expansion after this bounded hardening closeout.
+The 26 unknowns are honest dispositions rather than a blanket failure: 10 refuse
+to cross a later Human effect, and 16 terminate at Recorder Close before a
+successor boundary completes. The exact closeout is
+[`PR11_HUMAN_QUALIFICATION_CLOSEOUT_2026-09-02.md`](../evidence/PR11_HUMAN_QUALIFICATION_CLOSEOUT_2026-09-02.md).
 
-Use `npm run project:context` to start a task and
-`npm run project:closeout` to surface likely documentation, evidence, contract,
-version, and governance impacts before PR closeout.
+## What PR #11 closes
+
+- current-format authority convergence and removal of current duplicate
+  PendingDecision/native-ledger admission authority;
+- exact execution-owned `S + A_sem(S)` preservation and current canonical
+  projection;
+- PlayerChoice native parent continuation, independent child Human decision,
+  and same-parent resume as lifecycle only;
+- durable Human occurrence/disposition even when canonical proof is unavailable;
+- rapid accepted Human roots entering the causal tracker before predecessor
+  successor settlement, while semantic `S` still binds only at each root's
+  authoritative execution boundary;
+- proof refusing to cross another Human effect;
+- terminal Close as explicit honest unknown rather than timer/polling/backfill;
+- diagnostic coverage separated from authoritative audit;
+- no polling/timer/UI-visual/FIFO successor authority and no second legality or
+  effect state machine.
+
+## Remaining non-claims / next Platform work
+
+PR #11 is **not** exhaustive Full-Run qualification. The next semantic coverage
+work remains domain expansion and live exercise, not another causal-foundation
+rewrite. In particular:
+
+- room-internal Shop, Event and Rest Human decisions are not yet implemented as
+  shared native decisions/Human witnesses;
+- generated skip, hand-selector select/replace/deselect, potion target-picker
+  cancel, run entry and exhaustive terminal paths still need their own Live
+  evidence where applicable;
+- business outcome correctness, STPD model/training quality and controlled
+  Recorder OFF/ON performance improvement are not claimed by PR #11.
+
+The observed Human-session Close flush of about `13.96 ms` is recorded only as
+a fact, not as performance qualification.
+
+After PR #11 merges, `develop` becomes the owning integration truth for this
+bounded causal foundation. Future work should start from the merged `develop`
+head and preserve the exact evidence boundary above.
+
+Use `npm run project:context` to start a task and `npm run project:closeout`
+before the next PR closeout.
