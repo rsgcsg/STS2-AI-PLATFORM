@@ -38,7 +38,7 @@ directly before claiming protection.
 
 PR #11 is based on `develop@791e27172c39e5c4ce33a415b16fc1ea7f060513`.
 Its authority convergence correctly retires the mutable legacy admission and
-native-ledger paths, but exact Human session
+native-ledger paths, but the pre-hard-cut exact Human session
 `session-20260901T143015Z-98e33382404a46369fffd0140729d815` exposed a separate
 fact-loss regression: 194 of 195 roots proved causal successors, while 139
 ordinary combat roots lacked durable execution action-space evidence. The
@@ -55,13 +55,14 @@ successor semantics. Decision V2 remains a compatibility projection from the
 frozen Human-time public frame. Historical schema 3/schema 1 evidence remains
 readable and is not upgraded or backfilled. The action-space sidecar is schema 2
 with schema 1 read compatibility and carries the exact Human `BoundActionId`.
-Exact source/test/build/install/load evidence is sealed for artifact
+The pre-hard-cut source/test/build/install/load evidence was sealed for artifact
 `3d54c8b85431f899654e060722f6b76226f6dc457418eac0998a7319faf498fa` / MVID
 `601bfbf9-7bb0-4881-8913-cb8f9b70dd2d` in runtime
 `cac58962784d41d1a530e6e891ee655a` under exact Modset
 `e8a7f7c39a212ec9680a92284a1a7e3060347e0fecf099f1dba3bd1b4f12e026`.
-A fresh Human canary remains pending; predecessor Human evidence does not
-transfer. The follow-on draft-projection repair makes
+A fresh Human canary for the hard-cut bytes remains pending; neither this
+pre-hard-cut artifact nor predecessor Human evidence transfers. The follow-on
+draft-projection repair makes
 every lifecycle/settlement draft inherit the Entry-owned Human observation,
 native completion and execution action-space references, preserving those facts
 through durable Decision V2/canonical projection without changing authority or

@@ -53,15 +53,16 @@ The durable result is in the
 ## Active workstreams
 
 - PR #11 `cleanup/platform/authority-evidence-single-source` is the active
-  Platform topic, based on `develop@791e271...`. Its current repair preserves
+  Platform topic, based on `develop@791e271...`. Its current recording-format
+  hard cut preserves
   the exact Native Foundation execution `A_sem(S)` as typed durable evidence,
   with a schema-2 action-space sidecar carrying the exact Human
   `BoundActionId`, while leaving `SemanticBoundaryTracker` as the sole
   causal/successor authority and Connector as the sole public action/delivery
-  authority. Exact source/test/build/install/load evidence is sealed for
-  artifact `3d54c8b8... / 601bfbf9...` in runtime `cac58962...` under the sole
-  exact Platform Modset; predecessor Human evidence does not transfer and a
-  fresh bounded owner canary remains required.
+  authority. The earlier pre-hard-cut source/test/build/install/load evidence
+  was sealed for artifact `3d54c8b8... / 601bfbf9...` in runtime `cac58962...`
+  under the sole exact Platform Modset; it is historical and does not qualify
+  the hard-cut bytes. A fresh bounded owner canary remains required.
 - PR #3, PR #5 and PR #6 are merged integration history. Ritsu research PRs #7 and #8
   are closed without their experimental runtime code; durable findings live in
   ADR 0004 and the final route-decision packet.
