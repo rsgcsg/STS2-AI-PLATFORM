@@ -17,6 +17,10 @@ function fixture() {
   git(root, "init", "-b", "main");
   git(root, "config", "user.email", "identity-test@example.invalid");
   git(root, "config", "user.name", "Component Identity Test");
+  // Simulate a checkout that would normally materialize CRLF. Repository
+  // attributes must keep source bytes stable for content identity.
+  git(root, "config", "core.autocrlf", "true");
+  fs.writeFileSync(path.join(root, ".gitattributes"), "* text=auto eol=lf\n");
   for (const name of ["a", "b"]) {
     fs.mkdirSync(path.join(root, "components", name, "contracts"), { recursive: true });
     fs.writeFileSync(path.join(root, "components", name, "package.json"), '{"version":"1.0.0"}\n');
@@ -46,6 +50,21 @@ function changeComponentA(root, revision) {
   git(root, "add", ".");
   git(root, "commit", "-m", `change a ${revision}`);
 }
+
+test("repository EOL policy keeps identity source bytes LF under autocrlf", () => {
+  const { root } = fixture();
+  try {
+    git(root, "checkout", "--force", "HEAD");
+    const contents = fs.readFileSync(
+      path.join(root, "components", "a", "contracts", "contract.json"),
+      "utf8"
+    );
+    assert.equal(contents, "{}\n");
+    assert.equal(contents.includes("\r"), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
 
 test("unrelated component commits do not change component identity", () => {
   const { root, component } = fixture();
