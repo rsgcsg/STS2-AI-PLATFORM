@@ -59,9 +59,9 @@ The durable result is in the
   with a schema-2 action-space sidecar carrying the exact Human
   `BoundActionId`, while leaving `SemanticBoundaryTracker` as the sole
   causal/successor authority and Connector as the sole public action/delivery
-  authority. The final candidate is artifact `0b398d7a... / ca8d7d3a...`,
-  built from workspace `cab6b1b...`, installed and cold-loaded in runtime
-  `931f5ede...` under sole exact Platform Modset `10a9c94f...`. It adds exact
+  authority. The latest candidate is source `3ee15fe8...`, artifact
+  `085a70f3... / d08ee098...`, installed and cold-loaded in runtime
+  `b4985ac7...` under sole exact Platform Modset `f80770c0...`. It adds exact
   PlayerChoice parent-continuation evidence and durable fail-closed generated
   choice occurrence/disposition, but it has no Human qualification yet. A
   fresh bounded owner canary remains required.

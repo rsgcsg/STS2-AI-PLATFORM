@@ -96,6 +96,14 @@ Periodic frames, UI stability, queue-idle, timers, completion order, and later
 state backfill cannot create proof. A boundary that crosses another Human effect
 is rejected.
 
+Human-root capture admission is separate from successor settlement. An
+unresolved or uncommitted prior root must not prevent an STS2-accepted later
+root from entering the same causal tracker. The later root records its Human
+observation first and binds semantic pre only at its own authoritative
+execution boundary. This permits rapid accepted inputs without treating
+acceptance as execution, while preserving fail-closed overlap and unknown
+dispositions when the native boundary is unavailable.
+
 An owner-ready event is not self-proving. Durable evidence must name the typed
 domain, exact process-local owner witness/type and exact native mechanism, and
 the synchronously captured Connector frame must independently be complete and

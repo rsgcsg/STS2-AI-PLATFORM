@@ -28,6 +28,14 @@ generated-card select/skip that cannot canonicalize retains an immutable
 failed-closed occurrence with exact native subject/holder, owner and available
 parent lineage rather than silently disappearing.
 
+The rapid-input admission repair at head `3ee15fe8c70da4cd7d8070ca5344f331dec8a2cf`
+keeps capture admission independent from prior-root settlement. An unresolved
+prior root no longer prevents an STS2-correlated later Human root from entering
+the causal tracker; each root still binds semantic pre only at its own
+authoritative execution boundary, with fail-closed overlap preserved. This is a
+new runtime candidate, not a Human qualification claim; the prior Human session
+and artifact do not transfer.
+
 ## Repository governance
 
 Public `main` commit `5604050ef0e0f55f13bf2fdb720e5c215d774fd5`
