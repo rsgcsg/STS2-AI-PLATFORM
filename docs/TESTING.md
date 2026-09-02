@@ -76,7 +76,8 @@ The checks have separate meanings:
 - CI contract: workflow topology, trigger/concurrency policy, cross-OS aggregate
   gate, action pinning, and hosted/exact-game boundary;
 - component identity: path-scoped Git provenance plus component tree, source
-  digest, contract digest, version, and clean-worktree reporting;
+  digest, contract digest, version, clean-worktree reporting, and the repository
+  EOL policy required to keep byte digests stable across checkout platforms;
 - BOM: component source identities, versions, public package pins, retained
   runtime/artifact evidence, and explicit non-claims agree;
 - boundary: component dependency direction, active predecessor references,
@@ -140,6 +141,16 @@ identity contract, change the tests, BOM contract, workflow guidance, and merge
 policy together. Do not merely weaken `check:bom` after a squash-induced drift.
 
 ## Portability notes
+
+The repository pins text materialization with `.gitattributes` as
+`* text=auto eol=lf`. This is an identity requirement, not only a style choice:
+component source and contract digests hash source bytes, so allowing Windows
+`core.autocrlf` to rewrite a clean checkout would make one Git tree acquire a
+different digest on another OS. `check:identity` directly guards the repository
+EOL rule, and its temporary Git fixture enables `core.autocrlf=true` to prove
+that canonical LF still holds. Text parsers that consume external or generated
+content should nevertheless remain CRLF-tolerant rather than relying solely on
+the checkout rule.
 
 Root Host wrappers retain an explicit nested-npm `--` boundary so profile,
 endpoint, and experimental-evidence arguments reach the owning Host CLI on
