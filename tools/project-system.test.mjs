@@ -90,6 +90,24 @@ test("missing files referenced by a Skill fail", () => {
   }
 });
 
+test("Skill frontmatter is stable across CRLF Windows checkout", () => {
+  const root = fixture();
+  try {
+    write(root, ".agents/skills/example/SKILL.md", [
+      "---",
+      "name: example",
+      "description: Run a bounded example workflow.",
+      "---",
+      "",
+      "Instructions.",
+      ""
+    ].join("\r\n"));
+    assert.deepEqual(skillFindings(root), []);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("a repository Skill directory requires a SKILL.md entrypoint", () => {
   const root = fixture();
   try {
