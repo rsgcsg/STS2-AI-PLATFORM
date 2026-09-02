@@ -7,11 +7,15 @@ import { ciWorkflowErrors } from "./check-ci-contract.mjs";
 const workflow = path.resolve(import.meta.dirname, "..", ".github", "workflows", "ci.yml");
 
 function currentSource() {
-  return fs.readFileSync(workflow, "utf8");
+  return fs.readFileSync(workflow, "utf8").replace(/\r\n?/gu, "\n");
 }
 
 test("current CI workflow satisfies the repository CI contract", () => {
   assert.deepEqual(ciWorkflowErrors(currentSource()), []);
+});
+
+test("current CI workflow also validates with CRLF newlines", () => {
+  assert.deepEqual(ciWorkflowErrors(currentSource().replace(/\n/gu, "\r\n")), []);
 });
 
 test("CI contract rejects unscoped push duplication", () => {
