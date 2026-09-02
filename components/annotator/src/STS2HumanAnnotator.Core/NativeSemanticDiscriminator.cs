@@ -11,6 +11,8 @@ public static class NativeSemanticDiscriminatorContract
         "Canonical semantic boundary capture owns this execution snapshot.";
     public const string LifecycleOnlyDetail =
         "Native lifecycle observation does not capture a semantic boundary.";
+    public const string PlayerChoiceResumeDetail =
+        "ActionExecutor resumed the same paused GameAction parent; no new semantic execution boundary was captured.";
 }
 
 /// <summary>
@@ -83,6 +85,14 @@ public sealed record NativeSemanticDiscriminatorReport(
 
 public static class NativeSemanticDiscriminatorAnalyzer
 {
+    private static readonly HashSet<string> DiagnosticOnlyActionReasons = new(StringComparer.Ordinal)
+    {
+        "accepted_event_missing",
+        "successful_action_missing_execution_boundary",
+        "successful_action_not_exact_once_in_semantic_catalog",
+        "terminal_disposition_missing"
+    };
+
     private static readonly HashSet<string> AllowedPhases = new(StringComparer.Ordinal)
     {
         "accepted",
@@ -203,6 +213,20 @@ public static class NativeSemanticDiscriminatorAnalyzer
                 "end_turn_finished_requires_state_change_evidence_for_commit",
                 "full_run_surface_completeness_not_claimed"
             });
+    }
+
+    /// <summary>
+    /// The discriminator is an additive diagnostic stream. Per-action
+    /// coverage/membership gaps are retained in its own report but cannot
+    /// veto an authoritative semantic/canonical audit. Envelope, identity,
+    /// sequence and lifecycle-integrity errors remain fatal to callers that
+    /// gate the diagnostic stream.
+    /// </summary>
+    public static bool IsDiagnosticOnlyError(string error)
+    {
+        int separator = error.LastIndexOf(':');
+        return separator > 0
+            && DiagnosticOnlyActionReasons.Contains(error[(separator + 1)..]);
     }
 
     private static List<string> ValidateEnvelope(

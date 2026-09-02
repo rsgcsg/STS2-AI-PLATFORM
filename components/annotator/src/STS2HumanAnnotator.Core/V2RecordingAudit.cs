@@ -836,7 +836,8 @@ public static class V2RecordingAuditor
 
         NativeSemanticDiscriminatorReport report =
             NativeSemanticDiscriminatorAnalyzer.Analyze(events);
-        foreach (string _ in report.Errors)
+        foreach (string _ in report.Errors.Where(error =>
+                     !NativeSemanticDiscriminatorAnalyzer.IsDiagnosticOnlyError(error)))
             Add(errors, "native_semantic_discriminator_analysis_failed");
         return events;
     }

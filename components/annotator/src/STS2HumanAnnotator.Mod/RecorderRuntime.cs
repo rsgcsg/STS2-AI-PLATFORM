@@ -1342,6 +1342,42 @@ internal static class RecorderRuntime
         string phase = action.State.ToString() == "ReadyToResumeExecuting"
             ? "before_execution_resume"
             : "before_execution";
+
+        // ActionExecutor raises BeforeActionExecuted for every queue pass,
+        // including a resumed PlayerChoice parent. GameAction.BeforeExecuted
+        // is first-execution-only, and STS2 resumes the same GameAction object;
+        // this callback is lifecycle evidence, not a new semantic pre-state or
+        // a successor boundary. Keep the exact parent root open until its
+        // native Finished/Commit and a later causal boundary are observed.
+        if (phase == "before_execution_resume")
+        {
+            NativeSemanticDiscriminatorRuntime.Observe(
+                _store,
+                SessionId,
+                TimelineId,
+                _currentRunId,
+                phase,
+                action,
+                capture: false,
+                detail: NativeSemanticDiscriminatorContract.PlayerChoiceResumeDetail);
+            try
+            {
+                lock (Gate)
+                {
+                    if (_semanticBoundaryTraceHealthy
+                        && BoundaryTracker.Contains(actionWitnessId))
+                    {
+                        BoundaryTracker.BeforeExecutionResume(actionWitnessId);
+                    }
+                }
+            }
+            catch (Exception exception)
+            {
+                DisableSemanticBoundaryTrace(exception);
+            }
+            return;
+        }
+
         bool canonicalBoundaryWillCapture;
         lock (Gate)
         {

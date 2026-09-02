@@ -148,6 +148,50 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
+    public void PlayerChoiceResumeCallbackStaysOnNativeParentUntilCommitAndNextBoundary()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference parent = Action("choice-parent", 1) with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(parent, State("human-parent"));
+        tracker.ObserveBeforeActionExecution(
+            parent.ActionWitnessId,
+            Boundary("combat-before", parent.ActionWitnessId));
+        tracker.Started(parent.ActionWitnessId);
+        tracker.PausedForPlayerChoice(parent.ActionWitnessId);
+        tracker.ReadyToResume(parent.ActionWitnessId);
+
+        // ActionExecutor's resume callback is the same parent GameAction, not
+        // another execution boundary and not a self-successor.
+        tracker.BeforeExecutionResume(parent.ActionWitnessId);
+        Assert.True(tracker.HasUnresolvedActions);
+        tracker.Resumed(parent.ActionWitnessId);
+        tracker.Finished(parent.ActionWitnessId);
+        NativeCompletionEvidence completion = Completion(parent.ActionWitnessId);
+        SemanticBoundaryTraceDraft committed = Assert.Single(
+            tracker.ObserveNativeCommit(parent.ActionWitnessId, completion));
+
+        Assert.Equal(SemanticBoundaryTraceKinds.NativeCommitObserved, committed.Kind);
+        Assert.Equal("native_commit_observed", committed.ProofStatus);
+        Assert.True(tracker.HasUnresolvedActions);
+
+        SemanticActionReference next = Action("next", 2);
+        tracker.Accept(next, State("human-next"));
+        SemanticBoundaryTraceDraft proved = Assert.Single(
+            tracker.ObserveBeforeActionExecution(
+                next.ActionWitnessId,
+                Boundary("combat-after-choice", next.ActionWitnessId)),
+            value => value.Kind == SemanticBoundaryTraceKinds.TransitionProved);
+
+        Assert.Equal(parent.ActionWitnessId, proved.Action.ActionWitnessId);
+        Assert.Equal("proved_native_commit_then_execution_handoff", proved.ProofStatus);
+        Assert.Same(completion, proved.NativeCompletion);
+        Assert.Empty(tracker.ObserveNativeCommit(parent.ActionWitnessId, completion));
+    }
+
+    [Fact]
     public void IncompleteCaptureBeforeNextActionFailsClosedAndDoesNotUseLaterState()
     {
         var tracker = new SemanticBoundaryTracker();

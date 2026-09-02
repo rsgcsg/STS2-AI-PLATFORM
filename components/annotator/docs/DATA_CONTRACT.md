@@ -104,6 +104,13 @@ The stream is audited by `audit-native-semantic`; it does not authorize input,
 change Decision V2, admit training rows, prove End Turn completion by itself, or
 claim Full-Run semantic completeness.
 
+The authoritative `audit` consumes this stream only for envelope/session
+integrity and cross-stream accounting. Per-action diagnostic coverage or
+membership findings (for example `not_applicable` native catalog coverage) are
+retained in the `audit-native-semantic` report but do not invalidate an
+otherwise valid semantic/canonical session. Malformed JSON, schema/sequence
+errors, identity mismatches, and orphan cross-stream identities remain fatal.
+
 `canonical-transitions.jsonl` schema 2 is the non-authorizing current canonical
 projection and the sole durable canonical truth. A row is written only after
 one complete semantic state, exact-once selected action in the authoritative

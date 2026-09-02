@@ -96,6 +96,20 @@ public sealed class NativeSemanticDiscriminatorTests
         Assert.Equal(1, report.Unknown);
         Assert.Contains(report.Errors, value =>
             value.EndsWith("successful_action_not_exact_once_in_semantic_catalog", StringComparison.Ordinal));
+        Assert.True(NativeSemanticDiscriminatorAnalyzer.IsDiagnosticOnlyError(
+            report.Errors.Single(value =>
+                value.EndsWith("successful_action_not_exact_once_in_semantic_catalog", StringComparison.Ordinal))));
+    }
+
+    [Fact]
+    public void EnvelopeIntegrityErrorsRemainFatalWhileCoverageErrorsStayDiagnostic()
+    {
+        Assert.True(NativeSemanticDiscriminatorAnalyzer.IsDiagnosticOnlyError(
+            "a1:successful_action_not_exact_once_in_semantic_catalog"));
+        Assert.False(NativeSemanticDiscriminatorAnalyzer.IsDiagnosticOnlyError(
+            "native_semantic_discriminator_sequence_gap"));
+        Assert.False(NativeSemanticDiscriminatorAnalyzer.IsDiagnosticOnlyError(
+            "a1:action_run_identity_changed"));
     }
 
     [Fact]

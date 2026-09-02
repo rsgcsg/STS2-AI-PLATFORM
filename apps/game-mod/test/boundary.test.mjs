@@ -234,6 +234,24 @@ test("execution semantic action space is captured once and preserved without bec
   assert.doesNotMatch(runtime, /PendingDecision|AcceptedHumanActionLedger|SerializedEvidenceAdmission/u);
 });
 
+test("resumed PlayerChoice parents do not rebind as a second execution boundary", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const beforeExecution = sourceBetween(
+    runtime,
+    "private static void ObserveBeforeActionExecution",
+    "private static void ObserveSemanticDecisionBoundary"
+  );
+  const resumeGuard = beforeExecution.indexOf("phase == \"before_execution_resume\"");
+  const genericBoundary = beforeExecution.indexOf("BoundaryTracker.ObserveBeforeActionExecution(");
+
+  assert.ok(resumeGuard >= 0);
+  assert.ok(genericBoundary > resumeGuard);
+  assert.match(
+    beforeExecution.slice(resumeGuard, genericBoundary),
+    /BoundaryTracker\.BeforeExecutionResume\(actionWitnessId\)/u
+  );
+});
+
 test("combat roots carry the Native Foundation decision from admission through execution", () => {
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
   const uiPatches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");

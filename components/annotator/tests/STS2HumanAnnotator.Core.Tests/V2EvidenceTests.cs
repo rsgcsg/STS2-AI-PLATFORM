@@ -574,6 +574,7 @@ public sealed class V2EvidenceTests
             HumanCaptureProfile profile = Profile();
             RecordingManifestV2 manifest = Manifest(profile);
             string session;
+            string discriminatorPath;
             using (var store = V2RecordingStore.Create(root, manifest, profile))
             {
                 session = store.DirectoryPath;
@@ -667,8 +668,8 @@ public sealed class V2EvidenceTests
                     SemanticState = JsonNode.Parse("{\"map\":true}"),
                     SemanticActionKeys = new[] { "activate|map" },
                     ObservedActionKey = "activate|map",
-                    SemanticMembership = "exact_once",
-                    SemanticMatchCount = 1
+                    SemanticMembership = "not_applicable",
+                    SemanticMatchCount = 0
                 });
                 store.AppendNativeSemanticDiscriminatorEvent(DiscriminatorEvent(
                     manifest,
@@ -680,11 +681,39 @@ public sealed class V2EvidenceTests
                     4,
                     "finished",
                     action.ActionWitnessId));
+                discriminatorPath = Path.Combine(
+                    session,
+                    "native-semantic-discriminator.jsonl");
             }
 
             RecordingAuditResult audit = V2RecordingAuditor.Audit(session);
 
             Assert.True(audit.Status == "pass", JsonSerializer.Serialize(audit.Errors));
+            NativeSemanticDiscriminatorReport diagnostic =
+                NativeSemanticDiscriminatorAnalyzer.Analyze(
+                    File.ReadLines(discriminatorPath)
+                        .Where(line => !string.IsNullOrWhiteSpace(line))
+                        .Select(line => JsonSerializer.Deserialize<NativeSemanticDiscriminatorEvent>(
+                            line,
+                            EvidenceJson.Options)!)
+                        .ToArray());
+            Assert.Equal("fail", diagnostic.Status);
+            Assert.Contains(diagnostic.Errors, value =>
+                value.EndsWith(
+                    "successful_action_not_exact_once_in_semantic_catalog",
+                    StringComparison.Ordinal));
+
+            File.WriteAllText(
+                discriminatorPath,
+                File.ReadAllText(discriminatorPath).Replace(
+                    NativeSemanticDiscriminatorContract.EventSchema,
+                    "tampered-native-semantic-schema",
+                    StringComparison.Ordinal));
+            RecordingAuditResult malformed = V2RecordingAuditor.Audit(session);
+            Assert.Equal("fail", malformed.Status);
+            Assert.Contains(
+                "native_semantic_discriminator_analysis_failed",
+                malformed.Errors.Keys);
         }
         finally
         {

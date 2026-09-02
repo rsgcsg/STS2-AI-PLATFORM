@@ -333,6 +333,22 @@ public sealed class SemanticBoundaryTracker
     public IReadOnlyList<SemanticBoundaryTraceDraft> ReadyToResume(string actionWitnessId) =>
         Lifecycle(actionWitnessId, SemanticBoundaryTraceKinds.ActionReadyToResume, "player_choice_supplied");
 
+    /// <summary>
+    /// Validates the ActionExecutor resume callback without treating it as a
+    /// new semantic execution boundary. STS2 raises that callback for the same
+    /// paused GameAction parent; the parent remains responsible for its own
+    /// eventual Commit and must wait for a later causal successor boundary.
+    /// </summary>
+    public void BeforeExecutionResume(string actionWitnessId)
+    {
+        Entry entry = Required(actionWitnessId);
+        if (entry.Disposed || entry.Finished || !entry.Paused)
+        {
+            throw new InvalidOperationException(
+                "A GameAction resume callback must reference its still-paused parent root.");
+        }
+    }
+
     public IReadOnlyList<SemanticBoundaryTraceDraft> Resumed(string actionWitnessId)
     {
         Entry entry = Required(actionWitnessId);
