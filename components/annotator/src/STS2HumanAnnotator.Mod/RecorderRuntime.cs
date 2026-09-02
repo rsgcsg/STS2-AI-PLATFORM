@@ -562,28 +562,16 @@ internal static class RecorderRuntime
     }
 
     /// <summary>
-    /// Non-authorizing admission check for opening the next Human root. The
-    /// semantic tracker is the only causal state machine: a new root may open
-    /// when no prior root is unresolved, or when the tracker has an exact
-    /// next-root execution handoff available. Failure never blocks STS2 input.
+    /// Non-authorizing capture check for a new Human root. Acceptance and
+    /// execution-order capture belong to the semantic tracker; an unresolved
+    /// prior root must not prevent STS2 from accepting and recording another
+    /// Human action. Failure never blocks STS2 input.
     /// </summary>
     private static bool CanOpenSemanticEvidenceWindow()
     {
         RecordingLifecycleState lifecycleState = GetRecordingLifecycle().State;
-        if (lifecycleState != RecordingLifecycleState.Recording
-            || HumanActionScope.Current != null)
-            return true;
-        lock (Gate)
-        {
-            bool canOpen = !BoundaryTracker.HasUnresolvedActions
-                || BoundaryTracker.CanOpenNextRoot;
-            if (!canOpen)
-            {
-                _runtimeState = "awaiting_semantic_successor_boundary";
-                _detail = "A prior Human root is not yet eligible for an exact next-root handoff.";
-            }
-            return canOpen;
-        }
+        return lifecycleState == RecordingLifecycleState.Recording
+            || HumanActionScope.Current != null;
     }
 
     internal static void StageCardPlay(CardModel card)

@@ -71,8 +71,14 @@ if (recorderRuntime.includes("PendingDecision")
   errors.push("current runtime must not retain a second mutable Human causal authority");
 if (!recorderRuntime.includes("private static bool CanOpenSemanticEvidenceWindow()"))
   errors.push("current Human admission must use the semantic evidence-window gate");
-if (!recorderRuntime.includes("BoundaryTracker.CanOpenNextRoot"))
-  errors.push("rapid next-root admission must be decided by the semantic boundary tracker");
+const semanticAdmission = recorderRuntime.slice(
+  recorderRuntime.indexOf("private static bool CanOpenSemanticEvidenceWindow"),
+  recorderRuntime.indexOf("internal static void StageCardPlay")
+);
+if (/BoundaryTracker\.(?:HasUnresolvedActions|CanOpenNextRoot)/u.test(semanticAdmission))
+  errors.push("Human root capture must not be gated on prior successor readiness");
+if (!recorderRuntime.includes("lifecycleState == RecordingLifecycleState.Recording"))
+  errors.push("Human admission must remain bounded by recording lifecycle");
 if (!recorderRuntime.includes("BoundaryTracker.ObserveBeforeActionExecution("))
   errors.push("the exact next Human execution boundary must settle only through the semantic tracker");
 if (recorderRuntime.includes("overlapping_action_before_successor"))

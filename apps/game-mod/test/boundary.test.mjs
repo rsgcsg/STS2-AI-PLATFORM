@@ -367,8 +367,12 @@ test("rapid accepted actions use one causal tracker and never fabricate successo
   const trace = read("components/annotator/src/STS2HumanAnnotator.Core/SemanticBoundaryTrace.cs");
   const archivalLedger = read("components/annotator/src/STS2HumanAnnotator.Core/HistoricalNativeActionLedger.cs");
 
-  assert.match(runtime, /CanOpenSemanticEvidenceWindow[\s\S]*BoundaryTracker\.CanOpenNextRoot/u);
+  assert.match(runtime, /CanOpenSemanticEvidenceWindow[\s\S]*lifecycleState/u);
   assert.match(runtime, /semantic_causal_overlap/u);
+  assert.doesNotMatch(
+    sourceBetween(runtime, "private static bool CanOpenSemanticEvidenceWindow", "internal static void StageCardPlay"),
+    /BoundaryTracker\.(?:HasUnresolvedActions|CanOpenNextRoot)/u
+  );
   assert.match(runtime, /NativeActionLifecycleKinds\.Finished/u);
   assert.match(trace, /DisposeUnknown\([\s\S]*intervening_human_action_before_boundary/u);
   assert.match(archivalLedger, /Historical durable native-lifecycle evidence contract/u);
@@ -530,25 +534,15 @@ test("GameAction Finished and task completion remain evidence-only before bounda
   );
 });
 
-test("a committed unresolved root admits the next exact root for execution handoff", () => {
+test("an unresolved root does not block the next Human root capture", () => {
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
   const admission = sourceBetween(
     runtime,
     "private static bool CanOpenSemanticEvidenceWindow",
     "internal static void StageCardPlay"
   );
-  const trace = read("components/annotator/src/STS2HumanAnnotator.Core/SemanticBoundaryTrace.cs");
-  const nextRoot = sourceBetween(
-    trace,
-    "public bool CanOpenNextRoot",
-    "public IReadOnlyList<SemanticBoundaryTraceDraft> Accept"
-  );
-
-  assert.match(
-    admission,
-    /!BoundaryTracker\.HasUnresolvedActions\s*[\s\S]*BoundaryTracker\.CanOpenNextRoot/u
-  );
-  assert.match(nextRoot, /IsWaitingForBoundary\(entry\)[\s\S]*!entry\.Action\.RequiresNativePostCommit[\s\S]*entry\.NativeCommit != null/u);
+  assert.match(admission, /lifecycleState\s*==\s*RecordingLifecycleState\.Recording/u);
+  assert.doesNotMatch(admission, /BoundaryTracker\.(?:HasUnresolvedActions|CanOpenNextRoot)/u);
   assert.doesNotMatch(admission, /Task\.Delay|Thread\.Sleep|Stopwatch|\bTimer\b/u);
 });
 
