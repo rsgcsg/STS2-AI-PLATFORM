@@ -53,8 +53,14 @@ The detailed dependency graph and ownership matrix live in
 - Making a change: read [AGENTS.md](AGENTS.md), then the
   [development workflow](docs/DEVELOPMENT_WORKFLOW.md) and the owning
   component's guide.
+- Designing or reviewing a change: use
+  [Engineering Governance](docs/ENGINEERING_GOVERNANCE.md) for fact ownership,
+  abstraction admission, change classes, test selection, and evidence claims.
 - Starting a Codex task: run `npm run project:context` or select a component,
   for example `npm run project:context -- --component connector`.
+- Using a repeated high-risk workflow: see the
+  [repository Skill index](.agents/skills/README.md); ordinary work normally
+  needs no Skill.
 - Checking current claims: read [Status](docs/STATUS.md) and the bounded
   [current context](docs/memory/CURRENT.md).
 - Debugging runtime behavior: use the Host Runtime or Game Mod guide, then the

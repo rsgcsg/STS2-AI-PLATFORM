@@ -1,32 +1,48 @@
-## Scope
+## Change identity
 
-- Repository/base SHA:
-- Owning component/workstream:
-- Problem and implemented change:
+- Repository: `rsgcsg/STS2-AI-PLATFORM`
+- Base branch / exact base SHA:
+- Head branch / latest head SHA:
+- Workstream / primary owner:
+- Change class (`G0`-`G6`) and why:
+- Owning fact / layer:
+
+## Problem and decision
+
+- Observed problem:
+- First causal defect or missing fact:
+- Implemented change:
+- Alternatives or hypotheses rejected:
 - Non-goals:
-- Affected contracts / cross-repository pins:
 
-## Evidence
+## Contracts and identity
 
-- [ ] `npm ci`
-- [ ] owning component check(s)
-- [ ] `npm run check`
-- [ ] `npm run project:closeout`
-- [ ] `git diff --check`
-- [ ] Game-bound source, if changed: `npm run check:exact-game` plus clean exact build/source/artifact identity
-- [ ] Runtime/Human gates, only if claimed by this PR, are recorded at their exact source/artifact/runtime scope
+- Affected public contracts:
+- Component identity impact:
+- Cross-repository dependency and exact pin:
+- Merge method: normal merge for component source; squash permitted only when no component source changes.
 
-CI green is source/test evidence only. Do not promote it to build, installed,
-loaded, runtime, Human, or qualification evidence.
+## Tests and evidence
 
-## Merge method / component provenance
+- Test shape and failure family covered:
+- Source/test commands and results:
+- Exact build/artifact/runtime/Human/cloud identities, when applicable:
+- Evidence level actually proved:
+- Latest-head CI/status SHA:
+- Remaining non-claims:
 
-Choose the applicable statement before merge:
+## Rollback
 
-- [ ] This PR changes component source. **Use a normal merge commit; do not use Squash/Rebase merge.** Current path-scoped `source_revision` is commit provenance and squash/rebase rewrites it after CI.
-- [ ] This PR changes no component source. Squash is permitted if the final diff/evidence remains coherent.
+Describe the source revert, artifact/runtime rollback, cloud rollback, or evidence
+quarantine path.
 
-## Rollback and non-claims
+## Checklist
 
-- Rollback:
-- Remaining non-claims / future work:
+- [ ] The branch was based on current `origin/develop` or the documented release/hotfix base.
+- [ ] The change has one primary responsibility or one indivisible causal repair.
+- [ ] Authority and dependency direction remain intact; no second truth was added.
+- [ ] Behavior changes have a faithful regression, or the PR explains why existing coverage is exact.
+- [ ] Focused, root, and required higher evidence gates match the change class.
+- [ ] CI/evidence belongs to the latest head and does not inherit predecessor proof.
+- [ ] `npm run project:closeout` and `git diff --check` were reviewed.
+- [ ] No proprietary files, raw evidence, secrets, local artifacts, or model weights are committed.

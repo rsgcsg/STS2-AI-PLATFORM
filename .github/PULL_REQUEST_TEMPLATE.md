@@ -1,38 +1,48 @@
 ## Change identity
 
 - Repository: `rsgcsg/STS2-AI-PLATFORM`
-- Base branch:
-- Base SHA:
-- Workstream:
-- Primary owner:
-- Change category:
-- Owning component/layer:
+- Base branch / exact base SHA:
+- Head branch / latest head SHA:
+- Workstream / primary owner:
+- Change class (`G0`-`G6`) and why:
+- Owning fact / layer:
 
-## Scope
+## Problem and decision
 
-- Problem:
+- Observed problem:
+- First causal defect or missing fact:
 - Implemented change:
+- Alternatives or hypotheses rejected:
 - Non-goals:
+
+## Contracts and identity
+
 - Affected public contracts:
 - Component identity impact:
 - Cross-repository dependency and exact pin:
+- Merge method: normal merge for component source; squash permitted only when no component source changes.
 
-## Evidence
+## Tests and evidence
 
+- Test shape and failure family covered:
 - Source/test commands and results:
-- Exact build/artifact/runtime identities:
-- Evidence level (`source/test/build/installed/loaded/runtime/Human/qualification`):
+- Exact build/artifact/runtime/Human/cloud identities, when applicable:
+- Evidence level actually proved:
+- Latest-head CI/status SHA:
 - Remaining non-claims:
 
 ## Rollback
 
-Describe the revert, artifact rollback or evidence quarantine path.
+Describe the source revert, artifact/runtime rollback, cloud rollback, or evidence
+quarantine path.
 
 ## Checklist
 
-- [ ] This branch was based on current `origin/develop` (or the documented release/hotfix base).
-- [ ] The change has one primary responsibility and does not mix independent workstreams.
-- [ ] Authority and dependency direction remain intact.
-- [ ] CI and owning-component checks pass.
-- [ ] Runtime claims bind exact identities and do not inherit predecessor evidence.
-- [ ] No proprietary files, raw evidence, secrets, local artifacts or model weights are committed.
+- [ ] The branch was based on current `origin/develop` or the documented release/hotfix base.
+- [ ] The change has one primary responsibility or one indivisible causal repair.
+- [ ] Authority and dependency direction remain intact; no second truth was added.
+- [ ] Behavior changes have a faithful regression, or the PR explains why existing coverage is exact.
+- [ ] Focused, root, and required higher evidence gates match the change class.
+- [ ] CI/evidence belongs to the latest head and does not inherit predecessor proof.
+- [ ] `npm run project:closeout` and `git diff --check` were reviewed.
+- [ ] No proprietary files, raw evidence, secrets, local artifacts, or model weights are committed.

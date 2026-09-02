@@ -2,8 +2,9 @@
 
 Start with the [New Engineer Guide](docs/NEW_ENGINEER_GUIDE.md). Read
 `AGENTS.md`, the current architecture, and the owning component guide before
-editing. Keep changes inside the narrowest owning component and state public
-contract, component identity, artifact, and runtime-evidence impact explicitly.
+editing. Use [Engineering Governance](docs/ENGINEERING_GOVERNANCE.md) to name
+the change class, first causal defect, owning fact/layer, test shape, evidence
+level, rollback, and non-claims.
 
 Read the [development workflow](docs/DEVELOPMENT_WORKFLOW.md). Ordinary changes
 start from current `origin/develop` on a short-lived topic branch and enter
