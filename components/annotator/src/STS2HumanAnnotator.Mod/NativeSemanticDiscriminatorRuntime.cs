@@ -6,7 +6,7 @@ namespace STS2HumanAnnotator.Mod;
 
 /// <summary>
 /// Additive read-only runtime experiment. Failures here never affect gameplay,
-/// Human action admission, or the canonical Decision V2/timeline streams.
+/// Human action admission, or the current canonical/timeline streams.
 /// </summary>
 internal static class NativeSemanticDiscriminatorRuntime
 {
@@ -23,7 +23,7 @@ internal static class NativeSemanticDiscriminatorRuntime
     }
 
     internal static void Observe(
-        V2RecordingStore? store,
+        RecordingSessionStore? store,
         string? sessionId,
         string? timelineId,
         string runId,
@@ -93,7 +93,7 @@ internal static class NativeSemanticDiscriminatorRuntime
     }
 
     private static void RecordCaptureSubphases(
-        V2RecordingStore store,
+        RecordingSessionStore store,
         string callSite,
         ProcessLocalNativeWitnessFrame frame)
     {
@@ -106,7 +106,7 @@ internal static class NativeSemanticDiscriminatorRuntime
     }
 
     internal static void ObserveDirectCommit(
-        V2RecordingStore? store,
+        RecordingSessionStore? store,
         string? sessionId,
         string? timelineId,
         string runId,
@@ -146,7 +146,7 @@ internal static class NativeSemanticDiscriminatorRuntime
     }
 
     internal static void ObserveLifecycleOnly(
-        V2RecordingStore? store,
+        RecordingSessionStore? store,
         string? sessionId,
         string? timelineId,
         string runId,

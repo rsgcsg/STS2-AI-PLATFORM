@@ -266,7 +266,7 @@ public sealed class SemanticBoundaryTrackerTests
         {
             RequiresNativePostCommit = true
         };
-        FrozenDecisionFrameV2 humanObservation = State("human-s0");
+        CurrentDecisionFrame humanObservation = State("human-s0");
         ExecutionSemanticActionSpaceEvidence actionSpace = new(
             ExecutionSemanticActionSpaceContract.SchemaVersion,
             ExecutionSemanticActionSpaceContract.Schema,
@@ -592,14 +592,14 @@ public sealed class SemanticBoundaryTrackerTests
         string root = Path.Combine(Path.GetTempPath(), $"sts2-semantic-boundary-{Guid.NewGuid():N}");
         try
         {
-            HumanCaptureProfile profile = HumanCaptureProfiles.CombatReadRichV2;
-            var manifest = new RecordingManifestV2(
-                HumanRecorderV2Contract.SchemaVersion,
-                HumanRecorderV2Contract.ManifestSchema,
+            HumanCaptureProfile profile = HumanCaptureProfiles.CombatReadRich;
+            var manifest = new CurrentRecordingManifest(
+                CurrentRecordingContract.SchemaVersion,
+                CurrentRecordingContract.ManifestSchema,
                 "session-test",
                 "timeline-test",
                 T0,
-                HumanRecorderContract.ProductVersion,
+                CurrentRecordingContract.ProductVersion,
                 new string('a', 40),
                 "osx-arm64",
                 profile.ProfileId,
@@ -611,7 +611,7 @@ public sealed class SemanticBoundaryTrackerTests
                 SemanticBoundaryTraceKinds.ActionAccepted,
                 Action("a1", 1));
 
-            using (V2RecordingStore store = V2RecordingStore.Create(root, manifest, profile))
+            using (RecordingSessionStore store = RecordingSessionStore.Create(root, manifest, profile))
                 store.AppendSemanticBoundaryEvent(accepted);
 
             string path = Path.Combine(root, "session-test", "semantic-boundary-trace.jsonl");
@@ -968,7 +968,7 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
-    public void LegacyV2SuccessorCannotProveSemanticBoundary()
+    public void HistoricalPollingSuccessorCannotProveSemanticBoundary()
     {
         var tracker = new SemanticBoundaryTracker();
         tracker.Accept(Action("a1", 1), State("human-s0"));
@@ -978,7 +978,7 @@ public sealed class SemanticBoundaryTrackerTests
 
         SemanticBoundaryObservation legacyPolling = PostCommitBoundary("s1") with
         {
-            WitnessKind = SemanticBoundaryWitnessKinds.LegacyV2Successor
+            WitnessKind = SemanticBoundaryWitnessKinds.HistoricalPollingSuccessor
         };
 
         Assert.Empty(tracker.ObserveDecisionBoundary(legacyPolling));
@@ -1113,7 +1113,7 @@ public sealed class SemanticBoundaryTrackerTests
             RequiredReadsStatus = "complete"
         };
 
-    private static FrozenDecisionFrameV2 State(
+    private static CurrentDecisionFrame State(
         string snapshotId,
         string interactionKind = "combat_turn") => new(
         snapshotId,

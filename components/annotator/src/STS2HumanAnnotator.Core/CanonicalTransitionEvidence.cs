@@ -9,14 +9,18 @@ public static class CanonicalTransitionEvidenceContract
     public const string LegacySchema = "sts2.human-annotator/canonical-transition-evidence-1";
     public const string LegacyCollectionMode = "serialized_human_input";
 
+    public static bool IsCurrent(int schemaVersion, string schema) =>
+        schemaVersion == SchemaVersion && schema == Schema;
+
     public static bool IsSupported(int schemaVersion, string schema) =>
-        (schemaVersion == SchemaVersion && schema == Schema)
+        IsCurrent(schemaVersion, schema)
         || (schemaVersion == LegacySchemaVersion && schema == LegacySchema);
 }
 
 /// <summary>
-/// One mechanically qualified S + A(S) -> A -> S' row. This additive stream
-/// does not reinterpret historical Decision V2 or semantic trace schemas.
+/// One mechanically qualified S + A(S) -> A -> S' row. Schema 2 is the sole
+/// current canonical format; the validator's legacy branch exists only for
+/// explicit archival callers and is never accepted by the current recorder.
 /// </summary>
 public sealed record CanonicalTransitionEvidence(
     int SchemaVersion,

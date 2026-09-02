@@ -243,21 +243,21 @@ public sealed class NativeSemanticDiscriminatorTests
         string root = Path.Combine(Path.GetTempPath(), $"sts2-native-semantic-{Guid.NewGuid():N}");
         try
         {
-            HumanCaptureProfile profile = HumanCaptureProfiles.CombatReadRichV2;
-            var manifest = new RecordingManifestV2(
-                HumanRecorderV2Contract.SchemaVersion,
-                HumanRecorderV2Contract.ManifestSchema,
+            HumanCaptureProfile profile = HumanCaptureProfiles.CombatReadRich;
+            var manifest = new CurrentRecordingManifest(
+                CurrentRecordingContract.SchemaVersion,
+                CurrentRecordingContract.ManifestSchema,
                 "session-test",
                 "timeline-test",
                 DateTimeOffset.UnixEpoch,
-                HumanRecorderContract.ProductVersion,
+                CurrentRecordingContract.ProductVersion,
                 new string('a', 40),
                 "test-runtime",
                 profile.ProfileId,
                 EvidenceIdentity.Sha256Json(profile),
                 profile.SupportedActionFamilies,
                 profile.NonClaims);
-            using (V2RecordingStore store = V2RecordingStore.Create(root, manifest, profile))
+            using (RecordingSessionStore store = RecordingSessionStore.Create(root, manifest, profile))
                 store.AppendNativeSemanticDiscriminatorEvent(Event(1, "accepted", "a1"));
 
             string path = Path.Combine(

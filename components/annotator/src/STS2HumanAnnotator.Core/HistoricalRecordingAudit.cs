@@ -12,7 +12,7 @@ public sealed record RecordingAuditResult(
     IReadOnlyDictionary<string, long> Errors,
     IReadOnlyList<string> NonClaims);
 
-public static class RecordingAuditor
+public static class HistoricalRecordingAuditor
 {
     public static RecordingAuditResult Audit(string recordingDirectory)
     {
@@ -38,10 +38,10 @@ public static class RecordingAuditor
             {
                 foreach ((string line, int lineNumber) in Lines(decisionsPath))
                 {
-                    HumanDecisionRecord? record;
+                    HistoricalDecisionRecord? record;
                     try
                     {
-                        record = JsonSerializer.Deserialize<HumanDecisionRecord>(line, EvidenceJson.Options);
+                        record = JsonSerializer.Deserialize<HistoricalDecisionRecord>(line, EvidenceJson.Options);
                     }
                     catch (JsonException)
                     {
@@ -49,7 +49,7 @@ public static class RecordingAuditor
                         Add(errors, $"json_invalid_at_{Path.GetFileName(decisionsPath)}_line_{lineNumber}");
                         continue;
                     }
-                    RecordValidationResult result = HumanDecisionRecordValidator.Validate(record);
+                    RecordValidationResult result = HistoricalDecisionRecordValidator.Validate(record);
                     if (!result.Valid)
                     {
                         invalid++;
@@ -122,19 +122,19 @@ public static class RecordingAuditor
         return audit.ValidRecords;
     }
 
-    public static IReadOnlyList<HumanDecisionRecord> ReadAdmitted(string recordingDirectory)
+    public static IReadOnlyList<HistoricalDecisionRecord> ReadAdmitted(string recordingDirectory)
     {
         RecordingAuditResult audit = Audit(recordingDirectory);
         if (!string.Equals(audit.Status, "pass", StringComparison.Ordinal))
             throw new InvalidDataException("Recording audit must pass before records are read.");
         string directory = Path.GetFullPath(recordingDirectory);
-        var records = new List<HumanDecisionRecord>();
+        var records = new List<HistoricalDecisionRecord>();
         foreach (string path in Directory.GetFiles(directory, "run-*.jsonl")
                      .Order(StringComparer.Ordinal))
         {
             foreach ((string line, _) in Lines(path))
             {
-                HumanDecisionRecord? record = JsonSerializer.Deserialize<HumanDecisionRecord>(
+                HistoricalDecisionRecord? record = JsonSerializer.Deserialize<HistoricalDecisionRecord>(
                     line,
                     EvidenceJson.Options);
                 records.Add(record ?? throw new InvalidDataException("Decision record is null."));

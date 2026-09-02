@@ -93,7 +93,7 @@ public sealed record RecordingItemStatus(
     DateTimeOffset ObservedAt,
     string? Detail);
 
-public sealed record RecordingPendingStatus(
+public sealed record RecordingPendingRootStatus(
     string RecordId,
     string RunId,
     DateTimeOffset Deadline);
@@ -131,7 +131,7 @@ public sealed record RecordingApplicationStatus(
     RecordingLifecycleSnapshot Lifecycle,
     RecordingSessionStatus? Session,
     RecordingCounters Counters,
-    RecordingPendingStatus? PendingDecision,
+    RecordingPendingRootStatus? PendingRoot,
     RecordingItemStatus? LastRecord,
     RecordingItemStatus? LastInvalidation,
     RecordingHealthStatus Health,
@@ -154,7 +154,7 @@ public enum RecordingEventKind
     SessionClosed,
     RunStarted,
     RunEnded,
-    DecisionPending,
+    RootPending,
     DecisionRecorded,
     DecisionInvalidated,
     HealthChanged,
@@ -293,7 +293,7 @@ public static class RecordingLifecycleStateMachine
         RecordingCommandKind command,
         string? newSessionId,
         DateTimeOffset changedAt,
-        bool pendingDecision)
+        bool pendingRoot)
     {
         return command switch
         {
@@ -312,8 +312,8 @@ public static class RecordingLifecycleStateMachine
                     current.SessionId,
                     changedAt,
                     "recording_paused",
-                    pendingDecision
-                        ? "Recording is paused for new witnesses; the admitted pending decision will still settle."
+                    pendingRoot
+                        ? "Recording is paused for new witnesses; the admitted pending root will still settle."
                         : "Recording is paused; no new decision will be admitted."),
             RecordingCommandKind.Resume when current.State == RecordingLifecycleState.Paused =>
                 Accepted(
@@ -329,8 +329,8 @@ public static class RecordingLifecycleStateMachine
                     current.SessionId,
                     changedAt,
                     "recording_close_requested",
-                    pendingDecision
-                        ? $"Close terminates the session before the admitted pending decision's successor boundary; it is retained as terminal unknown ({RecordingClosePolicy.TerminalUnknownReason})."
+                    pendingRoot
+                        ? $"Close terminates the session before the admitted pending root's successor boundary; it is retained as terminal unknown ({RecordingClosePolicy.TerminalUnknownReason})."
                         : "Close was accepted and the session is ready to flush."),
             _ => new RecordingCommandResult(
                 false,

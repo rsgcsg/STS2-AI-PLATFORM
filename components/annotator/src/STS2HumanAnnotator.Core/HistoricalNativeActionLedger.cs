@@ -5,7 +5,7 @@ namespace STS2HumanAnnotator.Core;
 /// admission is owned exclusively by SemanticBoundaryTracker; this contract
 /// remains readable so existing recordings and audits retain their meaning.
 /// </summary>
-public static class NativeActionLedgerContract
+public static class HistoricalNativeActionLedgerContract
 {
     public const int SchemaVersion = 2;
     public const string EventSchema = "sts2.human-annotator/native-action-ledger-event-2";
@@ -17,7 +17,7 @@ public static class NativeActionLedgerContract
         || (version == LegacySchemaVersion && schema == LegacyEventSchema);
 }
 
-public static class NativeActionLifecycleKinds
+public static class HistoricalNativeActionLifecycleKinds
 {
     public const string Accepted = "accepted";
     public const string Started = "started";
@@ -33,7 +33,7 @@ public static class NativeActionLifecycleKinds
         kind is Cancelled or Finished;
 }
 
-public sealed record NativeActionLedgerEvent(
+public sealed record HistoricalNativeActionLedgerEvent(
     int SchemaVersion,
     string Schema,
     string EventId,
@@ -52,7 +52,7 @@ public sealed record NativeActionLedgerEvent(
     IReadOnlyList<string> PriorOpenActionIds,
     string TransitionEvidence,
     string? Detail,
-    FrozenDecisionFrameV2? DecisionPre = null,
+    HistoricalReadRichDecisionFrame? DecisionPre = null,
     NativeWitnessEvidence? NativeWitness = null,
     ExactMappingEvidence? Mapping = null,
     RecordedBoundAction? BoundAction = null);
@@ -61,33 +61,33 @@ public sealed record NativeActionLedgerEvent(
 /// Validator for historical additive native-action-ledger streams. It is not
 /// a runtime admission policy and does not authorize semantic successors.
 /// </summary>
-public static class NativeActionLedgerValidator
+public static class HistoricalNativeActionLedgerValidator
 {
     private static readonly HashSet<string> KnownKinds = new(StringComparer.Ordinal)
     {
-        NativeActionLifecycleKinds.Accepted,
-        NativeActionLifecycleKinds.Started,
-        NativeActionLifecycleKinds.PausedForPlayerChoice,
-        NativeActionLifecycleKinds.ReadyToResume,
-        NativeActionLifecycleKinds.Resumed,
-        NativeActionLifecycleKinds.Cancelled,
-        NativeActionLifecycleKinds.Finished,
-        NativeActionLifecycleKinds.StrictTransitionInvalidated,
-        NativeActionLifecycleKinds.StrictTransitionAdmitted
+        HistoricalNativeActionLifecycleKinds.Accepted,
+        HistoricalNativeActionLifecycleKinds.Started,
+        HistoricalNativeActionLifecycleKinds.PausedForPlayerChoice,
+        HistoricalNativeActionLifecycleKinds.ReadyToResume,
+        HistoricalNativeActionLifecycleKinds.Resumed,
+        HistoricalNativeActionLifecycleKinds.Cancelled,
+        HistoricalNativeActionLifecycleKinds.Finished,
+        HistoricalNativeActionLifecycleKinds.StrictTransitionInvalidated,
+        HistoricalNativeActionLifecycleKinds.StrictTransitionAdmitted
     };
 
-    public static IReadOnlyList<string> Validate(IReadOnlyList<NativeActionLedgerEvent> events)
+    public static IReadOnlyList<string> Validate(IReadOnlyList<HistoricalNativeActionLedgerEvent> events)
     {
         var errors = new List<string>();
-        var accepted = new Dictionary<string, NativeActionLedgerEvent>(StringComparer.Ordinal);
+        var accepted = new Dictionary<string, HistoricalNativeActionLedgerEvent>(StringComparer.Ordinal);
         var terminal = new HashSet<string>(StringComparer.Ordinal);
         var lastLifecycleKind = new Dictionary<string, string>(StringComparer.Ordinal);
         var eventIds = new HashSet<string>(StringComparer.Ordinal);
         long previousSequence = 0;
 
-        foreach (NativeActionLedgerEvent value in events)
+        foreach (HistoricalNativeActionLedgerEvent value in events)
         {
-            if (!NativeActionLedgerContract.IsSupported(value.SchemaVersion, value.Schema))
+            if (!HistoricalNativeActionLedgerContract.IsSupported(value.SchemaVersion, value.Schema))
                 errors.Add("native_action_schema_invalid");
             if (previousSequence == 0 && value.Sequence != 1)
                 errors.Add("native_action_sequence_does_not_start_at_one");
@@ -103,21 +103,21 @@ public static class NativeActionLedgerValidator
                 || !KnownKinds.Contains(value.Kind))
                 errors.Add("native_action_event_invalid");
 
-            if (value.Kind == NativeActionLifecycleKinds.Accepted)
+            if (value.Kind == HistoricalNativeActionLifecycleKinds.Accepted)
             {
                 if (!accepted.TryAdd(value.ActionWitnessId, value))
                     errors.Add("native_action_accepted_duplicate");
                 else
                     lastLifecycleKind.Add(value.ActionWitnessId, value.Kind);
-                if (value.SchemaVersion == NativeActionLedgerContract.SchemaVersion
+                if (value.SchemaVersion == HistoricalNativeActionLedgerContract.SchemaVersion
                     && !HasExactDecisionEvidence(value))
                     errors.Add("native_action_decision_evidence_invalid");
                 continue;
             }
-            if (value.SchemaVersion == NativeActionLedgerContract.SchemaVersion
+            if (value.SchemaVersion == HistoricalNativeActionLedgerContract.SchemaVersion
                 && HasAnyDecisionEvidence(value))
                 errors.Add("native_action_decision_evidence_repeated");
-            if (!accepted.TryGetValue(value.ActionWitnessId, out NativeActionLedgerEvent? first))
+            if (!accepted.TryGetValue(value.ActionWitnessId, out HistoricalNativeActionLedgerEvent? first))
             {
                 errors.Add("native_action_event_before_accepted");
                 continue;
@@ -129,37 +129,37 @@ public static class NativeActionLedgerValidator
                 || first.NativeActionType != value.NativeActionType)
                 errors.Add("native_action_identity_drift");
             if (terminal.Contains(value.ActionWitnessId)
-                && value.Kind is not NativeActionLifecycleKinds.StrictTransitionInvalidated
-                    and not NativeActionLifecycleKinds.StrictTransitionAdmitted)
+                && value.Kind is not HistoricalNativeActionLifecycleKinds.StrictTransitionInvalidated
+                    and not HistoricalNativeActionLifecycleKinds.StrictTransitionAdmitted)
                 errors.Add("native_action_lifecycle_after_terminal");
             if (IsLifecycleKind(value.Kind)
                 && !IsAllowedLifecycleTransition(lastLifecycleKind[value.ActionWitnessId], value.Kind))
                 errors.Add("native_action_lifecycle_order_invalid");
             if (IsLifecycleKind(value.Kind))
                 lastLifecycleKind[value.ActionWitnessId] = value.Kind;
-            if (NativeActionLifecycleKinds.IsTerminal(value.Kind))
+            if (HistoricalNativeActionLifecycleKinds.IsTerminal(value.Kind))
                 terminal.Add(value.ActionWitnessId);
         }
 
-        foreach (IGrouping<string, NativeActionLedgerEvent> actionEvents in events
+        foreach (IGrouping<string, HistoricalNativeActionLedgerEvent> actionEvents in events
                      .GroupBy(value => value.ActionWitnessId, StringComparer.Ordinal))
         {
-            NativeActionLedgerEvent[] dispositions = actionEvents.Where(value =>
-                    value.Kind is NativeActionLifecycleKinds.StrictTransitionInvalidated
-                        or NativeActionLifecycleKinds.StrictTransitionAdmitted)
+            HistoricalNativeActionLedgerEvent[] dispositions = actionEvents.Where(value =>
+                    value.Kind is HistoricalNativeActionLifecycleKinds.StrictTransitionInvalidated
+                        or HistoricalNativeActionLifecycleKinds.StrictTransitionAdmitted)
                 .ToArray();
             if (dispositions.Length != 1)
                 errors.Add("native_action_disposition_not_exactly_one");
             if (dispositions.Any(value =>
-                    value.Kind == NativeActionLifecycleKinds.StrictTransitionAdmitted)
-                && !actionEvents.Any(value => value.Kind == NativeActionLifecycleKinds.Finished))
+                    value.Kind == HistoricalNativeActionLifecycleKinds.StrictTransitionAdmitted)
+                && !actionEvents.Any(value => value.Kind == HistoricalNativeActionLifecycleKinds.Finished))
                 errors.Add("native_action_strict_transition_before_finish");
         }
 
         return errors;
     }
 
-    private static bool HasExactDecisionEvidence(NativeActionLedgerEvent value) =>
+    private static bool HasExactDecisionEvidence(HistoricalNativeActionLedgerEvent value) =>
         value.DecisionPre != null
         && value.NativeWitness != null
         && value.Mapping is { Status: "exact_unique", MatchCount: 1 }
@@ -171,37 +171,37 @@ public static class NativeActionLedgerValidator
         && !string.IsNullOrWhiteSpace(value.BoundAction.BoundActionId)
         && !string.IsNullOrWhiteSpace(value.BoundAction.Verb);
 
-    private static bool HasAnyDecisionEvidence(NativeActionLedgerEvent value) =>
+    private static bool HasAnyDecisionEvidence(HistoricalNativeActionLedgerEvent value) =>
         value.DecisionPre != null
         || value.NativeWitness != null
         || value.Mapping != null
         || value.BoundAction != null;
 
     private static bool IsLifecycleKind(string kind) =>
-        kind is NativeActionLifecycleKinds.Started
-            or NativeActionLifecycleKinds.PausedForPlayerChoice
-            or NativeActionLifecycleKinds.ReadyToResume
-            or NativeActionLifecycleKinds.Resumed
-            or NativeActionLifecycleKinds.Cancelled
-            or NativeActionLifecycleKinds.Finished;
+        kind is HistoricalNativeActionLifecycleKinds.Started
+            or HistoricalNativeActionLifecycleKinds.PausedForPlayerChoice
+            or HistoricalNativeActionLifecycleKinds.ReadyToResume
+            or HistoricalNativeActionLifecycleKinds.Resumed
+            or HistoricalNativeActionLifecycleKinds.Cancelled
+            or HistoricalNativeActionLifecycleKinds.Finished;
 
     private static bool IsAllowedLifecycleTransition(string previous, string current) =>
         current switch
         {
-            NativeActionLifecycleKinds.Started => previous == NativeActionLifecycleKinds.Accepted,
-            NativeActionLifecycleKinds.PausedForPlayerChoice => previous is
-                NativeActionLifecycleKinds.Started or NativeActionLifecycleKinds.Resumed,
-            NativeActionLifecycleKinds.ReadyToResume =>
-                previous == NativeActionLifecycleKinds.PausedForPlayerChoice,
-            NativeActionLifecycleKinds.Resumed => previous == NativeActionLifecycleKinds.ReadyToResume,
-            NativeActionLifecycleKinds.Cancelled => previous is
-                NativeActionLifecycleKinds.Accepted
-                    or NativeActionLifecycleKinds.Started
-                    or NativeActionLifecycleKinds.PausedForPlayerChoice
-                    or NativeActionLifecycleKinds.ReadyToResume
-                    or NativeActionLifecycleKinds.Resumed,
-            NativeActionLifecycleKinds.Finished => previous is
-                NativeActionLifecycleKinds.Started or NativeActionLifecycleKinds.Resumed,
+            HistoricalNativeActionLifecycleKinds.Started => previous == HistoricalNativeActionLifecycleKinds.Accepted,
+            HistoricalNativeActionLifecycleKinds.PausedForPlayerChoice => previous is
+                HistoricalNativeActionLifecycleKinds.Started or HistoricalNativeActionLifecycleKinds.Resumed,
+            HistoricalNativeActionLifecycleKinds.ReadyToResume =>
+                previous == HistoricalNativeActionLifecycleKinds.PausedForPlayerChoice,
+            HistoricalNativeActionLifecycleKinds.Resumed => previous == HistoricalNativeActionLifecycleKinds.ReadyToResume,
+            HistoricalNativeActionLifecycleKinds.Cancelled => previous is
+                HistoricalNativeActionLifecycleKinds.Accepted
+                    or HistoricalNativeActionLifecycleKinds.Started
+                    or HistoricalNativeActionLifecycleKinds.PausedForPlayerChoice
+                    or HistoricalNativeActionLifecycleKinds.ReadyToResume
+                    or HistoricalNativeActionLifecycleKinds.Resumed,
+            HistoricalNativeActionLifecycleKinds.Finished => previous is
+                HistoricalNativeActionLifecycleKinds.Started or HistoricalNativeActionLifecycleKinds.Resumed,
             _ => false
         };
 }

@@ -11,8 +11,11 @@ public static class ExecutionSemanticActionSpaceContract
     public const string LegacySchema =
         "sts2.human-annotator/execution-semantic-action-space-1";
 
+    public static bool IsCurrent(int schemaVersion, string schema) =>
+        schemaVersion == SchemaVersion && schema == Schema;
+
     public static bool IsSupported(int schemaVersion, string schema) =>
-        (schemaVersion == SchemaVersion && schema == Schema)
+        IsCurrent(schemaVersion, schema)
         || (schemaVersion == LegacySchemaVersion && schema == LegacySchema);
 }
 

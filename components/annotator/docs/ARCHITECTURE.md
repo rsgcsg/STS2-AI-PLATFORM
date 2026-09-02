@@ -19,7 +19,7 @@ Human UI scope captures H and exact public BoundAction binding
    (pre-admission for source-local callbacks, or BeforeActionExecuted for GameAction roots)
 -> typed native lifecycle proves Commit
 -> SemanticBoundaryTracker proves a separate causal successor boundary
--> non-authorizing projections write Decision V2 and canonical evidence
+-> non-authorizing projections write the current Decision record and canonical evidence
 ```
 
 `SemanticBoundaryTracker` never publishes or executes actions. Human H is not
@@ -126,10 +126,11 @@ Cancellation, runtime drift, lifecycle persistence uncertainty, root-contract
 error, mapping failure, incomplete semantic action space or missing successor
 is fail-closed. Schema-4 events reference exact content-addressed H/S/S' frames
 and, when present, one exact execution semantic action-space object. Historical
-schema-1/2/3 rows and native ledgers remain readable but are not current mutable
-admission or causal authorities. Persistence failure disables the modern trace
-for the session, surfaces `semantic_boundary_trace_unavailable`, and never
-retries or invents a later boundary.
+schema-1/2/3 rows and native ledgers remain readable only through explicit
+archival readers; they are not current mutable admission or causal authorities.
+Persistence failure disables the modern trace for the session, surfaces
+`semantic_boundary_trace_unavailable`, and never retries or invents a later
+boundary.
 Audit rejects a proved transition whose semantic pre does not match its complete
 pre-execution boundary, or whose causal window contains another Human action
 start after A begins and before S'.
@@ -162,8 +163,8 @@ therefore binds execution S to a content-addressed typed `A_sem(S)` observation
 for those families, joined to the exact Human `BoundActionId` captured at the
 native binding boundary. Direct UI domains may use their exact complete public
 execution catalog when that catalog itself is the typed delivery surface.
-Decision V2 separately preserves the frozen Human-time public frame for durable
-compatibility. The projector only joins already-proved facts and cannot settle
+The current Decision record separately preserves the frozen Human-time public
+frame for durable compatibility. The projector only joins already-proved facts and cannot settle
 the root or manufacture action-space membership. ADR 0003 remains a withdrawn
 serialized-input candidate, not current authority.
 

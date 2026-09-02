@@ -5,14 +5,14 @@ using Xunit;
 
 namespace STS2HumanAnnotator.Core.Tests;
 
-public sealed class NativeActionLedgerTests
+public sealed class HistoricalNativeActionLedgerTests
 {
     private static readonly DateTimeOffset T0 = DateTimeOffset.UnixEpoch;
 
     [Fact]
     public void PlayerChoicePauseResumeHistoryIsValidAndOrdered()
     {
-        NativeActionLedgerEvent[] events =
+        HistoricalNativeActionLedgerEvent[] events =
         {
             Event(1, "accepted", "waiting_for_execution"),
             Event(2, "started", "executing"),
@@ -23,21 +23,21 @@ public sealed class NativeActionLedgerTests
             Event(7, "strict_transition_admitted", "finished", queueId: 2)
         };
 
-        Assert.Empty(NativeActionLedgerValidator.Validate(events));
+        Assert.Empty(HistoricalNativeActionLedgerValidator.Validate(events));
     }
 
     [Fact]
     public void LifecycleAfterTerminalAndIdentityDriftFailAudit()
     {
-        NativeActionLedgerEvent accepted = Event(1, "accepted", "waiting_for_execution");
-        NativeActionLedgerEvent finished = Event(2, "finished", "finished");
-        NativeActionLedgerEvent lateResume = Event(3, "resumed", "executing");
-        NativeActionLedgerEvent drift = Event(4, "strict_transition_invalidated", "finished") with
+        HistoricalNativeActionLedgerEvent accepted = Event(1, "accepted", "waiting_for_execution");
+        HistoricalNativeActionLedgerEvent finished = Event(2, "finished", "finished");
+        HistoricalNativeActionLedgerEvent lateResume = Event(3, "resumed", "executing");
+        HistoricalNativeActionLedgerEvent drift = Event(4, "strict_transition_invalidated", "finished") with
         {
             RecordId = "record-other"
         };
 
-        IReadOnlyList<string> errors = NativeActionLedgerValidator.Validate(
+        IReadOnlyList<string> errors = HistoricalNativeActionLedgerValidator.Validate(
             new[] { accepted, finished, lateResume, drift });
 
         Assert.Contains("native_action_lifecycle_after_terminal", errors);
@@ -47,7 +47,7 @@ public sealed class NativeActionLedgerTests
     [Fact]
     public void LifecycleMustStartAtAcceptedAndFollowExactPauseResumeOrder()
     {
-        NativeActionLedgerEvent[] events =
+        HistoricalNativeActionLedgerEvent[] events =
         {
             Event(2, "accepted", "waiting_for_execution"),
             Event(3, "resumed", "executing"),
@@ -55,7 +55,7 @@ public sealed class NativeActionLedgerTests
             Event(5, "strict_transition_invalidated", "cancelled")
         };
 
-        IReadOnlyList<string> errors = NativeActionLedgerValidator.Validate(events);
+        IReadOnlyList<string> errors = HistoricalNativeActionLedgerValidator.Validate(events);
 
         Assert.Contains("native_action_sequence_does_not_start_at_one", errors);
         Assert.Contains("native_action_lifecycle_order_invalid", errors);
@@ -64,16 +64,16 @@ public sealed class NativeActionLedgerTests
     [Fact]
     public void CurrentAcceptedEventRequiresDecisionEvidenceAndDoesNotRepeatIt()
     {
-        NativeActionLedgerEvent accepted = Event(1, "accepted", "waiting_for_execution") with
+        HistoricalNativeActionLedgerEvent accepted = Event(1, "accepted", "waiting_for_execution") with
         {
             DecisionPre = null
         };
-        NativeActionLedgerEvent started = Event(2, "started", "executing") with
+        HistoricalNativeActionLedgerEvent started = Event(2, "started", "executing") with
         {
             DecisionPre = DecisionPre()
         };
 
-        IReadOnlyList<string> errors = NativeActionLedgerValidator.Validate(
+        IReadOnlyList<string> errors = HistoricalNativeActionLedgerValidator.Validate(
             new[] { accepted, started });
 
         Assert.Contains("native_action_decision_evidence_invalid", errors);
@@ -83,59 +83,68 @@ public sealed class NativeActionLedgerTests
     [Fact]
     public void LegacyV1LedgerRemainsReadableWithoutDecisionEvidence()
     {
-        NativeActionLedgerEvent accepted = Event(
+        HistoricalNativeActionLedgerEvent accepted = Event(
             1,
             "accepted",
             "waiting_for_execution",
             legacy: true);
-        NativeActionLedgerEvent started = Event(
+        HistoricalNativeActionLedgerEvent started = Event(
             2,
             "started",
             "executing",
             legacy: true);
-        NativeActionLedgerEvent finished = Event(
+        HistoricalNativeActionLedgerEvent finished = Event(
             3,
             "finished",
             "finished",
             legacy: true);
-        NativeActionLedgerEvent invalidated = Event(
+        HistoricalNativeActionLedgerEvent invalidated = Event(
             4,
             "strict_transition_invalidated",
             "finished",
             legacy: true);
 
-        Assert.Empty(NativeActionLedgerValidator.Validate(
+        Assert.Empty(HistoricalNativeActionLedgerValidator.Validate(
             new[] { accepted, started, finished, invalidated }));
     }
 
     [Fact]
-    public void StorePersistsHistoricalAdditiveLedgerWithoutChangingDecisionSchema()
+    public void CurrentStoreDoesNotCreateHistoricalNativeLedger()
     {
         string root = Path.Combine(Path.GetTempPath(), $"sts2-native-ledger-{Guid.NewGuid():N}");
         try
         {
-            HumanCaptureProfile profile = HumanCaptureProfiles.CombatReadRichV2;
-            var manifest = new RecordingManifestV2(
-                HumanRecorderV2Contract.SchemaVersion,
-                HumanRecorderV2Contract.ManifestSchema,
+            HumanCaptureProfile profile = HumanCaptureProfiles.CombatReadRich;
+            var manifest = new CurrentRecordingManifest(
+                CurrentRecordingContract.SchemaVersion,
+                CurrentRecordingContract.ManifestSchema,
                 "session-test",
                 "timeline-test",
                 T0,
-                HumanRecorderContract.ProductVersion,
+                CurrentRecordingContract.ProductVersion,
                 new string('a', 40),
                 "osx-arm64",
                 profile.ProfileId,
                 EvidenceIdentity.Sha256Json(profile),
                 profile.SupportedActionFamilies,
                 profile.NonClaims);
-            using (V2RecordingStore store = V2RecordingStore.Create(root, manifest, profile))
-                store.AppendNativeActionEvent(Event(1, "accepted", "waiting_for_execution"));
+            using (RecordingSessionStore store = RecordingSessionStore.Create(root, manifest, profile))
+            {
+                Assert.False(File.Exists(
+                    Path.Combine(store.DirectoryPath, "native-action-ledger.jsonl")));
+            }
 
-            string path = Path.Combine(root, "session-test", "native-action-ledger.jsonl");
-            NativeActionLedgerEvent persisted = JsonSerializer.Deserialize<NativeActionLedgerEvent>(
-                File.ReadAllText(path), EvidenceJson.Options)!;
-            Assert.Equal(NativeActionLedgerContract.EventSchema, persisted.Schema);
-            Assert.Equal("record-a1", persisted.RecordId);
+            // Historical ledger events remain directly readable for archival
+            // verification, but the current store has no production writer.
+            IReadOnlyList<string> errors = HistoricalNativeActionLedgerValidator.Validate(
+                new[]
+                {
+                    Event(1, "accepted", "waiting_for_execution", legacy: true),
+                    Event(2, "started", "executing", legacy: true),
+                    Event(3, "finished", "finished", legacy: true),
+                    Event(4, "strict_transition_invalidated", "finished", legacy: true)
+                });
+            Assert.Empty(errors);
         }
         finally
         {
@@ -144,18 +153,18 @@ public sealed class NativeActionLedgerTests
         }
     }
 
-    private static NativeActionLedgerEvent Event(
+    private static HistoricalNativeActionLedgerEvent Event(
         long sequence,
         string kind,
         string nativeState,
         uint? queueId = 1,
         bool legacy = false) => new(
             legacy
-                ? NativeActionLedgerContract.LegacySchemaVersion
-                : NativeActionLedgerContract.SchemaVersion,
+                ? HistoricalNativeActionLedgerContract.LegacySchemaVersion
+                : HistoricalNativeActionLedgerContract.SchemaVersion,
             legacy
-                ? NativeActionLedgerContract.LegacyEventSchema
-                : NativeActionLedgerContract.EventSchema,
+                ? HistoricalNativeActionLedgerContract.LegacyEventSchema
+                : HistoricalNativeActionLedgerContract.EventSchema,
             $"event-{sequence}",
             "session-test",
             "timeline-test",
@@ -172,8 +181,8 @@ public sealed class NativeActionLedgerTests
             Array.Empty<string>(),
             "strict_candidate",
             null,
-            !legacy && kind == NativeActionLifecycleKinds.Accepted ? DecisionPre() : null,
-            !legacy && kind == NativeActionLifecycleKinds.Accepted
+            !legacy && kind == HistoricalNativeActionLifecycleKinds.Accepted ? DecisionPre() : null,
+            !legacy && kind == HistoricalNativeActionLifecycleKinds.Accepted
                 ? new NativeWitnessEvidence(
                     "native_human_action",
                     "PlayCardAction",
@@ -181,10 +190,10 @@ public sealed class NativeActionLedgerTests
                     new Dictionary<string, string>(),
                     T0)
                 : null,
-            !legacy && kind == NativeActionLifecycleKinds.Accepted
+            !legacy && kind == HistoricalNativeActionLifecycleKinds.Accepted
                 ? new ExactMappingEvidence("exact_unique", 1, "native_witness", null)
                 : null,
-            !legacy && kind == NativeActionLifecycleKinds.Accepted
+            !legacy && kind == HistoricalNativeActionLifecycleKinds.Accepted
                 ? new RecordedBoundAction(
                     "bound-action-a1",
                     "play",
@@ -193,7 +202,7 @@ public sealed class NativeActionLedgerTests
                     "Play card")
                 : null);
 
-    private static FrozenDecisionFrameV2 DecisionPre() => new(
+    private static HistoricalReadRichDecisionFrame DecisionPre() => new(
         "snapshot-a1",
         "interaction-a1",
         "combat",

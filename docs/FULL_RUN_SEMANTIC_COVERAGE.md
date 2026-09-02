@@ -9,7 +9,7 @@
 > expanding polling or weakening gameplay.
 
 This is the current coverage authority for the additive Human Semantic Timeline.
-It does not expand `HumanDecisionRecordV2`, corpus admission, or Connector
+It does not expand `CurrentDecisionRecord`, corpus admission, or Connector
 action authority.
 
 ## Causal Model

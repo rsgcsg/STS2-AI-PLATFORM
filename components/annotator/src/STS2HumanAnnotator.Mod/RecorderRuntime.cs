@@ -41,7 +41,7 @@ internal static class RecorderRuntime
 
     private static readonly object Gate = new();
     private static AnnotatorConfiguration? _configuration;
-    private static V2RecordingStore? _store;
+    private static RecordingSessionStore? _store;
     private static readonly SemanticBoundaryTracker BoundaryTracker = new();
     private static readonly Dictionary<GameAction, NativeActionLifecycleSubscription>
         NativeActionSubscriptions = new(ReferenceEqualityComparer.Instance);
@@ -96,7 +96,7 @@ internal static class RecorderRuntime
     private static bool _runActive;
     private static string _currentRunId = "run-unassigned";
     private static readonly HumanCaptureProfile CaptureProfile =
-        HumanCaptureProfiles.FullRunReadRichV2;
+        HumanCaptureProfiles.FullRunReadRich;
     private static readonly string[] DeclaredOutOfScopeActionFamilies =
     {
         "shop_inventory",
@@ -233,7 +233,7 @@ internal static class RecorderRuntime
                     command.Kind,
                     newSessionId,
                     DateTimeOffset.UtcNow,
-                    HasPendingRecordingWorkUnsafe());
+                    pendingRoot: HasPendingRecordingWorkUnsafe());
                 if (result.Accepted)
                 {
                     if (command.Kind == RecordingCommandKind.StartNewSession)
@@ -329,9 +329,9 @@ internal static class RecorderRuntime
 
         DateTimeOffset now = DateTimeOffset.UtcNow;
         string timelineId = $"timeline-{Guid.NewGuid():N}";
-        var manifest = new RecordingManifestV2(
-            HumanRecorderV2Contract.SchemaVersion,
-            HumanRecorderV2Contract.ManifestSchema,
+        var manifest = new CurrentRecordingManifest(
+            CurrentRecordingContract.SchemaVersion,
+            CurrentRecordingContract.ManifestSchema,
             lifecycle.SessionId,
             timelineId,
             now,
@@ -342,7 +342,7 @@ internal static class RecorderRuntime
             EvidenceIdentity.Sha256Json(CaptureProfile),
             CaptureProfile.SupportedActionFamilies,
             CaptureProfile.NonClaims.Append("not_human_validated").ToArray());
-        V2RecordingStore store = V2RecordingStore.Create(
+        RecordingSessionStore store = RecordingSessionStore.Create(
             _configuration.RecordingRoot,
             manifest,
             CaptureProfile);
@@ -371,7 +371,7 @@ internal static class RecorderRuntime
         _lifecycle = lifecycle;
         _runtimeState = "waiting_for_player_environment";
         _detail = lifecycle.Detail;
-        AppendJournal("session_started", null, null, "V2 read-rich recording session started.");
+        AppendJournal("session_started", null, null, "Current read-rich recording session started.");
     }
 
     private static RecordingSessionStatus? BuildSessionStatus()
@@ -470,7 +470,7 @@ internal static class RecorderRuntime
                 || HasPendingRecordingWorkUnsafe())
                 return;
             AppendJournal("session_closed", null, _lastSnapshotId, "Session flushed and closed.");
-            V2RecordingStore? store = _store;
+            RecordingSessionStore? store = _store;
             store?.Dispose();
             snapshot = store?.GetSnapshot() ?? _lastStoreSnapshot;
             _lastStoreSnapshot = snapshot;
@@ -1448,7 +1448,7 @@ internal static class RecorderRuntime
     private static void ObserveSemanticDecisionBoundary(
         ProcessLocalNativeWitnessFrame frame,
         string witnessKind,
-        FrozenDecisionFrameV2? completeState = null,
+        CurrentDecisionFrame? completeState = null,
         NativeDecisionOwnerReadyEvidence? nativeDecisionOwnerReady = null)
     {
         if (!_semanticBoundaryTraceHealthy)
@@ -1484,7 +1484,7 @@ internal static class RecorderRuntime
         ProcessLocalNativeWitnessFrame frame,
         string witnessKind,
         string? immediatelyConsumedByActionWitnessId,
-        FrozenDecisionFrameV2? completeState = null,
+        CurrentDecisionFrame? completeState = null,
         NativeDecisionOwnerReadyEvidence? nativeDecisionOwnerReady = null,
         ExecutionSemanticActionSpaceEvidence? executionSemanticActionSpace = null)
     {
@@ -1589,7 +1589,7 @@ internal static class RecorderRuntime
         }
     }
 
-    private static FrozenDecisionFrameV2 FreezeSemanticBoundary(
+    private static CurrentDecisionFrame FreezeSemanticBoundary(
         ProcessLocalNativeWitnessFrame frame,
         RecorderEnvironmentIdentity environment,
         string readPhase = "semantic")
@@ -1597,7 +1597,7 @@ internal static class RecorderRuntime
         PlayerEnvironmentSnapshot snapshot = frame.Snapshot;
         return MeasureStore(
             "freeze_semantic_boundary",
-            () => new FrozenDecisionFrameV2(
+            () => new CurrentDecisionFrame(
                 snapshot.SnapshotId,
                 snapshot.Interaction.InteractionId,
                 snapshot.Interaction.Kind,
@@ -1658,7 +1658,7 @@ internal static class RecorderRuntime
             return;
         }
 
-        FrozenDecisionFrameV2 humanObservation = FreezeSemanticBoundary(frame, environment);
+        CurrentDecisionFrame humanObservation = FreezeSemanticBoundary(frame, environment);
         long sequence = Interlocked.Increment(ref _sequence);
         string recordId = $"semantic-record-{sequence:D8}-{Guid.NewGuid():N}";
         string actionWitnessId = actionWitnessIdOverride ?? $"ui-action-{recordId}";
@@ -1867,7 +1867,7 @@ internal static class RecorderRuntime
             return;
         }
 
-        FrozenDecisionFrameV2 humanObservation = FreezeSemanticBoundary(context.Frame, environment);
+        CurrentDecisionFrame humanObservation = FreezeSemanticBoundary(context.Frame, environment);
         PlayerEnvironmentBoundAction boundAction = match.BoundAction!;
         long sequence = Interlocked.Increment(ref _sequence);
         string recordId = $"semantic-record-{sequence:D8}-{Guid.NewGuid():N}";
@@ -1922,7 +1922,7 @@ internal static class RecorderRuntime
         string recordId,
         string nativeActionType,
         uint? nativeQueueId,
-        FrozenDecisionFrameV2 humanObservation,
+        CurrentDecisionFrame humanObservation,
         string nativeMechanism,
         NativeWitnessEvidence witness,
         ProcessLocalNativeMatch match)
@@ -2239,7 +2239,7 @@ internal static class RecorderRuntime
     {
         if (drafts.Count == 0 || !_semanticBoundaryTraceHealthy)
             return;
-        V2RecordingStore store = _store
+        RecordingSessionStore store = _store
             ?? throw new InvalidOperationException("No open recording store for semantic boundary evidence.");
         foreach (SemanticBoundaryTraceDraft draft in drafts.Where(IsTerminalWithoutNativeCompletion))
         {
@@ -2306,7 +2306,7 @@ internal static class RecorderRuntime
     }
 
     private static void PersistDerivedTransitionProjection(
-        V2RecordingStore store,
+        RecordingSessionStore store,
         SemanticBoundaryTraceDraft draft)
     {
         string? family = SupportedFamilyForSemanticAction(draft.Action);
@@ -2342,8 +2342,8 @@ internal static class RecorderRuntime
                 SemanticProjectionEnvironments.TryGetValue(
                     draft.Action.ActionWitnessId,
                     out environment);
-            HumanDecisionRecordV2? record = null;
-            bool decisionV2Appended = false;
+            CurrentDecisionRecord? record = null;
+            bool currentDecisionAppended = false;
             IReadOnlyList<string> compatibilityErrors;
             if (environment == null)
             {
@@ -2358,7 +2358,7 @@ internal static class RecorderRuntime
                     TimelineId!,
                     CaptureProfile.ProfileId);
                 RecordValidationResult recordValidation =
-                    HumanDecisionRecordV2Validator.Validate(record);
+                    CurrentDecisionRecordValidator.Validate(record);
                 RecordValidationResult profileValidation =
                     HumanCaptureProfileValidator.ValidateRecord(CaptureProfile, record);
                 compatibilityErrors = recordValidation.Errors
@@ -2368,11 +2368,11 @@ internal static class RecorderRuntime
                 if (recordValidation.Valid && profileValidation.Valid)
                 {
                     store.AppendDecision(record);
-                    decisionV2Appended = true;
+                    currentDecisionAppended = true;
                 }
             }
 
-            string eventId = decisionV2Appended
+            string eventId = currentDecisionAppended
                 ? record!.RecordId
                 : canonical.TransitionId;
             AppendJournal(
@@ -2383,7 +2383,7 @@ internal static class RecorderRuntime
             if (compatibilityErrors.Count > 0)
             {
                 AppendJournal(
-                    "decision_v2_compatibility_omitted",
+                    "current_decision_projection_omitted",
                     canonical.TransitionId,
                     canonical.SuccessorRef.SnapshotId,
                     string.Join(",", compatibilityErrors));
@@ -2423,7 +2423,7 @@ internal static class RecorderRuntime
             or SemanticBoundaryTraceKinds.ActionAbortedBeforeCommit;
 
     private static SemanticBoundaryObservationReference ToReference(
-        V2RecordingStore store,
+        RecordingSessionStore store,
         SemanticBoundaryObservation boundary) =>
         SemanticBoundaryObservationCodec.Encode(boundary, store.PersistSemanticFrame);
 
@@ -2573,7 +2573,7 @@ internal static class RecorderRuntime
         string callSite,
         ProcessLocalNativeWitnessFrame frame)
     {
-        V2RecordingStore? store = _store;
+        RecordingSessionStore? store = _store;
         if (store == null)
             return;
         foreach (ProcessLocalCaptureTiming timing in frame.CaptureTimings)
@@ -2586,7 +2586,7 @@ internal static class RecorderRuntime
 
     private static T MeasureStore<T>(string phase, Func<T> operation)
     {
-        V2RecordingStore? store = _store;
+        RecordingSessionStore? store = _store;
         return store == null ? operation() : store.Measure(phase, operation);
     }
 
@@ -2620,7 +2620,7 @@ internal static class RecorderRuntime
         RecorderEnvironmentIdentity environment)
     {
         if (_store == null)
-            throw new InvalidOperationException("The V2 recording store is unavailable.");
+            throw new InvalidOperationException("The current recording store is unavailable.");
         var captures = new List<CapturedReadPayload>();
         IEnumerable<CaptureReadRequirement> requirements = string.Equals(
                 phase,
@@ -2775,8 +2775,8 @@ internal static class RecorderRuntime
         try
         {
             _store?.AppendInvalidation(new InvalidationRecord(
-                HumanRecorderV2Contract.SchemaVersion,
-                HumanRecorderV2Contract.InvalidationSchema,
+                CurrentRecordingContract.SchemaVersion,
+                CurrentRecordingContract.InvalidationSchema,
                 $"invalidation-{Guid.NewGuid():N}",
                 SessionId!,
                 _currentRunId,
@@ -2854,11 +2854,11 @@ internal static class RecorderRuntime
             }
             if (healthChanged)
                 PublishApplicationEvent(RecordingEventKind.HealthChanged, detail: health);
-            V2RecordingStore.WriteRuntimeStatus(
+            RecordingSessionStore.WriteRuntimeStatus(
                 _configuration.RuntimeStatusPath,
                 new RecorderRuntimeStatus(
-                    HumanRecorderContract.SchemaVersion,
-                    HumanRecorderContract.RuntimeStatusSchema,
+                    CurrentRecordingContract.SchemaVersion,
+                    CurrentRecordingContract.RuntimeStatusSchema,
                     status,
                     DateTimeOffset.UtcNow,
                     System.Environment.ProcessId,
@@ -2914,8 +2914,8 @@ internal static class RecorderRuntime
             return;
         long sequence = Interlocked.Increment(ref _journalSequence);
         _store.AppendRunEvent(new RunJournalEvent(
-            HumanRecorderV2Contract.SchemaVersion,
-            HumanRecorderV2Contract.RunJournalSchema,
+            CurrentRecordingContract.SchemaVersion,
+            CurrentRecordingContract.RunJournalSchema,
             $"event-{sequence:D8}-{Guid.NewGuid():N}",
             SessionId!,
             _currentRunId,

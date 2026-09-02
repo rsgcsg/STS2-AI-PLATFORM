@@ -136,7 +136,6 @@ test("uses durable native semantic action space when public execution catalog is
     ];
     await writeFile(path.join(root, "semantic-boundary-trace.jsonl"),
       `${events.map(JSON.stringify).join("\n")}\n`);
-    await writeFile(path.join(root, "native-action-ledger.jsonl"), "");
     await writeFile(path.join(root, "run-0001.jsonl"), "");
     await writeFile(path.join(root, "canonical-transitions.jsonl"),
       `${JSON.stringify({
@@ -223,7 +222,6 @@ test("classifies exact handoff, polling successor, and mismatched execution cata
     ];
     await writeFile(path.join(root, "semantic-boundary-trace.jsonl"),
       `${events.map(JSON.stringify).join("\n")}\n`);
-    await writeFile(path.join(root, "native-action-ledger.jsonl"), "");
     await writeFile(path.join(root, "run-0001.jsonl"), "");
 
     const report = await calibrate(root);
@@ -271,7 +269,6 @@ test("accepts only an exact native UI post-commit boundary for direct UI proof",
     ];
     await writeFile(path.join(root, "semantic-boundary-trace.jsonl"),
       `${events.map(JSON.stringify).join("\n")}\n`);
-    await writeFile(path.join(root, "native-action-ledger.jsonl"), "");
     await writeFile(path.join(root, "run-0001.jsonl"), "");
 
     const report = await calibrate(root);
@@ -306,7 +303,6 @@ test("accepts a native Commit followed by an exact owner-ready boundary", async 
     ];
     await writeFile(path.join(root, "semantic-boundary-trace.jsonl"),
       `${events.map(JSON.stringify).join("\n")}\n`);
-    await writeFile(path.join(root, "native-action-ledger.jsonl"), "");
     await writeFile(path.join(root, "run-0001.jsonl"), "");
 
     const report = await calibrate(root);
@@ -351,7 +347,6 @@ test("accepts a native Commit handoff only when it equals the next execution pre
     ];
     await writeFile(path.join(root, "semantic-boundary-trace.jsonl"),
       `${events.map(JSON.stringify).join("\n")}\n`);
-    await writeFile(path.join(root, "native-action-ledger.jsonl"), "");
     await writeFile(path.join(root, "run-0001.jsonl"), "");
 
     const report = await calibrate(root);
@@ -372,7 +367,6 @@ test("fails closed when a content-addressed semantic frame is tampered", async (
       }))}\n${JSON.stringify(event(2, "transition_unknown", "a1", action(), {
         execution_pre_ref: refs.s0
       }))}\n`);
-    await writeFile(path.join(root, "native-action-ledger.jsonl"), "");
     await writeFile(path.join(root, "run-0001.jsonl"), "");
     await assert.rejects(() => calibrate(root), /digest mismatch/);
   } finally {

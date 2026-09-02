@@ -43,10 +43,11 @@ declared-out-of-scope outcomes. A native UI attempt that STS2 rejects creates no
 HumanDecision and no capture-failure invalidation. The bounded event stream
 supports status-first reconnect followed by events after sequence N; a
 retention gap requires a new status query. These operational events are not
-durable Human Evidence. RunJournal, decisions, invalidations, historical
-native-action-ledger streams, Reads, semantic evidence and bundles remain the
-durable Evidence Plane. Audit, pack, verify, store and transfer never run on
-the game main thread.
+durable Human Evidence. RunJournal, current decisions, invalidations, Reads,
+semantic evidence and bundles remain the current durable Evidence Plane;
+historical native-action-ledger streams are retained only for explicit archival
+inspection. Audit, pack, verify, store and transfer never run on the game main
+thread.
 
 ## Canonical Sequential Evidence Boundary
 
@@ -77,11 +78,12 @@ prove a successor. `GameAction.Finished`, Task completion, UI post-Commit,
 periodic status frames, timers, queue-idle and generic later interactivity do
 not imply `S'`.
 
-Decision V2 rows and `canonical-transition` records are non-authorizing
-projections from an already `TransitionProved` semantic draft. Decision V2
-retains the frozen Human-time public frame for compatibility and may be omitted
-when its older interactive-shell constraints do not fit an otherwise valid
-modern transition. Current canonical evidence independently joins the semantic
+Current Decision records and `canonical-transition` records are non-authorizing
+projections from an already `TransitionProved` semantic draft. The current
+Decision record retains the frozen Human-time public frame for durable
+compatibility and may be omitted when its older interactive-shell constraints
+do not fit an otherwise valid modern transition. Current canonical evidence
+independently joins the semantic
 state, a typed native decision/action catalog captured at the exact action-
 binding boundary, exact Human/native correlation, Commit and the tracker-proved
 successor. A source-local callback may bind before native admission while a
@@ -89,9 +91,11 @@ successor. A source-local callback may bind before native admission while a
 identity. The projection cannot settle a root, authorize legality or a
 successor, backfill an unknown or introduce a second causal state machine.
 Exact root environment identity retained until projection is metadata only.
-Historical native-action-ledger schemas and validators remain readable for
-prior/additive evidence; the current runtime no longer uses a mutable native
-ledger or serialized-evidence admission policy to adjudicate causality.
+Historical Decision V1/V2 and native-action-ledger schemas and validators remain
+readable only for prior/additive evidence; the current runtime no longer uses a
+mutable native ledger or serialized-evidence admission policy to adjudicate
+causality. The `*-2` wire names identify the single current recording format,
+not a parallel V2 product.
 
 The current schema-4 timeline is an accounting/lifecycle trace. Exact-source and
 exact-runtime analysis found that normal STS2 UI staging withdraws many accepted
@@ -142,7 +146,7 @@ STS2 installation and native runtime
      -> Host workstation seam + exact Connector witness artifact
      -> native-human witness recording and session evidence
   -> Evidence component
-     -> typed V1/V2 verification, content identity, immutable local logistics
+     -> current and explicit archival verification, content identity, immutable local logistics
   -> Policy Runtime component
      -> model-neutral policy process and Connector consumer lifecycle
      -> append-only Agent-run evidence through Platform Evidence semantics

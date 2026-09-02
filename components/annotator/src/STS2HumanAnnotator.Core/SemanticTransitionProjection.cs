@@ -2,13 +2,13 @@ namespace STS2HumanAnnotator.Core;
 
 /// <summary>
 /// Non-authorizing compatibility projection from one already-proved semantic
-/// transition into the durable Decision V2 / canonical-transition formats.
+/// transition into the durable current decision and canonical-transition formats.
 /// Causal truth remains owned by <see cref="SemanticBoundaryTracker"/>; this
 /// helper cannot settle an action or manufacture a successor boundary.
 /// </summary>
 public static class SemanticTransitionProjection
 {
-    public static HumanDecisionRecordV2 CreateDecision(
+    public static CurrentDecisionRecord CreateDecision(
         SemanticBoundaryTraceDraft draft,
         RecorderEnvironmentIdentity environment,
         string sessionId,
@@ -40,9 +40,9 @@ public static class SemanticTransitionProjection
             ? "ordinary_combat"
             : draft.HumanObservation.InteractionKind;
 
-        return new HumanDecisionRecordV2(
-            HumanRecorderV2Contract.SchemaVersion,
-            HumanRecorderV2Contract.RecordSchema,
+        return new CurrentDecisionRecord(
+            CurrentRecordingContract.SchemaVersion,
+            CurrentRecordingContract.RecordSchema,
             draft.Action.RecordId,
             sessionId,
             draft.Action.RunId,
@@ -55,7 +55,7 @@ public static class SemanticTransitionProjection
             draft.Action.NativeWitness,
             draft.Action.Mapping,
             draft.Action.BoundAction,
-            new StableSuccessorV2(
+            new CurrentSuccessor(
                 draft.SemanticSuccessor.SnapshotId,
                 draft.Boundary.Status,
                 draft.SemanticSuccessor.InteractionId,
@@ -186,7 +186,7 @@ public static class SemanticTransitionProjection
     }
 
     private static bool PublicCatalogContainsExactlyOnce(
-        FrozenDecisionFrameV2 frame,
+        CurrentDecisionFrame frame,
         RecordedBoundAction selected)
     {
         if (frame.Snapshot["completeness"]?["status"]?.GetValue<string>() != "complete"

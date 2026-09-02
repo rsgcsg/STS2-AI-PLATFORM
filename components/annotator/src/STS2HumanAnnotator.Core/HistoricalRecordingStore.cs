@@ -3,7 +3,7 @@ using System.Text.Json;
 
 namespace STS2HumanAnnotator.Core;
 
-public sealed class RecordingStore : IDisposable
+public sealed class HistoricalRecordingStore : IDisposable
 {
     private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
     private readonly object _gate = new();
@@ -14,7 +14,7 @@ public sealed class RecordingStore : IDisposable
     private long _admittedCount;
     private long _invalidationCount;
 
-    private RecordingStore(string directory, RecordingManifest manifest)
+    private HistoricalRecordingStore(string directory, HistoricalRecordingManifest manifest)
     {
         DirectoryPath = directory;
         Manifest = manifest;
@@ -28,19 +28,19 @@ public sealed class RecordingStore : IDisposable
 
     public string DirectoryPath { get; }
 
-    public RecordingManifest Manifest { get; }
+    public HistoricalRecordingManifest Manifest { get; }
 
-    public static RecordingStore Create(string root, RecordingManifest manifest)
+    public static HistoricalRecordingStore Create(string root, HistoricalRecordingManifest manifest)
     {
         string safeSession = manifest.SessionId.All(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_')
             ? manifest.SessionId
             : throw new ArgumentException("Session ID contains unsafe path characters.", nameof(manifest));
-        return new RecordingStore(Path.Combine(Path.GetFullPath(root), safeSession), manifest);
+        return new HistoricalRecordingStore(Path.Combine(Path.GetFullPath(root), safeSession), manifest);
     }
 
-    public void AppendDecision(HumanDecisionRecord record)
+    public void AppendDecision(HistoricalDecisionRecord record)
     {
-        RecordValidationResult validation = HumanDecisionRecordValidator.Validate(record);
+        RecordValidationResult validation = HistoricalDecisionRecordValidator.Validate(record);
         if (!validation.Valid)
             throw new InvalidDataException($"Decision record failed validation: {string.Join(",", validation.Errors)}");
         lock (_gate)
@@ -81,8 +81,8 @@ public sealed class RecordingStore : IDisposable
 
     private void WriteCoverage()
     {
-        var coverage = new CoverageSummary(
-            HumanRecorderContract.SchemaVersion,
+        var coverage = new HistoricalCoverageSummary(
+            HistoricalRecordingContract.SchemaVersion,
             Manifest.SessionId,
             _admittedCount,
             _invalidationCount,

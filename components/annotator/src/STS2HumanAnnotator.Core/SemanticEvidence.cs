@@ -7,13 +7,16 @@ public static class SemanticEvidenceContract
     public const int LegacySchemaVersion = 3;
     public const string LegacyEventSchema = "sts2.human-annotator/semantic-evidence-event-3";
 
+    public static bool IsCurrent(int schemaVersion, string schema) =>
+        schemaVersion == SchemaVersion && schema == EventSchema;
+
     public static bool IsSupported(int schemaVersion, string schema) =>
-        (schemaVersion == SchemaVersion && schema == EventSchema)
+        IsCurrent(schemaVersion, schema)
         || (schemaVersion == LegacySchemaVersion && schema == LegacyEventSchema);
 }
 
 /// <summary>
-/// An immutable reference to one exact FrozenDecisionFrame. The role of the
+/// An immutable reference to one exact CurrentDecisionFrame. The role of the
 /// frame is carried by the event property that contains this reference.
 /// </summary>
 public sealed record SemanticFrameReference(
@@ -35,8 +38,8 @@ public sealed record SemanticBoundaryObservationReference(
     public string StateCompleteness { get; init; } = StateRef == null ? "unavailable" : "complete";
     public string RequiredReadsStatus { get; init; } = StateRef == null ? "unavailable" : "complete";
     public IReadOnlyList<string> StateBlockers { get; init; } = Array.Empty<string>();
-    // Additive schema-3 evidence. Older events deserialize with null and remain
-    // fail-closed for native-decision-owner-ready proofs.
+    // Current owner-ready evidence. Older archival events deserialize with null
+    // and remain fail-closed for native-decision-owner-ready proofs.
     public NativeDecisionOwnerReadyEvidence? NativeDecisionOwnerReady { get; init; }
 }
 
@@ -49,7 +52,7 @@ public static class SemanticBoundaryObservationCodec
 {
     public static SemanticBoundaryObservationReference Encode(
         SemanticBoundaryObservation observation,
-        Func<FrozenDecisionFrameV2, SemanticFrameReference> persistFrame)
+        Func<CurrentDecisionFrame, SemanticFrameReference> persistFrame)
     {
         ArgumentNullException.ThrowIfNull(observation);
         ArgumentNullException.ThrowIfNull(persistFrame);
@@ -74,7 +77,7 @@ public static class SemanticBoundaryObservationCodec
 
     public static SemanticBoundaryObservation Materialize(
         SemanticBoundaryObservationReference reference,
-        FrozenDecisionFrameV2? resolvedState)
+        CurrentDecisionFrame? resolvedState)
     {
         ArgumentNullException.ThrowIfNull(reference);
 

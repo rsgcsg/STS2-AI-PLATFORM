@@ -12,16 +12,16 @@ public sealed class SemanticTransitionProjectionTests
     public void ProvedSemanticTransitionProjectsWithoutBecomingAuthority()
     {
         RecorderEnvironmentIdentity environment = Environment();
-        FrozenDecisionFrameV2 pre = Frame("s0", "combat_turn", includeChosenAction: true);
-        FrozenDecisionFrameV2 successor = Frame("s1", "combat_turn", includeChosenAction: false);
+        CurrentDecisionFrame pre = Frame("s0", "combat_turn", includeChosenAction: true);
+        CurrentDecisionFrame successor = Frame("s1", "combat_turn", includeChosenAction: false);
         SemanticBoundaryTraceDraft draft = ProvedDraft(pre, successor);
 
-        HumanDecisionRecordV2 record = SemanticTransitionProjection.CreateDecision(
+        CurrentDecisionRecord record = SemanticTransitionProjection.CreateDecision(
             draft,
             environment,
             "session-test",
             "timeline-test",
-            HumanCaptureProfiles.FullRunReadRichV2.ProfileId);
+            HumanCaptureProfiles.FullRunReadRich.ProfileId);
 
         Assert.Equal("record-a1", record.RecordId);
         Assert.Equal("ordinary_combat", record.DecisionFamily);
@@ -29,13 +29,13 @@ public sealed class SemanticTransitionProjectionTests
         Assert.Equal("s1", record.Successor.SnapshotId);
         Assert.Equal(T0.AddSeconds(1), record.RecordedAt);
         Assert.Same(environment, record.Environment);
-        Assert.True(HumanDecisionRecordV2Validator.Validate(record).Valid);
+        Assert.True(CurrentDecisionRecordValidator.Validate(record).Valid);
     }
 
     [Fact]
     public void UnknownTransitionCannotBeProjectedIntoDecisionData()
     {
-        FrozenDecisionFrameV2 pre = Frame("s0", "combat_turn", includeChosenAction: true);
+        CurrentDecisionFrame pre = Frame("s0", "combat_turn", includeChosenAction: true);
         SemanticBoundaryTraceDraft draft = ProvedDraft(
             pre,
             Frame("s1", "combat_turn", includeChosenAction: false)) with
@@ -50,14 +50,14 @@ public sealed class SemanticTransitionProjectionTests
             Environment(),
             "session-test",
             "timeline-test",
-            HumanCaptureProfiles.FullRunReadRichV2.ProfileId));
+            HumanCaptureProfiles.FullRunReadRich.ProfileId));
     }
 
     [Fact]
     public void CanonicalProjectionKeepsExactSemanticFrameIdentity()
     {
-        FrozenDecisionFrameV2 pre = Frame("s0", "combat_turn", includeChosenAction: true);
-        FrozenDecisionFrameV2 successor = Frame("s1", "combat_turn", includeChosenAction: false);
+        CurrentDecisionFrame pre = Frame("s0", "combat_turn", includeChosenAction: true);
+        CurrentDecisionFrame successor = Frame("s1", "combat_turn", includeChosenAction: false);
         SemanticBoundaryTraceDraft draft = ProvedDraft(pre, successor) with
         {
             Action = ProvedDraft(pre, successor).Action with
@@ -85,8 +85,8 @@ public sealed class SemanticTransitionProjectionTests
     [Fact]
     public void GameActionWithoutTypedExecutionActionSpaceFailsClosed()
     {
-        FrozenDecisionFrameV2 pre = Frame("s0", "combat_turn", includeChosenAction: true);
-        FrozenDecisionFrameV2 successor = Frame("s1", "combat_turn", includeChosenAction: false);
+        CurrentDecisionFrame pre = Frame("s0", "combat_turn", includeChosenAction: true);
+        CurrentDecisionFrame successor = Frame("s1", "combat_turn", includeChosenAction: false);
         SemanticBoundaryTraceDraft draft = ProvedDraft(pre, successor);
 
         Assert.Throws<InvalidDataException>(() => SemanticTransitionProjection.CreateCanonical(
@@ -106,12 +106,12 @@ public sealed class SemanticTransitionProjectionTests
         string verb,
         string? subject)
     {
-        FrozenDecisionFrameV2 pre = Frame(
+        CurrentDecisionFrame pre = Frame(
             "s0",
             "combat_turn",
             includeChosenAction: false,
             status: "settling");
-        FrozenDecisionFrameV2 successor = Frame(
+        CurrentDecisionFrame successor = Frame(
             "s1",
             "combat_turn",
             includeChosenAction: false);
@@ -153,7 +153,7 @@ public sealed class SemanticTransitionProjectionTests
     [Fact]
     public void NativeExecutionCatalogMismatchFailsClosed()
     {
-        FrozenDecisionFrameV2 pre = Frame("s0", "combat_turn", includeChosenAction: false);
+        CurrentDecisionFrame pre = Frame("s0", "combat_turn", includeChosenAction: false);
         SemanticBoundaryTraceDraft original = ProvedDraft(
             pre,
             Frame("s1", "combat_turn", includeChosenAction: false));
@@ -259,8 +259,8 @@ public sealed class SemanticTransitionProjectionTests
     }
 
     private static SemanticBoundaryTraceDraft ProvedDraft(
-        FrozenDecisionFrameV2 pre,
-        FrozenDecisionFrameV2 successor)
+        CurrentDecisionFrame pre,
+        CurrentDecisionFrame successor)
     {
         var action = new SemanticActionReference(
             "game-action-a1",
@@ -319,7 +319,7 @@ public sealed class SemanticTransitionProjectionTests
         };
     }
 
-    private static FrozenDecisionFrameV2 Frame(
+    private static CurrentDecisionFrame Frame(
         string snapshotId,
         string interactionKind,
         bool includeChosenAction,
@@ -358,7 +358,7 @@ public sealed class SemanticTransitionProjectionTests
             }
         };
         JsonNode catalog = snapshot["bound_actions"]!;
-        return new FrozenDecisionFrameV2(
+        return new CurrentDecisionFrame(
             snapshotId,
             $"interaction-{snapshotId}",
             interactionKind,

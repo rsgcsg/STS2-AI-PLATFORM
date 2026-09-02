@@ -163,7 +163,7 @@ test("loaded verification never promotes an input canary to owner evidence", () 
 
 test("record settlement accepts only shared exact Modsets and never retries an unknown evidence commit", () => {
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
-  const validator = read("components/annotator/src/STS2HumanAnnotator.Core/RecordValidation.cs");
+  const validator = read("components/annotator/src/STS2HumanAnnotator.Core/CurrentValidation.cs");
   const projection = sourceBetween(
     runtime,
     "private static void PersistDerivedTransitionProjection",
@@ -276,7 +276,7 @@ test("typed non-combat native decisions bind exact Human actions without Annotat
   assert.doesNotMatch(runtime, /outside_direct_native_catalog/u);
 });
 
-test("legacy Decision V2 compatibility cannot gate durable modern canonical evidence", () => {
+test("current decision projection cannot gate durable canonical evidence", () => {
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
   const projection = sourceBetween(
     runtime,
@@ -288,7 +288,7 @@ test("legacy Decision V2 compatibility cannot gate durable modern canonical evid
     projection.indexOf("store.AppendCanonicalTransition(canonical)")
       < projection.indexOf("SemanticTransitionProjection.CreateDecision")
   );
-  assert.match(projection, /decision_v2_compatibility_omitted/u);
+  assert.match(projection, /current_decision_projection_omitted/u);
   assert.doesNotMatch(projection, /semantic_projection_not_eligible/u);
 });
 
@@ -331,21 +331,33 @@ test("capture failures become invalidations only after the native action is acce
   assert.doesNotMatch(runtime, /if \(selected == null\)[\s\S]{0,500}Quarantine\(/u);
 });
 
-test("rapid accepted actions use one exact lifecycle ledger and never fabricate V2 successors", () => {
+test("rapid accepted actions use one causal tracker and never fabricate successors", () => {
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
   const trace = read("components/annotator/src/STS2HumanAnnotator.Core/SemanticBoundaryTrace.cs");
-  const ledger = read("components/annotator/src/STS2HumanAnnotator.Core/NativeActionLedger.cs");
+  const archivalLedger = read("components/annotator/src/STS2HumanAnnotator.Core/HistoricalNativeActionLedger.cs");
 
   assert.match(runtime, /CanOpenSemanticEvidenceWindow[\s\S]*BoundaryTracker\.CanOpenNextRoot/u);
   assert.match(runtime, /semantic_causal_overlap/u);
   assert.match(runtime, /NativeActionLifecycleKinds\.Finished/u);
   assert.match(trace, /DisposeUnknown\([\s\S]*intervening_human_action_before_boundary/u);
-  assert.match(ledger, /Historical durable native-lifecycle evidence contract/u);
-  assert.match(ledger, /NativeActionLedgerValidator/u);
+  assert.match(archivalLedger, /Historical durable native-lifecycle evidence contract/u);
+  assert.match(archivalLedger, /HistoricalNativeActionLedgerValidator/u);
   assert.doesNotMatch(
-    `${runtime}\n${ledger}`,
+    `${runtime}\n${trace}`,
     /AcceptedHumanActionLedger|NativeActionLedger\.CanAdmitStrictTransition|ObserveRecoveryBoundary/u
   );
+});
+
+test("current recording store has no archival native-ledger authority", () => {
+  const store = read("components/annotator/src/STS2HumanAnnotator.Core/CurrentRecordingStore.cs");
+  const audit = read("components/annotator/src/STS2HumanAnnotator.Core/CurrentRecordingAudit.cs");
+  const bundle = read("components/annotator/src/STS2HumanAnnotator.Core/CurrentSessionBundle.cs");
+
+  assert.match(store, /public sealed class RecordingSessionStore/u);
+  assert.doesNotMatch(store, /AppendNativeActionEvent|_nativeActionLedger/u);
+  assert.doesNotMatch(audit, /ValidateNativeActionLedger|NativeActionLedgerValidator/u);
+  assert.match(bundle, /native-action-ledger\.jsonl/u);
+  assert.match(bundle, /archival reader input/u);
 });
 
 test("semantic direct UI commits share one execution boundary and scoped selector path", () => {
@@ -523,7 +535,8 @@ test("native completion proof has no FIFO, count, timer, or polling fallback", (
   );
   const proofFallback = /(?:\bFIFO\b|\.Count\b|FirstOrDefault|LastOrDefault|TryDequeue|\bDequeue\(|Task\.Delay|Task\.Wait|WaitAsync|Task\.WhenAny|Thread\.Sleep|Stopwatch|System\.Timers|\bTimer\b|\bPoll(?:ing)?\b|TrySettle)/u;
 
-  // The queue is only cross-thread transport; proof stays in the exact ledger.
+  // The queue is only cross-thread transport; proof stays in the causal
+  // boundary tracker.
   assert.match(queueMethod, /QueuedNativePostCommitCompletions\.Enqueue\(signal\)/u);
   assert.doesNotMatch(queueMethod, proofFallback);
   assert.doesNotMatch(completionMethod, proofFallback);

@@ -1,13 +1,15 @@
 # Data Contract
 
-Decision V1/V2 schemas are defined by
-`src/STS2HumanAnnotator.Core/Contracts.cs` and `V2Contracts.cs`. A session directory contains one
-immutable manifest, one append-only file per observed run, one append-only
-invalidation stream, an additive native-action lifecycle ledger, a minimal run
-journal, content-addressed Read blobs, and an atomically replaced coverage
-summary.
+The current recording schemas are defined by
+`src/STS2HumanAnnotator.Core/CurrentContracts.cs`. Wire names ending in `-2`
+are the single current format; they are not a second active product. A current
+session directory contains one immutable manifest, one append-only file per
+observed run, one append-only invalidation stream, a semantic boundary stream,
+content-addressed Read/frame/action-space objects, a minimal run journal, and
+an atomically replaced coverage summary. The current store does not create a
+native-action ledger.
 
-Each admitted `HumanDecisionRecord` contains:
+Each admitted `CurrentDecisionRecord` contains:
 
 - exact environment and artifact identity;
 - the full frozen pre Snapshot and catalog digest/count;
@@ -25,25 +27,25 @@ in deterministic order.
 Historical `native-action-ledger.jsonl` evidence uses
 `sts2.human-annotator/native-action-ledger-event-2`. Each exact-correlated
 accepted root has one process-local action witness ID, native queue ID, frozen
-Decision V2 pre-frame, native witness, exact-unique mapping and selected
+read-rich predecessor pre-frame, native witness, exact-unique mapping and selected
 BoundAction. Later entries contain only ordered lifecycle facts and exactly one
 recorder disposition: `strict_transition_admitted` or
 `strict_transition_invalidated`; decision evidence is not repeated or rewritten.
 
-Historical audit verifies that an admitted ledger decision exactly matches its
-Decision V2 record. `native-action-ledger-event-1/2` sidecars remain readable,
-but the current recorder neither mutates a native ledger nor uses it for
-admission, causality or successor settlement. Decision V1/V2 remain a durable
-compatibility format projected only after the current semantic tracker proves a
-transition.
+`HistoricalRecordingAuditor` verifies that an admitted ledger decision exactly
+matches its historical record. `native-action-ledger-event-1/2` sidecars remain
+readable only through the explicit historical reader; the current recorder
+neither mutates nor audits a native ledger, and the current bundle packer
+excludes it. Historical Decision V1/V2 bytes retain their original meaning;
+they are not a current admission, causality or successor authority.
 
 `semantic-boundary-trace.jsonl` is the current Human causal evidence stream.
-Historical schema-1/2/3 rows remain readable with their original meaning. New
+Historical schema-1/2/3 rows are handled only by explicit archival readers. New
 schema-4 rows store ordered lifecycle/disposition facts plus explicit
 `human_observation_ref`, `execution_pre_ref`, `successor_ref` and boundary-state
 references. Each reference resolves below the session's
 `semantic-frames/sha256/` directory to one exact canonical
-`FrozenDecisionFrameV2`; audit verifies path containment, content digest and
+`CurrentDecisionFrame`; audit verifies path containment, content digest and
 snapshot identity before applying the same causal validator. Roles remain
 distinct even when they reference identical content.
 
@@ -86,9 +88,10 @@ requires that evidence and an exact domain match; the owner signal alone is not
 state, action-space or successor authority. If the synchronous Connector frame
 is partial or mismatched, no proof is emitted.
 
-This stream is not corpus admission or research authority. Predecessor sessions
-without schema-4 action-space references remain valid with their original
-claims; evidence is never transferred or backfilled.
+This stream is not corpus admission or research authority. Current audit only
+promotes current schema containers; predecessor sessions retain their original
+claims only through an explicit archival reader. Evidence is never transferred
+or backfilled.
 
 `native-semantic-discriminator.jsonl` is an additive read-only diagnostic
 stream. For each exact-correlated root it records ordered native lifecycle and
@@ -101,8 +104,8 @@ a missing capture and cannot authorize an action. Successful sampled roots must
 match exactly once; cancellation and PlayCard pre-Commit abort are separate
 dispositions. Player-choice commits are linked to the paused parent action.
 The stream is audited by `audit-native-semantic`; it does not authorize input,
-change Decision V2, admit training rows, prove End Turn completion by itself, or
-claim Full-Run semantic completeness.
+change the current Decision record, admit training rows, prove End Turn
+completion by itself, or claim Full-Run semantic completeness.
 
 The authoritative `audit` consumes this stream only for envelope/session
 integrity and cross-stream accounting. Per-action diagnostic coverage or
@@ -139,7 +142,7 @@ current public deliverability is not substituted for that semantic fact. A
 generic later interactive Snapshot is not causal S' merely because it is
 interactive. `calibrate-semantic-training` mechanically classifies semantic
 candidates and joins them to the durable canonical stream. It never creates
-canonical truth or promotes a legacy V2 admission or a `transition_proved`
+canonical truth or promotes a historical admission or a `transition_proved`
 label by terminology alone.
 
 `SemanticActionReference` may add exact process-local witness, mapping,
@@ -148,7 +151,7 @@ retains its prior meaning. The current `game_action` and `direct_ui_commit`
 mechanisms both resolve one already-published frozen BoundAction and converge on
 the same tracker and disposition rules; neither is a second execution API.
 
-`pack-session` creates `sts2.human-annotator/session-bundle-1`. A bundle contains
+`pack-session` creates `sts2.human-annotator/session-bundle-2`. A current bundle contains
 the untouched raw session, independent audit, deterministic export, the exact
 versioned `CollectionProfile`, a human-origin attestation, a content-identity
 manifest, and a complete `checksums.sha256` inventory. The content identity binds
@@ -159,5 +162,7 @@ retry fails.
 Files are append-only by Recorder behavior, not cryptographically tamper-proof.
 The SHA-256 of an exported JSONL is one source identity, not the whole bundle
 identity. STPD independently verifies raw/export equivalence, checksums, profile
-identity and strict admission before a bundle enters a corpus. Preserve both raw
-sessions and accepted bundles read-only.
+identity and its own research admission before a bundle enters a corpus. The
+current CLI accepts only the current manifest; predecessor V1 bundles require
+the explicit historical packer. Preserve both raw sessions and accepted bundles
+read-only.

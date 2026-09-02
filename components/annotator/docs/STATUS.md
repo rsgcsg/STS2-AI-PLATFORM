@@ -1,5 +1,17 @@
 # Status
 
+## Current recording-format hard cut (PR #11, 2026-09-02)
+
+The active recorder/store/audit/bundle/tool path is current-only and uses the
+schema-2 wire identities as one current format. Current CLR names are
+`CurrentDecisionRecord`, `RecordingSessionStore`, `RecordingSessionAuditor`
+and `SessionBundlePacker`; the current recorder does not create or consult a
+native-action ledger. Historical V1/V2 readers, schema-1/2/3 trace handling and
+ledger validation remain explicit archival tooling. The discriminator remains
+diagnostic-only and cannot veto healthy current canonical evidence, although
+malformed or identity-inconsistent diagnostic envelopes remain fatal. This is
+source/test evidence only; no new runtime or Human qualification claim is made.
+
 Historical Annotator evidence below remains bound to its original source and
 artifact. Annotator `0.3.0-rc.1` is the current read-rich V2 source. Schema 3 is
 bounded Human-proved for trace accounting on exact artifact `4fa67570... / 51c7c37b...`, runtime
@@ -104,6 +116,13 @@ authoritative Closed state after the first Close. Those latest changes are
 cold-loaded as `887630f4... / 14761ed4...` and do not inherit predecessor
 evidence. Exact owner session `session-20260826T025703Z-...` now
 audits 19/19 records and explicitly separates 16 native-accepted failures.
+
+## Historical implementation inventory
+
+The implementation inventory below preserves dated evidence from predecessor
+recording products. Its V1/V2/ledger labels are historical evidence labels,
+not names of active runtime authorities; the current path is the hard-cut
+format described above.
 
 ## Implemented
 

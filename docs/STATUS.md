@@ -1,5 +1,26 @@
 # Current Status
 
+## PR #11 current recording-format hard cut (source/test, 2026-09-02)
+
+The active Platform recorder now has one current CLR/data path: immutable
+Human/native observations feed the semantic boundary trace, current Decision
+and canonical projections, and the current store/audit/bundle tools. The wire
+suffix `-2` remains part of the current evidence identity; it is not a second
+runtime product. The current store never writes or consults
+`native-action-ledger.jsonl`, current audit rejects non-current recording
+containers, and the current bundle packer excludes the archival ledger.
+Historical V1/V2 records, schema-1/2/3 traces and ledger validators remain
+explicit archival readers only. The native semantic discriminator remains a
+diagnostic stream: envelope/identity corruption is fatal, while diagnostic
+coverage cannot veto healthy current canonical evidence. This hard cut changes
+recording product shape and source identities only; it does not claim a new
+runtime load or Human qualification, and STPD adaptation is deferred.
+
+The dated implementation and evidence sections below preserve predecessor
+recording formats and claims for historical context. Their V1/V2, ledger and
+legacy labels are archival evidence labels, not active current runtime
+authorities; the current path is the hard-cut contract above.
+
 ## Repository governance
 
 Public `main` commit `5604050ef0e0f55f13bf2fdb720e5c215d774fd5`

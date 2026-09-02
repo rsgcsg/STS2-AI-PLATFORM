@@ -11,7 +11,7 @@ namespace STS2HumanAnnotator.Mod;
 #endif
 public static class RecorderMod
 {
-    public const string Version = HumanRecorderContract.ProductVersion;
+    public const string Version = CurrentRecordingContract.ProductVersion;
 
     public static void Initialize()
     {

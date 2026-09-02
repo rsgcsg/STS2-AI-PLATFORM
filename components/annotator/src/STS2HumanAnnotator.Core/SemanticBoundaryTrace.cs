@@ -7,8 +7,11 @@ public static class SemanticBoundaryTraceContract
     public const int LegacySchemaVersion = 1;
     public const string LegacyEventSchema = "sts2.human-annotator/semantic-boundary-trace-event-1";
 
+    public static bool IsCurrent(int schemaVersion, string schema) =>
+        schemaVersion == SchemaVersion && schema == EventSchema;
+
     public static bool IsSupported(int schemaVersion, string schema) =>
-        (schemaVersion == SchemaVersion && schema == EventSchema)
+        IsCurrent(schemaVersion, schema)
         || (schemaVersion == LegacySchemaVersion && schema == LegacyEventSchema);
 }
 
@@ -35,7 +38,9 @@ public static class SemanticBoundaryWitnessKinds
     public const string CompleteInteractiveObservation = "complete_interactive_observation";
     public const string NativeUiPostCommit = "after_native_ui_commit";
     public const string NativeDecisionOwnerReady = "native_decision_owner_ready";
-    public const string LegacyV2Successor = "legacy_v2_successor";
+    // Historical wire witness retained only so archival traces can be
+    // classified and rejected; it is not a current successor mechanism.
+    public const string HistoricalPollingSuccessor = "legacy_v2_successor";
 }
 
 public sealed record SemanticActionReference(
@@ -72,7 +77,7 @@ public sealed record SemanticBoundaryObservation(
     string BoundActionsStatus,
     string InteractionId,
     string InteractionKind,
-    FrozenDecisionFrameV2? State,
+    CurrentDecisionFrame? State,
     string? ImmediatelyConsumedByActionWitnessId)
 {
     public NativeDecisionOwnerReadyEvidence? NativeDecisionOwnerReady { get; init; }
@@ -141,12 +146,12 @@ public sealed record SemanticBoundaryTraceDraft(
     string ProofStatus,
     string? RelatedActionWitnessId = null,
     SemanticBoundaryObservation? Boundary = null,
-    FrozenDecisionFrameV2? SemanticPre = null,
-    FrozenDecisionFrameV2? SemanticSuccessor = null,
+    CurrentDecisionFrame? SemanticPre = null,
+    CurrentDecisionFrame? SemanticSuccessor = null,
     string? Detail = null,
     IReadOnlyList<string>? NonClaims = null)
 {
-    public FrozenDecisionFrameV2? HumanObservation { get; init; }
+    public CurrentDecisionFrame? HumanObservation { get; init; }
     public NativeCompletionEvidence? NativeCompletion { get; init; }
     public ExecutionSemanticActionSpaceEvidence? ExecutionSemanticActionSpace { get; init; }
 }
@@ -165,12 +170,12 @@ public sealed record SemanticBoundaryTraceEvent(
     string ProofStatus,
     string? RelatedActionWitnessId,
     SemanticBoundaryObservation? Boundary,
-    FrozenDecisionFrameV2? SemanticPre,
-    FrozenDecisionFrameV2? SemanticSuccessor,
+    CurrentDecisionFrame? SemanticPre,
+    CurrentDecisionFrame? SemanticSuccessor,
     string? Detail,
     IReadOnlyList<string> NonClaims)
 {
-    public FrozenDecisionFrameV2? HumanObservation { get; init; }
+    public CurrentDecisionFrame? HumanObservation { get; init; }
     public NativeCompletionEvidence? NativeCompletion { get; init; }
     public ExecutionSemanticActionSpaceEvidence? ExecutionSemanticActionSpace { get; init; }
 }
@@ -184,15 +189,15 @@ public sealed class SemanticBoundaryTracker
 {
     private sealed class Entry
     {
-        public Entry(SemanticActionReference action, FrozenDecisionFrameV2 humanObservation)
+        public Entry(SemanticActionReference action, CurrentDecisionFrame humanObservation)
         {
             Action = action;
             HumanObservation = humanObservation;
         }
 
         public SemanticActionReference Action { get; }
-        public FrozenDecisionFrameV2 HumanObservation { get; }
-        public FrozenDecisionFrameV2? SemanticPre { get; set; }
+        public CurrentDecisionFrame HumanObservation { get; }
+        public CurrentDecisionFrame? SemanticPre { get; set; }
         public bool Started { get; set; }
         public bool Paused { get; set; }
         public bool Finished { get; set; }
@@ -206,7 +211,7 @@ public sealed class SemanticBoundaryTracker
     private readonly int _capacity;
     private readonly Dictionary<string, Entry> _entries = new(StringComparer.Ordinal);
     private readonly List<string> _order = new();
-    private FrozenDecisionFrameV2? _currentState;
+    private CurrentDecisionFrame? _currentState;
     private long _executionSequence;
 
     public SemanticBoundaryTracker(int capacity = 128)
@@ -235,7 +240,7 @@ public sealed class SemanticBoundaryTracker
 
     public IReadOnlyList<SemanticBoundaryTraceDraft> Accept(
         SemanticActionReference action,
-        FrozenDecisionFrameV2 humanObservation)
+        CurrentDecisionFrame humanObservation)
     {
         if (_entries.ContainsKey(action.ActionWitnessId))
             throw new InvalidOperationException("Semantic action identity was accepted twice.");
@@ -715,7 +720,7 @@ public sealed class SemanticBoundaryTracker
     private static bool IsNonCausalObservation(
         SemanticBoundaryObservation boundary,
         IReadOnlyCollection<Entry> entries) =>
-        boundary.WitnessKind == SemanticBoundaryWitnessKinds.LegacyV2Successor
+        boundary.WitnessKind == SemanticBoundaryWitnessKinds.HistoricalPollingSuccessor
         || boundary.WitnessKind == SemanticBoundaryWitnessKinds.NativeUiPostCommit
         || (boundary.WitnessKind == SemanticBoundaryWitnessKinds.NativeDecisionOwnerReady
             && !boundary.IsNativeDecisionOwnerReadyBoundary)
@@ -756,8 +761,8 @@ public sealed class SemanticBoundaryTracker
         string proofStatus,
         string? relatedActionWitnessId = null,
         SemanticBoundaryObservation? boundary = null,
-        FrozenDecisionFrameV2? semanticPre = null,
-        FrozenDecisionFrameV2? semanticSuccessor = null,
+        CurrentDecisionFrame? semanticPre = null,
+        CurrentDecisionFrame? semanticSuccessor = null,
         string? detail = null,
         IReadOnlyList<string>? nonClaims = null) =>
         new(

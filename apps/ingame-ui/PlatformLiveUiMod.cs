@@ -492,7 +492,7 @@ internal sealed class PlatformLivePanel : IDisposable
         $"Declared out of scope: {FormatItems(status.Recording.Scope.DeclaredOutOfScope)}",
         $"Profile boundary: {status.Recording.Scope.Detail}",
         $"Reads materialized / failed: {status.Recording.Counters.ReadsMaterialized} / {status.Recording.Counters.ReadsFailed}",
-        $"Pending decision: {status.Recording.PendingDecision?.RecordId ?? "none"}",
+        $"Pending root: {status.Recording.PendingRoot?.RecordId ?? "none"}",
         $"Last record: {status.Recording.LastRecord?.Id ?? "none"}",
         $"Last invalidation: {status.Recording.LastInvalidation?.Id ?? "none"}",
         $"Required Reads / append / disk: {status.Recording.Health.RequiredReads} / {status.Recording.Health.Append} / {status.Recording.Health.Disk}",

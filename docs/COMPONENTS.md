@@ -5,7 +5,7 @@
 | Native Foundation | `components/native-foundation` | STS2-owned semantic decisions, native lifecycle, process-local owner lineage | transport, evidence, public action authority, input execution |
 | Connector | `components/connector` | Player Environment, native binding/execution, REST/MCP, SDK | process lifecycle, strategy, annotation |
 | Host Runtime | `components/host-runtime` | discovery, isolation, launch/reset/stop, headless/managed experiments, qualification | gameplay legality, research models |
-| Human Annotator | `components/annotator` | native-human witness, one semantic causal tracker, derived Decision V2/canonical projections, records, audit/export/bundle, workstation | action authority, research admission, a second causal adjudicator |
+| Human Annotator | `components/annotator` | native-human witness, one semantic causal tracker, derived current Decision/canonical projections, records, audit/export/bundle, workstation | action authority, research admission, a second causal adjudicator |
 | Platform Evidence | `components/evidence` | typed verification, content identity, immutable store, transfer/receiver receipts | research eligibility, corpus policy, mutation |
 | Policy Runtime | `components/policy-runtime` | policy process boundary, Human/Shadow/One-Step/Auto, controller lifecycle, stale/Receipt/successor and Agent-run evidence | model inference, legality, native operands, candidate filtering |
 | Workbench | `apps/workbench` | typed live status, explicit filesystem fallback, bounded Policy Runtime commands | gameplay submission, evidence admission, model loading |
@@ -22,10 +22,11 @@ deliverability; `A_public` may be empty while input is settling without erasing
 the execution semantic action space. Annotator preserves the same typed
 observation for evidence without gaining legality or mutation authority.
 Inside Annotator, `SemanticBoundaryTracker` is the sole current runtime causal
-authority. Decision V2 and canonical-transition files are non-authorizing
-projections from an already proved semantic transition. The historical
-native-action-ledger contract remains readable for prior/additive evidence but
-is not a current runtime admission state machine.
+authority. Current Decision and canonical-transition files are non-authorizing
+projections from an already proved semantic transition. The `*-2` wire names
+identify the one current recording format. Historical Decision V1/V2 and
+native-action-ledger contracts remain readable only for prior/additive evidence
+and are not current runtime admission state machines.
 
 Each imported component retains its focused `AGENTS.md`, tests and operational
 documentation. Those files add component-specific constraints but cannot
@@ -41,7 +42,8 @@ Node driver/CLI and strategy-free Python client. Consumers provide external
 candidate artifacts; they do not import a sibling source checkout.
 
 The versioned Evidence Python package is the portable evidence-integrity
-boundary. It verifies V1/V2 Human bundles and owns local transfer mechanics;
+boundary. It verifies current and explicitly archival Human bundles and owns
+local transfer mechanics;
 research consumers remain responsible for their own admission semantics.
 
 The Policy Runtime is a Connector consumer. A Policy Manifest names exact
