@@ -1,0 +1,113 @@
+#!/usr/bin/env node
+import fs from "node:fs";
+import path from "node:path";
+import process from "node:process";
+import { fileURLToPath } from "node:url";
+
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
+
+function jobBlock(source, jobName) {
+  const marker = `  ${jobName}:\n`;
+  const start = source.indexOf(marker);
+  if (start < 0) return null;
+  const bodyStart = start + marker.length;
+  const next = source.slice(bodyStart).search(/^  [A-Za-z0-9_-]+:\s*$/mu);
+  return next < 0 ? source.slice(bodyStart) : source.slice(bodyStart, bodyStart + next);
+}
+
+function requireMatch(errors, label, source, pattern) {
+  if (!pattern.test(source)) errors.push(label);
+}
+
+export function ciWorkflowErrors(source) {
+  const errors = [];
+  requireMatch(errors, "CI must trigger for pull requests", source, /^  pull_request:\s*$/mu);
+  requireMatch(errors, "CI push trigger must be branch-scoped", source,
+    /^  push:\s*\n    branches:\s*$/mu);
+  for (const branch of ["develop", "main", '"release/**"', '"hotfix/**"']) {
+    if (!source.includes(`      - ${branch}`)) errors.push(`CI push trigger is missing ${branch}`);
+  }
+  requireMatch(errors, "CI must retain manual workflow_dispatch", source, /^  workflow_dispatch:\s*$/mu);
+  requireMatch(errors, "CI must cancel stale runs", source, /^  cancel-in-progress:\s*true\s*$/mu);
+  requireMatch(errors, "CI concurrency must distinguish PR/ref", source,
+    /github\.event\.pull_request\.number\s*\|\|\s*github\.ref/u);
+
+  const linux = jobBlock(source, "linux-portability");
+  const windows = jobBlock(source, "windows-portability");
+  const portable = jobBlock(source, "portable");
+  if (!linux) errors.push("CI is missing linux-portability");
+  if (!windows) errors.push("CI is missing windows-portability");
+  if (!portable) errors.push("CI is missing required portable aggregate");
+
+  if (linux) {
+    requireMatch(errors, "Linux portability must use ubuntu-latest", linux, /runs-on:\s*ubuntu-latest/u);
+    requireMatch(errors, "Linux portability must run the root check", linux, /run:\s*npm run check\s*$/mu);
+    requireMatch(errors, "Linux portability must run git diff --check", linux, /run:\s*git diff --check\s*$/mu);
+    requireMatch(errors, "Linux checkout must fetch full history", linux, /fetch-depth:\s*0/u);
+    requireMatch(errors, "Linux checkout must not persist credentials", linux, /persist-credentials:\s*false/u);
+    requireMatch(errors, "Dependency review must remain on pull requests", linux,
+      /if:\s*github\.event_name == 'pull_request'/u);
+  }
+  if (windows) {
+    requireMatch(errors, "Windows portability must use windows-latest", windows, /runs-on:\s*windows-latest/u);
+    requireMatch(errors, "Windows portability must run the root check", windows, /run:\s*npm run check\s*$/mu);
+    requireMatch(errors, "Windows portability must run git diff --check", windows, /run:\s*git diff --check\s*$/mu);
+    requireMatch(errors, "Windows checkout must fetch full history", windows, /fetch-depth:\s*0/u);
+    requireMatch(errors, "Windows checkout must not persist credentials", windows, /persist-credentials:\s*false/u);
+    if (/npm\s+--prefix/u.test(windows)) {
+      errors.push("Windows portability must not maintain a hand-picked component subset");
+    }
+  }
+  if (portable) {
+    requireMatch(errors, "portable must aggregate both OS lanes", portable,
+      /needs:\s*\[linux-portability, windows-portability\]/u);
+    requireMatch(errors, "portable must evaluate failed/cancelled dependencies", portable,
+      /if:\s*\$\{\{\s*always\(\)\s*\}\}/u);
+    requireMatch(errors, "portable must fail unless Linux succeeded", portable,
+      /test\s+"\$LINUX_RESULT"\s+=\s+"success"/u);
+    requireMatch(errors, "portable must fail unless Windows succeeded", portable,
+      /test\s+"\$WINDOWS_RESULT"\s+=\s+"success"/u);
+  }
+
+  for (const line of source.split("\n")) {
+    const match = line.match(/^\s*- uses:\s*([^\s#]+)@([^\s#]+)/u);
+    if (match && !/^[0-9a-f]{40}$/u.test(match[2])) {
+      errors.push(`GitHub Action is not pinned by full commit SHA: ${match[1]}@${match[2]}`);
+    }
+  }
+
+  const forbiddenHostedCommands = [
+    "npm run check:exact-game",
+    "npm run deploy",
+    "npm run launch",
+    "npm run verify:loaded",
+    "npm run game-mod:deploy",
+    "npm run game-mod:launch",
+    "npm run game-mod:verify-loaded",
+    "npm run annotator:build",
+    "npm run annotator:launch-live-connector",
+    "npm run connector:build"
+  ];
+  for (const command of forbiddenHostedCommands) {
+    if (source.includes(command)) {
+      errors.push(`Hosted CI must not claim exact-game/runtime qualification via: ${command}`);
+    }
+  }
+  return errors;
+}
+
+export function validateCiWorkflow(workflowPath) {
+  const source = fs.readFileSync(workflowPath, "utf8");
+  return ciWorkflowErrors(source);
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const workflowPath = path.resolve(ROOT, "..", ".github", "workflows", "ci.yml");
+  const errors = validateCiWorkflow(workflowPath);
+  if (errors.length > 0) {
+    process.stderr.write(`${errors.join("\n")}\n`);
+    process.exitCode = 1;
+  } else {
+    process.stdout.write("CI contract checks passed\n");
+  }
+}
