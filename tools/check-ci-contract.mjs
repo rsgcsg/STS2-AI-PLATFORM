@@ -6,6 +6,10 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)));
 
+function normalizeNewlines(source) {
+  return source.replace(/\r\n?/gu, "\n");
+}
+
 function jobBlock(source, jobName) {
   const marker = `  ${jobName}:\n`;
   const start = source.indexOf(marker);
@@ -19,7 +23,8 @@ function requireMatch(errors, label, source, pattern) {
   if (!pattern.test(source)) errors.push(label);
 }
 
-export function ciWorkflowErrors(source) {
+export function ciWorkflowErrors(rawSource) {
+  const source = normalizeNewlines(rawSource);
   const errors = [];
   requireMatch(errors, "CI must trigger for pull requests", source, /^  pull_request:\s*$/mu);
   requireMatch(errors, "CI push trigger must be branch-scoped", source,
