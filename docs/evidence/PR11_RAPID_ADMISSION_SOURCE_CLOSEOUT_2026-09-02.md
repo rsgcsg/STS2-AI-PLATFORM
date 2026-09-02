@@ -9,7 +9,7 @@ This source-level note is not Human qualification for the new bytes.
 - Exact game: STS2 `v0.111.0 / 41cef1ea`
 - Artifact: `085a70f3cbf436bbe20784f8519494b2bfd8e26371977c2e6bc3e270e426e647`
 - MVID: `d08ee098-e9f1-417e-a03f-d9986ef61cc4`
-- Loaded runtime: `b4985ac775734523a33c2f70a4eaf80b`
+- Loaded runtime: `b24fc95928dd4f97aeea8f1071b6ecaa`
 - Environment: `e34d7ed2777ea169195d060d79f44c18b0d2c1d9d81852ba8b31beec42da16a5`
 - Modset fingerprint: `f80770c0eb87c49b54bb3871976610bf9cbf8d0b63258e989e9049393007bdc1`
 
