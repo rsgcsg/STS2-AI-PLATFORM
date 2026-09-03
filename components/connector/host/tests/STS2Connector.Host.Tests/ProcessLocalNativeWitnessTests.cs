@@ -1,12 +1,37 @@
 using STS2Connector.NativeUi;
 using STS2Connector.PlayerEnvironment.Protocol;
 using STS2Connector.PlayerEnvironment.Witness;
+using STS2Platform.NativeFoundation;
 using System.Text.Json.Nodes;
 
 namespace STS2Connector.Host.Tests;
 
 public sealed class ProcessLocalNativeWitnessTests
 {
+    [Fact]
+    public void SemanticActionKeyIsDeterministicAndRoleOrdered()
+    {
+        string first = NativeSemanticActionCatalog.BuildKey(
+            "play",
+            "card-1",
+            new Dictionary<string, string>
+            {
+                ["z_target"] = "enemy-2",
+                ["a_mode"] = "normal"
+            });
+        string second = NativeSemanticActionCatalog.BuildKey(
+            "play",
+            "card-1",
+            new Dictionary<string, string>
+            {
+                ["a_mode"] = "normal",
+                ["z_target"] = "enemy-2"
+            });
+
+        Assert.Equal(first, second);
+        Assert.Equal("play|card-1|a_mode=normal,z_target=enemy-2", first);
+    }
+
     [Fact]
     public void ExactNativeInstanceSelectsOneDuplicateLookingCard()
     {

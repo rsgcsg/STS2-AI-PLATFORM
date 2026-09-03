@@ -25,8 +25,11 @@ npm run game-mod:verify-loaded
 ```
 
 Deployment backs up the existing unified artifact, the predecessor three-Mod
-files, and component configuration before replacement. It removes the three
-predecessor manifests rather than retaining a silent fallback. Restore with:
+files, component configuration, and the native Windows Mod settings before
+replacement. On Windows it preserves every settings entry while enabling only
+`STS2_PLATFORM`; rollback restores the exact prior settings bytes. It removes
+the three predecessor manifests rather than retaining a silent fallback.
+Restore with:
 
 ```bash
 npm run game-mod:rollback
@@ -38,6 +41,10 @@ common loaded SHA/MVID for Connector/Annotator/UI, component-specific embedded
 source provenance, a ready UI node, and Connector execution availability.
 `verify-loaded` polls this exact readiness envelope for a bounded startup
 window; timeout still fails closed with the latest observed identity state.
+The unified load log and Connector capabilities own process-global artifact,
+source and Modset evidence. Annotator status is bound to the current process
+and load generation; its session-bound environment is an additional check when
+a session exists, not a heartbeat or a prerequisite for the legal Ready state.
 
 The UI is composed from built-in Godot nodes and driven by SceneTree signals.
 Do not replace it with a custom `Node` callback unless the package explicitly

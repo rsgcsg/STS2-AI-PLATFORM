@@ -1342,6 +1342,79 @@ public sealed class NativeUiContractTests
     }
 
     [Fact]
+    public void TypedActionRegistryHasOneAdapterPerSupportedSurface()
+    {
+        Assert.Equal(new[]
+        {
+            "card_bundle_selection",
+            "card_reward_selection",
+            "character_select",
+            "combat_hand_card_selection",
+            "combat_turn",
+            "deck_enchant_selection",
+            "deck_transform_selection",
+            "event_dialogue",
+            "event_option",
+            "game_over",
+            "main_menu",
+            "map_navigation",
+            "reward_claim",
+            "shop_inventory",
+            "shop_room",
+            "singleplayer_menu",
+            "treasure_room",
+            "tutorial"
+        }, NativeUiActionRuntime.DeclaredActionSurfaceKinds);
+    }
+
+    [Fact]
+    public void RebindingCandidateOperandsRecomputesExactCandidateIdentity()
+    {
+        var candidate = new NativeUiActionCandidate(
+            "stale-candidate",
+            "select_entity",
+            "select_combat_hand_card",
+            "Select",
+            new Dictionary<string, string> { ["card_id"] = "card-a" },
+            new Dictionary<string, NativeUiOperandDomain>(),
+            new[] { new ActionEntityBinding("card", "card-a") },
+            "player_environment_native_binding");
+        NativeUiActionCandidate first = NativeUiActionRuntime.RebindCandidate(
+            candidate,
+            new Dictionary<string, string>
+            {
+                ["card_id"] = "card-a",
+                ["hand_id"] = "hand-a"
+            },
+            new[]
+            {
+                new ActionEntityBinding("card", "card-a"),
+                new ActionEntityBinding("hand", "hand-a")
+            });
+        NativeUiActionCandidate second = NativeUiActionRuntime.RebindCandidate(
+            candidate,
+            new Dictionary<string, string>
+            {
+                ["card_id"] = "card-a",
+                ["hand_id"] = "hand-b"
+            },
+            new[]
+            {
+                new ActionEntityBinding("card", "card-a"),
+                new ActionEntityBinding("hand", "hand-b")
+            });
+
+        Assert.NotEqual(candidate.CandidateId, first.CandidateId);
+        Assert.NotEqual(first.CandidateId, second.CandidateId);
+        Assert.Equal(
+            NativeUiActionRuntime.BuildCandidateId(
+                first.Command,
+                first.Operation,
+                first.Operands),
+            first.CandidateId);
+    }
+
+    [Fact]
     public void IdempotencyIdentityBindsInteractionCommandAndCanonicalOperands()
     {
         var operands = new Dictionary<string, string>

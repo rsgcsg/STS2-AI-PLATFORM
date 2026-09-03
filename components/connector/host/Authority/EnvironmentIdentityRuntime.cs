@@ -17,6 +17,8 @@ namespace STS2Connector.Authority;
 internal static class EnvironmentIdentityRuntime
 {
     private static readonly string RuntimeInstanceId = Guid.NewGuid().ToString("N");
+    private static readonly ProcessImmutableValue<LoadedMainAssemblyIdentity>
+        MainAssemblyIdentity = new(ReadLoadedMainAssemblyIdentity);
 
     internal static GameBuildIdentity ReadGame()
     {
@@ -40,22 +42,9 @@ internal static class EnvironmentIdentityRuntime
             // Missing game identity disables mutation but not fair observation.
         }
 
-        string? mainAssemblySha256 = null;
-        string? mainAssemblyMvid = null;
-        try
-        {
-            var mainAssembly = typeof(ReleaseInfoManager).Assembly;
-            mainAssemblyMvid = mainAssembly.ManifestModule.ModuleVersionId.ToString("D");
-            if (!string.IsNullOrWhiteSpace(mainAssembly.Location))
-            {
-                using FileStream stream = File.OpenRead(mainAssembly.Location);
-                mainAssemblySha256 = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
-            }
-        }
-        catch
-        {
-            // Missing exact assembly bytes disable mutation but not fair observation.
-        }
+        LoadedMainAssemblyIdentity mainAssembly = MainAssemblyIdentity.Read();
+        string? mainAssemblySha256 = mainAssembly.Sha256;
+        string? mainAssemblyMvid = mainAssembly.ModuleVersionId;
 
         ExactGamePermission gamePermission = ExactGameCompatibility.Evaluate(
             release?.Version,
@@ -189,4 +178,38 @@ internal static class EnvironmentIdentityRuntime
         sourceRevision?.Length == 40
         && sourceRevision.All(character =>
             character is >= '0' and <= '9' or >= 'a' and <= 'f');
+
+    private static LoadedMainAssemblyIdentity ReadLoadedMainAssemblyIdentity()
+    {
+        try
+        {
+            var assembly = typeof(ReleaseInfoManager).Assembly;
+            string moduleVersionId = assembly.ManifestModule.ModuleVersionId.ToString("D");
+            if (string.IsNullOrWhiteSpace(assembly.Location))
+                return new LoadedMainAssemblyIdentity(null, moduleVersionId);
+            using FileStream stream = File.OpenRead(assembly.Location);
+            string sha256 = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+            return new LoadedMainAssemblyIdentity(sha256, moduleVersionId);
+        }
+        catch
+        {
+            // Loaded assembly identity is immutable for this process. A missing
+            // exact fingerprint remains fail-closed for the process lifetime.
+            return new LoadedMainAssemblyIdentity(null, null);
+        }
+    }
+}
+
+internal sealed record LoadedMainAssemblyIdentity(string? Sha256, string? ModuleVersionId);
+
+/// <summary>
+/// A process-loaded assembly cannot change its bytes without a new process.
+/// This cache is deliberately identity-only; native state, Modset observation,
+/// actionability and execution-time revalidation remain live on every call.
+/// </summary>
+internal sealed class ProcessImmutableValue<T>(Func<T> factory)
+{
+    private readonly Lazy<T> _value = new(factory, isThreadSafe: true);
+
+    internal T Read() => _value.Value;
 }

@@ -1,0 +1,5 @@
+interface:
+  display_name: "Platform Runtime Qualification"
+  short_description: "Qualify exact Platform runtime candidates"
+policy:
+  allow_implicit_invocation: true

@@ -16,25 +16,25 @@ public sealed class RecordingApplicationTests
             RecordingCommandKind.StartNewSession,
             "session-1",
             T0.AddSeconds(1),
-            pendingDecision: false);
+            pendingRoot: false);
         RecordingCommandResult paused = RecordingLifecycleStateMachine.Apply(
             first.Lifecycle,
             RecordingCommandKind.Pause,
             null,
             T0.AddSeconds(2),
-            pendingDecision: false);
+            pendingRoot: false);
         RecordingCommandResult resumed = RecordingLifecycleStateMachine.Apply(
             paused.Lifecycle,
             RecordingCommandKind.Resume,
             null,
             T0.AddSeconds(3),
-            pendingDecision: false);
+            pendingRoot: false);
         RecordingCommandResult closing = RecordingLifecycleStateMachine.Apply(
             resumed.Lifecycle,
             RecordingCommandKind.Close,
             null,
             T0.AddSeconds(4),
-            pendingDecision: false);
+            pendingRoot: false);
         RecordingLifecycleSnapshot closed = RecordingLifecycleStateMachine.MarkClosed(
             closing.Lifecycle,
             T0.AddSeconds(5));
@@ -43,7 +43,7 @@ public sealed class RecordingApplicationTests
             RecordingCommandKind.StartNewSession,
             "session-2",
             T0.AddSeconds(6),
-            pendingDecision: false);
+            pendingRoot: false);
 
         Assert.True(first.Accepted);
         Assert.True(paused.Accepted);
@@ -56,7 +56,7 @@ public sealed class RecordingApplicationTests
     }
 
     [Fact]
-    public void PauseAndClosePreserveAnAdmittedPendingDecision()
+    public void PauseAndClosePreserveAnAdmittedPendingRoot()
     {
         RecordingLifecycleSnapshot recording = new(
             RecordingLifecycleState.Recording,
@@ -69,19 +69,53 @@ public sealed class RecordingApplicationTests
             RecordingCommandKind.Pause,
             null,
             T0.AddSeconds(1),
-            pendingDecision: true);
+            pendingRoot: true);
         RecordingCommandResult closing = RecordingLifecycleStateMachine.Apply(
             paused.Lifecycle,
             RecordingCommandKind.Close,
             null,
             T0.AddSeconds(2),
-            pendingDecision: true);
+            pendingRoot: true);
 
         Assert.True(paused.Accepted);
         Assert.Contains("still settle", paused.Detail, StringComparison.Ordinal);
         Assert.True(closing.Accepted);
-        Assert.True(closing.Pending);
+        Assert.False(closing.Pending);
+        Assert.Contains(
+            RecordingClosePolicy.TerminalUnknownReason,
+            closing.Detail,
+            StringComparison.Ordinal);
         Assert.Equal(RecordingLifecycleState.Closing, closing.Lifecycle.State);
+    }
+
+    [Fact]
+    public void CloseIsAnImmediateTerminalBoundaryEvenWithPendingWork()
+    {
+        RecordingLifecycleSnapshot recording = new(
+            RecordingLifecycleState.Recording,
+            "session-1",
+            T0,
+            "recording");
+
+        RecordingCommandResult closing = RecordingLifecycleStateMachine.Apply(
+            recording,
+            RecordingCommandKind.Close,
+            null,
+            T0.AddSeconds(1),
+            pendingRoot: true);
+
+        RecordingLifecycleSnapshot closed = RecordingLifecycleStateMachine.MarkClosed(
+            closing.Lifecycle,
+            T0.AddSeconds(1));
+
+        Assert.True(closing.Accepted);
+        Assert.False(closing.Pending);
+        Assert.Equal(RecordingLifecycleState.Closing, closing.Lifecycle.State);
+        Assert.Equal(RecordingLifecycleState.Closed, closed.State);
+        Assert.Contains(
+            RecordingClosePolicy.TerminalUnknownReason,
+            closing.Detail,
+            StringComparison.Ordinal);
     }
 
     [Fact]
@@ -93,7 +127,7 @@ public sealed class RecordingApplicationTests
             RecordingCommandKind.Pause,
             null,
             T0.AddSeconds(1),
-            pendingDecision: false);
+            pendingRoot: false);
 
         Assert.False(paused.Accepted);
         Assert.Equal("invalid_transition", paused.Code);
@@ -123,6 +157,37 @@ public sealed class RecordingApplicationTests
     }
 
     [Fact]
+    public void EventStreamPreservesNonAuthorizingActionProjectionFacts()
+    {
+        var action = new RecordingActionProjection(
+            "play",
+            "bound-card-1",
+            "card-strike",
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["target"] = "creature-jaw-worm"
+            },
+            "Strike");
+        var stream = new RecordingEventStream();
+
+        stream.Publish(
+            RecordingEventKind.RootPending,
+            T0,
+            "session-1",
+            "run-1",
+            "semantic-record-1",
+            "PlayCardAction",
+            action);
+
+        RecordingEvent value = Assert.Single(stream.ReadAfter(0).Events);
+        Assert.Equal("semantic-record-1", value.RecordId);
+        Assert.Equal("bound-card-1", value.Action?.BoundActionId);
+        Assert.Equal("card-strike", value.Action?.SubjectReferentId);
+        Assert.Equal("creature-jaw-worm", value.Action?.Arguments["target"]);
+        Assert.Null(value.Action?.EffectSummary);
+    }
+
+    [Fact]
     public void CommandLedgerReturnsTheOriginalResultForDuplicateRequests()
     {
         var ledger = new RecordingCommandLedger(capacity: 2);
@@ -142,53 +207,4 @@ public sealed class RecordingApplicationTests
         Assert.Equal(original, remembered);
     }
 
-    [Fact]
-    public void StagedCardPlayAllowsTheExpectedTransientSnapshotAdvance()
-    {
-        bool continuous = StagedCardPlayGuard.IsContinuous(
-            "runtime-1",
-            "environment-1",
-            "combat-1",
-            stagedSequence: 10,
-            stagedAt: T0,
-            "runtime-1",
-            "environment-1",
-            "combat-1",
-            currentSequence: 11,
-            observedAt: T0.AddMilliseconds(20),
-            externalControllerActive: false,
-            maximumAge: TimeSpan.FromSeconds(30));
-
-        Assert.True(continuous);
-    }
-
-    [Theory]
-    [InlineData("runtime-2", "environment-1", "combat-1", 11, false)]
-    [InlineData("runtime-1", "environment-2", "combat-1", 11, false)]
-    [InlineData("runtime-1", "environment-1", "combat-2", 11, false)]
-    [InlineData("runtime-1", "environment-1", "combat-1", 9, false)]
-    [InlineData("runtime-1", "environment-1", "combat-1", 11, true)]
-    public void StagedCardPlayRejectsAuthorityOrContextDrift(
-        string runtime,
-        string environment,
-        string interaction,
-        long sequence,
-        bool externalController)
-    {
-        bool continuous = StagedCardPlayGuard.IsContinuous(
-            "runtime-1",
-            "environment-1",
-            "combat-1",
-            stagedSequence: 10,
-            stagedAt: T0,
-            runtime,
-            environment,
-            interaction,
-            sequence,
-            observedAt: T0.AddMilliseconds(20),
-            externalController,
-            maximumAge: TimeSpan.FromSeconds(30));
-
-        Assert.False(continuous);
-    }
 }

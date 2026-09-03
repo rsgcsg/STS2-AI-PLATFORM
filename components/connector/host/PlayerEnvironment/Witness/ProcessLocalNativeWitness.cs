@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Diagnostics;
 using STS2Connector.Authority;
 using STS2Connector.NativeUi;
 using STS2Connector.PlayerEnvironment.Protocol;
@@ -32,6 +33,30 @@ public sealed record ProcessLocalReadCapture(
     string? ErrorCode,
     string? Detail);
 
+public sealed record ProcessLocalCaptureTiming(string Phase, long ElapsedMicroseconds);
+
+internal sealed class ProcessLocalCaptureProfiler
+{
+    private readonly List<ProcessLocalCaptureTiming> _timings = new();
+
+    internal T Measure<T>(string phase, Func<T> operation)
+    {
+        long started = Stopwatch.GetTimestamp();
+        try
+        {
+            return operation();
+        }
+        finally
+        {
+            long microseconds = (long)Math.Ceiling(
+                (Stopwatch.GetTimestamp() - started) * 1_000_000d / Stopwatch.Frequency);
+            _timings.Add(new ProcessLocalCaptureTiming(phase, microseconds));
+        }
+    }
+
+    internal IReadOnlyList<ProcessLocalCaptureTiming> Snapshot() => _timings.ToArray();
+}
+
 /// <summary>
 /// One immutable public Snapshot plus the exact Host-local bindings from the
 /// same observation. It can correlate an observed native action but cannot
@@ -49,7 +74,8 @@ public sealed class ProcessLocalNativeWitnessFrame
         bool externalControllerActive,
         IReadOnlyDictionary<string, object> exactEntities,
         IReadOnlySet<string> exactBindingIds,
-        IReadOnlyDictionary<string, ProcessLocalReadCapture>? reads = null)
+        IReadOnlyDictionary<string, ProcessLocalReadCapture>? reads = null,
+        IReadOnlyList<ProcessLocalCaptureTiming>? captureTimings = null)
     {
         Snapshot = snapshot;
         Capabilities = capabilities;
@@ -58,6 +84,7 @@ public sealed class ProcessLocalNativeWitnessFrame
         _exactEntities = exactEntities;
         _exactBindingIds = exactBindingIds;
         Reads = reads ?? new Dictionary<string, ProcessLocalReadCapture>(StringComparer.Ordinal);
+        CaptureTimings = captureTimings ?? Array.Empty<ProcessLocalCaptureTiming>();
     }
 
     public PlayerEnvironmentSnapshot Snapshot { get; }
@@ -69,6 +96,8 @@ public sealed class ProcessLocalNativeWitnessFrame
     public bool ExternalControllerActive { get; }
 
     public IReadOnlyDictionary<string, ProcessLocalReadCapture> Reads { get; }
+
+    public IReadOnlyList<ProcessLocalCaptureTiming> CaptureTimings { get; }
 
     public ProcessLocalNativeMatch Resolve(ProcessLocalObservedAction observed)
     {
@@ -167,25 +196,63 @@ public static class PlayerEnvironmentNativeWitness
     public static ProcessLocalNativeWitnessFrame Capture(
         IReadOnlyCollection<string>? requiredReadKinds = null)
     {
+        var profiler = new ProcessLocalCaptureProfiler();
         SnapshotBuildResult frame =
             STS2Connector.PlayerEnvironment.PlayerEnvironmentService.BuildSnapshot(
-                requiredReadKinds: requiredReadKinds);
-        HashSet<string> referentIds = frame.Snapshot.BoundActions.Actions
-            .SelectMany(action => action.Arguments.Select(argument => argument.ReferentId)
-                .Append(action.SubjectReferentId))
-            .Where(referentId => referentId != null)
-            .Cast<string>()
-            .ToHashSet(StringComparer.Ordinal);
-        IReadOnlyDictionary<string, ProcessLocalReadCapture> reads =
-            MaterializeReads(frame, requiredReadKinds);
+                requiredReadKinds: requiredReadKinds,
+                captureProfiler: profiler);
+        return CreateFrame(frame, requiredReadKinds, profiler);
+    }
+
+    public static ProcessLocalNativeWitnessFrame Capture(
+        Func<string, IReadOnlyCollection<string>> requiredReadKindsForInteraction)
+    {
+        ArgumentNullException.ThrowIfNull(requiredReadKindsForInteraction);
+        var profiler = new ProcessLocalCaptureProfiler();
+        SnapshotBuildResult frame =
+            STS2Connector.PlayerEnvironment.PlayerEnvironmentService.BuildSnapshot(
+                requiredReadKindsForInteraction: requiredReadKindsForInteraction,
+                captureProfiler: profiler);
+        return CreateFrame(frame, frame.ReadBuilds.Keys.ToArray(), profiler);
+    }
+
+    private static ProcessLocalNativeWitnessFrame CreateFrame(
+        SnapshotBuildResult frame,
+        IReadOnlyCollection<string>? requiredReadKinds,
+        ProcessLocalCaptureProfiler profiler)
+    {
+        HashSet<string> referentIds = profiler.Measure(
+            "witness_referent_index",
+            () => frame.Snapshot.BoundActions.Actions
+                .SelectMany(action => action.Arguments.Select(argument => argument.ReferentId)
+                    .Append(action.SubjectReferentId))
+                .Where(referentId => referentId != null)
+                .Cast<string>()
+                .ToHashSet(StringComparer.Ordinal));
+        IReadOnlyDictionary<string, ProcessLocalReadCapture> reads = profiler.Measure(
+            "read_materialization",
+            () => MaterializeReads(frame, requiredReadKinds));
+        PlayerEnvironmentCapabilitiesResponse capabilities = profiler.Measure(
+            "capabilities_identity",
+            STS2Connector.PlayerEnvironment.PlayerEnvironmentService.GetCapabilities);
+        bool externalControllerActive = profiler.Measure(
+            "controller_status",
+            () => MutationControlRuntime.Snapshot().Controller != null);
+        IReadOnlyDictionary<string, object> exactReferences = profiler.Measure(
+            "exact_reference_capture",
+            () => NativeUiRuntime.Entities.CaptureExactReferences(referentIds));
+        IReadOnlySet<string> exactBindingIds = profiler.Measure(
+            "exact_binding_index",
+            () => frame.Bindings.Keys.ToHashSet(StringComparer.Ordinal));
         return new ProcessLocalNativeWitnessFrame(
             frame.Snapshot,
-            STS2Connector.PlayerEnvironment.PlayerEnvironmentService.GetCapabilities(),
+            capabilities,
             ReadAssemblyMetadata("ConnectorPlayerEnvironmentSourceDigest", "PlayerEnvironmentSourceDigest"),
-            MutationControlRuntime.Snapshot().Controller != null,
-            NativeUiRuntime.Entities.CaptureExactReferences(referentIds),
-            frame.Bindings.Keys.ToHashSet(StringComparer.Ordinal),
-            reads);
+            externalControllerActive,
+            exactReferences,
+            exactBindingIds,
+            reads,
+            profiler.Snapshot());
     }
 
     private static IReadOnlyDictionary<string, ProcessLocalReadCapture> MaterializeReads(

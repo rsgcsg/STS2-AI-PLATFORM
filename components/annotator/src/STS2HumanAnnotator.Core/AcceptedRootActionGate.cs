@@ -22,4 +22,6 @@ public sealed class AcceptedRootActionGate
     public bool TryClaim(string nativeActionType) =>
         Accepts(nativeActionType)
         && Interlocked.CompareExchange(ref _claimed, 1, 0) == 0;
+
+    public bool IsClaimed => Volatile.Read(ref _claimed) != 0;
 }
