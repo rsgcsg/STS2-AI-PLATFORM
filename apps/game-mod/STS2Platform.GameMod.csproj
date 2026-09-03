@@ -18,6 +18,8 @@
     <!-- Keep the assembly stable when only non-Native workspace files change. -->
     <SourceRevisionId>$(PlatformSourceRevision)</SourceRevisionId>
     <PlatformSourceDigestSha256 Condition="'$(PlatformSourceDigestSha256)' == ''">unavailable</PlatformSourceDigestSha256>
+    <NativeFoundationSourceRevision Condition="'$(NativeFoundationSourceRevision)' == ''">unavailable</NativeFoundationSourceRevision>
+    <NativeFoundationSourceDigestSha256 Condition="'$(NativeFoundationSourceDigestSha256)' == ''">unavailable</NativeFoundationSourceDigestSha256>
     <ConnectorSourceRevision Condition="'$(ConnectorSourceRevision)' == ''">unavailable</ConnectorSourceRevision>
     <ConnectorPlayerEnvironmentSourceDigest Condition="'$(ConnectorPlayerEnvironmentSourceDigest)' == ''">unavailable</ConnectorPlayerEnvironmentSourceDigest>
     <AnnotatorSourceRevision Condition="'$(AnnotatorSourceRevision)' == ''">unavailable</AnnotatorSourceRevision>
@@ -35,6 +37,8 @@
     <AssemblyMetadata Include="SourceDigestSha256" Value="$(PlatformSourceDigestSha256)" />
     <AssemblyMetadata Include="PlatformSourceRevision" Value="$(PlatformSourceRevision)" />
     <AssemblyMetadata Include="PlatformSourceDigestSha256" Value="$(PlatformSourceDigestSha256)" />
+    <AssemblyMetadata Include="NativeFoundationSourceRevision" Value="$(NativeFoundationSourceRevision)" />
+    <AssemblyMetadata Include="NativeFoundationSourceDigestSha256" Value="$(NativeFoundationSourceDigestSha256)" />
     <AssemblyMetadata Include="ConnectorSourceRevision" Value="$(ConnectorSourceRevision)" />
     <AssemblyMetadata Include="ConnectorPlayerEnvironmentSourceDigest" Value="$(ConnectorPlayerEnvironmentSourceDigest)" />
     <AssemblyMetadata Include="AnnotatorSourceRevision" Value="$(AnnotatorSourceRevision)" />
@@ -45,6 +49,8 @@
 
   <ItemGroup>
     <Compile Include="UnifiedPlatformMod.cs" />
+    <Compile Include="NativeFoundationOwnerPatches.cs" />
+    <Compile Include="../../components/native-foundation/src/*.cs" Link="NativeFoundation/%(Filename)%(Extension)" />
     <Compile Include="../../components/connector/host/**/*.cs"
              Exclude="../../components/connector/host/bin/**;../../components/connector/host/obj/**;../../components/connector/host/out/**;../../components/connector/host/tests/**;../../components/connector/host/tools/**" />
     <Compile Include="../../components/annotator/src/STS2HumanAnnotator.Core/*.cs" Link="Annotator/Core/%(Filename)%(Extension)" />

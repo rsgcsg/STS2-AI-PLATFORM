@@ -1,34 +1,87 @@
 # Document Map
 
-Read current Platform truth in this order:
+Use the smallest route that answers the task.
 
-1. [Status](STATUS.md)
-2. [Architecture](ARCHITECTURE.md)
-3. [Components](COMPONENTS.md)
-4. [Testing](TESTING.md)
-5. [Versioning](VERSIONING.md)
-6. [Roadmap](ROADMAP.md)
-7. [Current handoff](memory/CURRENT.md)
-8. [Policy Runtime](POLICY_RUNTIME.md)
-9. [Platform Live UI](LIVE_UI.md)
-10. [Semantic boundary owner canary](evidence/SEMANTIC_BOUNDARY_OWNER_CANARY_2026-08-27.md)
-11. [Semantic boundary source closeout](evidence/SEMANTIC_BOUNDARY_SOURCE_CLOSEOUT_2026-08-26.md)
-12. [Rapid-input ledger source closeout](evidence/RAPID_INPUT_LEDGER_SOURCE_CLOSEOUT_2026-08-26.md)
-13. [V2 Read-Rich Combat closeout](evidence/HUMAN_EVIDENCE_V2_READ_RICH_COMBAT_CLOSEOUT_2026-08-25.md)
-14. [V1 runtime-seal predecessor evidence](evidence/RUNTIME_SEAL_CANDIDATE_2026-08-24.md)
+## New here
 
-Then read the component entry points:
+- [README](../README.md): zero-context product boundary and next steps.
+- [New Engineer Guide](NEW_ENGINEER_GUIDE.md): first-day setup and first PR.
 
-15. [Connector map](../components/connector/docs/DOCUMENT_MAP.md)
-16. [Host Runtime map](../components/host-runtime/docs/DOCUMENT_MAP.md)
-17. [Annotator map](../components/annotator/docs/DOCUMENT_MAP.md)
-18. [Evidence package](../components/evidence/README.md)
-19. [Workbench](../apps/workbench/README.md)
-20. [Platform Game Mod operations](../apps/game-mod/README.md)
-21. [In-game Live UI boundary](../apps/ingame-ui/README.md)
+## Working on the repository
 
-The Connector contract and release identity are authoritative in the Connector
-component manifest and the root `platform-bom.json`. Component documentation is
-authoritative for implementation and operations, but must not create a second
-version or identity registry. Dated evidence proves only the exact
-source/artifact/runtime named by that evidence.
+- [Root agent guide](../AGENTS.md): hard shell and change loop.
+- [Engineering Governance](ENGINEERING_GOVERNANCE.md): fact ownership,
+  architecture and abstraction review, change classes, test selection,
+  Human/Agent collaboration, external dependencies, and cloud evolution.
+- [Development Workflow](DEVELOPMENT_WORKFLOW.md): branches, PRs, releases, and evidence reporting.
+- [Testing and Evidence](TESTING.md): executable test/evidence ladder and CI placement.
+- [Project System](PROJECT_SYSTEM.md): documentation, style, Skills, and anti-drift governance.
+- [ADR policy and index](adr/README.md): durable decision admission, status, and supersession.
+- [Repository Skill index](../.agents/skills/README.md): high-risk repeatable workflows; ordinary implementation usually needs no Skill.
+- Owning component: its local `AGENTS.md` when present, then its README/docs and exact tests.
+
+## Finding technical truth
+
+- Current claims and evidence pointers: [Status](STATUS.md).
+- Semantic evidence storage and measured predecessor baseline:
+  [Semantic Evidence Storage Baseline](evidence/SEMANTIC_EVIDENCE_STORAGE_BASELINE_2026-08-29.md).
+- Latest normalized Human runtime and storage closeout:
+  [Schema-3 Human and data-lifecycle closeout](evidence/SCHEMA3_HUMAN_DATA_LIFECYCLE_CLOSEOUT_2026-08-29.md).
+- Latest exact recorder-lag attribution and repair boundary:
+  [Recorder causal performance baseline](evidence/RECORDER_CAUSAL_PERFORMANCE_BASELINE_2026-08-29.md).
+- Current pre-Full-Run performance baseline and trigger-bound debt:
+  [Pre-Full-Run Deferred Debt](PREFULLRUN_DEFERRED_DEBT.md).
+- Canonical H/S/A(S)/A/S' calibration and bounded architecture decision:
+  [Recorder canonical causality decision](evidence/RECORDER_CANONICAL_CAUSALITY_DECISION_2026-08-29.md)
+  and [ADR 0003](adr/0003-serialize-human-input-for-canonical-one-step-evidence.md).
+- Current native-semantic discriminator source and bounded Human result:
+  [source closeout](evidence/NATIVE_SEMANTIC_RUNTIME_DISCRIMINATOR_SOURCE_CLOSEOUT_2026-08-30.md)
+  and [Human closeout](evidence/NATIVE_SEMANTIC_RUNTIME_DISCRIMINATOR_HUMAN_CLOSEOUT_2026-08-30.md).
+- Historical serialized-input candidate and native restore/twin decision:
+  [source closeout](evidence/SERIALIZED_HUMAN_INPUT_SOURCE_CLOSEOUT_2026-08-30.md)
+  [runtime candidate](evidence/SERIALIZED_HUMAN_INPUT_RUNTIME_CANDIDATE_2026-08-30.md),
+  and [native restore audit](evidence/NATIVE_RESTORE_AND_TWIN_RUNTIME_AUDIT_2026-08-30.md).
+- Bounded active context and next gate: [Current Context](memory/CURRENT.md).
+- Product boundary and dependency direction: [Architecture](ARCHITECTURE.md).
+- Shared game-side semantics, seam matrix, and migration:
+  [Native Foundation](NATIVE_FOUNDATION.md),
+  [Native Seam Matrix](NATIVE_SEAM_MATRIX.md),
+  [Architecture Example Suite](NATIVE_FOUNDATION_EXAMPLE_SUITE.md), and
+  [ADR 0004](adr/0004-native-foundation-and-ritsu-route.md).
+- Current Map/Reward/CardReward adapter source and build evidence:
+  [Native Foundation Full-Run source closeout](evidence/NATIVE_FOUNDATION_FULL_RUN_SOURCE_CLOSEOUT_2026-08-31.md).
+- Current Treasure adapter source evidence:
+  [Native Foundation Treasure source closeout](evidence/NATIVE_FOUNDATION_TREASURE_SOURCE_CLOSEOUT_2026-08-31.md).
+- Current Human Root/Native Commit/Successor Boundary authority and source gate:
+  [ADR 0005](adr/0005-human-root-commit-successor-evidence.md) and
+  [causal evidence source closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
+- PR #6's exact Combat successor-owner repair:
+  [owner-ready source closeout](evidence/PR6_SUCCESSOR_OWNER_READY_SOURCE_CLOSEOUT_2026-09-01.md).
+- Current bounded pre-Full-Run hardening source/build/load gate:
+  [hardening source closeout](evidence/PLATFORM_PREFULLRUN_HARDENING_SOURCE_CLOSEOUT_2026-09-01.md).
+- Current Recorder hot-path performance source gate and Human OFF/ON canary:
+  [recording hot-path performance closeout](evidence/PLATFORM_RECORDING_HOTPATH_PERFORMANCE_SOURCE_CLOSEOUT_2026-09-01.md).
+- Ownership matrix: [Components](COMPONENTS.md).
+- Portable/runtime evidence meanings: [Testing and Evidence](TESTING.md).
+- Component and composition identity: [Versioning](VERSIONING.md) and `platform-bom.json`.
+- Active Full-Run matrix: [Full-Run Semantic Coverage](FULL_RUN_SEMANTIC_COVERAGE.md).
+- Current product and evidence direction: [Roadmap](ROADMAP.md).
+
+## Component entry points
+
+- [Connector map](../components/connector/docs/DOCUMENT_MAP.md)
+- [Native Foundation](../components/native-foundation/README.md)
+- [Host Runtime map](../components/host-runtime/docs/DOCUMENT_MAP.md)
+- [Annotator map](../components/annotator/docs/DOCUMENT_MAP.md)
+- [Evidence package](../components/evidence/README.md)
+- [Workbench](../apps/workbench/README.md)
+- [Platform Game Mod operations](../apps/game-mod/README.md)
+- [In-game Live UI boundary](../apps/ingame-ui/README.md)
+- [Shared UI and interaction specification](UI_INTERACTION_SPEC.md)
+
+## Historical proof
+
+Dated reports under [`docs/evidence`](evidence/) prove only the exact source,
+artifact, runtime, and scope they name. Load the report linked by Status, the
+Full-Run matrix, or a PR when exact historical proof is relevant; it is not
+default newcomer or Codex context.

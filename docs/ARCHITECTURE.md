@@ -10,7 +10,8 @@ models, training or research authority.
 ## Planes
 
 ```text
-Environment:  Host <-> Connector <-> consumer
+Native:       STS2 -> Native Foundation -> Connector / Annotator
+Environment:  game-side Host <-> Connector <-> consumer
 Host control: Host Runtime <-> STS2 process lifecycle
 Evidence:     Annotator -> immutable bundle -> verify/store/transfer/receive -> consumer
 Policy:       external adapter -> Policy Runtime -> Connector
@@ -28,9 +29,12 @@ It starts `Ready`, and a typed `RecordingService` is the only application
 boundary used to query status, issue lifecycle commands, or follow ordered
 events. `StartNewSession` creates a fresh session, timeline and append store;
 `Pause` blocks new witnesses without discarding already accepted native
-lifecycle witnesses; `Close` waits for the strict candidate and every tracked
-native action to settle, invalidate, cancel or finish, flushes the store, and
-permits another isolated session in the same STS2 process.
+lifecycle witnesses. `Close` stops accepting new roots, terminates bounded
+native completion bookkeeping, records any still-unresolved final semantic
+root as an explicit terminal unknown, flushes the store, and permits another
+isolated session in the same STS2 process. Close never waits solely to invent a
+successor and never promotes a final observation into `S'` without a trusted
+causal boundary.
 
 `RecordingStatus` is a current projection. Its scope section derives from the
 active CaptureProfile and store counters, and separately reports recorded,
@@ -38,11 +42,75 @@ native-accepted-but-failed-closed, supported-but-not-observed and
 declared-out-of-scope outcomes. A native UI attempt that STS2 rejects creates no
 HumanDecision and no capture-failure invalidation. The bounded event stream
 supports status-first reconnect followed by events after sequence N; a
-retention gap requires a new status query. These
-operational events are not durable Human Evidence. RunJournal, decisions,
-invalidations, the additive native-action ledger, Reads and bundles remain the
-durable Evidence Plane. Audit,
-pack, verify, store and transfer never run on the game main thread.
+retention gap requires a new status query. These operational events are not
+durable Human Evidence. RunJournal, current decisions, invalidations, Reads,
+semantic evidence and bundles remain the current durable Evidence Plane;
+historical native-action-ledger streams are retained only for explicit archival
+inspection. Audit, pack, verify, store and transfer never run on the game main
+thread.
+
+## Canonical Sequential Evidence Boundary
+
+The Recorder's durable trace and a research transition are different products.
+The canonical one-step contract is:
+
+```text
+S_t + A(S_t) -> A_t -> S_(t+1)
+```
+
+`S_t` is the fair-player semantic state consumed by `A_t`; `A(S_t)` is the
+complete same-state semantic action space produced from STS2-owned rules by a
+typed Native Foundation provider; and `S_(t+1)` is the next state after the
+action and its causally owned automatic continuation. Connector remains the
+only public delivery authority and may project an empty `A_public` while input
+is settling. `A_public` and `A(S_t)` therefore share native facts but are not
+interchangeable evidence. Human observation `H`, native acceptance, lifecycle
+completion, and an interactive poll are independently valuable evidence, but
+none may be silently relabelled as `S_t` or `S_(t+1)`.
+
+`SemanticBoundaryTracker` is the sole current runtime Human causal authority.
+It separately accounts Human Root, exact execution/Commit facts and a later
+Successor Boundary. An exact next-Human pre-execution boundary may close the
+immediately preceding root; if overlap makes attribution unsafe, gameplay still
+continues and the affected canonical transition is omitted rather than guessed.
+Typed native owner-ready and legitimate paused PlayerChoice boundaries may also
+prove a successor. `GameAction.Finished`, Task completion, UI post-Commit,
+periodic status frames, timers, queue-idle and generic later interactivity do
+not imply `S'`.
+
+Current Decision records and `canonical-transition` records are non-authorizing
+projections from an already `TransitionProved` semantic draft. The current
+Decision record retains the frozen Human-time public frame for durable
+compatibility and may be omitted when its older interactive-shell constraints
+do not fit an otherwise valid modern transition. Current canonical evidence
+independently joins the semantic
+state, a typed native decision/action catalog captured at the exact action-
+binding boundary, exact Human/native correlation, Commit and the tracker-proved
+successor. A source-local callback may bind before native admission while a
+`GameAction` binds at `BeforeActionExecuted`; both retain their phase and exact
+identity. The projection cannot settle a root, authorize legality or a
+successor, backfill an unknown or introduce a second causal state machine.
+Exact root environment identity retained until projection is metadata only.
+Historical Decision V1/V2 and native-action-ledger schemas and validators remain
+readable only for prior/additive evidence; the current runtime no longer uses a
+mutable native ledger or serialized-evidence admission policy to adjudicate
+causality. The `*-2` wire names identify the single current recording format,
+not a parallel V2 product.
+
+The current schema-4 timeline is an accounting/lifecycle trace. Exact-source and
+exact-runtime analysis found that normal STS2 UI staging withdraws many accepted
+affordances before execution, while generic later interactivity does not prove
+causal settlement. Schema 4 preserves a content-addressed read-only projection
+of the already-authoritative execution semantic state/action fact. ADR 0003
+records the withdrawn serialized-input candidate; it is not current gameplay
+authority. Native Foundation owns the bounded shared combat semantic catalog
+and exact lifecycle adapter. Connector remains the only public state/action and
+delivery authority; Annotator records the shared native observation and does
+not reconstruct legality or claim a universal successor.
+
+ADR 0005 records the Root / Commit / Successor split and the fail-closed
+successor rules. Native lifecycle/task completion never implies `S'`; the
+native semantic discriminator is diagnostic-only.
 
 ## Hard Shell
 
@@ -57,8 +125,9 @@ Manifest-required advertised Reads. It cannot filter or invent candidates. Its
 adapter returns scores plus an index, and Runtime resolves that index locally
 against the same Snapshot before acquiring the one Connector controller. Shadow
 never acquires a controller; One-Step returns to Human; Auto hands off on an
-unsupported surface, abstention, or not-delivered Receipt. Receipt and stable
-successor remain distinct evidence. A transport exception after submission or
+unsupported surface, abstention, or not-delivered Receipt. A Receipt successor
+is an immediate post-delivery observation, not causal settlement; stable next
+decision evidence remains separate. A transport exception after submission or
 an `unknown` Receipt taints the run and is never retried. Adapter failure or a
 bounded decision timeout returns to Human before controller acquisition.
 
@@ -66,6 +135,8 @@ bounded decision timeout returns to Human before controller acquisition.
 
 ```text
 STS2 installation and native runtime
+  -> Native Foundation
+     -> STS2-owned semantic decisions, lifecycle, and owner lineage
   -> Connector component
      -> Player Environment contract, native UI implementation, SDK, and release identity
   -> Host Runtime component
@@ -75,7 +146,7 @@ STS2 installation and native runtime
      -> Host workstation seam + exact Connector witness artifact
      -> native-human witness recording and session evidence
   -> Evidence component
-     -> typed V1/V2 verification, content identity, immutable local logistics
+     -> current and explicit archival verification, content identity, immutable local logistics
   -> Policy Runtime component
      -> model-neutral policy process and Connector consumer lifecycle
      -> append-only Agent-run evidence through Platform Evidence semantics
@@ -91,6 +162,12 @@ External consumers -> public Connector SDK / Host Runtime package
 STPD              -> public packages + version-pinned Evidence + thin Policy Adapter
 SpireAgent        -> consumer integration and policy
 ```
+
+Native Foundation is semantic/lifecycle infrastructure, not a service,
+transport, evidence store, or executor. Connector may filter its facts by
+fair-player visibility and deliverability but cannot create semantic legality;
+Annotator may observe them but cannot authorize input. See
+[Native Foundation](NATIVE_FOUNDATION.md).
 
 The Connector gameplay authority is one component-local path. Host Runtime
 owns process lifecycle and may consume the public SDK; it must install the

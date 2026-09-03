@@ -7,6 +7,6 @@
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {
-    "check": "node --test test/*.test.mjs"
+    "check": "node --test"
   }
 }

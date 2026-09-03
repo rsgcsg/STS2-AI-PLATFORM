@@ -22,7 +22,7 @@ public sealed class RecordValidationTests
     [Fact]
     public void ExactRecordPasses()
     {
-        RecordValidationResult result = HumanDecisionRecordValidator.Validate(ValidRecord());
+        RecordValidationResult result = HistoricalDecisionRecordValidator.Validate(ValidRecord());
 
         Assert.True(result.Valid);
         Assert.Empty(result.Errors);
@@ -31,13 +31,13 @@ public sealed class RecordValidationTests
     [Fact]
     public void UnifiedPlatformModsetPassesTheSameExactRecordingGate()
     {
-        HumanDecisionRecord valid = ValidRecord();
-        HumanDecisionRecord unified = valid with
+        HistoricalDecisionRecord valid = ValidRecord();
+        HistoricalDecisionRecord unified = valid with
         {
             Environment = valid.Environment with { ModsetStatus = "exact_platform_modset" }
         };
 
-        RecordValidationResult result = HumanDecisionRecordValidator.Validate(unified);
+        RecordValidationResult result = HistoricalDecisionRecordValidator.Validate(unified);
 
         Assert.True(result.Valid, string.Join(',', result.Errors));
     }
@@ -45,13 +45,13 @@ public sealed class RecordValidationTests
     [Fact]
     public void UnknownModsetStillFailsClosed()
     {
-        HumanDecisionRecord valid = ValidRecord();
-        HumanDecisionRecord unknown = valid with
+        HistoricalDecisionRecord valid = ValidRecord();
+        HistoricalDecisionRecord unknown = valid with
         {
             Environment = valid.Environment with { ModsetStatus = "unknown" }
         };
 
-        RecordValidationResult result = HumanDecisionRecordValidator.Validate(unknown);
+        RecordValidationResult result = HistoricalDecisionRecordValidator.Validate(unknown);
 
         Assert.False(result.Valid);
         Assert.Contains("modset_not_exact_recording_envelope", result.Errors);
@@ -62,7 +62,7 @@ public sealed class RecordValidationTests
     [InlineData("ambiguous", 2)]
     public void NonUniqueMappingFailsClosed(string status, int count)
     {
-        HumanDecisionRecord record = ValidRecord() with
+        HistoricalDecisionRecord record = ValidRecord() with
         {
             Mapping = new ExactMappingEvidence(
                 status,
@@ -71,7 +71,7 @@ public sealed class RecordValidationTests
                 null)
         };
 
-        RecordValidationResult result = HumanDecisionRecordValidator.Validate(record);
+        RecordValidationResult result = HistoricalDecisionRecordValidator.Validate(record);
 
         Assert.False(result.Valid);
         Assert.Contains("mapping_not_exact_unique", result.Errors);
@@ -80,13 +80,13 @@ public sealed class RecordValidationTests
     [Fact]
     public void SameSnapshotCannotMasqueradeAsSuccessor()
     {
-        HumanDecisionRecord valid = ValidRecord();
-        HumanDecisionRecord record = valid with
+        HistoricalDecisionRecord valid = ValidRecord();
+        HistoricalDecisionRecord record = valid with
         {
             Successor = valid.Successor with { SnapshotId = valid.Pre.SnapshotId }
         };
 
-        RecordValidationResult result = HumanDecisionRecordValidator.Validate(record);
+        RecordValidationResult result = HistoricalDecisionRecordValidator.Validate(record);
 
         Assert.False(result.Valid);
         Assert.Contains("stable_successor_missing", result.Errors);
@@ -95,12 +95,12 @@ public sealed class RecordValidationTests
     [Fact]
     public void CatalogTamperingFailsIndependentAuditValidation()
     {
-        HumanDecisionRecord valid = ValidRecord();
+        HistoricalDecisionRecord valid = ValidRecord();
         JsonObject snapshot = (JsonObject)valid.Pre.Snapshot.DeepClone();
         JsonArray actions = (JsonArray)snapshot["bound_actions"]!["actions"]!;
         ((JsonObject)actions[0]!)["verb"] = "invented";
 
-        RecordValidationResult result = HumanDecisionRecordValidator.Validate(
+        RecordValidationResult result = HistoricalDecisionRecordValidator.Validate(
             valid with { Pre = valid.Pre with { Snapshot = snapshot } });
 
         Assert.False(result.Valid);
@@ -110,11 +110,11 @@ public sealed class RecordValidationTests
     [Fact]
     public void NestedRuntimeDriftFailsIndependentAuditValidation()
     {
-        HumanDecisionRecord valid = ValidRecord();
+        HistoricalDecisionRecord valid = ValidRecord();
         JsonObject successor = (JsonObject)valid.Successor.Snapshot.DeepClone();
         successor["session"]!["runtime_instance_id"] = "runtime-elsewhere";
 
-        RecordValidationResult result = HumanDecisionRecordValidator.Validate(
+        RecordValidationResult result = HistoricalDecisionRecordValidator.Validate(
             valid with { Successor = valid.Successor with { Snapshot = successor } });
 
         Assert.False(result.Valid);
@@ -127,9 +127,9 @@ public sealed class RecordValidationTests
         string root = Path.Combine(Path.GetTempPath(), $"sts2-annotator-test-{Guid.NewGuid():N}");
         try
         {
-            var manifest = new RecordingManifest(
+            var manifest = new HistoricalRecordingManifest(
                 1,
-                HumanRecorderContract.ManifestSchema,
+                HistoricalRecordingContract.ManifestSchema,
                 "session-test",
                 DateTimeOffset.UnixEpoch,
                 "0.1.0",
@@ -137,7 +137,7 @@ public sealed class RecordValidationTests
                 "test",
                 new[] { "ordinary_combat" },
                 Array.Empty<string>());
-            using (RecordingStore store = RecordingStore.Create(root, manifest))
+            using (HistoricalRecordingStore store = HistoricalRecordingStore.Create(root, manifest))
             {
                 store.AppendDecision(ValidRecord());
                 store.AppendDecision(ValidRecord() with
@@ -148,7 +148,7 @@ public sealed class RecordValidationTests
                 });
                 store.AppendInvalidation(new InvalidationRecord(
                     1,
-                    HumanRecorderContract.InvalidationSchema,
+                    HistoricalRecordingContract.InvalidationSchema,
                     "invalidation-1",
                     "session-test",
                     "run-0001",
@@ -164,14 +164,14 @@ public sealed class RecordValidationTests
             Assert.False(File.ReadAllBytes(Path.Combine(session, "recording-manifest.json"))
                 .Take(3)
                 .SequenceEqual(new byte[] { 0xEF, 0xBB, 0xBF }));
-            RecordingAuditResult audit = RecordingAuditor.Audit(session);
+            RecordingAuditResult audit = HistoricalRecordingAuditor.Audit(session);
             Assert.Equal("pass", audit.Status);
             Assert.Equal(2, audit.ValidRecords);
             Assert.Equal(1, audit.Invalidations);
             Assert.Single(File.ReadLines(Path.Combine(session, "run-0001.jsonl")));
             Assert.Single(File.ReadLines(Path.Combine(session, "run-0002.jsonl")));
             string export = Path.Combine(root, "export.jsonl");
-            Assert.Equal(2, RecordingAuditor.ExportAdmitted(session, export));
+            Assert.Equal(2, HistoricalRecordingAuditor.ExportAdmitted(session, export));
             Assert.Equal(2, File.ReadLines(export).Count());
             byte[] exportBytes = File.ReadAllBytes(export);
             Assert.DoesNotContain((byte)'\r', exportBytes);
@@ -193,7 +193,7 @@ public sealed class RecordValidationTests
             string session = CreateSession(root);
             string profile = WriteProfile(root);
             string output = Path.Combine(root, "bundle");
-            SessionBundleResult first = SessionBundlePacker.Pack(
+            SessionBundleResult first = HistoricalSessionBundlePacker.Pack(
                 session,
                 profile,
                 "human-001",
@@ -203,7 +203,7 @@ public sealed class RecordValidationTests
                 humanOriginAttested: true);
             string checksums = File.ReadAllText(Path.Combine(output, "checksums.sha256"));
 
-            SessionBundleResult retry = SessionBundlePacker.Pack(
+            SessionBundleResult retry = HistoricalSessionBundlePacker.Pack(
                 session,
                 profile,
                 "human-001",
@@ -220,7 +220,7 @@ public sealed class RecordValidationTests
             Assert.True(File.Exists(Path.Combine(output, "profile", "collection-profile.json")));
 
             File.AppendAllText(Path.Combine(output, "export", "decisions.jsonl"), "tampered\n");
-            Assert.Throws<IOException>(() => SessionBundlePacker.Pack(
+            Assert.Throws<IOException>(() => HistoricalSessionBundlePacker.Pack(
                 session,
                 profile,
                 "human-001",
@@ -244,7 +244,7 @@ public sealed class RecordValidationTests
         {
             string session = CreateSession(root);
             string profile = WriteProfile(root);
-            Assert.Throws<InvalidDataException>(() => SessionBundlePacker.Pack(
+            Assert.Throws<InvalidDataException>(() => HistoricalSessionBundlePacker.Pack(
                 session,
                 profile,
                 "human-001",
@@ -256,7 +256,7 @@ public sealed class RecordValidationTests
             JsonObject drifted = JsonNode.Parse(File.ReadAllText(profile))!.AsObject();
             drifted["connector"]!["artifact_sha256"] = new string('d', 64);
             File.WriteAllText(profile, drifted.ToJsonString());
-            Assert.Throws<InvalidDataException>(() => SessionBundlePacker.Pack(
+            Assert.Throws<InvalidDataException>(() => HistoricalSessionBundlePacker.Pack(
                 session,
                 profile,
                 "human-001",
@@ -274,9 +274,9 @@ public sealed class RecordValidationTests
 
     private static string CreateSession(string root)
     {
-        var manifest = new RecordingManifest(
+        var manifest = new HistoricalRecordingManifest(
             1,
-            HumanRecorderContract.ManifestSchema,
+            HistoricalRecordingContract.ManifestSchema,
             "session-test",
             DateTimeOffset.UnixEpoch,
             "0.1.0",
@@ -284,14 +284,14 @@ public sealed class RecordValidationTests
             "osx-arm64",
             new[] { "ordinary_combat.play_card", "ordinary_combat.end_turn" },
             Array.Empty<string>());
-        using (RecordingStore store = RecordingStore.Create(root, manifest))
+        using (HistoricalRecordingStore store = HistoricalRecordingStore.Create(root, manifest))
             store.AppendDecision(ValidRecord());
         return Path.Combine(root, "session-test");
     }
 
     private static string WriteProfile(string root)
     {
-        HumanDecisionRecord record = ValidRecord();
+        HistoricalDecisionRecord record = ValidRecord();
         var profile = new
         {
             schema = "stpd/human-collection-profile-v1",
@@ -312,7 +312,7 @@ public sealed class RecordValidationTests
                 status = record.Environment.ModsetStatus,
                 fingerprint = record.Environment.ModsetFingerprint
             },
-            record_schema = HumanRecorderContract.RecordSchema,
+            record_schema = HistoricalRecordingContract.RecordSchema,
             allowed_action_families = new[]
             {
                 "ordinary_combat.play_card",
@@ -332,7 +332,7 @@ public sealed class RecordValidationTests
         mvid = artifact.ModuleVersionId
     };
 
-    internal static HumanDecisionRecord ValidRecord()
+    internal static HistoricalDecisionRecord ValidRecord()
     {
         string sha = new('a', 64);
         string revision = new('b', 40);
@@ -347,9 +347,9 @@ public sealed class RecordValidationTests
         JsonObject preSnapshot = Snapshot("snapshot-a", "interaction-a", recordedAction);
         JsonObject successorSnapshot = Snapshot("snapshot-b", "interaction-b", recordedAction);
         string catalogDigest = EvidenceIdentity.Sha256Json(preSnapshot["bound_actions"]!);
-        return new HumanDecisionRecord(
+        return new HistoricalDecisionRecord(
             1,
-            HumanRecorderContract.RecordSchema,
+            HistoricalRecordingContract.RecordSchema,
             "record-1",
             "session-test",
             "run-0001",
@@ -364,7 +364,7 @@ public sealed class RecordValidationTests
                 "environment-1",
                 "canary_exact_observer_modset",
                 sha),
-            new FrozenDecisionFrame(
+            new HistoricalDecisionFrame(
                 "snapshot-a",
                 "interaction-a",
                 "combat_turn",
@@ -384,7 +384,7 @@ public sealed class RecordValidationTests
                 "reference_equality_to_frozen_host_binding",
                 null),
             recordedAction,
-            new StableSuccessor(
+            new HistoricalSuccessor(
                 "snapshot-b",
                 "interactive",
                 "interaction-b",

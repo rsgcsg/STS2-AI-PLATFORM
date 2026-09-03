@@ -9,6 +9,7 @@ import {
   normalizeExactModsetCanary,
   normalizeInstalledProvenance,
   prepareExactWindowsModSettings,
+  resolveWindowsSteamSettings,
   resolveConnectorCanaryEnvironment,
   resolveWorkstationInstallation
 } from "./workstation-platform.mjs";
@@ -59,7 +60,7 @@ Exact-game lifecycle:
   launch | launch-live-connector | verify-loaded | admit-current-modset
 
 Evidence:
-  audit | export | pack-session`);
+  audit | audit-native-semantic | export | pack-session`);
 }
 
 function run(executable, commandArgs, options = {}) {
@@ -224,28 +225,7 @@ function requireInstalledProvenance() {
 }
 
 function windowsSettings() {
-  if (process.platform !== "win32") return null;
-  const roaming = process.env.APPDATA;
-  if (!roaming) throw new Error("APPDATA is unavailable; cannot resolve Windows STS2 settings.");
-  const steamRoot = path.join(roaming, "SlayTheSpire2", "steam");
-  if (!fs.existsSync(steamRoot)) throw new Error(`Windows STS2 Steam settings root is absent: ${steamRoot}`);
-  const candidates = fs.readdirSync(steamRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join(steamRoot, entry.name, "settings.save"))
-    .filter(fs.existsSync);
-  if (candidates.length !== 1) {
-    throw new Error(`Expected exactly one Windows Steam settings.save, observed ${candidates.length}.`);
-  }
-  const file = candidates[0];
-  const value = readJson(file);
-  if (value.schema_version !== windowsSettingsSchema)
-    throw new Error(`Windows settings schema drift: expected ${windowsSettingsSchema}, observed ${value.schema_version}.`);
-  if (value.mod_settings == null
-      || typeof value.mod_settings !== "object"
-      || Array.isArray(value.mod_settings)
-      || !Array.isArray(value.mod_settings.mod_list))
-    throw new Error("Windows settings have an unexpected mod_settings shape.");
-  return { file, value };
+  return resolveWindowsSteamSettings({ expectedSchema: windowsSettingsSchema });
 }
 
 function requireExactObserverModSettings() {
@@ -727,6 +707,11 @@ function audit() {
   run("dotnet", [toolDll, "audit", directory]);
 }
 
+function auditNativeSemantic() {
+  const directory = resolveCliPath(args[0] || readJson(runtimeStatus).recording_directory);
+  run("dotnet", [toolDll, "audit-native-semantic", directory]);
+}
+
 function exportRecords() {
   const directory = resolveCliPath(args[0] || readJson(runtimeStatus).recording_directory);
   const output = args[1]
@@ -747,8 +732,6 @@ function packSession() {
     throw new Error("Commit or remove Annotator worktree changes before evidence packing.");
   const directory = resolveCliPath(args[0] || readJson(runtimeStatus).recording_directory);
   const manifest = readJson(path.join(directory, "recording-manifest.json"));
-  const v2 = manifest.schema === "sts2.human-annotator/recording-manifest-2";
-  const profile = v2 ? null : path.resolve(option("--profile"));
   const worker = option("--worker");
   const campaign = option("--campaign");
   if (!args.includes("--attest-human-origin"))
@@ -762,9 +745,18 @@ function packSession() {
     if (path.resolve(status.recording_directory) === directory && processAlive(status.process_id))
       throw new Error("The active recording session must be closed before packing.");
   }
-  const command = v2
-    ? [toolDll, "pack-session-v2", directory, worker, campaign, output, source.head, "human_origin_attested"]
-    : [toolDll, "pack-session", directory, profile, worker, campaign, output, source.head, "human_origin_attested"];
+  if (manifest.schema !== "sts2.human-annotator/recording-manifest-2")
+    throw new Error("The current recorder requires recording-manifest-2; historical V1 sessions are archival-only.");
+  const command = [
+    toolDll,
+    "pack-session",
+    directory,
+    worker,
+    campaign,
+    output,
+    source.head,
+    "human_origin_attested"
+  ];
   run("dotnet", command);
 }
 
@@ -809,6 +801,7 @@ try {
   else if (command === "launch-live-connector") launchConnectorOnly();
   else if (command === "verify-loaded") verifyLoaded();
   else if (command === "audit") audit();
+  else if (command === "audit-native-semantic") auditNativeSemantic();
   else if (command === "export") exportRecords();
   else if (command === "pack-session") packSession();
   else if (command === "rollback") rollback();

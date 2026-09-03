@@ -1,0 +1,271 @@
+namespace STS2HumanAnnotator.Core;
+
+/// <summary>
+/// Describes the native completion that a direct UI root is waiting for. The
+/// nullable native identities are optional constraints, never substitutes for
+/// the root action identity carried by a completion signal.
+/// </summary>
+public sealed record NativePostCommitCompletionExpectation(
+    string Family,
+    string Kind,
+    string? NativeOwnerWitnessId = null,
+    string? NativeOperandWitnessId = null,
+    string? NativeLineageWitnessId = null,
+    IReadOnlyList<string>? AlternativeKinds = null)
+{
+    public bool AcceptsKind(string kind) =>
+        string.Equals(Kind, kind, StringComparison.Ordinal)
+        || AlternativeKinds?.Contains(kind, StringComparer.Ordinal) == true;
+}
+
+public sealed record NativePostCommitCompletionRegistration(
+    string SessionId,
+    long Generation,
+    string ActionWitnessId,
+    NativePostCommitCompletionExpectation Expectation);
+
+/// <summary>
+/// A completion signal captured at the exact native callback. It is queued
+/// only to cross back to the game thread; the signal itself carries the
+/// identity needed to reject stale, unmatched, or ambiguous completions.
+/// </summary>
+public sealed record NativePostCommitCompletion(
+    string SessionId,
+    long Generation,
+    string CompletionId,
+    string Family,
+    string Kind,
+    string TaskWitnessId,
+    bool Succeeded,
+    string? ActionWitnessId = null,
+    string? NativeOwnerWitnessId = null,
+    string? NativeOperandWitnessId = null,
+    string? NativeLineageWitnessId = null);
+
+public sealed record NativePostCommitCompletionResolution(
+    string Status,
+    NativePostCommitCompletion? Completion,
+    NativePostCommitCompletionRegistration? Registration,
+    string? Detail)
+{
+    public bool IsMatched => string.Equals(Status, "matched", StringComparison.Ordinal);
+
+    public bool IsFailure => IsMatched && Completion?.Succeeded == false;
+}
+
+public sealed record NativeTaskObservation(
+    string SessionId,
+    long Generation,
+    string Kind,
+    string TaskWitnessId,
+    string? NativeOwnerWitnessId = null,
+    string? NativeOperandWitnessId = null,
+    string? NativeLineageWitnessId = null);
+
+public sealed record NativeTaskBinding(
+    string SessionId,
+    long Generation,
+    string ActionWitnessId,
+    string Family,
+    string Kind,
+    string TaskWitnessId,
+    string? NativeOwnerWitnessId,
+    string? NativeOperandWitnessId,
+    string? NativeLineageWitnessId);
+
+public sealed record NativeTaskBindingResolution(
+    string Status,
+    NativeTaskBinding? Binding,
+    string? Detail)
+{
+    public bool IsMatched => string.Equals(Status, "matched", StringComparison.Ordinal);
+}
+
+public sealed record NativeTaskCompletion(
+    string SessionId,
+    long Generation,
+    string CompletionId,
+    string TaskWitnessId,
+    bool Succeeded);
+
+/// <summary>
+/// Binds native operations to the exact Human root that staged them, then
+/// carries that identity through asynchronous completion. It deliberately has
+/// no FIFO/current-waiting fallback.
+/// </summary>
+public sealed class NativePostCommitCompletionLedger
+{
+    private readonly int _capacity;
+    private readonly Dictionary<string, NativePostCommitCompletionRegistration> _registrations =
+        new(StringComparer.Ordinal);
+    private readonly Dictionary<string, NativeTaskBinding> _taskBindings =
+        new(StringComparer.Ordinal);
+
+    public NativePostCommitCompletionLedger(int capacity = 128)
+    {
+        if (capacity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(capacity));
+        _capacity = capacity;
+    }
+
+    public int Count => _registrations.Count + _taskBindings.Count;
+
+    public bool Register(NativePostCommitCompletionRegistration registration)
+    {
+        ArgumentNullException.ThrowIfNull(registration);
+        if (string.IsNullOrWhiteSpace(registration.SessionId)
+            || registration.Generation <= 0
+            || string.IsNullOrWhiteSpace(registration.ActionWitnessId)
+            || string.IsNullOrWhiteSpace(registration.Expectation.Family)
+            || string.IsNullOrWhiteSpace(registration.Expectation.Kind))
+        {
+            return false;
+        }
+        if (_registrations.ContainsKey(registration.ActionWitnessId)
+            || Count >= _capacity)
+        {
+            return false;
+        }
+        _registrations.Add(registration.ActionWitnessId, registration);
+        return true;
+    }
+
+    /// <summary>
+    /// Binds a native Task to exactly one staged Human root while the native
+    /// method's owner and operands are still available. The later Task
+    /// continuation uses this durable binding and never reads an ambient UI
+    /// scope or chooses a current/FIFO root.
+    /// </summary>
+    public NativeTaskBindingResolution BindTask(NativeTaskObservation observation)
+    {
+        ArgumentNullException.ThrowIfNull(observation);
+        if (string.IsNullOrWhiteSpace(observation.SessionId)
+            || observation.Generation <= 0
+            || string.IsNullOrWhiteSpace(observation.Kind)
+            || string.IsNullOrWhiteSpace(observation.TaskWitnessId)
+            || _taskBindings.ContainsKey(observation.TaskWitnessId))
+        {
+            return new NativeTaskBindingResolution(
+                "no_match",
+                null,
+                "The native Task observation is malformed or was already bound.");
+        }
+
+        NativePostCommitCompletionRegistration[] matches = _registrations.Values
+            .Where(registration => Matches(registration, observation))
+            .ToArray();
+        if (matches.Length != 1)
+        {
+            return new NativeTaskBindingResolution(
+                matches.Length == 0 ? "no_match" : "ambiguous",
+                null,
+                matches.Length == 0
+                    ? "No staged Human root matches the exact native Task identity."
+                    : "More than one staged Human root matches the native Task identity.");
+        }
+
+        NativePostCommitCompletionRegistration registration = matches[0];
+        _registrations.Remove(registration.ActionWitnessId);
+        NativePostCommitCompletionExpectation expectation = registration.Expectation;
+        var binding = new NativeTaskBinding(
+            registration.SessionId,
+            registration.Generation,
+            registration.ActionWitnessId,
+            expectation.Family,
+            observation.Kind,
+            observation.TaskWitnessId,
+            observation.NativeOwnerWitnessId,
+            observation.NativeOperandWitnessId,
+            observation.NativeLineageWitnessId);
+        _taskBindings.Add(binding.TaskWitnessId, binding);
+        return new NativeTaskBindingResolution("matched", binding, null);
+    }
+
+    public NativePostCommitCompletionResolution CompleteTask(NativeTaskCompletion completion)
+    {
+        ArgumentNullException.ThrowIfNull(completion);
+        if (string.IsNullOrWhiteSpace(completion.SessionId)
+            || completion.Generation <= 0
+            || string.IsNullOrWhiteSpace(completion.CompletionId)
+            || string.IsNullOrWhiteSpace(completion.TaskWitnessId)
+            || !_taskBindings.TryGetValue(completion.TaskWitnessId, out NativeTaskBinding? binding)
+            || !string.Equals(binding.SessionId, completion.SessionId, StringComparison.Ordinal)
+            || binding.Generation != completion.Generation)
+        {
+            return new NativePostCommitCompletionResolution(
+                "no_match",
+                null,
+                null,
+                "No durable native Task binding matches this completion.");
+        }
+
+        _taskBindings.Remove(binding.TaskWitnessId);
+        var signal = new NativePostCommitCompletion(
+            completion.SessionId,
+            completion.Generation,
+            completion.CompletionId,
+            binding.Family,
+            binding.Kind,
+            binding.TaskWitnessId,
+            completion.Succeeded,
+            binding.ActionWitnessId,
+            binding.NativeOwnerWitnessId,
+            binding.NativeOperandWitnessId,
+            binding.NativeLineageWitnessId);
+        return new NativePostCommitCompletionResolution(
+            "matched",
+            signal,
+            new NativePostCommitCompletionRegistration(
+                binding.SessionId,
+                binding.Generation,
+                binding.ActionWitnessId,
+                new NativePostCommitCompletionExpectation(
+                    binding.Family,
+                    binding.Kind,
+                    binding.NativeOwnerWitnessId,
+                    binding.NativeOperandWitnessId,
+                    binding.NativeLineageWitnessId)),
+            null);
+    }
+
+    public bool Remove(string actionWitnessId)
+    {
+        if (string.IsNullOrWhiteSpace(actionWitnessId))
+            return false;
+        bool removed = _registrations.Remove(actionWitnessId);
+        foreach (string taskWitnessId in _taskBindings
+                     .Where(value => string.Equals(
+                         value.Value.ActionWitnessId,
+                         actionWitnessId,
+                         StringComparison.Ordinal))
+                     .Select(value => value.Key)
+                     .ToArray())
+        {
+            removed |= _taskBindings.Remove(taskWitnessId);
+        }
+        return removed;
+    }
+
+    public void Reset()
+    {
+        _registrations.Clear();
+        _taskBindings.Clear();
+    }
+
+    private static bool Matches(
+        NativePostCommitCompletionRegistration registration,
+        NativeTaskObservation observation)
+    {
+        NativePostCommitCompletionExpectation expectation = registration.Expectation;
+        return string.Equals(registration.SessionId, observation.SessionId, StringComparison.Ordinal)
+               && registration.Generation == observation.Generation
+               && expectation.AcceptsKind(observation.Kind)
+               && MatchesOptional(expectation.NativeOwnerWitnessId, observation.NativeOwnerWitnessId)
+               && MatchesOptional(expectation.NativeOperandWitnessId, observation.NativeOperandWitnessId)
+               && MatchesOptional(expectation.NativeLineageWitnessId, observation.NativeLineageWitnessId);
+    }
+
+    private static bool MatchesOptional(string? expected, string? actual) =>
+        expected == null
+        || string.Equals(expected, actual, StringComparison.Ordinal);
+}

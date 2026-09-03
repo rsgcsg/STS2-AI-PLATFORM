@@ -12,6 +12,25 @@ namespace STS2Connector.Tests;
 public sealed class PlayerEnvironmentContractTests
 {
     [Fact]
+    public void ProcessImmutableIdentityIsComputedOnceAndReused()
+    {
+        int calls = 0;
+        var cache = new ProcessImmutableValue<LoadedMainAssemblyIdentity>(() =>
+        {
+            calls++;
+            return new LoadedMainAssemblyIdentity("sha", "mvid");
+        });
+
+        LoadedMainAssemblyIdentity first = cache.Read();
+        LoadedMainAssemblyIdentity second = cache.Read();
+
+        Assert.Same(first, second);
+        Assert.Equal(1, calls);
+        Assert.Equal("sha", second.Sha256);
+        Assert.Equal("mvid", second.ModuleVersionId);
+    }
+
+    [Fact]
     public void SettlingSnapshotsCannotPublishMutationAuthority()
     {
         Assert.False(PlayerEnvironmentService.CanPublishMutationAuthority("settling"));
@@ -369,6 +388,9 @@ public sealed class PlayerEnvironmentContractTests
     [InlineData("confirm_interaction", "confirm_selection", "confirm")]
     [InlineData("activate_control", "open_shop", "open")]
     [InlineData("activate_control", "leave_shop", "close")]
+    [InlineData("choose", "choose_treasure_relic", "activate")]
+    [InlineData("choose", "skip_treasure_relic", "skip")]
+    [InlineData("activate_control", "proceed_treasure_room", "activate")]
     public void GenericUiActionsDoNotExposeBusinessOperationAsTheWireVerb(
         string command,
         string operation,

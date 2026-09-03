@@ -228,6 +228,69 @@ export function prepareExactWindowsModSettings({
   };
 }
 
+export function prepareSoleWindowsModSettings({ settings, enabledModId }) {
+  if (settings == null || typeof settings !== "object" || Array.isArray(settings)
+      || settings.mod_settings == null
+      || typeof settings.mod_settings !== "object"
+      || Array.isArray(settings.mod_settings)
+      || !Array.isArray(settings.mod_settings.mod_list)) {
+    throw new Error("Windows settings have an unexpected mod_settings shape.");
+  }
+  if (typeof enabledModId !== "string" || enabledModId.length === 0) {
+    throw new Error("The sole enabled Mod ID must be explicit.");
+  }
+  const existing = settings.mod_settings.mod_list.find((entry) => entry?.id === enabledModId);
+  const retained = settings.mod_settings.mod_list
+    .filter((entry) => entry?.id !== enabledModId)
+    .map((entry) => ({ ...entry, is_enabled: false }));
+  return {
+    ...settings,
+    mod_settings: {
+      ...settings.mod_settings,
+      mod_list: [
+        { ...existing, id: enabledModId, is_enabled: true, source: "mods_directory" },
+        ...retained
+      ],
+      mods_enabled: true
+    }
+  };
+}
+
+export function resolveWindowsSteamSettings({
+  env = process.env,
+  platform = process.platform,
+  expectedSchema
+} = {}) {
+  if (platform !== "win32") return null;
+  const roaming = env.APPDATA;
+  if (!roaming) throw new Error("APPDATA is unavailable; cannot resolve Windows STS2 settings.");
+  const steamRoot = path.win32.join(roaming, "SlayTheSpire2", "steam");
+  if (!fs.existsSync(steamRoot)) {
+    throw new Error(`Windows STS2 Steam settings root is absent: ${steamRoot}`);
+  }
+  const candidates = fs.readdirSync(steamRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.win32.join(steamRoot, entry.name, "settings.save"))
+    .filter(fs.existsSync);
+  if (candidates.length !== 1) {
+    throw new Error(`Expected exactly one Windows Steam settings.save, observed ${candidates.length}.`);
+  }
+  const file = candidates[0];
+  const value = JSON.parse(fs.readFileSync(file, "utf8").replace(/^\uFEFF/u, ""));
+  if (expectedSchema != null && value.schema_version !== expectedSchema) {
+    throw new Error(
+      `Windows settings schema drift: expected ${expectedSchema}, observed ${value.schema_version}.`
+    );
+  }
+  if (value.mod_settings == null
+      || typeof value.mod_settings !== "object"
+      || Array.isArray(value.mod_settings)
+      || !Array.isArray(value.mod_settings.mod_list)) {
+    throw new Error("Windows settings have an unexpected mod_settings shape.");
+  }
+  return { file, value };
+}
+
 function sameArtifactIdentity(left, right) {
   return left?.sha256 === right?.sha256
     && left?.module_version_id === right?.module_version_id;

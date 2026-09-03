@@ -10,7 +10,8 @@ export function evaluateShippedProbe({
   const latestSnapshot = snapshots.at(-1) ?? null;
   const connectorLoaded = capabilities?.host?.runtime_instance_id != null;
   const headlessHostIdentified = capabilities?.host?.host_kind === "headless";
-  const exactModset = capabilities?.game?.modset?.status === "exact_player_environment_only";
+  const exactModset = ["exact_player_environment_only", "exact_platform_modset"]
+    .includes(capabilities?.game?.modset?.status);
   const snapshotObserved = latestSnapshot?.ok === true;
   const decisionMounted = snapshotObserved
     && latestSnapshot.value?.status === "interactive"

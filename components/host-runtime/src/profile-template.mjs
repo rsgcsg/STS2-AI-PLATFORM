@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
+  copyFileSync,
   cpSync,
   existsSync,
   lstatSync,
@@ -39,16 +40,27 @@ export function profileTemplatePaths(localRoot, templateId) {
 
 function copyTemplatePayload(source, target) {
   const excludedTopLevel = new Set(["logs", "sentry", "sentry.dat"]);
-  cpSync(source, target, {
-    recursive: true,
-    filter: (entry) => {
-      const relative = path.relative(source, entry);
-      if (relative === "") return true;
-      const first = relative.split(path.sep)[0];
-      if (excludedTopLevel.has(first)) return false;
-      return !entry.endsWith(".before-headless-mod-consent");
+  const copyDirectory = (sourceDirectory, targetDirectory, topLevel) => {
+    mkdirSync(targetDirectory, { recursive: true });
+    const entries = readdirSync(sourceDirectory, { withFileTypes: true })
+      .sort((left, right) => left.name.localeCompare(right.name));
+    for (const entry of entries) {
+      if (topLevel && excludedTopLevel.has(entry.name)) continue;
+      if (entry.name.endsWith(".before-headless-mod-consent")) continue;
+      const sourceEntry = path.join(sourceDirectory, entry.name);
+      const targetEntry = path.join(targetDirectory, entry.name);
+      if (entry.isSymbolicLink()) {
+        throw new Error(`Profile templates cannot contain symbolic links: ${sourceEntry}`);
+      }
+      if (entry.isDirectory()) {
+        copyDirectory(sourceEntry, targetEntry, false);
+        continue;
+      }
+      if (!entry.isFile()) throw new Error(`Unsupported profile entry: ${sourceEntry}`);
+      copyFileSync(sourceEntry, targetEntry);
     }
-  });
+  };
+  copyDirectory(source, target, true);
 }
 
 function inventoryFiles(root) {

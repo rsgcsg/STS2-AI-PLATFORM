@@ -34,6 +34,26 @@ test("requires a clear endpoint, loaded Connector, and a real snapshot", () => {
   assert.equal(verdict.headless_driver_log_evidence, true);
 });
 
+test("accepts the exact unified Platform modset for shipped probing", () => {
+  const verdict = evaluateShippedProbe({
+    endpointWasClear: true,
+    processStarted: true,
+    processExit: { code: 0, signal: null },
+    capabilities: {
+      protocol_version: "1.0.0",
+      host: { host_kind: "headless", runtime_instance_id: "runtime-platform" },
+      game: { modset: { status: "exact_platform_modset" } }
+    },
+    snapshots: [{ ok: true, value: {
+      status: "interactive",
+      snapshot_id: "snapshot-platform",
+      bound_actions: { status: "complete", actions: [{ bound_action_id: "a" }] }
+    } }],
+    stdout: "Using headless display driver"
+  });
+  assert.equal(verdict.verdict, "h0_pass");
+});
+
 test("does not mistake process startup for a qualified probe", () => {
   const verdict = evaluateShippedProbe({
     endpointWasClear: true,

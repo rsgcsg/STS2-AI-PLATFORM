@@ -2,7 +2,6 @@ using STS2Connector.NativeUi;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using Godot;
 using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -12,11 +11,11 @@ using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 using MegaCrit.Sts2.Core.Nodes.Rooms;
 using MegaCrit.Sts2.Core.Nodes.Screens.Map;
-using MegaCrit.Sts2.Core.Nodes.Screens.ScreenContext;
 using MegaCrit.Sts2.Core.Nodes.Screens.TreasureRoomRelic;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Runs;
 using STS2Connector.LiveHost.Contracts;
+using STS2Platform.NativeFoundation;
 
 namespace STS2Connector.LiveHost;
 
@@ -31,12 +30,6 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
     internal const string ChooseRelicDeliveryEvidence = "native_treasure_relic_holder_clicked";
     internal const string SkipRelicDeliveryEvidence = "native_treasure_skip_button_clicked";
     internal const string ProceedDeliveryEvidence = "native_treasure_proceed_button_clicked";
-    private const BindingFlags Flags = BindingFlags.Instance | BindingFlags.NonPublic;
-    private static readonly FieldInfo? CollectionOpenField =
-        typeof(NTreasureRoom).GetField("_isRelicCollectionOpen", Flags);
-    private static readonly FieldInfo? ChestOpenedField =
-        typeof(NTreasureRoom).GetField("_hasChestBeenOpened", Flags);
-
     public string Kind => SurfaceKind;
 
     public InputOwnerLayer Layer => InputOwnerLayer.Room;
@@ -57,20 +50,30 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
         NTreasureRoom? uiRoom = NRun.Instance?.TreasureRoom;
         if (uiRoom == null || !ConnectorMod.IsLiveNode(uiRoom))
             return null;
+        bool roomLayerOwnsInput = ActiveInputResolver.IsActiveLayer(
+            InputOwnerLayer.Room,
+            snapshot.TopOverlay != null,
+            snapshot.MapIsOpen,
+            snapshot.MenuSubmenu != null || snapshot.MenuRoot != null,
+            snapshot.OpenModal != null);
         if (ClassifyScreenHandoff(
                 RunManager.Instance.IsInProgress,
                 currentRoomIsTreasure: true,
                 uiRoomIsLive: true,
-                ActiveScreenContext.Instance.IsCurrent(uiRoom)))
+                roomLayerOwnsInput))
         {
             return ScreenHandoff(game, runState);
         }
 
-        step = "lifecycle_flags";
-        if (!TryReadBool(ChestOpenedField, uiRoom, out bool chestOpened)
-            || !TryReadBool(CollectionOpenField, uiRoom, out bool collectionOpen))
+        step = "native_decision";
+        NativeTreasureDecision nativeDecision =
+            NativeTreasureDecisionProvider.Capture(uiRoom, entities);
+        if (nativeDecision.Status != "captured")
         {
-            return BindingUnavailable(game, "Exact treasure lifecycle flags are unavailable.");
+            return BindingUnavailable(
+                game,
+                nativeDecision.Detail
+                ?? "The exact game-owned treasure decision is unavailable.");
         }
 
         step = "exact_controls";
@@ -83,12 +86,10 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
             return BindingUnavailable(game, "Treasure controls, relic collection, or local player are unavailable.");
 
         step = "relic_collection";
-        RelicModel[] currentRelics =
-            RunManager.Instance.TreasureRoomRelicSynchronizer.CurrentRelics?.ToArray()
-            ?? Array.Empty<RelicModel>();
+        RelicModel[] currentRelics = nativeDecision.Relics.ToArray();
         NTreasureRoomRelicHolder? holder = collection.SingleplayerRelicHolder;
         bool holderMatches = TreasureVisibilityFacts.CanReadSingleplayerRelic(
-                                 collectionOpen,
+                                 nativeDecision.Stage is "relic_choice" or "resolving",
                                  currentRelics.Length)
                              && holder != null
                              && TryReadHolderRelic(holder, out RelicModel? holderRelic)
@@ -96,42 +97,57 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
         bool holderVisible = holderMatches
                              && ConnectorMod.IsLiveNode(holder!)
                              && ConnectorMod.IsNodeVisible(holder!)
-                             && collectionOpen;
+                             && (nativeDecision.Stage is "relic_choice" or "resolving");
         bool holderActionable = holderVisible
                                 && holder!.IsEnabled
                                 && holder.MouseFilter != Control.MouseFilterEnum.Ignore;
 
         step = "surface_projection";
-        string stage = TreasureLifecycleFacts.Stage(
-            chestOpened,
-            collectionOpen,
-            currentRelics.Length,
-            chest.IsEnabled && ConnectorMod.IsNodeVisible(chest));
+        string stage = nativeDecision.Stage;
         VisibleTreasureRelic[] visibleRelics = holderVisible
             ? new[] { BuildRelic(currentRelics[0], entities) }
             : Array.Empty<VisibleTreasureRelic>();
         bool canSkip = stage == "relic_choice"
                        && proceed.IsSkip
                        && proceed.IsEnabled
-                       && ConnectorMod.IsNodeVisible(proceed);
+                       && ConnectorMod.IsNodeVisible(proceed)
+                       && NativeSemanticActionCatalog.ContainsExactlyOnce(
+                           nativeDecision.Actions,
+                           "skip",
+                           room);
         bool canProceed = stage == "completed"
                           && !proceed.IsSkip
                           && proceed.IsEnabled
-                          && ConnectorMod.IsNodeVisible(proceed);
+                          && ConnectorMod.IsNodeVisible(proceed)
+                          && NativeSemanticActionCatalog.ContainsExactlyOnce(
+                              nativeDecision.Actions,
+                              "proceed",
+                              room);
 
-        string roomId = entities.GetId(uiRoom, "treasure_room");
+        string roomId = entities.GetId(room, "treasure_room");
         bool canOpenChest = stage == "closed"
                             && chest.IsEnabled
                             && ConnectorMod.IsNodeVisible(chest)
-                            && chest.MouseFilter != Control.MouseFilterEnum.Ignore;
+                            && chest.MouseFilter != Control.MouseFilterEnum.Ignore
+                            && NativeSemanticActionCatalog.ContainsExactlyOnce(
+                                nativeDecision.Actions,
+                                "open",
+                                room);
+        bool canChoose = stage == "relic_choice"
+                         && holderActionable
+                         && currentRelics.Length == 1
+                         && NativeSemanticActionCatalog.ContainsExactlyOnce(
+                             nativeDecision.Actions,
+                             "select",
+                             currentRelics[0]);
 
         var surface = new TreasureRoomSurface(
             SurfaceKind,
             stage,
             roomId,
-            chestOpened,
+            nativeDecision.ChestOpened,
             visibleRelics,
-            stage == "relic_choice" && holderActionable,
+            canChoose,
             canSkip,
             canProceed);
         bool hasActionableControl = canOpenChest
@@ -146,9 +162,10 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
                 : "temporarily_empty_while_chest_or_relic_award_animation_settles",
             new[]
             {
-                "TreasureRoom+NTreasureRoom exact room ownership",
-                "NTreasureRoom._hasChestBeenOpened+_isRelicCollectionOpen exact-version bindings",
-                "NTreasureRoomRelicCollection.CurrentRelics+SingleplayerRelicHolder",
+                "NTreasureRoom.Create exact TreasureRoom+IRunState owner",
+                "NativeTreasureDecisionProvider exact room lifecycle catalog",
+                "TreasureRoomRelicSynchronizer.CurrentRelics+GetPlayerVote",
+                "NTreasureRoomRelicCollection.SingleplayerRelicHolder presentation binding",
                 "RelicModel visible title+description+rarity+hover keywords",
                 "NProceedButton.IsSkip+IsEnabled"
             },
@@ -185,7 +202,7 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
         if (runState?.CurrentRoom is not TreasureRoom room
             || NRun.Instance?.TreasureRoom is not { } uiRoom
             || !string.Equals(
-                entities.GetId(uiRoom, "treasure_room"),
+                entities.GetId(room, "treasure_room"),
                 expectedRoomId,
                 StringComparison.Ordinal)
             || uiRoom.GetNodeOrNull<NButton>("%Chest") is not { } chest)
@@ -194,7 +211,7 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
                 "treasure_chest_changed",
                 "The exact treasure room or chest control is no longer current.");
         }
-        return StartOpen(room, uiRoom, chest);
+        return StartOpen(entities, room, uiRoom, chest);
     }
 
     internal static NativeInputResult StartChoose(
@@ -210,7 +227,7 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
             || LocalContext.GetMe(runState) == null
             || NRun.Instance?.TreasureRoom is not { } uiRoom
             || !string.Equals(
-                entities.GetId(uiRoom, "treasure_room"),
+                entities.GetId(room, "treasure_room"),
                 expectedRoomId,
                 StringComparison.Ordinal)
             || !entities.TryResolve(expectedRelicId, out RelicModel? relic)
@@ -225,7 +242,7 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
                 "treasure_relic_changed",
                 "The exact treasure room or relic entity is no longer current.");
         }
-        return StartChoose(room, uiRoom, collection, holder, relic);
+        return StartChoose(entities, room, uiRoom, collection, holder, relic);
     }
 
     internal static NativeInputResult StartSkip(
@@ -237,7 +254,7 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
             || LocalContext.GetMe(runState) == null
             || NRun.Instance?.TreasureRoom is not { } uiRoom
             || !string.Equals(
-                entities.GetId(uiRoom, "treasure_room"),
+                entities.GetId(room, "treasure_room"),
                 expectedRoomId,
                 StringComparison.Ordinal)
             || uiRoom.GetNodeOrNull<NTreasureRoomRelicCollection>("%RelicCollection")
@@ -247,7 +264,7 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
                 "treasure_skip_changed",
                 "The exact treasure room or skip owner is no longer current.");
         }
-        return StartSkip(room, uiRoom, collection, uiRoom.ProceedButton);
+        return StartSkip(entities, room, uiRoom, collection, uiRoom.ProceedButton);
     }
 
     internal static NativeInputResult StartProceed(
@@ -257,7 +274,7 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
         if (RunManager.Instance.DebugOnlyGetState()?.CurrentRoom is not TreasureRoom room
             || NRun.Instance?.TreasureRoom is not { } uiRoom
             || !string.Equals(
-                entities.GetId(uiRoom, "treasure_room"),
+                entities.GetId(room, "treasure_room"),
                 expectedRoomId,
                 StringComparison.Ordinal))
         {
@@ -265,7 +282,7 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
                 "treasure_proceed_changed",
                 "The exact treasure room or proceed owner is no longer current.");
         }
-        return StartProceed(room, uiRoom, uiRoom.ProceedButton);
+        return StartProceed(entities, room, uiRoom, uiRoom.ProceedButton);
     }
 
     private static VisibleTreasureRelic BuildRelic(
@@ -291,13 +308,18 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
     }
 
     private static NativeInputResult StartOpen(
+        NativeEntityRegistry entities,
         TreasureRoom expectedRoom,
         NTreasureRoom expectedUi,
         NButton expectedChest)
     {
+        NativeTreasureDecision decision =
+            NativeTreasureDecisionProvider.Capture(expectedUi, entities);
         if (!IsCurrent(expectedRoom, expectedUi)
-            || !TryReadBool(ChestOpenedField, expectedUi, out bool opened)
-            || opened
+            || !NativeSemanticActionCatalog.ContainsExactlyOnce(
+                decision.Actions,
+                "open",
+                expectedRoom)
             || !ReferenceEquals(expectedUi.GetNodeOrNull<NButton>("%Chest"), expectedChest)
             || !expectedChest.IsEnabled
             || !ConnectorMod.IsNodeVisible(expectedChest)
@@ -313,22 +335,24 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
     }
 
     private static NativeInputResult StartChoose(
+        NativeEntityRegistry entities,
         TreasureRoom expectedRoom,
         NTreasureRoom expectedUi,
         NTreasureRoomRelicCollection expectedCollection,
         NTreasureRoomRelicHolder expectedHolder,
         RelicModel expectedRelic)
     {
-        RelicModel[] current =
-            RunManager.Instance.TreasureRoomRelicSynchronizer.CurrentRelics?.ToArray()
-            ?? Array.Empty<RelicModel>();
+        NativeTreasureDecision decision =
+            NativeTreasureDecisionProvider.Capture(expectedUi, entities);
         if (!IsCurrent(expectedRoom, expectedUi)
-            || !TryReadBool(CollectionOpenField, expectedUi, out bool collectionOpen)
-            || !collectionOpen
+            || !NativeSemanticActionCatalog.ContainsExactlyOnce(
+                decision.Actions,
+                "select",
+                expectedRelic)
             || !ReferenceEquals(expectedUi.GetNodeOrNull<NTreasureRoomRelicCollection>("%RelicCollection"), expectedCollection)
             || !ReferenceEquals(expectedCollection.SingleplayerRelicHolder, expectedHolder)
-            || current.Length != 1
-            || !ReferenceEquals(current[0], expectedRelic)
+            || decision.Relics.Count != 1
+            || !ReferenceEquals(decision.Relics[0], expectedRelic)
             || !TryReadHolderRelic(expectedHolder, out RelicModel? holderRelic)
             || !ReferenceEquals(holderRelic, expectedRelic)
             || !expectedHolder.IsEnabled
@@ -345,14 +369,19 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
     }
 
     private static NativeInputResult StartSkip(
+        NativeEntityRegistry entities,
         TreasureRoom expectedRoom,
         NTreasureRoom expectedUi,
         NTreasureRoomRelicCollection expectedCollection,
         NProceedButton expectedProceed)
     {
+        NativeTreasureDecision decision =
+            NativeTreasureDecisionProvider.Capture(expectedUi, entities);
         if (!IsCurrent(expectedRoom, expectedUi)
-            || !TryReadBool(CollectionOpenField, expectedUi, out bool collectionOpen)
-            || !collectionOpen
+            || !NativeSemanticActionCatalog.ContainsExactlyOnce(
+                decision.Actions,
+                "skip",
+                expectedRoom)
             || !ReferenceEquals(expectedUi.GetNodeOrNull<NTreasureRoomRelicCollection>("%RelicCollection"), expectedCollection)
             || !ReferenceEquals(expectedUi.ProceedButton, expectedProceed)
             || !expectedProceed.IsSkip
@@ -369,11 +398,18 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
     }
 
     private static NativeInputResult StartProceed(
+        NativeEntityRegistry entities,
         TreasureRoom expectedRoom,
         NTreasureRoom expectedUi,
         NProceedButton expectedProceed)
     {
+        NativeTreasureDecision decision =
+            NativeTreasureDecisionProvider.Capture(expectedUi, entities);
         if (!IsCurrent(expectedRoom, expectedUi)
+            || !NativeSemanticActionCatalog.ContainsExactlyOnce(
+                decision.Actions,
+                "proceed",
+                expectedRoom)
             || !ReferenceEquals(expectedUi.ProceedButton, expectedProceed)
             || expectedProceed.IsSkip
             || !expectedProceed.IsEnabled
@@ -391,15 +427,17 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
     private static bool IsCurrent(TreasureRoom expectedRoom, NTreasureRoom expectedUi) =>
         ReferenceEquals(RunManager.Instance.DebugOnlyGetState()?.CurrentRoom, expectedRoom)
         && ConnectorMod.IsLiveNode(expectedUi)
-        && ActiveScreenContext.Instance.IsCurrent(expectedUi);
+        && IsRoomLayerCurrent();
 
-    private static bool TryReadBool(FieldInfo? field, object instance, out bool value)
+    private static bool IsRoomLayerCurrent()
     {
-        value = false;
-        if (field?.GetValue(instance) is not bool current)
-            return false;
-        value = current;
-        return true;
+        ActiveSurfaceSnapshot snapshot = ActiveInputResolver.Capture();
+        return ActiveInputResolver.IsActiveLayer(
+            InputOwnerLayer.Room,
+            snapshot.TopOverlay != null,
+            snapshot.MapIsOpen,
+            snapshot.MenuSubmenu != null || snapshot.MenuRoot != null,
+            snapshot.OpenModal != null);
     }
 
     private static bool TryReadHolderRelic(
@@ -467,7 +505,7 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
             {
                 "TreasureRoom exact current room",
                 "NTreasureRoom live node",
-                "ActiveScreenContext current-owner check"
+                "ActiveInputResolver room-layer current-owner check"
             },
             Array.Empty<string>());
         string signature = StableIdentityHash.Object(new
@@ -491,7 +529,7 @@ internal sealed class TreasureRoomSurfaceReader : ILiveSurfaceReader
             InputOwnership = new InputOwnership(
                 "none_fail_closed",
                 null,
-                "The treasure room exists but does not own the current native screen context; the Host polls without publishing actions."),
+                "The treasure room exists but does not own the current native input layer; the Host publishes no actions."),
             Diagnostics = new[]
             {
                 HostDiagnostics.Create(
@@ -519,19 +557,4 @@ internal static class TreasureVisibilityFacts
 {
     public static bool CanReadSingleplayerRelic(bool collectionOpen, int currentRelicCount) =>
         collectionOpen && currentRelicCount == 1;
-}
-
-internal static class TreasureLifecycleFacts
-{
-    public static string Stage(
-        bool chestOpened,
-        bool collectionOpen,
-        int currentRelicCount,
-        bool chestActionable) =>
-        !chestOpened
-            ? chestActionable ? "closed" : "opening"
-            : collectionOpen
-                ? currentRelicCount > 0 ? "relic_choice" : "opening"
-                : "completed";
-
 }

@@ -35,6 +35,7 @@ public static class UnifiedPlatformMod
 
         // STS2 discovers only this initializer. Explicit order avoids depending
         // on reflection type enumeration and preserves component ownership.
+        NativeFoundationOwnerPatches.Initialize();
         ConnectorMod.Initialize();
         RecorderMod.Initialize();
         PlatformLiveUiMod.Initialize();

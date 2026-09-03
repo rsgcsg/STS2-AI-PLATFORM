@@ -1,0 +1,3 @@
+# Keep text materialization stable across Windows and POSIX so component
+# source/contract digests do not depend on core.autocrlf or runner defaults.
+* text=auto eol=lf

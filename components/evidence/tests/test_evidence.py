@@ -121,8 +121,8 @@ class EvidenceTests(unittest.TestCase):
         (bundle / "export").mkdir()
         (bundle / "profile").mkdir()
         record = json.dumps(self._record(), separators=(",", ":"))
-        (raw / "run-0001.jsonl").write_text(record + "\n", encoding="utf-8")
-        (bundle / "export" / "decisions.jsonl").write_text(record + "\n", encoding="utf-8")
+        (raw / "run-0001.jsonl").write_bytes((record + "\n").encode("utf-8"))
+        (bundle / "export" / "decisions.jsonl").write_bytes((record + "\n").encode("utf-8"))
         (raw / "recording-manifest.json").write_text(
             canonical({
                 "schema": "sts2.human-annotator/recording-manifest-1",
