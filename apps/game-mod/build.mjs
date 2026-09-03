@@ -5,8 +5,7 @@ import path from "node:path";
 import process from "node:process";
 
 import {
-  loadHostRuntimeWorkstationApi,
-  resolveWorkstationInstallation
+  defaultGameDirectory
 } from "../../components/annotator/tools/workstation-platform.mjs";
 import { sourceSetIdentity } from "./source-identity.mjs";
 
@@ -50,18 +49,20 @@ function exactIdentity(file) {
   return JSON.parse(result.stdout);
 }
 
-const hostApi = await loadHostRuntimeWorkstationApi(
-  path.join(platformRoot, "components", "annotator")
-);
-const installation = resolveWorkstationInstallation({ headlessApi: hostApi });
-const gameDir = path.resolve(installation.game_dir);
+const gameDir = path.resolve(process.env.STS2_GAME_DIR || defaultGameDirectory());
 if (!fs.existsSync(gameDir)) {
   process.stderr.write(`STS2 installation was not found at ${gameDir}; set STS2_GAME_DIR explicitly.\n`);
   process.exit(2);
 }
 const source = sourceSetIdentity(platformRoot);
-const dataDirectory = installation.data_dir;
-const releaseInfo = installation.release_info;
+const dataDirectory = process.platform === "darwin"
+  ? path.join(gameDir, "SlayTheSpire2.app/Contents/Resources", `data_sts2_macos_${process.arch === "x64" ? "x86_64" : "arm64"}`)
+  : process.platform === "win32"
+    ? path.join(gameDir, "data_sts2_windows_x86_64")
+    : path.join(gameDir, "data_sts2_linuxbsd_x86_64");
+const releaseInfo = process.platform === "darwin"
+  ? path.join(gameDir, "SlayTheSpire2.app/Contents/Resources/release_info.json")
+  : path.join(gameDir, "release_info.json");
 
 run("dotnet", ["build", identityProject, "--configuration", "Release"]);
 run("dotnet", [
@@ -71,8 +72,6 @@ run("dotnet", [
   `-p:STS2GameDir=${gameDir}`,
   `-p:PlatformSourceRevision=${source.platform.source_revision}`,
   `-p:PlatformSourceDigestSha256=${source.platform.source_digest_sha256}`,
-  `-p:NativeFoundationSourceRevision=${source.components.native_foundation.source_revision}`,
-  `-p:NativeFoundationSourceDigestSha256=${source.components.native_foundation.source_digest_sha256}`,
   `-p:ConnectorSourceRevision=${source.components.connector.source_revision}`,
   `-p:ConnectorPlayerEnvironmentSourceDigest=${source.components.connector.source_digest_sha256}`,
   `-p:AnnotatorSourceRevision=${source.components.annotator.source_revision}`,

@@ -2,89 +2,29 @@ name: CI
 
 on:
   push:
-    branches:
-      - develop
-      - main
-      - "release/**"
-      - "hotfix/**"
   pull_request:
   workflow_dispatch:
-
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  linux-portability:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - name: Review dependency changes
-        if: github.event_name == 'pull_request'
-        uses: actions/dependency-review-action@a1d282b36b6f3519aa1f3fc636f609c47dddb294 # v5.0.0
-        with:
-          fail-on-severity: high
-          fail-on-scopes: runtime, development
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 20
-          cache: npm
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        with:
-          dotnet-version: 9.0.x
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.11"
-      - name: Install dependencies
-        run: npm ci
-      - name: Run full portable source/test gate
-        run: npm run check
-      - name: Check patch hygiene
-        run: git diff --check
-
-  windows-portability:
-    runs-on: windows-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 20
-          cache: npm
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        with:
-          dotnet-version: 9.0.x
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.11"
-      - name: Install dependencies
-        run: npm ci
-      - name: Run full portable source/test gate
-        run: npm run check
-      - name: Check patch hygiene
-        run: git diff --check
-
   portable:
-    if: ${{ always() }}
-    needs: [linux-portability, windows-portability]
     runs-on: ubuntu-latest
-    timeout-minutes: 5
     steps:
-      - name: Require both portability lanes
-        env:
-          LINUX_RESULT: ${{ needs.linux-portability.result }}
-          WINDOWS_RESULT: ${{ needs.windows-portability.result }}
-        run: |
-          printf 'linux=%s windows=%s\n' "$LINUX_RESULT" "$WINDOWS_RESULT"
-          test "$LINUX_RESULT" = "success"
-          test "$WINDOWS_RESULT" = "success"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          dotnet-version: 9.0.x
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - run: npm ci
+      - run: npm run check
+      - run: git diff --check

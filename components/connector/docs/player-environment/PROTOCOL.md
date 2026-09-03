@@ -87,10 +87,8 @@ exact native binding immediately before delivery.
 
 Receipts are `delivered`, `not_delivered` or `unknown`. Delivered proves native input
 delivery, not business completion. Unknown delivery never permits automatic
-retry. The receipt repeats the public subject/arguments and may include a
-Snapshot observed immediately after delivery. The field remains named
-`successor` for protocol 1.0.0 compatibility, but it is not causal settlement
-or canonical next-decision `S'`; consumers observe later state separately.
+retry. The receipt repeats the public subject/arguments and may include an
+immediate successor.
 
 ## Current Host Scope
 

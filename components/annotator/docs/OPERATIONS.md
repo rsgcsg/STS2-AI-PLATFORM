@@ -10,26 +10,18 @@
 6. Pause/Resume as needed, then Close to flush the session safely;
 7. optionally choose New Session again in the same process to create an isolated
    second timeline/store;
-8. quit and run current audit, then pack each session against the exact current
-   CaptureProfile;
+8. quit and run audit, then pack each session against an exact collection profile;
 9. use root `npm run rollback` only while the game is fully closed.
 
 `npm run doctor` is read-only. Build, install, loaded identity, and recorded
 native-human decisions are separate states.
-
-The active recorder accepts only `recording-manifest-2` and creates a
-`session-bundle-2`. Its current store/audit/bundle path never writes or uses
-`native-action-ledger.jsonl`; predecessor recording formats are inspected with
-the explicit archival readers and are not promoted by current audit.
 
 The current CLI can verify and relaunch the predecessor macOS schema-1
 deployment/canary without redeploying it. This compatibility path is
 macOS-arm64-only and derives missing platform/release/Connector-build fields
 only after the current game assembly and installed Connector artifact exactly
 match the recorded identities. It is reported as
-`legacy_macos_v1_derived_exact`; any drift still fails closed. This is install
-provenance compatibility only, not a current recording-format reader or
-authority.
+`legacy_macos_v1_derived_exact`; any drift still fails closed.
 
 ## Platform discovery and cold launch
 
@@ -52,7 +44,7 @@ so stale loaded-state evidence cannot silently authorize a new process.
 - `mapping_zero` / `mapping_ambiguous`: do not recover by name or coordinates;
 - `stable_successor_timeout`: the transition boundary was not observed;
 - `rapid_input_transition_unproven`: every accepted action remains accounted in
-  the current semantic trace, but none receives a strict successor claim;
+  the native ledger, but none receives a strict successor claim;
 - `native_action_cancelled`: STS2 cancelled an accepted action; lifecycle only;
 - `native_lifecycle_persistence_unknown`: the append result is unknown, is not
   retried, and the session must fail audit rather than admit a transition;

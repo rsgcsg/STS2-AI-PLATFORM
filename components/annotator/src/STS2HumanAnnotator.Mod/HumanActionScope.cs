@@ -3,10 +3,7 @@ using STS2HumanAnnotator.Core;
 
 namespace STS2HumanAnnotator.Mod;
 
-internal readonly record struct NativeUiScopeEntry(
-    bool Entered,
-    bool DeferredFailure,
-    string? ActionWitnessId = null);
+internal readonly record struct NativeUiScopeEntry(bool Entered, bool DeferredFailure);
 
 internal sealed class HumanActionContext
 {
@@ -15,38 +12,18 @@ internal sealed class HumanActionContext
     internal HumanActionContext(
         string origin,
         string expectedNativeActionType,
-        ProcessLocalObservedAction? expectedAction,
         ProcessLocalNativeWitnessFrame frame,
-        ProcessLocalNativeSemanticCapture? nativeSemanticDecision,
-        string? actionWitnessId,
-        NativePostCommitCompletionExpectation? completionExpectation,
-        HumanActionOccurrenceEvidence? occurrence,
         DateTimeOffset enteredAt)
     {
         Origin = origin;
-        ExpectedAction = expectedAction;
         Frame = frame;
-        NativeSemanticDecision = nativeSemanticDecision;
-        ActionWitnessId = actionWitnessId ?? $"scope-action-{Guid.NewGuid():N}";
-        CompletionExpectation = completionExpectation;
-        Occurrence = occurrence;
         EnteredAt = enteredAt;
         _rootActionGate = new AcceptedRootActionGate(expectedNativeActionType);
     }
 
     internal string Origin { get; }
 
-    internal ProcessLocalObservedAction? ExpectedAction { get; }
-
     internal ProcessLocalNativeWitnessFrame Frame { get; }
-
-    internal ProcessLocalNativeSemanticCapture? NativeSemanticDecision { get; }
-
-    internal string ActionWitnessId { get; }
-
-    internal NativePostCommitCompletionExpectation? CompletionExpectation { get; }
-
-    internal HumanActionOccurrenceEvidence? Occurrence { get; }
 
     internal DateTimeOffset EnteredAt { get; }
 
@@ -55,8 +32,6 @@ internal sealed class HumanActionContext
 
     internal bool TryClaimRootAction(string nativeActionType) =>
         _rootActionGate.TryClaim(nativeActionType);
-
-    internal bool RootActionClaimed => _rootActionGate.IsClaimed;
 }
 
 internal sealed class DeferredHumanActionFailure
@@ -68,15 +43,13 @@ internal sealed class DeferredHumanActionFailure
         string reasonCode,
         string detail,
         string? snapshotId,
-        string evidenceLevel,
-        HumanActionOccurrenceEvidence? occurrence)
+        string evidenceLevel)
     {
         _rootActionGate = new AcceptedRootActionGate(expectedNativeActionType);
         ReasonCode = reasonCode;
         Detail = detail;
         SnapshotId = snapshotId;
         EvidenceLevel = evidenceLevel;
-        Occurrence = occurrence;
     }
 
     internal string ReasonCode { get; }
@@ -86,8 +59,6 @@ internal sealed class DeferredHumanActionFailure
     internal string? SnapshotId { get; }
 
     internal string EvidenceLevel { get; }
-
-    internal HumanActionOccurrenceEvidence? Occurrence { get; }
 
     internal bool TryClaim(string nativeActionType) =>
         _rootActionGate.TryClaim(nativeActionType);
@@ -110,23 +81,13 @@ internal static class HumanActionScope
     internal static void Enter(
         string origin,
         string expectedNativeActionType,
-        ProcessLocalObservedAction? expectedAction,
-        ProcessLocalNativeWitnessFrame frame,
-        ProcessLocalNativeSemanticCapture? nativeSemanticDecision = null,
-        string? actionWitnessId = null,
-        NativePostCommitCompletionExpectation? completionExpectation = null,
-        HumanActionOccurrenceEvidence? occurrence = null)
+        ProcessLocalNativeWitnessFrame frame)
     {
         _stack ??= new Stack<HumanActionContext>();
         _stack.Push(new HumanActionContext(
             origin,
             expectedNativeActionType,
-            expectedAction,
             frame,
-            nativeSemanticDecision,
-            actionWitnessId,
-            completionExpectation,
-            occurrence,
             DateTimeOffset.UtcNow));
     }
 
@@ -141,8 +102,7 @@ internal static class HumanActionScope
         string reasonCode,
         string detail,
         string? snapshotId,
-        string evidenceLevel,
-        HumanActionOccurrenceEvidence? occurrence = null)
+        string evidenceLevel)
     {
         _deferredFailures ??= new Stack<DeferredHumanActionFailure>();
         _deferredFailures.Push(new DeferredHumanActionFailure(
@@ -150,8 +110,7 @@ internal static class HumanActionScope
             reasonCode,
             detail,
             snapshotId,
-            evidenceLevel,
-            occurrence));
+            evidenceLevel));
     }
 
     internal static void ExitDeferredFailure()

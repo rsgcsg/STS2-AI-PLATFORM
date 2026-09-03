@@ -150,14 +150,14 @@ internal static partial class PlayerEnvironmentService
                     started.ErrorCode ?? "native_input_rejected",
                     started.Detail ?? "The native UI rejected this exact input.");
 
-            PlayerEnvironmentSnapshot? postDeliveryObservation = null;
+            PlayerEnvironmentSnapshot? successor = null;
             string evidence = string.IsNullOrWhiteSpace(started.DeliveryEvidence)
                 ? "native_ui_input_delivered"
                 : started.DeliveryEvidence;
-            string detail = $"Native UI input was delivered ({evidence}); the attached successor is an immediate post-delivery observation, not causal settlement.";
+            string detail = $"Native UI input was delivered ({evidence}); inspect successor for game progress.";
             try
             {
-                postDeliveryObservation = Observe();
+                successor = Observe();
             }
             catch (Exception exception)
             {
@@ -173,9 +173,9 @@ internal static partial class PlayerEnvironmentService
                 arguments,
                 "delivered",
                 "delivered",
-                postDeliveryObservation == null ? "successor_observation_unavailable" : null,
+                successor == null ? "successor_observation_unavailable" : null,
                 detail,
-                postDeliveryObservation,
+                successor,
                 admission.Attribution);
             Receipts[requestId] = applied;
             return applied;

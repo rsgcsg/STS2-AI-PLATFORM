@@ -366,11 +366,6 @@ public sealed record PlayerEnvironmentAttribution(
     string ControllerLeaseId,
     long ControllerGeneration);
 
-/// <summary>
-/// Reports native input delivery. Successor is an immediate post-delivery
-/// observation when available; it is not business completion or a canonical
-/// causal next-decision state.
-/// </summary>
 public sealed record PlayerEnvironmentActionReceipt(
     string ProtocolVersion,
     string Schema,

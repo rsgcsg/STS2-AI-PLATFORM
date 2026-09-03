@@ -13,7 +13,6 @@ using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
 using STS2Connector.LiveHost;
 using STS2Connector.LiveHost.Contracts;
-using STS2Platform.NativeFoundation;
 
 namespace STS2Connector.NativeUi;
 
@@ -60,7 +59,6 @@ internal static class NativeGeneratedCardChoice
         if (active.TopOverlay is not NChooseACardSelectionScreen screen)
             return null;
 
-        NativePlayerChoiceLineage lineage = NativePlayerChoiceLineage.Capture();
         ILiveContext context = LiveContextReader.Build(entities);
         if (!TryReadBinding(screen, out Binding? binding, out string? error))
         {
@@ -147,8 +145,7 @@ internal static class NativeGeneratedCardChoice
             new[]
             {
                 "NChooseACardSelectionScreen visible card holders",
-                "NChooseACardSelectionScreen banner/peek/skip controls",
-                $"NativePlayerChoiceLineage:{lineage.Status}"
+                "NChooseACardSelectionScreen banner/peek/skip controls"
             },
             controlsReady ? Array.Empty<string>() : new[] { "current_ui_controls" });
         return new LiveObservation(

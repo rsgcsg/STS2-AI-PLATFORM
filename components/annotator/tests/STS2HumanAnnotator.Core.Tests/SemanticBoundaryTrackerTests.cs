@@ -31,7 +31,7 @@ public sealed class SemanticBoundaryTrackerTests
         tracker.Started("a3");
         tracker.Finished("a3");
         SemanticBoundaryTraceDraft a3 = Assert.Single(
-            tracker.ObserveDecisionBoundary(PostCommitBoundary("s3")));
+            tracker.ObserveDecisionBoundary(Boundary("s3")));
 
         Assert.Equal(("s0", "s1"), TransitionIds(a1));
         Assert.Equal(("s1", "s2"), TransitionIds(a2));
@@ -57,7 +57,7 @@ public sealed class SemanticBoundaryTrackerTests
         tracker.Started("queued-end-turn");
         tracker.Finished("queued-end-turn");
         SemanticBoundaryTraceDraft queued = Assert.Single(
-            tracker.ObserveDecisionBoundary(PostCommitBoundary("next-turn")));
+            tracker.ObserveDecisionBoundary(Boundary("next-turn")));
 
         SemanticBoundaryTraceDraft choice = Assert.Single(
             beforeQueued,
@@ -84,7 +84,7 @@ public sealed class SemanticBoundaryTrackerTests
 
         SemanticBoundaryTraceDraft cancelled = Assert.Single(tracker.Cancelled("queued"));
         SemanticBoundaryTraceDraft terminal = Assert.Single(
-            tracker.ObserveDecisionBoundary(PostCommitBoundary("reward-after-lethal")));
+            tracker.ObserveDecisionBoundary(Boundary("reward-after-lethal")));
 
         Assert.Equal(SemanticBoundaryTraceKinds.ActionCancelledBeforeStart, cancelled.Kind);
         Assert.Equal("not_a_successful_action", cancelled.ProofStatus);
@@ -148,160 +148,6 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
-    public void PlayerChoiceResumeCallbackStaysOnNativeParentUntilCommitAndNextBoundary()
-    {
-        var tracker = new SemanticBoundaryTracker();
-        SemanticActionReference parent = Action("choice-parent", 1) with
-        {
-            RequiresNativePostCommit = true
-        };
-        tracker.Accept(parent, State("human-parent"));
-        tracker.ObserveBeforeActionExecution(
-            parent.ActionWitnessId,
-            Boundary("combat-before", parent.ActionWitnessId));
-        tracker.Started(parent.ActionWitnessId);
-        tracker.PausedForPlayerChoice(parent.ActionWitnessId);
-        tracker.ReadyToResume(parent.ActionWitnessId);
-
-        // ActionExecutor's resume callback is the same parent GameAction, not
-        // another execution boundary and not a self-successor.
-        tracker.BeforeExecutionResume(parent.ActionWitnessId);
-        Assert.True(tracker.HasUnresolvedActions);
-        tracker.Resumed(parent.ActionWitnessId);
-        tracker.Finished(parent.ActionWitnessId);
-        NativeCompletionEvidence completion = Completion(parent.ActionWitnessId);
-        SemanticBoundaryTraceDraft committed = Assert.Single(
-            tracker.ObserveNativeCommit(parent.ActionWitnessId, completion));
-
-        Assert.Equal(SemanticBoundaryTraceKinds.NativeCommitObserved, committed.Kind);
-        Assert.Equal("native_commit_observed", committed.ProofStatus);
-        Assert.True(tracker.HasUnresolvedActions);
-
-        SemanticActionReference next = Action("next", 2);
-        tracker.Accept(next, State("human-next"));
-        SemanticBoundaryTraceDraft proved = Assert.Single(
-            tracker.ObserveBeforeActionExecution(
-                next.ActionWitnessId,
-                Boundary("combat-after-choice", next.ActionWitnessId)),
-            value => value.Kind == SemanticBoundaryTraceKinds.TransitionProved);
-
-        Assert.Equal(parent.ActionWitnessId, proved.Action.ActionWitnessId);
-        Assert.Equal("proved_native_commit_then_execution_handoff", proved.ProofStatus);
-        Assert.Same(completion, proved.NativeCompletion);
-        Assert.Empty(tracker.ObserveNativeCommit(parent.ActionWitnessId, completion));
-    }
-
-    [Fact]
-    public void ExactPlayerChoiceContinuationLetsNestedHumanChoiceSettleParentWithoutFinish()
-    {
-        var tracker = new SemanticBoundaryTracker();
-        SemanticActionReference parent = Action("choice-parent", 1) with
-        {
-            RequiresNativePostCommit = true
-        };
-        tracker.Accept(parent, State("human-parent"));
-        tracker.ObserveBeforeActionExecution(
-            parent.ActionWitnessId,
-            Boundary("combat-before", parent.ActionWitnessId));
-        tracker.Started(parent.ActionWitnessId);
-        tracker.PausedForPlayerChoice(parent.ActionWitnessId);
-
-        Assert.False(tracker.CanOpenNextRoot);
-        NativeContinuationEvidence continuation = new(
-            "continuation-choice-parent",
-            "GameAction.BeforePausedForPlayerChoice",
-            parent.ActionWitnessId,
-            "game_action:choice-parent",
-            "game_action:choice-parent",
-            true);
-        SemanticBoundaryTraceDraft continuationDraft = Assert.Single(
-            tracker.ObserveNativeContinuation(parent.ActionWitnessId, continuation));
-
-        Assert.Equal(SemanticBoundaryTraceKinds.NativeContinuationObserved, continuationDraft.Kind);
-        Assert.True(tracker.CanOpenNextRoot);
-
-        SemanticActionReference child = Action(
-            "choice-child",
-            2,
-            "NChooseACardSelectionScreen.SelectHolder");
-        tracker.Accept(child, State("choice-human-observation"));
-        SemanticBoundaryTraceDraft parentProved = Assert.Single(
-            tracker.ObserveBeforeActionExecution(
-                child.ActionWitnessId,
-                Boundary("choice-state", child.ActionWitnessId)),
-            value => value.Kind == SemanticBoundaryTraceKinds.TransitionProved);
-
-        Assert.Equal(parent.ActionWitnessId, parentProved.Action.ActionWitnessId);
-        Assert.Equal("proved_player_choice_boundary", parentProved.ProofStatus);
-        Assert.Same(continuation, parentProved.NativeContinuation);
-        Assert.Equal(("combat-before", "choice-state"), TransitionIds(parentProved));
-
-        tracker.Started(child.ActionWitnessId);
-        tracker.Finished(child.ActionWitnessId);
-        tracker.ReadyToResume(parent.ActionWitnessId);
-        tracker.BeforeExecutionResume(parent.ActionWitnessId);
-        tracker.Resumed(parent.ActionWitnessId);
-        SemanticBoundaryTraceDraft parentFinished = Assert.Single(tracker.Finished(parent.ActionWitnessId));
-
-        Assert.Equal("lifecycle_finished_after_semantic_disposition", parentFinished.ProofStatus);
-        Assert.Empty(tracker.ObserveDecisionBoundary(Boundary("later-state")));
-    }
-
-    [Fact]
-    public void PlayerChoiceContinuationTraceRequiresExactPauseAndRoundTripsAsParentCommitEvidence()
-    {
-        var tracker = new SemanticBoundaryTracker();
-        SemanticActionReference parent = Action("choice-parent", 1) with
-        {
-            RequiresNativePostCommit = true
-        };
-        SemanticActionReference child = Action(
-            "choice-child",
-            2,
-            "NChooseACardSelectionScreen.SelectHolder");
-        var drafts = new List<SemanticBoundaryTraceDraft>();
-        drafts.AddRange(tracker.Accept(parent, State("human-parent")));
-        drafts.AddRange(tracker.ObserveBeforeActionExecution(
-            parent.ActionWitnessId,
-            Boundary("combat-before", parent.ActionWitnessId)));
-        drafts.AddRange(tracker.Started(parent.ActionWitnessId));
-        drafts.AddRange(tracker.PausedForPlayerChoice(parent.ActionWitnessId));
-        NativeContinuationEvidence continuation = new(
-            "continuation-choice-parent",
-            "GameAction.BeforePausedForPlayerChoice",
-            parent.ActionWitnessId,
-            "game_action:choice-parent",
-            "game_action:choice-parent",
-            true);
-        drafts.AddRange(tracker.ObserveNativeContinuation(parent.ActionWitnessId, continuation));
-        drafts.AddRange(tracker.Accept(child, State("human-child")));
-        drafts.AddRange(tracker.ObserveBeforeActionExecution(
-            child.ActionWitnessId,
-            Boundary("choice-state", child.ActionWitnessId)));
-        drafts.AddRange(tracker.Started(child.ActionWitnessId));
-        drafts.AddRange(tracker.Finished(child.ActionWitnessId));
-        drafts.AddRange(tracker.ObserveDecisionBoundary(PostCommitBoundary("after-choice")));
-
-        SemanticBoundaryTraceEvent[] events = drafts
-            .Select((draft, index) => Event(index + 1, draft))
-            .ToArray();
-        Assert.Empty(SemanticBoundaryTraceValidator.Validate(events));
-        SemanticBoundaryTraceEvent proved = Assert.Single(events,
-            value => value.Kind == SemanticBoundaryTraceKinds.TransitionProved
-                     && value.Action.ActionWitnessId == parent.ActionWitnessId);
-        Assert.Equal(parent.ActionWitnessId, proved.Action.ActionWitnessId);
-        Assert.Equal(child.ActionWitnessId, proved.RelatedActionWitnessId);
-        Assert.Same(continuation, proved.NativeContinuation);
-
-        SemanticBoundaryTraceEvent[] missingPause = events
-            .Where(value => value.Kind != SemanticBoundaryTraceKinds.ActionPausedForPlayerChoice)
-            .ToArray();
-        Assert.Contains(
-            "semantic_native_continuation_without_pause",
-            SemanticBoundaryTraceValidator.Validate(missingPause));
-    }
-
-    [Fact]
     public void IncompleteCaptureBeforeNextActionFailsClosedAndDoesNotUseLaterState()
     {
         var tracker = new SemanticBoundaryTracker();
@@ -317,7 +163,7 @@ public sealed class SemanticBoundaryTrackerTests
         tracker.Started("a2");
         tracker.Finished("a2");
         SemanticBoundaryTraceDraft a2Unknown = Assert.Single(
-            tracker.ObserveDecisionBoundary(PostCommitBoundary("s2")));
+            tracker.ObserveDecisionBoundary(Boundary("s2")));
 
         Assert.Equal("semantic_state_incomplete_before_next_action", unknown.ProofStatus);
         Assert.Null(unknown.SemanticSuccessor);
@@ -339,7 +185,7 @@ public sealed class SemanticBoundaryTrackerTests
         tracker.Started("a2");
         tracker.Finished("a2");
         SemanticBoundaryTraceDraft a2 = Assert.Single(
-            tracker.ObserveDecisionBoundary(PostCommitBoundary("s2")));
+            tracker.ObserveDecisionBoundary(Boundary("s2")));
 
         SemanticBoundaryTraceDraft a1 = Assert.Single(
             handoff,
@@ -369,65 +215,6 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
-    public void DraftProjectionCarriesEntryEvidenceAcrossLifecycleAndSettlement()
-    {
-        var tracker = new SemanticBoundaryTracker();
-        SemanticActionReference action = Action("a1", 1) with
-        {
-            RequiresNativePostCommit = true
-        };
-        CurrentDecisionFrame humanObservation = State("human-s0");
-        ExecutionSemanticActionSpaceEvidence actionSpace = new(
-            ExecutionSemanticActionSpaceContract.SchemaVersion,
-            ExecutionSemanticActionSpaceContract.Schema,
-            action.ActionWitnessId,
-            "before_execution",
-            "captured",
-            "combat_play_phase",
-            new string('a', 64),
-            JsonNode.Parse("{\"turn\":1}")!,
-            new string('b', 64),
-            new[]
-            {
-                new ExecutionSemanticAction(
-                    "play|card-a1|",
-                    "play",
-                    "card-a1",
-                    new Dictionary<string, string>(),
-                    "native-test")
-            },
-            "play|card-a1|",
-            "exact_once",
-            1,
-            new[] { "native-test" },
-            new[] { "not_public_delivery_authority" },
-            null);
-
-        SemanticBoundaryTraceDraft accepted = Assert.Single(
-            tracker.Accept(action, humanObservation));
-        SemanticBoundaryObservation execution = Boundary("s0", action.ActionWitnessId) with
-        {
-            ExecutionSemanticActionSpace = actionSpace
-        };
-        tracker.ObserveBeforeActionExecution(action.ActionWitnessId, execution);
-        tracker.Started(action.ActionWitnessId);
-        tracker.Finished(action.ActionWitnessId);
-        NativeCompletionEvidence completion = Completion(action.ActionWitnessId);
-        SemanticBoundaryTraceDraft committed = Assert.Single(
-            tracker.ObserveNativeCommit(action.ActionWitnessId, completion));
-        SemanticBoundaryTraceDraft proved = Assert.Single(
-            tracker.ObserveDecisionBoundary(PostCommitBoundary("s1")));
-
-        Assert.Same(humanObservation, accepted.HumanObservation);
-        Assert.Same(humanObservation, committed.HumanObservation);
-        Assert.Same(humanObservation, proved.HumanObservation);
-        Assert.Same(completion, committed.NativeCompletion);
-        Assert.Same(completion, proved.NativeCompletion);
-        Assert.Same(actionSpace, committed.ExecutionSemanticActionSpace);
-        Assert.Same(actionSpace, proved.ExecutionSemanticActionSpace);
-    }
-
-    [Fact]
     public void UnknownPreDoesNotPoisonACompleteLaterExecutionBoundary()
     {
         var tracker = new SemanticBoundaryTracker();
@@ -442,7 +229,7 @@ public sealed class SemanticBoundaryTrackerTests
         tracker.Started("a2");
         tracker.Finished("a2");
         SemanticBoundaryTraceDraft a2 = Assert.Single(
-            tracker.ObserveDecisionBoundary(PostCommitBoundary("s2")));
+            tracker.ObserveDecisionBoundary(Boundary("s2")));
 
         SemanticBoundaryTraceDraft a1 = Assert.Single(
             handoff,
@@ -467,7 +254,7 @@ public sealed class SemanticBoundaryTrackerTests
         tracker.Started("end-turn");
         tracker.Finished("end-turn");
         SemanticBoundaryTraceDraft endTurn = Assert.Single(
-            tracker.ObserveDecisionBoundary(PostCommitBoundary("next-turn")));
+            tracker.ObserveDecisionBoundary(Boundary("next-turn")));
 
         Assert.Equal(("s0", "s1"), TransitionIds(Assert.Single(
             handoff,
@@ -485,7 +272,7 @@ public sealed class SemanticBoundaryTrackerTests
         tracker.Finished("a1");
 
         SemanticBoundaryTraceDraft result = Assert.Single(
-            tracker.ObserveDecisionBoundary(PostCommitBoundary("same")));
+            tracker.ObserveDecisionBoundary(Boundary("same")));
 
         Assert.Equal(SemanticBoundaryTraceKinds.TransitionUnknown, result.Kind);
         Assert.Equal("successor_not_different", result.ProofStatus);
@@ -501,12 +288,10 @@ public sealed class SemanticBoundaryTrackerTests
         tracker.Finished("a1");
 
         SemanticBoundaryTraceDraft result = Assert.Single(
-            tracker.CloseUnknown(RecordingClosePolicy.TerminalUnknownReason));
+            tracker.CloseUnknown("recording_closed_before_semantic_boundary"));
 
         Assert.Equal(SemanticBoundaryTraceKinds.TransitionUnknown, result.Kind);
-        Assert.Equal(RecordingClosePolicy.TerminalUnknownReason, result.ProofStatus);
-        Assert.Null(result.SemanticSuccessor);
-        Assert.Contains("no_semantic_successor", result.NonClaims!);
+        Assert.Equal("recording_closed_before_semantic_boundary", result.ProofStatus);
         Assert.Empty(tracker.CloseUnknown("duplicate_close"));
     }
 
@@ -518,12 +303,12 @@ public sealed class SemanticBoundaryTrackerTests
         tracker.ObserveBeforeActionExecution("a1", Boundary("s0", "a1"));
         tracker.Started("a1");
         tracker.Finished("a1");
-        tracker.ObserveDecisionBoundary(PostCommitBoundary("s1"));
+        tracker.ObserveDecisionBoundary(Boundary("s1"));
         tracker.Accept(Action("a2", 2), State("s1"));
         tracker.ObserveBeforeActionExecution("a2", Boundary("s1", "a2"));
         tracker.Started("a2");
         tracker.Finished("a2");
-        tracker.ObserveDecisionBoundary(PostCommitBoundary("s2"));
+        tracker.ObserveDecisionBoundary(Boundary("s2"));
 
         IReadOnlyList<SemanticBoundaryTraceDraft> accepted = tracker.Accept(
             Action("a3", 3),
@@ -531,70 +316,6 @@ public sealed class SemanticBoundaryTrackerTests
 
         Assert.Single(accepted);
         Assert.Equal(SemanticBoundaryTraceKinds.ActionAccepted, accepted[0].Kind);
-    }
-
-    [Fact]
-    public void LethalRewardCardChoiceAndMapRemainOneContinuousTimeline()
-    {
-        var tracker = new SemanticBoundaryTracker();
-
-        tracker.Accept(Action("lethal", 1), State("combat-s0", "combat_turn"));
-        tracker.ObserveBeforeActionExecution(
-            "lethal",
-            Boundary("combat-s0", "lethal", "combat_turn"));
-        tracker.Started("lethal");
-        tracker.Finished("lethal");
-        SemanticBoundaryTraceDraft lethal = Assert.Single(
-            tracker.ObserveDecisionBoundary(PostCommitBoundary("reward-s1", interactionKind: "reward_claim")));
-
-        tracker.Accept(Action("claim", 2, "NRewardButton.OnRelease"), State("reward-s1", "reward_claim"));
-        tracker.ObserveBeforeActionExecution(
-            "claim",
-            Boundary("reward-s1", "claim", "reward_claim"));
-        tracker.Started("claim");
-        tracker.Finished("claim");
-        SemanticBoundaryTraceDraft claim = Assert.Single(
-            tracker.ObserveDecisionBoundary(PostCommitBoundary("cards-s2", interactionKind: "card_reward_selection")));
-
-        tracker.Accept(
-            Action("select", 3, "NCardRewardSelectionScreen.SelectCard"),
-            State("cards-s2", "card_reward_selection"));
-        tracker.ObserveBeforeActionExecution(
-            "select",
-            Boundary("cards-s2", "select", "card_reward_selection"));
-        tracker.Started("select");
-        tracker.Finished("select");
-        SemanticBoundaryTraceDraft select = Assert.Single(
-            tracker.ObserveDecisionBoundary(PostCommitBoundary("map-s3", interactionKind: "map_route")));
-
-        tracker.Accept(Action("map", 4, "VoteForMapCoordAction"), State("map-s3", "map_route"));
-        tracker.ObserveBeforeActionExecution("map", Boundary("map-s3", "map", "map_route"));
-        tracker.Started("map");
-        tracker.Finished("map");
-        SemanticBoundaryTraceDraft map = Assert.Single(
-            tracker.ObserveDecisionBoundary(PostCommitBoundary("event-s4", interactionKind: "event_option")));
-
-        Assert.Equal(("combat-s0", "reward-s1"), TransitionIds(lethal));
-        Assert.Equal(("reward-s1", "cards-s2"), TransitionIds(claim));
-        Assert.Equal(("cards-s2", "map-s3"), TransitionIds(select));
-        Assert.Equal(("map-s3", "event-s4"), TransitionIds(map));
-        Assert.False(tracker.HasUnresolvedActions);
-    }
-
-    [Theory]
-    [InlineData("combat_turn", "run_deck,combat_piles")]
-    [InlineData("generated_card_choice", "run_deck,combat_piles")]
-    [InlineData("reward_claim", "run_deck")]
-    [InlineData("card_reward_selection", "run_deck")]
-    [InlineData("map_route", "run_deck")]
-    [InlineData("shop_inventory", "run_deck,shop_catalog")]
-    public void SemanticReadCompletenessIsInteractionSpecific(
-        string interactionKind,
-        string expectedKinds)
-    {
-        Assert.Equal(
-            expectedKinds.Split(','),
-            SemanticBoundaryReadPolicy.RequiredKinds(interactionKind));
     }
 
     [Fact]
@@ -702,14 +423,14 @@ public sealed class SemanticBoundaryTrackerTests
         string root = Path.Combine(Path.GetTempPath(), $"sts2-semantic-boundary-{Guid.NewGuid():N}");
         try
         {
-            HumanCaptureProfile profile = HumanCaptureProfiles.CombatReadRich;
-            var manifest = new CurrentRecordingManifest(
-                CurrentRecordingContract.SchemaVersion,
-                CurrentRecordingContract.ManifestSchema,
+            HumanCaptureProfile profile = HumanCaptureProfiles.CombatReadRichV2;
+            var manifest = new RecordingManifestV2(
+                HumanRecorderV2Contract.SchemaVersion,
+                HumanRecorderV2Contract.ManifestSchema,
                 "session-test",
                 "timeline-test",
                 T0,
-                CurrentRecordingContract.ProductVersion,
+                HumanRecorderContract.ProductVersion,
                 new string('a', 40),
                 "osx-arm64",
                 profile.ProfileId,
@@ -721,7 +442,7 @@ public sealed class SemanticBoundaryTrackerTests
                 SemanticBoundaryTraceKinds.ActionAccepted,
                 Action("a1", 1));
 
-            using (RecordingSessionStore store = RecordingSessionStore.Create(root, manifest, profile))
+            using (V2RecordingStore store = V2RecordingStore.Create(root, manifest, profile))
                 store.AppendSemanticBoundaryEvent(accepted);
 
             string path = Path.Combine(root, "session-test", "semantic-boundary-trace.jsonl");
@@ -746,378 +467,13 @@ public sealed class SemanticBoundaryTrackerTests
         drafts.AddRange(tracker.ObserveBeforeActionExecution("a1", Boundary("s0", "a1")));
         drafts.AddRange(tracker.Started("a1"));
         drafts.AddRange(tracker.Finished("a1"));
-        drafts.AddRange(tracker.ObserveDecisionBoundary(PostCommitBoundary("s1")));
+        drafts.AddRange(tracker.ObserveDecisionBoundary(Boundary("s1")));
 
         IReadOnlyList<string> errors = SemanticBoundaryTraceValidator.Validate(
             drafts.Select((draft, index) => Event(index + 1, draft)).ToArray());
 
         Assert.Empty(errors);
         Assert.False(tracker.HasUnresolvedActions);
-    }
-
-    [Fact]
-    public void DirectUiCommitUsesTheCanonicalExecutionBoundary()
-    {
-        var tracker = new SemanticBoundaryTracker();
-        SemanticActionReference action = Action(
-            "direct-ui",
-            1,
-            "NPlayerHand.OnSelectModeConfirmButtonPressed") with
-        {
-            NativeMechanism = "direct_ui_commit"
-        };
-        var boundary = new SemanticBoundaryObservation(
-            SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
-            T0,
-            "selection-s0",
-            "interactive",
-            "complete",
-            "interaction-selection-s0",
-            "combat_hand_card_selection",
-            State("selection-s0", "combat_hand_card_selection"),
-            action.ActionWitnessId);
-
-        tracker.Accept(action, State("human-selection"));
-        SemanticBoundaryTraceDraft bound = Assert.Single(
-            tracker.ObserveBeforeActionExecution(action.ActionWitnessId, boundary));
-        tracker.Started(action.ActionWitnessId);
-        tracker.Finished(action.ActionWitnessId);
-        SemanticBoundaryTraceDraft proved = Assert.Single(
-            tracker.ObserveDecisionBoundary(PostCommitBoundary("combat-s1")));
-
-        Assert.Equal("execution_boundary_bound", bound.ProofStatus);
-        Assert.Equal(SemanticBoundaryTraceKinds.TransitionProved, proved.Kind);
-        Assert.Equal("selection-s0", proved.SemanticPre!.SnapshotId);
-        Assert.Equal("combat-s1", proved.SemanticSuccessor!.SnapshotId);
-    }
-
-    [Fact]
-    public void NativeCommitDoesNotBecomeSuccessorUntilNextDecisionBoundary()
-    {
-        var tracker = new SemanticBoundaryTracker();
-        SemanticActionReference action = Action("native-root", 1) with
-        {
-            RequiresNativePostCommit = true
-        };
-        tracker.Accept(action, State("human-s0"));
-        tracker.ObserveBeforeActionExecution("native-root", Boundary("s0", "native-root"));
-        tracker.Started("native-root");
-        tracker.Finished("native-root");
-
-        NativeCompletionEvidence completion = new(
-            "completion-native-root",
-            "reward_claim",
-            "native.select",
-            "native-root",
-            "task-native-root",
-            "owner-native-root",
-            "operand-native-root",
-            null,
-            true);
-        SemanticBoundaryTraceDraft committed = Assert.Single(
-            tracker.ObserveNativeCommit("native-root", completion));
-        Assert.Equal(SemanticBoundaryTraceKinds.NativeCommitObserved, committed.Kind);
-        Assert.True(tracker.HasUnresolvedActions);
-        Assert.True(tracker.CanOpenNextRoot);
-
-        tracker.Accept(Action("next-root", 2), State("human-s1"));
-        IReadOnlyList<SemanticBoundaryTraceDraft> handoff =
-            tracker.ObserveBeforeActionExecution(
-                "next-root",
-                Boundary("s1", "next-root"));
-        SemanticBoundaryTraceDraft proved = Assert.Single(
-            handoff,
-            value => value.Kind == SemanticBoundaryTraceKinds.TransitionProved);
-        Assert.Equal("native-root", proved.Action.ActionWitnessId);
-        Assert.Equal("s1", proved.SemanticSuccessor!.SnapshotId);
-        Assert.Same(completion, proved.NativeCompletion);
-    }
-
-    [Fact]
-    public void NativeOwnerReadyWithoutTypedEvidenceDoesNotSettle()
-    {
-        var tracker = new SemanticBoundaryTracker();
-        tracker.Accept(Action("native-root", 1), State("human-s0"));
-        tracker.ObserveBeforeActionExecution("native-root", Boundary("s0", "native-root"));
-        tracker.Started("native-root");
-        tracker.Finished("native-root");
-
-        var unproved = new SemanticBoundaryObservation(
-            SemanticBoundaryWitnessKinds.NativeDecisionOwnerReady,
-            T0,
-            "s1",
-            "interactive",
-            "complete",
-            "interaction-s1",
-            "combat_turn",
-            State("s1"),
-            null);
-
-        Assert.Empty(tracker.ObserveDecisionBoundary(unproved));
-        Assert.True(tracker.HasUnresolvedActions);
-    }
-
-    [Fact]
-    public void NativeOwnerReadyForDifferentDomainDoesNotSettle()
-    {
-        var tracker = new SemanticBoundaryTracker();
-        tracker.Accept(Action("native-root", 1), State("human-s0"));
-        tracker.ObserveBeforeActionExecution("native-root", Boundary("s0", "native-root"));
-        tracker.Started("native-root");
-        tracker.Finished("native-root");
-
-        SemanticBoundaryObservation wrongDomain = PostCommitBoundary("s1") with
-        {
-            NativeDecisionOwnerReady = new NativeDecisionOwnerReadyEvidence(
-                "map_route",
-                "decision-owner-1",
-                "MegaCrit.Sts2.Core.Combat.CombatState",
-                "exact-native-test-seam")
-        };
-
-        Assert.Empty(tracker.ObserveDecisionBoundary(wrongDomain));
-        Assert.True(tracker.HasUnresolvedActions);
-    }
-
-    [Fact]
-    public void NativeOwnerReadyAndNextRootHandoffCannotDoubleSettle()
-    {
-        var tracker = new SemanticBoundaryTracker();
-        tracker.Accept(Action("first", 1), State("human-s0"));
-        tracker.ObserveBeforeActionExecution("first", Boundary("s0", "first"));
-        tracker.Started("first");
-        tracker.Finished("first");
-
-        SemanticBoundaryTraceDraft proved = Assert.Single(
-            tracker.ObserveDecisionBoundary(PostCommitBoundary("s1")));
-        tracker.Accept(Action("next", 2), State("human-s1"));
-        IReadOnlyList<SemanticBoundaryTraceDraft> handoff =
-            tracker.ObserveBeforeActionExecution("next", Boundary("s1", "next"));
-
-        Assert.Equal("first", proved.Action.ActionWitnessId);
-        Assert.DoesNotContain(handoff, value => value.Action.ActionWitnessId == "first");
-    }
-
-    [Fact]
-    public void NativeOwnerReadyWithIncompleteConnectorFrameDoesNotSettle()
-    {
-        var tracker = new SemanticBoundaryTracker();
-        tracker.Accept(Action("native-root", 1), State("human-s0"));
-        tracker.ObserveBeforeActionExecution("native-root", Boundary("s0", "native-root"));
-        tracker.Started("native-root");
-        tracker.Finished("native-root");
-
-        SemanticBoundaryObservation incomplete = PostCommitBoundary("s1") with
-        {
-            BoundActionsStatus = "unavailable",
-            State = null,
-            StateCompleteness = "partial",
-            RequiredReadsStatus = "unavailable"
-        };
-
-        Assert.Empty(tracker.ObserveDecisionBoundary(incomplete));
-        Assert.True(tracker.HasUnresolvedActions);
-    }
-
-    [Fact]
-    public void CardRewardOwnerCommitOpensTheExactChildDecision()
-    {
-        var tracker = new SemanticBoundaryTracker();
-        SemanticActionReference claim = Action(
-            "reward-claim",
-            1,
-            "NRewardButton.OnRelease") with
-        {
-            RequiresNativePostCommit = true
-        };
-        tracker.Accept(claim, State("reward-s0", "reward_claim"));
-        tracker.ObserveBeforeActionExecution(
-            claim.ActionWitnessId,
-            Boundary("reward-s0", claim.ActionWitnessId, "reward_claim"));
-        tracker.Started(claim.ActionWitnessId);
-        tracker.Finished(claim.ActionWitnessId);
-        tracker.ObserveNativeCommit(
-            claim.ActionWitnessId,
-            new NativeCompletionEvidence(
-                "card-owner-ready",
-                "reward_claim",
-                "NCardRewardSelectionScreen.ShowScreen",
-                claim.ActionWitnessId,
-                null,
-                "card-reward-screen",
-                "card-reward",
-                null,
-                true));
-
-        Assert.True(tracker.CanOpenNextRoot);
-
-        SemanticActionReference select = Action(
-            "card-select",
-            2,
-            "NCardRewardSelectionScreen.SelectCard") with
-        {
-            RequiresNativePostCommit = true
-        };
-        tracker.Accept(select, State("cards-s1", "card_reward_selection"));
-        IReadOnlyList<SemanticBoundaryTraceDraft> handoff =
-            tracker.ObserveBeforeActionExecution(
-                select.ActionWitnessId,
-                Boundary("cards-s1", select.ActionWitnessId, "card_reward_selection"));
-
-        SemanticBoundaryTraceDraft proved = Assert.Single(
-            handoff,
-            value => value.Action.ActionWitnessId == claim.ActionWitnessId
-                     && value.Kind == SemanticBoundaryTraceKinds.TransitionProved);
-        Assert.Equal("reward-s0", proved.SemanticPre!.SnapshotId);
-        Assert.Equal("cards-s1", proved.SemanticSuccessor!.SnapshotId);
-    }
-
-    [Fact]
-    public void FailedNativeCompletionIsAccountedWithoutAFalseSuccessor()
-    {
-        var tracker = new SemanticBoundaryTracker();
-        SemanticActionReference action = Action("native-root", 1) with
-        {
-            RequiresNativePostCommit = true
-        };
-        tracker.Accept(action, State("human-s0"));
-        tracker.ObserveBeforeActionExecution("native-root", Boundary("s0", "native-root"));
-        tracker.Started("native-root");
-        tracker.Finished("native-root");
-
-        NativeCompletionEvidence completion = new(
-            "completion-native-root",
-            "reward_claim",
-            "native.select",
-            "native-root",
-            "task-native-root",
-            "owner-native-root",
-            "operand-native-root",
-            null,
-            false);
-        SemanticBoundaryTraceDraft unknown = Assert.Single(
-            tracker.NativeCompletionFailed(
-                "native-root",
-                "native_completion_failed",
-                "native task failed",
-                completion));
-
-        Assert.Equal(SemanticBoundaryTraceKinds.TransitionUnknown, unknown.Kind);
-        Assert.Null(unknown.SemanticSuccessor);
-        Assert.Same(completion, unknown.NativeCompletion);
-    }
-
-    [Fact]
-    public void LaterExecutionBeforeEarlierCommitCannotCreateCrossHumanProof()
-    {
-        var tracker = new SemanticBoundaryTracker();
-        SemanticActionReference first = Action("first", 1) with
-        {
-            RequiresNativePostCommit = true
-        };
-        SemanticActionReference second = Action("second", 2) with
-        {
-            RequiresNativePostCommit = true
-        };
-        tracker.Accept(first, State("human-first"));
-        tracker.Accept(second, State("human-second"));
-        tracker.ObserveBeforeActionExecution("first", Boundary("s0", "first"));
-        tracker.Started("first");
-        tracker.Finished("first");
-        tracker.Started("second");
-        tracker.Finished("second");
-
-        SemanticBoundaryTraceDraft unknown = Assert.Single(
-            tracker.ObserveNativeCommit("first", Completion("first")));
-
-        Assert.Equal(SemanticBoundaryTraceKinds.TransitionUnknown, unknown.Kind);
-        Assert.Equal("intervening_human_action_before_native_commit", unknown.ProofStatus);
-        Assert.Null(unknown.SemanticSuccessor);
-    }
-
-    [Fact]
-    public void ValidatorRequiresNativeCompletionOnNativeProofs()
-    {
-        SemanticActionReference action = Action("native-root", 1) with
-        {
-            RequiresNativePostCommit = true
-        };
-        SemanticBoundaryTraceEvent[] events =
-        {
-            Event(1, SemanticBoundaryTraceKinds.ActionAccepted, action),
-            Event(2, SemanticBoundaryTraceKinds.ActionStarted, action),
-            Event(3, SemanticBoundaryTraceKinds.ActionFinished, action),
-            Event(4, SemanticBoundaryTraceKinds.TransitionProved, action) with
-            {
-                Boundary = PostCommitBoundary("s1"),
-                SemanticPre = State("s0"),
-                SemanticSuccessor = State("s1")
-            }
-        };
-
-        Assert.Contains(
-            "semantic_native_commit_identity_missing",
-            SemanticBoundaryTraceValidator.Validate(events));
-    }
-
-    [Fact]
-    public void PeriodicInteractiveObservationCannotProveNonPausedAction()
-    {
-        var tracker = new SemanticBoundaryTracker();
-        tracker.Accept(Action("a1", 1), State("human-s0"));
-        tracker.ObserveBeforeActionExecution("a1", Boundary("s0", "a1"));
-        tracker.Started("a1");
-        tracker.Finished("a1");
-
-        Assert.Empty(tracker.ObserveDecisionBoundary(Boundary("polled-s1")));
-        Assert.Empty(tracker.ObserveDecisionBoundary(
-            PostCommitBoundary("native-s1") with
-            {
-                WitnessKind = SemanticBoundaryWitnessKinds.NativeUiPostCommit
-            }));
-    }
-
-    [Fact]
-    public void HistoricalPollingSuccessorCannotProveSemanticBoundary()
-    {
-        var tracker = new SemanticBoundaryTracker();
-        tracker.Accept(Action("a1", 1), State("human-s0"));
-        tracker.ObserveBeforeActionExecution("a1", Boundary("s0", "a1"));
-        tracker.Started("a1");
-        tracker.Finished("a1");
-
-        SemanticBoundaryObservation legacyPolling = PostCommitBoundary("s1") with
-        {
-            WitnessKind = SemanticBoundaryWitnessKinds.HistoricalPollingSuccessor
-        };
-
-        Assert.Empty(tracker.ObserveDecisionBoundary(legacyPolling));
-        Assert.True(tracker.HasUnresolvedActions);
-    }
-
-    [Fact]
-    public void PlayerChoiceParentSurvivesChildAcceptanceUntilNativeFinish()
-    {
-        var tracker = new SemanticBoundaryTracker();
-        tracker.Accept(Action("parent", 1), State("human-parent"));
-        tracker.ObserveBeforeActionExecution("parent", Boundary("s0", "parent"));
-        tracker.Started("parent");
-        tracker.PausedForPlayerChoice("parent");
-        tracker.ObserveDecisionBoundary(Boundary("choice-s1", interactionKind: "generated_card_choice"));
-
-        tracker.Accept(Action("child", 2, "NChooseACardSelectionScreen.SelectHolder"), State("choice-s1"));
-
-        Assert.True(tracker.Contains("parent"));
-        Assert.Equal(
-            "player_choice_supplied",
-            Assert.Single(tracker.ReadyToResume("parent")).ProofStatus);
-        tracker.Resumed("parent");
-        Assert.Equal(
-            "lifecycle_finished_after_semantic_disposition",
-            Assert.Single(tracker.Finished("parent")).ProofStatus);
-
-        tracker.Accept(Action("later", 3), State("human-later"));
-        Assert.False(tracker.Contains("parent"));
     }
 
     [Fact]
@@ -1159,44 +515,23 @@ public sealed class SemanticBoundaryTrackerTests
 
     private static SemanticBoundaryObservation Boundary(
         string snapshotId,
-        string? nextAction = null,
-        string interactionKind = "combat_turn") => new(
+        string? nextAction = null) => new(
             nextAction == null
-                ? SemanticBoundaryWitnessKinds.CompleteInteractiveObservation
-                : SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
+                ? "complete_interactive_observation"
+                : "before_next_human_action_execution",
             T0,
             snapshotId,
             "interactive",
             "complete",
             $"interaction-{snapshotId}",
-            interactionKind,
-            State(snapshotId, interactionKind),
+            "combat_turn",
+            State(snapshotId),
             nextAction);
-
-    private static SemanticBoundaryObservation PostCommitBoundary(
-        string snapshotId,
-        string interactionKind = "combat_turn") => new(
-            SemanticBoundaryWitnessKinds.NativeDecisionOwnerReady,
-            T0,
-            snapshotId,
-            "interactive",
-            "complete",
-            $"interaction-{snapshotId}",
-            interactionKind,
-            State(snapshotId, interactionKind),
-            null)
-        {
-            NativeDecisionOwnerReady = new NativeDecisionOwnerReadyEvidence(
-                interactionKind,
-                $"decision-owner-{snapshotId}",
-                "ExactNativeDecisionOwner",
-                "exact-native-test-seam")
-        };
 
     private static SemanticBoundaryObservation IncompleteBoundary(
         string snapshotId,
         string nextAction) => new(
-            SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
+            "before_next_human_action_execution",
             T0,
             snapshotId,
             "settling",
@@ -1209,7 +544,7 @@ public sealed class SemanticBoundaryTrackerTests
     private static SemanticBoundaryObservation StateOnlyExecutionBoundary(
         string snapshotId,
         string nextAction) => new(
-            SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
+            "before_next_human_action_execution",
             T0,
             snapshotId,
             "settling",
@@ -1223,13 +558,11 @@ public sealed class SemanticBoundaryTrackerTests
             RequiredReadsStatus = "complete"
         };
 
-    private static CurrentDecisionFrame State(
-        string snapshotId,
-        string interactionKind = "combat_turn") => new(
+    private static FrozenDecisionFrameV2 State(string snapshotId) => new(
         snapshotId,
         $"interaction-{snapshotId}",
-        interactionKind,
-        $"sts2.player-environment/surface/{interactionKind}-1",
+        "combat_turn",
+        "sts2.player-environment/surface/combat_turn-1",
         new string('a', 64),
         2,
         JsonNode.Parse($"{{\"snapshot_id\":\"{snapshotId}\"}}")!,
@@ -1283,20 +616,6 @@ public sealed class SemanticBoundaryTrackerTests
             draft.Detail,
             draft.NonClaims ?? Array.Empty<string>())
         {
-            HumanObservation = draft.HumanObservation,
-            NativeCompletion = draft.NativeCompletion,
-            NativeContinuation = draft.NativeContinuation,
-            ExecutionSemanticActionSpace = draft.ExecutionSemanticActionSpace
+            HumanObservation = draft.HumanObservation
         };
-
-    private static NativeCompletionEvidence Completion(string actionWitnessId) => new(
-        $"completion-{actionWitnessId}",
-        "test",
-        "native.test",
-        actionWitnessId,
-        $"task-{actionWitnessId}",
-        $"owner-{actionWitnessId}",
-        $"operand-{actionWitnessId}",
-        null,
-        true);
 }

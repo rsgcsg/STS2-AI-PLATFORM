@@ -1,102 +1,5 @@
 # Roadmap
 
-## Current recording-format hard cut (PR #11, 2026-09-02)
-
-The active Platform recording path is converged on one current semantic trace,
-current Decision/canonical projection, and current Store/Audit/Bundle contract.
-The `*-2` wire names are retained as evidence identity, not as a parallel V2
-runtime. Historical V1/V2 readers and native-action-ledger validation remain
-isolated archival tooling; the current recorder does not produce ledger
-sidecars, and STPD format adaptation is a separate follow-on. New runtime
-bytes from this source change require their own exact build/load/Human gates.
-
-## Native Foundation Migration
-
-- Complete at source/test: introduce a semantic-only game-side Native
-  Foundation and route Connector/Annotator Direct Combat through one STS2-owned
-  logical/native catalog.
-- Complete at source/test: route Annotator action lifecycle and PlayerChoice
-  parent lineage through one read-only Foundation adapter.
-- Complete and merged in PR #6: route
-  Map destinations, Reward choices/proceed and CardReward options through
-  typed shared Native Foundation decision providers. Connector intersects
-  presentation/delivery and Annotator consumes the same catalog.
-- Complete at source/test: route Treasure chest, exact relic choice, skip and
-  proceed through `NativeTreasureDecisionProvider`; visible controls remain
-  delivery bindings only.
-- Complete and merged in PR #6: remove provider-specific action-key and
-  membership copies, carry exact unselected rewards in one native capture, and
-  use request-local reference indexes for Map/Reward/CardReward presentation
-  intersection. This is allocation/enumeration hardening, not runtime latency
-  or Human qualification evidence.
-- Complete and frozen: PR #7/#8 retrofit and Ritsu-first evidence preserve the
-  `RITSU_REFERENCE_ONLY_NO_RUNTIME_DEPENDENCY` route in ADR 0004; useful
-  findings are retained without merging research runtime code.
-- Complete for exact artifact `9a89f1fe... / b1c34f90...`: clean build, safe
-  install, cold-load, non-mutating live controller/stale/idempotency checks,
-  shipped-headless H0, and main-menu-only canonical live/headless parity.
-- Complete independently on Windows artifact `a681f8b1... / 7c42c4c3...`:
-  source checks, exact shipped-game discovery, clean build, artifact plus native
-  Mod-settings rollback, cold-load with sole `STS2_PLATFORM`, bounded visible
-  Connector checks, shipped-headless H0, and main-menu-only canonical parity.
-- Complete bounded Windows Human gate: exact artifact `a681f8b1... /
-  7c42c4c3...` passes 35/35 Decision V2 records, 37/37 native-root disposition
-  accounting, potion, three PlayerChoice pause/resume pairs, repeated
-  `lethal -> Reward -> CardReward -> Map`, and Recorder New/Pause/Resume/Close.
-  See the [Human closeout](evidence/NATIVE_FOUNDATION_WINDOWS_HUMAN_CLOSEOUT_2026-08-31.md).
-- Complete on predecessor PR #6 artifact `3bc44ddb... / 708ecfab...`: exact
-  build, safe install/rollback and bounded main-menu cold-load on macOS. This
-  evidence does not transfer across the restack.
-- Complete at source/test/build/load/Human on PR #6: one modern semantic timeline now
-  separates Human Root, exact native Commit, and later Successor Boundary.
-  Async Tasks carry durable root/owner/operand/lineage identity; shared methods
-  are family-neutral; strict-V2 ledger and discriminator are non-authoritative.
-  Exact final artifact `2382b3dd... / b1a7d1f1...` is cold-loaded with sole
-  `STS2_PLATFORM`; session `session-20260901T061040Z-561a204be0bc422da5809e1ec5c148aa`
-  passes strict V2, modern 25/25, Map 7/7 and typed owner-ready 5/5 with no
-  unresolved transition or close-drain timeout. No predecessor Human evidence
-  transfers.
-- In progress before new domains: the bounded pre-Full-Run hardening pass
-  centralizes durable semantic-boundary mapping and typed Connector surface
-  composition, protects exact candidate identity, records a current performance
-  baseline and publishes trigger-bound deferred debt.
-- In progress: bounded Recorder hot-path performance pass. It removes repeated
-  hashing of the immutable loaded game assembly from Snapshot identity reads and
-  adds call-site/subphase profiling; exact candidate Human OFF/ON performance
-  evidence is still required before declaring the owner-reported stutter solved.
-- Next after hardening: migrate Shop,
-  Event, Rest, run entry, and terminal by native mechanism. Remove each old
-  publication/witness path only after both consumers use the shared adapter.
-
-## Canonical Human One-Step Evidence
-
-- Complete: mechanically separate Human provenance H, authoritative S,
-  complete same-state A(S), exact A membership and causal S' from legacy V2 and
-  schema-3 trace terminology.
-- Complete: calibrate the latest 933-action exact Human session; 0 rows satisfy
-  the full canonical one-step contract, while 497 retain only legacy V2 use.
-- Complete: bound the earlier alternatives; ADR 0003 records the historical
-  serialized-input choice, while gameplay evidence later withdrew its global
-  UI gate.
-- Historical candidate only: serialized mutation admission and artifact
-  `b805474d... / 3ab1e10e...`. They are not active gameplay authority.
-- Complete at source/test: preserve gameplay-safe input and add a read-only
-  native semantic discriminator at first execution when the canonical boundary
-  does not already own the sample, with STS2-owned logical state/native
-  validators, exact action identity and cancellation/abort/player-choice
-  accounting.
-- Complete: current Managed Exact rebuild plus 80-action/158-Read reset,
-  stale, idempotency and bounded performance measurement.
-- Complete bounded exact-runtime canary: 41/41 successful roots are exact-once
-  in STS2-owned native `A_sem(S)`, across 30 PlayCard, ten EndTurn, one potion
-  use and two player-choice pause/resume pairs. The same run disproves current
-  `A(UI)` as sequential semantic authority. See the
-  [Human closeout](evidence/NATIVE_SEMANTIC_RUNTIME_DISCRIMINATOR_HUMAN_CLOSEOUT_2026-08-30.md).
-- Next: extend the same execution-bound native semantic adapters to non-combat
-  Full-Run mechanisms. Keep separate targeted gates for true overlapping
-  acceptance/execution reorder and native cancel/abort; do not restore global
-  UI serialization, natural-observer polling or a second legality model.
-
 ## Consolidation Baseline
 
 - Complete: import all three histories without squashing.
@@ -144,9 +47,8 @@ bytes from this source change require their own exact build/load/Human gates.
   audit/bundle/store/receive/STPD and Workbench closeout.
 - Complete on predecessor exact artifact: one naturally occurring generated-
   card select mapped exact-unique and reached an interactive successor.
-- Complete bounded exact-runtime Human evidence: the latest repair canary passes
-  semantic accounting on the unified artifact. Generated-card skip remains
-  `not exercised`, and the bounded canary does not qualify exhaustive Full Run.
+- Pending exact-runtime evidence: generated-card skip and the unified artifact's
+  Human action path remain `not exercised`; evidence is not transferred.
 
 Cloud storage, broad action-family capture and a full Workbench remain later
 work; they are not reasons to weaken the component boundaries.
@@ -275,71 +177,8 @@ action-family expansion remain outside this bounded baseline.
   exact execution consumes a state-complete boundary, action-catalog readiness
   is independent, unknown does not cascade into the next proved execution
   boundary, and Close drains semantic work before bounded unknown disposition.
-  Exact artifact `eb7ed072... / 34a36a2b...` is cold-loaded in runtime
-  `b24a9d44...`; latest owner session `session-20260827T042832Z-...` proves 19
-  transitions, including rapid Play, generated-card select and a direct Play ->
-  End Turn execution handoff, with zero false/interleaved proof and complete
-  accounting for all 31 accepted roots. Exact schema-2 execution reorder,
-  catalog-incomplete Live handoff and successful pending-edge Close drain remain
-  targeted evidence gaps; predecessor schema-1 evidence is not transferred.
+  The final artifact still requires a new cold-load and ordinary/rapid/A11
+  owner canary; predecessor schema-1 evidence is not transferred.
 
-## Full-Run Human Semantic Timeline
-
-- Superseded as canonical one-step authority: existing `transition_proved`
-  counts are trace-level lifecycle/state evidence. They require the mechanical
-  calibration gate and currently yield zero canonical one-step rows in the
-  latest exact session.
-
-- Active on a short-lived topic branch from `develop`; ordinary combat schema 2
-  is frozen as the regression oracle rather than tuned to reduce unknowns.
-- Complete at source/test: semantic state Reads are interaction-specific instead
-  of inheriting the combat-only profile.
-- Complete at source/test: lethal combat may settle at the first complete reward
-  boundary; reward claim/proceed, card reward select and Treasure roots use
-  exact native completion/lifecycle witnesses; map travel reuses the game-owned
-  `VoteForMapCoordAction` lifecycle. Direct UI return and legacy V2 successor
-  polling do not create canonical semantic proof.
-- Failed predecessor runtime gate: the first owner canary exposed direct-UI
-  execution binding and paused-parent lifecycle defects; strengthened audit
-  rejects its truncated trace rather than transferring its evidence.
-- Complete at source/test/build: the repair preserves parent lifecycle through
-  native finish, uses one canonical direct-UI boundary, and adds Combat hand
-  select/replace/deselect/confirm through the same bounded UI-commit mechanism.
-- Complete bounded exact-runtime gate: owner session
-  `session-20260827T151912Z-4c7f26e56b954b498cfa0c3213e4b488` passes the repair
-  canary for semantic accounting, including repaired canonical direct-UI
-  binding and parent-lifecycle retention.
-- The predecessor long owner run proved one enemy-targeted potion and exposed
-  self-target operand normalization and accepted-action accounting defects in
-  the Annotator witness; the subsequent bounded repair-artifact gate below
-  closes those defects.
-- Complete bounded repair-artifact gate: the latest closed owner session proves
-  233 accepted/233 semantic transitions, including enemy-target, no-target and
-  self-target potion use, with zero unresolved. Target-picker cancel remains
-  unexercised.
-- Bounded Human-proved on artifact `4fa67570... / 51c7c37b...`: semantic evidence schema 3 stores exact
-  content-addressed H/S/S' frames behind role references; legacy schema-1/2
-  remains auditable. The latest closed session accounts for 333/333 proved
-  actions with zero unknown and reduces persisted Reads to 5.354 per accepted
-  action without creating a new boundary proof.
-- Remaining Live gaps: potion target-picker cancel, hand
-  select/replace/deselect, generated skip, room-internal
-  event/shop/rest/treasure actions and run entry.
-- Complete at subsequent source/test: Human potion use arms from the native
-  holder, binds only at `EnqueueManualUse`, and then reuses the typed
-  `UsePotionAction` lifecycle. Target-picker cancel produces no accepted action;
-  programmatic Connector use has no Human arm and is not recorded.
-- The profiler artifact is Human-exercised and attributes 50.47% of recording
-  wall time to synchronous Player Environment capture, including an
-  unconditional 50 ms legacy recovery/status probe. Current source removes idle
-  capture, gates recovery on real debt, buffers hot append streams and durably
-  seals them at Close. Complete build/install/cold-load: exact artifact
-  `bb37d34f... / 3587836e...` is Ready in Connector runtime `9a42d54c...` with
-  exact sole-Platform Modset; loaded verification passes without requiring a
-  session environment heartbeat. Next gate: run one short Play/End Turn/rapid-
-  chain canary for quantitative before/after plus semantic audit. Then close
-  target-picker cancel and representative generated-skip/
-  hand-selector gaps before Event options.
-- Non-combat room expansion follows a clean Combat mechanism canary.
-- Later: run entry/terminal, representative long-act run, then continuous Full
-  Run. Rare content remains targeted evidence and does not block the mainline.
+Next phase, not part of this slice: **Live Workspace Window Kernel -> Human
+Recorder Window**.

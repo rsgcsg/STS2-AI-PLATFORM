@@ -1,100 +1,106 @@
 # STS2 AI Platform
 
-STS2 AI Platform is the shared, model-neutral environment foundation for
-programs that use the real Slay the Spire 2 runtime. It brings the runtime,
-fair-player automation, native-human evidence, evidence logistics, and
-operator surfaces into one workspace without merging their authorities.
-
-Platform is not a strategy, model, reward function, training system, research
-projection, or second game-rules engine. STPD and other research projects are
-independent consumers of versioned Platform contracts. STS2 remains the owner
-of rules, RNG, effects, native legality, and Commit.
-
-## How the pieces fit
+STS2 AI Platform is the shared environment foundation for programs that use the
+real Slay the Spire 2 runtime.
 
 ```text
 STS2 game truth
-  -> Native Foundation: shared game-side semantic decisions and lifecycle
-  -> Host Runtime: process lifecycle, isolation, recovery, exact identity
-  -> Connector: fair-player Snapshot, Read, finite BoundAction, Receipt, successor
-  -> external strategy and research consumers
+  -> Host Runtime lifecycle and identity
+  -> Connector fair-player Player Environment
+  -> external consumers
 
 Native human play
-  -> Human Annotator: witness correlation and immutable recording evidence
-  -> Platform Evidence: typed verification, store, transfer, receiver receipts
+  -> Human Annotator
+  -> immutable evidence bundles
+  -> Platform Evidence verify/store/transfer/receive
   -> external evidence consumers
 
-External policy adapter
-  -> Policy Runtime: model-neutral mode/controller/delivery lifecycle
-  -> Connector-owned finite actions
+Operator diagnostics
+  -> Workbench and one in-game Platform Live UI
 
-Workbench and Platform Live UI
-  -> typed status and bounded application commands, never domain authority
+Trained policy
+  -> thin external Policy Adapter + versioned Policy Manifest
+  -> model-neutral Platform Policy Runtime
+  -> Connector-authorized BoundAction delivery
 ```
 
-| Path | Responsibility |
-|---|---|
-| `components/native-foundation` | Shared STS2 semantic decisions, lifecycle, and owner lineage |
-| `components/connector` | Fair-player Player Environment and native action binding |
-| `components/host-runtime` | Runtime discovery, isolation, lifecycle, recovery, and qualification support |
-| `components/annotator` | Native-human witness recording, audit, and immutable session bundles |
-| `components/evidence` | Typed artifact verification and immutable evidence logistics |
-| `components/policy-runtime` | Model-neutral policy and controller lifecycle over Connector contracts |
-| `apps/workbench` | Typed operational status and bounded Policy Runtime commands |
-| `apps/ingame-ui` | In-game status and application controls |
-| `apps/game-mod` | The one production STS2 Mod build, deploy, load, and rollback path |
+The repository physically unifies Connector, Host Runtime, Human Annotator,
+Platform Evidence, a model-neutral Policy Runtime, Workbench and one unified
+game Mod while preserving separate component identities and authorities. It does not own
+a trained policy, reward function, model, training system or second game-rules
+engine. STPD remains an independent research consumer and supplies only a thin
+policy adapter plus model artifact.
 
-The detailed dependency graph and ownership matrix live in
-[Architecture](docs/ARCHITECTURE.md) and [Components](docs/COMPONENTS.md).
+Current status: the V1 public Connector/Host composition retains its exact
+runtime seal. The exact V2 Connector/Annotator artifact has also produced 30
+audited native-human ordinary-combat decisions with materialized `run_deck` and
+`combat_piles` Reads before and after every admitted action. Its immutable V2
+bundle passed Platform store/transfer/receiver and independent STPD import.
+Generated-card choice is source/test-verified and was naturally exercised once
+by a later owner-attested predecessor-artifact session; that small session does
+not replace the 30-decision V2 baseline or transfer to a new artifact. See
+[Status](docs/STATUS.md), the [V2 closeout](docs/evidence/HUMAN_EVIDENCE_V2_READ_RICH_COMBAT_CLOSEOUT_2026-08-25.md), and the
+[V1 candidate report](docs/evidence/RUNTIME_SEAL_CANDIDATE_2026-08-24.md).
 
-## Start here
+The initial consolidation imports the complete histories of:
 
-- New to the project: follow the [New Engineer Guide](docs/NEW_ENGINEER_GUIDE.md).
-- Making a change: read [AGENTS.md](AGENTS.md), then the
-  [development workflow](docs/DEVELOPMENT_WORKFLOW.md) and the owning
-  component's guide.
-- Designing or reviewing a change: use
-  [Engineering Governance](docs/ENGINEERING_GOVERNANCE.md) for fact ownership,
-  abstraction admission, change classes, test selection, and evidence claims.
-- Starting a Codex task: run `npm run project:context` or select a component,
-  for example `npm run project:context -- --component connector`.
-- Using a repeated high-risk workflow: see the
-  [repository Skill index](.agents/skills/README.md); ordinary work normally
-  needs no Skill.
-- Checking current claims: read [Status](docs/STATUS.md) and the bounded
-  [current context](docs/memory/CURRENT.md).
-- Debugging runtime behavior: use the Host Runtime or Game Mod guide, then the
-  exact evidence named by Status.
-- Reviewing proof: read [Testing and Evidence](docs/TESTING.md), then load only
-  the relevant dated evidence report.
+- `components/connector`: Player Environment contract, native STS2 adapter,
+  transports and strategy-free SDK;
+- `components/host-runtime`: game discovery, lifecycle, headless/managed Host
+  tooling and qualification;
+- `components/annotator`: native-human witness recording, audit and immutable
+  session bundles.
+- `components/evidence`: typed artifact verification, content identity,
+  immutable local store, transfer and receiver receipts;
+- `components/policy-runtime`: controller/mode/stale/Receipt/successor lifecycle
+  for any strict decision-only policy adapter;
+- `apps/workbench`: typed live/fallback application services and browser UI;
+- `apps/ingame-ui`: typed in-game presentation source with no deployment authority;
+- `apps/game-mod`: the only production STS2 Mod build/deploy/launch/rollback path.
 
-The [Document Map](docs/DOCUMENT_MAP.md) is the short routing index. Historical
-evidence remains discoverable without being part of the default reading path.
+The three predecessor GitHub repositories are archived and remain read-only
+history/rollback references. All forward Platform development happens here;
+STPD remains the independent research consumer.
 
-## Portable quick start
+Read [the consolidation ADR](docs/adr/0001-consolidate-environment-platform.md)
+and [migration provenance](migration/source-manifest.json) before changing a
+component boundary.
 
-The root workspace requires Node.js 20 or newer. Component checks also discover
-the required .NET and Python toolchains.
+## Quick Start
 
 ```bash
 npm ci
-npm run doctor
 npm run check
+npm run identity
+npm run check:bom
+npm run doctor
 ```
 
-These commands prove portable source/test facts only. They do not prove an
-exact build, package, installation, loaded Mod, live mutation, native-human
-origin, journey, or qualification. Evidence levels never transfer to another
-artifact merely because source was merged or rebuilt.
+External consumers install immutable Connector SDK and Host Runtime release assets;
+they do not depend on this checkout or a branch. Game-side operations use one
+installed `STS2_PLATFORM` Mod from the repository root:
 
-## Development boundary
+```bash
+npm run game-mod:build
+npm run game-mod:doctor
+npm run game-mod:deploy
+npm run game-mod:launch
+npm run game-mod:verify-loaded
+npm run annotator:doctor
+npm run annotator:audit -- <session-directory>
+npm run annotator:pack-session -- <session-directory> [options]
+npm run evidence -- --help
+npm run policy:check
+npm run workbench
+```
 
-Normal work starts from current `origin/develop`, uses one short-lived topic
-branch and worktree, and targets `develop` through a pull request. `main` is the
-governed release/hotfix landing line. Never commit proprietary game files,
-decompiled source, raw human data, `.local/`, credentials, model weights, or
-installed artifacts.
+See [Policy Runtime](docs/POLICY_RUNTIME.md) and [Live UI](docs/LIVE_UI.md).
+The current STPD S1 Policy Manifest is source/test verified, but its checkpoint
+is not present on this Mac; this repository therefore makes no current live
+Shadow, One-Step, or Auto claim.
 
-See [Project System](docs/PROJECT_SYSTEM.md) for documentation, style, Skill,
-and anti-drift governance; [Contributing](CONTRIBUTING.md) for the concise
-contributor contract; and [Security](SECURITY.md) for reporting concerns.
+## Evidence Boundary
+
+`source/test -> build -> installed -> loaded -> live_exercised ->
+human_validated -> qualified` are separate levels. Importing source history or
+reproducing a build does not transfer runtime evidence to a new artifact.

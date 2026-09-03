@@ -6,7 +6,6 @@ import {
   normalizeExactModsetCanary,
   normalizeInstalledProvenance,
   prepareExactWindowsModSettings,
-  prepareSoleWindowsModSettings,
   resolveConnectorCanaryEnvironment,
   resolveWorkstationInstallation
 } from "./workstation-platform.mjs";
@@ -51,36 +50,6 @@ test("Windows live settings reject an enabled third-party Mod", () => {
     enabledModIds: ["STS2_MCP"],
     allowedPreviouslyEnabledModIds: ["STS2_MCP", "STS2_HUMAN_ANNOTATOR"]
   }), /non-admitted Modset/u);
-});
-
-test("Windows production settings preserve entries but enable only unified Platform", () => {
-  const settings = {
-    schema_version: 8,
-    mod_settings: {
-      mods_enabled: true,
-      mod_list: [
-        { id: "STS2-RitsuLib", is_enabled: true, source: "workshop", custom: "retained" },
-        { id: "STS2_PLATFORM", is_enabled: false, source: "mods_directory" },
-        { id: "CombatSolver", is_enabled: true, source: "workshop" }
-      ]
-    }
-  };
-
-  const result = prepareSoleWindowsModSettings({
-    settings,
-    enabledModId: "STS2_PLATFORM"
-  });
-
-  assert.deepEqual(
-    result.mod_settings.mod_list.map(({ id, is_enabled, source }) => ({ id, is_enabled, source })),
-    [
-      { id: "STS2_PLATFORM", is_enabled: true, source: "mods_directory" },
-      { id: "STS2-RitsuLib", is_enabled: false, source: "workshop" },
-      { id: "CombatSolver", is_enabled: false, source: "workshop" }
-    ]
-  );
-  assert.equal(result.mod_settings.mod_list[1].custom, "retained");
-  assert.equal(settings.mod_settings.mod_list[0].is_enabled, true);
 });
 
 test("Windows installation uses Headless discovery and exact native paths", () => {

@@ -25,13 +25,6 @@ public enum RecordingCommandKind
     Close
 }
 
-public static class RecordingClosePolicy
-{
-    public const string TerminalUnknownReason = "session_closed_before_successor_boundary";
-    public const string TerminalUnknownDetail =
-        "The session was closed before a complete semantic successor boundary was proved.";
-}
-
 public sealed record RecordingCommand(
     string CommandId,
     RecordingCommandKind Kind,
@@ -93,20 +86,7 @@ public sealed record RecordingItemStatus(
     DateTimeOffset ObservedAt,
     string? Detail);
 
-/// <summary>
-/// Read-only presentation facts copied from an action already admitted by the
-/// owning Human/semantic path. This projection cannot authorize, settle,
-/// record, or deliver an action.
-/// </summary>
-public sealed record RecordingActionProjection(
-    string Verb,
-    string BoundActionId,
-    string? SubjectReferentId,
-    IReadOnlyDictionary<string, string> Arguments,
-    string Label,
-    string? EffectSummary = null);
-
-public sealed record RecordingPendingRootStatus(
+public sealed record RecordingPendingStatus(
     string RecordId,
     string RunId,
     DateTimeOffset Deadline);
@@ -144,7 +124,7 @@ public sealed record RecordingApplicationStatus(
     RecordingLifecycleSnapshot Lifecycle,
     RecordingSessionStatus? Session,
     RecordingCounters Counters,
-    RecordingPendingRootStatus? PendingRoot,
+    RecordingPendingStatus? PendingDecision,
     RecordingItemStatus? LastRecord,
     RecordingItemStatus? LastInvalidation,
     RecordingHealthStatus Health,
@@ -157,6 +137,47 @@ public sealed record RecordingApplicationStatus(
     IReadOnlyList<string> Blockers,
     long LatestEventSequence);
 
+/// <summary>
+/// Validates the bounded native UI interval between selecting a hand card and
+/// STS2 attempting its native PlayCardAction. The second frame is expected to
+/// be transient, so snapshot/catalog equality would reject legitimate plays.
+/// </summary>
+public static class StagedCardPlayGuard
+{
+    public static bool IsContinuous(
+        string stagedRuntimeInstanceId,
+        string stagedEnvironmentFingerprint,
+        string stagedInteractionId,
+        long stagedSequence,
+        DateTimeOffset stagedAt,
+        string currentRuntimeInstanceId,
+        string currentEnvironmentFingerprint,
+        string currentInteractionId,
+        long currentSequence,
+        DateTimeOffset observedAt,
+        bool externalControllerActive,
+        TimeSpan maximumAge)
+    {
+        return !externalControllerActive
+            && maximumAge > TimeSpan.Zero
+            && observedAt >= stagedAt
+            && observedAt - stagedAt <= maximumAge
+            && currentSequence >= stagedSequence
+            && string.Equals(
+                stagedRuntimeInstanceId,
+                currentRuntimeInstanceId,
+                StringComparison.Ordinal)
+            && string.Equals(
+                stagedEnvironmentFingerprint,
+                currentEnvironmentFingerprint,
+                StringComparison.Ordinal)
+            && string.Equals(
+                stagedInteractionId,
+                currentInteractionId,
+                StringComparison.Ordinal);
+    }
+}
+
 public enum RecordingEventKind
 {
     RuntimeReady,
@@ -167,7 +188,7 @@ public enum RecordingEventKind
     SessionClosed,
     RunStarted,
     RunEnded,
-    RootPending,
+    DecisionPending,
     DecisionRecorded,
     DecisionInvalidated,
     HealthChanged,
@@ -182,8 +203,7 @@ public sealed record RecordingEvent(
     string? SessionId,
     string? RunId,
     string? RecordId,
-    string? Detail,
-    RecordingActionProjection? Action = null);
+    string? Detail);
 
 public sealed record RecordingEventBatch(
     long RequestedAfterSequence,
@@ -222,8 +242,7 @@ public sealed class RecordingEventStream
         string? sessionId = null,
         string? runId = null,
         string? recordId = null,
-        string? detail = null,
-        RecordingActionProjection? action = null)
+        string? detail = null)
     {
         lock (_gate)
         {
@@ -236,8 +255,7 @@ public sealed class RecordingEventStream
                 sessionId,
                 runId,
                 recordId,
-                detail,
-                action);
+                detail);
             _events.Enqueue(value);
             while (_events.Count > _capacity)
                 _events.Dequeue();
@@ -309,7 +327,7 @@ public static class RecordingLifecycleStateMachine
         RecordingCommandKind command,
         string? newSessionId,
         DateTimeOffset changedAt,
-        bool pendingRoot)
+        bool pendingDecision)
     {
         return command switch
         {
@@ -328,8 +346,8 @@ public static class RecordingLifecycleStateMachine
                     current.SessionId,
                     changedAt,
                     "recording_paused",
-                    pendingRoot
-                        ? "Recording is paused for new witnesses; the admitted pending root will still settle."
+                    pendingDecision
+                        ? "Recording is paused for new witnesses; the admitted pending decision will still settle."
                         : "Recording is paused; no new decision will be admitted."),
             RecordingCommandKind.Resume when current.State == RecordingLifecycleState.Paused =>
                 Accepted(
@@ -345,9 +363,10 @@ public static class RecordingLifecycleStateMachine
                     current.SessionId,
                     changedAt,
                     "recording_close_requested",
-                    pendingRoot
-                        ? $"Close terminates the session before the admitted pending root's successor boundary; it is retained as terminal unknown ({RecordingClosePolicy.TerminalUnknownReason})."
-                        : "Close was accepted and the session is ready to flush."),
+                    pendingDecision
+                        ? "Close is waiting for the admitted pending decision to settle or invalidate."
+                        : "Close was accepted and the session is ready to flush.",
+                    pendingDecision),
             _ => new RecordingCommandResult(
                 false,
                 false,
