@@ -2296,6 +2296,7 @@ internal static class RecorderRuntime
             : NativeWitnessIdentity.Get(nativeLineage, "native_lineage");
         string taskWitnessId = NativeWitnessIdentity.Get(task, "native_task");
         NativeTaskBindingResolution binding;
+        bool hasPendingExpectation = false;
         lock (Gate)
         {
             binding = sessionId == null
@@ -2313,15 +2314,28 @@ internal static class RecorderRuntime
                         nativeOperandWitnessId,
                         nativeLineageWitnessId),
                     expectedActionWitnessId);
+            hasPendingExpectation = sessionId != null
+                && NativePostCommitCompletions.HasPendingExpectation(
+                    sessionId,
+                    generation,
+                    kind);
         }
         if (!binding.IsMatched || sessionId == null)
         {
-            Quarantine(
-                $"native_task_binding_{binding.Status}",
-                binding.Detail ?? "The native Task could not bind to exactly one Human root.",
-                null,
-                kind,
-                "decision_and_lifecycle_only");
+            // Native Task callbacks can run for internal/non-Human
+            // continuations. Only quarantine an unmatched callback when a
+            // staged Human root explicitly expects this exact native kind;
+            // identity mismatches against such an expectation remain
+            // fail-closed. Never create an invalidation for an unowned task.
+            if (hasPendingExpectation)
+            {
+                Quarantine(
+                    $"native_task_binding_{binding.Status}",
+                    binding.Detail ?? "The native Task could not bind to exactly one Human root.",
+                    null,
+                    kind,
+                    "decision_and_lifecycle_only");
+            }
             return;
         }
         _ = task.ContinueWith(

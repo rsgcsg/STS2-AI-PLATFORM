@@ -40,9 +40,16 @@ The exact local game identity used for native inspection is:
 ```text
 game version: v0.111.0
 game commit: 41cef1ea
-sts2.dll sha256: 0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9
-sts2.dll mvid: 73b63ee0-6c0a-47bb-b0d1-b21f6d94222e
+sts2.dll sha256: 9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4
+sts2.dll mvid: 57785517-0b16-42b9-8b36-bad6fb28384b
 ```
+
+Native Task callbacks are attributed only when the current session generation
+has a staged Human expectation for that exact kind (including declared
+alternatives). An unowned internal continuation is ignored; a staged
+expectation whose owner, operand, or lineage does not match remains a
+fail-closed invalidation. This keeps non-Human callbacks out of occurrence
+accounting without introducing a current/latest/FIFO fallback.
 
 ## Failed-session forensic disposition (not qualification)
 

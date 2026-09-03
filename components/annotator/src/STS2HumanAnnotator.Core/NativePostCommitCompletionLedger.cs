@@ -110,6 +110,32 @@ public sealed class NativePostCommitCompletionLedger
 
     public int Count => _registrations.Count + _taskBindings.Count;
 
+    /// <summary>
+    /// Reports whether this exact native Task kind is currently expected by a
+    /// staged Human root in the same session generation. Native callbacks can
+    /// legitimately occur without a Human root (for example, an internal
+    /// continuation); those observations must not become phantom
+    /// invalidations. An expectation that exists but fails identity matching
+    /// remains fail-closed at BindTask.
+    /// </summary>
+    public bool HasPendingExpectation(
+        string sessionId,
+        long generation,
+        string kind)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId)
+            || generation <= 0
+            || string.IsNullOrWhiteSpace(kind))
+        {
+            return false;
+        }
+
+        return _registrations.Values.Any(registration =>
+            string.Equals(registration.SessionId, sessionId, StringComparison.Ordinal)
+            && registration.Generation == generation
+            && registration.Expectation.AcceptsKind(kind));
+    }
+
     public bool Register(NativePostCommitCompletionRegistration registration)
     {
         ArgumentNullException.ThrowIfNull(registration);

@@ -103,6 +103,27 @@ public sealed class NativePostCommitCompletionLedgerTests
     }
 
     [Fact]
+    public void PendingExpectationDistinguishesUnownedCallbacksFromIdentityMismatch()
+    {
+        var ledger = new NativePostCommitCompletionLedger();
+        Assert.False(ledger.HasPendingExpectation("session-a", 1, "native.internal"));
+        Assert.True(ledger.Register(new NativePostCommitCompletionRegistration(
+            "session-a",
+            1,
+            "root-a",
+            new NativePostCommitCompletionExpectation(
+                "reward_proceed",
+                "native.shared",
+                AlternativeKinds: new[] { "native.alternative" }))));
+
+        Assert.True(ledger.HasPendingExpectation("session-a", 1, "native.shared"));
+        Assert.True(ledger.HasPendingExpectation("session-a", 1, "native.alternative"));
+        Assert.False(ledger.HasPendingExpectation("session-a", 2, "native.shared"));
+        Assert.False(ledger.HasPendingExpectation("other-session", 1, "native.shared"));
+        Assert.False(ledger.HasPendingExpectation("session-a", 1, "native.internal"));
+    }
+
+    [Fact]
     public void AmbiguousTaskBindingFailsClosedWithoutConsumingRoots()
     {
         var ledger = new NativePostCommitCompletionLedger();

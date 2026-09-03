@@ -537,6 +537,16 @@ test("full-run task seams leave an absent root hint nullable for exact owner bin
   }
 });
 
+test("unowned native task callbacks do not create phantom invalidations", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const start = runtime.indexOf("private static void QueueNativePostCommitBoundary<TTask>");
+  const end = runtime.indexOf("private static void PersistSemanticBoundaryDrafts", start);
+  const source = runtime.slice(start, end);
+
+  assert.match(source, /HasPendingExpectation\(/u);
+  assert.match(source, /if \(hasPendingExpectation\)/u);
+});
+
 test("run terminal evidence comes from native OnEnded rather than polling", () => {
   const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
