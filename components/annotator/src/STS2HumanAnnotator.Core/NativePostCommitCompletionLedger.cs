@@ -136,7 +136,9 @@ public sealed class NativePostCommitCompletionLedger
     /// continuation uses this durable binding and never reads an ambient UI
     /// scope or chooses a current/FIFO root.
     /// </summary>
-    public NativeTaskBindingResolution BindTask(NativeTaskObservation observation)
+    public NativeTaskBindingResolution BindTask(
+        NativeTaskObservation observation,
+        string? expectedActionWitnessId = null)
     {
         ArgumentNullException.ThrowIfNull(observation);
         if (string.IsNullOrWhiteSpace(observation.SessionId)
@@ -151,16 +153,25 @@ public sealed class NativePostCommitCompletionLedger
                 "The native Task observation is malformed or was already bound.");
         }
 
-        NativePostCommitCompletionRegistration[] matches = _registrations.Values
-            .Where(registration => Matches(registration, observation))
-            .ToArray();
+        NativePostCommitCompletionRegistration[] matches = expectedActionWitnessId == null
+            ? _registrations.Values
+                .Where(registration => Matches(registration, observation))
+                .ToArray()
+            : _registrations.TryGetValue(
+                    expectedActionWitnessId,
+                    out NativePostCommitCompletionRegistration? exact)
+                && Matches(exact, observation)
+                ? new[] { exact }
+                : Array.Empty<NativePostCommitCompletionRegistration>();
         if (matches.Length != 1)
         {
             return new NativeTaskBindingResolution(
                 matches.Length == 0 ? "no_match" : "ambiguous",
                 null,
                 matches.Length == 0
-                    ? "No staged Human root matches the exact native Task identity."
+                    ? expectedActionWitnessId == null
+                        ? "No staged Human root matches the exact native Task identity."
+                        : "The supplied Human root identity does not match the exact native Task identity."
                     : "More than one staged Human root matches the native Task identity.");
         }
 

@@ -421,8 +421,7 @@ public static class PlayerEnvironmentNativeSemanticWitness
         // The exact native root type outranks a stale overlay during room
         // transitions. This selects a typed provider; it does not infer an
         // action or its legality.
-        if (semanticNativeActionType == nameof(VoteForMapCoordAction)
-            && NMapScreen.Instance?.IsOpen == true)
+        if (semanticNativeActionType == nameof(VoteForMapCoordAction))
         {
             NativeMapDecision decision = NativeMapDecisionProvider.Capture(entities);
             return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);

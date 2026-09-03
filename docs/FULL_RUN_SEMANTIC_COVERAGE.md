@@ -47,7 +47,7 @@ from a later Human effect.
 | shop purchase / card removal | `MerchantEntry.IsStocked/EnoughGold` + `OnTryPurchaseWrapper` task | complete visible offer catalog | `MerchantEntry.OnTryPurchaseWrapper` + exact entry completion ledger | source complete; final candidate live canary required |
 | shop inventory close | `NMerchantInventory.Close` after exact BackButton delivery | complete visible close control | exact inventory close callback | source complete; final candidate live canary required |
 | rest-site option / proceed | `RestSiteSynchronizer.ChooseLocalOption` task and `NRestSiteRoom` proceed | complete visible option catalog | exact synchronizer and proceed callbacks | source complete; final candidate live canary required |
-| run entry / game terminal | observation coverage varies | not implemented as Human witnesses | final `EndTurn -> game_over` observed; run entry and exhaustive Full Run not exercised |
+| run entry / game terminal | native `RunManager.OnEnded(bool)` terminal seam; run entry remains lifecycle-only | source/test complete for terminal marker; no Human action authority | fresh candidate native terminal and exhaustive Full Run still required |
 
 Current source keeps the gameplay-safe observer path and adds an independent
 process-local discriminator for ordinary combat Play/End Turn/Potion. At native
@@ -102,6 +102,16 @@ proceed control remains a direct UI decision whose successor must be observed
 at the next authoritative boundary. These seams establish source-level
 accounting without transferring any predecessor Human evidence; targeted and
 continuous qualification on the final artifact are still required.
+
+The failed Windows session
+`session-20260903T102650Z-50552cf165a8439397b71d7a1967f957` is forensic evidence
+only: six accepted roots stopped at `action_started`, while Event/Rest/Shop
+callbacks produced pre-frame or exact-task binding failures. The trace also
+ended with a polling-only `run_ended` journal entry, so terminal proof was
+unknown. Current source now uses exact public action shapes and root-bound
+async completion, captures Rest-site input before native option disabling, and
+observes `RunManager.OnEnded(bool)` as the sole native terminal marker. No old
+session or polling observation qualifies the new bytes.
 
 The successor repair adds the first production typed owner-ready publisher.
 Exact STS2 call order rejects `RoomEntered`, `CombatBegan` and visual

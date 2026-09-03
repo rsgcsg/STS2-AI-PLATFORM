@@ -518,6 +518,23 @@ test("terminal rewards completion is family-neutral at the shared native seam", 
   assert.doesNotMatch(sharedCompletionPatch, /"(?:reward|treasure)_proceed"/u);
 });
 
+test("run terminal evidence comes from native OnEnded rather than polling", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  assert.match(
+    patches,
+    /class NativeRunEndedPatch[\s\S]*AccessTools\.Method\([\s\S]*typeof\(RunManager\)[\s\S]*"OnEnded"[\s\S]*typeof\(bool\)[\s\S]*ObserveNativeRunEnded/u
+  );
+  assert.match(runtime, /run_ended_native/u);
+  assert.match(runtime, /RunManager\.OnEnded\(isVictory=/u);
+  const lifecycle = sourceBetween(runtime, "private static void UpdateRunLifecycle", "\n    }\n}");
+  assert.match(lifecycle, /run_ended_unproved/u);
+  assert.doesNotMatch(
+    lifecycle,
+    /else if \(!inProgress && _runActive\)[\s\S]*PublishApplicationEvent/u
+  );
+});
+
 test("task completion correlation does not consult HumanActionScope.Current", () => {
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
   const queueMethod = sourceBetween(

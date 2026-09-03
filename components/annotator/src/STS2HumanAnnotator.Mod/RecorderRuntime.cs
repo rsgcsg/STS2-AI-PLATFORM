@@ -96,14 +96,15 @@ internal static class RecorderRuntime
     private static bool _initialized;
     private static int _runSequence;
     private static bool _runActive;
+    // A native RunManager.OnEnded observation is the only authoritative
+    // terminal marker.  Polling IsInProgress may describe a transition, but
+    // it must never publish a successful terminal disposition by itself.
+    private static bool _nativeRunEndedObserved;
     private static string _currentRunId = "run-unassigned";
     private static readonly HumanCaptureProfile CaptureProfile =
         HumanCaptureProfiles.FullRunReadRich;
     private static readonly string[] DeclaredOutOfScopeActionFamilies =
     {
-        "shop_inventory",
-        "event_option",
-        "rest_site",
         "unverified_selector_families"
     };
 
@@ -140,6 +141,22 @@ internal static class RecorderRuntime
     {
         lock (Gate)
             return _lifecycle;
+    }
+
+    /// <summary>
+    /// Returns the exact active Human root only when the current native
+    /// callback is part of that root's declared lifecycle. This is used by
+    /// native controls whose game-owned async operation starts after the
+    /// control has synchronously disabled its options; it never selects a
+    /// queued/FIFO root or creates a new authority.
+    /// </summary>
+    internal static string? CurrentSemanticActionWitnessId(string nativeActionType)
+    {
+        HumanActionContext? context = HumanActionScope.Current;
+        return context != null
+            && context.AcceptsRootAction(nativeActionType)
+            ? context.ActionWitnessId
+            : null;
     }
 
     internal static RecordingApplicationStatus GetRecordingApplicationStatus()
@@ -362,6 +379,7 @@ internal static class RecorderRuntime
         _statusRefreshRequested = true;
         _runSequence = 0;
         _runActive = false;
+        _nativeRunEndedObserved = false;
         _currentRunId = "run-unassigned";
         ResetNativeActionTrackingUnsafe();
         _semanticBoundaryTraceHealthy = true;
@@ -542,6 +560,7 @@ internal static class RecorderRuntime
         ArmedPotionUses.Clear();
         BoundaryTracker.Reset();
         NativeSemanticDiscriminatorRuntime.Reset();
+        _nativeRunEndedObserved = false;
     }
 
     private static IReadOnlyList<string> LifecycleBlockers(RecordingLifecycleState state) =>
@@ -1805,9 +1824,10 @@ internal static class RecorderRuntime
         string kind,
         object? nativeOwner = null,
         object? nativeOperand = null,
-        object? nativeLineage = null) =>
+        object? nativeLineage = null,
+        string? expectedActionWitnessId = null) =>
         ObserveSemanticUiNativeCommitCore(
-            null,
+            expectedActionWitnessId,
             family,
             kind,
             nativeOwner,
@@ -1849,7 +1869,8 @@ internal static class RecorderRuntime
                                 : NativeWitnessIdentity.Get(nativeOperand, "native_operand"),
                             nativeLineage == null
                                 ? null
-                                : NativeWitnessIdentity.Get(nativeLineage, "native_lineage")));
+                                : NativeWitnessIdentity.Get(nativeLineage, "native_lineage")),
+                        expectedActionWitnessId);
                 resolution = !binding.IsMatched || sessionId == null
                     ? new NativePostCommitCompletionResolution(
                         binding.Status,
@@ -2216,7 +2237,8 @@ internal static class RecorderRuntime
         string kind,
         object? nativeOwner = null,
         object? nativeOperand = null,
-        object? nativeLineage = null)
+        object? nativeLineage = null,
+        string? expectedActionWitnessId = null)
     {
         QueueNativePostCommitBoundary(
             task,
@@ -2224,7 +2246,8 @@ internal static class RecorderRuntime
             succeeded: completed => completed.Status == TaskStatus.RanToCompletion,
             nativeOwner: nativeOwner,
             nativeOperand: nativeOperand,
-            nativeLineage: nativeLineage);
+            nativeLineage: nativeLineage,
+            expectedActionWitnessId: expectedActionWitnessId);
     }
 
     internal static void QueueNativePostCommitBoundary(
@@ -2232,7 +2255,8 @@ internal static class RecorderRuntime
         string kind,
         object? nativeOwner = null,
         object? nativeOperand = null,
-        object? nativeLineage = null)
+        object? nativeLineage = null,
+        string? expectedActionWitnessId = null)
     {
         QueueNativePostCommitBoundary(
             task,
@@ -2242,7 +2266,8 @@ internal static class RecorderRuntime
                 && result.Result,
             nativeOwner: nativeOwner,
             nativeOperand: nativeOperand,
-            nativeLineage: nativeLineage);
+            nativeLineage: nativeLineage,
+            expectedActionWitnessId: expectedActionWitnessId);
     }
 
     private static void QueueNativePostCommitBoundary<TTask>(
@@ -2251,7 +2276,8 @@ internal static class RecorderRuntime
         Func<Task, bool> succeeded,
         object? nativeOwner,
         object? nativeOperand,
-        object? nativeLineage)
+        object? nativeLineage,
+        string? expectedActionWitnessId)
         where TTask : Task
     {
         ArgumentNullException.ThrowIfNull(task);
@@ -2285,7 +2311,8 @@ internal static class RecorderRuntime
                         taskWitnessId,
                         nativeOwnerWitnessId,
                         nativeOperandWitnessId,
-                        nativeLineageWitnessId));
+                        nativeLineageWitnessId),
+                    expectedActionWitnessId);
         }
         if (!binding.IsMatched || sessionId == null)
         {
@@ -3123,10 +3150,31 @@ internal static class RecorderRuntime
             detail));
     }
 
+    /// <summary>
+    /// Records the exact native terminal seam.  RunManager.OnEnded is called
+    /// by both the victory and defeat paths, so this marker proves only that
+    /// STS2 reached its native terminal method; it does not synthesize a
+    /// successor, settle pending roots, or infer a reward/map transition.
+    /// </summary>
+    internal static void ObserveNativeRunEnded(bool isVictory)
+    {
+        string detail = $"RunManager.OnEnded(isVictory={isVictory.ToString().ToLowerInvariant()})";
+        lock (Gate)
+        {
+            if (_store == null || _nativeRunEndedObserved)
+                return;
+            _nativeRunEndedObserved = true;
+            _runActive = false;
+            AppendJournal("run_ended_native", null, _lastSnapshotId, detail);
+            _statusRefreshRequested = true;
+        }
+        PublishApplicationEvent(RecordingEventKind.RunEnded, detail: detail);
+    }
+
     private static void UpdateRunLifecycle()
     {
         bool inProgress = RunManager.Instance.IsInProgress;
-        if (inProgress && !_runActive)
+        if (inProgress && !_runActive && !_nativeRunEndedObserved)
         {
             _runSequence++;
             _currentRunId = $"run-{_runSequence:D4}";
@@ -3137,12 +3185,18 @@ internal static class RecorderRuntime
         }
         else if (!inProgress && _runActive)
         {
-            AppendJournal("run_ended", null, null, "RunManager is no longer in progress.");
-            PublishApplicationEvent(
-                RecordingEventKind.RunEnded,
-                detail: "RunManager is no longer in progress.");
+            // This is only a lifecycle observation.  Without the native
+            // OnEnded callback it is deliberately unproved and must not be
+            // surfaced as RecordingEventKind.RunEnded.
+            AppendJournal(
+                "run_ended_unproved",
+                null,
+                null,
+                "RunManager is no longer in progress without a native OnEnded witness.");
             _runActive = false;
             _statusRefreshRequested = true;
         }
+        if (!inProgress)
+            _nativeRunEndedObserved = false;
     }
 }

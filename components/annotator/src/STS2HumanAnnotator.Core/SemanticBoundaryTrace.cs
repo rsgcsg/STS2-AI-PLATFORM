@@ -555,9 +555,13 @@ public sealed class SemanticBoundaryTracker
             throw new InvalidOperationException(
                 "A native PlayerChoice continuation must carry the exact parent Human root identity.");
         }
-        if (entry.NativeContinuation != null)
-            throw new InvalidOperationException("The exact Human root received two PlayerChoice continuations.");
-
+        // A single native GameAction may pause more than once while resolving
+        // a PlayerChoice chain (for example, a card that asks for successive
+        // selections). Each callback is an exact lifecycle witness for the
+        // same parent root; it is not a duplicate Human action and must not
+        // disable the trace. Keep the latest continuation on the entry for
+        // any later canonical proof while every observation remains durable
+        // as its own native_continuation_observed event.
         entry.NativeContinuation = continuation;
         return new[]
         {

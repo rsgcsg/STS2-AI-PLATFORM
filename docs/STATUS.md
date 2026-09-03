@@ -36,8 +36,15 @@ and rest-site options, with Annotator witnesses bound to exact native
 callback/task and operand identities. Connector delivery and STS2 legality
 remain unchanged; UI remains a projection only. The profile is now
 `human-full-run-read-rich-v3`, while final-candidate Human canaries and a
-continuous natural Full Run are still required. No predecessor artifact,
-session, or Human qualification transfers to the new bytes.
+continuous natural Full Run are still required. The failed session
+`session-20260903T102650Z-50552cf165a8439397b71d7a1967f957` remains rejected:
+six accepted roots ended at `action_started`, Event/Rest/Shop had exact
+pre-frame/task-binding failures, and terminal proof was polling-only. The
+current repair adds exact public action-shape binding, a pre-disable Rest-site
+button capture, strict root identity through shared async callbacks, and a
+native `RunManager.OnEnded(bool)` terminal marker; none of these source/test
+changes transfer the failed session or qualify new bytes. See the
+[failed-session forensic inventory](evidence/FULL_RUN_COVERAGE_INVENTORY_2026-09-03.md).
 
 ## PR #11 current recording-format hard cut (source/test, 2026-09-02)
 

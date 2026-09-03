@@ -192,6 +192,51 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
+    public void PlayerChoiceParentMayExposeMultipleExactContinuations()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference parent = Action("choice-parent-multi", 1) with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(parent, State("human-parent"));
+        tracker.ObserveBeforeActionExecution(
+            parent.ActionWitnessId,
+            Boundary("combat-before", parent.ActionWitnessId));
+        tracker.Started(parent.ActionWitnessId);
+        tracker.PausedForPlayerChoice(parent.ActionWitnessId);
+
+        NativeContinuationEvidence first = new(
+            "continuation-first",
+            "GameAction.BeforePausedForPlayerChoice",
+            parent.ActionWitnessId,
+            "game_action:choice-parent-multi",
+            "game_action:choice-parent-multi",
+            true);
+        NativeContinuationEvidence second = first with
+        {
+            ContinuationId = "continuation-second"
+        };
+
+        Assert.Same(
+            first,
+            Assert.Single(tracker.ObserveNativeContinuation(parent.ActionWitnessId, first))
+                .NativeContinuation);
+        tracker.ReadyToResume(parent.ActionWitnessId);
+        tracker.BeforeExecutionResume(parent.ActionWitnessId);
+        tracker.Resumed(parent.ActionWitnessId);
+        tracker.PausedForPlayerChoice(parent.ActionWitnessId);
+
+        // The same native parent can pause again for another exact choice.
+        // This is a second lifecycle witness, not a duplicate Human root.
+        Assert.Same(
+            second,
+            Assert.Single(tracker.ObserveNativeContinuation(parent.ActionWitnessId, second))
+                .NativeContinuation);
+        Assert.True(tracker.CanOpenNextRoot);
+    }
+
+    [Fact]
     public void ExactPlayerChoiceContinuationLetsNestedHumanChoiceSettleParentWithoutFinish()
     {
         var tracker = new SemanticBoundaryTracker();
