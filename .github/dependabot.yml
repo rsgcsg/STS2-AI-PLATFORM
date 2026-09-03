@@ -8,12 +8,10 @@ updates:
       day: monday
       time: "09:00"
       timezone: Australia/Brisbane
-    open-pull-requests-limit: 5
-    groups:
-      npm-minor-patch:
-        update-types:
-          - minor
-          - patch
+    # Routine dependency upgrades are deliberate short-lived topic PRs.
+    # Keep scheduled Dependabot version-update PRs disabled so bot branches do
+    # not remain open between maintenance windows.
+    open-pull-requests-limit: 0
   - package-ecosystem: github-actions
     directory: "/"
     target-branch: develop
@@ -22,8 +20,6 @@ updates:
       day: monday
       time: "09:00"
       timezone: Australia/Brisbane
-    open-pull-requests-limit: 5
-    groups:
-      github-actions:
-        patterns:
-          - "*"
+    # GitHub Actions version upgrades follow the same deliberate maintenance
+    # workflow instead of creating persistent bot branches.
+    open-pull-requests-limit: 0
