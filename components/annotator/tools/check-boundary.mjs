@@ -96,6 +96,17 @@ if (!sources.includes("SemanticTransitionProjection.CreateCanonical("))
   errors.push("canonical output must use the non-authorizing semantic projection");
 if (!sources.includes("draft.Kind != SemanticBoundaryTraceKinds.TransitionProved"))
   errors.push("current projection must reject non-proved drafts");
+const recordedApplicationProjection = `PublishApplicationEvent(
+                RecordingEventKind.DecisionRecorded,
+                draft.Action.RecordId,
+                canonical.Action.Verb,
+                ToActionProjection(canonical.Action));`;
+if (!recorderRuntime.includes(recordedApplicationProjection))
+  errors.push("recorded application events must correlate on the semantic Human root RecordId");
+if (recorderRuntime.includes(`PublishApplicationEvent(
+                RecordingEventKind.DecisionRecorded,
+                eventId,`))
+  errors.push("canonical/journal event identity must never replace the semantic Human root in application events");
 if (recorderRuntime.includes("TryObserveSemanticDecisionBoundary();"))
   errors.push("semantic successor collection must not poll a complete Snapshot every process frame");
 if (!recorderRuntime.includes("if (!BoundaryTracker.HasUnresolvedActions)"))
