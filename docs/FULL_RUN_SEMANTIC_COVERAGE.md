@@ -42,7 +42,11 @@ from a later Human effect.
 | card reward select | `NCardRewardSelectionScreen.SelectCard` -> enclosing `CardReward.OnSelect` completion | source/test complete; option callback alone is not a successor proof | final PR #6 session: 4 canonical |
 | map travel | `NMapScreen.OnMapPointSelectedLocally` -> `VoteForMapCoordAction` lifecycle | source/test complete | final PR #6 session: 7/7 canonical; five typed owner-ready successors complete |
 | treasure open / relic select / skip / proceed | exact room/synchronizer owner; `PickRelicAction`, normal-reward task and terminal-proceed task seams | source/test complete; visual `OnRelease` is not gameplay authority | predecessor repair sessions exercised the seam; the final exact PR #6 session did not exercise Treasure |
-| event / shop / rest | Connector observation coverage only | not implemented as shared native decisions or Human witnesses | map successors only: event (5), shop (1), rest (2); room-internal actions not exercised |
+| event option | `EventRoom.LocalMutableEvent.CurrentOptions` + `EventOption.Chosen` task | complete visible option catalog | `NEventRoom.OptionButtonClicked` + exact option completion ledger | source complete; final candidate live canary required |
+| shop room open / proceed | `NMerchantRoom.OpenInventory` / `HideScreen` native controls | complete room-control catalog | exact room callbacks | source complete; final candidate live canary required |
+| shop purchase / card removal | `MerchantEntry.IsStocked/EnoughGold` + `OnTryPurchaseWrapper` task | complete visible offer catalog | `MerchantEntry.OnTryPurchaseWrapper` + exact entry completion ledger | source complete; final candidate live canary required |
+| shop inventory close | `NMerchantInventory.Close` after exact BackButton delivery | complete visible close control | exact inventory close callback | source complete; final candidate live canary required |
+| rest-site option / proceed | `RestSiteSynchronizer.ChooseLocalOption` task and `NRestSiteRoom` proceed | complete visible option catalog | exact synchronizer and proceed callbacks | source complete; final candidate live canary required |
 | run entry / game terminal | observation coverage varies | not implemented as Human witnesses | final `EndTurn -> game_over` observed; run entry and exhaustive Full Run not exercised |
 
 Current source keeps the gameplay-safe observer path and adds an independent
@@ -88,6 +92,16 @@ modern rows, including Map 7/7 and typed owner-ready 5/5, without unresolved
 transitions or Close drain timeout. Predecessor sessions remain classification
 evidence only. See the
 [completion-lineage source closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
+
+The Full-Run room extension adds a read-only Native Foundation catalog for
+event options, merchant room/inventory controls and rest-site options. Each Human witness
+still resolves against the same frozen public `BoundAction` frame. Event and
+merchant tasks carry the exact option/entry identity through asynchronous
+completion; rest-site selection uses the synchronizer's `Task<bool>` and the
+proceed control remains a direct UI decision whose successor must be observed
+at the next authoritative boundary. These seams establish source-level
+accounting without transferring any predecessor Human evidence; targeted and
+continuous qualification on the final artifact are still required.
 
 The successor repair adds the first production typed owner-ready publisher.
 Exact STS2 call order rejects `RoomEntered`, `CombatBegan` and visual

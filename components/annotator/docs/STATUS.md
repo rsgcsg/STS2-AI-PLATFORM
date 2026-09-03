@@ -279,8 +279,11 @@ recorded only after the corresponding cold loads and owner-operated actions.
 
 Decision V2 remains the narrow combat capture profile: potion, non-combat,
 arbitrary-selector, multiplayer and gameplay-affecting-Modset records are not
-admitted by version `0.3.0-rc.1`. The additive semantic sidecar now has source/
-test coverage for reward claim/proceed, card reward select, map travel and
-Combat hand selection, but the repaired paths remain pending exact native-human
-runtime evidence. Potion, event, shop, rest, treasure, run entry and terminal
-Human witnesses are not implemented.
+admitted by version `0.3.0-rc.1`. The additive semantic sidecar now has
+source/test coverage for reward claim/proceed, card reward select, map travel,
+Combat hand selection, and the ordinary event, shop-purchase and rest-site
+decision owners. These room seams use the exact public binding frame plus
+native option/entry completion identity; they remain pending exact
+final-candidate Human runtime evidence. Run entry and terminal navigation
+remain lifecycle observations rather than canonical Human action families, and
+no predecessor evidence transfers to the new profile.

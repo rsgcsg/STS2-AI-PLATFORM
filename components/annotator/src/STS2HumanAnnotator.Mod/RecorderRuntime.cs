@@ -2845,6 +2845,31 @@ internal static class RecorderRuntime
         {
             return "treasure_room.skip";
         }
+        if (action.NativeActionType == "NEventRoom.OptionButtonClicked")
+        {
+            return action.BoundAction?.Verb switch
+            {
+                "proceed_event" => "event_option.proceed",
+                "choose_event_option" => "event_option.choose",
+                _ => null
+            };
+        }
+        if (action.NativeActionType == "MerchantEntry.OnTryPurchaseWrapper")
+        {
+            return action.BoundAction?.Verb == "open_shop_card_removal"
+                ? "shop_inventory.card_removal"
+                : action.BoundAction?.Verb is "purchase_shop_card"
+                    or "purchase_shop_relic"
+                    or "purchase_shop_potion"
+                    ? "shop_inventory.purchase"
+                    : null;
+        }
+        if (action.NativeActionType == "NMerchantRoom.OpenInventory")
+            return "shop_room.open";
+        if (action.NativeActionType == "NMerchantRoom.HideScreen")
+            return "shop_room.proceed";
+        if (action.NativeActionType == "NMerchantInventory.Close")
+            return "shop_inventory.close";
         return SupportedFamilyForNativeAction(action.NativeActionType);
     }
 
@@ -2872,6 +2897,13 @@ internal static class RecorderRuntime
             "NTreasureRoom.OnChestButtonReleased" => "treasure_room.open",
             nameof(PickRelicAction) => "treasure_room.select",
             "NTreasureRoom.OnProceedButtonPressed" => "treasure_room.proceed",
+            "NEventRoom.OptionButtonClicked" => "event_option.choose",
+            "RestSiteSynchronizer.ChooseLocalOption" => "rest_site.choose",
+            "NRestSiteRoom.OnProceedButtonReleased" => "rest_site.proceed",
+            "NMerchantRoom.OpenInventory" => "shop_room.open",
+            "NMerchantRoom.HideScreen" => "shop_room.proceed",
+            "NMerchantInventory.Close" => "shop_inventory.close",
+            "MerchantEntry.OnTryPurchaseWrapper" => "shop_inventory.purchase",
             _ => null
         };
     }

@@ -477,6 +477,33 @@ test("non-combat Human witnesses use public bindings and exact native completion
   assert.match(patches, /ProceedFromTerminalRewardsScreen[\s\S]*QueueNativePostCommitBoundary/u);
 });
 
+test("Full-Run room witnesses use STS2-owned semantic catalogs and exact task identity", () => {
+  const provider = read("components/native-foundation/src/NativeRoomDecisionProvider.cs");
+  const witness = read("components/connector/host/PlayerEnvironment/Witness/ProcessLocalNativeSemanticWitness.cs");
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+
+  assert.match(provider, /EventRoom\.LocalMutableEvent\.CurrentOptions/u);
+  assert.match(provider, /MerchantRoom\.GetLocalInventory\+MerchantEntry\.OnTryPurchaseWrapper/u);
+  assert.match(provider, /RestSiteSynchronizer\.GetLocalOptions\+RestSiteOption\.OnSelect/u);
+  assert.match(provider, /open_shop_inventory/u);
+  assert.match(provider, /close_shop_inventory/u);
+  assert.match(witness, /NativeRoomDecisionProvider\.Capture/u);
+  assert.match(patches, /class NativeEventOptionPatch[\s\S]*EventOption\.Chosen/u);
+  assert.match(patches, /class NativeRestSiteOptionPatch[\s\S]*RestSiteSynchronizer\.ChooseLocalOption/u);
+  assert.match(patches, /class NativeShopPurchasePatch[\s\S]*MerchantEntry\.OnTryPurchaseWrapper/u);
+  assert.match(patches, /class NativeShopRoomOpenPatch[\s\S]*NMerchantRoom\.OpenInventory/u);
+  assert.match(patches, /class NativeShopRoomProceedPatch[\s\S]*HideScreen/u);
+  assert.match(patches, /class NativeShopInventoryClosePatch[\s\S]*NMerchantInventory/u);
+  assert.match(patches, /QueueNativePostCommitBoundary\([\s\S]*NativeActionType/u);
+  assert.match(runtime, /"event_option\.choose"/u);
+  assert.match(runtime, /"shop_inventory\.purchase"/u);
+  assert.match(runtime, /"shop_room\.open"/u);
+  assert.match(runtime, /"shop_inventory\.close"/u);
+  assert.match(runtime, /"rest_site\.choose"/u);
+  assert.doesNotMatch(patches, /Task\.Delay|Thread\.Sleep|\bTimer\b|FirstOrDefault|LastOrDefault/u);
+});
+
 test("terminal rewards completion is family-neutral at the shared native seam", () => {
   const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
   const completionMarker = "NativeTreasureProceedCompletionPatch";

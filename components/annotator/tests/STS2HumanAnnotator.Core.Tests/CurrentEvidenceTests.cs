@@ -23,6 +23,27 @@ public sealed class CurrentEvidenceTests
     }
 
     [Fact]
+    public void FullRunProfileDeclaresRoomFamiliesWithoutChangingReadPolicy()
+    {
+        HumanCaptureProfile profile = HumanCaptureProfiles.FullRunReadRich;
+
+        Assert.Equal("human-full-run-read-rich-v3", profile.ProfileId);
+        Assert.Contains("event_option.choose", profile.SupportedActionFamilies);
+        Assert.Contains("event_option.proceed", profile.SupportedActionFamilies);
+        Assert.Contains("shop_room.open", profile.SupportedActionFamilies);
+        Assert.Contains("shop_room.proceed", profile.SupportedActionFamilies);
+        Assert.Contains("shop_inventory.purchase", profile.SupportedActionFamilies);
+        Assert.Contains("shop_inventory.card_removal", profile.SupportedActionFamilies);
+        Assert.Contains("shop_inventory.close", profile.SupportedActionFamilies);
+        Assert.Contains("rest_site.choose", profile.SupportedActionFamilies);
+        Assert.Contains("rest_site.proceed", profile.SupportedActionFamilies);
+        Assert.Contains(profile.Reads, read =>
+            read.InteractionKind == "shop_inventory" && read.Kind == "shop_catalog");
+        Assert.Contains(profile.NonClaims, claim =>
+            claim.Contains("non_combat_successor", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void ReadRichDecisionValidatesWithoutChangingV1()
     {
         HistoricalDecisionRecord v1 = RecordValidationTests.ValidRecord();

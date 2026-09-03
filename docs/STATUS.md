@@ -27,6 +27,18 @@ source checks are complete, but this source change requires a fresh exact build,
 install/load verification and a new owner Human UI canary. The predecessor
 artifact/session above does not transfer qualification to this candidate.
 
+## Full-Run completion candidate (2026-09-03)
+
+The current Full-Run topic starts from refreshed `origin/develop` at
+`cd9a0fbb0c85577a13513abe715f91d794ac86eb`. It adds typed, read-only native
+room decision projection for event options, merchant room/inventory controls,
+and rest-site options, with Annotator witnesses bound to exact native
+callback/task and operand identities. Connector delivery and STS2 legality
+remain unchanged; UI remains a projection only. The profile is now
+`human-full-run-read-rich-v3`, while final-candidate Human canaries and a
+continuous natural Full Run are still required. No predecessor artifact,
+session, or Human qualification transfers to the new bytes.
+
 ## PR #11 current recording-format hard cut (source/test, 2026-09-02)
 
 The active Platform recorder now has one current CLR/data path: immutable

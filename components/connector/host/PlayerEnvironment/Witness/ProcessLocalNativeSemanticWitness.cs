@@ -459,6 +459,14 @@ public static class PlayerEnvironmentNativeSemanticWitness
                 NativeTreasureDecisionProvider.Capture(treasure, entities);
             return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);
         }
+        if (RunManager.Instance.DebugOnlyGetState()?.CurrentRoom is
+            MegaCrit.Sts2.Core.Rooms.EventRoom or
+            MegaCrit.Sts2.Core.Rooms.MerchantRoom or
+            MegaCrit.Sts2.Core.Rooms.RestSiteRoom)
+        {
+            NativeRoomDecision decision = NativeRoomDecisionProvider.Capture(entities);
+            return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);
+        }
         return (
             domain.Status,
             domain.SemanticDomain,

@@ -96,6 +96,20 @@ public sealed record NativeTreasureDecision(
     IReadOnlyList<string> Evidence,
     string? Detail);
 
+/// <summary>
+/// Read-only semantic catalog for ordinary non-combat room decisions.  The
+/// provider projects STS2-owned option/entry state; it never delivers an
+/// action or replaces the Connector's public binding validator.
+/// </summary>
+public sealed record NativeRoomDecision(
+    string Status,
+    string Scope,
+    string InteractionKind,
+    bool IsDecisionOpen,
+    IReadOnlyList<NativeSemanticAction> Actions,
+    IReadOnlyList<string> Evidence,
+    string? Detail);
+
 public static class NativeDecisionProjection
 {
     public static IReadOnlyList<NativeSemanticAction> VisibleSubjects(
