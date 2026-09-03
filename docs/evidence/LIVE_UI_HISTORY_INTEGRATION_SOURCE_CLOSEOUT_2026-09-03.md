@@ -1,5 +1,12 @@
 # Live UI historical-line integration source closeout — 2026-09-03
 
+> Historical baseline note: the runtime/UI evidence in this report belongs to
+> the predecessor integration candidate. PR #15's subsequent UI convergence
+> candidate at source `58e56cd6b8a0f29c46398898b9d68756fa537dfb` removes the
+> six-page dashboard and collapse state, and its new bytes require fresh exact
+> build/install/load evidence and a new owner Human UI canary. No Human or
+> artifact qualification from this report transfers.
+
 ## Scope and exact topology
 
 This report records the read-only archaeology and selective integration of the
@@ -73,12 +80,14 @@ historical evidence identity was ported.
 
 ## Current ownership result
 
-The UI is one hidden-by-default `CanvasLayer` presentation owner. `K` opens one
-bounded Workspace; Recorder is the default peer tab. Layout persistence,
-drag/resize/reset, tab-body collapse, scrolling, toasts, and click-through are
-presentation state. Recorder buttons call `RecordingApplicationService`; policy
-buttons call Policy Runtime application commands. The UI has no Player
-Environment submit path.
+The predecessor UI was one hidden-by-default `CanvasLayer` presentation owner.
+`K` opened one bounded Workspace; Recorder was the default peer tab. Layout
+persistence, drag/resize/reset, tab-body collapse, scrolling, toasts, and
+click-through were presentation state. Recorder buttons called
+`RecordingApplicationService`; policy buttons called Policy Runtime application
+commands. The UI had no Player Environment submit path. The current PR #15
+convergence keeps the same authority boundary but presents exactly two peer
+surfaces, Agent Run and Human Recorder, with no body-collapse product state.
 
 For the Action Feed, `RecordingActionProjection` copies display fields from the
 already-bound `RecordedBoundAction`. `RootPending` is emitted only after the

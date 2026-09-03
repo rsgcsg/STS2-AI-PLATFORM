@@ -29,9 +29,11 @@ game-bound component and runtime lifecycle require exact build/install/load,
 while Human origin, causal admission, and durable evidence semantics are
 unchanged. Portable, exact-game, install, cold-load, and a bounded
 owner-operated Human UI canary are recorded in the dated Live UI integration
-closeout. The remaining integration action is review and a normal merge through
-the protected pull-request flow. Resolve the exact topic branch, pull request,
-and latest head from GitHub rather than this handoff.
+closeout. PR #15 now has a follow-up convergence candidate that reduces the
+presentation to exactly Agent Run and Human Recorder, removes the old collapse
+and dashboard scaffold, and requires a fresh exact build/load plus a new Human
+UI canary. Prior sessions do not qualify those bytes. Resolve the exact topic
+branch, pull request, and latest head from GitHub rather than this handoff.
 
 ## Remaining Platform non-claims
 

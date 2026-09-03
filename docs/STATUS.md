@@ -1,6 +1,6 @@
 # Current Status
 
-## Historical Live UI reconciliation candidate (2026-09-03)
+## Historical Live UI reconciliation candidate (superseded, 2026-09-03)
 
 The historical `ui-testing` line has been audited from merge base
 `2e1a5b67eef25faa897602d237a16b6698127af0` and selectively ported from current
@@ -14,6 +14,18 @@ bounded Human UI canary on those exact bytes passed; its current-format session
 audits 9/9 records with zero invalid records and zero invalidations. This is UI
 interaction evidence, not exhaustive semantic or Human-evidence qualification.
 See the [dated integration closeout](evidence/LIVE_UI_HISTORY_INTEGRATION_SOURCE_CLOSEOUT_2026-09-03.md).
+
+## PR #15 current UI convergence candidate (2026-09-03)
+
+The current PR #15 candidate is source `58e56cd6b8a0f29c46398898b9d68756fa537dfb`
+on `feature/ingame-ui/live-workspace-integration`. It keeps the UI hidden by
+default and exposes exactly two peer surfaces: `Agent Run` and `Human Recorder`.
+The obsolete six-page dashboard and body-collapse state are removed; Recorder
+feed rows remain read-only and RecordId-rooted, preserve scroll during ordinary
+updates, and use stable global pointer coordinates for drag/resize. Automated
+source checks are complete, but this source change requires a fresh exact build,
+install/load verification and a new owner Human UI canary. The predecessor
+artifact/session above does not transfer qualification to this candidate.
 
 ## PR #11 current recording-format hard cut (source/test, 2026-09-02)
 
@@ -530,8 +542,10 @@ canonical calibration classifies 247 actions as `S + A(S)` with unresolved S',
   delivery and successor lifecycle is no longer required in new model lanes.
 - Workbench now consumes strict live Policy Runtime status and bounded mode/tick
   commands with an explicitly partial filesystem fallback.
-- Platform Live UI `0.1.0-rc.1` provides one hidden-by-default DLL-only in-game
-  Overview/Environment/Policy/Human Data/Diagnostics shell over typed services.
+- Earlier Platform Live UI `0.1.0-rc.1` provided a hidden-by-default DLL-only
+  in-game Overview/Environment/Policy/Human Data/Diagnostics shell over typed
+  services; current PR #15 converges that presentation to Agent Run and Human
+  Recorder.
   It has no direct BoundAction submission path; Connector Reads and
   Connector/Annotator/UI identities remain inspectable without a policy process.
 - The current exact-game candidate is one `STS2_PLATFORM` Mod. Common artifact
