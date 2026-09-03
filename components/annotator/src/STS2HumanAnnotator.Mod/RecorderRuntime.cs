@@ -2500,7 +2500,7 @@ internal static class RecorderRuntime
             }
             PublishApplicationEvent(
                 RecordingEventKind.DecisionRecorded,
-                eventId,
+                draft.Action.RecordId,
                 canonical.Action.Verb,
                 ToActionProjection(canonical.Action));
             _runtimeState = "record_appended";
