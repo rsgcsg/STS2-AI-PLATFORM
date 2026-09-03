@@ -100,15 +100,7 @@ The game was not running during installation. Therefore `loaded = non-claim`,
 schema-2 Human runtime is `pending exact-runtime evidence`, and none of the
 predecessor artifact's Live authority transfers to this candidate.
 
-## Schema-2 owner result
-
-The final artifact was subsequently cold-loaded and exercised in owner session
-`session-20260827T042832Z-652d5bd7d9ed4943b74ac6252427cbe2`.
-Exact identity, immutable hashes, per-action dispositions and remaining
-non-claims are recorded in
-[Semantic Timeline Schema-2 Owner Closeout](SEMANTIC_TIMELINE_OWNER_CLOSEOUT_2026-08-27.md).
-
-The canary exercised:
+The next owner canary must cold-load the final artifact and exercise:
 
 - ordinary play followed rapidly by another play;
 - play followed by End Turn, including the prior A11 pattern;
@@ -116,11 +108,7 @@ The canary exercised:
 - one Close immediately after a finished action while the successor is
   becoming interactive.
 
-All 31 accepted roots have one disposition: 19 proved, nine cancelled before
-start and three cancelled after start with an explicit unknown transition.
-There are no standalone boundary unknowns, no unresolved roots, no proved
-pre-state mismatch and no proof crossing another Human action start. A direct
-Play -> End Turn execution handoff proves `A.S' == next S`; generated-card
-select is proved. Exact acceptance/execution reorder did not recur on this
-schema-2 artifact, and pending-edge Close-to-proof, catalog-incomplete Live
-handoff, lethal cross-surface and Full-Run settlement remain non-claims.
+The canary must compare each proved semantic pre with its exact execution
+boundary, reject intervening Human effects, and report state-vs-catalog status
+for every remaining unknown. Lethal cross-surface and Full-Run settlement remain
+non-claims.

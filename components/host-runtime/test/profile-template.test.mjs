@@ -61,7 +61,8 @@ test("captures one native profile and instantiates independent generations", () 
       root, "worker-a", "win32"
     )), "utf8")).schema_version, 8);
     assert.equal(captured.payload_sha256, first.template_payload_sha256);
-    assert.deepEqual(captured.files.map((file) => file.path), ["default/1/settings.save"]);
+    assert.equal(captured.files.some((file) => /(?:logs|sentry)/u.test(file.path)), false);
+    assert.equal(captured.files.some((file) => file.path.endsWith("before-headless-mod-consent")), false);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

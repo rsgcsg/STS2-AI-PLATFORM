@@ -90,21 +90,12 @@ export function sha256File(file) {
 }
 
 export function readInstalledConnectorIdentity(installation) {
-  const candidates = installation?.mods_dir
-    ? [
-        {
-          identityFile: path.join(installation.mods_dir, "STS2_PLATFORM.identity"),
-          dll: path.join(installation.mods_dir, "STS2_PLATFORM.dll")
-        },
-        {
-          identityFile: path.join(installation.mods_dir, "STS2_MCP.identity"),
-          dll: path.join(installation.mods_dir, "STS2_MCP.dll")
-        }
-      ]
-    : [];
-  const candidate = candidates.find(({ identityFile }) => existsSync(identityFile)) ?? candidates[0];
-  const identityFile = candidate?.identityFile ?? null;
-  const dll = candidate?.dll ?? null;
+  const identityFile = installation?.mods_dir
+    ? path.join(installation.mods_dir, "STS2_MCP.identity")
+    : null;
+  const dll = installation?.mods_dir
+    ? path.join(installation.mods_dir, "STS2_MCP.dll")
+    : null;
   if (!identityFile || !existsSync(identityFile)) {
     return { status: "missing", identity_file: identityFile, identity: null };
   }

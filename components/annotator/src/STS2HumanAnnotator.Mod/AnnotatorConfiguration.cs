@@ -4,7 +4,8 @@ namespace STS2HumanAnnotator.Mod;
 
 internal sealed record AnnotatorConfiguration(
     string RecordingRoot,
-    string RuntimeStatusPath)
+    string RuntimeStatusPath,
+    TimeSpan SuccessorTimeout)
 {
     internal const string FileName = "STS2_HUMAN_ANNOTATOR.conf";
     internal const string RecordingRootEnvironmentVariable =
@@ -16,6 +17,7 @@ internal sealed record AnnotatorConfiguration(
     {
         string defaultRoot = Path.Combine(modDirectory, "recordings");
         string defaultStatus = Path.Combine(modDirectory, "STS2_HUMAN_ANNOTATOR.runtime.json");
+        int timeoutMs = 20_000;
         string root = defaultRoot;
         string status = defaultStatus;
         string configPath = Path.Combine(modDirectory, FileName);
@@ -29,12 +31,17 @@ internal sealed record AnnotatorConfiguration(
             if (document.RootElement.TryGetProperty("runtime_status_path", out value)
                 && value.ValueKind == JsonValueKind.String)
                 status = value.GetString() ?? status;
+            if (document.RootElement.TryGetProperty("successor_timeout_ms", out value)
+                && value.TryGetInt32(out int configuredTimeout)
+                && configuredTimeout is >= 1_000 and <= 120_000)
+                timeoutMs = configuredTimeout;
         }
 
         root = Environment.GetEnvironmentVariable(RecordingRootEnvironmentVariable) ?? root;
         status = Environment.GetEnvironmentVariable(RuntimeStatusEnvironmentVariable) ?? status;
         return new AnnotatorConfiguration(
             Path.GetFullPath(root),
-            Path.GetFullPath(status));
+            Path.GetFullPath(status),
+            TimeSpan.FromMilliseconds(timeoutMs));
     }
 }

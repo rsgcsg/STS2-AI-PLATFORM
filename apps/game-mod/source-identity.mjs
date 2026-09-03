@@ -23,11 +23,8 @@ function digestFiles(componentRoot, files) {
 function componentIdentity(componentRoot, filter = () => true) {
   const state = componentGitState(componentRoot);
   const files = componentGitFiles(componentRoot).filter(filter);
-  // A newly introduced component can be entirely uncommitted during a local
-  // candidate build. Its exact digest still binds the bytes; HEAD is the only
-  // honest predecessor revision until the first component commit exists.
-  const sourceRevision = sourceRevisionForFiles(componentRoot, files)
-    ?? state.workspaceRevision;
+  const sourceRevision = sourceRevisionForFiles(componentRoot, files);
+  if (!sourceRevision) throw new Error(`Source revision is unavailable for ${componentRoot}.`);
   return {
     source_revision: sourceRevision,
     source_digest_sha256: digestFiles(componentRoot, files),
@@ -51,21 +48,11 @@ export function compiledSourceDigest(components) {
     .digest("hex");
 }
 
-export function isGameModCompiledSource(relative) {
-  return path.extname(relative) === ".cs"
-    || relative === "STS2Platform.GameMod.csproj"
-    || relative === "mod_manifest.json";
-}
-
 export function sourceSetIdentity(platformRoot) {
   const connectorRoot = path.join(platformRoot, "components/connector");
   const connector = playerEnvironmentSourceIdentity(connectorRoot);
   if (!connector) throw new Error("Connector native source identity is unavailable.");
   const workspace = componentGitState(platformRoot);
-  const nativeFoundation = componentIdentity(
-    path.join(platformRoot, "components/native-foundation"),
-    (relative) => path.extname(relative) === ".cs"
-  );
   const annotator = componentIdentity(
     path.join(platformRoot, "components/annotator"),
     (relative) => /^(?:src\/STS2HumanAnnotator\.Core|src\/STS2HumanAnnotator\.Mod)\//u.test(relative)
@@ -77,10 +64,13 @@ export function sourceSetIdentity(platformRoot) {
   );
   const gameMod = componentIdentity(
     path.join(platformRoot, "apps/game-mod"),
-    isGameModCompiledSource
+    (relative) => [
+      "UnifiedPlatformMod.cs",
+      "STS2Platform.GameMod.csproj",
+      "mod_manifest.json"
+    ].includes(relative)
   );
   const components = {
-    native_foundation: nativeFoundation,
     connector: {
       source_revision: connector.revision,
       source_digest_sha256: connector.sourceDigest,

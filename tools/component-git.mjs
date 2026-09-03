@@ -15,20 +15,12 @@ export function componentGitState(componentRoot) {
   const workspaceRoot = git(root, ["rev-parse", "--show-toplevel"]).trim();
   const prefix = git(root, ["rev-parse", "--show-prefix"]).trim().replace(/\/$/u, "");
   const workspaceRevision = git(root, ["rev-parse", "HEAD"]).trim();
-  const discoveredSourceRevision = prefix
+  const componentSourceRevision = prefix
     ? git(workspaceRoot, ["log", "-1", "--format=%H", "--", prefix]).trim()
     : workspaceRevision;
-  const componentSourceRevision = discoveredSourceRevision || workspaceRevision;
-  let componentTreeRevision;
-  try {
-    componentTreeRevision = prefix
-      ? git(root, ["rev-parse", `HEAD:${prefix}`]).trim()
-      : git(root, ["rev-parse", "HEAD"]).trim();
-  } catch {
-    // A new component has no HEAD tree until its first commit. The worktree
-    // digest remains authoritative for local candidate identity.
-    componentTreeRevision = "uncommitted";
-  }
+  const componentTreeRevision = prefix
+    ? git(root, ["rev-parse", `HEAD:${prefix}`]).trim()
+    : git(root, ["rev-parse", "HEAD"]).trim();
   const componentStatus = git(root, ["status", "--porcelain", "--", "."]).trim();
   const workspaceStatus = git(workspaceRoot, ["status", "--porcelain"]).trim();
   return Object.freeze({

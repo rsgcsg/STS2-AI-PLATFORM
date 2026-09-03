@@ -4,10 +4,13 @@ The Platform has one in-game UI, not separate Connector, Annotator and Policy
 GUIs. The UI starts hidden inside the unified `STS2_PLATFORM` Mod and toggles
 with the uncommon letter key `K`; `Escape` closes it.
 
-| Surface | Source |
+| Page | Source |
 |---|---|
-| Agent Run | current typed Policy Runtime status and bounded mode/tick controls |
-| Human Recorder | Annotator recording lifecycle and read-only action projection |
+| Overview | combined typed status and exact identity |
+| Environment | Connector Snapshot/capabilities plus in-process Annotator and Live UI identity |
+| Policy | Policy Runtime status, scores, selected action, Receipt |
+| Human Data | RecordingService lifecycle, per-family scope/results, health and closeout |
+| Diagnostics | Reads, invalidations, errors and transports |
 
 The UI has no Player Environment submit client. Connector Read opportunities
 remain visible even when no policy process is running; materialized policy Reads
@@ -32,34 +35,6 @@ The common assembly prints its SHA/MVID plus component-specific source identity;
 verification compares those records with installed provenance. `installed`,
 `loaded`, automated input, owner-visible UI, Human recording evidence and
 Agent-run evidence remain separate claims.
-
-The product shell is fully hidden during ordinary play; the single compact
-Workspace opens with `K` and closes with `Escape` or its Close button. There is
-no compact HUD or root-level Recorder surface while it is closed. The Workspace
-has exactly two peer surfaces, Agent Run and Human Recorder; it never floats
-over another surface. The Workspace supports bounded drag, resize, and Reset
-layout. The Recorder surface offers typed New Session, Pause, Resume, and Close
-controls. A bounded toast
-stack reports accepted/rejected commands and transport recovery, deduplicates
-repeated state changes, expires automatically, and can be dismissed. Layout is
-versioned local presentation state with fail-soft defaults; it is never written
-to evidence or sent to the Policy Runtime. The root overlay is click-through
-outside interactive controls, so gameplay input remains owned by STS2.
-
-The Recorder's Recent Actions list and Last Action detail are a read-only
-projection of the Annotator `RecordingApplicationService` event stream. A
-pending row is published only after the current semantic owner has persisted
-the admitted root; recorded/invalidated states project its subsequent owning
-disposition. Rows include any already-owned bound-action subject/argument IDs
-and labels. Effect text or
-other metadata absent from canonical evidence is explicitly `unavailable`; the
-UI never infers it from pointer input, coordinates, timing, or a later frame,
-and a visible feed row is not itself recording proof.
-
-The shared status vocabulary and interaction rules are defined in the canonical
-[UI and interaction specification](UI_INTERACTION_SPEC.md). Historical audit
-paragraphs below remain evidence notes; they do not expand the current product
-surface or transfer qualification to later bytes.
 
 See `apps/game-mod/README.md` for commands and `apps/ingame-ui/README.md` for the
 presentation boundary. The predecessor three-Mod artifact passed exact

@@ -71,7 +71,7 @@ class HumanSessionBundleV2Tests(unittest.TestCase):
             relative = f"blobs/sha256/{digest[:2]}/{digest}.json"
             path = raw / relative
             path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_bytes(payload.encode("utf-8"))
+            path.write_text(payload, encoding="utf-8")
             blob_refs[kind] = (relative, digest)
 
         def reads(phase: str, snapshot_id: str) -> list[dict[str, Any]]:
@@ -122,8 +122,8 @@ class HumanSessionBundleV2Tests(unittest.TestCase):
             },
         }
         line = canonical(record) + "\n"
-        (raw / "run-0001.jsonl").write_bytes(line.encode("utf-8"))
-        (bundle / "export" / "decisions.jsonl").write_bytes(line.encode("utf-8"))
+        (raw / "run-0001.jsonl").write_text(line, encoding="utf-8")
+        (bundle / "export" / "decisions.jsonl").write_text(line, encoding="utf-8")
         recording = {
             "schema_version": 2,
             "schema": "sts2.human-annotator/recording-manifest-2",
@@ -267,8 +267,8 @@ class HumanSessionBundleV2Tests(unittest.TestCase):
         record = json.loads(export.read_text(encoding="utf-8"))
         record["pre"]["reads"] = record["pre"]["reads"][:1]
         changed = canonical(record) + "\n"
-        export.write_bytes(changed.encode("utf-8"))
-        (bundle / "raw" / "run-0001.jsonl").write_bytes(changed.encode("utf-8"))
+        export.write_text(changed, encoding="utf-8")
+        (bundle / "raw" / "run-0001.jsonl").write_text(changed, encoding="utf-8")
         # Preserve outer integrity to prove semantic Read admission catches the defect.
         self._rewrite_identity(bundle)
         result = verify_human_session_bundle(bundle)

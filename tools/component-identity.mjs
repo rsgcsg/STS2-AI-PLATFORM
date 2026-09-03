@@ -71,7 +71,5 @@ export function readIdentityReport(platformRoot = PLATFORM_ROOT) {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const report = readIdentityReport();
-  if (!process.argv.includes("--quiet"))
-    process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify(readIdentityReport(), null, 2)}\n`);
 }

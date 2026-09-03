@@ -21,9 +21,7 @@
     "consumers/python/sts2_headless",
     "experiments/managed-exact",
     "src",
-    "tools/*.mjs",
-    "tools/dotnet/AssemblyFingerprint/AssemblyFingerprint.csproj",
-    "tools/dotnet/AssemblyFingerprint/Program.cs"
+    "tools"
   ],
   "bin": {
     "sts2-host-runtime": "tools/headless.mjs",

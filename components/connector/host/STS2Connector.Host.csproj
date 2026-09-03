@@ -35,7 +35,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="../../native-foundation/src/*.cs" Link="NativeFoundation/%(Filename)%(Extension)" />
     <Reference Include="sts2">
       <HintPath>$(STS2GameDataDir)/sts2.dll</HintPath>
       <Private>false</Private>

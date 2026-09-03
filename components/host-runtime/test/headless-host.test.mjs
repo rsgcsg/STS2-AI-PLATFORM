@@ -40,10 +40,6 @@ test("admits only the exact executable Headless Player Environment", () => {
   assert.deepEqual(evaluateHeadlessCapabilities(capabilities), { ok: true, errors: [] });
   assert.deepEqual(evaluateHeadlessCapabilities({
     ...capabilities,
-    game: { modset: { status: "exact_platform_modset" } }
-  }), { ok: true, errors: [] });
-  assert.deepEqual(evaluateHeadlessCapabilities({
-    ...capabilities,
     host: { host_kind: "live_ui" }
   }), { ok: false, errors: ["host_kind_not_headless"] });
   assert.deepEqual(evaluateHeadlessCapabilities({
