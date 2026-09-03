@@ -274,7 +274,7 @@
       "current_component_source_digest_sha256": "216d82dbf4ec0d1346f38bdb6123abf0806890a37c4ecc5434d3730324e645b8",
       "source_relation": "loaded_native_source_precedes_current_audit_closeout_source",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
-      "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b"
+      "artifact_mvid": "7408a183-f5a8-4103-ae12-511ef95a5331"
     },
     "native_semantic_discriminator_source_candidate": {
       "status": "human_canary_bounded_semantic_lane_supported",
@@ -507,7 +507,7 @@
         "human_origin": "owner_attested_and_no_other_loaded_controller",
         "manifest_sha256": "1b12fce39f002fcedafa30e222018361e4fbac827ca89bf9e92ea255b31b175a",
         "decision_v2_sha256": "bc1db402e85652d4150c94537b4131eac9b66326abffc666ebbcb91dd673521e",
-        "run_journal_sha256": "0002710bb691bd24513494f52d86b5b62125ce4368680dd12ff63fbf12e",
+        "run_journal_sha256": "0002710bb691bd24513494f52d86b5b62125ce4368680dd12fb2a4051da07852",
         "native_ledger_sha256": "eea7e253d29ead94516ba6490593827f70b930ed55c6a24ce07b5a03643ac561",
         "native_semantic_discriminator_sha256": "bea51e9d363fadfdf74cf429f72f998bc7632ea5d19b7d4f658000df30b9e154",
         "semantic_boundary_trace_sha256": "0b48fb2dec30469f1f2ecdb79d530601274bf993f7e2a77b9ccc38c40ee068b5",
