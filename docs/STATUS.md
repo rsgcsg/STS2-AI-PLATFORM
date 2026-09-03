@@ -17,7 +17,7 @@ See the [dated integration closeout](evidence/LIVE_UI_HISTORY_INTEGRATION_SOURCE
 
 ## PR #15 current UI convergence candidate (2026-09-03)
 
-The current PR #15 candidate is source `58e56cd6b8a0f29c46398898b9d68756fa537dfb`
+The current PR #15 candidate is source `80702d9e568a1a3b18d90af482ac5d7d63b85e5d`
 on `feature/ingame-ui/live-workspace-integration`. It keeps the UI hidden by
 default and exposes exactly two peer surfaces: `Agent Run` and `Human Recorder`.
 The obsolete six-page dashboard and body-collapse state are removed; Recorder

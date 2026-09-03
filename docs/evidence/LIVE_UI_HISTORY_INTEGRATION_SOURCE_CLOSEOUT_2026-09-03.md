@@ -2,7 +2,7 @@
 
 > Historical baseline note: the runtime/UI evidence in this report belongs to
 > the predecessor integration candidate. PR #15's subsequent UI convergence
-> candidate at source `58e56cd6b8a0f29c46398898b9d68756fa537dfb` removes the
+> candidate at source `80702d9e568a1a3b18d90af482ac5d7d63b85e5d` removes the
 > six-page dashboard and collapse state, and its new bytes require fresh exact
 > build/install/load evidence and a new owner Human UI canary. No Human or
 > artifact qualification from this report transfers.
