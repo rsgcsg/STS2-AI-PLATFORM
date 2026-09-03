@@ -518,6 +518,25 @@ test("terminal rewards completion is family-neutral at the shared native seam", 
   assert.doesNotMatch(sharedCompletionPatch, /"(?:reward|treasure)_proceed"/u);
 });
 
+test("full-run task seams leave an absent root hint nullable for exact owner binding", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+  const taskSeams = [
+    "NativeTreasureNormalRewardsPatch",
+    "NativeTreasureProceedCompletionPatch",
+    "NativeRewardSkipCommitPatch",
+    "NativeRewardClaimCompletionPatch",
+    "NativeEventOptionCompletionPatch",
+  ];
+
+  for (const marker of taskSeams) {
+    const start = patches.indexOf(marker);
+    assert.ok(start >= 0, `missing ${marker}`);
+    const end = patches.indexOf("[HarmonyPatch", start + marker.length);
+    const source = patches.slice(start, end < 0 ? patches.length : end);
+    assert.doesNotMatch(source, /\?\?\s*string\.Empty/u);
+  }
+});
+
 test("run terminal evidence comes from native OnEnded rather than polling", () => {
   const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");

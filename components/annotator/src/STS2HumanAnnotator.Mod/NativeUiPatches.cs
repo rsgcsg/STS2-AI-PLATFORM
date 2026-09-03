@@ -739,7 +739,7 @@ internal static class NativeTreasureNormalRewardsPatch
             nativeOwner: __instance,
             nativeOperand: NativeTreasureUiContext.CurrentRoom(),
             expectedActionWitnessId: NativeUiCompletionRootBindings.Take(
-                NativeTreasureUiContext.CurrentUi()) ?? string.Empty);
+                NativeTreasureUiContext.CurrentUi()));
 }
 
 [HarmonyPatch]
@@ -761,8 +761,7 @@ internal static class NativeTreasureProceedCompletionPatch
             nativeOperand: NOverlayStack.Instance?.Peek() is NRewardsScreen
                 ? NativeRewardUiContext.CurrentRewardsSet()
                 : NativeTreasureUiContext.CurrentRoom(),
-            expectedActionWitnessId: NativeUiCompletionRootBindings.TakeCurrentRewardOrTreasure()
-                ?? string.Empty);
+            expectedActionWitnessId: NativeUiCompletionRootBindings.TakeCurrentRewardOrTreasure());
 }
 
 [HarmonyPatch]
@@ -915,7 +914,7 @@ internal static class NativeRewardSkipCommitPatch
             nativeOwner: __instance,
             nativeOperand: NativeRewardUiContext.CurrentRewardsSet(),
             expectedActionWitnessId: NativeUiCompletionRootBindings.Take(
-                NOverlayStack.Instance?.Peek()) ?? string.Empty);
+                NOverlayStack.Instance?.Peek()));
 }
 
 [HarmonyPatch]
@@ -1019,8 +1018,7 @@ internal static class NativeRewardClaimCompletionPatch
             "RewardsSetSynchronizer.SelectLocalReward",
             nativeOwner: __instance,
             nativeOperand: reward,
-            expectedActionWitnessId: NativeUiCompletionRootBindings.Take(reward)
-                ?? string.Empty);
+            expectedActionWitnessId: NativeUiCompletionRootBindings.Take(reward));
     }
 }
 
@@ -1117,15 +1115,13 @@ internal static class NativeEventOptionCompletionPatch
 
     private static void Postfix(EventOption __instance, Task __result)
     {
-        string expectedActionWitnessId =
-            NativeUiCompletionRootBindings.Take(__instance) ?? string.Empty;
         if (__result != null)
         {
             RecorderRuntime.QueueNativePostCommitBoundary(
                 __result,
                 "EventOption.Chosen",
                 nativeOperand: __instance,
-                expectedActionWitnessId: expectedActionWitnessId);
+                expectedActionWitnessId: NativeUiCompletionRootBindings.Take(__instance));
         }
     }
 }
