@@ -20,14 +20,20 @@ post-CI-hardening `develop` state in which:
 Use GitHub to resolve the exact current `develop` SHA and active pull request.
 Do not copy this handoff's integration boundary to a newer head.
 
-## Active governance work
+## Active Live UI integration work
 
-The current bounded topic is a `G0` engineering-governance synthesis. It adds a
-canonical decision guide, ADR and repository-Skill indexes, a synchronized pull
-request contract, and a portable `check:governance` regression. It changes no
-component source, public runtime contract, artifact, exact-game behavior, or
-Human evidence. Resolve its exact branch, pull request, and latest head from
-GitHub rather than this handoff.
+The current bounded topic is the selective reconciliation of historical
+`ui-testing` presentation work with current `develop`. It changes Live UI and a
+narrow Annotator application-event projection. It is classified `G4`: the
+game-bound component and runtime lifecycle require exact build/install/load,
+while Human origin, causal admission, and durable evidence semantics are
+unchanged. Portable, exact-game, install, cold-load, and a bounded
+owner-operated Human UI canary are recorded in the dated Live UI integration
+closeout. PR #15 now has a follow-up convergence candidate that reduces the
+presentation to exactly Agent Run and Human Recorder, removes the old collapse
+and dashboard scaffold, and requires a fresh exact build/load plus a new Human
+UI canary. Prior sessions do not qualify those bytes. Resolve the exact topic
+branch, pull request, and latest head from GitHub rather than this handoff.
 
 ## Remaining Platform non-claims
 

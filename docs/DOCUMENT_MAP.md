@@ -77,6 +77,7 @@ Use the smallest route that answers the task.
 - [Workbench](../apps/workbench/README.md)
 - [Platform Game Mod operations](../apps/game-mod/README.md)
 - [In-game Live UI boundary](../apps/ingame-ui/README.md)
+- [Shared UI and interaction specification](UI_INTERACTION_SPEC.md)
 
 ## Historical proof
 

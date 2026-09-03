@@ -93,6 +93,19 @@ public sealed record RecordingItemStatus(
     DateTimeOffset ObservedAt,
     string? Detail);
 
+/// <summary>
+/// Read-only presentation facts copied from an action already admitted by the
+/// owning Human/semantic path. This projection cannot authorize, settle,
+/// record, or deliver an action.
+/// </summary>
+public sealed record RecordingActionProjection(
+    string Verb,
+    string BoundActionId,
+    string? SubjectReferentId,
+    IReadOnlyDictionary<string, string> Arguments,
+    string Label,
+    string? EffectSummary = null);
+
 public sealed record RecordingPendingRootStatus(
     string RecordId,
     string RunId,
@@ -169,7 +182,8 @@ public sealed record RecordingEvent(
     string? SessionId,
     string? RunId,
     string? RecordId,
-    string? Detail);
+    string? Detail,
+    RecordingActionProjection? Action = null);
 
 public sealed record RecordingEventBatch(
     long RequestedAfterSequence,
@@ -208,7 +222,8 @@ public sealed class RecordingEventStream
         string? sessionId = null,
         string? runId = null,
         string? recordId = null,
-        string? detail = null)
+        string? detail = null,
+        RecordingActionProjection? action = null)
     {
         lock (_gate)
         {
@@ -221,7 +236,8 @@ public sealed class RecordingEventStream
                 sessionId,
                 runId,
                 recordId,
-                detail);
+                detail,
+                action);
             _events.Enqueue(value);
             while (_events.Count > _capacity)
                 _events.Dequeue();
