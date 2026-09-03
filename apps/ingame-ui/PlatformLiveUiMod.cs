@@ -107,7 +107,6 @@ internal sealed class PlatformLivePanel : IDisposable
 {
     private readonly PlatformLiveStatusClient _statusClient = new();
     private readonly PlatformLiveLayoutState _defaultLayout = PlatformLiveLayoutState.Defaults;
-    private readonly Dictionary<string, Label> _pageText = new(StringComparer.Ordinal);
     private readonly Dictionary<PlatformCommandMode, Button> _modeButtons = new();
     private readonly Dictionary<STS2HumanAnnotator.Core.RecordingCommandKind, Button> _recordingButtons = new();
     private readonly PlatformLiveActionAggregation _actionFeed = new();
@@ -121,12 +120,14 @@ internal sealed class PlatformLivePanel : IDisposable
     private Control _workspaceSurface = null!;
     private VBoxContainer _workspaceBody = null!;
     private VBoxContainer _workspaceContent = null!;
-    private Control _bodyViewport = null!;
+    private Control _surfaceViewport = null!;
+    private ScrollContainer _agentRunPage = null!;
     private ScrollContainer _recorderPage = null!;
+    private Label _agentRunSummary = null!;
     private Control _recorderDetails = null!;
     private ScrollContainer _toastViewport = null!;
     private VBoxContainer _toastStack = null!;
-    private readonly List<Control> _pages = new();
+    private readonly List<Control> _surfaces = new();
     private Label _workspaceTitle = null!;
     private Label _recorderTitle = null!;
     private Label _recorderHealth = null!;
@@ -134,10 +135,9 @@ internal sealed class PlatformLivePanel : IDisposable
     private Label _lastAction = null!;
     private VBoxContainer _actionFeedList = null!;
     private ScrollContainer _recorderScroll = null!;
-    private Button _workspaceCollapse = null!;
-    private Vector2 _dragOrigin;
-    private Vector2 _dragStart;
-    private Vector2 _resizeOrigin;
+    private Vector2 _dragStartPointerGlobal;
+    private Vector2 _dragStartWorkspaceGlobal;
+    private Vector2 _resizeStartPointerGlobal;
     private Vector2 _resizeStart;
     private bool _draggingWorkspace;
     private bool _resizingWorkspace;
@@ -272,9 +272,7 @@ internal sealed class PlatformLivePanel : IDisposable
         _workspaceTitle.AddThemeFontSizeOverride("font_size", 18);
         _workspaceTitle.AddThemeColorOverride("font_color", TextPrimary);
         titleRow.AddChild(_workspaceTitle);
-        titleRow.AddChild(BuildHeaderButton("Reset", ResetLayout, "Restore position, size, Recorder tab and scroll geometry."));
-        _workspaceCollapse = BuildHeaderButton("Collapse", ToggleActiveTabBody, "Collapse or restore the active tab body.");
-        titleRow.AddChild(_workspaceCollapse);
+        titleRow.AddChild(BuildHeaderButton("Reset", ResetLayout, "Restore position, size and active surface."));
         titleRow.AddChild(BuildHeaderButton("Close", HidePanel, "Close workspace and return to gameplay."));
         _workspaceBody.AddChild(titleRow);
 
@@ -288,46 +286,6 @@ internal sealed class PlatformLivePanel : IDisposable
         _workspaceContent.AddThemeConstantOverride("separation", 6);
         _workspaceBody.AddChild(_workspaceContent);
 
-        _connection = new Label
-        {
-            Text = "Connector: polling...",
-            MouseFilter = MouseFilterEnum.Ignore,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            ClipText = true
-        };
-        _connection.AddThemeFontSizeOverride("font_size", 13);
-        _connection.AddThemeColorOverride("font_color", TextSecondary);
-        _workspaceContent.AddChild(_connection);
-
-        var modeRow = new HBoxContainer
-        {
-            MouseFilter = MouseFilterEnum.Pass,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            ClipContents = true
-        };
-        modeRow.AddThemeConstantOverride("separation", 4);
-        modeRow.AddChild(BuildModeButton("Human", PlatformCommandMode.Human));
-        modeRow.AddChild(BuildModeButton("Shadow", PlatformCommandMode.Shadow));
-        modeRow.AddChild(BuildModeButton("One-Step", PlatformCommandMode.OneStep));
-        modeRow.AddChild(BuildModeButton("Auto", PlatformCommandMode.Auto));
-        _tickButton = BuildCommandButton(
-            "Tick",
-            () => _ = TickRuntimeAsync(),
-            "Ask Policy Runtime for one bounded tick; action authority remains Connector/Runtime.");
-        _tickButton.Disabled = true;
-        modeRow.AddChild(_tickButton);
-        _workspaceContent.AddChild(modeRow);
-
-        _command = new Label
-        {
-            Text = "Human is the safe default. UI never submits gameplay actions.",
-            MouseFilter = MouseFilterEnum.Ignore,
-            AutowrapMode = TextServer.AutowrapMode.WordSmart
-        };
-        _command.AddThemeFontSizeOverride("font_size", 13);
-        _command.AddThemeColorOverride("font_color", Accent);
-        _workspaceContent.AddChild(_command);
-
         _tabBar = new TabBar
         {
             MouseFilter = MouseFilterEnum.Stop,
@@ -337,12 +295,12 @@ internal sealed class PlatformLivePanel : IDisposable
         _tabBar.AddThemeFontSizeOverride("font_size", 13);
         _tabBar.AddThemeColorOverride("font_selected_color", TextPrimary);
         _tabBar.AddThemeColorOverride("font_unselected_color", TextSecondary);
-        foreach (string name in new[] { "Recorder", "Overview", "Environment", "Policy", "Human Data", "Diagnostics" })
+        foreach (string name in new[] { "Agent Run", "Human Recorder" })
             _tabBar.AddTab(name);
         _tabBar.TabClicked += OnTabClicked;
         _workspaceContent.AddChild(_tabBar);
 
-        _bodyViewport = new Control
+        _surfaceViewport = new Control
         {
             MouseFilter = MouseFilterEnum.Stop,
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
@@ -350,13 +308,9 @@ internal sealed class PlatformLivePanel : IDisposable
             CustomMinimumSize = new Vector2(0, 150),
             ClipContents = true
         };
-        _workspaceContent.AddChild(_bodyViewport);
-        BuildRecorderPage(_bodyViewport);
-        AddPage(_bodyViewport, "Overview");
-        AddPage(_bodyViewport, "Environment");
-        AddPage(_bodyViewport, "Policy");
-        AddPage(_bodyViewport, "Human Data");
-        AddPage(_bodyViewport, "Diagnostics");
+        _workspaceContent.AddChild(_surfaceViewport);
+        BuildAgentRunPage(_surfaceViewport);
+        BuildRecorderPage(_surfaceViewport);
 
         _toastStack = new VBoxContainer
         {
@@ -389,11 +343,109 @@ internal sealed class PlatformLivePanel : IDisposable
         resizeHandle.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomRight, LayoutPresetMode.KeepSize);
         resizeHandle.GuiInput += OnResizeHandleInput;
         _workspaceSurface.AddChild(resizeHandle);
-        ApplyTabPresentation(resizeWorkspace: false);
+        ApplySurfacePresentation(resizeWorkspace: false);
         ApplyLayout();
     }
 
-    private void BuildRecorderPage(Control bodyViewport)
+    private void BuildAgentRunPage(Control surfaceViewport)
+    {
+        _agentRunPage = new ScrollContainer
+        {
+            Name = "AgentRun",
+            MouseFilter = MouseFilterEnum.Stop,
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
+            ClipContents = true
+        };
+        _agentRunPage.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        var card = new PanelContainer
+        {
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill,
+            MouseFilter = MouseFilterEnum.Pass,
+            ClipContents = true
+        };
+        card.AddThemeStyleboxOverride("panel", PageStyle("Agent Run"));
+        var margin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
+        margin.AddThemeConstantOverride("margin_left", 14);
+        margin.AddThemeConstantOverride("margin_right", 14);
+        margin.AddThemeConstantOverride("margin_top", 12);
+        margin.AddThemeConstantOverride("margin_bottom", 12);
+        var body = new VBoxContainer
+        {
+            MouseFilter = MouseFilterEnum.Stop,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            SizeFlagsVertical = SizeFlags.ExpandFill
+        };
+        body.AddThemeConstantOverride("separation", 8);
+        margin.AddChild(body);
+        card.AddChild(margin);
+        _agentRunPage.AddChild(card);
+
+        var title = new Label
+        {
+            Text = "AGENT RUN",
+            MouseFilter = MouseFilterEnum.Ignore
+        };
+        title.AddThemeFontSizeOverride("font_size", 17);
+        title.AddThemeColorOverride("font_color", TextPrimary);
+        body.AddChild(title);
+
+        _connection = new Label
+        {
+            Text = "Connector: polling...",
+            MouseFilter = MouseFilterEnum.Ignore,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            ClipText = true
+        };
+        _connection.AddThemeFontSizeOverride("font_size", 13);
+        _connection.AddThemeColorOverride("font_color", TextSecondary);
+        body.AddChild(_connection);
+
+        _agentRunSummary = new Label
+        {
+            Text = "Policy Runtime: waiting for typed status...",
+            MouseFilter = MouseFilterEnum.Ignore,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill
+        };
+        _agentRunSummary.AddThemeFontSizeOverride("font_size", 13);
+        _agentRunSummary.AddThemeColorOverride("font_color", TextPrimary);
+        body.AddChild(_agentRunSummary);
+
+        var modeRow = new HBoxContainer
+        {
+            MouseFilter = MouseFilterEnum.Pass,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            ClipContents = true
+        };
+        modeRow.AddThemeConstantOverride("separation", 4);
+        modeRow.AddChild(BuildModeButton("Human", PlatformCommandMode.Human));
+        modeRow.AddChild(BuildModeButton("Shadow", PlatformCommandMode.Shadow));
+        modeRow.AddChild(BuildModeButton("One-Step", PlatformCommandMode.OneStep));
+        modeRow.AddChild(BuildModeButton("Auto", PlatformCommandMode.Auto));
+        _tickButton = BuildCommandButton(
+            "Tick",
+            () => _ = TickRuntimeAsync(),
+            "Ask Policy Runtime for one bounded tick; action authority remains Connector/Runtime.");
+        _tickButton.Disabled = true;
+        modeRow.AddChild(_tickButton);
+        body.AddChild(modeRow);
+
+        _command = new Label
+        {
+            Text = "Human is the safe default. UI never submits gameplay actions.",
+            MouseFilter = MouseFilterEnum.Ignore,
+            AutowrapMode = TextServer.AutowrapMode.WordSmart
+        };
+        _command.AddThemeFontSizeOverride("font_size", 13);
+        _command.AddThemeColorOverride("font_color", Accent);
+        body.AddChild(_command);
+        surfaceViewport.AddChild(_agentRunPage);
+        _surfaces.Add(_agentRunPage);
+    }
+
+    private void BuildRecorderPage(Control surfaceViewport)
     {
         _recorderPage = new ScrollContainer
         {
@@ -507,8 +559,8 @@ internal sealed class PlatformLivePanel : IDisposable
         };
         _actionFeedList.AddThemeConstantOverride("separation", 4);
         _recorderDetails.AddChild(_actionFeedList);
-        bodyViewport.AddChild(_recorderPage);
-        _pages.Add(_recorderPage);
+        surfaceViewport.AddChild(_recorderPage);
+        _surfaces.Add(_recorderPage);
     }
 
     private Button BuildRecordingButton(
@@ -623,15 +675,15 @@ internal sealed class PlatformLivePanel : IDisposable
                     && mouseButton.Position.Y >= _workspace.Size.Y - 32)
                 {
                     _resizingWorkspace = true;
-                    _resizeOrigin = mouseButton.Position;
+                    _resizeStartPointerGlobal = mouseButton.GlobalPosition;
                     _resizeStart = _workspace.Size;
                     _workspace.GetViewport().SetInputAsHandled();
                 }
                 else
                 {
                     _draggingWorkspace = true;
-                    _dragOrigin = mouseButton.Position;
-                    _dragStart = _workspace.Position;
+                    _dragStartPointerGlobal = mouseButton.GlobalPosition;
+                    _dragStartWorkspaceGlobal = _workspace.GlobalPosition;
                 }
             }
             else if (mouseButton.ButtonIndex == MouseButton.Left && !mouseButton.Pressed)
@@ -646,20 +698,20 @@ internal sealed class PlatformLivePanel : IDisposable
         {
             if (_resizingWorkspace)
             {
-                Vector2 delta = motion.Position - _resizeOrigin;
+                Vector2 delta = motion.GlobalPosition - _resizeStartPointerGlobal;
                 Rect2 clamped = PlatformLiveLayout.ClampWorkspace(
                     new Rect2(_workspace.Position, _resizeStart + delta),
-                    Root.Size,
-                    _layout.BodyCollapsed);
+                    Root.Size);
                 _workspace.Position = clamped.Position;
                 _workspace.Size = clamped.Size;
             }
             else
             {
-                _workspace.Position = PlatformLiveLayout.ClampWorkspace(
-                    new Rect2(_dragStart + motion.Position - _dragOrigin, _workspace.Size),
-                    Root.Size,
-                    _layout.BodyCollapsed).Position;
+                Vector2 requested = _dragStartWorkspaceGlobal
+                    + motion.GlobalPosition - _dragStartPointerGlobal;
+                _workspace.GlobalPosition = PlatformLiveLayout.ClampWorkspace(
+                    new Rect2(requested, _workspace.Size),
+                    Root.Size).Position;
             }
             _workspace.GetViewport().SetInputAsHandled();
         }
@@ -673,7 +725,7 @@ internal sealed class PlatformLivePanel : IDisposable
             if (mouseButton.Pressed)
             {
                 _resizingWorkspace = true;
-                _resizeOrigin = mouseButton.GlobalPosition;
+                _resizeStartPointerGlobal = mouseButton.GlobalPosition;
                 _resizeStart = _workspace.Size;
             }
             else
@@ -686,48 +738,35 @@ internal sealed class PlatformLivePanel : IDisposable
         }
         else if (@event is InputEventMouseMotion motion && _resizingWorkspace)
         {
-            Vector2 delta = motion.GlobalPosition - _resizeOrigin;
+            Vector2 delta = motion.GlobalPosition - _resizeStartPointerGlobal;
             Rect2 clamped = PlatformLiveLayout.ClampWorkspace(
                 new Rect2(_workspace.Position, _resizeStart + delta),
-                Root.Size,
-                _layout.BodyCollapsed);
+                Root.Size);
             _workspace.Position = clamped.Position;
             _workspace.Size = clamped.Size;
             _workspace.GetViewport().SetInputAsHandled();
         }
     }
 
-    private void OnTabClicked(long tab) => SelectTab((int)tab);
+    private void OnTabClicked(long tab) => SelectSurface((int)tab);
 
-    private void ToggleActiveTabBody() => SelectTab(_layout.ActiveTab);
-
-    private void SelectTab(int tab)
+    private void SelectSurface(int surface)
     {
-        if (!_layout.BodyCollapsed)
-            _layout = _layout with { WorkspaceSize = _workspace.Size };
-        PlatformLiveLayoutState next = PlatformLiveLayout.SelectTab(_layout, tab, _pages.Count);
+        string selectedSurface = surface == 0 ? "agent_run" : "human_recorder";
+        PlatformLiveLayoutState next = PlatformLiveLayout.SelectSurface(_layout, selectedSurface);
         if (next == _layout)
             return;
         _layout = next;
-        ApplyTabPresentation();
+        ApplySurfacePresentation();
         PersistLayout();
-        PushToast(
-            "layout.body",
-            _layout.BodyCollapsed
-                ? $"{_tabBar.GetTabTitle(_layout.ActiveTab)} body collapsed."
-                : $"{_tabBar.GetTabTitle(_layout.ActiveTab)} body expanded.");
     }
 
-    private void ApplyTabPresentation(bool resizeWorkspace = true)
+    private void ApplySurfacePresentation(bool resizeWorkspace = true)
     {
-        int activeTab = Math.Clamp(_layout.ActiveTab, 0, Math.Max(0, _pages.Count - 1));
-        if (activeTab != _layout.ActiveTab)
-            _layout = _layout with { ActiveTab = activeTab };
-        _tabBar.CurrentTab = activeTab;
-        for (int index = 0; index < _pages.Count; index++)
-            _pages[index].Visible = index == activeTab;
-        _bodyViewport.Visible = !_layout.BodyCollapsed;
-        _workspaceCollapse.Text = _layout.BodyCollapsed ? "Expand" : "Collapse";
+        int activeSurface = _layout.ActiveSurface == "human_recorder" ? 1 : 0;
+        _tabBar.CurrentTab = activeSurface;
+        for (int index = 0; index < _surfaces.Count; index++)
+            _surfaces[index].Visible = index == activeSurface;
         if (resizeWorkspace)
             ApplyWorkspaceBounds();
     }
@@ -736,7 +775,7 @@ internal sealed class PlatformLivePanel : IDisposable
     {
         _layout = _defaultLayout;
         ApplyLayout();
-        foreach (Control page in _pages)
+        foreach (Control page in _surfaces)
             if (page is ScrollContainer scroll)
                 scroll.ScrollVertical = 0;
         PersistLayout();
@@ -746,22 +785,17 @@ internal sealed class PlatformLivePanel : IDisposable
     private void ApplyLayout()
     {
         ApplyWorkspaceBounds();
-        ApplyTabPresentation(resizeWorkspace: false);
+        ApplySurfacePresentation(resizeWorkspace: false);
         ApplyPresentationVisibility();
     }
 
     private void ApplyWorkspaceBounds()
     {
-        _workspace.CustomMinimumSize = _layout.BodyCollapsed
-            ? new Vector2(640, PlatformLiveLayout.CollapsedWorkspaceHeight)
-            : new Vector2(640, 420);
-        Vector2 requestedSize = _layout.BodyCollapsed
-            ? new Vector2(_layout.WorkspaceSize.X, PlatformLiveLayout.CollapsedWorkspaceHeight)
-            : _layout.WorkspaceSize;
+        _workspace.CustomMinimumSize = new Vector2(640, 420);
+        Vector2 requestedSize = _layout.WorkspaceSize;
         Rect2 workspace = PlatformLiveLayout.ClampWorkspace(
             new Rect2(_layout.WorkspacePosition, requestedSize),
-            Root.Size,
-            _layout.BodyCollapsed);
+            Root.Size);
         _workspace.Position = workspace.Position;
         _workspace.Size = workspace.Size;
     }
@@ -771,7 +805,7 @@ internal sealed class PlatformLivePanel : IDisposable
         bool workspaceVisible = _workspace.Visible;
         // There is exactly one active presentation owner. The Workspace is
         // the only Platform surface; its Recorder and toast regions are children.
-        _toastViewport.Visible = workspaceVisible && !_layout.BodyCollapsed && _toasts.Count > 0;
+        _toastViewport.Visible = workspaceVisible && _toasts.Count > 0;
     }
 
     private void PersistLayout()
@@ -779,9 +813,7 @@ internal sealed class PlatformLivePanel : IDisposable
         _layout = _layout with
         {
             WorkspacePosition = _workspace.Position,
-            WorkspaceSize = _layout.BodyCollapsed
-                ? new Vector2(_workspace.Size.X, _layout.WorkspaceSize.Y)
-                : _workspace.Size
+            WorkspaceSize = _workspace.Size
         };
         if (!PlatformLiveLayout.Save(_layout))
             PushToast("layout.persistence", "Layout could not be saved; using this session only.");
@@ -832,68 +864,18 @@ internal sealed class PlatformLivePanel : IDisposable
             RenderToasts();
     }
 
-    private void AddPage(Control bodyViewport, string name)
-    {
-        var scroll = new ScrollContainer
-        {
-            Name = name,
-            MouseFilter = MouseFilterEnum.Stop,
-            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
-            VerticalScrollMode = ScrollContainer.ScrollMode.Auto,
-            ClipContents = true
-        };
-        scroll.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
-        var card = new PanelContainer
-        {
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-            MouseFilter = MouseFilterEnum.Pass,
-            ClipContents = true
-        };
-        card.AddThemeStyleboxOverride("panel", PageStyle(name));
-        var margin = new MarginContainer { MouseFilter = MouseFilterEnum.Ignore };
-        margin.AddThemeConstantOverride("margin_left", 14);
-        margin.AddThemeConstantOverride("margin_right", 14);
-        margin.AddThemeConstantOverride("margin_top", 12);
-        margin.AddThemeConstantOverride("margin_bottom", 12);
-        var label = new Label
-        {
-            Text = "Waiting for typed Platform live status...",
-            AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            SizeFlagsHorizontal = SizeFlags.ExpandFill,
-            SizeFlagsVertical = SizeFlags.ExpandFill,
-            MouseFilter = MouseFilterEnum.Ignore
-        };
-        label.AddThemeFontSizeOverride("font_size", 15);
-        label.AddThemeColorOverride("font_color", TextPrimary);
-        margin.AddChild(label);
-        card.AddChild(margin);
-        scroll.AddChild(card);
-        bodyViewport.AddChild(scroll);
-        _pages.Add(scroll);
-        _pageText.Add(name, label);
-    }
-
     private static StyleBoxFlat PageStyle(string name)
     {
         Color background = name switch
         {
             "Recorder" => new Color("#1b3338ed"),
-            "Overview" => new Color("#1b2d3be8"),
-            "Environment" => new Color("#1c3439e8"),
-            "Policy" => new Color("#28233de8"),
-            "Human Data" => new Color("#20372fe8"),
-            "Diagnostics" => new Color("#3b3025e8"),
+            "Agent Run" => new Color("#1b2d3be8"),
             _ => new Color("#222d38e8")
         };
         Color border = name switch
         {
             "Recorder" => new Color("#4d9b8c"),
-            "Overview" => new Color("#3e7992"),
-            "Environment" => new Color("#4b8f87"),
-            "Policy" => new Color("#8276bd"),
-            "Human Data" => new Color("#5b9a78"),
-            "Diagnostics" => new Color("#ad8551"),
+            "Agent Run" => new Color("#3e7992"),
             _ => new Color("#536677")
         };
         return MakePanelStyle(background, border, 8, 1, 4);
@@ -1017,13 +999,9 @@ internal sealed class PlatformLivePanel : IDisposable
         if (status.PolicyRuntime != null)
             _mode = ParseRuntimeMode(status.PolicyRuntime.Mode);
         ApplyModeButtonState();
+        _agentRunSummary.Text = FormatAgentRun(status);
         RefreshActionFeed(status.Recording);
         ApplyRecordingAvailability(status.Recording);
-        _pageText["Overview"].Text = FormatOverview(status);
-        _pageText["Environment"].Text = FormatEnvironment(status);
-        _pageText["Policy"].Text = FormatPolicy(status);
-        _pageText["Human Data"].Text = FormatHumanData(status);
-        _pageText["Diagnostics"].Text = FormatDiagnostics(status);
     }
 
     private void SetPolicyControlsAvailable(bool available, string? reason = null)
@@ -1090,8 +1068,10 @@ internal sealed class PlatformLivePanel : IDisposable
     {
         string? sessionId = recording.Session?.SessionId;
         bool feedChanged = false;
+        bool sessionChanged = false;
         if (!string.Equals(_actionFeedSessionId, sessionId, StringComparison.Ordinal))
         {
+            sessionChanged = true;
             _actionFeedSessionId = sessionId;
             _lastRecordingEventSequence = 0;
             _actionFeed.Reset();
@@ -1121,7 +1101,11 @@ internal sealed class PlatformLivePanel : IDisposable
             }
             _lastRecordingEventSequence = Math.Max(_lastRecordingEventSequence, batch.LatestSequence);
             if (feedChanged)
+            {
+                if (sessionChanged)
+                    _recorderScroll.ScrollVertical = 0;
                 RenderActionFeed();
+            }
         }
         catch (Exception exception)
         {
@@ -1151,7 +1135,8 @@ internal sealed class PlatformLivePanel : IDisposable
             {
                 MouseFilter = MouseFilterEnum.Ignore,
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
-                CustomMinimumSize = new Vector2(0, 24)
+                SizeFlagsVertical = SizeFlags.ShrinkBegin,
+                CustomMinimumSize = new Vector2(0, 30)
             };
             Color border = value.Kind switch
             {
@@ -1167,6 +1152,9 @@ internal sealed class PlatformLivePanel : IDisposable
                 AutowrapMode = TextServer.AutowrapMode.WordSmart,
                 MouseFilter = MouseFilterEnum.Ignore,
                 SizeFlagsHorizontal = SizeFlags.ExpandFill,
+                SizeFlagsVertical = SizeFlags.ExpandFill,
+                CustomMinimumSize = new Vector2(0, 24),
+                VerticalAlignment = VerticalAlignment.Center,
                 ClipText = true
             };
             label.AddThemeFontSizeOverride("font_size", 12);
@@ -1174,93 +1162,24 @@ internal sealed class PlatformLivePanel : IDisposable
             item.AddChild(label);
             _actionFeedList.AddChild(item);
         }
-        _recorderScroll.ScrollVertical = 0;
     }
 
-    private static string FormatOverview(PlatformLiveStatus status) => string.Join('\n', new[]
+    private static string FormatAgentRun(PlatformLiveStatus status) => string.Join('\n', new[]
     {
-        "OVERVIEW",
+        "POLICY RUNTIME",
         $"Connector: {status.TransportStatus}",
         $"Policy Runtime: {status.PolicyRuntimeTransportStatus}",
-        $"Recording: {status.Recording.Lifecycle.State} · {status.Recording.Counters.Records} records",
-        $"Interaction: {status.Snapshot?.Interaction.Kind ?? "none"}",
-        $"Snapshot: {ShortValue(status.Snapshot?.SnapshotId, "none")} · {status.Snapshot?.Status ?? "unavailable"}",
-        $"Selected: {(status.PolicyRuntime == null ? "unavailable" : status.Selected.Count == 0 ? "none" : string.Join(", ", status.Selected.Select(item => item.Label)))}",
-        $"Receipt: {status.Receipt.Status}"
-    });
-
-    private static string FormatEnvironment(PlatformLiveStatus status) => string.Join('\n', new[]
-    {
-        "ENVIRONMENT",
-        $"Game: {status.ExactIdentity.Game?.Version ?? "unavailable"}",
-        $"Interaction: {status.Snapshot?.Interaction.Kind ?? "none"}",
-        $"Connector: {status.ExactIdentity.Connector?.Product ?? "unavailable"} {status.ExactIdentity.Connector?.Version ?? ""}".TrimEnd(),
-        $"Annotator: {status.ExactIdentity.Annotator?.Product ?? "unavailable"} {status.ExactIdentity.Annotator?.Version ?? ""}".TrimEnd(),
-        $"Modset: {status.ExactIdentity.ModsetStatus ?? "unavailable"}",
-        $"Loaded Mods: {(status.ExactIdentity.LoadedModIds.Count == 0 ? "none" : string.Join(", ", status.ExactIdentity.LoadedModIds))}",
-        $"Connector health: {status.TransportStatus}"
-    });
-
-    private static string FormatPolicy(PlatformLiveStatus status) => string.Join('\n', new[]
-    {
-        "POLICY",
-        $"Runtime: {status.PolicyRuntimeTransportStatus}",
         $"Mode: {status.PolicyRuntime?.Mode ?? "unavailable"}",
         $"Policy: {status.PolicyRuntime?.Policy.PolicyId ?? "unavailable"} {status.PolicyRuntime?.Policy.PolicyVersion ?? ""}".TrimEnd(),
         $"Lifecycle: {status.PolicyRuntime?.Lifecycle ?? "unavailable"}",
         $"Last decision: {ShortValue(status.PolicyRuntime?.LastDecision?.DecisionId, "none")}",
         $"Receipt: {status.Receipt.Status}",
+        $"Interaction: {status.Snapshot?.Interaction.Kind ?? "none"}",
+        $"Selected: {(status.Selected.Count == 0 ? "none" : string.Join(", ", status.Selected.Select(item => item.Label)))}",
         status.PolicyRuntime == null
             ? $"Unavailable: {PlatformLiveLayout.PolicyUnavailableReason(status)}"
             : $"Tainted: {status.PolicyRuntime.Tainted}"
     });
-
-    private static string FormatHumanData(PlatformLiveStatus status) => string.Join('\n', new[]
-    {
-        "HUMAN DATA",
-        $"Lifecycle: {status.Recording.Lifecycle.State}",
-        $"Session: {ShortValue(status.Recording.Session?.SessionId, "none")}",
-        $"Records / invalidations: {status.Recording.Counters.Records} / {status.Recording.Counters.Invalidations}",
-        $"Reads: {status.Recording.Counters.ReadsMaterialized} materialized · {status.Recording.Counters.ReadsFailed} failed",
-        $"Health: append={status.Recording.Health.Append} · disk={status.Recording.Health.Disk}",
-        $"Closeout: {status.Recording.Closeout.State}",
-        $"Scope: {status.Recording.Scope.Detail}"
-    });
-
-    private static string FormatCounts(IReadOnlyDictionary<string, long> values) =>
-        values.Count == 0
-            ? "none"
-            : string.Join(", ", values.OrderBy(pair => pair.Key, StringComparer.Ordinal)
-                .Select(pair => $"{pair.Key}={pair.Value}"));
-
-    private static string FormatItems(IReadOnlyList<string> values) =>
-        values.Count == 0 ? "none" : string.Join(", ", values);
-
-    private static string FormatDiagnostics(PlatformLiveStatus status) => string.Join('\n', new[]
-    {
-        "DIAGNOSTICS",
-        FormatArtifact("Game", status.ExactIdentity.Game),
-        FormatArtifact("Connector", status.ExactIdentity.Connector),
-        FormatArtifact("Annotator", status.ExactIdentity.Annotator),
-        FormatArtifact("Platform Live UI", status.ExactIdentity.LiveUi),
-        $"Host kind: {status.ExactIdentity.HostKind ?? "unavailable"}",
-        $"Runtime instance: {ShortValue(status.ExactIdentity.RuntimeInstanceId, "unavailable")}",
-        $"Environment fingerprint: {status.ExactIdentity.EnvironmentFingerprint ?? "unavailable"}",
-        $"Modset fingerprint: {status.ExactIdentity.ModsetFingerprint ?? "unavailable"}",
-        $"Loaded Mod IDs: {(status.ExactIdentity.LoadedModIds.Count == 0 ? "none" : string.Join(", ", status.ExactIdentity.LoadedModIds))}",
-        $"Schema: {status.Schema}",
-        $"Policy Runtime status: {status.PolicyRuntime?.Schema ?? "unavailable"}",
-        $"Runtime errors: {(status.PolicyRuntime?.Errors.Count > 0 ? string.Join(" | ", status.PolicyRuntime.Errors) : "none")}",
-        $"Transport errors: {(status.Errors.Count == 0 ? "none" : string.Join(" | ", status.Errors))}",
-        $"Runtime detail: {status.PolicyRuntimeTransportDetail ?? "none"}",
-        $"Annotator detail: {status.Recording.Detail}",
-        "Exact identity is displayed as observed; unavailable fields are not inferred."
-    });
-
-    private static string FormatArtifact(string name, PlatformArtifactIdentity? artifact) =>
-        artifact == null
-            ? $"{name}: unavailable"
-            : $"{name}: {artifact.Product} {artifact.Version} | rev={artifact.SourceRevision ?? "unknown"} | module={artifact.ModuleVersionId ?? "unknown"} | sha={artifact.ArtifactSha256 ?? "unknown"}";
 
     private static string ShortValue(string? value, string fallback = "unavailable")
     {
@@ -1278,8 +1197,7 @@ internal sealed class PlatformLivePanel : IDisposable
         {
             Rect2 clamped = PlatformLiveLayout.ClampWorkspace(
                 new Rect2(_workspace.Position, _workspace.Size),
-                Root.Size,
-                _layout.BodyCollapsed);
+                Root.Size);
             if (clamped.Position != _workspace.Position || clamped.Size != _workspace.Size)
             {
                 _workspace.Position = clamped.Position;
@@ -1293,7 +1211,7 @@ internal sealed class PlatformLivePanel : IDisposable
             _workspace.Visible = !_workspace.Visible;
             if (_workspace.Visible)
             {
-                _layout = _layout with { ActiveTab = 0, BodyCollapsed = false };
+                _layout = _layout with { ActiveSurface = "agent_run" };
                 ApplyLayout();
                 _ = PollAsync();
             }

@@ -12,17 +12,15 @@ public sealed record PlatformLiveLayoutState(
     int Version,
     Vector2 WorkspacePosition,
     Vector2 WorkspaceSize,
-    int ActiveTab,
-    bool BodyCollapsed)
+    string ActiveSurface)
 {
-    public const int CurrentVersion = 3;
+    public const int CurrentVersion = 4;
 
     public static PlatformLiveLayoutState Defaults => new(
         CurrentVersion,
         new Vector2(52, 64),
         new Vector2(760, 500),
-        0,
-        false);
+        "agent_run");
 }
 
 public static class PlatformLiveLayout
@@ -60,7 +58,7 @@ public static class PlatformLiveLayout
     public static string LocalPath()
     {
         string root = System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData);
-        return Path.Combine(root, "STS2Platform", "live-ui-layout-v3.json");
+        return Path.Combine(root, "STS2Platform", "live-ui-layout-v4.json");
     }
 
     public static PlatformLiveLayoutState Load()
@@ -99,32 +97,24 @@ public static class PlatformLiveLayout
         }
     }
 
-    public const float CollapsedWorkspaceHeight = 220;
-
-    public static PlatformLiveLayoutState SelectTab(
+    public static PlatformLiveLayoutState SelectSurface(
         PlatformLiveLayoutState state,
-        int selectedTab,
-        int tabCount)
+        string selectedSurface)
     {
-        if (selectedTab < 0 || selectedTab >= tabCount)
+        if (selectedSurface is not ("agent_run" or "human_recorder"))
             return state;
-        return selectedTab == state.ActiveTab
-            ? state with { BodyCollapsed = !state.BodyCollapsed }
-            : state with { ActiveTab = selectedTab, BodyCollapsed = false };
+        return state with { ActiveSurface = selectedSurface };
     }
 
     public static Rect2 ClampWorkspace(
         Rect2 requested,
-        Vector2 viewport,
-        bool bodyCollapsed = false)
+        Vector2 viewport)
     {
-        Vector2 min = bodyCollapsed ? new Vector2(640, CollapsedWorkspaceHeight) : new Vector2(640, 420);
+        Vector2 min = new(640, 420);
         Vector2 max = new(Math.Max(min.X, viewport.X - 32), Math.Max(min.Y, viewport.Y - 48));
         Vector2 size = new(
             Math.Clamp(requested.Size.X, min.X, max.X),
-            bodyCollapsed
-                ? CollapsedWorkspaceHeight
-                : Math.Clamp(requested.Size.Y, min.Y, max.Y));
+            Math.Clamp(requested.Size.Y, min.Y, max.Y));
         Vector2 position = new(
             Math.Clamp(requested.Position.X, 8, Math.Max(8, viewport.X - size.X - 8)),
             Math.Clamp(requested.Position.Y, 8, Math.Max(8, viewport.Y - size.Y - 8)));

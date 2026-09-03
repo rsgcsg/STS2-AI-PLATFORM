@@ -1,10 +1,10 @@
 # Platform Live UI
 
-The Platform Live UI is the in-game presentation component for Environment,
-Policy, Human Data, and Diagnostics. It is fully hidden during ordinary play;
-`K` opens one compact Live Workspace and `Esc` closes it. The Workspace tabs
-are `Recorder`, `Overview`, `Environment`, `Policy`, `Human Data`, and
-`Diagnostics`; Recorder is a peer tab, never a floating card or root overlay.
+The Platform Live UI is the in-game presentation component for Agent Run and
+Human Recorder. It is fully hidden during ordinary play; `K` opens one compact
+Live Workspace and `Esc` closes it. The Workspace has exactly two peer
+surfaces, `Agent Run` and `Human Recorder`; Recorder is never a floating card
+or root overlay.
 The Recorder tab exposes only the typed New/Pause/Resume/Close application
 commands, plus a bounded Recent Actions feed and Last Action detail sourced
 only from the typed Annotator application-event projection of already-owned
@@ -18,12 +18,14 @@ and Read opportunities, recording state, and loaded component identities remain
 available when no policy artifact is running; only policy scores/modes/Receipts
 are then unavailable.
 
-Workspace layout (position, size, collapse state, and selected page) is versioned
+Workspace layout (position, size, and selected surface) is versioned
 presentation-only state under the Windows local application
 data directory. Persistence is fail-soft and never enters runtime evidence or
 contains secrets, action operands, model weights, or raw Human data. See the
 canonical [UI and interaction specification](../../docs/UI_INTERACTION_SPEC.md)
-for the shared Workbench/In-Game vocabulary.
+for the shared Workbench/In-Game vocabulary. The Recorder feed preserves its
+scroll position during ordinary event updates and resets only for a new session
+or an explicit layout reset.
 
 ## Ownership
 

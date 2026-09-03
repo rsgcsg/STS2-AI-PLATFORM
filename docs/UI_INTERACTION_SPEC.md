@@ -21,9 +21,9 @@ fail-closed boundary.
 
 The Platform presentation is fully hidden until K opens the Workspace. There
 is no compact HUD or root-level Recorder surface during ordinary play. The
-K-open Workspace contains peer tabs for Recorder, Overview, Environment,
-Policy, Human Data, and Diagnostics; Recorder is the default tab and is never a
-floating overlay. Long identities are shown in
+K-open Workspace contains exactly two peer surfaces, Agent Run and Human
+Recorder; Agent Run is the default and Recorder is never a floating overlay.
+Long identities are shown in
 short form with the complete observed value available through the host's normal
 copy/expand affordance; values are never inferred from presentation state.
 
@@ -38,9 +38,9 @@ poll remains the source of truth.
 
 Only panels, tabs, buttons, drag handles, and resize handles capture pointer input.
 The hidden overlay root is click-through outside the Workspace so normal STS2 gameplay input is
-unaffected. K toggles the Workspace and Escape closes it. Workspace and
-Workspace position, size, collapse state, and selected page are presentation
-state stored in a versioned file under the local application-data directory;
+unaffected. K toggles the Workspace and Escape closes it. Workspace position,
+size, and selected surface are presentation state stored in a versioned file
+under the local application-data directory;
 the file is fail-soft, local-only, and never contains secrets, model weights,
 raw evidence, or action operands. Invalid or old state returns to defaults.
 
