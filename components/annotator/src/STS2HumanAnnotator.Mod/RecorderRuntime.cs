@@ -95,6 +95,10 @@ internal static class RecorderRuntime
     private static string? _lastPublishedHealth;
     private static bool _initializationStarted;
     private static bool _initialized;
+    // A close disposition is previewed before it is committed to the causal
+    // tracker. If the multi-stream store write fails, keep the session open
+    // and the roots unresolved; never close on an in-memory-only unknown.
+    private static bool _closeDispositionPersistenceFailed;
     private static int _runSequence;
     private static bool _runActive;
     // A native RunManager.OnEnded observation is the only authoritative
@@ -313,7 +317,6 @@ internal static class RecorderRuntime
             AppendJournal(result.Code, null, snapshotId, result.Detail);
         if (finalizeClose)
         {
-            TerminateClosePendingWork();
             FinalizeClose();
         }
         WriteStatus(
@@ -389,6 +392,7 @@ internal static class RecorderRuntime
         _lastStoreSnapshot = store.GetSnapshot();
         _requiredReadsHealth = "not_checked";
         _lastPublishedHealth = null;
+        _closeDispositionPersistenceFailed = false;
         _closeout = RecordingCloseoutStatus.Idle;
         _lifecycle = lifecycle;
         _runtimeState = "waiting_for_player_environment";
@@ -482,9 +486,22 @@ internal static class RecorderRuntime
         IReadOnlyList<SemanticBoundaryTraceDraft> closeDrafts;
         lock (Gate)
         {
-            if (_lifecycle.State != RecordingLifecycleState.Closing)
+            if (_lifecycle.State != RecordingLifecycleState.Closing
+                || _closeDispositionPersistenceFailed)
                 return;
-            closeDrafts = BoundaryTracker.CloseUnknown(
+            if (!_semanticBoundaryTraceHealthy)
+            {
+                _closeDispositionPersistenceFailed = true;
+                _runtimeState = "close_disposition_persistence_failed";
+                _detail = "Semantic boundary trace is unavailable; close disposition cannot be persisted.";
+                _closeout = _closeout with
+                {
+                    State = "closing",
+                    Detail = "Close disposition persistence failed; accepted roots remain unresolved."
+                };
+                return;
+            }
+            closeDrafts = BoundaryTracker.PreviewCloseUnknown(
                 RecordingClosePolicy.TerminalUnknownReason);
         }
         try
@@ -493,8 +510,37 @@ internal static class RecorderRuntime
         }
         catch (Exception exception)
         {
-            DisableSemanticBoundaryTrace(exception);
+            // PersistSemanticBoundaryDrafts writes semantic evidence and
+            // projections to independent streams. Keep the causal tracker in
+            // its pre-close state and leave the lifecycle Closing; otherwise
+            // a failed write would turn an accepted root into an unrecorded
+            // in-memory disposition and falsely publish session_closed.
+            lock (Gate)
+            {
+                _closeDispositionPersistenceFailed = true;
+                _runtimeState = "close_disposition_persistence_failed";
+                _detail = exception.Message;
+                _closeout = _closeout with
+                {
+                    State = "closing",
+                    Detail = "Close disposition persistence failed; accepted roots remain unresolved."
+                };
+            }
+            GD.PrintErr($"[STS2 Human Annotator] close disposition persistence failed: {exception}");
+            return;
         }
+
+        lock (Gate)
+        {
+            if (_lifecycle.State != RecordingLifecycleState.Closing)
+                return;
+            BoundaryTracker.CommitCloseUnknown();
+        }
+
+        // Native callbacks are only discarded after every unresolved root has
+        // a durable terminal disposition. The queue remains transport, not a
+        // second source of truth.
+        TerminateClosePendingWork();
 
         RecordingStoreSnapshot snapshot;
         lock (Gate)
@@ -1017,8 +1063,18 @@ internal static class RecorderRuntime
         NativePostCommitCompletionExpectation? completionExpectation = null,
         ProcessLocalObservedAction? nativeSemanticSelection = null)
     {
-        if (!AcceptingNewWitnesses() || HumanActionScope.Current != null)
+        if (!AcceptingNewWitnesses())
             return default;
+        if (HumanActionScope.Current != null)
+        {
+            HumanActionScope.EnterDeferredFailure(
+                nativeActionType,
+                "semantic_causal_overlap",
+                "A nested native UI callback was accepted while another Human root was staged; it cannot claim that root.",
+                _lastSnapshotId,
+                "failed_closed");
+            return new NativeUiScopeEntry(false, true);
+        }
         if (!CanOpenSemanticEvidenceWindow())
         {
             HumanActionScope.EnterDeferredFailure(
@@ -1133,37 +1189,118 @@ internal static class RecorderRuntime
         && match.MatchCount == 1
         && match.BoundAction != null;
 
+    private static ProcessLocalNativeMatch? ResolveAcceptedUiMatch(
+        HumanActionContext? context,
+        ProcessLocalObservedAction observed)
+    {
+        if (context == null)
+            return null;
+        try
+        {
+            return context.Frame.Resolve(observed);
+        }
+        catch
+        {
+            // The accepted observer will claim this root as a mapping
+            // failure, producing one failed-closed occurrence instead of
+            // allowing a resolve exception to become a repeated drop.
+            return null;
+        }
+    }
+
     internal static void ObserveAcceptedAction(GameAction action)
     {
         HumanActionContext? context = HumanActionScope.Current;
-        if (context == null)
-        {
-            TryQuarantineDeferredAcceptedAction(
-                action.GetType().Name,
-                occurrence: new HumanActionOccurrenceEvidence(
-                    $"human-occurrence-{Guid.NewGuid():N}",
-                    action.GetType().Name,
-                    SupportedFamilyForNativeAction(action.GetType().Name) ?? action.GetType().Name,
-                    action.GetType().Name,
-                    NativeWitnessIdentity.Get(action, "game_action"),
-                    new Dictionary<string, string>(StringComparer.Ordinal),
-                    null,
-                    null,
-                    null,
-                    null,
-                    "GameAction.accepted",
-                    "failed_closed"));
-            return;
-        }
         string nativeActionType = action.GetType().Name;
-        if (!context.AcceptsRootAction(nativeActionType))
-            return;
         try
         {
-            if (!TryDescribeAction(action, context, out ProcessLocalObservedAction? observed, out NativeWitnessEvidence? witness))
+            ProcessLocalObservedAction? observed = null;
+            NativeWitnessEvidence? witness = null;
+            string? failureReason = null;
+            string? failureDetail = null;
+            string? failureEvidence = null;
+            bool hasMapping = context != null
+                && TryDescribeAction(
+                    action,
+                    context,
+                    out observed,
+                    out witness,
+                    out failureReason,
+                    out failureDetail,
+                    out failureEvidence);
+            ProcessLocalNativeMatch? resolvedMatch = null;
+            if (hasMapping)
+            {
+                try
+                {
+                    resolvedMatch = context!.Frame.Resolve(observed!);
+                }
+                catch (Exception exception)
+                {
+                    hasMapping = false;
+                    failureReason = "native_action_exact_mapping_failed";
+                    failureDetail = exception.Message;
+                    failureEvidence = "failed_closed";
+                }
+            }
+            AcceptedDecisionObserver.Outcome outcome = AcceptedDecisionObserver.Observe(
+                nativeActionType,
+                context,
+                resolvedMatch,
+                hasMapping);
+
+            if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.DeferredFailure)
+            {
+                TryQuarantineDeferredAcceptedAction(
+                    nativeActionType,
+                    observed,
+                    witness,
+                    occurrence: context == null
+                        ? GameActionOccurrence(action)
+                        : null);
                 return;
-            ProcessLocalNativeMatch match = context.Frame.Resolve(observed!);
-            if (!IsExact(match) || !context.TryClaimRootAction(nativeActionType))
+            }
+            if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.NoScope
+                || outcome.Kind == AcceptedDecisionObserver.OutcomeKind.NativeTypeMismatch
+                || outcome.Kind == AcceptedDecisionObserver.OutcomeKind.Duplicate)
+            {
+                // GameAction.OnEnqueued is also raised for native/internal
+                // actions that were never staged as Human input. They remain
+                // deliberately unowned and must not become phantom roots.
+                TryQuarantineDeferredAcceptedAction(
+                    action.GetType().Name,
+                    occurrence: new HumanActionOccurrenceEvidence(
+                        $"human-occurrence-{Guid.NewGuid():N}",
+                        action.GetType().Name,
+                        SupportedFamilyForNativeAction(action.GetType().Name) ?? action.GetType().Name,
+                        action.GetType().Name,
+                        NativeWitnessIdentity.Get(action, "game_action"),
+                        new Dictionary<string, string>(StringComparer.Ordinal),
+                        null,
+                        null,
+                        null,
+                        null,
+                        "GameAction.accepted",
+                        "failed_closed"));
+                return;
+            }
+            if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.MappingFailure)
+            {
+                Quarantine(
+                    failureReason ?? "native_action_exact_mapping_failed",
+                    failureDetail ?? "The accepted native GameAction did not retain an exact Human mapping.",
+                    context?.Frame.Snapshot.SnapshotId,
+                    nativeActionType,
+                    failureEvidence ?? "failed_closed",
+                    context == null
+                        ? GameActionOccurrence(action)
+                        : OccurrenceFrom(nativeActionType, context, observed, witness));
+                return;
+            }
+            if (outcome.Kind != AcceptedDecisionObserver.OutcomeKind.Accepted
+                || outcome.Context is not { } acceptedContext
+                || outcome.Match is not { } acceptedMatch
+                || witness is not { } acceptedWitness)
                 return;
             NativeSemanticDiscriminatorRuntime.Observe(
                 _store,
@@ -1172,17 +1309,18 @@ internal static class RecorderRuntime
                 _currentRunId,
                 NativeActionLifecycleKinds.Accepted,
                 action,
-                context.Frame);
-            StartSemanticNativeAction(context, witness!, match, action);
+                acceptedContext.Frame);
+            StartSemanticNativeAction(acceptedContext, acceptedWitness, acceptedMatch, action);
         }
         catch (Exception exception)
         {
             Quarantine(
                 "native_action_observation_failed",
                 exception.Message,
-                context.Frame.Snapshot.SnapshotId,
+                context?.Frame.Snapshot.SnapshotId ?? _lastSnapshotId,
                 action.GetType().FullName,
-                "implemented_runtime_error");
+                "implemented_runtime_error",
+                context == null ? GameActionOccurrence(action) : OccurrenceFrom(nativeActionType, context, null, null));
         }
     }
 
@@ -1232,31 +1370,56 @@ internal static class RecorderRuntime
         string? actionWitnessId = null)
     {
         HumanActionContext? context = HumanActionScope.Current;
-        if (context == null)
-        {
-            TryQuarantineDeferredAcceptedAction(nativeActionType, observed, witness);
-            return;
-        }
-        if (!context.AcceptsRootAction(nativeActionType))
-            return;
         try
         {
-            ProcessLocalNativeMatch match = context.Frame.Resolve(observed);
-            if (!IsExact(match))
+            AcceptedDecisionObserver.Outcome outcome = AcceptedDecisionObserver.Observe(
+                nativeActionType,
+                context,
+                ResolveAcceptedUiMatch(context, observed),
+                context != null);
+            if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.DeferredFailure)
             {
-                if (context.TryClaimRootAction(nativeActionType))
-                {
-                    Quarantine(
-                        "human_action_exact_mapping_failed",
-                        "The accepted native mutation did not retain its exact pre-action BoundAction mapping.",
-                        context.Frame.Snapshot.SnapshotId,
-                        nativeActionType,
-                        "failed_closed",
-                        context.Occurrence ?? OccurrenceFrom(nativeActionType, observed, witness));
-                }
+                TryQuarantineDeferredAcceptedAction(nativeActionType, observed, witness);
                 return;
             }
-            if (!context.TryClaimRootAction(nativeActionType))
+            if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.NoScope)
+            {
+                Quarantine(
+                    "human_action_accepted_without_scope",
+                    "An accepted native UI mutation had no staged Human witness.",
+                    _lastSnapshotId,
+                    nativeActionType,
+                    "failed_closed",
+                    OccurrenceFrom(nativeActionType, observed, witness));
+                return;
+            }
+            if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.NativeTypeMismatch)
+            {
+                Quarantine(
+                    "human_action_native_type_mismatch",
+                    "An accepted native UI mutation did not match the staged native action type.",
+                    context?.Frame.Snapshot.SnapshotId,
+                    nativeActionType,
+                    "failed_closed",
+                    context?.Occurrence ?? OccurrenceFrom(nativeActionType, observed, witness));
+                return;
+            }
+            if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.Duplicate)
+                return;
+            if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.MappingFailure)
+            {
+                Quarantine(
+                    "human_action_exact_mapping_failed",
+                    "The accepted native mutation did not retain its exact pre-action BoundAction mapping.",
+                    context?.Frame.Snapshot.SnapshotId,
+                    nativeActionType,
+                    "failed_closed",
+                    context?.Occurrence ?? OccurrenceFrom(nativeActionType, observed, witness));
+                return;
+            }
+            if (outcome.Kind != AcceptedDecisionObserver.OutcomeKind.Accepted
+                || outcome.Context is not { } acceptedContext
+                || outcome.Match is not { } match)
                 return;
             ProcessLocalNativeWitnessFrame? postCommitFrame = null;
             if (captureImmediatePostCommitBoundary)
@@ -1272,20 +1435,27 @@ internal static class RecorderRuntime
                 }
             }
             StartSemanticUiAction(
-                context.Frame,
-                context.NativeSemanticDecision,
-                BuildEnvironment(context.Frame),
+                acceptedContext.Frame,
+                acceptedContext.NativeSemanticDecision,
+                BuildEnvironment(acceptedContext.Frame),
                 nativeActionType,
                 witness,
                 match,
                 postCommitFrame,
-                context.CompletionExpectation,
-                actionWitnessId ?? (context.CompletionExpectation == null
+                acceptedContext.CompletionExpectation,
+                actionWitnessId ?? (acceptedContext.CompletionExpectation == null
                     ? null
-                    : context.ActionWitnessId));
+                    : acceptedContext.ActionWitnessId));
         }
         catch (Exception exception)
         {
+            Quarantine(
+                "accepted_ui_observation_failed",
+                exception.Message,
+                context?.Frame.Snapshot.SnapshotId ?? _lastSnapshotId,
+                nativeActionType,
+                "implemented_runtime_error",
+                context?.Occurrence ?? OccurrenceFrom(nativeActionType, observed, witness));
             DisableSemanticBoundaryTrace(exception);
         }
     }
@@ -2371,11 +2541,6 @@ internal static class RecorderRuntime
             return;
         RecordingSessionStore store = _store
             ?? throw new InvalidOperationException("No open recording store for semantic boundary evidence.");
-        foreach (SemanticBoundaryTraceDraft draft in drafts.Where(IsTerminalWithoutNativeCompletion))
-        {
-            lock (Gate)
-                NativePostCommitCompletions.Remove(draft.Action.ActionWitnessId);
-        }
         var events = new List<SemanticEvidenceEvent>(drafts.Count);
         foreach (SemanticBoundaryTraceDraft draft in drafts)
         {
@@ -2423,6 +2588,16 @@ internal static class RecorderRuntime
             });
         }
         store.AppendSemanticEvidenceEvents(events);
+
+        // Completion registrations are in-memory correlation state. Remove
+        // them only after the terminal disposition has reached the durable
+        // semantic stream; otherwise a failed append would strand an
+        // unresolved tracker root with no remaining exact completion path.
+        foreach (SemanticBoundaryTraceDraft draft in drafts.Where(IsTerminalWithoutNativeCompletion))
+        {
+            lock (Gate)
+                NativePostCommitCompletions.Remove(draft.Action.ActionWitnessId);
+        }
 
         foreach (SemanticBoundaryTraceDraft draft in drafts.Where(value =>
                      value.Kind == SemanticBoundaryTraceKinds.ActionAccepted
@@ -2595,21 +2770,24 @@ internal static class RecorderRuntime
         GameAction action,
         HumanActionContext context,
         out ProcessLocalObservedAction? observed,
-        out NativeWitnessEvidence? witness)
+        out NativeWitnessEvidence? witness,
+        out string? failureReason,
+        out string? failureDetail,
+        out string? failureEvidence)
     {
         observed = null;
         witness = null;
+        failureReason = null;
+        failureDetail = null;
+        failureEvidence = null;
         if (action is PlayCardAction play)
         {
             object? card = play.NetCombatCard.ToCardModelOrNull();
             if (card == null)
             {
-                Quarantine(
-                    "play_card_native_subject_missing",
-                    "The accepted PlayCardAction no longer resolved its exact card model.",
-                    context.Frame.Snapshot.SnapshotId,
-                    nameof(PlayCardAction),
-                    "native_witness_missing");
+                failureReason = "play_card_native_subject_missing";
+                failureDetail = "The accepted PlayCardAction no longer resolved its exact card model.";
+                failureEvidence = "native_witness_missing";
                 return false;
             }
             var arguments = new Dictionary<string, object>(StringComparer.Ordinal);
@@ -2663,12 +2841,9 @@ internal static class RecorderRuntime
         }
 
         string type = action.GetType().FullName ?? action.GetType().Name;
-        Quarantine(
-            "native_scope_contract_error",
-            $"The configured root action {type} has no recorder mapping.",
-            context.Frame.Snapshot.SnapshotId,
-            type,
-            "implemented_runtime_error");
+        failureReason = "native_scope_contract_error";
+        failureDetail = $"The configured root action {type} has no recorder mapping.";
+        failureEvidence = "implemented_runtime_error";
         return false;
     }
 
@@ -3010,6 +3185,54 @@ internal static class RecorderRuntime
             null,
             null,
             witness.NativeActionType,
+            "failed_closed");
+
+    private static HumanActionOccurrenceEvidence OccurrenceFrom(
+        string nativeActionType,
+        HumanActionContext context,
+        ProcessLocalObservedAction? observed,
+        NativeWitnessEvidence? witness)
+    {
+        if (context.Occurrence is { } occurrence)
+            return occurrence;
+        if (observed != null && witness != null)
+            return OccurrenceFrom(nativeActionType, observed, witness);
+
+        ProcessLocalObservedAction fallback = context.ExpectedAction
+            ?? new ProcessLocalObservedAction(
+                "accepted",
+                null,
+                new Dictionary<string, object>(StringComparer.Ordinal));
+        return new HumanActionOccurrenceEvidence(
+            $"human-occurrence-{Guid.NewGuid():N}",
+            nativeActionType,
+            SupportedFamilyForNativeAction(nativeActionType) ?? nativeActionType,
+            fallback.Verb,
+            fallback.Subject == null
+                ? null
+                : NativeWitnessIdentity.Get(fallback.Subject, "subject"),
+            new Dictionary<string, string>(StringComparer.Ordinal),
+            null,
+            null,
+            null,
+            null,
+            witness?.NativeActionType ?? nativeActionType,
+            "failed_closed");
+    }
+
+    private static HumanActionOccurrenceEvidence GameActionOccurrence(GameAction action) =>
+        new(
+            $"human-occurrence-{Guid.NewGuid():N}",
+            action.GetType().Name,
+            SupportedFamilyForNativeAction(action.GetType().Name) ?? action.GetType().Name,
+            action.GetType().Name,
+            NativeWitnessIdentity.Get(action, "game_action"),
+            new Dictionary<string, string>(StringComparer.Ordinal),
+            null,
+            null,
+            null,
+            null,
+            "GameAction.accepted",
             "failed_closed");
 
     private static void Quarantine(

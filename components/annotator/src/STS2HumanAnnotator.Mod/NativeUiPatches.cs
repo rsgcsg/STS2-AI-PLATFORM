@@ -1356,7 +1356,8 @@ internal static class NativeShopPurchasePatch
     private readonly record struct PatchState(
         NativeUiScopeEntry Scope,
         MerchantEntry? Entry,
-        NMerchantInventory? Inventory);
+        NMerchantInventory? Inventory,
+        string? Operation);
 
     internal static MethodBase TargetMethod() =>
         AccessTools.Method(
@@ -1408,7 +1409,8 @@ internal static class NativeShopPurchasePatch
                     __instance,
                     new Dictionary<string, object>(StringComparer.Ordinal))),
             __instance,
-            ui);
+            ui,
+            operation);
     }
 
     private static void Postfix(
@@ -1418,17 +1420,8 @@ internal static class NativeShopPurchasePatch
     {
         if ((!__state.Scope.Entered && !__state.Scope.DeferredFailure)
             || __state.Entry is not { } entry
-            || __state.Inventory is not { } inventory)
-            return;
-        string operation = entry switch
-        {
-            MerchantCardEntry => "purchase_shop_card",
-            MerchantRelicEntry => "purchase_shop_relic",
-            MerchantPotionEntry => "purchase_shop_potion",
-            MerchantCardRemovalEntry => "open_shop_card_removal",
-            _ => string.Empty
-        };
-        if (operation.Length == 0)
+            || __state.Inventory is not { } inventory
+            || __state.Operation is not { Length: > 0 } operation)
             return;
         RecorderRuntime.ObserveAcceptedSemanticUiAction(
             NativeActionType,

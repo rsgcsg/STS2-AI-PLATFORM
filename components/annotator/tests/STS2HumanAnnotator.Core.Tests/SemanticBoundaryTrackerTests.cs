@@ -625,6 +625,24 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
+    public void PreviewCloseUnknownDoesNotEraseRootsBeforePersistence()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        tracker.Accept(Action("close-failure", 1), State("s0"));
+
+        IReadOnlyList<SemanticBoundaryTraceDraft> preview =
+            tracker.PreviewCloseUnknown(RecordingClosePolicy.TerminalUnknownReason);
+
+        Assert.Single(preview);
+        Assert.True(tracker.HasUnresolvedActions);
+
+        tracker.CommitCloseUnknown();
+
+        Assert.False(tracker.HasUnresolvedActions);
+        Assert.Empty(tracker.PreviewCloseUnknown("duplicate_close"));
+    }
+
+    [Fact]
     public void CapacityBoundsTheLiveCausalWindowRatherThanSessionHistory()
     {
         var tracker = new SemanticBoundaryTracker(capacity: 2);

@@ -335,6 +335,68 @@ test("capture failures become invalidations only after the native action is acce
   assert.doesNotMatch(runtime, /if \(selected == null\)[\s\S]{0,500}Quarantine\(/u);
 });
 
+test("accepted ingress converges on one gate and keeps unowned GameActions out of the root timeline", () => {
+  const observer = read("components/annotator/src/STS2HumanAnnotator.Mod/AcceptedDecisionObserver.cs");
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+
+  assert.match(observer, /AcceptedRootActionGate|TryClaimRootAction/u);
+  assert.match(observer, /TryClaimRejectedAcceptedIngress/u);
+  assert.match(observer, /MappingFailure[\s\S]*Duplicate[\s\S]*Accepted/u);
+  assert.doesNotMatch(observer, /NativePostCommitCompletionLedger|Queue|FIFO|poll/iu);
+  const gameActionIngress = sourceBetween(runtime, "internal static void ObserveAcceptedAction", "internal static void ObservePlayCardExecutionAborted");
+  const uiIngress = sourceBetween(runtime, "internal static void ObserveAcceptedSemanticUiAction", "private static void TryQuarantineDeferredAcceptedAction");
+  assert.match(gameActionIngress, /AcceptedDecisionObserver\.Observe/u);
+  assert.match(uiIngress, /AcceptedDecisionObserver\.Observe/u);
+  assert.match(runtime, /human_action_accepted_without_scope/u);
+  assert.match(runtime, /native_action_exact_mapping_failed/u);
+  assert.match(runtime, /ResolveAcceptedUiMatch/u);
+  assert.match(patches, /ObserveAcceptedSemanticUiAction/u);
+});
+
+test("close persistence previews unknown dispositions before committing or clearing native tracking", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const close = sourceBetween(runtime, "private static void FinalizeClose", "private static bool HasPendingRecordingWorkUnsafe");
+
+  assert.match(close, /PreviewCloseUnknown/u);
+  assert.match(close, /PersistSemanticBoundaryDrafts\(closeDrafts\)/u);
+  assert.match(close, /CommitCloseUnknown/u);
+  assert.ok(close.indexOf("PreviewCloseUnknown") < close.indexOf("PersistSemanticBoundaryDrafts"));
+  assert.ok(close.indexOf("PersistSemanticBoundaryDrafts") < close.indexOf("CommitCloseUnknown"));
+  assert.ok(close.indexOf("CommitCloseUnknown") < close.indexOf("TerminateClosePendingWork"));
+  assert.match(close, /close_disposition_persistence_failed/u);
+});
+
+test("shop accepted mapping is staged once and reused by the accepted callback", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+  const shop = sourceBetween(patches, "internal static class NativeShopPurchasePatch", "[HarmonyPatch]");
+
+  assert.match(shop, /string\? Operation/u);
+  assert.match(shop, /ui,\s*operation\)/u);
+  assert.match(shop, /__state\.Operation/u);
+  assert.doesNotMatch(
+    shop,
+    /private static void Postfix[\s\S]*?string operation = entry switch/u
+  );
+});
+
+test("Event, Shop, and Rest accepted seams preserve Foundation-owned operation identity", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+
+  const event = sourceBetween(patches, "internal static class NativeEventOptionPatch", "[HarmonyPatch]");
+  const rest = sourceBetween(patches, "internal static class NativeRestSiteOptionPatch", "/// <summary>");
+  const shop = sourceBetween(patches, "internal static class NativeShopPurchasePatch", "[HarmonyPatch]");
+
+  assert.match(event, /proceed_event|choose_event_option/u);
+  assert.match(event, /EventOption\.Chosen/u);
+  assert.match(rest, /choose_rest_option|RestSiteSynchronizer\.ChooseLocalOption/u);
+  assert.match(rest, /rest_site/u);
+  assert.match(shop, /purchase_shop_card|purchase_shop_relic|purchase_shop_potion|open_shop_card_removal/u);
+  assert.match(runtime, /SupportedFamilyForSemanticAction[\s\S]*shop_inventory\.purchase/u);
+  assert.match(runtime, /SupportedFamilyForNativeAction[\s\S]*rest_site\.choose/u);
+});
+
 test("PlayerChoice continuation uses STS2 lifecycle and generated choices retain failed-closed lineage", () => {
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
   const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
