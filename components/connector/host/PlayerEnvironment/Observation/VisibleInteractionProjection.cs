@@ -238,6 +238,11 @@ internal static partial class PlayerEnvironmentService
                 value.SelectableCardEntityIds, value.CanSkip, value.IsPeeking,
                 value.Cards
             }),
+            NativeBossRelicSelectionSurface value => ToNode(new
+            {
+                value.Kind, value.Relics, value.SelectableRelicEntityIds,
+                value.CanSkip
+            }),
             NativeSimpleCardSelectionSurface value => ToNode(new
             {
                 value.Kind, value.Stage, value.Prompt,

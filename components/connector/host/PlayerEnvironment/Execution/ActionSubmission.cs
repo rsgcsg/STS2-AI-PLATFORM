@@ -202,6 +202,14 @@ internal static partial class PlayerEnvironmentService
         if (operation == NativeGeneratedCardChoice.SkipOperation
             && parameters.TryGetValue("screen_id", out screenId))
             return NativeGeneratedCardChoice.StartSkip(Entities, screenId);
+        if (snapshot.HostObservation.Surface is NativeBossRelicSelectionSurface bossRelicSelection)
+        {
+            return NativeBossRelicSelection.Start(
+                Entities,
+                bossRelicSelection,
+                binding,
+                parameters);
+        }
         if (snapshot.HostObservation.Surface is NativeDeckCardSelectionSurface deckSelection)
         {
             return NativeDeckCardSelection.Start(

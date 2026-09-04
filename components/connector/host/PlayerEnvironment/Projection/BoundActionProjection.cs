@@ -24,6 +24,8 @@ internal static partial class PlayerEnvironmentService
                 NativeCombatPileSelection.DescribeCommands(combatPileSelection),
             NativeGeneratedCardChoiceSurface generatedChoice =>
                 NativeGeneratedCardChoice.DescribeCommands(generatedChoice),
+            NativeBossRelicSelectionSurface bossRelicSelection =>
+                NativeBossRelicSelection.DescribeCommands(bossRelicSelection),
             NativeSimpleCardSelectionSurface simpleSelection =>
                 NativeSimpleCardSelection.DescribeCommands(simpleSelection),
             RestSiteSurface restSite =>
