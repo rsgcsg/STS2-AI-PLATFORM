@@ -47,7 +47,7 @@ from a later Human effect.
 | shop purchase / card removal | `MerchantEntry.IsStocked/EnoughGold` + `OnTryPurchaseWrapper` task | complete visible offer catalog | `MerchantEntry.OnTryPurchaseWrapper` + exact entry completion ledger | source complete; final candidate live canary required |
 | shop inventory close | `NMerchantInventory.Close` after exact BackButton delivery | complete visible close control | exact inventory close callback | source complete; final candidate live canary required |
 | rest-site option / proceed | `RestSiteSynchronizer.ChooseLocalOption` task and `NRestSiteRoom` proceed | complete visible option catalog | exact synchronizer and proceed callbacks | source complete; final candidate live canary required |
-| run entry / game terminal | native `RunManager.OnEnded(bool)` terminal seam; run entry remains lifecycle-only | source/test complete for terminal marker; no Human action authority | fresh candidate native terminal and exhaustive Full Run still required |
+| run entry / game terminal | native `RunManager.Launch()` start and `RunManager.OnEnded(bool)` terminal seams; lifecycle-only | source/test complete for native markers; no Human action authority | fresh candidate lifecycle canary and exhaustive Full Run still required |
 
 Current source keeps the gameplay-safe observer path and adds an independent
 process-local discriminator for ordinary combat Play/End Turn/Potion. At native

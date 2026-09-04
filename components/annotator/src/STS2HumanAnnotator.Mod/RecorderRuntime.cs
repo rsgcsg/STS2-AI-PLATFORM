@@ -65,6 +65,7 @@ internal static class RecorderRuntime
     private static volatile bool _statusRefreshRequested;
     private static ActionExecutor? _observedActionExecutor;
     private static bool _semanticBoundaryTraceHealthy = true;
+    private static bool _nativeRunStartedObserved;
     private static string _runtimeState = "initializing";
     private static string? _detail;
     private static RecorderEnvironmentIdentity? _lastEnvironment;
@@ -379,6 +380,7 @@ internal static class RecorderRuntime
         _statusRefreshRequested = true;
         _runSequence = 0;
         _runActive = false;
+        _nativeRunStartedObserved = false;
         _nativeRunEndedObserved = false;
         _currentRunId = "run-unassigned";
         ResetNativeActionTrackingUnsafe();
@@ -3178,11 +3180,38 @@ internal static class RecorderRuntime
             if (_store == null || _nativeRunEndedObserved)
                 return;
             _nativeRunEndedObserved = true;
+            _nativeRunStartedObserved = false;
             _runActive = false;
             AppendJournal("run_ended_native", null, _lastSnapshotId, detail);
             _statusRefreshRequested = true;
         }
         PublishApplicationEvent(RecordingEventKind.RunEnded, detail: detail);
+    }
+
+    /// <summary>
+    /// Records the exact native run-start seam. RunManager.Launch is invoked
+    /// after STS2 has initialized the RunState and before the run scene enters
+    /// its first act. It is the authority for a native start marker; the
+    /// recorder never infers a native start from a status poll.
+    /// </summary>
+    internal static void ObserveNativeRunStarted()
+    {
+        lock (Gate)
+        {
+            if (_store == null || _nativeRunStartedObserved || _runActive)
+                return;
+            _runSequence++;
+            _currentRunId = $"run-{_runSequence:D4}";
+            _runActive = true;
+            _nativeRunStartedObserved = true;
+            _statusRefreshRequested = true;
+            AppendJournal(
+                "run_started_native",
+                null,
+                null,
+                "RunManager.Launch completed with an initialized RunState.");
+        }
+        PublishApplicationEvent(RecordingEventKind.RunStarted);
     }
 
     private static void UpdateRunLifecycle()
@@ -3193,8 +3222,13 @@ internal static class RecorderRuntime
             _runSequence++;
             _currentRunId = $"run-{_runSequence:D4}";
             _runActive = true;
+            _nativeRunStartedObserved = false;
             _statusRefreshRequested = true;
-            AppendJournal("run_started", null, null, null);
+            AppendJournal(
+                "run_observed_in_progress",
+                null,
+                null,
+                "Recorder observed an already-active run without a native start witness.");
             PublishApplicationEvent(RecordingEventKind.RunStarted);
         }
         else if (!inProgress && _runActive)
@@ -3211,6 +3245,9 @@ internal static class RecorderRuntime
             _statusRefreshRequested = true;
         }
         if (!inProgress)
+        {
+            _nativeRunStartedObserved = false;
             _nativeRunEndedObserved = false;
+        }
     }
 }

@@ -21,7 +21,7 @@ evidence.
 | shop inventory close | `NMerchantInventory.Close` after exact BackButton delivery | complete visible close control | exact inventory close callback | source complete; final-candidate live canary required | exact return-to-room successor evidence remains a live qualification gate |
 | rest-site option | `RestSiteSynchronizer` option task/events | complete visible option catalog | exact synchronizer callback + `Task<bool>` completion; proceed callback | source complete; final-candidate live canary required | exact post-room successor evidence remains a live qualification gate |
 | event dialogue / room navigation | native presentation callbacks and room transition | observation only for dialogue | no gameplay decision authority | intentionally excluded from canonical action envelope | remains non-claim until a native decision owner is proven |
-| run entry / terminal | menu/game-over adapters | observation only | no canonical Human decision seam | not in current recording profile | classify as lifecycle markers, not actions, unless contract changes |
+| run entry / terminal | `RunManager.Launch()` / `RunManager.OnEnded(bool)` | lifecycle only | exact native start/terminal markers; no Human action authority | lifecycle-provenance; not a canonical action family | `run_started_native` is emitted only from Launch; a recorder joining an active run is `run_observed_in_progress`; terminal requires OnEnded |
 
 ## Decision before implementation
 
@@ -43,6 +43,13 @@ game commit: 41cef1ea
 sts2.dll sha256: 9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4
 sts2.dll mvid: 57785517-0b16-42b9-8b36-bad6fb28384b
 ```
+
+Run lifecycle provenance is deliberately split: `run_started_native` is emitted
+from the exact `RunManager.Launch()` seam after STS2 has initialized its
+`RunState`; `run_observed_in_progress` is emitted only when a recorder joins an
+already-active run and therefore cannot claim the real start time.  The exact
+`RunManager.OnEnded(bool)` callback remains the sole qualified terminal marker;
+an `IsInProgress=false` observation is journaled as unproved only.
 
 Native Task callbacks are attributed only when the current session generation
 has a staged Human expectation for that exact kind (including declared

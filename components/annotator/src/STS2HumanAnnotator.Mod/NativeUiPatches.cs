@@ -1646,6 +1646,24 @@ internal static class NativeShopInventoryClosePatch
 }
 
 /// <summary>
+/// Captures the exact STS2 run-start seam. RunManager.Launch is called after
+/// the native RunState has been initialized; it is distinct from a recorder
+/// joining an already-running session, which remains an observed-in-progress
+/// marker.
+/// </summary>
+[HarmonyPatch]
+internal static class NativeRunStartedPatch
+{
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(typeof(RunManager), "Launch")
+        ?? throw new MissingMethodException(
+            typeof(RunManager).FullName,
+            "Launch");
+
+    private static void Postfix() => RecorderRuntime.ObserveNativeRunStarted();
+}
+
+/// <summary>
 /// Captures the exact STS2 terminal seam.  RunManager.OnEnded is invoked by
 /// both native victory and defeat paths; the recorder only projects this
 /// observation and never manufactures a successor or settles an action.
