@@ -290,6 +290,67 @@ public sealed class NativeFoundationContractTests
             room));
     }
 
+    [Fact]
+    public void BossRelicChoiceKeepsPlayerChoiceParentAndCommitSeparate()
+    {
+        Assert.Equal("NChooseARelicSelection", NativeBossRelicDecisionProvider.ScreenOwner);
+        Assert.Equal(
+            "RelicSelectCmd.FromChooseARelicScreen",
+            NativeBossRelicDecisionProvider.ParentCommand);
+        Assert.Equal(
+            "NChooseARelicSelection.RelicsSelected",
+            NativeBossRelicDecisionProvider.CompletionSeam);
+        Assert.Equal(
+            "PlayerChoiceSynchronizer.SyncLocalChoice",
+            NativeBossRelicDecisionProvider.CommitSeam);
+        Assert.Contains("parent PlayerChoice continuation", NativeBossRelicDecisionProvider.NextBoundary);
+
+        var relic = new object();
+        var screen = new object();
+        NativeSemanticAction[] actions =
+        {
+            new(
+                "select|relic-1|-",
+                NativeBossRelicDecisionProvider.SelectVerb,
+                "relic-1",
+                relic,
+                Array.Empty<NativeSemanticOperand>(),
+                "NChooseARelicSelection.SelectHolder"),
+            new(
+                "skip|screen-1|-",
+                NativeBossRelicDecisionProvider.SkipVerb,
+                "screen-1",
+                screen,
+                Array.Empty<NativeSemanticOperand>(),
+                "NChooseARelicSelection.OnSkipButtonReleased")
+        };
+
+        Assert.True(NativeSemanticActionCatalog.ContainsExactlyOnce(
+            actions,
+            NativeBossRelicDecisionProvider.SelectVerb,
+            relic));
+        Assert.True(NativeSemanticActionCatalog.ContainsExactlyOnce(
+            actions,
+            NativeBossRelicDecisionProvider.SkipVerb,
+            screen));
+    }
+
+    [Fact]
+    public void ActChangeFactsDoNotPromoteReadyEnqueueToSuccessor()
+    {
+        NativeActChangeObservation ready =
+            NativeActChangeDecisionProvider.ObserveReadyRequest();
+
+        Assert.Equal(
+            "accepted_enqueue_not_commit",
+            ready.Status);
+        Assert.Contains("SetLocalPlayerReady", ready.AcceptedSeam);
+        Assert.Contains("VoteToMoveToNextActAction.ExecuteAction", ready.CommitSeam);
+        Assert.Contains("all_ready", ready.ConditionalNextBoundary);
+
+        Assert.Equal(NativeActChangeDecisionProvider.CommitSeam, ready.CommitSeam);
+    }
+
     private static NativeSemanticAction Action(
         string key,
         object subject,

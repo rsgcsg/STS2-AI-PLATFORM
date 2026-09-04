@@ -30,7 +30,8 @@ internal static partial class PlayerEnvironmentService
         LiveObservation draft = Measure("native_surface_state", () =>
         {
             LiveObservation? sourceFreeSurface =
-                NativeGeneratedCardChoice.TryBuild(Entities, game)
+            NativeGeneratedCardChoice.TryBuild(Entities, game)
+                ?? NativeBossRelicSelection.TryBuild(Entities, game)
                 ?? NativeSimpleCardSelection.TryBuild(Entities, game)
                 ?? NativeDeckUpgradeSelection.TryBuild(Entities, game)
                 ?? NativeDeckTransformSelection.TryBuild(Entities, game)

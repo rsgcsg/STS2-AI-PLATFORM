@@ -700,6 +700,55 @@ public sealed class NativeUiContractTests
     }
 
     [Fact]
+    public void BossRelicSelectionDescriptorsBindExactScreenAndRelicOrSkipControl()
+    {
+        var relic = new VisibleRelic(
+            "relic-choice",
+            "RELIC_A",
+            "Relic A",
+            "A relic.",
+            null,
+            Array.Empty<VisibleKeyword>(),
+            Array.Empty<VisibleCard>());
+        var surface = new NativeBossRelicSelectionSurface(
+            NativeBossRelicSelection.SurfaceKind,
+            "boss-relic-screen",
+            new[] { relic },
+            new[] { relic.EntityId },
+            CanSkip: true);
+
+        NativeUiActionDescriptor[] commands =
+            NativeBossRelicSelection.DescribeCommands(surface).ToArray();
+
+        NativeUiActionDescriptor choose = Assert.Single(
+            commands,
+            command => command.Kind == NativeBossRelicSelection.SelectOperation);
+        Assert.Contains(choose.EntityBindings!, binding =>
+            binding.Role == "screen" && binding.EntityId == "boss-relic-screen");
+        Assert.Contains(choose.EntityBindings!, binding =>
+            binding.Role == "relic" && binding.EntityId == relic.EntityId);
+
+        NativeUiActionDescriptor skip = Assert.Single(
+            commands,
+            command => command.Kind == NativeBossRelicSelection.SkipOperation);
+        Assert.Contains(skip.EntityBindings!, binding =>
+            binding.Role == "screen" && binding.EntityId == "boss-relic-screen");
+        Dictionary<string, string> chooseOperands =
+            NativeUiActionRuntime.BuildCommandOperands(
+                choose.Kind,
+                "select_entity",
+                choose.EntityBindings!);
+        Assert.Equal("boss-relic-screen", chooseOperands["screen_id"]);
+        Assert.Equal(relic.EntityId, chooseOperands["choice_id"]);
+        Assert.Equal(
+            NativeBossRelicSelection.SkipOperation,
+            NativeUiActionRuntime.BuildCommandOperands(
+                skip.Kind,
+                "activate_control",
+                skip.EntityBindings!)["control_id"]);
+    }
+
+    [Fact]
     public void SimpleCardSelectionUsesCurrentUiFactsWithoutOpeningSourceAuthority()
     {
         var card = new VisibleCard(

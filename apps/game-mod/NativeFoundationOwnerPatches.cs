@@ -4,6 +4,7 @@ using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Entities.CardRewardAlternatives;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.GameActions;
 using MegaCrit.Sts2.Core.Multiplayer.Game;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Nodes.Screens;
@@ -90,6 +91,20 @@ internal static class NativeFoundationOwnerPatches
             AccessTools.Method(
                 typeof(NativeCombatDecisionOwnerReadyPatch),
                 nameof(NativeCombatDecisionOwnerReadyPatch.Postfix)));
+        PatchPostfix(
+            harmony,
+            AccessTools.Method(
+                typeof(ActChangeSynchronizer),
+                nameof(ActChangeSynchronizer.SetLocalPlayerReady)),
+            AccessTools.Method(
+                typeof(NativeActChangeReadyPatch),
+                nameof(NativeActChangeReadyPatch.Postfix)));
+        PatchPostfix(
+            harmony,
+            AccessTools.Method(typeof(VoteToMoveToNextActAction), "ExecuteAction"),
+            AccessTools.Method(
+                typeof(NativeActChangeCommitPatch),
+                nameof(NativeActChangeCommitPatch.Postfix)));
         _initialized = true;
     }
 
@@ -101,6 +116,36 @@ internal static class NativeFoundationOwnerPatches
         if (original == null || postfix == null)
             throw new MissingMethodException("A Native Foundation owner seam is unavailable.");
         harmony.Patch(original, postfix: new HarmonyMethod(postfix));
+    }
+}
+
+internal static class NativeActChangeReadyPatch
+{
+    internal static void Postfix()
+    {
+        try
+        {
+            NativeActChangeDecisionProvider.ObserveReadyRequest();
+        }
+        catch (Exception exception)
+        {
+            GD.PrintErr($"[STS2 Platform] native act-change ready observation failed: {exception}");
+        }
+    }
+}
+
+internal static class NativeActChangeCommitPatch
+{
+    internal static void Postfix(VoteToMoveToNextActAction __instance)
+    {
+        try
+        {
+            NativeActChangeDecisionProvider.ObserveVoteCommit(__instance);
+        }
+        catch (Exception exception)
+        {
+            GD.PrintErr($"[STS2 Platform] native act-change Commit observation failed: {exception}");
+        }
     }
 }
 

@@ -21,6 +21,11 @@ Current bounded ownership:
 - `NativeCardRewardDecisionProvider`: exact card and alternative option lists;
 - `NativeTreasureDecisionProvider`: exact treasure room lifecycle, relic
   collection membership and local vote;
+- `NativeBossRelicDecisionProvider`: exact `NChooseARelicSelection` options,
+  skip path, and `RelicSelectCmd.FromChooseARelicScreen` PlayerChoice lineage;
+- `NativeActChangeDecisionProvider`: exact act-ready enqueue and
+  `VoteToMoveToNextActAction` Commit seams, with a conditional next-boundary
+  description that never claims `EnterNextAct` has completed;
 - `NativeDecisionOwnerReadyProvider`: typed process-local notification from an
   exact owner-ready seam; consumers must still capture and validate a complete
   Connector frame at that seam;
