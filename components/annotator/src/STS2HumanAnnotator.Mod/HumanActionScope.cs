@@ -11,6 +11,7 @@ internal readonly record struct NativeUiScopeEntry(
 internal sealed class HumanActionContext
 {
     private readonly AcceptedRootActionGate _rootActionGate;
+    private int _rejectedAcceptedIngress;
 
     internal HumanActionContext(
         string origin,
@@ -57,6 +58,13 @@ internal sealed class HumanActionContext
         _rootActionGate.TryClaim(nativeActionType);
 
     internal bool RootActionClaimed => _rootActionGate.IsClaimed;
+
+    // A different native callback must not consume the expected-root gate,
+    // but the first such accepted callback still needs one failed-closed
+    // disposition. This local bit makes that disposition idempotent without
+    // introducing another root registry or completion ledger.
+    internal bool TryClaimRejectedAcceptedIngress() =>
+        Interlocked.Exchange(ref _rejectedAcceptedIngress, 1) == 0;
 }
 
 internal sealed class DeferredHumanActionFailure

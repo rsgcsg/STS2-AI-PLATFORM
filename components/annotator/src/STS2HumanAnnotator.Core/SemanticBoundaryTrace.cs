@@ -610,10 +610,21 @@ public sealed class SemanticBoundaryTracker
 
     public IReadOnlyList<SemanticBoundaryTraceDraft> CloseUnknown(string proofStatus)
     {
+        IReadOnlyList<SemanticBoundaryTraceDraft> drafts = PreviewCloseUnknown(proofStatus);
+        CommitCloseUnknown();
+        return drafts;
+    }
+
+    /// <summary>
+    /// Builds terminal unknown dispositions without changing tracker state.
+    /// RecordingSessionStore writes span several independent streams, so the
+    /// runtime must be able to retain unresolved roots when that write fails.
+    /// </summary>
+    public IReadOnlyList<SemanticBoundaryTraceDraft> PreviewCloseUnknown(string proofStatus)
+    {
         var drafts = new List<SemanticBoundaryTraceDraft>();
         foreach (Entry entry in _order.Select(id => _entries[id]).Where(value => !value.Disposed))
         {
-            entry.Disposed = true;
             drafts.Add(Draft(
                 SemanticBoundaryTraceKinds.TransitionUnknown,
                 entry,
@@ -622,8 +633,19 @@ public sealed class SemanticBoundaryTracker
                 detail: RecordingClosePolicy.TerminalUnknownDetail,
                 nonClaims: new[] { "no_semantic_successor" }));
         }
-        _currentState = null;
         return drafts;
+    }
+
+    /// <summary>
+    /// Commits a previously previewed close disposition after its evidence is
+    /// durable. Calling this method is intentionally side-effect-only so a
+    /// failed persistence attempt cannot erase accepted roots.
+    /// </summary>
+    public void CommitCloseUnknown()
+    {
+        foreach (Entry entry in _order.Select(id => _entries[id]).Where(value => !value.Disposed))
+            entry.Disposed = true;
+        _currentState = null;
     }
 
     public void Reset()
