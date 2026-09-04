@@ -347,6 +347,14 @@ test("accepted ingress converges on one gate and keeps unowned GameActions out o
   const gameActionIngress = sourceBetween(runtime, "internal static void ObserveAcceptedAction", "internal static void ObservePlayCardExecutionAborted");
   const uiIngress = sourceBetween(runtime, "internal static void ObserveAcceptedSemanticUiAction", "private static void TryQuarantineDeferredAcceptedAction");
   assert.match(gameActionIngress, /AcceptedDecisionObserver\.Observe/u);
+  assert.match(
+    gameActionIngress,
+    /OutcomeKind\.NativeTypeMismatch\)[\s\S]*human_action_native_type_mismatch/u
+  );
+  assert.match(
+    gameActionIngress,
+    /OutcomeKind\.NoScope[\s\S]*OutcomeKind\.Duplicate[\s\S]*TryQuarantineDeferredAcceptedAction/u
+  );
   assert.match(uiIngress, /AcceptedDecisionObserver\.Observe/u);
   assert.match(runtime, /human_action_accepted_without_scope/u);
   assert.match(runtime, /native_action_exact_mapping_failed/u);
@@ -357,14 +365,28 @@ test("accepted ingress converges on one gate and keeps unowned GameActions out o
 test("close persistence previews unknown dispositions before committing or clearing native tracking", () => {
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
   const close = sourceBetween(runtime, "private static void FinalizeClose", "private static bool HasPendingRecordingWorkUnsafe");
+  const persist = sourceBetween(runtime, "private static void PersistSemanticBoundaryDrafts", "private static bool TryPersistDerivedTransitionProjection");
 
   assert.match(close, /PreviewCloseUnknown/u);
-  assert.match(close, /PersistSemanticBoundaryDrafts\(closeDrafts\)/u);
+  assert.match(close, /PersistSemanticBoundaryDrafts\(\s*closeDrafts/u);
+  assert.match(close, /onAuthoritativeSemanticAppend/u);
+  assert.match(close, /onDerivedProjectionFailure/u);
   assert.match(close, /CommitCloseUnknown/u);
   assert.ok(close.indexOf("PreviewCloseUnknown") < close.indexOf("PersistSemanticBoundaryDrafts"));
-  assert.ok(close.indexOf("PersistSemanticBoundaryDrafts") < close.indexOf("CommitCloseUnknown"));
+  assert.ok(close.indexOf("onAuthoritativeSemanticAppend") < close.indexOf("CommitCloseUnknown"));
   assert.ok(close.indexOf("CommitCloseUnknown") < close.indexOf("TerminateClosePendingWork"));
   assert.match(close, /close_disposition_persistence_failed/u);
+  assert.match(close, /close_projection_persistence_failed/u);
+  assert.equal((close.match(/PersistSemanticBoundaryDrafts\(/gu) ?? []).length, 1);
+  assert.match(close, /if \(!authoritativeDispositionPersisted\)\s*return/u);
+  assert.match(close, /derivedProjectionFailed[\s\S]*State = "closing"/u);
+  assert.ok(
+    persist.indexOf("store.AppendSemanticEvidenceEvents")
+      < persist.indexOf("onAuthoritativeSemanticAppend?.Invoke"));
+  assert.ok(
+    persist.indexOf("onAuthoritativeSemanticAppend?.Invoke")
+      < persist.indexOf("TryPersistDerivedTransitionProjection"));
+  assert.match(persist, /if \(!TryPersistDerivedTransitionProjection[\s\S]*derivedProjectionFailed/u);
 });
 
 test("shop accepted mapping is staged once and reused by the accepted callback", () => {

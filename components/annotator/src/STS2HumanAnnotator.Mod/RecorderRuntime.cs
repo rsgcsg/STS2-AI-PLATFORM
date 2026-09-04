@@ -99,6 +99,7 @@ internal static class RecorderRuntime
     // tracker. If the multi-stream store write fails, keep the session open
     // and the roots unresolved; never close on an in-memory-only unknown.
     private static bool _closeDispositionPersistenceFailed;
+    private static bool _closeProjectionPersistenceFailed;
     private static int _runSequence;
     private static bool _runActive;
     // A native RunManager.OnEnded observation is the only authoritative
@@ -393,6 +394,7 @@ internal static class RecorderRuntime
         _requiredReadsHealth = "not_checked";
         _lastPublishedHealth = null;
         _closeDispositionPersistenceFailed = false;
+        _closeProjectionPersistenceFailed = false;
         _closeout = RecordingCloseoutStatus.Idle;
         _lifecycle = lifecycle;
         _runtimeState = "waiting_for_player_environment";
@@ -487,7 +489,8 @@ internal static class RecorderRuntime
         lock (Gate)
         {
             if (_lifecycle.State != RecordingLifecycleState.Closing
-                || _closeDispositionPersistenceFailed)
+                || _closeDispositionPersistenceFailed
+                || _closeProjectionPersistenceFailed)
                 return;
             if (!_semanticBoundaryTraceHealthy)
             {
@@ -504,37 +507,90 @@ internal static class RecorderRuntime
             closeDrafts = BoundaryTracker.PreviewCloseUnknown(
                 RecordingClosePolicy.TerminalUnknownReason);
         }
+        bool authoritativeDispositionPersisted = closeDrafts.Count == 0;
+        bool derivedProjectionFailed = false;
         try
         {
-            PersistSemanticBoundaryDrafts(closeDrafts);
+            PersistSemanticBoundaryDrafts(
+                closeDrafts,
+                onAuthoritativeSemanticAppend: () =>
+                {
+                    lock (Gate)
+                    {
+                        if (_lifecycle.State != RecordingLifecycleState.Closing
+                            || authoritativeDispositionPersisted)
+                            return;
+                        BoundaryTracker.CommitCloseUnknown();
+                        authoritativeDispositionPersisted = true;
+                    }
+                },
+                onDerivedProjectionFailure: () => derivedProjectionFailed = true);
         }
         catch (Exception exception)
         {
-            // PersistSemanticBoundaryDrafts writes semantic evidence and
-            // projections to independent streams. Keep the causal tracker in
-            // its pre-close state and leave the lifecycle Closing; otherwise
-            // a failed write would turn an accepted root into an unrecorded
-            // in-memory disposition and falsely publish session_closed.
+            // A failure before the semantic stream append leaves roots live;
+            // a later projection failure follows a durable disposition and
+            // must not make that root appear unresolved again.
+            bool dispositionWasDurable = authoritativeDispositionPersisted;
             lock (Gate)
             {
-                _closeDispositionPersistenceFailed = true;
-                _runtimeState = "close_disposition_persistence_failed";
+                if (dispositionWasDurable)
+                {
+                    _closeProjectionPersistenceFailed = true;
+                    _runtimeState = "close_projection_persistence_failed";
+                }
+                else
+                {
+                    _closeDispositionPersistenceFailed = true;
+                    _runtimeState = "close_disposition_persistence_failed";
+                }
                 _detail = exception.Message;
                 _closeout = _closeout with
                 {
                     State = "closing",
-                    Detail = "Close disposition persistence failed; accepted roots remain unresolved."
+                    Detail = dispositionWasDurable
+                        ? "Close projection persistence failed after the authoritative disposition; the session remains auditable but open."
+                        : "Close disposition persistence failed; accepted roots remain unresolved."
                 };
             }
-            GD.PrintErr($"[STS2 Human Annotator] close disposition persistence failed: {exception}");
+            Quarantine(
+                dispositionWasDurable
+                    ? "close_projection_persistence_failed"
+                    : "close_disposition_persistence_failed",
+                exception.Message,
+                _lastSnapshotId,
+                null,
+                "evidence_commit_unknown");
+            // Quarantine is itself an application projection and may update
+            // the transient runtime label. Restore the close phase after that
+            // best-effort diagnostic write so the failure stays explicit.
+            lock (Gate)
+            {
+                _runtimeState = dispositionWasDurable
+                    ? "close_projection_persistence_failed"
+                    : "close_disposition_persistence_failed";
+                _detail = exception.Message;
+            }
+            GD.PrintErr($"[STS2 Human Annotator] close persistence failed: {exception}");
             return;
         }
 
-        lock (Gate)
+        if (!authoritativeDispositionPersisted)
+            return;
+        if (derivedProjectionFailed)
         {
-            if (_lifecycle.State != RecordingLifecycleState.Closing)
-                return;
-            BoundaryTracker.CommitCloseUnknown();
+            lock (Gate)
+            {
+                _closeProjectionPersistenceFailed = true;
+                _runtimeState = "close_projection_persistence_failed";
+                _detail = "A derived semantic projection failed after the authoritative disposition was persisted.";
+                _closeout = _closeout with
+                {
+                    State = "closing",
+                    Detail = "Close projection persistence failed after the authoritative disposition; the session remains auditable but open."
+                };
+            }
+            return;
         }
 
         // Native callbacks are only discarded after every unresolved root has
@@ -1260,8 +1316,22 @@ internal static class RecorderRuntime
                         : null);
                 return;
             }
+            if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.NativeTypeMismatch)
+            {
+                // A staged Human root with the wrong accepted native type is
+                // an owned failed-closed ingress, not an unowned callback.
+                // The observer has claimed the rejection bit, so a duplicate
+                // callback will take the Duplicate branch below.
+                Quarantine(
+                    "human_action_native_type_mismatch",
+                    "An accepted native GameAction did not match the staged native action type.",
+                    context?.Frame.Snapshot.SnapshotId,
+                    nativeActionType,
+                    "failed_closed",
+                    context?.Occurrence ?? OccurrenceFrom(nativeActionType, context!, observed, witness));
+                return;
+            }
             if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.NoScope
-                || outcome.Kind == AcceptedDecisionObserver.OutcomeKind.NativeTypeMismatch
                 || outcome.Kind == AcceptedDecisionObserver.OutcomeKind.Duplicate)
             {
                 // GameAction.OnEnqueued is also raised for native/internal
@@ -2535,7 +2605,9 @@ internal static class RecorderRuntime
     }
 
     private static void PersistSemanticBoundaryDrafts(
-        IReadOnlyList<SemanticBoundaryTraceDraft> drafts)
+        IReadOnlyList<SemanticBoundaryTraceDraft> drafts,
+        Action? onAuthoritativeSemanticAppend = null,
+        Action? onDerivedProjectionFailure = null)
     {
         if (drafts.Count == 0 || !_semanticBoundaryTraceHealthy)
             return;
@@ -2588,6 +2660,7 @@ internal static class RecorderRuntime
             });
         }
         store.AppendSemanticEvidenceEvents(events);
+        onAuthoritativeSemanticAppend?.Invoke();
 
         // Completion registrations are in-memory correlation state. Remove
         // them only after the terminal disposition has reached the durable
@@ -2612,10 +2685,22 @@ internal static class RecorderRuntime
                 ToActionProjection(draft.Action.BoundAction!));
         }
 
+        bool derivedProjectionFailed = false;
         foreach (SemanticBoundaryTraceDraft draft in drafts.Where(value =>
                      value.Kind == SemanticBoundaryTraceKinds.TransitionProved))
         {
-            PersistDerivedTransitionProjection(store, draft);
+            if (!TryPersistDerivedTransitionProjection(store, draft))
+                derivedProjectionFailed = true;
+        }
+        if (derivedProjectionFailed)
+        {
+            onDerivedProjectionFailure?.Invoke();
+            // Close supplies a callback so it can remain explicitly open
+            // after the authoritative disposition. Other lifecycle writes
+            // retain their existing cleanup path after the projection has
+            // already been quarantined above.
+            if (onDerivedProjectionFailure != null)
+                return;
         }
         foreach (SemanticBoundaryTraceDraft draft in drafts.Where(IsSemanticDisposition))
         {
@@ -2635,12 +2720,17 @@ internal static class RecorderRuntime
 
     private static void PersistDerivedTransitionProjection(
         RecordingSessionStore store,
+        SemanticBoundaryTraceDraft draft) =>
+        _ = TryPersistDerivedTransitionProjection(store, draft);
+
+    private static bool TryPersistDerivedTransitionProjection(
+        RecordingSessionStore store,
         SemanticBoundaryTraceDraft draft)
     {
         string? family = SupportedFamilyForSemanticAction(draft.Action);
         if (family == null
             || !CaptureProfile.SupportedActionFamilies.Contains(family, StringComparer.Ordinal))
-            return;
+            return true;
 
         try
         {
@@ -2725,6 +2815,7 @@ internal static class RecorderRuntime
             _detail = canonical.TransitionId;
             WriteStatus(environment, canonical.SuccessorRef.SnapshotId, Array.Empty<string>());
             GD.Print($"[STS2 Human Annotator] admitted {canonical.TransitionId} {canonical.Action.Verb} from semantic proof");
+            return true;
         }
         catch (Exception exception)
         {
@@ -2734,6 +2825,7 @@ internal static class RecorderRuntime
                 draft.SemanticPre?.SnapshotId,
                 draft.Action.NativeActionType,
                 "evidence_commit_unknown");
+            return false;
         }
     }
 

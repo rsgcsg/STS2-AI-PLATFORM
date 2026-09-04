@@ -643,6 +643,55 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
+    public void AuthoritativeCloseAppendThenProjectionFailureCommitsExactlyOnce()
+    {
+        var beforeAppendFailure = new SemanticBoundaryTracker();
+        beforeAppendFailure.Accept(Action("close-append-failure", 1), State("s0"));
+
+        IReadOnlyList<SemanticBoundaryTraceDraft> beforePreview =
+            beforeAppendFailure.PreviewCloseUnknown(RecordingClosePolicy.TerminalUnknownReason);
+        int failedAppendAttempts = 0;
+        try
+        {
+            failedAppendAttempts++;
+            throw new InvalidOperationException("append failed before durable evidence");
+        }
+        catch (InvalidOperationException)
+        {
+            // The coordinator remains Closing and does not commit its preview.
+        }
+
+        Assert.Single(beforePreview);
+        Assert.Equal(1, failedAppendAttempts);
+        Assert.True(beforeAppendFailure.HasUnresolvedActions);
+
+        var afterAppendFailure = new SemanticBoundaryTracker();
+        afterAppendFailure.Accept(Action("close-projection-failure", 2), State("s1"));
+        IReadOnlyList<SemanticBoundaryTraceDraft> afterPreview =
+            afterAppendFailure.PreviewCloseUnknown(RecordingClosePolicy.TerminalUnknownReason);
+        Assert.Single(afterPreview);
+        int durableDispositionAppends = 0;
+
+        try
+        {
+            durableDispositionAppends++;
+            afterAppendFailure.CommitCloseUnknown();
+            throw new InvalidOperationException("projection failed after durable evidence");
+        }
+        catch (InvalidOperationException)
+        {
+            // The coordinator records the projection failure but does not
+            // retry the authoritative semantic append.
+        }
+
+        Assert.Equal(1, durableDispositionAppends);
+        Assert.False(afterAppendFailure.HasUnresolvedActions);
+        Assert.Empty(afterAppendFailure.PreviewCloseUnknown("duplicate_close"));
+        afterAppendFailure.CommitCloseUnknown();
+        Assert.Empty(afterAppendFailure.PreviewCloseUnknown("duplicate_close"));
+    }
+
+    [Fact]
     public void CapacityBoundsTheLiveCausalWindowRatherThanSessionHistory()
     {
         var tracker = new SemanticBoundaryTracker(capacity: 2);
