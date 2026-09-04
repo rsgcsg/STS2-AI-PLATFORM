@@ -1,11 +1,12 @@
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Combat;
+using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.CardRewardAlternatives;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Players;
-using MegaCrit.Sts2.Core.GameActions;
 using MegaCrit.Sts2.Core.Multiplayer.Game;
+using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Nodes.Screens;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
@@ -91,20 +92,15 @@ internal static class NativeFoundationOwnerPatches
             AccessTools.Method(
                 typeof(NativeCombatDecisionOwnerReadyPatch),
                 nameof(NativeCombatDecisionOwnerReadyPatch.Postfix)));
-        PatchPostfix(
+        PatchBefore(
             harmony,
             AccessTools.Method(
-                typeof(ActChangeSynchronizer),
-                nameof(ActChangeSynchronizer.SetLocalPlayerReady)),
+                typeof(RelicSelectCmd),
+                nameof(RelicSelectCmd.FromChooseARelicScreen),
+                new[] { typeof(Player), typeof(IReadOnlyList<RelicModel>) }),
             AccessTools.Method(
-                typeof(NativeActChangeReadyPatch),
-                nameof(NativeActChangeReadyPatch.Postfix)));
-        PatchPostfix(
-            harmony,
-            AccessTools.Method(typeof(VoteToMoveToNextActAction), "ExecuteAction"),
-            AccessTools.Method(
-                typeof(NativeActChangeCommitPatch),
-                nameof(NativeActChangeCommitPatch.Postfix)));
+                typeof(NativeBossRelicCommandPatch),
+                nameof(NativeBossRelicCommandPatch.Before)));
         _initialized = true;
     }
 
@@ -117,34 +113,29 @@ internal static class NativeFoundationOwnerPatches
             throw new MissingMethodException("A Native Foundation owner seam is unavailable.");
         harmony.Patch(original, postfix: new HarmonyMethod(postfix));
     }
-}
 
-internal static class NativeActChangeReadyPatch
-{
-    internal static void Postfix()
+    private static void PatchBefore(
+        Harmony harmony,
+        System.Reflection.MethodInfo? original,
+        System.Reflection.MethodInfo? before)
     {
-        try
-        {
-            NativeActChangeDecisionProvider.ObserveReadyRequest();
-        }
-        catch (Exception exception)
-        {
-            GD.PrintErr($"[STS2 Platform] native act-change ready observation failed: {exception}");
-        }
+        if (original == null || before == null)
+            throw new MissingMethodException("A Native Foundation input seam is unavailable.");
+        harmony.Patch(original, new HarmonyMethod(before));
     }
 }
 
-internal static class NativeActChangeCommitPatch
+internal static class NativeBossRelicCommandPatch
 {
-    internal static void Postfix(VoteToMoveToNextActAction __instance)
+    internal static void Before(Player player, IReadOnlyList<RelicModel> relics)
     {
         try
         {
-            NativeActChangeDecisionProvider.ObserveVoteCommit(__instance);
+            NativeBossRelicDecisionProvider.RegisterFromChooseARelicScreen(player, relics);
         }
         catch (Exception exception)
         {
-            GD.PrintErr($"[STS2 Platform] native act-change Commit observation failed: {exception}");
+            GD.PrintErr($"[STS2 Platform] native boss relic command observation failed: {exception}");
         }
     }
 }

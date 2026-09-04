@@ -11,15 +11,27 @@ namespace STS2Platform.NativeFoundation;
 /// </summary>
 public static class NativeActChangeDecisionProvider
 {
-    public static event Action<NativeActChangeObservation>? Observed;
-
     public const string AcceptedSeam =
         "ActChangeSynchronizer.SetLocalPlayerReady->ActionQueueSynchronizer.RequestEnqueue";
     public const string VoteActionType = nameof(VoteToMoveToNextActAction);
     public const string CommitSeam =
         "VoteToMoveToNextActAction.ExecuteAction->ActChangeSynchronizer.OnPlayerReady";
+    public const string OwnerReadySeam = "ActChangeSynchronizer.OnPlayerReady";
     public const string ConditionalNextBoundary =
         "ActChangeSynchronizer.OnPlayerReady(all_ready)->RunManager.EnterNextAct->ActEntered";
+
+    /// <summary>
+    /// Typed, process-local facts for a consumer that already owns the native
+    /// callback. No Harmony callback is installed here and no successor is
+    /// synthesized by the contract.
+    /// </summary>
+    public static NativeActChangeFactContract Contract { get; } =
+        new(
+            AcceptedSeam,
+            VoteActionType,
+            CommitSeam,
+            OwnerReadySeam,
+            ConditionalNextBoundary);
 
     public static NativeActChangeDecision Capture()
     {
@@ -39,6 +51,7 @@ public static class NativeActChangeDecisionProvider
                 AcceptedSeam,
                 VoteActionType,
                 CommitSeam,
+                OwnerReadySeam,
                 ConditionalNextBoundary,
                 "The next boundary is conditional on all native readiness votes; it is not asserted by Capture.");
         }
@@ -46,41 +59,6 @@ public static class NativeActChangeDecisionProvider
         {
             return Unavailable($"{exception.GetType().Name}: {exception.Message}");
         }
-    }
-
-    /// <summary>
-    /// Exact read-only description used by a native owner patch after
-    /// SetLocalPlayerReady returns.  The method does not imply that the
-    /// queued action has executed.
-    /// </summary>
-    public static NativeActChangeObservation ObserveReadyRequest()
-    {
-        NativeActChangeObservation observation = new(
-            "ActChangeSynchronizer.SetLocalPlayerReady",
-            AcceptedSeam,
-            CommitSeam,
-            ConditionalNextBoundary,
-            "accepted_enqueue_not_commit");
-        Observed?.Invoke(observation);
-        return observation;
-    }
-
-    /// <summary>
-    /// Exact read-only description used after VoteToMoveToNextActAction's
-    /// native ExecuteAction returns.  This is the readiness Commit, not a
-    /// claim that EnterNextAct or ActEntered has already occurred.
-    /// </summary>
-    public static NativeActChangeObservation ObserveVoteCommit(
-        VoteToMoveToNextActAction action)
-    {
-        NativeActChangeObservation observation = new(
-            VoteActionType,
-            AcceptedSeam,
-            CommitSeam,
-            ConditionalNextBoundary,
-            $"commit_observed:act={action.CurrentActIndex}:owner={action.OwnerId}");
-        Observed?.Invoke(observation);
-        return observation;
     }
 
     private static NativeActChangeDecision Unavailable(string detail) =>
@@ -92,9 +70,17 @@ public static class NativeActChangeDecisionProvider
             AcceptedSeam,
             VoteActionType,
             CommitSeam,
+            OwnerReadySeam,
             ConditionalNextBoundary,
             detail);
 }
+
+public sealed record NativeActChangeFactContract(
+    string AcceptedSeam,
+    string VoteActionType,
+    string CommitSeam,
+    string OwnerReadySeam,
+    string ConditionalNextBoundary);
 
 public sealed record NativeActChangeDecision(
     string Status,
@@ -104,12 +90,6 @@ public sealed record NativeActChangeDecision(
     string AcceptedSeam,
     string VoteActionType,
     string CommitSeam,
+    string OwnerReadySeam,
     string ConditionalNextBoundary,
     string? Detail);
-
-public sealed record NativeActChangeObservation(
-    string NativeOwner,
-    string AcceptedSeam,
-    string CommitSeam,
-    string ConditionalNextBoundary,
-    string Status);
