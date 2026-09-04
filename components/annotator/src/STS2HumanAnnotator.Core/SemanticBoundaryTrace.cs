@@ -217,6 +217,8 @@ public sealed class SemanticBoundaryTracker
     private readonly List<string> _order = new();
     private CurrentDecisionFrame? _currentState;
     private long _executionSequence;
+    private string? _lastStartedActionWitnessId;
+    private long _lastStartedExecutionOrder;
 
     public SemanticBoundaryTracker(int capacity = 128)
     {
@@ -315,6 +317,8 @@ public sealed class SemanticBoundaryTracker
         Entry entry = Required(actionWitnessId);
         entry.Started = true;
         entry.ExecutionOrder ??= ++_executionSequence;
+        _lastStartedActionWitnessId = actionWitnessId;
+        _lastStartedExecutionOrder = entry.ExecutionOrder.Value;
         _currentState = null;
         return new[]
         {
@@ -628,6 +632,8 @@ public sealed class SemanticBoundaryTracker
         _order.Clear();
         _currentState = null;
         _executionSequence = 0;
+        _lastStartedActionWitnessId = null;
+        _lastStartedExecutionOrder = 0;
     }
 
     private IReadOnlyList<SemanticBoundaryTraceDraft> Settle(
@@ -638,6 +644,22 @@ public sealed class SemanticBoundaryTracker
     {
         if (IsNonCausalObservation(boundary, new[] { entry }))
             return Array.Empty<SemanticBoundaryTraceDraft>();
+
+        // A later Human root may already have started while this entry was
+        // still running, so it is absent from WaitingForBoundaryInExecutionOrder.
+        // Its execution is nevertheless an intervening Human effect and makes
+        // any later boundary invalid for this entry. Keep this check in the
+        // single causal tracker rather than relying on the current live-entry
+        // collection or a later validator to retract a false proof.
+        if (entry.ExecutionOrder is long executionOrder
+            && _lastStartedExecutionOrder > executionOrder)
+        {
+            return DisposeUnknown(
+                entry,
+                "intervening_human_action_before_boundary",
+                _lastStartedActionWitnessId ?? nextActionWitnessId ?? string.Empty,
+                "Another Human action had already started before this action reached a causal successor boundary.");
+        }
 
         if (entry.Action.RequiresNativePostCommit
             && entry.NativeCommit == null

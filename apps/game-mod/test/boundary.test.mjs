@@ -501,6 +501,9 @@ test("Full-Run room witnesses use STS2-owned semantic catalogs and exact task id
   assert.match(runtime, /"shop_room\.open"/u);
   assert.match(runtime, /"shop_inventory\.close"/u);
   assert.match(runtime, /"rest_site\.choose"/u);
+  assert.match(runtime, /NPlayerHand\.OnSelectModeConfirmButtonPressed[\s\S]*combat_hand_selector\.confirm/u);
+  assert.match(runtime, /NSelectedHandCardContainer\.DeselectHolder[\s\S]*combat_hand_selector\.deselect/u);
+  assert.match(runtime, /"choose_event_option" or "activate"/u);
   assert.doesNotMatch(patches, /Task\.Delay|Thread\.Sleep|\bTimer\b|FirstOrDefault|LastOrDefault/u);
 });
 

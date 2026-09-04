@@ -62,6 +62,15 @@ commits used a non-canonical boundary name. Current source repairs both and
 strengthens audit so a stopped schema-2 trace cannot pass beside a continuing
 native ledger. The repair is source/test/build evidence only.
 
+The current Full-Run causal repair also rejects delayed settlement of an older
+Human root after any later Human root has already started. This guard lives in
+the single `SemanticBoundaryTracker`, so a later started-but-not-yet-finished
+effect cannot be omitted from the waiting set and then be crossed by a stale
+Event/room successor proof. Such a root remains an honest unknown with its
+intervening witness; no later frame, retry, or backfill is used. This source
+change still requires a fresh exact build and Human canary; predecessor runtime
+evidence does not transfer.
+
 PR #11 pre-hard-cut source carried the Native Foundation semantic decision through
 the modern path as a typed action-space sidecar. Combat roots capture it at the
 native admission boundary when available and otherwise at

@@ -73,6 +73,75 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
+    public void LaterStartedActionCannotBeSkippedByEarlyRootSettlement()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference eventAction = Action(
+            "event",
+            1,
+            "NEventRoom.OptionButtonClicked") with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(eventAction, State("human-event"));
+        tracker.ObserveBeforeActionExecution(
+            eventAction.ActionWitnessId,
+            Boundary("event-before", eventAction.ActionWitnessId));
+        tracker.Started(eventAction.ActionWitnessId);
+
+        SemanticActionReference rewardClaim = Action(
+            "reward-claim",
+            2,
+            "NRewardButton.OnRelease") with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(rewardClaim, State("human-reward"));
+        tracker.ObserveBeforeActionExecution(
+            rewardClaim.ActionWitnessId,
+            Boundary("reward-before", rewardClaim.ActionWitnessId));
+        tracker.Started(rewardClaim.ActionWitnessId);
+        tracker.Finished(rewardClaim.ActionWitnessId);
+        tracker.ObserveNativeCommit(
+            rewardClaim.ActionWitnessId,
+            Completion(rewardClaim.ActionWitnessId));
+
+        // This root is already executing when the earlier Event action later
+        // finishes and receives its Commit. It is therefore an intervening
+        // Human effect even though it is not itself waiting for a boundary.
+        SemanticActionReference rewardProceed = Action(
+            "reward-proceed",
+            3,
+            "NRewardsScreen.OnProceedButtonPressed") with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(rewardProceed, State("human-proceed"));
+        tracker.ObserveBeforeActionExecution(
+            rewardProceed.ActionWitnessId,
+            Boundary("proceed-before", rewardProceed.ActionWitnessId));
+        tracker.Started(rewardProceed.ActionWitnessId);
+
+        tracker.Finished(eventAction.ActionWitnessId);
+        tracker.ObserveNativeCommit(
+            eventAction.ActionWitnessId,
+            Completion(eventAction.ActionWitnessId));
+
+        SemanticActionReference next = Action("next", 4);
+        tracker.Accept(next, State("human-next"));
+        SemanticBoundaryTraceDraft eventDisposition = Assert.Single(
+            tracker.ObserveBeforeActionExecution(
+                next.ActionWitnessId,
+                Boundary("next-state", next.ActionWitnessId)),
+            value => value.Action.ActionWitnessId == eventAction.ActionWitnessId);
+
+        Assert.Equal(SemanticBoundaryTraceKinds.TransitionUnknown, eventDisposition.Kind);
+        Assert.Equal("intervening_human_action_before_boundary", eventDisposition.ProofStatus);
+        Assert.Equal(rewardProceed.ActionWitnessId, eventDisposition.RelatedActionWitnessId);
+        Assert.Null(eventDisposition.SemanticSuccessor);
+    }
+
+    [Fact]
     public void RapidLethalKeepsCancelledPrecommitButOnlySettlesExecutedAction()
     {
         var tracker = new SemanticBoundaryTracker();

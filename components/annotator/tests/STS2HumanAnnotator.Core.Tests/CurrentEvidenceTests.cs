@@ -28,6 +28,9 @@ public sealed class CurrentEvidenceTests
         HumanCaptureProfile profile = HumanCaptureProfiles.FullRunReadRich;
 
         Assert.Equal("human-full-run-read-rich-v3", profile.ProfileId);
+        Assert.Contains("combat_hand_selector.select", profile.SupportedActionFamilies);
+        Assert.Contains("combat_hand_selector.deselect", profile.SupportedActionFamilies);
+        Assert.Contains("combat_hand_selector.confirm", profile.SupportedActionFamilies);
         Assert.Contains("event_option.choose", profile.SupportedActionFamilies);
         Assert.Contains("event_option.proceed", profile.SupportedActionFamilies);
         Assert.Contains("shop_room.open", profile.SupportedActionFamilies);

@@ -2893,10 +2893,18 @@ internal static class RecorderRuntime
             return action.BoundAction?.Verb switch
             {
                 "proceed_event" => "event_option.proceed",
-                "choose_event_option" => "event_option.choose",
+                "choose_event_option" or "activate" => "event_option.choose",
                 _ => null
             };
         }
+        if (action.NativeActionType is "NPlayerHand.SelectCardInPlayMode"
+            or "NPlayerHand.SelectCardInDiscardMode"
+            or "NPlayerHand.SelectCardInUpgradeMode")
+            return "combat_hand_selector.select";
+        if (action.NativeActionType == "NSelectedHandCardContainer.DeselectHolder")
+            return "combat_hand_selector.deselect";
+        if (action.NativeActionType == "NPlayerHand.OnSelectModeConfirmButtonPressed")
+            return "combat_hand_selector.confirm";
         if (action.NativeActionType == "MerchantEntry.OnTryPurchaseWrapper")
         {
             return action.BoundAction?.Verb == "open_shop_card_removal"
@@ -2943,6 +2951,11 @@ internal static class RecorderRuntime
             "NEventRoom.OptionButtonClicked" => "event_option.choose",
             "RestSiteSynchronizer.ChooseLocalOption" => "rest_site.choose",
             "NRestSiteRoom.OnProceedButtonReleased" => "rest_site.proceed",
+            "NPlayerHand.SelectCardInPlayMode" => "combat_hand_selector.select",
+            "NPlayerHand.SelectCardInDiscardMode" => "combat_hand_selector.select",
+            "NPlayerHand.SelectCardInUpgradeMode" => "combat_hand_selector.select",
+            "NSelectedHandCardContainer.DeselectHolder" => "combat_hand_selector.deselect",
+            "NPlayerHand.OnSelectModeConfirmButtonPressed" => "combat_hand_selector.confirm",
             "NMerchantRoom.OpenInventory" => "shop_room.open",
             "NMerchantRoom.HideScreen" => "shop_room.proceed",
             "NMerchantInventory.Close" => "shop_inventory.close",
