@@ -71,6 +71,26 @@ intervening witness; no later frame, retry, or backfill is used. This source
 change still requires a fresh exact build and Human canary; predecessor runtime
 evidence does not transfer.
 
+### Full-Run native surface closure (source/test evidence)
+
+The machine-readable recording-only map is
+`FullRunCoverageContract.Entries` (`sts2.human-annotator/full-run-coverage-1`).
+Boss relic select and skip are closed through the exact command-owned
+`RelicSelectCmd.FromChooseARelicScreen` option registration, the
+`NChooseARelicSelection` callbacks, and `PlayerChoiceSynchronizer.SyncLocalChoice`;
+the exact `PlayerChoice` parent is carried by the native GameAction object.
+Terminal boss/victory proceed is classified separately as `act_change.ready`:
+`SetLocalPlayerReady` enqueues `VoteToMoveToNextActAction`, whose
+`ExecuteAction -> OnPlayerReady` is Commit, and `RunManager.ActEntered` is only
+observed when all native votes cause that boundary. No successor act is inferred.
+
+The parent shop card-removal, Event, and Rest-site choices remain implemented
+at their exact top-level owners. Their nested card/selector children are
+`BLOCKED` in the map: v0.111.0 `CardSelectCmd`/`NDeckCardSelectScreen` carries
+only cards and selector preferences, while Event/Rest callbacks expose no
+stable parent carrier. Ambient, FIFO, latest, timer, and backfill association
+are therefore not recording implementations.
+
 PR #11 pre-hard-cut source carried the Native Foundation semantic decision through
 the modern path as a typed action-space sidecar. Combat roots capture it at the
 native admission boundary when available and otherwise at

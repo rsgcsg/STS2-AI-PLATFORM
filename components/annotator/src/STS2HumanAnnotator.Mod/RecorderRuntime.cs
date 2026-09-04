@@ -129,6 +129,7 @@ internal static class RecorderRuntime
 
         _configuration = configuration;
         NativeDecisionOwnerReadyProvider.Observed += ObserveNativeDecisionOwnerReady;
+        RunManager.Instance.ActEntered += ObserveNativeActEntered;
         Assembly assembly = typeof(RecorderMod).Assembly;
         _sourceRevision = ReadSourceRevision(assembly);
         DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -3208,9 +3209,12 @@ internal static class RecorderRuntime
             nameof(UsePotionAction) => "ordinary_combat.use_potion",
             "NChooseACardSelectionScreen.SelectHolder" => "native_generated_card_choice.select",
             "NChooseACardSelectionScreen.OnSkipButtonReleased" => "native_generated_card_choice.skip",
+            "NChooseARelicSelection.SelectHolder" => "boss_relic.select",
+            "NChooseARelicSelection.OnSkipButtonReleased" => "boss_relic.skip",
             nameof(VoteForMapCoordAction) => "map_navigation.travel",
             "NRewardButton.OnRelease" => "reward_claim.claim",
             "NRewardsScreen.OnProceedButtonPressed" => "reward_claim.proceed",
+            "NRewardsScreen.OnProceedButtonPressed.act_change_ready" => "act_change.ready",
             "NCardRewardSelectionScreen.SelectCard" => "card_reward_selection.select",
             "NTreasureRoom.OnChestButtonReleased" => "treasure_room.open",
             nameof(PickRelicAction) => "treasure_room.select",
@@ -3540,6 +3544,69 @@ internal static class RecorderRuntime
                 "RunManager.Launch completed with an initialized RunState.");
         }
         PublishApplicationEvent(RecordingEventKind.RunStarted);
+    }
+
+    /// <summary>
+    /// The vote action's body calls ActChangeSynchronizer.OnPlayerReady. This
+    /// is a typed owner-ready fact, not a GameAction.Finished substitute and
+    /// not a claim that every vote caused a transition.
+    /// </summary>
+    internal static void ObserveNativeActChangeOwnerReady(
+        string actionWitnessId,
+        VoteToMoveToNextActAction action)
+    {
+        lock (Gate)
+        {
+            if (_store == null || !BoundaryTracker.Contains(actionWitnessId))
+                return;
+            AppendJournal(
+                "act_change_owner_ready",
+                null,
+                _lastSnapshotId,
+                $"{NativeActChangeDecisionProvider.OwnerReadySeam};action={NativeWitnessIdentity.Get(action, "game_action")};act={action.CurrentActIndex}");
+        }
+    }
+
+    /// <summary>
+    /// RunManager raises ActEntered after EnterAct has entered the new map
+    /// room. The exact RunManager object carries the pending act root; this
+    /// method never consumes an unrelated root or infers a successor act.
+    /// </summary>
+    private static void ObserveNativeActEntered()
+    {
+        string? actionWitnessId = NativeUiCompletionRootBindings.Take(RunManager.Instance);
+        if (actionWitnessId == null || _store == null)
+            return;
+        try
+        {
+            ProcessLocalNativeWitnessFrame frame = CaptureSemanticFrame();
+            SemanticBoundaryObservation boundary = CreateSemanticBoundaryObservation(
+                frame,
+                SemanticBoundaryWitnessKinds.NativeActEntered,
+                null);
+            IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
+            lock (Gate)
+                drafts = BoundaryTracker.ObserveDecisionBoundaryForAction(
+                    actionWitnessId,
+                    boundary);
+            PersistSemanticBoundaryDrafts(drafts);
+            AppendJournal(
+                "act_entered_native",
+                null,
+                frame.Snapshot.SnapshotId,
+                $"RunManager.ActEntered;root={actionWitnessId}");
+        }
+        catch (Exception exception)
+        {
+            // The native event remains authoritative evidence, but an
+            // incomplete post-entry read leaves the root explicitly pending
+            // for closeout; no later frame is backfilled here.
+            AppendJournal(
+                "act_entered_boundary_unavailable",
+                null,
+                _lastSnapshotId,
+                exception.Message);
+        }
     }
 
     private static void UpdateRunLifecycle()

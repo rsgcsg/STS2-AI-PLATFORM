@@ -39,6 +39,7 @@ public static class SemanticBoundaryWitnessKinds
     public const string CompleteInteractiveObservation = "complete_interactive_observation";
     public const string NativeUiPostCommit = "after_native_ui_commit";
     public const string NativeDecisionOwnerReady = "native_decision_owner_ready";
+    public const string NativeActEntered = "native_act_entered";
     // Historical wire witness retained only so archival traces can be
     // classified and rejected; it is not a current successor mechanism.
     public const string HistoricalPollingSuccessor = "legacy_v2_successor";
@@ -466,6 +467,25 @@ public sealed class SemanticBoundaryTracker
         }
         _currentState = boundary.State;
         return drafts;
+    }
+
+    /// <summary>
+    /// Binds an exact native lifecycle event to the root whose native Commit
+    /// registered that event. Unlike the general boundary observer this never
+    /// searches or settles another root, so a late ActEntered event cannot be
+    /// attributed by FIFO/latest ordering.
+    /// </summary>
+    public IReadOnlyList<SemanticBoundaryTraceDraft> ObserveDecisionBoundaryForAction(
+        string actionWitnessId,
+        SemanticBoundaryObservation boundary)
+    {
+        if (!boundary.IsCompleteDecisionBoundary)
+            return Array.Empty<SemanticBoundaryTraceDraft>();
+        Entry entry = Required(actionWitnessId);
+        if (!IsWaitingForBoundary(entry) || IsNonCausalObservation(boundary, new[] { entry }))
+            return Array.Empty<SemanticBoundaryTraceDraft>();
+        _currentState = boundary.State;
+        return Settle(entry, boundary, null);
     }
 
     /// <summary>

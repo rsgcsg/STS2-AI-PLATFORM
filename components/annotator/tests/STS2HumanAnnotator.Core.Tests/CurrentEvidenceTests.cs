@@ -7,6 +7,45 @@ namespace STS2HumanAnnotator.Core.Tests;
 
 public sealed class CurrentEvidenceTests
 {
+    [Fact]
+    public void FullRunCoverageMapIsCompleteAndKeepsNestedLineageBlocked()
+    {
+        IReadOnlyList<FullRunCoverageEntry> entries = FullRunCoverageContract.Entries;
+
+        Assert.Empty(FullRunCoverageContract.Validate());
+        Assert.Equal(
+            entries.Count,
+            entries.Select(entry => entry.Family).Distinct(StringComparer.Ordinal).Count());
+
+        HumanCaptureProfile profile = HumanCaptureProfiles.FullRunReadRich;
+        foreach (string family in profile.SupportedActionFamilies)
+        {
+            FullRunCoverageEntry entry = Assert.Single(
+                entries,
+                value => string.Equals(value.Family, family, StringComparison.Ordinal));
+            Assert.Equal(FullRunCoverageClassifications.InScopeImplemented, entry.Classification);
+        }
+
+        Assert.Equal(
+            FullRunCoverageClassifications.InScopeImplemented,
+            Assert.Single(entries, value => value.Family == "boss_relic.select").Classification);
+        Assert.Equal(
+            FullRunCoverageClassifications.InScopeImplemented,
+            Assert.Single(entries, value => value.Family == "boss_relic.skip").Classification);
+        Assert.Contains(entries, value =>
+            value.Family == "act_change.ready"
+            && value.AcceptedSeam.Contains("SetLocalPlayerReady", StringComparison.Ordinal)
+            && value.LifecycleCommit.Contains("ExecuteAction", StringComparison.Ordinal)
+            && value.NextAuthoritativeBoundary.Contains("ActEntered", StringComparison.Ordinal));
+
+        foreach (FullRunCoverageEntry entry in entries.Where(value =>
+                     value.Family.Contains("nested_selector", StringComparison.Ordinal)))
+        {
+            Assert.Equal(FullRunCoverageClassifications.Blocked, entry.Classification);
+            Assert.Contains("BLOCKED", entry.AcceptedSeam + entry.NextAuthoritativeBoundary);
+        }
+    }
+
     [Theory]
     [InlineData("ordinary_combat", "play", "ordinary_combat.play_card")]
     [InlineData("ordinary_combat", "end_turn", "ordinary_combat.end_turn")]

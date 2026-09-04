@@ -3,10 +3,13 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Events;
+using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.Creatures;
 using MegaCrit.Sts2.Core.Entities.Merchant;
+using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Entities.RestSite;
 using MegaCrit.Sts2.Core.GameActions;
+using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Potions;
 using MegaCrit.Sts2.Core.Multiplayer.Game;
@@ -15,6 +18,7 @@ using MegaCrit.Sts2.Core.Nodes.Combat;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
 using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 using MegaCrit.Sts2.Core.Nodes.Potions;
+using MegaCrit.Sts2.Core.Nodes.Relics;
 using MegaCrit.Sts2.Core.Nodes.Rewards;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Nodes.Screens;
@@ -270,6 +274,196 @@ internal static class NativeGeneratedChoiceSkipPatch
     }
 }
 
+/// <summary>
+/// Registers the command-owned option list before STS2 opens its relic
+/// overlay. Visible holders are presentation only; the Native Foundation
+/// provider requires this exact list and PlayerChoice parent lineage.
+/// </summary>
+[HarmonyPatch]
+internal static class NativeBossRelicCommandPatch
+{
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(RelicSelectCmd),
+            nameof(RelicSelectCmd.FromChooseARelicScreen),
+            new[] { typeof(Player), typeof(IReadOnlyList<RelicModel>) })
+        ?? throw new MissingMethodException(
+            typeof(RelicSelectCmd).FullName,
+            nameof(RelicSelectCmd.FromChooseARelicScreen));
+
+    private static void Prefix(
+        [HarmonyArgument(0)] Player player,
+        [HarmonyArgument(1)] IReadOnlyList<RelicModel> relics) =>
+        NativeBossRelicDecisionProvider.RegisterFromChooseARelicScreen(player, relics);
+}
+
+[HarmonyPatch]
+internal static class NativeBossRelicSelectionPatch
+{
+    private const string SelectNativeActionType = "NChooseARelicSelection.SelectHolder";
+    private const string SkipNativeActionType = "NChooseARelicSelection.OnSkipButtonReleased";
+    private const string CompletionFamily = "boss_relic_choice";
+
+    private readonly record struct PatchState(
+        NativeUiScopeEntry Scope,
+        NChooseARelicSelection? Screen,
+        RelicModel? Relic,
+        bool IsSkip);
+
+    internal static IEnumerable<MethodBase> TargetMethods()
+    {
+        yield return AccessTools.Method(
+                   typeof(NChooseARelicSelection),
+                   "SelectHolder",
+                   new[] { typeof(NRelicBasicHolder) })
+               ?? throw new MissingMethodException(
+                   typeof(NChooseARelicSelection).FullName,
+                   "SelectHolder");
+        yield return AccessTools.Method(
+                   typeof(NChooseARelicSelection),
+                   "OnSkipButtonReleased",
+                   new[] { typeof(NButton) })
+               ?? throw new MissingMethodException(
+                   typeof(NChooseARelicSelection).FullName,
+                   "OnSkipButtonReleased");
+    }
+
+    private static void Prefix(
+        MethodBase __originalMethod,
+        NChooseARelicSelection __instance,
+        out PatchState __state,
+        [HarmonyArgument(0)] object control)
+    {
+        bool isSkip = string.Equals(
+            __originalMethod.Name,
+            "OnSkipButtonReleased",
+            StringComparison.Ordinal);
+        RelicModel? relic = control is NRelicBasicHolder holder
+            ? holder.Relic?.Model
+            : null;
+        string nativeActionType = isSkip ? SkipNativeActionType : SelectNativeActionType;
+        ProcessLocalObservedAction observed = isSkip
+            ? new ProcessLocalObservedAction(
+                "skip",
+                null,
+                new Dictionary<string, object>(StringComparer.Ordinal))
+            : new ProcessLocalObservedAction(
+                "select",
+                relic,
+                new Dictionary<string, object>(StringComparer.Ordinal));
+        ProcessLocalObservedAction semanticSelection = isSkip
+            ? new ProcessLocalObservedAction(
+                "skip",
+                __instance,
+                new Dictionary<string, object>(StringComparer.Ordinal))
+            : new ProcessLocalObservedAction(
+                "select",
+                relic,
+                new Dictionary<string, object>(StringComparer.Ordinal));
+        __state = isSkip || relic != null
+            ? new PatchState(
+                RecorderRuntime.TryEnterSemanticScope(
+                    isSkip ? "native_boss_relic_skip_ui" : "native_boss_relic_select_ui",
+                    nativeActionType,
+                    observed,
+                    new NativePostCommitCompletionExpectation(
+                        CompletionFamily,
+                        NativeBossRelicDecisionProvider.CommitSeam),
+                    semanticSelection),
+                __instance,
+                relic,
+                isSkip)
+            : default;
+    }
+
+    private static void Postfix(
+        NChooseARelicSelection __instance,
+        PatchState __state)
+    {
+        if ((!__state.Scope.Entered && !__state.Scope.DeferredFailure)
+            || __state.Screen == null)
+            return;
+
+        bool isSkip = __state.IsSkip;
+        string nativeActionType = isSkip ? SkipNativeActionType : SelectNativeActionType;
+        ProcessLocalObservedAction observed = isSkip
+            ? new ProcessLocalObservedAction(
+                "skip",
+                null,
+                new Dictionary<string, object>(StringComparer.Ordinal))
+            : new ProcessLocalObservedAction(
+                "select",
+                __state.Relic,
+                new Dictionary<string, object>(StringComparer.Ordinal));
+        NativePlayerChoiceLineage lineage = NativePlayerChoiceLineage.Capture();
+        var arguments = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["screen"] = NativeWitnessIdentity.Get(__instance, "screen")
+        };
+        if (lineage.ParentAction != null)
+        {
+            arguments["parent_action"] = NativeWitnessIdentity.Get(
+                lineage.ParentAction,
+                "parent_action");
+        }
+        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            nativeActionType,
+            observed,
+            new NativeWitnessEvidence(
+                isSkip ? "native_boss_relic_skip_ui" : "native_boss_relic_select_ui",
+                nativeActionType,
+                __state.Relic == null
+                    ? NativeWitnessIdentity.Get(__instance, "screen")
+                    : NativeWitnessIdentity.Get(__state.Relic, "relic"),
+                arguments,
+                DateTimeOffset.UtcNow),
+            captureImmediatePostCommitBoundary: false,
+            actionWitnessId: __state.Scope.ActionWitnessId);
+        if (lineage.ParentAction != null && __state.Scope.ActionWitnessId is { } actionWitnessId)
+        {
+            // The parent GameAction is the exact carrier through the async
+            // RelicsSelected continuation to SyncLocalChoice. This is a
+            // weak, one-shot binding, never a queue or latest-root heuristic.
+            NativeUiCompletionRootBindings.Remember(lineage.ParentAction, actionWitnessId);
+        }
+    }
+
+    private static Exception? Finalizer(
+        PatchState __state,
+        Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state.Scope);
+        return __exception;
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeBossRelicCommitPatch
+{
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(PlayerChoiceSynchronizer),
+            nameof(PlayerChoiceSynchronizer.SyncLocalChoice),
+            new[] { typeof(Player), typeof(uint), typeof(PlayerChoiceResult) })
+        ?? throw new MissingMethodException(
+            typeof(PlayerChoiceSynchronizer).FullName,
+            nameof(PlayerChoiceSynchronizer.SyncLocalChoice));
+
+    private static void Postfix(PlayerChoiceSynchronizer __instance)
+    {
+        NativePlayerChoiceLineage lineage = NativePlayerChoiceLineage.Capture();
+        string? actionWitnessId = NativeUiCompletionRootBindings.Take(lineage.ParentAction);
+        if (actionWitnessId == null)
+            return;
+        RecorderRuntime.ObserveSemanticUiNativeCommit(
+            actionWitnessId,
+            "boss_relic_choice",
+            NativeBossRelicDecisionProvider.CommitSeam,
+            nativeOwner: __instance,
+            nativeLineage: lineage.ParentAction);
+    }
+}
+
 [HarmonyPatch]
 internal static class NativeCombatHandSelectPatch
 {
@@ -468,10 +662,31 @@ internal static class NativeTreasureUiContext
 
 internal static class NativeRewardUiContext
 {
+    private static readonly FieldInfo IsTerminalField =
+        AccessTools.Field(typeof(NRewardsScreen), "_isTerminal")
+        ?? throw new MissingFieldException(typeof(NRewardsScreen).FullName, "_isTerminal");
+
     internal static RewardsSet? CurrentRewardsSet() =>
         NOverlayStack.Instance?.Peek() is NRewardsScreen screen
             ? NativeRewardDecisionProvider.ObserveOwner(screen)?.RewardsSet
             : null;
+
+    internal static bool IsActChangeReady(NRewardsScreen screen)
+    {
+        if (IsTerminalField.GetValue(screen) is not true
+            || RunManager.Instance.debugAfterCombatRewardsOverride != null)
+            return false;
+        RunState? runState = RunManager.Instance.DebugOnlyGetState();
+        if (runState?.CurrentRoom is not { } room
+            || (room.RoomType != RoomType.Boss && !room.IsVictoryRoom))
+            return false;
+
+        // Exact v0.111.0 terminal branch: the second-boss map point uses the
+        // ordinary terminal continuation; every other boss/victory branch
+        // enqueues VoteToMoveToNextActAction.
+        return runState.Map.SecondBossMapPoint == null
+            || runState.CurrentMapCoord != runState.Map.BossMapPoint.coord;
+    }
 }
 
 /// <summary>
@@ -841,24 +1056,31 @@ internal static class NativeRewardClaimStartPatch
 [HarmonyPatch]
 internal static class NativeRewardProceedPatch
 {
-    private const string NativeActionType = "NRewardsScreen.OnProceedButtonPressed";
+    internal const string NativeActionType = "NRewardsScreen.OnProceedButtonPressed";
+    internal const string ActChangeNativeActionType =
+        "NRewardsScreen.OnProceedButtonPressed.act_change_ready";
 
     internal static MethodBase TargetMethod() =>
         AccessTools.Method(typeof(NRewardsScreen), "OnProceedButtonPressed")
         ?? throw new MissingMethodException(typeof(NRewardsScreen).FullName, "OnProceedButtonPressed");
 
-    private static void Prefix(NRewardsScreen __instance, out NativeUiScopeEntry __state)
+    private readonly record struct PatchState(
+        NativeUiScopeEntry Scope,
+        string NativeActionType);
+
+    private static void Prefix(NRewardsScreen __instance, out PatchState __state)
     {
         NativeRewardDecisionOwner? owner =
             NativeRewardDecisionProvider.ObserveOwner(__instance);
-        __state = RecorderRuntime.TryEnterSemanticScope(
-            "native_reward_proceed_ui",
-            NativeActionType,
-            new ProcessLocalObservedAction(
-                "activate",
-                null,
-                new Dictionary<string, object>(StringComparer.Ordinal)),
-            new NativePostCommitCompletionExpectation(
+        bool isActChangeReady = NativeRewardUiContext.IsActChangeReady(__instance);
+        string nativeActionType = isActChangeReady
+            ? ActChangeNativeActionType
+            : NativeActionType;
+        NativePostCommitCompletionExpectation completion = isActChangeReady
+            ? new NativePostCommitCompletionExpectation(
+                "act_change.ready",
+                "VoteToMoveToNextActAction.ExecuteAction")
+            : new NativePostCommitCompletionExpectation(
                 "reward_proceed",
                 "RunManager.ProceedFromTerminalRewardsScreen",
                 NativeOperandWitnessId: owner == null
@@ -867,40 +1089,120 @@ internal static class NativeRewardProceedPatch
                 AlternativeKinds: new[]
                 {
                     "RewardsSetSynchronizer.SkipLocalRewardsSet"
-                }),
+                });
+        __state = new PatchState(RecorderRuntime.TryEnterSemanticScope(
+            "native_reward_proceed_ui",
+            nativeActionType,
+            new ProcessLocalObservedAction(
+                "activate",
+                null,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            completion,
             nativeSemanticSelection: owner == null
                 ? null
                 : new ProcessLocalObservedAction(
                     "proceed",
                     owner.RewardsSet,
-                    new Dictionary<string, object>(StringComparer.Ordinal)));
+                    new Dictionary<string, object>(StringComparer.Ordinal))),
+            nativeActionType);
     }
 
-    private static void Postfix(NRewardsScreen __instance, NativeUiScopeEntry __state)
+    private static void Postfix(NRewardsScreen __instance, PatchState __state)
     {
-        if (!__state.Entered && !__state.DeferredFailure)
+        if (!__state.Scope.Entered && !__state.Scope.DeferredFailure)
             return;
         RecorderRuntime.ObserveAcceptedSemanticUiAction(
-            NativeActionType,
+            __state.NativeActionType,
             new ProcessLocalObservedAction(
                 "activate",
                 null,
                 new Dictionary<string, object>(StringComparer.Ordinal)),
             new NativeWitnessEvidence(
                 "native_reward_proceed_ui",
-                NativeActionType,
+                __state.NativeActionType,
                 null,
                 new Dictionary<string, string>(StringComparer.Ordinal),
                 DateTimeOffset.UtcNow),
             captureImmediatePostCommitBoundary: false,
-            actionWitnessId: __state.ActionWitnessId);
-        NativeUiCompletionRootBindings.Remember(__instance, __state.ActionWitnessId);
+            actionWitnessId: __state.Scope.ActionWitnessId);
+        NativeUiCompletionRootBindings.Remember(__instance, __state.Scope.ActionWitnessId);
     }
 
-    private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
+    private static Exception? Finalizer(PatchState __state, Exception? __exception)
     {
-        RecorderRuntime.ExitNativeUiScope(__state);
+        RecorderRuntime.ExitNativeUiScope(__state.Scope);
         return __exception;
+    }
+}
+
+/// <summary>
+/// Carries the exact Human reward-screen root to the Vote action object
+/// created by SetLocalPlayerReady. The action object is the only stable
+/// carrier across the queued act-change seam.
+/// </summary>
+[HarmonyPatch]
+internal static class NativeActChangeVoteEnqueuePatch
+{
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(ActionQueueSynchronizer),
+            nameof(ActionQueueSynchronizer.RequestEnqueue),
+            new[] { typeof(GameAction) })
+        ?? throw new MissingMethodException(
+            typeof(ActionQueueSynchronizer).FullName,
+            nameof(ActionQueueSynchronizer.RequestEnqueue));
+
+    private static void Postfix([HarmonyArgument(0)] GameAction action)
+    {
+        if (action is not VoteToMoveToNextActAction)
+            return;
+        string? actionWitnessId = RecorderRuntime.CurrentSemanticActionWitnessId(
+            NativeRewardProceedPatch.ActChangeNativeActionType)
+            ?? RecorderRuntime.CurrentSemanticActionWitnessId(
+                NativeRewardProceedPatch.NativeActionType);
+        if (actionWitnessId != null)
+            NativeUiCompletionRootBindings.Remember(action, actionWitnessId);
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeActChangeVoteCommitPatch
+{
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(VoteToMoveToNextActAction),
+            "ExecuteAction")
+        ?? throw new MissingMethodException(
+            typeof(VoteToMoveToNextActAction).FullName,
+            "ExecuteAction");
+
+    private static void Prefix(
+        VoteToMoveToNextActAction __instance,
+        out string? __state)
+    {
+        __state = NativeUiCompletionRootBindings.Take(__instance);
+        if (__state != null)
+            NativeUiCompletionRootBindings.Remember(RunManager.Instance, __state);
+    }
+
+    private static void Postfix(
+        VoteToMoveToNextActAction __instance,
+        string? __state)
+    {
+        if (__state == null)
+            return;
+
+        // OnPlayerReady is called from this exact ExecuteAction body. The
+        // RunManager binding was staged in Prefix so a synchronously-started
+        // EnterNextAct cannot race the ActEntered callback.
+        RecorderRuntime.ObserveNativeActChangeOwnerReady(__state, __instance);
+        RecorderRuntime.ObserveSemanticUiNativeCommit(
+            __state,
+            "act_change.ready",
+            NativeActChangeDecisionProvider.CommitSeam,
+            nativeOwner: RunManager.Instance.ActChangeSynchronizer,
+            nativeOperand: __instance,
+            nativeLineage: __instance);
     }
 }
 

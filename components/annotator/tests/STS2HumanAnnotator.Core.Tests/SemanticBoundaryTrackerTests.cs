@@ -10,6 +10,45 @@ public sealed class SemanticBoundaryTrackerTests
     private static readonly DateTimeOffset T0 = DateTimeOffset.Parse("2026-08-26T00:00:00Z");
 
     [Fact]
+    public void ExactActEnteredBoundarySettlesOnlyItsBoundActRoot()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference act = Action(
+            "act-ready",
+            1,
+            "NRewardsScreen.OnProceedButtonPressed.act_change_ready") with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(act, State("human-act"));
+        tracker.ObserveBeforeActionExecution(
+            act.ActionWitnessId,
+            Boundary("before-act", act.ActionWitnessId));
+        tracker.Started(act.ActionWitnessId);
+        tracker.Finished(act.ActionWitnessId);
+        tracker.ObserveNativeCommit(act.ActionWitnessId, Completion(act.ActionWitnessId));
+
+        SemanticActionReference unrelated = Action("unrelated", 2) with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(unrelated, State("human-unrelated"));
+
+        SemanticBoundaryObservation entered = PostCommitBoundary("after-act") with
+        {
+            WitnessKind = SemanticBoundaryWitnessKinds.NativeActEntered,
+            NativeDecisionOwnerReady = null
+        };
+        SemanticBoundaryTraceDraft settled = Assert.Single(
+            tracker.ObserveDecisionBoundaryForAction(act.ActionWitnessId, entered));
+
+        Assert.Equal(SemanticBoundaryTraceKinds.TransitionProved, settled.Kind);
+        Assert.Equal(act.ActionWitnessId, settled.Action.ActionWitnessId);
+        Assert.True(tracker.Contains(unrelated.ActionWitnessId));
+        Assert.True(tracker.HasUnresolvedActions);
+    }
+
+    [Fact]
     public void RapidA1A2A3UsesBeforeExecutionBoundariesWithoutFalseAttribution()
     {
         var tracker = new SemanticBoundaryTracker();

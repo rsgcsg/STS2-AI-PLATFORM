@@ -434,6 +434,22 @@ public static class PlayerEnvironmentNativeSemanticWitness
             return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);
         }
         object? overlay = NOverlayStack.Instance?.Peek();
+        if ((semanticNativeActionType is
+                "NChooseARelicSelection.SelectHolder" or
+                "NChooseARelicSelection.OnSkipButtonReleased")
+            && overlay is NChooseARelicSelection bossRelicScreen)
+        {
+            NativeBossRelicDecision decision =
+                CaptureBossRelicDecision(bossRelicScreen, entities);
+            return (decision.Status, decision.Scope, decision.Actions, new[]
+            {
+                $"NativePlayerChoiceLineage:{decision.ParentLineage.Status}",
+                NativeBossRelicDecisionProvider.ParentCommand,
+                NativeBossRelicDecisionProvider.CommitSeam
+            }.Concat(decision.Detail == null
+                ? Array.Empty<string>()
+                : new[] { decision.Detail }).ToArray(), decision.Detail);
+        }
         if (overlay is NRewardsScreen rewards)
         {
             NativeRewardDecision decision =
@@ -472,6 +488,35 @@ public static class PlayerEnvironmentNativeSemanticWitness
             Array.Empty<NativeSemanticAction>(),
             Array.Empty<string>(),
             "No migrated native decision adapter owns the current domain.");
+    }
+
+    private static NativeBossRelicDecision CaptureBossRelicDecision(
+        NChooseARelicSelection screen,
+        NativeEntityRegistry entities)
+    {
+        var relicsField = typeof(NChooseARelicSelection).GetField(
+            "_relics",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        return relicsField?.GetValue(screen) is IReadOnlyList<RelicModel> relics
+            ? NativeBossRelicDecisionProvider.Capture(screen, relics, entities)
+            : new NativeBossRelicDecision(
+                "capture_failed",
+                "boss_relic_choice",
+                false,
+                Array.Empty<RelicModel>(),
+                Array.Empty<NativeSemanticAction>(),
+                new NativePlayerChoiceLineage(
+                    "unavailable",
+                    null,
+                    null,
+                    "The exact NChooseARelicSelection._relics binding is unavailable."),
+                false,
+                NativeBossRelicDecisionProvider.ScreenOwner,
+                NativeBossRelicDecisionProvider.ParentCommand,
+                NativeBossRelicDecisionProvider.CompletionSeam,
+                NativeBossRelicDecisionProvider.CommitSeam,
+                NativeBossRelicDecisionProvider.NextBoundary,
+                "The exact NChooseARelicSelection._relics binding is unavailable.");
     }
 
     private static ProcessLocalUiCatalogObservation BuildUiCatalog(
