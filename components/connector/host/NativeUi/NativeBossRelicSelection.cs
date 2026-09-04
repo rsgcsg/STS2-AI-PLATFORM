@@ -28,6 +28,8 @@ internal static class NativeBossRelicSelection
     private const BindingFlags Flags = BindingFlags.Instance | BindingFlags.NonPublic;
     private static readonly FieldInfo? ScreenCompleteField =
         typeof(NChooseARelicSelection).GetField("_screenComplete", Flags);
+    private static readonly FieldInfo? RelicsField =
+        typeof(NChooseARelicSelection).GetField("_relics", Flags);
 
     internal static LiveObservation? TryBuild(
         NativeEntityRegistry entities,
@@ -68,31 +70,22 @@ internal static class NativeBossRelicSelection
                 "The current relic choice cannot be represented without guessing a target.");
         }
 
-        NRelicBasicHolder[] holders = row.GetChildren()
-            .OfType<NRelicBasicHolder>()
-            .Where(holder => ConnectorMod.IsNodeVisible(holder) && holder.Relic?.Model != null)
-            .OrderBy(holder => holder.Position.X)
-            .ThenBy(holder => holder.Position.Y)
-            .ToArray();
-        RelicModel[] relicModels = holders
-            .Select(holder => holder.Relic.Model)
-            .ToArray();
-        if (holders.Length == 0 || relicModels.Length != holders.Length)
+        if (RelicsField?.GetValue(screen) is not IReadOnlyList<RelicModel> nativeRelics)
         {
             return NativeUiFailClosedObservation.BindingUnavailable(
                 game,
                 context,
                 nameof(NChooseARelicSelection),
-                "The visible relic holders do not form an exact one-to-one native set.",
-                new[] { "NChooseARelicSelection visible relic holders" },
-                new[] { "visible_relics" },
-                "player_environment_boss_relic_referents_unavailable",
-                "player-environment.boss-relic.referents-unavailable",
-                "The current relic choice cannot be represented without guessing a target.");
+                "The exact NChooseARelicSelection._relics command option list is unavailable.",
+                new[] { "RelicSelectCmd.FromChooseARelicScreen.relics" },
+                new[] { "native_boss_relic_options", "parent_lineage" },
+                "player_environment_boss_relic_options_unavailable",
+                "player-environment.boss-relic.options-unavailable",
+                "The current relic choice cannot be represented without its native command option list.");
         }
 
         NativeBossRelicDecision decision =
-            NativeBossRelicDecisionProvider.Capture(screen, relicModels, entities);
+            NativeBossRelicDecisionProvider.Capture(screen, nativeRelics, entities);
         if (decision.Status != "captured")
         {
             return NativeUiFailClosedObservation.BindingUnavailable(
@@ -107,8 +100,32 @@ internal static class NativeBossRelicSelection
                 "The current relic choice cannot be represented without guessing its owner.");
         }
 
+        NRelicBasicHolder[] holders = row.GetChildren()
+            .OfType<NRelicBasicHolder>()
+            .Where(holder => ConnectorMod.IsNodeVisible(holder) && holder.Relic?.Model != null)
+            .OrderBy(holder => holder.Position.X)
+            .ThenBy(holder => holder.Position.Y)
+            .ToArray();
+        RelicModel[] visibleRelics = holders
+            .Select(holder => holder.Relic.Model)
+            .ToArray();
+        if (holders.Length == 0
+            || !NativeDecisionProjection.HasExactReferenceBijection(nativeRelics, visibleRelics))
+        {
+            return NativeUiFailClosedObservation.BindingUnavailable(
+                game,
+                context,
+                nameof(NChooseARelicSelection),
+                "The visible relic holders do not form an exact one-to-one native set.",
+                new[] { "NChooseARelicSelection visible relic holders" },
+                new[] { "visible_relics" },
+                "player_environment_boss_relic_referents_unavailable",
+                "player-environment.boss-relic.referents-unavailable",
+                "The current relic choice cannot be represented without guessing a target.");
+        }
+
         string screenId = entities.GetId(screen, "screen");
-        VisibleRelic[] visibleRelics = relicModels
+        VisibleRelic[] projectedRelics = decision.Relics
             .Select(relic => VisibleEntityFacts.BuildRelic(relic, entities))
             .ToArray();
         bool controlsReady = !screenComplete &&
@@ -117,16 +134,17 @@ internal static class NativeBossRelicSelection
                                  && holder.MouseFilter != Control.MouseFilterEnum.Ignore) &&
                              !screen.IsQueuedForDeletion();
         string[] selectable = controlsReady
-            ? visibleRelics.Select(relic => relic.EntityId).OrderBy(id => id, StringComparer.Ordinal).ToArray()
+            ? projectedRelics.Select(relic => relic.EntityId).OrderBy(id => id, StringComparer.Ordinal).ToArray()
             : Array.Empty<string>();
-        bool canSkip = controlsReady
+        bool canSkip = decision.SkipPathProven
+                       && controlsReady
                        && skip.IsEnabled
                        && skip.MouseFilter != Control.MouseFilterEnum.Ignore
                        && ConnectorMod.IsNodeVisible(skip);
         var surface = new NativeBossRelicSelectionSurface(
             SurfaceKind,
             screenId,
-            visibleRelics,
+            projectedRelics,
             selectable,
             canSkip);
         bool actionable = selectable.Length > 0 || canSkip;
@@ -225,12 +243,20 @@ internal static class NativeBossRelicSelection
                 entities,
                 expectedScreenId,
                 out NChooseARelicSelection? screen,
-                out NRelicBasicHolder[] holders)
+                out NRelicBasicHolder[] holders,
+                out IReadOnlyList<RelicModel>? nativeRelics)
             || !entities.TryResolve(expectedRelicId, out RelicModel? relic)
             || relic == null)
         {
             return Changed("The exact boss relic screen or relic is no longer current.");
         }
+
+        if (!NativeBossRelicDecisionProvider.ValidateCurrentExecution(
+                nativeRelics!,
+                relic,
+                requireSkip: false,
+                out _))
+            return Changed("The exact native boss relic option or PlayerChoice parent is no longer current.");
 
         NRelicBasicHolder[] matches = holders
             .Where(holder => ReferenceEquals(holder.Relic.Model, relic))
@@ -248,8 +274,19 @@ internal static class NativeBossRelicSelection
         NativeEntityRegistry entities,
         string expectedScreenId)
     {
-        if (!TryCurrent(entities, expectedScreenId, out NChooseARelicSelection? screen, out _)
-            || screen == null)
+        if (!TryCurrent(
+                entities,
+                expectedScreenId,
+                out NChooseARelicSelection? screen,
+                out _,
+                out IReadOnlyList<RelicModel>? nativeRelics)
+            || screen == null
+            || nativeRelics == null
+            || !NativeBossRelicDecisionProvider.ValidateCurrentExecution(
+                nativeRelics,
+                expectedRelic: null,
+                requireSkip: true,
+                out _))
         {
             return Changed("The advertised boss relic skip control is no longer current.");
         }
@@ -270,10 +307,12 @@ internal static class NativeBossRelicSelection
         NativeEntityRegistry entities,
         string expectedScreenId,
         out NChooseARelicSelection? screen,
-        out NRelicBasicHolder[] holders)
+        out NRelicBasicHolder[] holders,
+        out IReadOnlyList<RelicModel>? nativeRelics)
     {
         screen = null;
         holders = Array.Empty<NRelicBasicHolder>();
+        nativeRelics = null;
         if (!entities.TryResolve(expectedScreenId, out NChooseARelicSelection? resolved)
             || resolved == null
             || !ActiveInputResolver.IsVisibleActiveOverlay(resolved)
@@ -281,6 +320,8 @@ internal static class NativeBossRelicSelection
             || ScreenCompleteField?.GetValue(resolved) is not false)
             return false;
 
+        if (RelicsField?.GetValue(resolved) is not IReadOnlyList<RelicModel> resolvedRelics)
+            return false;
         Control? row = resolved.GetNodeOrNull<Control>("RelicRow");
         if (row == null)
             return false;
@@ -288,9 +329,13 @@ internal static class NativeBossRelicSelection
             .OfType<NRelicBasicHolder>()
             .Where(holder => ConnectorMod.IsNodeVisible(holder) && holder.Relic?.Model != null)
             .ToArray();
-        if (holders.Length == 0)
+        if (holders.Length == 0
+            || !NativeDecisionProjection.HasExactReferenceBijection(
+                resolvedRelics,
+                holders.Select(holder => holder.Relic.Model).ToArray()))
             return false;
         screen = resolved;
+        nativeRelics = resolvedRelics;
         return true;
     }
 

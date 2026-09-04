@@ -303,6 +303,10 @@ public sealed class NativeFoundationContractTests
         Assert.Equal(
             "PlayerChoiceSynchronizer.SyncLocalChoice",
             NativeBossRelicDecisionProvider.CommitSeam);
+        Assert.Equal(
+            "NChooseARelicSelection.OnSkipButtonReleased",
+            NativeBossRelicDecisionProvider.SkipSeam);
+        Assert.True(NativeBossRelicDecisionProvider.HasExactSkipPath);
         Assert.Contains("parent PlayerChoice continuation", NativeBossRelicDecisionProvider.NextBoundary);
 
         var relic = new object();
@@ -336,19 +340,26 @@ public sealed class NativeFoundationContractTests
     }
 
     [Fact]
+    public void BossRelicExecutionFailsClosedWithoutCommandRegistration()
+    {
+        Assert.False(NativeBossRelicDecisionProvider.ValidateCurrentExecution(
+            Array.Empty<MegaCrit.Sts2.Core.Models.RelicModel>(),
+            expectedRelic: null,
+            requireSkip: true,
+            out string detail));
+        Assert.Contains("was not registered", detail);
+    }
+
+    [Fact]
     public void ActChangeFactsDoNotPromoteReadyEnqueueToSuccessor()
     {
-        NativeActChangeObservation ready =
-            NativeActChangeDecisionProvider.ObserveReadyRequest();
+        NativeActChangeFactContract facts = NativeActChangeDecisionProvider.Contract;
 
-        Assert.Equal(
-            "accepted_enqueue_not_commit",
-            ready.Status);
-        Assert.Contains("SetLocalPlayerReady", ready.AcceptedSeam);
-        Assert.Contains("VoteToMoveToNextActAction.ExecuteAction", ready.CommitSeam);
-        Assert.Contains("all_ready", ready.ConditionalNextBoundary);
-
-        Assert.Equal(NativeActChangeDecisionProvider.CommitSeam, ready.CommitSeam);
+        Assert.Contains("SetLocalPlayerReady", facts.AcceptedSeam);
+        Assert.Contains("VoteToMoveToNextActAction.ExecuteAction", facts.CommitSeam);
+        Assert.Contains("OnPlayerReady", facts.OwnerReadySeam);
+        Assert.Contains("all_ready", facts.ConditionalNextBoundary);
+        Assert.DoesNotContain("ActEntered", facts.OwnerReadySeam);
     }
 
     private static NativeSemanticAction Action(
