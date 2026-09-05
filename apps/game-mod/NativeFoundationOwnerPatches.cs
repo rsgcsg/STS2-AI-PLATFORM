@@ -1,10 +1,12 @@
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Combat;
+using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.CardRewardAlternatives;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Multiplayer.Game;
+using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Nodes.Screens;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
@@ -90,6 +92,15 @@ internal static class NativeFoundationOwnerPatches
             AccessTools.Method(
                 typeof(NativeCombatDecisionOwnerReadyPatch),
                 nameof(NativeCombatDecisionOwnerReadyPatch.Postfix)));
+        PatchBefore(
+            harmony,
+            AccessTools.Method(
+                typeof(RelicSelectCmd),
+                nameof(RelicSelectCmd.FromChooseARelicScreen),
+                new[] { typeof(Player), typeof(IReadOnlyList<RelicModel>) }),
+            AccessTools.Method(
+                typeof(NativeBossRelicCommandPatch),
+                nameof(NativeBossRelicCommandPatch.Before)));
         _initialized = true;
     }
 
@@ -101,6 +112,31 @@ internal static class NativeFoundationOwnerPatches
         if (original == null || postfix == null)
             throw new MissingMethodException("A Native Foundation owner seam is unavailable.");
         harmony.Patch(original, postfix: new HarmonyMethod(postfix));
+    }
+
+    private static void PatchBefore(
+        Harmony harmony,
+        System.Reflection.MethodInfo? original,
+        System.Reflection.MethodInfo? before)
+    {
+        if (original == null || before == null)
+            throw new MissingMethodException("A Native Foundation input seam is unavailable.");
+        harmony.Patch(original, new HarmonyMethod(before));
+    }
+}
+
+internal static class NativeBossRelicCommandPatch
+{
+    internal static void Before(Player player, IReadOnlyList<RelicModel> relics)
+    {
+        try
+        {
+            NativeBossRelicDecisionProvider.RegisterFromChooseARelicScreen(player, relics);
+        }
+        catch (Exception exception)
+        {
+            GD.PrintErr($"[STS2 Platform] native boss relic command observation failed: {exception}");
+        }
     }
 }
 

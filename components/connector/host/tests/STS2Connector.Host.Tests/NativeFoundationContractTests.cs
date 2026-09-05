@@ -290,6 +290,78 @@ public sealed class NativeFoundationContractTests
             room));
     }
 
+    [Fact]
+    public void BossRelicChoiceKeepsPlayerChoiceParentAndCommitSeparate()
+    {
+        Assert.Equal("NChooseARelicSelection", NativeBossRelicDecisionProvider.ScreenOwner);
+        Assert.Equal(
+            "RelicSelectCmd.FromChooseARelicScreen",
+            NativeBossRelicDecisionProvider.ParentCommand);
+        Assert.Equal(
+            "NChooseARelicSelection.RelicsSelected",
+            NativeBossRelicDecisionProvider.CompletionSeam);
+        Assert.Equal(
+            "PlayerChoiceSynchronizer.SyncLocalChoice",
+            NativeBossRelicDecisionProvider.CommitSeam);
+        Assert.Equal(
+            "NChooseARelicSelection.OnSkipButtonReleased",
+            NativeBossRelicDecisionProvider.SkipSeam);
+        Assert.True(NativeBossRelicDecisionProvider.HasExactSkipPath);
+        Assert.Contains("parent PlayerChoice continuation", NativeBossRelicDecisionProvider.NextBoundary);
+
+        var relic = new object();
+        var screen = new object();
+        NativeSemanticAction[] actions =
+        {
+            new(
+                "select|relic-1|-",
+                NativeBossRelicDecisionProvider.SelectVerb,
+                "relic-1",
+                relic,
+                Array.Empty<NativeSemanticOperand>(),
+                "NChooseARelicSelection.SelectHolder"),
+            new(
+                "skip|screen-1|-",
+                NativeBossRelicDecisionProvider.SkipVerb,
+                "screen-1",
+                screen,
+                Array.Empty<NativeSemanticOperand>(),
+                "NChooseARelicSelection.OnSkipButtonReleased")
+        };
+
+        Assert.True(NativeSemanticActionCatalog.ContainsExactlyOnce(
+            actions,
+            NativeBossRelicDecisionProvider.SelectVerb,
+            relic));
+        Assert.True(NativeSemanticActionCatalog.ContainsExactlyOnce(
+            actions,
+            NativeBossRelicDecisionProvider.SkipVerb,
+            screen));
+    }
+
+    [Fact]
+    public void BossRelicExecutionFailsClosedWithoutCommandRegistration()
+    {
+        Assert.False(NativeBossRelicDecisionProvider.ValidateCurrentExecution(
+            Array.Empty<MegaCrit.Sts2.Core.Models.RelicModel>(),
+            expectedRelic: null,
+            requireSkip: true,
+            out string detail));
+        Assert.Contains("was not registered", detail);
+    }
+
+    [Fact]
+    public void ActChangeFactsDoNotPromoteReadyEnqueueToSuccessor()
+    {
+        NativeActChangeFactContract facts = NativeActChangeDecisionProvider.Contract;
+
+        Assert.Contains("SetLocalPlayerReady", facts.AcceptedSeam);
+        Assert.Contains("VoteToMoveToNextActAction.ExecuteAction", facts.CommitSeam);
+        Assert.Contains("OnPlayerReady", facts.OwnerReadySeam);
+        Assert.Contains("all_ready", facts.ConditionalNextBoundary);
+        Assert.DoesNotContain("ActEntered", facts.OwnerReadySeam);
+    }
+
     private static NativeSemanticAction Action(
         string key,
         object subject,

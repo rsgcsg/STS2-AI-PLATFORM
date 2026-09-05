@@ -110,6 +110,32 @@ public sealed class NativePostCommitCompletionLedger
 
     public int Count => _registrations.Count + _taskBindings.Count;
 
+    /// <summary>
+    /// Reports whether this exact native Task kind is currently expected by a
+    /// staged Human root in the same session generation. Native callbacks can
+    /// legitimately occur without a Human root (for example, an internal
+    /// continuation); those observations must not become phantom
+    /// invalidations. An expectation that exists but fails identity matching
+    /// remains fail-closed at BindTask.
+    /// </summary>
+    public bool HasPendingExpectation(
+        string sessionId,
+        long generation,
+        string kind)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId)
+            || generation <= 0
+            || string.IsNullOrWhiteSpace(kind))
+        {
+            return false;
+        }
+
+        return _registrations.Values.Any(registration =>
+            string.Equals(registration.SessionId, sessionId, StringComparison.Ordinal)
+            && registration.Generation == generation
+            && registration.Expectation.AcceptsKind(kind));
+    }
+
     public bool Register(NativePostCommitCompletionRegistration registration)
     {
         ArgumentNullException.ThrowIfNull(registration);
@@ -136,7 +162,9 @@ public sealed class NativePostCommitCompletionLedger
     /// continuation uses this durable binding and never reads an ambient UI
     /// scope or chooses a current/FIFO root.
     /// </summary>
-    public NativeTaskBindingResolution BindTask(NativeTaskObservation observation)
+    public NativeTaskBindingResolution BindTask(
+        NativeTaskObservation observation,
+        string? expectedActionWitnessId = null)
     {
         ArgumentNullException.ThrowIfNull(observation);
         if (string.IsNullOrWhiteSpace(observation.SessionId)
@@ -151,16 +179,25 @@ public sealed class NativePostCommitCompletionLedger
                 "The native Task observation is malformed or was already bound.");
         }
 
-        NativePostCommitCompletionRegistration[] matches = _registrations.Values
-            .Where(registration => Matches(registration, observation))
-            .ToArray();
+        NativePostCommitCompletionRegistration[] matches = expectedActionWitnessId == null
+            ? _registrations.Values
+                .Where(registration => Matches(registration, observation))
+                .ToArray()
+            : _registrations.TryGetValue(
+                    expectedActionWitnessId,
+                    out NativePostCommitCompletionRegistration? exact)
+                && Matches(exact, observation)
+                ? new[] { exact }
+                : Array.Empty<NativePostCommitCompletionRegistration>();
         if (matches.Length != 1)
         {
             return new NativeTaskBindingResolution(
                 matches.Length == 0 ? "no_match" : "ambiguous",
                 null,
                 matches.Length == 0
-                    ? "No staged Human root matches the exact native Task identity."
+                    ? expectedActionWitnessId == null
+                        ? "No staged Human root matches the exact native Task identity."
+                        : "The supplied Human root identity does not match the exact native Task identity."
                     : "More than one staged Human root matches the native Task identity.");
         }
 

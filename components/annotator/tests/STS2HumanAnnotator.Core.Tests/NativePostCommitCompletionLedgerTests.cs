@@ -103,6 +103,27 @@ public sealed class NativePostCommitCompletionLedgerTests
     }
 
     [Fact]
+    public void PendingExpectationDistinguishesUnownedCallbacksFromIdentityMismatch()
+    {
+        var ledger = new NativePostCommitCompletionLedger();
+        Assert.False(ledger.HasPendingExpectation("session-a", 1, "native.internal"));
+        Assert.True(ledger.Register(new NativePostCommitCompletionRegistration(
+            "session-a",
+            1,
+            "root-a",
+            new NativePostCommitCompletionExpectation(
+                "reward_proceed",
+                "native.shared",
+                AlternativeKinds: new[] { "native.alternative" }))));
+
+        Assert.True(ledger.HasPendingExpectation("session-a", 1, "native.shared"));
+        Assert.True(ledger.HasPendingExpectation("session-a", 1, "native.alternative"));
+        Assert.False(ledger.HasPendingExpectation("session-a", 2, "native.shared"));
+        Assert.False(ledger.HasPendingExpectation("other-session", 1, "native.shared"));
+        Assert.False(ledger.HasPendingExpectation("session-a", 1, "native.internal"));
+    }
+
+    [Fact]
     public void AmbiguousTaskBindingFailsClosedWithoutConsumingRoots()
     {
         var ledger = new NativePostCommitCompletionLedger();
@@ -132,6 +153,43 @@ public sealed class NativePostCommitCompletionLedgerTests
                 "owner"));
 
         Assert.Equal("ambiguous", binding.Status);
+        Assert.Equal(2, ledger.Count);
+    }
+
+    [Fact]
+    public void ExactRootHintResolvesSharedNativeCallbackWithoutFallback()
+    {
+        var ledger = new NativePostCommitCompletionLedger();
+        Assert.True(ledger.Register(new NativePostCommitCompletionRegistration(
+            "session-a",
+            1,
+            "root-a",
+            new NativePostCommitCompletionExpectation(
+                "reward_proceed",
+                "native.shared"))));
+        Assert.True(ledger.Register(new NativePostCommitCompletionRegistration(
+            "session-a",
+            1,
+            "root-b",
+            new NativePostCommitCompletionExpectation(
+                "treasure_proceed",
+                "native.shared"))));
+
+        NativeTaskObservation observation = new(
+            "session-a",
+            1,
+            "native.shared",
+            "task-a");
+        NativeTaskBindingResolution binding = ledger.BindTask(observation, "root-b");
+
+        Assert.True(binding.IsMatched);
+        Assert.Equal("root-b", binding.Binding!.ActionWitnessId);
+        Assert.Equal(2, ledger.Count);
+        Assert.Equal(
+            "no_match",
+            ledger.BindTask(
+                observation with { Kind = "native.other", TaskWitnessId = "task-b" },
+                "root-a").Status);
         Assert.Equal(2, ledger.Count);
     }
 

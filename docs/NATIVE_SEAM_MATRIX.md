@@ -78,20 +78,20 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 |---|---|
 | Semantic owner | current `MerchantInventory` and its card/relic/potion/removal entries |
 | State source | stocked entries, prices, local player gold/capacity and removal state |
-| Semantic action source | inventory entries; current publication additionally requires visible enabled slots |
+| Semantic action source | `NativeRoomDecisionProvider` projects the current room controls and inventory entries; delivery still rechecks visible enabled controls |
 | Native validator | entry stock/affordability and `OnTryPurchaseWrapper` domain validation |
 | Decision boundary | current merchant room/inventory and no purchase/selection transition in progress |
 | Presentation owner | merchant room button, inventory screen slots/back button and room Proceed |
 | Delivery seam | entry `OnTryPurchaseWrapper`; exact room/open/back/proceed controls |
 | Exact binding | inventory plus exact entry/slot/removal object |
-| Lifecycle | purchase task and any nested removal choice; no universal causal completion rule |
+| Lifecycle | purchase task and any nested removal choice; room open/proceed and inventory close are exact native callbacks |
 | Next-decision seam | refreshed inventory, nested removal decision, or room/map transition |
 | Root/continuation | purchase is a root; card removal selection is a continuation |
 | Current workaround | `CanPurchase` mixes stock/gold with hitbox visibility/enabled state |
-| Heuristic debt | UI slot actionability is still used as semantic publication input |
+| Heuristic debt | UI slot actionability remains a delivery-time guard; semantic membership comes from the STS2-owned room/inventory catalog |
 | Ritsu support | high-level merchant purchase lifecycle, but not exact entry binding or nested removal lineage |
-| Missing evidence | shared semantic inventory provider T0/T1 and representative final artifact T3 |
-| Migration verdict | direct presentation adapter retained; migrate after Map/Reward route |
+| Missing evidence | representative final-candidate shop open/purchase/removal/close/proceed T3 and nested selector outcomes |
+| Migration verdict | typed read-only room/inventory provider and exact entry/task witnesses implemented; final Human qualification remains pending |
 
 ## Reward
 
@@ -151,10 +151,10 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 | Next-decision seam | next event phase, nested choice, Map, or terminal owner |
 | Root/continuation | event option is a root; dialogue and nested choices are continuations |
 | Current workaround | visible/enabled option controls define action publication |
-| Heuristic debt | no shared native event option provider or commit witness yet |
+| Heuristic debt | event task/state successor coverage still requires a final-candidate canary |
 | Ritsu support | room/event lifecycle coverage is useful, but no exact generic option authority was found |
-| Missing evidence | source-local native option seam T0/T1 and final artifact T3 |
-| Migration verdict | direct presentation adapter retained; migrate by event mechanism, not event ID |
+| Missing evidence | final-candidate option/proceed/nested-selector T3 |
+| Migration verdict | typed read-only event catalog and exact option-task witness implemented; final Human qualification remains pending |
 
 ## Rest
 
@@ -172,10 +172,10 @@ predecessor artifact does not transfer to a new Native Foundation artifact.
 | Next-decision seam | nested selection, remaining rest phase, or Map |
 | Root/continuation | rest option is a root; upgrade/other selectors are continuations |
 | Current workaround | button enablement and visibility publish options |
-| Heuristic debt | model availability is not independently projected from presentation |
+| Heuristic debt | model availability is projected from native options; nested successor coverage still needs a final-candidate canary |
 | Ritsu support | rest heal/smith hooks, not complete option authority or nested lineage |
-| Missing evidence | native option provider T0/T1 and final artifact T3 |
-| Migration verdict | direct typed adapter retained; migration pending |
+| Missing evidence | final-candidate option/proceed/nested-selector T3 |
+| Migration verdict | typed read-only rest catalog and exact synchronizer/proceed witnesses implemented; final Human qualification remains pending |
 
 ## Treasure
 

@@ -1,7 +1,11 @@
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using HarmonyLib;
+using MegaCrit.Sts2.Core.Events;
 using MegaCrit.Sts2.Core.Entities.Creatures;
+using MegaCrit.Sts2.Core.Entities.Merchant;
+using MegaCrit.Sts2.Core.Entities.RestSite;
 using MegaCrit.Sts2.Core.GameActions;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Potions;
@@ -18,7 +22,9 @@ using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
 using MegaCrit.Sts2.Core.Nodes.Screens.Map;
 using MegaCrit.Sts2.Core.Nodes.Screens.TreasureRoomRelic;
+using MegaCrit.Sts2.Core.Nodes.Screens.Shops;
 using MegaCrit.Sts2.Core.Nodes.Rooms;
+using MegaCrit.Sts2.Core.Nodes.RestSite;
 using MegaCrit.Sts2.Core.Rooms;
 using MegaCrit.Sts2.Core.Rewards;
 using MegaCrit.Sts2.Core.Runs;
@@ -460,6 +466,54 @@ internal static class NativeTreasureUiContext
     internal static NTreasureRoom? CurrentUi() => NRun.Instance?.TreasureRoom;
 }
 
+internal static class NativeRewardUiContext
+{
+    internal static RewardsSet? CurrentRewardsSet() =>
+        NOverlayStack.Instance?.Peek() is NRewardsScreen screen
+            ? NativeRewardDecisionProvider.ObserveOwner(screen)?.RewardsSet
+            : null;
+}
+
+/// <summary>
+/// Carries the exact Human root through a native UI callback to the Task
+/// returned by that callback's game-owned operation. The key is the exact
+/// native owner object, never a queue position, timestamp, or ambient current
+/// root. Entries are weak and consumed once the operation is bound.
+/// </summary>
+internal static class NativeUiCompletionRootBindings
+{
+    private sealed class RootBinding
+    {
+        internal RootBinding(string actionWitnessId) => ActionWitnessId = actionWitnessId;
+
+        internal string ActionWitnessId { get; }
+    }
+
+    private static readonly ConditionalWeakTable<object, RootBinding> Bindings = new();
+
+    internal static void Remember(object? owner, string? actionWitnessId)
+    {
+        if (owner == null || string.IsNullOrWhiteSpace(actionWitnessId))
+            return;
+        Bindings.Remove(owner);
+        Bindings.Add(owner, new RootBinding(actionWitnessId));
+    }
+
+    internal static string? Take(object? owner)
+    {
+        if (owner == null || !Bindings.TryGetValue(owner, out RootBinding? binding))
+            return null;
+        Bindings.Remove(owner);
+        return binding.ActionWitnessId;
+    }
+
+    internal static string? TakeCurrentRewardOrTreasure()
+    {
+        string? overlayRoot = Take(NOverlayStack.Instance?.Peek());
+        return overlayRoot ?? Take(NativeTreasureUiContext.CurrentUi());
+    }
+}
+
 [HarmonyPatch]
 internal static class NativeTreasureChestChoicePatch
 {
@@ -515,6 +569,7 @@ internal static class NativeTreasureChestChoicePatch
                 DateTimeOffset.UtcNow),
             captureImmediatePostCommitBoundary: false,
             actionWitnessId: __state.ActionWitnessId);
+        NativeUiCompletionRootBindings.Remember(NativeTreasureUiContext.CurrentUi(), __state.ActionWitnessId);
     }
 
     private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
@@ -656,6 +711,7 @@ internal static class NativeTreasureProceedPatch
                 DateTimeOffset.UtcNow),
             captureImmediatePostCommitBoundary: false,
             actionWitnessId: __state.Scope.ActionWitnessId);
+        NativeUiCompletionRootBindings.Remember(__instance, __state.Scope.ActionWitnessId);
     }
 
     private static Exception? Finalizer(PatchState __state, Exception? __exception)
@@ -681,7 +737,9 @@ internal static class NativeTreasureNormalRewardsPatch
             __result,
             "OneOffSynchronizer.DoLocalTreasureRoomRewards",
             nativeOwner: __instance,
-            nativeOperand: NativeTreasureUiContext.CurrentRoom());
+            nativeOperand: NativeTreasureUiContext.CurrentRoom(),
+            expectedActionWitnessId: NativeUiCompletionRootBindings.Take(
+                NativeTreasureUiContext.CurrentUi()));
 }
 
 [HarmonyPatch]
@@ -700,7 +758,10 @@ internal static class NativeTreasureProceedCompletionPatch
             __result,
             "RunManager.ProceedFromTerminalRewardsScreen",
             nativeOwner: __instance,
-            nativeOperand: NativeTreasureUiContext.CurrentRoom());
+            nativeOperand: NOverlayStack.Instance?.Peek() is NRewardsScreen
+                ? NativeRewardUiContext.CurrentRewardsSet()
+                : NativeTreasureUiContext.CurrentRoom(),
+            expectedActionWitnessId: NativeUiCompletionRootBindings.TakeCurrentRewardOrTreasure());
 }
 
 [HarmonyPatch]
@@ -756,6 +817,7 @@ internal static class NativeRewardClaimStartPatch
                 DateTimeOffset.UtcNow),
             captureImmediatePostCommitBoundary: false,
             actionWitnessId: __state.ActionWitnessId);
+        NativeUiCompletionRootBindings.Remember(__instance.Reward, __state.ActionWitnessId);
         if (__instance.Reward is CardReward reward
             && __state.ActionWitnessId is { } actionWitnessId
             && NOverlayStack.Instance?.Peek() is NCardRewardSelectionScreen screen)
@@ -799,6 +861,9 @@ internal static class NativeRewardProceedPatch
             new NativePostCommitCompletionExpectation(
                 "reward_proceed",
                 "RunManager.ProceedFromTerminalRewardsScreen",
+                NativeOperandWitnessId: owner == null
+                    ? null
+                    : NativeWitnessIdentity.Get(owner.RewardsSet, "native_operand"),
                 AlternativeKinds: new[]
                 {
                     "RewardsSetSynchronizer.SkipLocalRewardsSet"
@@ -811,7 +876,7 @@ internal static class NativeRewardProceedPatch
                     new Dictionary<string, object>(StringComparer.Ordinal)));
     }
 
-    private static void Postfix(NativeUiScopeEntry __state)
+    private static void Postfix(NRewardsScreen __instance, NativeUiScopeEntry __state)
     {
         if (!__state.Entered && !__state.DeferredFailure)
             return;
@@ -829,6 +894,7 @@ internal static class NativeRewardProceedPatch
                 DateTimeOffset.UtcNow),
             captureImmediatePostCommitBoundary: false,
             actionWitnessId: __state.ActionWitnessId);
+        NativeUiCompletionRootBindings.Remember(__instance, __state.ActionWitnessId);
     }
 
     private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
@@ -845,7 +911,10 @@ internal static class NativeRewardSkipCommitPatch
         RecorderRuntime.ObserveSemanticUiNativeCommit(
             "reward_proceed",
             "RewardsSetSynchronizer.SkipLocalRewardsSet",
-            nativeOwner: __instance);
+            nativeOwner: __instance,
+            nativeOperand: NativeRewardUiContext.CurrentRewardsSet(),
+            expectedActionWitnessId: NativeUiCompletionRootBindings.Take(
+                NOverlayStack.Instance?.Peek()));
 }
 
 [HarmonyPatch]
@@ -948,6 +1017,662 @@ internal static class NativeRewardClaimCompletionPatch
             __result,
             "RewardsSetSynchronizer.SelectLocalReward",
             nativeOwner: __instance,
-            nativeOperand: reward);
+            nativeOperand: reward,
+            expectedActionWitnessId: NativeUiCompletionRootBindings.Take(reward));
     }
+}
+
+[HarmonyPatch]
+internal static class NativeEventOptionPatch
+{
+    private const string NativeActionType = "NEventRoom.OptionButtonClicked";
+
+    private readonly record struct PatchState(
+        NativeUiScopeEntry Scope,
+        EventOption? Option,
+        string? Verb,
+        NEventRoom? Room);
+
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(NEventRoom),
+            "OptionButtonClicked",
+            new[] { typeof(EventOption), typeof(int) })
+        ?? throw new MissingMethodException(
+            typeof(NEventRoom).FullName,
+            "OptionButtonClicked");
+
+    private static void Prefix(
+        NEventRoom __instance,
+        [HarmonyArgument(0)] EventOption option,
+        out PatchState __state)
+    {
+        if (option == null || option.IsLocked)
+        {
+            __state = default;
+            return;
+        }
+
+        string verb = option.IsProceed ? "proceed_event" : "choose_event_option";
+        __state = new PatchState(
+            RecorderRuntime.TryEnterSemanticScope(
+                "native_event_option_ui",
+                NativeActionType,
+                new ProcessLocalObservedAction(
+                    "activate",
+                    option,
+                    new Dictionary<string, object>(StringComparer.Ordinal)),
+                new NativePostCommitCompletionExpectation(
+                    "event_option",
+                    "EventOption.Chosen",
+                    NativeOperandWitnessId: NativeWitnessIdentity.Get(option, "native_operand")),
+                new ProcessLocalObservedAction(
+                    verb,
+                    option,
+                    new Dictionary<string, object>(StringComparer.Ordinal))),
+            option,
+            verb,
+            __instance);
+    }
+
+    private static void Postfix(PatchState __state)
+    {
+        if ((!__state.Scope.Entered && !__state.Scope.DeferredFailure)
+            || __state.Option is not { } option
+            || __state.Verb is not { } verb
+            || __state.Room is not { } room)
+            return;
+        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            NativeActionType,
+            new ProcessLocalObservedAction(
+                "activate",
+                option,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativeWitnessEvidence(
+                "native_event_option_ui",
+                NativeActionType,
+                NativeWitnessIdentity.Get(option, "event_option"),
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                DateTimeOffset.UtcNow),
+            captureImmediatePostCommitBoundary: false,
+            actionWitnessId: __state.Scope.ActionWitnessId);
+        NativeUiCompletionRootBindings.Remember(option, __state.Scope.ActionWitnessId);
+    }
+
+    private static Exception? Finalizer(PatchState __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state.Scope);
+        return __exception;
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeEventOptionCompletionPatch
+{
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(typeof(EventOption), nameof(EventOption.Chosen))
+        ?? throw new MissingMethodException(typeof(EventOption).FullName, nameof(EventOption.Chosen));
+
+    private static void Postfix(EventOption __instance, Task __result)
+    {
+        if (__result != null)
+        {
+            RecorderRuntime.QueueNativePostCommitBoundary(
+                __result,
+                "EventOption.Chosen",
+                nativeOperand: __instance,
+                expectedActionWitnessId: NativeUiCompletionRootBindings.Take(__instance));
+        }
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeRestSiteOptionPatch
+{
+    private const string NativeActionType = "RestSiteSynchronizer.ChooseLocalOption";
+
+    private readonly record struct PatchState(
+        NativeUiScopeEntry Scope,
+        RestSiteOption? Option,
+        NRestSiteRoom? Room,
+        string? InheritedActionWitnessId);
+
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(RestSiteSynchronizer),
+            nameof(RestSiteSynchronizer.ChooseLocalOption),
+            new[] { typeof(int) })
+        ?? throw new MissingMethodException(
+            typeof(RestSiteSynchronizer).FullName,
+            nameof(RestSiteSynchronizer.ChooseLocalOption));
+
+    private static void Prefix(
+        RestSiteSynchronizer __instance,
+        [HarmonyArgument(0)] int index,
+        out PatchState __state)
+    {
+        NRestSiteRoom? room = NRestSiteRoom.Instance;
+        RestSiteOption[] options = __instance.GetLocalOptions().ToArray();
+        if (room == null || index < 0 || index >= options.Length)
+        {
+            __state = default;
+            return;
+        }
+        RestSiteOption option = options[index];
+        string? inheritedActionWitnessId =
+            RecorderRuntime.CurrentSemanticActionWitnessId(NativeActionType);
+        __state = new PatchState(
+            inheritedActionWitnessId == null
+                ? RecorderRuntime.TryEnterSemanticScope(
+                    "native_rest_site_option_ui",
+                    NativeActionType,
+                    new ProcessLocalObservedAction(
+                        "activate",
+                        option,
+                        new Dictionary<string, object>(StringComparer.Ordinal)),
+                    new NativePostCommitCompletionExpectation(
+                        "rest_site",
+                        NativeActionType,
+                        NativeOperandWitnessId: NativeWitnessIdentity.Get(option, "native_operand")),
+                    new ProcessLocalObservedAction(
+                        "choose_rest_option",
+                        option,
+                        new Dictionary<string, object>(StringComparer.Ordinal)))
+                : default,
+            option,
+            room,
+            inheritedActionWitnessId);
+    }
+
+    private static void Postfix(
+        RestSiteSynchronizer __instance,
+        PatchState __state,
+        Task<bool> __result)
+    {
+        if (__state.Option is not { } option
+            || __state.Room is not { } room)
+            return;
+        string? actionWitnessId = __state.Scope.ActionWitnessId
+            ?? __state.InheritedActionWitnessId;
+        if (actionWitnessId == null
+            || !__state.Scope.Entered && !__state.Scope.DeferredFailure
+                && __state.InheritedActionWitnessId == null)
+            return;
+        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            NativeActionType,
+            new ProcessLocalObservedAction(
+                "activate",
+                option,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativeWitnessEvidence(
+                "native_rest_site_option_ui",
+                NativeActionType,
+                NativeWitnessIdentity.Get(option, "rest_option"),
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                DateTimeOffset.UtcNow),
+            captureImmediatePostCommitBoundary: false,
+            actionWitnessId: actionWitnessId);
+        if (__result != null)
+        {
+            RecorderRuntime.QueueNativePostCommitBoundary(
+                __result,
+                NativeActionType,
+                nativeOwner: __instance,
+                nativeOperand: option,
+                expectedActionWitnessId: actionWitnessId);
+        }
+    }
+
+    private static Exception? Finalizer(PatchState __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state.Scope);
+        return __exception;
+    }
+}
+
+/// <summary>
+/// NRestSiteButton disables its visible options before it invokes the
+/// asynchronous RestSiteSynchronizer operation. Capture the exact interactive
+/// frame at the button boundary, then let the nested synchronizer callback
+/// publish the accepted root and bind the returned Task to that same root.
+/// </summary>
+[HarmonyPatch]
+internal static class NativeRestSiteButtonPatch
+{
+    private const string NativeActionType = "RestSiteSynchronizer.ChooseLocalOption";
+
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(typeof(NRestSiteButton), "OnRelease")
+        ?? throw new MissingMethodException(
+            typeof(NRestSiteButton).FullName,
+            "OnRelease");
+
+    private static void Prefix(
+        NRestSiteButton __instance,
+        out NativeUiScopeEntry __state)
+    {
+        RestSiteOption? option = __instance.Option;
+        RestSiteRoom? room = RunManager.Instance.DebugOnlyGetState()?.CurrentRoom as RestSiteRoom;
+        if (option == null
+            || room == null
+            || NRestSiteRoom.Instance == null
+            || !room.Options.Any(candidate => ReferenceEquals(candidate, option)))
+        {
+            __state = default;
+            return;
+        }
+        __state = RecorderRuntime.TryEnterSemanticScope(
+            "native_rest_site_option_ui",
+            NativeActionType,
+            new ProcessLocalObservedAction(
+                "activate",
+                option,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativePostCommitCompletionExpectation(
+                "rest_site",
+                NativeActionType,
+                NativeOperandWitnessId: NativeWitnessIdentity.Get(option, "native_operand")),
+            new ProcessLocalObservedAction(
+                "choose_rest_option",
+                option,
+                new Dictionary<string, object>(StringComparer.Ordinal)));
+    }
+
+    private static Exception? Finalizer(
+        NativeUiScopeEntry __state,
+        Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state);
+        return __exception;
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeRestSiteProceedPatch
+{
+    private const string NativeActionType = "NRestSiteRoom.OnProceedButtonReleased";
+
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(NRestSiteRoom),
+            "OnProceedButtonReleased",
+            new[] { typeof(NButton) })
+        ?? throw new MissingMethodException(
+            typeof(NRestSiteRoom).FullName,
+            "OnProceedButtonReleased");
+
+    private static void Prefix(
+        NRestSiteRoom __instance,
+        out NativeUiScopeEntry __state)
+    {
+        RestSiteRoom? room = RunManager.Instance.DebugOnlyGetState()?.CurrentRoom as RestSiteRoom;
+        __state = room == null
+            ? default
+            : RecorderRuntime.TryEnterSemanticScope(
+                "native_rest_site_proceed_ui",
+                NativeActionType,
+                new ProcessLocalObservedAction(
+                    "activate",
+                    null,
+                    new Dictionary<string, object>(StringComparer.Ordinal)),
+                nativeSemanticSelection: new ProcessLocalObservedAction(
+                    "proceed_rest_site",
+                    room,
+                    new Dictionary<string, object>(StringComparer.Ordinal)));
+    }
+
+    private static void Postfix(
+        NRestSiteRoom __instance,
+        NativeUiScopeEntry __state)
+    {
+        if (!__state.Entered && !__state.DeferredFailure)
+            return;
+        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            NativeActionType,
+            new ProcessLocalObservedAction(
+                "activate",
+                null,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativeWitnessEvidence(
+                "native_rest_site_proceed_ui",
+                NativeActionType,
+                NativeWitnessIdentity.Get(__instance, "proceed_button"),
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                DateTimeOffset.UtcNow));
+    }
+
+    private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state);
+        return __exception;
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeShopPurchasePatch
+{
+    private const string NativeActionType = "MerchantEntry.OnTryPurchaseWrapper";
+
+    private readonly record struct PatchState(
+        NativeUiScopeEntry Scope,
+        MerchantEntry? Entry,
+        NMerchantInventory? Inventory,
+        string? Operation);
+
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(MerchantEntry),
+            nameof(MerchantEntry.OnTryPurchaseWrapper),
+            new[] { typeof(MerchantInventory), typeof(bool) })
+        ?? throw new MissingMethodException(
+            typeof(MerchantEntry).FullName,
+            nameof(MerchantEntry.OnTryPurchaseWrapper));
+
+    private static void Prefix(
+        MerchantEntry __instance,
+        [HarmonyArgument(0)] MerchantInventory? inventory,
+        out PatchState __state)
+    {
+        NMerchantInventory? ui = NMerchantRoom.Instance?.Inventory;
+        if (ui == null || inventory == null || !ReferenceEquals(ui.Inventory, inventory))
+        {
+            __state = default;
+            return;
+        }
+        string operation = __instance switch
+        {
+            MerchantCardEntry => "purchase_shop_card",
+            MerchantRelicEntry => "purchase_shop_relic",
+            MerchantPotionEntry => "purchase_shop_potion",
+            MerchantCardRemovalEntry => "open_shop_card_removal",
+            _ => string.Empty
+        };
+        if (operation.Length == 0)
+        {
+            __state = default;
+            return;
+        }
+        __state = new PatchState(
+            RecorderRuntime.TryEnterSemanticScope(
+                "native_shop_purchase_ui",
+                NativeActionType,
+                new ProcessLocalObservedAction(
+                    "activate",
+                    __instance,
+                    new Dictionary<string, object>(StringComparer.Ordinal)),
+                new NativePostCommitCompletionExpectation(
+                    "shop_inventory",
+                    NativeActionType,
+                    NativeOperandWitnessId: NativeWitnessIdentity.Get(__instance, "native_operand")),
+                new ProcessLocalObservedAction(
+                    operation,
+                    __instance,
+                    new Dictionary<string, object>(StringComparer.Ordinal))),
+            __instance,
+            ui,
+            operation);
+    }
+
+    private static void Postfix(
+        MerchantEntry __instance,
+        PatchState __state,
+        Task<bool> __result)
+    {
+        if ((!__state.Scope.Entered && !__state.Scope.DeferredFailure)
+            || __state.Entry is not { } entry
+            || __state.Inventory is not { } inventory
+            || __state.Operation is not { Length: > 0 } operation)
+            return;
+        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            NativeActionType,
+            new ProcessLocalObservedAction(
+                "activate",
+                entry,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativeWitnessEvidence(
+                "native_shop_purchase_ui",
+                NativeActionType,
+                NativeWitnessIdentity.Get(entry, "shop_offer"),
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                DateTimeOffset.UtcNow),
+            captureImmediatePostCommitBoundary: false,
+            actionWitnessId: __state.Scope.ActionWitnessId);
+        if (__result != null)
+        {
+            RecorderRuntime.QueueNativePostCommitBoundary(
+                __result,
+                NativeActionType,
+                nativeOperand: entry,
+                expectedActionWitnessId: __state.Scope.ActionWitnessId);
+        }
+    }
+
+    private static Exception? Finalizer(PatchState __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state.Scope);
+        return __exception;
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeShopRoomOpenPatch
+{
+    private const string NativeActionType = "NMerchantRoom.OpenInventory";
+
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(NMerchantRoom),
+            nameof(NMerchantRoom.OpenInventory),
+            Type.EmptyTypes)
+        ?? throw new MissingMethodException(
+            typeof(NMerchantRoom).FullName,
+            nameof(NMerchantRoom.OpenInventory));
+
+    private static void Prefix(
+        NMerchantRoom __instance,
+        out NativeUiScopeEntry __state)
+    {
+        MerchantRoom? room = RunManager.Instance.DebugOnlyGetState()?.CurrentRoom as MerchantRoom;
+        __state = room == null || __instance.Inventory.IsOpen
+            ? default
+            : RecorderRuntime.TryEnterSemanticScope(
+                "native_shop_room_ui",
+                NativeActionType,
+                new ProcessLocalObservedAction(
+                    "open",
+                    null,
+                    new Dictionary<string, object>(StringComparer.Ordinal)),
+                nativeSemanticSelection: new ProcessLocalObservedAction(
+                    "open_shop_inventory",
+                    __instance,
+                    new Dictionary<string, object>(StringComparer.Ordinal)));
+    }
+
+    private static void Postfix(
+        NMerchantRoom __instance,
+        NativeUiScopeEntry __state)
+    {
+        if (!__state.Entered && !__state.DeferredFailure)
+            return;
+        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            NativeActionType,
+            new ProcessLocalObservedAction(
+                "open",
+                null,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativeWitnessEvidence(
+                "native_shop_room_open_ui",
+                NativeActionType,
+                NativeWitnessIdentity.Get(__instance, "shop_room"),
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                DateTimeOffset.UtcNow));
+    }
+
+    private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state);
+        return __exception;
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeShopRoomProceedPatch
+{
+    private const string NativeActionType = "NMerchantRoom.HideScreen";
+
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(NMerchantRoom),
+            "HideScreen",
+            new[] { typeof(NButton) })
+        ?? throw new MissingMethodException(
+            typeof(NMerchantRoom).FullName,
+            "HideScreen");
+
+    private static void Prefix(
+        NMerchantRoom __instance,
+        out NativeUiScopeEntry __state)
+    {
+        MerchantRoom? room = RunManager.Instance.DebugOnlyGetState()?.CurrentRoom as MerchantRoom;
+        __state = room == null || __instance.Inventory.IsOpen
+            ? default
+            : RecorderRuntime.TryEnterSemanticScope(
+                "native_shop_room_proceed_ui",
+                NativeActionType,
+                new ProcessLocalObservedAction(
+                    "activate",
+                    null,
+                    new Dictionary<string, object>(StringComparer.Ordinal)),
+                nativeSemanticSelection: new ProcessLocalObservedAction(
+                    "proceed_shop",
+                    __instance,
+                    new Dictionary<string, object>(StringComparer.Ordinal)));
+    }
+
+    private static void Postfix(
+        NMerchantRoom __instance,
+        NativeUiScopeEntry __state)
+    {
+        if (!__state.Entered && !__state.DeferredFailure)
+            return;
+        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            NativeActionType,
+            new ProcessLocalObservedAction(
+                "activate",
+                null,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativeWitnessEvidence(
+                "native_shop_room_proceed_ui",
+                NativeActionType,
+                NativeWitnessIdentity.Get(__instance, "shop_room"),
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                DateTimeOffset.UtcNow));
+    }
+
+    private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state);
+        return __exception;
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeShopInventoryClosePatch
+{
+    private const string NativeActionType = "NMerchantInventory.Close";
+
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(NMerchantInventory),
+            "Close",
+            Type.EmptyTypes)
+        ?? throw new MissingMethodException(
+            typeof(NMerchantInventory).FullName,
+            "Close");
+
+    private static void Prefix(
+        NMerchantInventory __instance,
+        out NativeUiScopeEntry __state)
+    {
+        NMerchantRoom? room = NMerchantRoom.Instance;
+        __state = room?.Inventory is not { IsOpen: true } current
+                  || !ReferenceEquals(current, __instance)
+            ? default
+            : RecorderRuntime.TryEnterSemanticScope(
+                "native_shop_inventory_close_ui",
+                NativeActionType,
+                new ProcessLocalObservedAction(
+                    "cancel",
+                    null,
+                    new Dictionary<string, object>(StringComparer.Ordinal)),
+                nativeSemanticSelection: new ProcessLocalObservedAction(
+                    "close_shop_inventory",
+                    __instance,
+                    new Dictionary<string, object>(StringComparer.Ordinal)));
+    }
+
+    private static void Postfix(
+        NMerchantInventory __instance,
+        NativeUiScopeEntry __state)
+    {
+        if (!__state.Entered && !__state.DeferredFailure)
+            return;
+        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            NativeActionType,
+            new ProcessLocalObservedAction(
+                "cancel",
+                null,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativeWitnessEvidence(
+                "native_shop_inventory_close_ui",
+                NativeActionType,
+                NativeWitnessIdentity.Get(__instance, "shop_inventory"),
+                new Dictionary<string, string>(StringComparer.Ordinal),
+                DateTimeOffset.UtcNow));
+    }
+
+    private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
+    {
+        RecorderRuntime.ExitNativeUiScope(__state);
+        return __exception;
+    }
+}
+
+/// <summary>
+/// Captures the exact STS2 run-start seam. RunManager.Launch is called after
+/// the native RunState has been initialized; it is distinct from a recorder
+/// joining an already-running session, which remains an observed-in-progress
+/// marker.
+/// </summary>
+[HarmonyPatch]
+internal static class NativeRunStartedPatch
+{
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(typeof(RunManager), "Launch")
+        ?? throw new MissingMethodException(
+            typeof(RunManager).FullName,
+            "Launch");
+
+    private static void Postfix() => RecorderRuntime.ObserveNativeRunStarted();
+}
+
+/// <summary>
+/// Captures the exact STS2 terminal seam.  RunManager.OnEnded is invoked by
+/// both native victory and defeat paths; the recorder only projects this
+/// observation and never manufactures a successor or settles an action.
+/// </summary>
+[HarmonyPatch]
+internal static class NativeRunEndedPatch
+{
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(
+            typeof(RunManager),
+            "OnEnded",
+            new[] { typeof(bool) })
+        ?? throw new MissingMethodException(
+            typeof(RunManager).FullName,
+            "OnEnded");
+
+    private static void Postfix([HarmonyArgument(0)] bool isVictory) =>
+        RecorderRuntime.ObserveNativeRunEnded(isVictory);
 }

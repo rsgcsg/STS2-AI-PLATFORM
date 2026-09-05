@@ -73,6 +73,75 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
+    public void LaterStartedActionCannotBeSkippedByEarlyRootSettlement()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference eventAction = Action(
+            "event",
+            1,
+            "NEventRoom.OptionButtonClicked") with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(eventAction, State("human-event"));
+        tracker.ObserveBeforeActionExecution(
+            eventAction.ActionWitnessId,
+            Boundary("event-before", eventAction.ActionWitnessId));
+        tracker.Started(eventAction.ActionWitnessId);
+
+        SemanticActionReference rewardClaim = Action(
+            "reward-claim",
+            2,
+            "NRewardButton.OnRelease") with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(rewardClaim, State("human-reward"));
+        tracker.ObserveBeforeActionExecution(
+            rewardClaim.ActionWitnessId,
+            Boundary("reward-before", rewardClaim.ActionWitnessId));
+        tracker.Started(rewardClaim.ActionWitnessId);
+        tracker.Finished(rewardClaim.ActionWitnessId);
+        tracker.ObserveNativeCommit(
+            rewardClaim.ActionWitnessId,
+            Completion(rewardClaim.ActionWitnessId));
+
+        // This root is already executing when the earlier Event action later
+        // finishes and receives its Commit. It is therefore an intervening
+        // Human effect even though it is not itself waiting for a boundary.
+        SemanticActionReference rewardProceed = Action(
+            "reward-proceed",
+            3,
+            "NRewardsScreen.OnProceedButtonPressed") with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(rewardProceed, State("human-proceed"));
+        tracker.ObserveBeforeActionExecution(
+            rewardProceed.ActionWitnessId,
+            Boundary("proceed-before", rewardProceed.ActionWitnessId));
+        tracker.Started(rewardProceed.ActionWitnessId);
+
+        tracker.Finished(eventAction.ActionWitnessId);
+        tracker.ObserveNativeCommit(
+            eventAction.ActionWitnessId,
+            Completion(eventAction.ActionWitnessId));
+
+        SemanticActionReference next = Action("next", 4);
+        tracker.Accept(next, State("human-next"));
+        SemanticBoundaryTraceDraft eventDisposition = Assert.Single(
+            tracker.ObserveBeforeActionExecution(
+                next.ActionWitnessId,
+                Boundary("next-state", next.ActionWitnessId)),
+            value => value.Action.ActionWitnessId == eventAction.ActionWitnessId);
+
+        Assert.Equal(SemanticBoundaryTraceKinds.TransitionUnknown, eventDisposition.Kind);
+        Assert.Equal("intervening_human_action_before_boundary", eventDisposition.ProofStatus);
+        Assert.Equal(rewardProceed.ActionWitnessId, eventDisposition.RelatedActionWitnessId);
+        Assert.Null(eventDisposition.SemanticSuccessor);
+    }
+
+    [Fact]
     public void RapidLethalKeepsCancelledPrecommitButOnlySettlesExecutedAction()
     {
         var tracker = new SemanticBoundaryTracker();
@@ -189,6 +258,51 @@ public sealed class SemanticBoundaryTrackerTests
         Assert.Equal("proved_native_commit_then_execution_handoff", proved.ProofStatus);
         Assert.Same(completion, proved.NativeCompletion);
         Assert.Empty(tracker.ObserveNativeCommit(parent.ActionWitnessId, completion));
+    }
+
+    [Fact]
+    public void PlayerChoiceParentMayExposeMultipleExactContinuations()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference parent = Action("choice-parent-multi", 1) with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(parent, State("human-parent"));
+        tracker.ObserveBeforeActionExecution(
+            parent.ActionWitnessId,
+            Boundary("combat-before", parent.ActionWitnessId));
+        tracker.Started(parent.ActionWitnessId);
+        tracker.PausedForPlayerChoice(parent.ActionWitnessId);
+
+        NativeContinuationEvidence first = new(
+            "continuation-first",
+            "GameAction.BeforePausedForPlayerChoice",
+            parent.ActionWitnessId,
+            "game_action:choice-parent-multi",
+            "game_action:choice-parent-multi",
+            true);
+        NativeContinuationEvidence second = first with
+        {
+            ContinuationId = "continuation-second"
+        };
+
+        Assert.Same(
+            first,
+            Assert.Single(tracker.ObserveNativeContinuation(parent.ActionWitnessId, first))
+                .NativeContinuation);
+        tracker.ReadyToResume(parent.ActionWitnessId);
+        tracker.BeforeExecutionResume(parent.ActionWitnessId);
+        tracker.Resumed(parent.ActionWitnessId);
+        tracker.PausedForPlayerChoice(parent.ActionWitnessId);
+
+        // The same native parent can pause again for another exact choice.
+        // This is a second lifecycle witness, not a duplicate Human root.
+        Assert.Same(
+            second,
+            Assert.Single(tracker.ObserveNativeContinuation(parent.ActionWitnessId, second))
+                .NativeContinuation);
+        Assert.True(tracker.CanOpenNextRoot);
     }
 
     [Fact]
@@ -508,6 +622,73 @@ public sealed class SemanticBoundaryTrackerTests
         Assert.Null(result.SemanticSuccessor);
         Assert.Contains("no_semantic_successor", result.NonClaims!);
         Assert.Empty(tracker.CloseUnknown("duplicate_close"));
+    }
+
+    [Fact]
+    public void PreviewCloseUnknownDoesNotEraseRootsBeforePersistence()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        tracker.Accept(Action("close-failure", 1), State("s0"));
+
+        IReadOnlyList<SemanticBoundaryTraceDraft> preview =
+            tracker.PreviewCloseUnknown(RecordingClosePolicy.TerminalUnknownReason);
+
+        Assert.Single(preview);
+        Assert.True(tracker.HasUnresolvedActions);
+
+        tracker.CommitCloseUnknown();
+
+        Assert.False(tracker.HasUnresolvedActions);
+        Assert.Empty(tracker.PreviewCloseUnknown("duplicate_close"));
+    }
+
+    [Fact]
+    public void AuthoritativeCloseAppendThenProjectionFailureCommitsExactlyOnce()
+    {
+        var beforeAppendFailure = new SemanticBoundaryTracker();
+        beforeAppendFailure.Accept(Action("close-append-failure", 1), State("s0"));
+
+        IReadOnlyList<SemanticBoundaryTraceDraft> beforePreview =
+            beforeAppendFailure.PreviewCloseUnknown(RecordingClosePolicy.TerminalUnknownReason);
+        int failedAppendAttempts = 0;
+        try
+        {
+            failedAppendAttempts++;
+            throw new InvalidOperationException("append failed before durable evidence");
+        }
+        catch (InvalidOperationException)
+        {
+            // The coordinator remains Closing and does not commit its preview.
+        }
+
+        Assert.Single(beforePreview);
+        Assert.Equal(1, failedAppendAttempts);
+        Assert.True(beforeAppendFailure.HasUnresolvedActions);
+
+        var afterAppendFailure = new SemanticBoundaryTracker();
+        afterAppendFailure.Accept(Action("close-projection-failure", 2), State("s1"));
+        IReadOnlyList<SemanticBoundaryTraceDraft> afterPreview =
+            afterAppendFailure.PreviewCloseUnknown(RecordingClosePolicy.TerminalUnknownReason);
+        Assert.Single(afterPreview);
+        int durableDispositionAppends = 0;
+
+        try
+        {
+            durableDispositionAppends++;
+            afterAppendFailure.CommitCloseUnknown();
+            throw new InvalidOperationException("projection failed after durable evidence");
+        }
+        catch (InvalidOperationException)
+        {
+            // The coordinator records the projection failure but does not
+            // retry the authoritative semantic append.
+        }
+
+        Assert.Equal(1, durableDispositionAppends);
+        Assert.False(afterAppendFailure.HasUnresolvedActions);
+        Assert.Empty(afterAppendFailure.PreviewCloseUnknown("duplicate_close"));
+        afterAppendFailure.CommitCloseUnknown();
+        Assert.Empty(afterAppendFailure.PreviewCloseUnknown("duplicate_close"));
     }
 
     [Fact]

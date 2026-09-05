@@ -21,6 +21,14 @@ Current bounded ownership:
 - `NativeCardRewardDecisionProvider`: exact card and alternative option lists;
 - `NativeTreasureDecisionProvider`: exact treasure room lifecycle, relic
   collection membership and local vote;
+- `NativeBossRelicDecisionProvider`: exact `NChooseARelicSelection` options,
+  skip path, and `RelicSelectCmd.FromChooseARelicScreen` PlayerChoice lineage;
+  the command's exact option list is registered before `ShowScreen`, and
+  execution revalidates that list and parent action before delivery;
+- `NativeActChangeDecisionProvider`: a typed process-local contract for the
+  exact act-ready enqueue, `VoteToMoveToNextActAction` Commit, and
+  `ActChangeSynchronizer.OnPlayerReady` owner-ready seams, with a conditional
+  next-boundary description that never claims `EnterNextAct` has completed;
 - `NativeDecisionOwnerReadyProvider`: typed process-local notification from an
   exact owner-ready seam; consumers must still capture and validate a complete
   Connector frame at that seam;
@@ -31,3 +39,13 @@ reads a real STS2 owner; visible screens and controls only bind current input
 delivery. A domain enters this component only when its semantic owner can be
 expressed without importing UI timing, transport, evidence, or a second
 game-rules model.
+
+Nested selector proof boundary (v0.111.0): the shop-removal caller is
+`MerchantCardRemovalEntry.OnTryPurchaseWrapper` ->
+`OneOffSynchronizer.DoLocalMerchantCardRemoval` ->
+`CardSelectCmd.FromDeckForRemoval` -> `NDeckCardSelectScreen`; the generic child
+screen does not carry the merchant entry or its purchase operand. Event options
+and rest-site options likewise call generic child selectors from option
+callbacks while the child screen exposes no stable parent carrier. These
+lineages remain unimplemented until an exact caller registration seam can be
+bound without an ambient/FIFO guess.

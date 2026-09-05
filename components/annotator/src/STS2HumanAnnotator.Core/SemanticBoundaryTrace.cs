@@ -217,6 +217,8 @@ public sealed class SemanticBoundaryTracker
     private readonly List<string> _order = new();
     private CurrentDecisionFrame? _currentState;
     private long _executionSequence;
+    private string? _lastStartedActionWitnessId;
+    private long _lastStartedExecutionOrder;
 
     public SemanticBoundaryTracker(int capacity = 128)
     {
@@ -315,6 +317,8 @@ public sealed class SemanticBoundaryTracker
         Entry entry = Required(actionWitnessId);
         entry.Started = true;
         entry.ExecutionOrder ??= ++_executionSequence;
+        _lastStartedActionWitnessId = actionWitnessId;
+        _lastStartedExecutionOrder = entry.ExecutionOrder.Value;
         _currentState = null;
         return new[]
         {
@@ -555,9 +559,13 @@ public sealed class SemanticBoundaryTracker
             throw new InvalidOperationException(
                 "A native PlayerChoice continuation must carry the exact parent Human root identity.");
         }
-        if (entry.NativeContinuation != null)
-            throw new InvalidOperationException("The exact Human root received two PlayerChoice continuations.");
-
+        // A single native GameAction may pause more than once while resolving
+        // a PlayerChoice chain (for example, a card that asks for successive
+        // selections). Each callback is an exact lifecycle witness for the
+        // same parent root; it is not a duplicate Human action and must not
+        // disable the trace. Keep the latest continuation on the entry for
+        // any later canonical proof while every observation remains durable
+        // as its own native_continuation_observed event.
         entry.NativeContinuation = continuation;
         return new[]
         {
@@ -602,10 +610,21 @@ public sealed class SemanticBoundaryTracker
 
     public IReadOnlyList<SemanticBoundaryTraceDraft> CloseUnknown(string proofStatus)
     {
+        IReadOnlyList<SemanticBoundaryTraceDraft> drafts = PreviewCloseUnknown(proofStatus);
+        CommitCloseUnknown();
+        return drafts;
+    }
+
+    /// <summary>
+    /// Builds terminal unknown dispositions without changing tracker state.
+    /// RecordingSessionStore writes span several independent streams, so the
+    /// runtime must be able to retain unresolved roots when that write fails.
+    /// </summary>
+    public IReadOnlyList<SemanticBoundaryTraceDraft> PreviewCloseUnknown(string proofStatus)
+    {
         var drafts = new List<SemanticBoundaryTraceDraft>();
         foreach (Entry entry in _order.Select(id => _entries[id]).Where(value => !value.Disposed))
         {
-            entry.Disposed = true;
             drafts.Add(Draft(
                 SemanticBoundaryTraceKinds.TransitionUnknown,
                 entry,
@@ -614,8 +633,19 @@ public sealed class SemanticBoundaryTracker
                 detail: RecordingClosePolicy.TerminalUnknownDetail,
                 nonClaims: new[] { "no_semantic_successor" }));
         }
-        _currentState = null;
         return drafts;
+    }
+
+    /// <summary>
+    /// Commits a previously previewed close disposition after its evidence is
+    /// durable. Calling this method is intentionally side-effect-only so a
+    /// failed persistence attempt cannot erase accepted roots.
+    /// </summary>
+    public void CommitCloseUnknown()
+    {
+        foreach (Entry entry in _order.Select(id => _entries[id]).Where(value => !value.Disposed))
+            entry.Disposed = true;
+        _currentState = null;
     }
 
     public void Reset()
@@ -624,6 +654,8 @@ public sealed class SemanticBoundaryTracker
         _order.Clear();
         _currentState = null;
         _executionSequence = 0;
+        _lastStartedActionWitnessId = null;
+        _lastStartedExecutionOrder = 0;
     }
 
     private IReadOnlyList<SemanticBoundaryTraceDraft> Settle(
@@ -634,6 +666,22 @@ public sealed class SemanticBoundaryTracker
     {
         if (IsNonCausalObservation(boundary, new[] { entry }))
             return Array.Empty<SemanticBoundaryTraceDraft>();
+
+        // A later Human root may already have started while this entry was
+        // still running, so it is absent from WaitingForBoundaryInExecutionOrder.
+        // Its execution is nevertheless an intervening Human effect and makes
+        // any later boundary invalid for this entry. Keep this check in the
+        // single causal tracker rather than relying on the current live-entry
+        // collection or a later validator to retract a false proof.
+        if (entry.ExecutionOrder is long executionOrder
+            && _lastStartedExecutionOrder > executionOrder)
+        {
+            return DisposeUnknown(
+                entry,
+                "intervening_human_action_before_boundary",
+                _lastStartedActionWitnessId ?? nextActionWitnessId ?? string.Empty,
+                "Another Human action had already started before this action reached a causal successor boundary.");
+        }
 
         if (entry.Action.RequiresNativePostCommit
             && entry.NativeCommit == null
