@@ -40,12 +40,15 @@ delivery. A domain enters this component only when its semantic owner can be
 expressed without importing UI timing, transport, evidence, or a second
 game-rules model.
 
-Nested selector proof boundary (v0.111.0): the shop-removal caller is
-`MerchantCardRemovalEntry.OnTryPurchaseWrapper` ->
-`OneOffSynchronizer.DoLocalMerchantCardRemoval` ->
-`CardSelectCmd.FromDeckForRemoval` -> `NDeckCardSelectScreen`; the generic child
-screen does not carry the merchant entry or its purchase operand. Event options
-and rest-site options likewise call generic child selectors from option
-callbacks while the child screen exposes no stable parent carrier. These
-lineages remain unimplemented until an exact caller registration seam can be
-bound without an ambient/FIFO guess.
+Nested selector proof boundary (v0.111.0): Native Foundation continues to own
+only typed selector facts. Annotator binds Human continuation evidence from an
+exact parent/root logical invocation scope to the exact typed selector factory,
+then keys the resulting native screen until its terminal completion callback.
+Shop removal uses the shipped three-argument
+`MerchantCardRemovalEntry.OnTryPurchaseWrapper`; Event uses the exact
+`EventOption.Chosen` option; Rest uses the exact option selected by
+`RestSiteSynchronizer.ChooseLocalOption`. A GameAction-owned selector uses
+`NativePlayerChoiceLineage` and the exact bound parent action. The child remains
+a durable continuation on the parent root, never a second root, Commit, ledger,
+or successor. No async `MoveNext`, FIFO, latest-frame, overlay, or timing
+association is used.

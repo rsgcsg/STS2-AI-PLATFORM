@@ -130,6 +130,23 @@ public sealed record NativeContinuationEvidence(
     bool Succeeded);
 
 /// <summary>
+/// One exact accepted Human continuation inside an already-owned parent root.
+/// The child selector is not a second action root and this evidence is neither
+/// native Commit nor successor authority.  It only preserves the exact
+/// screen-owned accepted occurrence and its parent correlation.
+/// </summary>
+public sealed record NativeHumanContinuationEvidence(
+    string OccurrenceId,
+    string Family,
+    string Verb,
+    string ParentActionWitnessId,
+    string NativeOwnerWitnessId,
+    string NativeMechanism,
+    string? NativeSubjectWitnessId,
+    IReadOnlyDictionary<string, string> NativeOperands,
+    string Disposition);
+
+/// <summary>
 /// Ordered semantic timeline event. Frames are stored once and referenced by
 /// role so lifecycle facts stay compact without weakening causal validation.
 /// </summary>
@@ -155,5 +172,6 @@ public sealed record SemanticEvidenceEvent(
     public SemanticFrameReference? HumanObservationRef { get; init; }
     public NativeCompletionEvidence? NativeCompletion { get; init; }
     public NativeContinuationEvidence? NativeContinuation { get; init; }
+    public NativeHumanContinuationEvidence? NativeHumanContinuation { get; init; }
     public ExecutionSemanticActionSpaceReference? ExecutionSemanticActionSpaceRef { get; init; }
 }

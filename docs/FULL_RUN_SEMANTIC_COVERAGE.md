@@ -49,6 +49,40 @@ from a later Human effect.
 | rest-site option / proceed | `RestSiteSynchronizer.ChooseLocalOption` task and `NRestSiteRoom` proceed | complete visible option catalog | exact synchronizer and proceed callbacks | source complete; final candidate live canary required |
 | run entry / game terminal | native `RunManager.Launch()` start and `RunManager.OnEnded(bool)` terminal seams; lifecycle-only | source/test complete for native markers; no Human action authority | fresh candidate lifecycle canary and exhaustive Full Run still required |
 
+Generic nested selector continuation is source/test closed for the exact
+v0.111.0 vanilla carriers. An exact parent/root logical async invocation scope
+flows into the typed selector factory, and a weak screen-keyed binding is
+consumed only after the screen's own completion source has settled at a
+terminal callback. Shop removal uses the shipped three-argument
+`MerchantCardRemovalEntry.OnTryPurchaseWrapper`; Event uses `EventOption.Chosen`;
+Rest uses the exact `RestSiteOption` selected by `ChooseLocalOption`; and
+GameAction-owned selectors use `NativePlayerChoiceLineage`. The child is durable
+continuation evidence on the existing parent root, not a second root, Commit,
+ledger, or successor. Async `MoveNext`, FIFO, latest-frame, current-overlay,
+timer, and backfill association remain forbidden.
+
+The shared-event census does not introduce another single-player owner. The
+local accepted occurrence still terminates at the exact selected
+`EventOption.Chosen`; its option/root ExecutionContext is the nested-selector
+carrier. Multiplayer vote aggregation is outside the vanilla normal
+single-player qualification and is not inferred from the local callback.
+
+Card-reward alternatives are same-screen Human decisions, not a second selector.
+The exact shipped set is Skip, REROLL, and Pael's Wing SACRIFICE. They bind
+through `CardReward.OnSelect` to the exact `NCardRewardSelectionScreen`, then
+through its exact alternative index callback. REROLL commits at
+`CardReward.Reroll` because the outer reward Task intentionally remains open;
+terminating alternatives settle through the exact `Reward.SelectUnsynchronized`
+Task. Hook-added alternatives remain outside the sole-Platform-Mod qualification.
+
+`CardRemovalReward` is different: its exact `OnSelect ->
+RewardSynchronizer.DoUnsyncedCardRemoval -> CardSelectCmd.FromDeckForRemoval`
+path opens a true nested deck selector. That child is durable continuation
+evidence on the existing reward-claim root; the outer reward Task retains the
+final disposition.
+Target-picker cancel removes targeting presentation without a GameAction
+enqueue or mutation and is therefore not an accepted player decision.
+
 Current source keeps the gameplay-safe observer path and adds an independent
 process-local discriminator for ordinary combat Play/End Turn/Potion. At native
 first execution it records both `A(UI)` and `S_sem + A_sem(S)` from logical hand,
