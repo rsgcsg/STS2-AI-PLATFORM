@@ -69,18 +69,19 @@ public sealed class ExactAsyncOwnerBindingScope<TKey, TContext, TBinding>
         Frame? frame = _current.Value;
         if (frame == null)
             return false;
-        Set(key, createBinding(frame.Context));
-        return true;
+        return TrySet(key, createBinding(frame.Context));
     }
 
-    public void Set(TKey key, TBinding binding)
+    public bool TrySet(TKey key, TBinding binding)
     {
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(binding);
         lock (_gate)
         {
-            _bindings.Remove(key);
+            if (_bindings.TryGetValue(key, out Holder? existing))
+                return EqualityComparer<TBinding>.Default.Equals(existing.Binding, binding);
             _bindings.Add(key, new Holder(binding));
+            return true;
         }
     }
 
@@ -109,6 +110,20 @@ public sealed class ExactAsyncOwnerBindingScope<TKey, TContext, TBinding>
                 return false;
             }
             binding = holder.Binding;
+            _bindings.Remove(key);
+            return true;
+        }
+    }
+
+    public bool TryTakeExpected(TKey key, TBinding expected)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(expected);
+        lock (_gate)
+        {
+            if (!_bindings.TryGetValue(key, out Holder? holder)
+                || !EqualityComparer<TBinding>.Default.Equals(holder.Binding, expected))
+                return false;
             _bindings.Remove(key);
             return true;
         }

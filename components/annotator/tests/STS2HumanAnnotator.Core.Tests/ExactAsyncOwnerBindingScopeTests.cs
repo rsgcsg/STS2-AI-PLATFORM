@@ -74,19 +74,20 @@ public sealed class ExactAsyncOwnerBindingScopeTests
     }
 
     [Fact]
-    public void ExactKeyCollisionReplacesOnlyThatKey()
+    public void ExactKeyCollisionIsIdempotentForSameBindingAndRejectsDifferentOwner()
     {
         var scope = new ExactAsyncOwnerBindingScope<Key, Context, Binding>();
         var replaced = new Key();
         var untouched = new Key();
-        scope.Set(replaced, new Binding("old"));
-        scope.Set(untouched, new Binding("other"));
+        Assert.True(scope.TrySet(replaced, new Binding("old")));
+        Assert.True(scope.TrySet(untouched, new Binding("other")));
 
-        scope.Set(replaced, new Binding("new"));
+        Assert.True(scope.TrySet(replaced, new Binding("old")));
+        Assert.False(scope.TrySet(replaced, new Binding("new")));
 
         Assert.True(scope.TryGet(replaced, out Binding? replacement));
         Assert.True(scope.TryGet(untouched, out Binding? other));
-        Assert.Equal("new", replacement!.Root);
+        Assert.Equal("old", replacement!.Root);
         Assert.Equal("other", other!.Root);
     }
 }

@@ -17,6 +17,50 @@ using STS2Platform.NativeFoundation;
 
 namespace STS2HumanAnnotator.Mod;
 
+internal static class NativeNestedCallbackSafety
+{
+    internal static void Run(string seam, Action callback)
+    {
+        try
+        {
+            callback();
+        }
+        catch (Exception exception)
+        {
+            NativeUiObservationSafety.Report(seam, exception);
+        }
+    }
+
+    internal static T Run<T>(string seam, Func<T> callback, T fallback)
+    {
+        try
+        {
+            return callback();
+        }
+        catch (Exception exception)
+        {
+            NativeUiObservationSafety.Report(seam, exception);
+            return fallback;
+        }
+    }
+
+    internal static Exception? Finalize(
+        string seam,
+        Exception? original,
+        Action callback)
+    {
+        try
+        {
+            callback();
+        }
+        catch (Exception exception)
+        {
+            NativeUiObservationSafety.Report(seam, exception);
+        }
+        return original;
+    }
+}
+
 /// <summary>
 /// Exact process-local lineage for generic card-selection screens. Parent
 /// scopes flow only through the exact native async invocation that owns the
@@ -71,19 +115,26 @@ internal static class NativeNestedSelectorBindings
         {
             return;
         }
-        Screens.Set(
-            screen,
-            new Binding(
+        if (!Screens.TrySet(
+                screen,
+                new Binding(
                 actionWitnessId,
                 action,
                 FamilyFor(screen),
-                $"{factory.DeclaringType?.FullName}.{factory.Name}"));
+                $"{factory.DeclaringType?.FullName}.{factory.Name}")))
+        {
+            throw new InvalidOperationException(
+                "The exact selector screen was already bound to a different parent root.");
+        }
     }
 
-    internal static bool TryTake(object screen, out Binding? binding)
+    internal static bool TryGet(object screen, out Binding? binding)
     {
-        return Screens.TryTake(screen, out binding);
+        return Screens.TryGet(screen, out binding);
     }
+
+    internal static bool TryConsume(object screen, Binding expected) =>
+        Screens.TryTakeExpected(screen, expected);
 
     internal static void Forget(object screen) => Screens.Forget(screen);
 
@@ -112,23 +163,28 @@ internal static class NativeEventNestedSelectorParentPatch
 
     private static void Prefix(EventOption __instance, out IDisposable? __state)
     {
-        string? actionWitnessId =
-            RecorderRuntime.CurrentSemanticActionWitnessId("NEventRoom.OptionButtonClicked");
-        if (actionWitnessId == null)
-            NativeUiCompletionRootBindings.TryGet(__instance, out actionWitnessId);
-        __state = actionWitnessId == null
-            ? null
-            : NativeNestedSelectorBindings.EnterParent(
-                actionWitnessId,
-                __instance,
-                "event_option.nested_selector",
-                "EventOption.Chosen");
+        __state = NativeNestedCallbackSafety.Run(
+            "EventOption.Chosen.nested_parent",
+            () =>
+            {
+                NativeUiCompletionRootBindings.TryGet(__instance, out string? actionWitnessId);
+                return actionWitnessId == null
+                    ? null
+                    : NativeNestedSelectorBindings.EnterParent(
+                        actionWitnessId,
+                        __instance,
+                        "event_option.nested_selector",
+                        "EventOption.Chosen");
+            },
+            fallback: null);
     }
 
     private static Exception? Finalizer(IDisposable? __state, Exception? __exception)
     {
-        __state?.Dispose();
-        return __exception;
+        return NativeNestedCallbackSafety.Finalize(
+            "EventOption.Chosen.nested_parent.finalizer",
+            __exception,
+            () => __state?.Dispose());
     }
 }
 
@@ -215,8 +271,12 @@ internal static class NativeNestedSelectorAcceptedPatch
     {
         try
         {
-            if (!TryReadCompletedSelection(__instance, out bool taskCancelled, out object[] selected)
-                || !NativeNestedSelectorBindings.TryTake(
+            if (!TryReadCompletedSelection(
+                    __instance,
+                    out bool taskCancelled,
+                    out object[] selected,
+                    out string? unavailable)
+                || !NativeNestedSelectorBindings.TryGet(
                     __instance,
                     out NativeNestedSelectorBindings.Binding? binding)
                 || binding == null)
@@ -228,10 +288,21 @@ internal static class NativeNestedSelectorAcceptedPatch
                 __originalMethod.Name,
                 "CloseSelection",
                 StringComparison.Ordinal);
+            if (unavailable != null
+                || !explicitClose && !taskCancelled && selected.Length == 0)
+            {
+                bool persisted = RecorderRuntime.ObserveNestedHumanContinuationUnavailable(
+                    binding.ActionWitnessId,
+                    $"{__originalMethod.DeclaringType?.FullName}.{__originalMethod.Name}",
+                    unavailable ?? "accepted_selection_was_empty");
+                if (persisted)
+                    NativeNestedSelectorBindings.TryConsume(__instance, binding);
+                return;
+            }
             var operands = new Dictionary<string, object>(StringComparer.Ordinal);
             for (int index = 0; index < selected.Length; index++)
                 operands[$"selected_{index}"] = selected[index];
-            RecorderRuntime.ObserveAcceptedNestedHumanContinuation(
+            bool durable = RecorderRuntime.ObserveAcceptedNestedHumanContinuation(
                 binding.ActionWitnessId,
                 binding.Family,
                 explicitClose || taskCancelled ? "cancel" : "select",
@@ -240,6 +311,8 @@ internal static class NativeNestedSelectorAcceptedPatch
                 selected.FirstOrDefault(),
                 operands,
                 explicitClose || taskCancelled ? "cancelled" : "accepted");
+            if (durable)
+                NativeNestedSelectorBindings.TryConsume(__instance, binding);
         }
         catch (Exception exception)
         {
@@ -252,10 +325,12 @@ internal static class NativeNestedSelectorAcceptedPatch
     private static bool TryReadCompletedSelection(
         object screen,
         out bool cancelled,
-        out object[] selected)
+        out object[] selected,
+        out string? unavailable)
     {
         cancelled = false;
         selected = Array.Empty<object>();
+        unavailable = null;
         FieldInfo? field = FindField(screen.GetType(), "_completionSource");
         object? source = field?.GetValue(screen);
         object? taskObject = source?.GetType().GetProperty("Task")?.GetValue(source);
@@ -265,24 +340,51 @@ internal static class NativeNestedSelectorAcceptedPatch
         if (cancelled)
             return true;
         object? result = task.GetType().GetProperty("Result")?.GetValue(task);
-        selected = Flatten(result).ToArray();
+        if (result is not IEnumerable || result is string)
+        {
+            unavailable = result == null
+                ? "completion_result_null"
+                : $"completion_result_not_enumerable:{result.GetType().FullName}";
+            return true;
+        }
+        var flattened = new List<object>();
+        if (!TryFlatten(result, flattened, out unavailable))
+            return true;
+        selected = flattened.ToArray();
         return true;
     }
 
-    private static IEnumerable<object> Flatten(object? value)
+    private static bool TryFlatten(
+        object? value,
+        ICollection<object> selected,
+        out string? unavailable)
     {
+        unavailable = null;
         if (value is not IEnumerable values || value is string)
-            yield break;
+        {
+            unavailable = value == null
+                ? "nested_selection_item_null"
+                : $"nested_selection_item_not_enumerable:{value.GetType().FullName}";
+            return false;
+        }
         foreach (object? item in values)
         {
             if (item is CardModel)
-                yield return item;
+                selected.Add(item);
             else if (item is IEnumerable nested && item is not string)
             {
-                foreach (object nestedItem in Flatten(nested))
-                    yield return nestedItem;
+                if (!TryFlatten(nested, selected, out unavailable))
+                    return false;
+            }
+            else
+            {
+                unavailable = item == null
+                    ? "nested_selection_item_null"
+                    : $"nested_selection_item_unsupported:{item.GetType().FullName}";
+                return false;
             }
         }
+        return true;
     }
 
     private static FieldInfo? FindField(Type type, string name)
@@ -388,6 +490,7 @@ internal static class NativeCardRewardAlternativeBindings
     private static readonly ConditionalWeakTable<NCardRewardSelectionScreen, ScreenBinding> Screens = new();
     private static readonly ConditionalWeakTable<CardReward, TaskBinding> Tasks = new();
     private static readonly ConditionalWeakTable<CardReward, RerollBinding> Rerolls = new();
+    private static readonly object Gate = new();
 
     internal static IDisposable? Enter(CardReward reward, string? rewardClaimWitnessId)
     {
@@ -405,23 +508,39 @@ internal static class NativeCardRewardAlternativeBindings
         Parent? parent = Current.Value;
         if (screen == null || parent == null)
             return;
-        Screens.Remove(screen);
-        Screens.Add(
-            screen,
-            new ScreenBinding(
-                parent.Reward,
-                parent.RewardClaimWitnessId,
-                alternatives.ToArray()));
+        lock (Gate)
+        {
+            if (Screens.TryGetValue(screen, out ScreenBinding? existing))
+            {
+                if (ReferenceEquals(existing.Reward, parent.Reward)
+                    && string.Equals(
+                        existing.RewardClaimWitnessId,
+                        parent.RewardClaimWitnessId,
+                        StringComparison.Ordinal))
+                    return;
+                throw new InvalidOperationException(
+                    "The exact card-reward screen already belongs to another reward/root.");
+            }
+            Screens.Add(
+                screen,
+                new ScreenBinding(
+                    parent.Reward,
+                    parent.RewardClaimWitnessId,
+                    alternatives.ToArray()));
+        }
     }
 
     internal static void RefreshScreen(
         NCardRewardSelectionScreen screen,
         IReadOnlyList<CardRewardAlternative> alternatives)
     {
-        if (!Screens.TryGetValue(screen, out ScreenBinding? binding))
-            return;
-        Screens.Remove(screen);
-        Screens.Add(screen, binding with { Alternatives = alternatives.ToArray() });
+        lock (Gate)
+        {
+            if (!Screens.TryGetValue(screen, out ScreenBinding? binding))
+                return;
+            Screens.Remove(screen);
+            Screens.Add(screen, binding with { Alternatives = alternatives.ToArray() });
+        }
     }
 
     internal static bool TryGetAlternative(
@@ -431,25 +550,40 @@ internal static class NativeCardRewardAlternativeBindings
         out CardRewardAlternative? alternative)
     {
         alternative = null;
-        if (!Screens.TryGetValue(screen, out binding)
-            || index < 0
-            || index >= binding.Alternatives.Count)
-            return false;
-        alternative = binding.Alternatives[index];
-        return true;
+        lock (Gate)
+        {
+            if (!Screens.TryGetValue(screen, out binding)
+                || index < 0
+                || index >= binding.Alternatives.Count)
+                return false;
+            alternative = binding.Alternatives[index];
+            return true;
+        }
     }
 
     internal static void RememberTask(CardReward reward, Task<bool> task)
     {
-        Tasks.Remove(reward);
-        Tasks.Add(reward, new TaskBinding(task));
+        lock (Gate)
+        {
+            if (Tasks.TryGetValue(reward, out TaskBinding? existing))
+            {
+                if (ReferenceEquals(existing.Task, task))
+                    return;
+                throw new InvalidOperationException(
+                    "The exact CardReward already carries a different SelectUnsynchronized Task.");
+            }
+            Tasks.Add(reward, new TaskBinding(task));
+        }
     }
 
     internal static bool TryGetTask(CardReward reward, out Task<bool>? task)
     {
         task = null;
-        return Tasks.TryGetValue(reward, out TaskBinding? binding)
-            && (task = binding.Task) != null;
+        lock (Gate)
+        {
+            return Tasks.TryGetValue(reward, out TaskBinding? binding)
+                && (task = binding.Task) != null;
+        }
     }
 
     internal static RerollBinding BeginReroll(
@@ -457,20 +591,51 @@ internal static class NativeCardRewardAlternativeBindings
         string actionWitnessId,
         CardRewardAlternative alternative)
     {
-        var binding = new RerollBinding(actionWitnessId, alternative);
-        Rerolls.Remove(reward);
-        Rerolls.Add(reward, binding);
-        return binding;
+        lock (Gate)
+        {
+            if (Rerolls.TryGetValue(reward, out RerollBinding? existing))
+            {
+                if (string.Equals(existing.ActionWitnessId, actionWitnessId, StringComparison.Ordinal)
+                    && ReferenceEquals(existing.Alternative, alternative))
+                    return existing;
+                throw new InvalidOperationException(
+                    "The exact CardReward already carries another reroll root.");
+            }
+            var binding = new RerollBinding(actionWitnessId, alternative);
+            Rerolls.Add(reward, binding);
+            return binding;
+        }
     }
 
     internal static bool TryGetReroll(CardReward reward, out RerollBinding? binding) =>
-        Rerolls.TryGetValue(reward, out binding);
+        TryGetRerollCore(reward, out binding);
+
+    private static bool TryGetRerollCore(CardReward reward, out RerollBinding? binding)
+    {
+        lock (Gate)
+            return Rerolls.TryGetValue(reward, out binding);
+    }
 
     internal static void EndReroll(CardReward reward, RerollBinding binding)
     {
-        if (Rerolls.TryGetValue(reward, out RerollBinding? current)
-            && ReferenceEquals(current, binding))
-            Rerolls.Remove(reward);
+        lock (Gate)
+        {
+            if (Rerolls.TryGetValue(reward, out RerollBinding? current)
+                && ReferenceEquals(current, binding))
+                Rerolls.Remove(reward);
+        }
+    }
+
+    internal static void ForgetScreen(NCardRewardSelectionScreen screen)
+    {
+        lock (Gate)
+        {
+            if (!Screens.TryGetValue(screen, out ScreenBinding? binding))
+                return;
+            Screens.Remove(screen);
+            Tasks.Remove(binding.Reward);
+            Rerolls.Remove(binding.Reward);
+        }
     }
 }
 
@@ -483,16 +648,22 @@ internal static class NativeCardRewardParentPatch
 
     private static void Prefix(CardReward __instance, out IDisposable? __state)
     {
-        string? root = RecorderRuntime.CurrentSemanticActionWitnessId("NRewardButton.OnRelease");
-        if (root == null)
-            NativeUiCompletionRootBindings.TryGet(__instance, out root);
-        __state = NativeCardRewardAlternativeBindings.Enter(__instance, root);
+        __state = NativeNestedCallbackSafety.Run(
+            "CardReward.OnSelect.parent",
+            () =>
+            {
+                NativeUiCompletionRootBindings.TryGet(__instance, out string? root);
+                return NativeCardRewardAlternativeBindings.Enter(__instance, root);
+            },
+            fallback: null);
     }
 
     private static Exception? Finalizer(IDisposable? __state, Exception? __exception)
     {
-        __state?.Dispose();
-        return __exception;
+        return NativeNestedCallbackSafety.Finalize(
+            "CardReward.OnSelect.parent.finalizer",
+            __exception,
+            () => __state?.Dispose());
     }
 }
 
@@ -515,7 +686,9 @@ internal static class NativeCardRewardScreenBindingPatch
     private static void Postfix(
         [HarmonyArgument(1)] IReadOnlyList<CardRewardAlternative> alternatives,
         NCardRewardSelectionScreen? __result) =>
-        NativeCardRewardAlternativeBindings.RegisterScreen(__result, alternatives);
+        NativeNestedCallbackSafety.Run(
+            "NCardRewardSelectionScreen.ShowScreen.binding",
+            () => NativeCardRewardAlternativeBindings.RegisterScreen(__result, alternatives));
 }
 
 [HarmonyPatch]
@@ -537,7 +710,9 @@ internal static class NativeCardRewardScreenRefreshBindingPatch
     private static void Postfix(
         NCardRewardSelectionScreen __instance,
         [HarmonyArgument(1)] IReadOnlyList<CardRewardAlternative> alternatives) =>
-        NativeCardRewardAlternativeBindings.RefreshScreen(__instance, alternatives);
+        NativeNestedCallbackSafety.Run(
+            "NCardRewardSelectionScreen.RefreshOptions.binding",
+            () => NativeCardRewardAlternativeBindings.RefreshScreen(__instance, alternatives));
 }
 
 [HarmonyPatch]
@@ -551,8 +726,13 @@ internal static class NativeRewardSelectTaskBindingPatch
 
     private static void Postfix(Reward __instance, Task<bool> __result)
     {
-        if (__instance is CardReward reward && __result != null)
-            NativeCardRewardAlternativeBindings.RememberTask(reward, __result);
+        NativeNestedCallbackSafety.Run(
+            "Reward.SelectUnsynchronized.task_binding",
+            () =>
+            {
+                if (__instance is CardReward reward && __result != null)
+                    NativeCardRewardAlternativeBindings.RememberTask(reward, __result);
+            });
     }
 }
 
@@ -582,16 +762,25 @@ internal static class NativeCardRewardAlternativePatch
         [HarmonyArgument(0)] int index,
         out PatchState __state)
     {
+        __state = NativeNestedCallbackSafety.Run(
+            "NCardRewardSelectionScreen.OnAlternateRewardSelected.prefix",
+            () => CreateState(__instance, index),
+            fallback: default);
+    }
+
+    private static PatchState CreateState(
+        NCardRewardSelectionScreen screen,
+        int index)
+    {
         if (!NativeCardRewardAlternativeBindings.TryGetAlternative(
-                __instance,
+                screen,
                 index,
                 out NativeCardRewardAlternativeBindings.ScreenBinding? binding,
                 out CardRewardAlternative? alternative)
             || binding == null
             || alternative == null)
         {
-            __state = default;
-            return;
+            return default;
         }
         bool reroll = string.Equals(alternative.OptionId, "REROLL", StringComparison.Ordinal);
         NativeUiScopeEntry scope = RecorderRuntime.TryEnterSemanticScope(
@@ -621,7 +810,7 @@ internal static class NativeCardRewardAlternativePatch
                     root,
                     alternative)
                 : null;
-        __state = new PatchState(scope, binding, alternative, rerollBinding);
+        return new PatchState(scope, binding, alternative, rerollBinding);
     }
 
     private static void Postfix(
@@ -629,11 +818,21 @@ internal static class NativeCardRewardAlternativePatch
         [HarmonyArgument(0)] int index,
         PatchState __state)
     {
-        if ((!__state.Scope.Entered && !__state.Scope.DeferredFailure)
-            || __state.Binding is not { } binding
-            || __state.Alternative is not { } alternative)
+        NativeNestedCallbackSafety.Run(
+            "NCardRewardSelectionScreen.OnAlternateRewardSelected.postfix",
+            () => ObserveAccepted(__instance, index, __state));
+    }
+
+    private static void ObserveAccepted(
+        NCardRewardSelectionScreen screen,
+        int index,
+        PatchState state)
+    {
+        if ((!state.Scope.Entered && !state.Scope.DeferredFailure)
+            || state.Binding is not { } binding
+            || state.Alternative is not { } alternative)
             return;
-        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+        bool accepted = RecorderRuntime.ObserveAcceptedSemanticUiAction(
             NativeActionType,
             new ProcessLocalObservedAction(
                 "activate",
@@ -650,14 +849,20 @@ internal static class NativeCardRewardAlternativePatch
                 },
                 DateTimeOffset.UtcNow),
             captureImmediatePostCommitBoundary: false,
-            actionWitnessId: __state.Scope.ActionWitnessId);
+            actionWitnessId: state.Scope.ActionWitnessId);
+        if (!accepted)
+        {
+            if (state.Reroll is { } failedReroll)
+                NativeCardRewardAlternativeBindings.EndReroll(binding.Reward, failedReroll);
+            return;
+        }
 
-        if (__state.Reroll is { } reroll)
+        if (state.Reroll is { } reroll)
         {
             reroll.Accepted = true;
             TryCommitReroll(binding.Reward, alternative, reroll);
         }
-        else if (__state.Scope.ActionWitnessId is { } root
+        else if (state.Scope.ActionWitnessId is { } root
                  && NativeCardRewardAlternativeBindings.TryGetTask(
                      binding.Reward,
                      out Task<bool>? task)
@@ -668,6 +873,14 @@ internal static class NativeCardRewardAlternativePatch
                 "Reward.SelectUnsynchronized",
                 nativeOperand: alternative,
                 expectedActionWitnessId: root);
+        }
+        else if (state.Scope.ActionWitnessId is { } missingTaskRoot)
+        {
+            RecorderRuntime.ObserveSemanticUiNativeCommitBindingFailure(
+                missingTaskRoot,
+                "card_reward_alternative",
+                "Reward.SelectUnsynchronized",
+                "The exact CardReward carried no SelectUnsynchronized Task.");
         }
     }
 
@@ -690,12 +903,17 @@ internal static class NativeCardRewardAlternativePatch
 
     private static Exception? Finalizer(PatchState __state, Exception? __exception)
     {
-        if (__state.Binding is { } binding
-            && __state.Reroll is { } reroll
-            && (__exception != null || !reroll.Accepted))
-            NativeCardRewardAlternativeBindings.EndReroll(binding.Reward, reroll);
-        RecorderRuntime.ExitNativeUiScope(__state.Scope);
-        return __exception;
+        return NativeNestedCallbackSafety.Finalize(
+            "NCardRewardSelectionScreen.OnAlternateRewardSelected.finalizer",
+            __exception,
+            () =>
+            {
+                if (__state.Binding is { } binding
+                    && __state.Reroll is { } reroll
+                    && (__exception != null || !reroll.Accepted))
+                    NativeCardRewardAlternativeBindings.EndReroll(binding.Reward, reroll);
+                RecorderRuntime.ExitNativeUiScope(__state.Scope);
+            });
     }
 }
 
@@ -708,8 +926,15 @@ internal static class NativeCardRewardRerollCompletionPatch
 
     private static void Postfix(CardReward __instance)
     {
+        NativeNestedCallbackSafety.Run(
+            "CardReward.Reroll.completion",
+            () => ObserveReroll(__instance));
+    }
+
+    private static void ObserveReroll(CardReward reward)
+    {
         if (!NativeCardRewardAlternativeBindings.TryGetReroll(
-                __instance,
+                reward,
                 out NativeCardRewardAlternativeBindings.RerollBinding? binding)
             || binding == null)
             return;
@@ -723,7 +948,7 @@ internal static class NativeCardRewardRerollCompletionPatch
             // The exact alternative is still recoverable from the active
             // screen binding; use the stable REROLL option identity only.
             NativeCardRewardAlternativePatch.TryCommitReroll(
-                __instance,
+                reward,
                 binding.Alternative,
                 binding);
         }
@@ -739,21 +964,42 @@ internal static class NativeCardRemovalRewardNestedSelectorPatch
 
     private static void Prefix(CardRemovalReward __instance, out IDisposable? __state)
     {
-        string? root = RecorderRuntime.CurrentSemanticActionWitnessId("NRewardButton.OnRelease");
-        if (root == null)
-            NativeUiCompletionRootBindings.TryGet(__instance, out root);
-        __state = root == null
-            ? null
-            : NativeNestedSelectorBindings.EnterParent(
-                root,
-                __instance,
-                "reward_card_removal.nested_selector",
-                "CardRemovalReward.OnSelect");
+        __state = NativeNestedCallbackSafety.Run(
+            "CardRemovalReward.OnSelect.nested_parent",
+            () =>
+            {
+                NativeUiCompletionRootBindings.TryGet(__instance, out string? root);
+                return root == null
+                    ? null
+                    : NativeNestedSelectorBindings.EnterParent(
+                        root,
+                        __instance,
+                        "reward_card_removal.nested_selector",
+                        "CardRemovalReward.OnSelect");
+            },
+            fallback: null);
     }
 
     private static Exception? Finalizer(IDisposable? __state, Exception? __exception)
     {
-        __state?.Dispose();
-        return __exception;
+        return NativeNestedCallbackSafety.Finalize(
+            "CardRemovalReward.OnSelect.nested_parent.finalizer",
+            __exception,
+            () => __state?.Dispose());
     }
+}
+
+[HarmonyPatch]
+internal static class NativeCardRewardScreenExitPatch
+{
+    internal static MethodBase TargetMethod() =>
+        AccessTools.Method(typeof(NCardRewardSelectionScreen), "_ExitTree", Type.EmptyTypes)
+        ?? throw new MissingMethodException(
+            typeof(NCardRewardSelectionScreen).FullName,
+            "_ExitTree");
+
+    private static void Finalizer(NCardRewardSelectionScreen __instance) =>
+        NativeNestedCallbackSafety.Run(
+            "NCardRewardSelectionScreen._ExitTree.cleanup",
+            () => NativeCardRewardAlternativeBindings.ForgetScreen(__instance));
 }

@@ -1441,7 +1441,7 @@ internal static class RecorderRuntime
         NativeWitnessEvidence witness) =>
         ObserveAcceptedSemanticUiAction(nativeActionType, observed, witness);
 
-    internal static void ObserveAcceptedSemanticUiAction(
+    internal static bool ObserveAcceptedSemanticUiAction(
         string nativeActionType,
         ProcessLocalObservedAction observed,
         NativeWitnessEvidence witness,
@@ -1459,7 +1459,7 @@ internal static class RecorderRuntime
             if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.DeferredFailure)
             {
                 TryQuarantineDeferredAcceptedAction(nativeActionType, observed, witness);
-                return;
+                return false;
             }
             if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.NoScope)
             {
@@ -1470,7 +1470,7 @@ internal static class RecorderRuntime
                     nativeActionType,
                     "failed_closed",
                     OccurrenceFrom(nativeActionType, observed, witness));
-                return;
+                return false;
             }
             if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.NativeTypeMismatch)
             {
@@ -1481,10 +1481,10 @@ internal static class RecorderRuntime
                     nativeActionType,
                     "failed_closed",
                     context?.Occurrence ?? OccurrenceFrom(nativeActionType, observed, witness));
-                return;
+                return false;
             }
             if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.Duplicate)
-                return;
+                return false;
             if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.MappingFailure)
             {
                 Quarantine(
@@ -1494,12 +1494,12 @@ internal static class RecorderRuntime
                     nativeActionType,
                     "failed_closed",
                     context?.Occurrence ?? OccurrenceFrom(nativeActionType, observed, witness));
-                return;
+                return false;
             }
             if (outcome.Kind != AcceptedDecisionObserver.OutcomeKind.Accepted
                 || outcome.Context is not { } acceptedContext
                 || outcome.Match is not { } match)
-                return;
+                return false;
             ProcessLocalNativeWitnessFrame? postCommitFrame = null;
             if (captureImmediatePostCommitBoundary)
             {
@@ -1513,7 +1513,7 @@ internal static class RecorderRuntime
                     // backfilled as a successor when this observation fails.
                 }
             }
-            StartSemanticUiAction(
+            return StartSemanticUiAction(
                 acceptedContext.Frame,
                 acceptedContext.NativeSemanticDecision,
                 BuildEnvironment(acceptedContext.Frame),
@@ -1542,6 +1542,7 @@ internal static class RecorderRuntime
                 "implemented_runtime_error",
                 context?.Occurrence ?? OccurrenceFrom(nativeActionType, observed, witness));
             DisableSemanticBoundaryTrace(exception);
+            return false;
         }
     }
 
@@ -2055,7 +2056,7 @@ internal static class RecorderRuntime
         return blockers.Distinct(StringComparer.Ordinal).ToArray();
     }
 
-    private static void StartSemanticUiAction(
+    private static bool StartSemanticUiAction(
         ProcessLocalNativeWitnessFrame frame,
         ProcessLocalNativeSemanticCapture? nativeSemanticDecision,
         RecorderEnvironmentIdentity environment,
@@ -2068,7 +2069,7 @@ internal static class RecorderRuntime
         GameAction? lifecycleAction = null)
     {
         if (!_semanticBoundaryTraceHealthy || _store == null)
-            return;
+            return false;
         IReadOnlyList<string> blockers = SemanticWitnessBlockers(frame, environment);
         if (blockers.Count > 0 || !IsExact(match))
         {
@@ -2078,7 +2079,7 @@ internal static class RecorderRuntime
                 frame.Snapshot.SnapshotId,
                 nativeActionType,
                 "fail_closed");
-            return;
+            return false;
         }
 
         CurrentDecisionFrame humanObservation = FreezeSemanticBoundary(frame, environment);
@@ -2172,6 +2173,7 @@ internal static class RecorderRuntime
             recordId,
             humanObservation.SnapshotId,
             $"{nativeActionType}:{actionWitnessId}");
+        return true;
     }
 
     internal static void ObserveSemanticUiNativeCommit(
@@ -2550,7 +2552,7 @@ internal static class RecorderRuntime
         }
     }
 
-    internal static void ObserveAcceptedNestedHumanContinuation(
+    internal static bool ObserveAcceptedNestedHumanContinuation(
         string parentActionWitnessId,
         string family,
         string verb,
@@ -2588,7 +2590,10 @@ internal static class RecorderRuntime
                     parentActionWitnessId,
                     continuation);
             }
+            if (drafts.Count == 0)
+                return false;
             PersistSemanticBoundaryDrafts(drafts);
+            return true;
         }
         catch (Exception exception)
         {
@@ -2598,6 +2603,31 @@ internal static class RecorderRuntime
                 _lastSnapshotId,
                 nativeMechanism,
                 "failed_closed");
+            return false;
+        }
+    }
+
+    internal static bool ObserveNestedHumanContinuationUnavailable(
+        string parentActionWitnessId,
+        string nativeMechanism,
+        string reason)
+    {
+        try
+        {
+            Quarantine(
+                "native_nested_continuation_unavailable",
+                $"parent={parentActionWitnessId};mechanism={nativeMechanism};reason={reason}",
+                _lastSnapshotId,
+                nativeMechanism,
+                "decision_and_lifecycle_only");
+            return true;
+        }
+        catch (Exception exception)
+        {
+            NativeUiObservationSafety.Report(
+                "native_nested_continuation_unavailable",
+                exception);
+            return false;
         }
     }
 

@@ -792,28 +792,49 @@ internal static class NativeUiCompletionRootBindings
     }
 
     private static readonly ConditionalWeakTable<object, RootBinding> Bindings = new();
+    private static readonly object BindingGate = new();
     private static readonly object ActionBindingGate = new();
     private static readonly Dictionary<string, WeakReference<GameAction>> ActionBindings = new(
         StringComparer.Ordinal);
 
-    internal static void Remember(object? owner, string? actionWitnessId)
+    internal static bool Remember(object? owner, string? actionWitnessId)
     {
         if (owner == null || string.IsNullOrWhiteSpace(actionWitnessId))
-            return;
-        Bindings.Remove(owner);
-        Bindings.Add(owner, new RootBinding(actionWitnessId));
+            return false;
+        lock (BindingGate)
+        {
+            if (Bindings.TryGetValue(owner, out RootBinding? existing))
+            {
+                if (!string.Equals(
+                        existing.ActionWitnessId,
+                        actionWitnessId,
+                        StringComparison.Ordinal))
+                    return false;
+            }
+            else
+            {
+                Bindings.Add(owner, new RootBinding(actionWitnessId));
+            }
+        }
         if (owner is GameAction action)
         {
             lock (ActionBindingGate)
                 ActionBindings[actionWitnessId] = new WeakReference<GameAction>(action);
         }
+        return true;
     }
 
     internal static string? Take(object? owner)
     {
-        if (owner == null || !Bindings.TryGetValue(owner, out RootBinding? binding))
+        if (owner == null)
             return null;
-        Bindings.Remove(owner);
+        RootBinding? binding;
+        lock (BindingGate)
+        {
+            if (!Bindings.TryGetValue(owner, out binding))
+                return null;
+            Bindings.Remove(owner);
+        }
         if (owner is GameAction)
         {
             lock (ActionBindingGate)
@@ -823,14 +844,18 @@ internal static class NativeUiCompletionRootBindings
     }
 
     internal static bool Contains(object? owner) =>
-        owner != null && Bindings.TryGetValue(owner, out _);
+        owner != null && TryGet(owner, out _);
 
     internal static bool TryGet(object? owner, out string? actionWitnessId)
     {
         actionWitnessId = null;
-        return owner != null
-            && Bindings.TryGetValue(owner, out RootBinding? binding)
-            && (actionWitnessId = binding.ActionWitnessId) != null;
+        if (owner == null)
+            return false;
+        lock (BindingGate)
+        {
+            return Bindings.TryGetValue(owner, out RootBinding? binding)
+                && (actionWitnessId = binding.ActionWitnessId) != null;
+        }
     }
 
     internal static bool TryGetAction(
@@ -1170,6 +1195,16 @@ internal static class NativeRewardClaimStartPatch
                     "claim",
                     __instance.Reward,
                     new Dictionary<string, object>(StringComparer.Ordinal)));
+        if (__instance.Reward != null
+            && __state.ActionWitnessId != null
+            && !NativeUiCompletionRootBindings.Remember(
+                __instance.Reward,
+                __state.ActionWitnessId))
+        {
+            NativeUiObservationSafety.Report(
+                "native_reward_claim_ui.root_collision",
+                "The exact Reward already belongs to a different Human root.");
+        }
     }
 
     private static NativePostCommitCompletionExpectation RewardClaimCompletion(Reward reward) =>
@@ -1184,7 +1219,7 @@ internal static class NativeRewardClaimStartPatch
     {
         if ((!__state.Entered && !__state.DeferredFailure) || __instance.Reward == null)
             return;
-        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+        bool accepted = RecorderRuntime.ObserveAcceptedSemanticUiAction(
             NativeActionType,
             new ProcessLocalObservedAction(
                 "activate",
@@ -1198,7 +1233,11 @@ internal static class NativeRewardClaimStartPatch
                 DateTimeOffset.UtcNow),
             captureImmediatePostCommitBoundary: false,
             actionWitnessId: __state.ActionWitnessId);
-        NativeUiCompletionRootBindings.Remember(__instance.Reward, __state.ActionWitnessId);
+        if (!accepted)
+        {
+            NativeUiCompletionRootBindings.Take(__instance.Reward);
+            return;
+        }
         if (__instance.Reward is CardReward reward
             && __state.ActionWitnessId is { } actionWitnessId
             && NOverlayStack.Instance?.Peek() is NCardRewardSelectionScreen screen)
@@ -1772,6 +1811,15 @@ internal static class NativeEventOptionPatch
             option,
             verb,
             __instance);
+        if (__state.Scope.ActionWitnessId != null
+            && !NativeUiCompletionRootBindings.Remember(
+                option,
+                __state.Scope.ActionWitnessId))
+        {
+            NativeUiObservationSafety.Report(
+                "native_event_option_ui.root_collision",
+                "The exact EventOption already belongs to a different Human root.");
+        }
     }
 
     private static void Postfix(PatchState __state)
@@ -1781,7 +1829,7 @@ internal static class NativeEventOptionPatch
             || __state.Verb is not { } verb
             || __state.Room is not { } room)
             return;
-        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+        bool accepted = RecorderRuntime.ObserveAcceptedSemanticUiAction(
             NativeActionType,
             new ProcessLocalObservedAction(
                 "activate",
@@ -1795,7 +1843,12 @@ internal static class NativeEventOptionPatch
                 DateTimeOffset.UtcNow),
             captureImmediatePostCommitBoundary: false,
             actionWitnessId: __state.Scope.ActionWitnessId);
-        NativeUiCompletionRootBindings.Remember(option, __state.Scope.ActionWitnessId);
+        if (!accepted)
+        {
+            NativeUiCompletionRootBindings.Take(option);
+            NativeEventOptionCompletionPatch.ForgetTask(option);
+            return;
+        }
         if (NativeEventOptionCompletionPatch.TryTakeTask(option, out Task? task)
             && task != null)
         {
@@ -1855,6 +1908,8 @@ internal static class NativeEventOptionCompletionPatch
         task = carrier.Task;
         return true;
     }
+
+    internal static void ForgetTask(EventOption option) => Tasks.Remove(option);
 }
 
 [HarmonyPatch]
@@ -1891,26 +1946,9 @@ internal static class NativeRestSiteOptionPatch
             return;
         }
         RestSiteOption option = options[index];
-        string? inheritedActionWitnessId =
-            RecorderRuntime.CurrentSemanticActionWitnessId(NativeActionType);
+        NativeUiCompletionRootBindings.TryGet(option, out string? inheritedActionWitnessId);
         __state = new PatchState(
-            inheritedActionWitnessId == null
-                ? RecorderRuntime.TryEnterSemanticScope(
-                    "native_rest_site_option_ui",
-                    NativeActionType,
-                    new ProcessLocalObservedAction(
-                        "activate",
-                        option,
-                        new Dictionary<string, object>(StringComparer.Ordinal)),
-                    new NativePostCommitCompletionExpectation(
-                        "rest_site",
-                        NativeActionType,
-                        NativeOperandWitnessId: NativeWitnessIdentity.Get(option, "native_operand")),
-                    new ProcessLocalObservedAction(
-                        "choose_rest_option",
-                        option,
-                        new Dictionary<string, object>(StringComparer.Ordinal)))
-                : default,
+            default,
             option,
             room,
             inheritedActionWitnessId,
@@ -1943,7 +1981,7 @@ internal static class NativeRestSiteOptionPatch
             || !__state.Scope.Entered && !__state.Scope.DeferredFailure
                 && __state.InheritedActionWitnessId == null)
             return;
-        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+        bool accepted = RecorderRuntime.ObserveAcceptedSemanticUiAction(
             NativeActionType,
             new ProcessLocalObservedAction(
                 "activate",
@@ -1957,6 +1995,11 @@ internal static class NativeRestSiteOptionPatch
                 DateTimeOffset.UtcNow),
             captureImmediatePostCommitBoundary: false,
             actionWitnessId: actionWitnessId);
+        if (!accepted)
+        {
+            NativeUiCompletionRootBindings.Take(option);
+            return;
+        }
         if (__result != null)
         {
             RecorderRuntime.QueueNativePostCommitBoundary(
@@ -1965,6 +2008,7 @@ internal static class NativeRestSiteOptionPatch
                 nativeOwner: __instance,
                 nativeOperand: option,
                 expectedActionWitnessId: actionWitnessId);
+            NativeUiCompletionRootBindings.Take(option);
         }
     }
 
@@ -2022,6 +2066,13 @@ internal static class NativeRestSiteButtonPatch
                 "choose_rest_option",
                 option,
                 new Dictionary<string, object>(StringComparer.Ordinal)));
+        if (__state.ActionWitnessId != null
+            && !NativeUiCompletionRootBindings.Remember(option, __state.ActionWitnessId))
+        {
+            NativeUiObservationSafety.Report(
+                "native_rest_site_option_ui.root_collision",
+                "The exact RestSiteOption already belongs to a different Human root.");
+        }
     }
 
     private static Exception? Finalizer(
@@ -2175,9 +2226,12 @@ internal static class NativeShopPurchasePatch
             ui,
             operation,
             nativeActionType,
-            __instance is MerchantCardRemovalEntry && scope.ActionWitnessId != null
+            __instance is MerchantCardRemovalEntry
+                && scope.ActionWitnessId != null
+                && NativeUiCompletionRootBindings.Remember(__instance, scope.ActionWitnessId)
+                && NativeUiCompletionRootBindings.TryGet(__instance, out string? exactRoot)
                 ? NativeNestedSelectorBindings.EnterParent(
-                    scope.ActionWitnessId,
+                    exactRoot!,
                     __instance,
                     "shop_inventory.card_removal_nested_selector",
                     CardRemovalNativeActionType)
@@ -2195,7 +2249,7 @@ internal static class NativeShopPurchasePatch
             || __state.Operation is not { Length: > 0 } operation
             || __state.NativeActionType is not { Length: > 0 } nativeActionType)
             return;
-        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+        bool accepted = RecorderRuntime.ObserveAcceptedSemanticUiAction(
             nativeActionType,
             new ProcessLocalObservedAction(
                 "activate",
@@ -2209,6 +2263,11 @@ internal static class NativeShopPurchasePatch
                 DateTimeOffset.UtcNow),
             captureImmediatePostCommitBoundary: false,
             actionWitnessId: __state.Scope.ActionWitnessId);
+        if (!accepted)
+        {
+            NativeUiCompletionRootBindings.Take(entry);
+            return;
+        }
         if (__result != null)
         {
             RecorderRuntime.QueueNativePostCommitBoundary(
@@ -2216,6 +2275,7 @@ internal static class NativeShopPurchasePatch
                 nativeActionType,
                 nativeOperand: entry,
                 expectedActionWitnessId: __state.Scope.ActionWitnessId);
+            NativeUiCompletionRootBindings.Take(entry);
         }
     }
 
