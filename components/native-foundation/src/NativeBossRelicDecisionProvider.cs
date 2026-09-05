@@ -324,6 +324,24 @@ public static class NativeBossRelicDecisionProvider
         return removed.Length == 1;
     }
 
+    /// <summary>
+    /// Returns the exact native PlayerChoice parent for a cleanup path that
+    /// has already been admitted as a boss-relic callback. This is not a
+    /// source of a new root or a fallback carrier; callers use it only to
+    /// clear the parent-bound registration after failed-closed accounting.
+    /// </summary>
+    public static GameAction? CurrentParentForCleanup()
+    {
+        try
+        {
+            return NativePlayerChoiceLineage.Capture().ParentAction;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static bool TryGetCurrentChoice(
         IReadOnlyList<RelicModel> nativeRelics,
         out PendingChoice? pending,
@@ -407,11 +425,21 @@ public static class NativeBossRelicDecisionProvider
         {
             ConsumeRegisteredChoice(parentAction);
         }
-        catch
+        catch (Exception exception)
         {
-            // Native callbacks must never throw into STS2. A failed cleanup is
-            // still bounded to this exact parent and is retried by the next
-            // provider access rather than silently changing game behavior.
+            // Native callbacks must never throw into STS2. Keep an explicit
+            // diagnostic while retaining the exact-parent bound; the next
+            // provider access may retry cleanup without changing gameplay.
+            try
+            {
+                System.Diagnostics.Trace.TraceError(
+                    $"[STS2 Native Foundation] boss relic carrier cleanup failed: "
+                    + $"{exception.GetType().Name}: {exception.Message}");
+            }
+            catch
+            {
+                // Diagnostics are best effort during native teardown.
+            }
         }
     }
 

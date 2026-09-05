@@ -393,7 +393,7 @@ internal static class NativeBossRelicSelectionPatch
             };
             if (RelicsField?.GetValue(__instance) is not IReadOnlyList<RelicModel> nativeRelics)
             {
-                RecorderRuntime.ObserveAcceptedSemanticUiFailure(
+                FailCarrierClosed(
                     nativeActionType,
                     observed,
                     new NativeWitnessEvidence(
@@ -406,9 +406,11 @@ internal static class NativeBossRelicSelectionPatch
                         {
                             ["screen"] = NativeWitnessIdentity.Get(__instance, "screen")
                         },
-                        DateTimeOffset.UtcNow),
+                    DateTimeOffset.UtcNow),
                     "boss_relic_accepted_carrier_unavailable",
-                    "The exact native relic option list is unavailable after the UI callback.");
+                    "The exact native relic option list is unavailable after the UI callback.",
+                    null,
+                    __state.Scope.ActionWitnessId);
                 return;
             }
             if (!NativeBossRelicDecisionProvider.TryGetRegisteredChoiceCarrier(
@@ -417,7 +419,7 @@ internal static class NativeBossRelicSelectionPatch
                     out string carrierDetail)
                 || carrier?.ParentLineage.ParentAction == null)
             {
-                RecorderRuntime.ObserveAcceptedSemanticUiFailure(
+                FailCarrierClosed(
                     nativeActionType,
                     observed,
                     new NativeWitnessEvidence(
@@ -430,16 +432,18 @@ internal static class NativeBossRelicSelectionPatch
                         {
                             ["screen"] = NativeWitnessIdentity.Get(__instance, "screen")
                         },
-                        DateTimeOffset.UtcNow),
+                    DateTimeOffset.UtcNow),
                     "boss_relic_accepted_carrier_unavailable",
-                    carrierDetail);
+                    carrierDetail,
+                    carrier,
+                    __state.Scope.ActionWitnessId);
                 return;
             }
 
             arguments["parent_action"] = NativeWitnessIdentity.Get(
                 carrier.ParentLineage.ParentAction,
                 "parent_action");
-            RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            bool accepted = RecorderRuntime.ObserveAcceptedSemanticUiAction(
                 nativeActionType,
                 observed,
                 new NativeWitnessEvidence(
@@ -452,7 +456,7 @@ internal static class NativeBossRelicSelectionPatch
                     DateTimeOffset.UtcNow),
                 captureImmediatePostCommitBoundary: false,
                 actionWitnessId: __state.Scope.ActionWitnessId);
-            if (__state.Scope.ActionWitnessId is { } actionWitnessId)
+            if (accepted && __state.Scope.ActionWitnessId is { } actionWitnessId)
             {
                 // The parent GameAction is the exact carrier through the async
                 // RelicsSelected continuation to SyncLocalChoice. This is a
@@ -465,6 +469,60 @@ internal static class NativeBossRelicSelectionPatch
         catch (Exception exception)
         {
             NativeUiObservationSafety.Report("boss_relic.accepted", exception);
+        }
+    }
+
+    private static void FailCarrierClosed(
+        string nativeActionType,
+        ProcessLocalObservedAction observed,
+        NativeWitnessEvidence witness,
+        string reason,
+        string detail,
+        NativeBossRelicChoiceCarrier? carrier,
+        string? actionWitnessId)
+    {
+        try
+        {
+            // Durable failed-closed accounting always happens before carrier
+            // cleanup. No accepted choice may disappear merely because its
+            // async native continuation cannot be proved.
+            RecorderRuntime.ObserveAcceptedSemanticUiFailure(
+                nativeActionType,
+                observed,
+                witness,
+                reason,
+                detail);
+        }
+        catch (Exception exception)
+        {
+            NativeUiObservationSafety.Report("boss_relic.carrier_failure", exception);
+        }
+        finally
+        {
+            try
+            {
+                GameAction? parent = carrier?.ParentLineage.ParentAction;
+                if (parent == null)
+                {
+                    try
+                    {
+                        parent = NativeBossRelicDecisionProvider.CurrentParentForCleanup();
+                    }
+                    catch (Exception exception)
+                    {
+                        NativeUiObservationSafety.Report("boss_relic.carrier_parent", exception);
+                    }
+                }
+                if (parent != null)
+                {
+                    NativeUiCompletionRootBindings.TakeIfMatches(parent, actionWitnessId);
+                    NativeBossRelicDecisionProvider.ConsumeRegisteredChoice(parent);
+                }
+            }
+            catch (Exception exception)
+            {
+                NativeUiObservationSafety.Report("boss_relic.carrier_cleanup", exception);
+            }
         }
     }
 
@@ -518,8 +576,13 @@ internal static class NativeBossRelicCommitPatch
                     NativeBossRelicDecisionProvider.CommitSeam,
                     carrierDetail);
                 if (currentParent != null)
+                {
+                    NativeUiCompletionRootBindings.TakeIfMatches(
+                        currentParent,
+                        pendingActionWitnessId);
                     NativeBossRelicDecisionProvider.ConsumeRegisteredChoice(
                         currentParent);
+                }
                 return;
             }
             if (carrier?.ParentLineage.ParentAction == null)
@@ -533,16 +596,26 @@ internal static class NativeBossRelicCommitPatch
                     "boss_relic_choice",
                     NativeBossRelicDecisionProvider.CommitSeam,
                     "The exact Human root binding is unavailable at boss relic Commit.");
+                NativeBossRelicDecisionProvider.ConsumeRegisteredChoice(
+                    (GameAction)parent);
                 return;
             }
-            RecorderRuntime.ObserveSemanticUiNativeCommit(
-                actionWitnessId,
-                "boss_relic_choice",
-                NativeBossRelicDecisionProvider.CommitSeam,
-                nativeOwner: __instance,
-                nativeLineage: parent);
-            NativeBossRelicDecisionProvider.ConsumeRegisteredChoice(
-                (GameAction)parent);
+            try
+            {
+                RecorderRuntime.ObserveSemanticUiNativeCommit(
+                    actionWitnessId,
+                    "boss_relic_choice",
+                    NativeBossRelicDecisionProvider.CommitSeam,
+                    nativeOwner: __instance,
+                    nativeLineage: parent);
+            }
+            finally
+            {
+                // Provider state is scoped to this exact parent even when
+                // durable completion observation fails.
+                NativeBossRelicDecisionProvider.ConsumeRegisteredChoice(
+                    (GameAction)parent);
+            }
         }
         catch (Exception exception)
         {
@@ -792,21 +865,27 @@ internal static class NativeUiCompletionRootBindings
     }
 
     private static readonly ConditionalWeakTable<object, RootBinding> Bindings = new();
-    private static readonly object ActionBindingGate = new();
-    private static readonly Dictionary<string, WeakReference<GameAction>> ActionBindings = new(
-        StringComparer.Ordinal);
+    private static readonly ExactWitnessBindingTable<GameAction> ActionBindings = new();
 
-    internal static void Remember(object? owner, string? actionWitnessId)
+    internal static bool Remember(object? owner, string? actionWitnessId)
     {
         if (owner == null || string.IsNullOrWhiteSpace(actionWitnessId))
-            return;
-        Bindings.Remove(owner);
-        Bindings.Add(owner, new RootBinding(actionWitnessId));
+            return false;
         if (owner is GameAction action)
         {
-            lock (ActionBindingGate)
-                ActionBindings[actionWitnessId] = new WeakReference<GameAction>(action);
+            if (!ActionBindings.TryBind(actionWitnessId, action))
+                return false;
+            if (Bindings.TryGetValue(action, out RootBinding? prior))
+                ActionBindings.Remove(prior.ActionWitnessId, action);
+            // The collision check above is authoritative; remove any old
+            // witness only for this exact object, never for another root.
+            Bindings.Remove(action);
+            Bindings.Add(action, new RootBinding(actionWitnessId));
+            return true;
         }
+        Bindings.Remove(owner);
+        Bindings.Add(owner, new RootBinding(actionWitnessId));
+        return true;
     }
 
     internal static string? Take(object? owner)
@@ -814,12 +893,23 @@ internal static class NativeUiCompletionRootBindings
         if (owner == null || !Bindings.TryGetValue(owner, out RootBinding? binding))
             return null;
         Bindings.Remove(owner);
-        if (owner is GameAction)
-        {
-            lock (ActionBindingGate)
-                ActionBindings.Remove(binding.ActionWitnessId);
-        }
+        if (owner is GameAction action)
+            ActionBindings.Remove(binding.ActionWitnessId, action);
         return binding.ActionWitnessId;
+    }
+
+    internal static bool TakeIfMatches(object? owner, string? expectedActionWitnessId)
+    {
+        if (owner == null
+            || string.IsNullOrWhiteSpace(expectedActionWitnessId)
+            || !Bindings.TryGetValue(owner, out RootBinding? binding)
+            || !string.Equals(
+                binding.ActionWitnessId,
+                expectedActionWitnessId,
+                StringComparison.Ordinal))
+            return false;
+        Take(owner);
+        return true;
     }
 
     internal static bool Contains(object? owner) =>
@@ -840,18 +930,7 @@ internal static class NativeUiCompletionRootBindings
         action = null;
         if (string.IsNullOrWhiteSpace(actionWitnessId))
             return false;
-        lock (ActionBindingGate)
-        {
-            if (!ActionBindings.TryGetValue(
-                    actionWitnessId,
-                    out WeakReference<GameAction>? reference)
-                || !reference.TryGetTarget(out action))
-            {
-                ActionBindings.Remove(actionWitnessId);
-                return false;
-            }
-        }
-        return true;
+        return ActionBindings.TryGet(actionWitnessId, out action);
     }
 
     internal static string? TakeCurrentRewardOrTreasure()
@@ -936,7 +1015,7 @@ internal static class NativeTreasureChestChoicePatch
         TreasureRoom? room = NativeTreasureUiContext.CurrentRoom();
         if ((!__state.Entered && !__state.DeferredFailure) || room == null)
             return;
-        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+        bool accepted = RecorderRuntime.ObserveAcceptedSemanticUiAction(
             NativeActionType,
             new ProcessLocalObservedAction(
                 "open",
@@ -950,7 +1029,8 @@ internal static class NativeTreasureChestChoicePatch
                 DateTimeOffset.UtcNow),
             captureImmediatePostCommitBoundary: false,
             actionWitnessId: __state.ActionWitnessId);
-        NativeUiCompletionRootBindings.Remember(NativeTreasureUiContext.CurrentUi(), __state.ActionWitnessId);
+        if (accepted)
+            NativeUiCompletionRootBindings.Remember(NativeTreasureUiContext.CurrentUi(), __state.ActionWitnessId);
     }
 
     private static Exception? Finalizer(NativeUiScopeEntry __state, Exception? __exception)
@@ -1078,7 +1158,7 @@ internal static class NativeTreasureProceedPatch
             || __state.Verb is not { } verb
             || __state.IsGameAction)
             return;
-        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+        bool accepted = RecorderRuntime.ObserveAcceptedSemanticUiAction(
             NativeActionType,
             new ProcessLocalObservedAction(
                 verb,
@@ -1092,7 +1172,8 @@ internal static class NativeTreasureProceedPatch
                 DateTimeOffset.UtcNow),
             captureImmediatePostCommitBoundary: false,
             actionWitnessId: __state.Scope.ActionWitnessId);
-        NativeUiCompletionRootBindings.Remember(__instance, __state.Scope.ActionWitnessId);
+        if (accepted)
+            NativeUiCompletionRootBindings.Remember(__instance, __state.Scope.ActionWitnessId);
     }
 
     private static Exception? Finalizer(PatchState __state, Exception? __exception)
@@ -1184,7 +1265,7 @@ internal static class NativeRewardClaimStartPatch
     {
         if ((!__state.Entered && !__state.DeferredFailure) || __instance.Reward == null)
             return;
-        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+        bool accepted = RecorderRuntime.ObserveAcceptedSemanticUiAction(
             NativeActionType,
             new ProcessLocalObservedAction(
                 "activate",
@@ -1198,6 +1279,8 @@ internal static class NativeRewardClaimStartPatch
                 DateTimeOffset.UtcNow),
             captureImmediatePostCommitBoundary: false,
             actionWitnessId: __state.ActionWitnessId);
+        if (!accepted)
+            return;
         NativeUiCompletionRootBindings.Remember(__instance.Reward, __state.ActionWitnessId);
         if (__instance.Reward is CardReward reward
             && __state.ActionWitnessId is { } actionWitnessId
@@ -1287,7 +1370,7 @@ internal static class NativeRewardProceedPatch
         {
             if (!__state.Scope.Entered && !__state.Scope.DeferredFailure)
                 return;
-            RecorderRuntime.ObserveAcceptedSemanticUiAction(
+            bool accepted = RecorderRuntime.ObserveAcceptedSemanticUiAction(
                 __state.NativeActionType,
                 new ProcessLocalObservedAction(
                     "activate",
@@ -1301,7 +1384,8 @@ internal static class NativeRewardProceedPatch
                     DateTimeOffset.UtcNow),
                 captureImmediatePostCommitBoundary: false,
                 actionWitnessId: __state.Scope.ActionWitnessId);
-            NativeUiCompletionRootBindings.Remember(__instance, __state.Scope.ActionWitnessId);
+            if (accepted)
+                NativeUiCompletionRootBindings.Remember(__instance, __state.Scope.ActionWitnessId);
         }
         catch (Exception exception)
         {
@@ -1467,7 +1551,12 @@ internal static class NativeRewardPotionDiscardEnqueuePatch
             string? actionWitnessId = RecorderRuntime.CurrentSemanticActionWitnessId(
                 NativeRewardPotionDiscardPatch.NativeActionType);
             if (actionWitnessId != null)
-                NativeUiCompletionRootBindings.Remember(action, actionWitnessId);
+            {
+                if (!NativeUiCompletionRootBindings.Remember(action, actionWitnessId))
+                    NativeUiObservationSafety.Report(
+                        "reward_potion_discard.enqueue",
+                        "The exact Human witness is already bound to a different child action; child ingress remains failed-closed.");
+            }
         }
         catch (Exception exception)
         {
@@ -1536,9 +1625,14 @@ internal static class NativeActChangeVoteEnqueuePatch
                 ?? RecorderRuntime.CurrentSemanticActionWitnessId(
                     NativeRewardProceedPatch.NativeActionType);
             if (actionWitnessId != null)
+            {
                 // Prefix is intentional: GameAction.OnEnqueued is raised by
                 // RequestEnqueue's original body before a Postfix can run.
-                NativeUiCompletionRootBindings.Remember(action, actionWitnessId);
+                if (!NativeUiCompletionRootBindings.Remember(action, actionWitnessId))
+                    NativeUiObservationSafety.Report(
+                        "act_change.vote_enqueue",
+                        "The exact Human witness is already bound to a different child action; child ingress remains failed-closed.");
+            }
         }
         catch (Exception exception)
         {
@@ -1781,7 +1875,7 @@ internal static class NativeEventOptionPatch
             || __state.Verb is not { } verb
             || __state.Room is not { } room)
             return;
-        RecorderRuntime.ObserveAcceptedSemanticUiAction(
+        bool accepted = RecorderRuntime.ObserveAcceptedSemanticUiAction(
             NativeActionType,
             new ProcessLocalObservedAction(
                 "activate",
@@ -1795,7 +1889,8 @@ internal static class NativeEventOptionPatch
                 DateTimeOffset.UtcNow),
             captureImmediatePostCommitBoundary: false,
             actionWitnessId: __state.Scope.ActionWitnessId);
-        NativeUiCompletionRootBindings.Remember(option, __state.Scope.ActionWitnessId);
+        if (accepted)
+            NativeUiCompletionRootBindings.Remember(option, __state.Scope.ActionWitnessId);
     }
 
     private static Exception? Finalizer(PatchState __state, Exception? __exception)
