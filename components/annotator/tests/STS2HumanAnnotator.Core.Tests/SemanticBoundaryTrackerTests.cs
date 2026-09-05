@@ -345,6 +345,77 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
+    public void NestedSelectorContinuationIsDurableOnParentWithoutBecomingCommitOrRoot()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference parent = Action("event-parent", 1) with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(parent, State("event-human"));
+        tracker.ObserveBeforeActionExecution(
+            parent.ActionWitnessId,
+            Boundary("event-before", parent.ActionWitnessId));
+        tracker.Started(parent.ActionWitnessId);
+
+        var continuation = new NativeHumanContinuationEvidence(
+            "nested-1",
+            "event_option.nested_selector",
+            "select",
+            parent.ActionWitnessId,
+            "nested_owner:screen-1",
+            "NDeckUpgradeSelectScreen.ConfirmSelection",
+            "nested_subject:card-1",
+            new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["selected_0"] = "nested_operand:card-1"
+            },
+            "accepted");
+
+        SemanticBoundaryTraceDraft draft = Assert.Single(
+            tracker.ObserveNativeHumanContinuation(parent.ActionWitnessId, continuation));
+
+        Assert.Equal(SemanticBoundaryTraceKinds.NativeHumanContinuationObserved, draft.Kind);
+        Assert.Same(continuation, draft.NativeHumanContinuation);
+        Assert.Null(draft.NativeCompletion);
+        Assert.Null(draft.NativeContinuation);
+        Assert.True(tracker.HasUnresolvedActions);
+        Assert.Throws<InvalidOperationException>(() =>
+            tracker.ObserveNativeHumanContinuation(
+                parent.ActionWitnessId,
+                continuation with { ParentActionWitnessId = "other-root" }));
+
+        SemanticBoundaryTraceDraft unknown = Assert.Single(
+            tracker.CloseUnknown("test_close"));
+        SemanticBoundaryTraceEvent[] events =
+        {
+            Event(1, SemanticBoundaryTraceKinds.ActionAccepted, parent) with
+            {
+                HumanObservation = State("event-human")
+            },
+            Event(2, draft),
+            Event(3, unknown)
+        };
+        Assert.Empty(SemanticBoundaryTraceValidator.Validate(events));
+        SemanticBoundaryTraceEvent tampered = events[1] with
+        {
+            NativeHumanContinuation = continuation with
+            {
+                ParentActionWitnessId = "other-root"
+            }
+        };
+        Assert.Contains(
+            "semantic_native_human_continuation_parent_mismatch",
+            SemanticBoundaryTraceValidator.Validate(new[] { events[0], tampered, events[2] }));
+        SemanticBoundaryTraceEvent duplicate = events[1] with { Sequence = 3 };
+        SemanticBoundaryTraceEvent shiftedUnknown = events[2] with { Sequence = 4 };
+        Assert.Contains(
+            "semantic_native_human_continuation_occurrence_duplicate",
+            SemanticBoundaryTraceValidator.Validate(
+                new[] { events[0], events[1], duplicate, shiftedUnknown }));
+    }
+
+    [Fact]
     public void ExactPlayerChoiceContinuationLetsNestedHumanChoiceSettleParentWithoutFinish()
     {
         var tracker = new SemanticBoundaryTracker();
@@ -1506,6 +1577,7 @@ public sealed class SemanticBoundaryTrackerTests
             HumanObservation = draft.HumanObservation,
             NativeCompletion = draft.NativeCompletion,
             NativeContinuation = draft.NativeContinuation,
+            NativeHumanContinuation = draft.NativeHumanContinuation,
             ExecutionSemanticActionSpace = draft.ExecutionSemanticActionSpace
         };
 

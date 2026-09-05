@@ -12,6 +12,14 @@ const runtime = fs.readFileSync(
   path.join(root, "src", "STS2HumanAnnotator.Mod", "RecorderRuntime.cs"),
   "utf8"
 );
+const nestedSelectors = fs.readFileSync(
+  path.join(root, "src", "STS2HumanAnnotator.Mod", "NativeNestedSelectorPatches.cs"),
+  "utf8"
+);
+const exactAsyncBindings = fs.readFileSync(
+  path.join(root, "src", "STS2HumanAnnotator.Core", "ExactAsyncOwnerBindingScope.cs"),
+  "utf8"
+);
 const foundation = fs.readFileSync(
   path.resolve(root, "..", "native-foundation", "src", "NativeBossRelicDecisionProvider.cs"),
   "utf8"
@@ -114,4 +122,66 @@ test("native observation callbacks contain exception barriers", () => {
   }
   const safety = section(patches, "internal static class NativeUiObservationSafety", "[HarmonyPatch]");
   assert.match(safety, /catch\s*\{/u);
+});
+
+test("nested selectors bind exact parent scope to exact screen without ambient guesses", () => {
+  assert.match(nestedSelectors, /ExactAsyncOwnerBindingScope<object, Parent, Binding>/u);
+  assert.match(nestedSelectors, /Screens\.TryBindCurrent\(/u);
+  assert.match(exactAsyncBindings, /AsyncLocal<Frame\?>/u);
+  assert.match(exactAsyncBindings, /ConditionalWeakTable<TKey, Holder>/u);
+  assert.match(nestedSelectors, /NativePlayerChoiceLineage\.Capture\(\)/u);
+  assert.match(nestedSelectors, /NativeUiCompletionRootBindings\.TryGet\(action/u);
+  assert.match(runtime, /StartSemanticNativeAction[\s\S]*?NativeUiCompletionRootBindings\.Remember\(action, actionWitnessId\)/u);
+  assert.match(nestedSelectors, /ObserveAcceptedNestedHumanContinuation\(/u);
+  assert.match(nestedSelectors, /TryReadCompletedSelection\(/u);
+  assert.doesNotMatch(nestedSelectors, /MoveNext|FIFO|latest[-_ ]frame|NOverlayStack\.Instance\?\.Peek|Task\.Delay|Timer/u);
+  assert.doesNotMatch(exactAsyncBindings, /FIFO|latest[-_ ]|Task\.Delay|Timer/u);
+});
+
+test("card reward alternatives and removal use exact owner carriers", () => {
+  assert.match(nestedSelectors, /CardReward\.OnSelect/u);
+  assert.match(nestedSelectors, /NCardRewardSelectionScreen[\s\S]*?ShowScreen/u);
+  assert.match(nestedSelectors, /ConditionalWeakTable<NCardRewardSelectionScreen, ScreenBinding>/u);
+  assert.match(nestedSelectors, /OnAlternateRewardSelected/u);
+  assert.match(nestedSelectors, /TryGetAlternative\(/u);
+  assert.match(nestedSelectors, /CardReward\.Reroll/u);
+  assert.match(nestedSelectors, /Reward\.SelectUnsynchronized/u);
+  assert.match(nestedSelectors, /CardRemovalReward\.OnSelect/u);
+  assert.match(nestedSelectors, /reward_card_removal\.nested_selector/u);
+  assert.doesNotMatch(nestedSelectors, /CardRewardAlternative\.Generate\(__instance\)/u);
+});
+
+test("merchant removal uses exact shipped three-argument outer carrier", () => {
+  const purchase = section(patches, "internal static class NativeShopPurchasePatch", "internal static class NativeShopRoomOpenPatch");
+  assert.match(purchase, /typeof\(MerchantCardRemovalEntry\)/u);
+  assert.match(purchase, /typeof\(MerchantInventory\), typeof\(bool\), typeof\(bool\)/u);
+  assert.match(purchase, /MerchantCardRemovalEntry\.OnTryPurchaseWrapper/u);
+  assert.match(purchase, /NativeNestedSelectorBindings\.EnterParent\(/u);
+});
+
+test("event and rest outer owners carry selector lineage while parent Task retains disposition", () => {
+  const event = section(patches, "internal static class NativeEventOptionPatch", "internal static class NativeEventOptionCompletionPatch");
+  const eventCompletion = section(patches, "internal static class NativeEventOptionCompletionPatch", "internal static class NativeRestSiteOptionPatch");
+  const rest = section(patches, "internal static class NativeRestSiteOptionPatch", "internal static class NativeRestSiteButtonPatch");
+  assert.match(rest, /RestSiteSynchronizer\.ChooseLocalOption/u);
+  assert.match(rest, /NativeNestedSelectorBindings\.EnterParent\(/u);
+  assert.match(rest, /QueueNativePostCommitBoundary\(/u);
+  const eventParent = section(nestedSelectors, "internal static class NativeEventNestedSelectorParentPatch", "internal static class NativeNestedSelectorFactoryPatch");
+  assert.match(eventParent, /typeof\(EventOption\), nameof\(EventOption\.Chosen\)/u);
+  assert.match(eventParent, /event_option\.nested_selector/u);
+  assert.doesNotMatch(eventParent, /ObserveAcceptedSemanticUiAction\(/u);
+  assert.match(eventCompletion, /ConditionalWeakTable<EventOption, TaskCarrier>/u);
+  assert.match(eventCompletion, /Tasks\.Add\(__instance, new TaskCarrier\(__result\)\)/u);
+  assert.match(event, /TryTakeTask\(option/u);
+  assert.match(event, /QueueNativePostCommitBoundary\(/u);
+});
+
+test("only terminal selector callbacks create one child continuation", () => {
+  const accepted = section(nestedSelectors, "internal static class NativeNestedSelectorAcceptedPatch", "internal static class NativeNestedSelectorExitPatch");
+  assert.match(accepted, /CompleteSelection/u);
+  assert.match(accepted, /ConfirmSelection/u);
+  assert.match(accepted, /CloseSelection/u);
+  assert.doesNotMatch(accepted, /CancelSelection/u);
+  assert.match(accepted, /NativeNestedSelectorBindings\.TryTake/u);
+  assert.match(accepted, /task\.IsCompleted/u);
 });

@@ -672,6 +672,7 @@ public static class RecordingSessionAuditor
             HumanObservation = humanObservation,
             NativeCompletion = value.NativeCompletion,
             NativeContinuation = value.NativeContinuation,
+            NativeHumanContinuation = value.NativeHumanContinuation,
             ExecutionSemanticActionSpace = executionSemanticActionSpace
         };
     }

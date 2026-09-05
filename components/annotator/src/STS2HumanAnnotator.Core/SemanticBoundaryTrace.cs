@@ -28,6 +28,7 @@ public static class SemanticBoundaryTraceKinds
     public const string ActionAbortedBeforeCommit = "action_aborted_before_commit";
     public const string NativeCommitObserved = "native_commit_observed";
     public const string NativeContinuationObserved = "native_continuation_observed";
+    public const string NativeHumanContinuationObserved = "native_human_continuation_observed";
     public const string BoundaryObserved = "boundary_observed";
     public const string TransitionProved = "transition_proved";
     public const string TransitionUnknown = "transition_unknown";
@@ -156,6 +157,7 @@ public sealed record SemanticBoundaryTraceDraft(
     public CurrentDecisionFrame? HumanObservation { get; init; }
     public NativeCompletionEvidence? NativeCompletion { get; init; }
     public NativeContinuationEvidence? NativeContinuation { get; init; }
+    public NativeHumanContinuationEvidence? NativeHumanContinuation { get; init; }
     public ExecutionSemanticActionSpaceEvidence? ExecutionSemanticActionSpace { get; init; }
 }
 
@@ -181,6 +183,7 @@ public sealed record SemanticBoundaryTraceEvent(
     public CurrentDecisionFrame? HumanObservation { get; init; }
     public NativeCompletionEvidence? NativeCompletion { get; init; }
     public NativeContinuationEvidence? NativeContinuation { get; init; }
+    public NativeHumanContinuationEvidence? NativeHumanContinuation { get; init; }
     public ExecutionSemanticActionSpaceEvidence? ExecutionSemanticActionSpace { get; init; }
 }
 
@@ -602,6 +605,55 @@ public sealed class SemanticBoundaryTracker
         };
     }
 
+    /// <summary>
+    /// Appends an exact screen-owned Human continuation to its existing parent
+    /// root without creating a second root or changing Commit/successor state.
+    /// </summary>
+    public IReadOnlyList<SemanticBoundaryTraceDraft> ObserveNativeHumanContinuation(
+        string actionWitnessId,
+        NativeHumanContinuationEvidence continuation)
+    {
+        Entry entry = Required(actionWitnessId);
+        if (entry.Disposed)
+            return Array.Empty<SemanticBoundaryTraceDraft>();
+        if (!string.Equals(
+                continuation.ParentActionWitnessId,
+                actionWitnessId,
+                StringComparison.Ordinal)
+            || string.IsNullOrWhiteSpace(continuation.OccurrenceId)
+            || string.IsNullOrWhiteSpace(continuation.Family)
+            || string.IsNullOrWhiteSpace(continuation.Verb)
+            || string.IsNullOrWhiteSpace(continuation.NativeOwnerWitnessId)
+            || string.IsNullOrWhiteSpace(continuation.NativeMechanism)
+            || continuation.NativeOperands == null
+            || continuation.NativeOperands.Any(pair =>
+                string.IsNullOrWhiteSpace(pair.Key) || string.IsNullOrWhiteSpace(pair.Value))
+            || continuation.Disposition is not ("accepted" or "cancelled"))
+        {
+            throw new InvalidOperationException(
+                "A nested Human continuation must carry exact parent, owner, mechanism and disposition evidence.");
+        }
+
+        return new[]
+        {
+            Draft(
+                SemanticBoundaryTraceKinds.NativeHumanContinuationObserved,
+                entry,
+                "native_human_continuation_observed",
+                semanticPre: entry.SemanticPre,
+                detail: "STS2 accepted an exact nested selector continuation owned by this Human root; parent Commit and successor remain independent.",
+                nonClaims: new[]
+                {
+                    "nested_continuation_is_not_a_second_root",
+                    "nested_continuation_is_not_native_commit",
+                    "nested_continuation_is_not_semantic_successor"
+                }) with
+            {
+                NativeHumanContinuation = continuation
+            }
+        };
+    }
+
     public IReadOnlyList<SemanticBoundaryTraceDraft> NativeCompletionFailed(
         string actionWitnessId,
         string proofStatus,
@@ -917,6 +969,7 @@ public static class SemanticBoundaryTraceValidator
         SemanticBoundaryTraceKinds.ActionAbortedBeforeCommit,
         SemanticBoundaryTraceKinds.NativeCommitObserved,
         SemanticBoundaryTraceKinds.NativeContinuationObserved,
+        SemanticBoundaryTraceKinds.NativeHumanContinuationObserved,
         SemanticBoundaryTraceKinds.BoundaryObserved,
         SemanticBoundaryTraceKinds.TransitionProved,
         SemanticBoundaryTraceKinds.TransitionUnknown
@@ -989,6 +1042,33 @@ public static class SemanticBoundaryTraceValidator
             {
                 errors.Add("semantic_native_continuation_evidence_invalid");
             }
+            if (value.NativeHumanContinuation is { } humanContinuation)
+            {
+                if (value.Kind != SemanticBoundaryTraceKinds.NativeHumanContinuationObserved)
+                    errors.Add("semantic_native_human_continuation_kind_invalid");
+                if (!string.Equals(
+                        humanContinuation.ParentActionWitnessId,
+                        value.Action.ActionWitnessId,
+                        StringComparison.Ordinal))
+                    errors.Add("semantic_native_human_continuation_parent_mismatch");
+                if (string.IsNullOrWhiteSpace(humanContinuation.OccurrenceId)
+                    || string.IsNullOrWhiteSpace(humanContinuation.Family)
+                    || string.IsNullOrWhiteSpace(humanContinuation.Verb)
+                    || string.IsNullOrWhiteSpace(humanContinuation.NativeOwnerWitnessId)
+                    || string.IsNullOrWhiteSpace(humanContinuation.NativeMechanism)
+                    || humanContinuation.NativeOperands == null
+                    || humanContinuation.NativeOperands.Any(pair =>
+                        string.IsNullOrWhiteSpace(pair.Key) || string.IsNullOrWhiteSpace(pair.Value))
+                    || humanContinuation.Disposition is not ("accepted" or "cancelled"))
+                {
+                    errors.Add("semantic_native_human_continuation_evidence_invalid");
+                }
+            }
+            if (value.Kind == SemanticBoundaryTraceKinds.NativeHumanContinuationObserved
+                && value.NativeHumanContinuation == null)
+            {
+                errors.Add("semantic_native_human_continuation_evidence_missing");
+            }
             if (value.ExecutionSemanticActionSpace != null)
             {
                 errors.AddRange(ExecutionSemanticActionSpaceValidator.Validate(
@@ -996,6 +1076,14 @@ public static class SemanticBoundaryTraceValidator
                     value.Action));
             }
         }
+
+        errors.AddRange(events
+            .Where(value => value.NativeHumanContinuation != null)
+            .GroupBy(
+                value => value.NativeHumanContinuation!.OccurrenceId,
+                StringComparer.Ordinal)
+            .Where(group => group.Count() != 1)
+            .Select(_ => "semantic_native_human_continuation_occurrence_duplicate"));
 
         foreach (IGrouping<string, SemanticBoundaryTraceEvent> group in events
                      .GroupBy(value => value.Action.ActionWitnessId, StringComparer.Ordinal))

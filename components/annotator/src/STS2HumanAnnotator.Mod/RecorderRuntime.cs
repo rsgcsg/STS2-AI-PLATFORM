@@ -2354,6 +2354,7 @@ internal static class RecorderRuntime
             SemanticOnlyNativeActionIds.Add(actionWitnessId);
         }
         PersistSemanticBoundaryDrafts(drafts);
+        NativeUiCompletionRootBindings.Remember(action, actionWitnessId);
         AppendJournal(
             "semantic_human_action_accepted",
             recordId,
@@ -2546,6 +2547,57 @@ internal static class RecorderRuntime
         catch (Exception exception)
         {
             DisableSemanticBoundaryTrace(exception);
+        }
+    }
+
+    internal static void ObserveAcceptedNestedHumanContinuation(
+        string parentActionWitnessId,
+        string family,
+        string verb,
+        object nativeOwner,
+        string nativeMechanism,
+        object? nativeSubject,
+        IReadOnlyDictionary<string, object> nativeOperands,
+        string disposition)
+    {
+        try
+        {
+            var operandWitnesses = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach ((string key, object value) in nativeOperands)
+            {
+                if (string.IsNullOrWhiteSpace(key) || value == null)
+                    continue;
+                operandWitnesses[key] = NativeWitnessIdentity.Get(value, "nested_operand");
+            }
+            var continuation = new NativeHumanContinuationEvidence(
+                $"nested-human-occurrence-{Guid.NewGuid():N}",
+                family,
+                verb,
+                parentActionWitnessId,
+                NativeWitnessIdentity.Get(nativeOwner, "nested_owner"),
+                nativeMechanism,
+                nativeSubject == null
+                    ? null
+                    : NativeWitnessIdentity.Get(nativeSubject, "nested_subject"),
+                operandWitnesses,
+                disposition);
+            IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
+            lock (Gate)
+            {
+                drafts = BoundaryTracker.ObserveNativeHumanContinuation(
+                    parentActionWitnessId,
+                    continuation);
+            }
+            PersistSemanticBoundaryDrafts(drafts);
+        }
+        catch (Exception exception)
+        {
+            Quarantine(
+                "native_nested_continuation_observation_failed",
+                exception.Message,
+                _lastSnapshotId,
+                nativeMechanism,
+                "failed_closed");
         }
     }
 
@@ -2789,6 +2841,7 @@ internal static class RecorderRuntime
                 HumanObservationRef = humanObservationRef,
                 NativeCompletion = draft.NativeCompletion,
                 NativeContinuation = draft.NativeContinuation,
+                NativeHumanContinuation = draft.NativeHumanContinuation,
                 ExecutionSemanticActionSpaceRef = executionSemanticActionSpaceRef
             });
         }
@@ -3305,7 +3358,8 @@ internal static class RecorderRuntime
             return "combat_hand_selector.deselect";
         if (action.NativeActionType == "NPlayerHand.OnSelectModeConfirmButtonPressed")
             return "combat_hand_selector.confirm";
-        if (action.NativeActionType == "MerchantEntry.OnTryPurchaseWrapper")
+        if (action.NativeActionType is "MerchantEntry.OnTryPurchaseWrapper"
+            or "MerchantCardRemovalEntry.OnTryPurchaseWrapper")
         {
             return action.BoundAction?.Verb == "open_shop_card_removal"
                 ? "shop_inventory.card_removal"
@@ -3365,6 +3419,7 @@ internal static class RecorderRuntime
             "NMerchantRoom.HideScreen" => "shop_room.proceed",
             "NMerchantInventory.Close" => "shop_inventory.close",
             "MerchantEntry.OnTryPurchaseWrapper" => "shop_inventory.purchase",
+            "MerchantCardRemovalEntry.OnTryPurchaseWrapper" => "shop_inventory.card_removal",
             _ => null
         };
     }

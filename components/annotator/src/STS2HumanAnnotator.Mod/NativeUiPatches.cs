@@ -1796,6 +1796,16 @@ internal static class NativeEventOptionPatch
             captureImmediatePostCommitBoundary: false,
             actionWitnessId: __state.Scope.ActionWitnessId);
         NativeUiCompletionRootBindings.Remember(option, __state.Scope.ActionWitnessId);
+        if (NativeEventOptionCompletionPatch.TryTakeTask(option, out Task? task)
+            && task != null)
+        {
+            string? actionWitnessId = NativeUiCompletionRootBindings.Take(option);
+            RecorderRuntime.QueueNativePostCommitBoundary(
+                task,
+                "EventOption.Chosen",
+                nativeOperand: option,
+                expectedActionWitnessId: actionWitnessId);
+        }
     }
 
     private static Exception? Finalizer(PatchState __state, Exception? __exception)
@@ -1808,20 +1818,42 @@ internal static class NativeEventOptionPatch
 [HarmonyPatch]
 internal static class NativeEventOptionCompletionPatch
 {
+    private sealed class TaskCarrier
+    {
+        internal TaskCarrier(Task task) => Task = task;
+
+        internal Task Task { get; }
+    }
+
+    private static readonly ConditionalWeakTable<EventOption, TaskCarrier> Tasks = new();
+
     internal static MethodBase TargetMethod() =>
         AccessTools.Method(typeof(EventOption), nameof(EventOption.Chosen))
         ?? throw new MissingMethodException(typeof(EventOption).FullName, nameof(EventOption.Chosen));
 
     private static void Postfix(EventOption __instance, Task __result)
     {
-        if (__result != null)
+        if (__result == null)
+            return;
+        try
         {
-            RecorderRuntime.QueueNativePostCommitBoundary(
-                __result,
-                "EventOption.Chosen",
-                nativeOperand: __instance,
-                expectedActionWitnessId: NativeUiCompletionRootBindings.Take(__instance));
+            Tasks.Remove(__instance);
+            Tasks.Add(__instance, new TaskCarrier(__result));
         }
+        catch (Exception exception)
+        {
+            NativeUiObservationSafety.Report("EventOption.Chosen.task_carrier", exception);
+        }
+    }
+
+    internal static bool TryTakeTask(EventOption option, out Task? task)
+    {
+        task = null;
+        if (!Tasks.TryGetValue(option, out TaskCarrier? carrier))
+            return false;
+        Tasks.Remove(option);
+        task = carrier.Task;
+        return true;
     }
 }
 
@@ -1834,7 +1866,8 @@ internal static class NativeRestSiteOptionPatch
         NativeUiScopeEntry Scope,
         RestSiteOption? Option,
         NRestSiteRoom? Room,
-        string? InheritedActionWitnessId);
+        string? InheritedActionWitnessId,
+        IDisposable? NestedSelectorScope);
 
     internal static MethodBase TargetMethod() =>
         AccessTools.Method(
@@ -1880,7 +1913,20 @@ internal static class NativeRestSiteOptionPatch
                 : default,
             option,
             room,
-            inheritedActionWitnessId);
+            inheritedActionWitnessId,
+            null);
+        string? actionWitnessId = __state.Scope.ActionWitnessId ?? inheritedActionWitnessId;
+        if (actionWitnessId != null)
+        {
+            __state = __state with
+            {
+                NestedSelectorScope = NativeNestedSelectorBindings.EnterParent(
+                    actionWitnessId,
+                    option,
+                    "rest_site.nested_selector",
+                    NativeActionType)
+            };
+        }
     }
 
     private static void Postfix(
@@ -1924,6 +1970,7 @@ internal static class NativeRestSiteOptionPatch
 
     private static Exception? Finalizer(PatchState __state, Exception? __exception)
     {
+        __state.NestedSelectorScope?.Dispose();
         RecorderRuntime.ExitNativeUiScope(__state.Scope);
         return __exception;
     }
@@ -2051,21 +2098,34 @@ internal static class NativeRestSiteProceedPatch
 internal static class NativeShopPurchasePatch
 {
     private const string NativeActionType = "MerchantEntry.OnTryPurchaseWrapper";
+    private const string CardRemovalNativeActionType =
+        "MerchantCardRemovalEntry.OnTryPurchaseWrapper";
 
     private readonly record struct PatchState(
         NativeUiScopeEntry Scope,
         MerchantEntry? Entry,
         NMerchantInventory? Inventory,
-        string? Operation);
+        string? Operation,
+        string? NativeActionType,
+        IDisposable? NestedSelectorScope);
 
-    internal static MethodBase TargetMethod() =>
-        AccessTools.Method(
+    internal static IEnumerable<MethodBase> TargetMethods()
+    {
+        yield return AccessTools.Method(
             typeof(MerchantEntry),
             nameof(MerchantEntry.OnTryPurchaseWrapper),
             new[] { typeof(MerchantInventory), typeof(bool) })
-        ?? throw new MissingMethodException(
-            typeof(MerchantEntry).FullName,
-            nameof(MerchantEntry.OnTryPurchaseWrapper));
+            ?? throw new MissingMethodException(
+                typeof(MerchantEntry).FullName,
+                nameof(MerchantEntry.OnTryPurchaseWrapper));
+        yield return AccessTools.Method(
+            typeof(MerchantCardRemovalEntry),
+            nameof(MerchantCardRemovalEntry.OnTryPurchaseWrapper),
+            new[] { typeof(MerchantInventory), typeof(bool), typeof(bool) })
+            ?? throw new MissingMethodException(
+                typeof(MerchantCardRemovalEntry).FullName,
+                nameof(MerchantCardRemovalEntry.OnTryPurchaseWrapper));
+    }
 
     private static void Prefix(
         MerchantEntry __instance,
@@ -2091,25 +2151,37 @@ internal static class NativeShopPurchasePatch
             __state = default;
             return;
         }
+        string nativeActionType = __instance is MerchantCardRemovalEntry
+            ? CardRemovalNativeActionType
+            : NativeActionType;
+        NativeUiScopeEntry scope = RecorderRuntime.TryEnterSemanticScope(
+            "native_shop_purchase_ui",
+            nativeActionType,
+            new ProcessLocalObservedAction(
+                "activate",
+                __instance,
+                new Dictionary<string, object>(StringComparer.Ordinal)),
+            new NativePostCommitCompletionExpectation(
+                "shop_inventory",
+                nativeActionType,
+                NativeOperandWitnessId: NativeWitnessIdentity.Get(__instance, "native_operand")),
+            new ProcessLocalObservedAction(
+                operation,
+                __instance,
+                new Dictionary<string, object>(StringComparer.Ordinal)));
         __state = new PatchState(
-            RecorderRuntime.TryEnterSemanticScope(
-                "native_shop_purchase_ui",
-                NativeActionType,
-                new ProcessLocalObservedAction(
-                    "activate",
-                    __instance,
-                    new Dictionary<string, object>(StringComparer.Ordinal)),
-                new NativePostCommitCompletionExpectation(
-                    "shop_inventory",
-                    NativeActionType,
-                    NativeOperandWitnessId: NativeWitnessIdentity.Get(__instance, "native_operand")),
-                new ProcessLocalObservedAction(
-                    operation,
-                    __instance,
-                    new Dictionary<string, object>(StringComparer.Ordinal))),
+            scope,
             __instance,
             ui,
-            operation);
+            operation,
+            nativeActionType,
+            __instance is MerchantCardRemovalEntry && scope.ActionWitnessId != null
+                ? NativeNestedSelectorBindings.EnterParent(
+                    scope.ActionWitnessId,
+                    __instance,
+                    "shop_inventory.card_removal_nested_selector",
+                    CardRemovalNativeActionType)
+                : null);
     }
 
     private static void Postfix(
@@ -2120,17 +2192,18 @@ internal static class NativeShopPurchasePatch
         if ((!__state.Scope.Entered && !__state.Scope.DeferredFailure)
             || __state.Entry is not { } entry
             || __state.Inventory is not { } inventory
-            || __state.Operation is not { Length: > 0 } operation)
+            || __state.Operation is not { Length: > 0 } operation
+            || __state.NativeActionType is not { Length: > 0 } nativeActionType)
             return;
         RecorderRuntime.ObserveAcceptedSemanticUiAction(
-            NativeActionType,
+            nativeActionType,
             new ProcessLocalObservedAction(
                 "activate",
                 entry,
                 new Dictionary<string, object>(StringComparer.Ordinal)),
             new NativeWitnessEvidence(
                 "native_shop_purchase_ui",
-                NativeActionType,
+                nativeActionType,
                 NativeWitnessIdentity.Get(entry, "shop_offer"),
                 new Dictionary<string, string>(StringComparer.Ordinal),
                 DateTimeOffset.UtcNow),
@@ -2140,7 +2213,7 @@ internal static class NativeShopPurchasePatch
         {
             RecorderRuntime.QueueNativePostCommitBoundary(
                 __result,
-                NativeActionType,
+                nativeActionType,
                 nativeOperand: entry,
                 expectedActionWitnessId: __state.Scope.ActionWitnessId);
         }
@@ -2148,6 +2221,7 @@ internal static class NativeShopPurchasePatch
 
     private static Exception? Finalizer(PatchState __state, Exception? __exception)
     {
+        __state.NestedSelectorScope?.Dispose();
         RecorderRuntime.ExitNativeUiScope(__state.Scope);
         return __exception;
     }

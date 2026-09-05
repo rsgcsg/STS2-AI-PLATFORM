@@ -113,6 +113,16 @@ meaning. A canonical parent row may therefore name a native terminal/direct
 Commit **or** this exact PlayerChoice continuation, but still requires a
 separate causal successor and no intervening Human effect.
 
+`native_human_continuation_observed` is distinct: it preserves one exact
+screen-owned accepted selection or cancellation inside an already-owned Human
+root. An exact parent/root logical invocation scope binds the typed selector
+factory, and the resulting native screen object is weak-keyed until its own
+terminal callback and completion source agree. The event carries its exact
+parent action witness, owner, mechanism and selected native operands. It does
+not create another root, count as native Commit, settle the parent, or prove
+`S'`. Preview cancellation and an unowned screen exit are not promoted to an
+accepted occurrence.
+
 This stream is not corpus admission or research authority. Current audit only
 promotes current schema containers; predecessor sessions retain their original
 claims only through an explicit archival reader. Evidence is never transferred

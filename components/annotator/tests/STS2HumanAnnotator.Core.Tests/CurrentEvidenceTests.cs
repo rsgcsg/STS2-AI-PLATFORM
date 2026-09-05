@@ -8,7 +8,7 @@ namespace STS2HumanAnnotator.Core.Tests;
 public sealed class CurrentEvidenceTests
 {
     [Fact]
-    public void FullRunCoverageMapIsCompleteAndKeepsNestedLineageBlocked()
+    public void FullRunCoverageMapIsCompleteAndClosesExactNestedLineage()
     {
         IReadOnlyList<FullRunCoverageEntry> entries = FullRunCoverageContract.Entries;
 
@@ -41,13 +41,13 @@ public sealed class CurrentEvidenceTests
         foreach (FullRunCoverageEntry entry in entries.Where(value =>
                      value.Family.Contains("nested_selector", StringComparison.Ordinal)))
         {
-            Assert.Equal(FullRunCoverageClassifications.Blocked, entry.Classification);
-            Assert.Contains("BLOCKED", entry.AcceptedSeam + entry.NextAuthoritativeBoundary);
+            Assert.Equal(FullRunCoverageClassifications.InScopeImplemented, entry.Classification);
+            Assert.Contains("exact", entry.AcceptedSeam, StringComparison.OrdinalIgnoreCase);
         }
     }
 
     [Fact]
-    public void FullRunCoverageDeclaresEveryMandatoryFamilyAndBlocksQualification()
+    public void FullRunCoverageDeclaresEveryMandatoryFamilyAndIsQualificationReady()
     {
         IReadOnlyList<FullRunCoverageEntry> entries = FullRunCoverageContract.Entries;
         HashSet<string> declared = entries
@@ -60,44 +60,32 @@ public sealed class CurrentEvidenceTests
 
         FullRunCoverageValidation validation =
             FullRunCoverageContract.ValidateForQualification();
-        Assert.False(validation.QualificationReady);
-        Assert.NotEmpty(validation.BlockedInScopeFamilies);
-        Assert.Contains(
-            "in_scope_blocked:generic_simple_card_selector",
-            validation.Errors);
-        Assert.Contains(
-            "in_scope_blocked:shop_inventory.card_removal_nested_selector",
-            validation.Errors);
+        Assert.True(validation.QualificationReady);
+        Assert.Empty(validation.BlockedInScopeFamilies);
+        Assert.Empty(validation.Errors);
 
-        string[] unprovedFamilies =
+        string[] implementedFamilies =
         {
-            "reward_nested.replacement_selection",
             "generic_simple_card_selector",
             "generic_deck_card_selector",
             "generic_combat_pile_selector",
             "generic_card_bundle_selector",
-            "target_picker.cancel",
             "shop_inventory.card_removal_nested_selector",
             "event_option.nested_selector",
-            "rest_site.nested_selector"
+            "rest_site.nested_selector",
+            "reward_card_removal.nested_selector",
+            "reward_nested.replacement_selection"
         };
-        foreach (string family in unprovedFamilies)
+        foreach (string family in implementedFamilies)
         {
             FullRunCoverageEntry entry = Assert.Single(
                 entries,
                 value => value.Family == family);
-            Assert.Equal(FullRunCoverageClassifications.Blocked, entry.Classification);
-            Assert.Contains("BLOCKED", string.Join("|", new[]
-            {
-                entry.UiInput,
-                entry.NativeOwner,
-                entry.SemanticProvider,
-                entry.AcceptedSeam,
-                entry.LifecycleCommit,
-                entry.NextAuthoritativeBoundary,
-                entry.Justification
-            }));
+            Assert.Equal(FullRunCoverageClassifications.InScopeImplemented, entry.Classification);
         }
+        Assert.Equal(
+            FullRunCoverageClassifications.NotAPlayerDecisionWithNativeJustification,
+            Assert.Single(entries, value => value.Family == "target_picker.cancel").Classification);
     }
 
     [Fact]
