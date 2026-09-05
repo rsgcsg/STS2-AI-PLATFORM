@@ -18,7 +18,8 @@ internal sealed class NativeActionLifecycleSubscription : IDisposable
         string recordId,
         string humanBoundActionId,
         ExecutionSemanticActionSpaceEvidence? nativeSemanticDecision,
-        Action<NativeActionLifecycleSubscription, string> observer)
+        Action<NativeActionLifecycleSubscription, string> observer,
+        bool finishIsNativeCommit = true)
     {
         _action = action;
         ActionWitnessId = actionWitnessId;
@@ -26,6 +27,7 @@ internal sealed class NativeActionLifecycleSubscription : IDisposable
         RecordId = recordId;
         HumanBoundActionId = humanBoundActionId;
         NativeSemanticDecision = nativeSemanticDecision;
+        FinishIsNativeCommit = finishIsNativeCommit;
         _observer = observer;
         _nativeObserver = new NativeActionLifecycleObserver(
             action,
@@ -38,6 +40,7 @@ internal sealed class NativeActionLifecycleSubscription : IDisposable
     internal string RecordId { get; }
     internal string HumanBoundActionId { get; }
     internal ExecutionSemanticActionSpaceEvidence? NativeSemanticDecision { get; }
+    internal bool FinishIsNativeCommit { get; }
     internal string NativeActionType => _action.GetType().Name;
     internal uint? NativeQueueId => _action.Id;
     internal string NativeState => _action.State.ToString().ToLowerInvariant();

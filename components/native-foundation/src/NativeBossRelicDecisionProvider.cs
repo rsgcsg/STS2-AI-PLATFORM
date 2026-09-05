@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Entities.Players;
+using MegaCrit.Sts2.Core.GameActions;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes.Screens;
 
@@ -64,15 +65,36 @@ public static class NativeBossRelicDecisionProvider
             relics.ToArray(),
             player,
             lineage);
+        if (lineage.ParentAction != null)
+        {
+            // The command-owned parent is the only lifetime boundary for this
+            // registration.  A terminal native cancellation/finish clears the
+            // one-shot carrier; no ambient/latest choice can survive it.
+            pending.Observer = new NativeActionLifecycleObserver(
+                lineage.ParentAction,
+                (_, phase) => ObserveParentLifecycle(lineage.ParentAction, phase));
+        }
         lock (Gate)
         {
             RemoveCollectedChoices();
-            PendingChoices.RemoveAll(candidate =>
-                candidate.Relics.TryGetTarget(out IReadOnlyList<RelicModel>? value)
-                && ReferenceEquals(value, relics));
+            PendingChoice[] replaced = PendingChoices
+                .Where(candidate => candidate.Relics.TryGetTarget(
+                    out IReadOnlyList<RelicModel>? value)
+                    && ReferenceEquals(value, relics))
+                .ToArray();
+            foreach (PendingChoice candidate in replaced)
+                candidate.Observer?.Dispose();
+            PendingChoices.RemoveAll(candidate => replaced.Contains(candidate));
             PendingChoices.Add(pending);
             if (PendingChoices.Count > 16)
-                PendingChoices.RemoveRange(0, PendingChoices.Count - 16);
+            {
+                PendingChoice[] evicted = PendingChoices
+                    .Take(PendingChoices.Count - 16)
+                    .ToArray();
+                foreach (PendingChoice candidate in evicted)
+                    candidate.Observer?.Dispose();
+                PendingChoices.RemoveRange(0, evicted.Length);
+            }
         }
     }
 
@@ -210,8 +232,26 @@ public static class NativeBossRelicDecisionProvider
         out NativeBossRelicChoiceCarrier? carrier,
         out string detail)
     {
+        return TryGetRegisteredCurrentChoiceCarrier(
+            out carrier,
+            out _,
+            out detail);
+    }
+
+    /// <summary>
+    /// Returns the exact currently executing parent alongside its carrier.
+    /// The extra parent output lets a terminal Commit callback clear a stale
+    /// registration without re-capturing ambient lineage in the callback.
+    /// </summary>
+    public static bool TryGetRegisteredCurrentChoiceCarrier(
+        out NativeBossRelicChoiceCarrier? carrier,
+        out GameAction? currentParent,
+        out string detail)
+    {
         carrier = null;
+        currentParent = null;
         NativePlayerChoiceLineage current = NativePlayerChoiceLineage.Capture();
+        currentParent = current.ParentAction;
         if (current.ParentAction == null)
         {
             detail = "The current PlayerChoice parent is unavailable.";
@@ -259,6 +299,29 @@ public static class NativeBossRelicDecisionProvider
             request.Lineage);
         detail = "exact registered RelicSelectCmd parent carrier";
         return true;
+    }
+
+    /// <summary>
+    /// Consumes the exact command registration after its native commit or
+    /// terminal lifecycle.  This is deliberately one-shot and parent-bound;
+    /// it cannot remove a registration for an unrelated choice.
+    /// </summary>
+    public static bool ConsumeRegisteredChoice(GameAction parentAction)
+    {
+        ArgumentNullException.ThrowIfNull(parentAction);
+        PendingChoice[] removed;
+        lock (Gate)
+        {
+            removed = PendingChoices
+                .Where(candidate => ReferenceEquals(
+                    candidate.Lineage.ParentAction,
+                    parentAction))
+                .ToArray();
+            foreach (PendingChoice candidate in removed)
+                candidate.Observer?.Dispose();
+            PendingChoices.RemoveAll(candidate => removed.Contains(candidate));
+        }
+        return removed.Length == 1;
     }
 
     private static bool TryGetCurrentChoice(
@@ -335,14 +398,41 @@ public static class NativeBossRelicDecisionProvider
             NextBoundary,
             detail);
 
-    private static void RemoveCollectedChoices() =>
-        PendingChoices.RemoveAll(candidate => !candidate.Relics.TryGetTarget(out _));
+    private static void ObserveParentLifecycle(GameAction parentAction, string phase)
+    {
+        if (phase is not NativeActionLifecyclePhase.Cancelled
+            and not NativeActionLifecyclePhase.Finished)
+            return;
+        try
+        {
+            ConsumeRegisteredChoice(parentAction);
+        }
+        catch
+        {
+            // Native callbacks must never throw into STS2. A failed cleanup is
+            // still bounded to this exact parent and is retried by the next
+            // provider access rather than silently changing game behavior.
+        }
+    }
+
+    private static void RemoveCollectedChoices()
+    {
+        PendingChoice[] collected = PendingChoices
+            .Where(candidate => !candidate.Relics.TryGetTarget(out _))
+            .ToArray();
+        foreach (PendingChoice candidate in collected)
+            candidate.Observer?.Dispose();
+        PendingChoices.RemoveAll(candidate => collected.Contains(candidate));
+    }
 
     private sealed record PendingChoice(
         WeakReference<IReadOnlyList<RelicModel>> Relics,
         RelicModel[] Options,
         Player Player,
-        NativePlayerChoiceLineage Lineage);
+        NativePlayerChoiceLineage Lineage)
+    {
+        internal NativeActionLifecycleObserver? Observer { get; set; }
+    }
 }
 
 public sealed record NativeBossRelicDecision(

@@ -1524,7 +1524,13 @@ internal static class RecorderRuntime
                 acceptedContext.CompletionExpectation,
                 actionWitnessId ?? (acceptedContext.CompletionExpectation == null
                     ? null
-                    : acceptedContext.ActionWitnessId));
+                    : acceptedContext.ActionWitnessId),
+                actionWitnessId == null
+                    ? null
+                    : NativeUiCompletionRootBindings.TryGetAction(actionWitnessId,
+                        out GameAction? boundAction)
+                        ? boundAction
+                        : null);
         }
         catch (Exception exception)
         {
@@ -1536,6 +1542,98 @@ internal static class RecorderRuntime
                 "implemented_runtime_error",
                 context?.Occurrence ?? OccurrenceFrom(nativeActionType, observed, witness));
             DisableSemanticBoundaryTrace(exception);
+        }
+    }
+
+    /// <summary>
+    /// Persists exactly one failed-closed occurrence for an accepted UI root
+    /// whose native carrier could not be proven. This is intentionally kept
+    /// separate from the normal accepted path: the root gate is claimed once,
+    /// but no semantic action or guessed carrier is created.
+    /// </summary>
+    internal static void ObserveAcceptedSemanticUiFailure(
+        string nativeActionType,
+        ProcessLocalObservedAction observed,
+        NativeWitnessEvidence witness,
+        string reason,
+        string detail)
+    {
+        HumanActionContext? context = HumanActionScope.Current;
+        try
+        {
+            AcceptedDecisionObserver.Outcome outcome = AcceptedDecisionObserver.Observe(
+                nativeActionType,
+                context,
+                match: null,
+                hasMapping: false);
+            if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.DeferredFailure)
+            {
+                TryQuarantineDeferredAcceptedAction(nativeActionType, observed, witness);
+                return;
+            }
+            if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.Duplicate)
+                return;
+
+            Quarantine(
+                reason,
+                detail,
+                context?.Frame.Snapshot.SnapshotId ?? _lastSnapshotId,
+                nativeActionType,
+                "decision_and_lifecycle_only",
+                context?.Occurrence ?? OccurrenceFrom(nativeActionType, observed, witness));
+        }
+        catch (Exception exception)
+        {
+            // Quarantine itself is best-effort and must not throw into a
+            // native callback. Keep the implementation error explicit.
+            NativeUiObservationSafety.Report(
+                "accepted_ui_failure",
+                $"{reason}: {exception.Message}");
+        }
+        finally
+        {
+            // This root is durably invalidated rather than awaiting a native
+            // completion. Do not leave its in-memory completion expectation
+            // behind after the exactly-once failed-closed disposition.
+            if (context?.CompletionExpectation != null)
+            {
+                lock (Gate)
+                    NativePostCommitCompletions.Remove(context.ActionWitnessId);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Keeps a native completion-carrier failure auditable without inventing a
+    /// terminal disposition. The exact Human root remains pending until a
+    /// real native lifecycle or closeout disposition proves its outcome.
+    /// </summary>
+    internal static void ObserveSemanticUiNativeCommitBindingFailure(
+        string? actionWitnessId,
+        string family,
+        string kind,
+        string detail)
+    {
+        try
+        {
+            lock (Gate)
+            {
+                if (_store == null)
+                    return;
+                AppendJournal(
+                    "native_commit_binding_pending",
+                    actionWitnessId,
+                    _lastSnapshotId,
+                    $"root={(actionWitnessId ?? "unavailable")};family={family};kind={kind};{detail}");
+                _runtimeState = "native_commit_binding_pending";
+                _detail = detail;
+            }
+        }
+        catch (Exception exception)
+        {
+            NativeUiObservationSafety.Report(
+                "native_commit_binding_pending",
+                exception);
         }
     }
 
@@ -1966,7 +2064,8 @@ internal static class RecorderRuntime
         ProcessLocalNativeMatch match,
         ProcessLocalNativeWitnessFrame? postCommitFrame = null,
         NativePostCommitCompletionExpectation? completionExpectation = null,
-        string? actionWitnessIdOverride = null)
+        string? actionWitnessIdOverride = null,
+        GameAction? lifecycleAction = null)
     {
         if (!_semanticBoundaryTraceHealthy || _store == null)
             return;
@@ -2022,6 +2121,26 @@ internal static class RecorderRuntime
             result.AddRange(BoundaryTracker.Started(actionWitnessId));
             if (completionExpectation == null)
                 result.AddRange(BoundaryTracker.Finished(actionWitnessId));
+            if (lifecycleAction != null)
+            {
+                NativeActionLifecycleSubscription subscription =
+                    new(
+                        lifecycleAction,
+                        actionWitnessId,
+                        sequence,
+                        recordId,
+                        match.BoundAction!.BoundActionId,
+                        nativeSemanticDecision == null
+                            ? null
+                            : ToExecutionSemanticActionSpace(
+                                actionWitnessId,
+                                nativeSemanticDecision,
+                                match.BoundAction.BoundActionId),
+                        ObserveSemanticOnlyNativeActionLifecycle,
+                        finishIsNativeCommit: completionExpectation == null);
+                NativeActionSubscriptions[lifecycleAction] = subscription;
+                SemanticOnlyNativeActionIds.Add(actionWitnessId);
+            }
             drafts = result;
         }
         PersistSemanticBoundaryDrafts(drafts);
@@ -2355,7 +2474,8 @@ internal static class RecorderRuntime
                     NativeWitnessIdentity.Get(subscription.Action, "game_action"),
                     true));
         }
-        if (kind == NativeActionLifecycleKinds.Finished)
+        if (kind == NativeActionLifecycleKinds.Finished
+            && subscription.FinishIsNativeCommit)
         {
             ObserveNativeCommit(
                 subscription.ActionWitnessId,
@@ -2380,6 +2500,10 @@ internal static class RecorderRuntime
             SemanticOnlyNativeActionIds.Remove(subscription.ActionWitnessId);
             subscription.Dispose();
         }
+        // A cancelled/finished bound UI action may never reach its explicit
+        // Commit patch. Clear the weak exact-object carrier at the same
+        // terminal lifecycle boundary so it cannot outlive the root.
+        NativeUiCompletionRootBindings.Take(subscription.Action);
         FinalizeClose();
     }
 

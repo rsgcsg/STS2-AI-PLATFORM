@@ -115,6 +115,30 @@ public sealed class CurrentEvidenceTests
         Assert.Contains("mandatory_family_missing:target_picker.cancel", validation.Errors);
     }
 
+    [Fact]
+    public void AnyEnumeratedBlockedSurfaceBlocksQualificationEvenWhenNonMandatory()
+    {
+        FullRunCoverageEntry nonMandatoryBlocked = new(
+            "census_only_surface",
+            FullRunCoverageClassifications.Blocked,
+            "BLOCKED: exact native input census pending",
+            "BLOCKED: exact native owner pending",
+            "BLOCKED: exact semantic provider pending",
+            "BLOCKED: accepted seam pending",
+            "BLOCKED: lifecycle seam pending",
+            "BLOCKED: next boundary pending",
+            "BLOCKED: bounded census has not proven the carrier.");
+        FullRunCoverageValidation validation =
+            FullRunCoverageContract.ValidateForQualification(
+                FullRunCoverageContract.Entries
+                    .Concat(new[] { nonMandatoryBlocked })
+                    .ToArray());
+
+        Assert.False(validation.QualificationReady);
+        Assert.Contains("census_only_surface", validation.BlockedInScopeFamilies);
+        Assert.Contains("in_scope_blocked:census_only_surface", validation.Errors);
+    }
+
     [Theory]
     [InlineData("ordinary_combat", "play", "ordinary_combat.play_card")]
     [InlineData("ordinary_combat", "end_turn", "ordinary_combat.end_turn")]

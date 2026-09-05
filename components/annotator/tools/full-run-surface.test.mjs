@@ -59,6 +59,43 @@ test("boss relic uses the registered native parent exactly once", () => {
   assert.match(gameMod, /PatchBefore\([\s\S]*?NativeBossRelicCommandPatch/u);
 });
 
+test("boss relic carrier failures are one durable failed-closed occurrence", () => {
+  const selection = section(patches, "internal static class NativeBossRelicSelectionPatch", "internal static class NativeBossRelicCommitPatch");
+  const commit = section(patches, "internal static class NativeBossRelicCommitPatch", "internal static class NativeCombatHandSelectPatch");
+
+  assert.match(selection, /ObserveAcceptedSemanticUiFailure\(/u);
+  assert.match(selection, /boss_relic_accepted_carrier_unavailable/u);
+  assert.match(commit, /ObserveSemanticUiNativeCommitBindingFailure\(/u);
+  assert.match(commit, /ConsumeRegisteredChoice\(/u);
+  assert.match(runtime, /ObserveAcceptedSemanticUiFailure\(/u);
+  assert.match(runtime, /AcceptedDecisionObserver\.Observe\([\s\S]*hasMapping:\s*false/u);
+  assert.match(runtime, /OutcomeKind\.Duplicate/u);
+});
+
+test("bound potion and act actions retain lifecycle without duplicate root ingress", () => {
+  const enqueue = section(patches, "internal static class NativeRewardPotionDiscardEnqueuePatch", "internal static class NativeRewardPotionDiscardCommitPatch");
+  const actEnqueue = section(patches, "internal static class NativeActChangeVoteEnqueuePatch", "internal static class NativeActChangeVoteCommitPatch");
+  const subscription = fs.readFileSync(
+    path.join(root, "src", "STS2HumanAnnotator.Mod", "NativeActionLifecycleSubscription.cs"),
+    "utf8"
+  );
+
+  assert.match(enqueue, /NativeUiCompletionRootBindings\.Remember\(action, actionWitnessId\)/u);
+  assert.match(actEnqueue, /NativeUiCompletionRootBindings\.Remember\(action, actionWitnessId\)/u);
+  assert.match(runtime, /TryGetAction\(actionWitnessId/u);
+  assert.match(runtime, /finishIsNativeCommit:\s*completionExpectation == null/u);
+  assert.match(runtime, /NativeActionLifecycleKinds\.Cancelled/u);
+  assert.match(subscription, /FinishIsNativeCommit/u);
+});
+
+test("boss carrier registration is one-shot and lifecycle-cleaned", () => {
+  assert.match(foundation, /ConsumeRegisteredChoice\(GameAction parentAction\)/u);
+  assert.match(foundation, /ObserveParentLifecycle\(/u);
+  assert.match(foundation, /NativeActionLifecyclePhase\.Cancelled/u);
+  assert.match(foundation, /NativeActionLifecyclePhase\.Finished/u);
+  assert.match(foundation, /Observer\?\.Dispose\(\)/u);
+});
+
 test("native observation callbacks contain exception barriers", () => {
   const callbacks = [
     ["NativeBossRelicSelectionPatch", "internal static class NativeBossRelicCommitPatch"],

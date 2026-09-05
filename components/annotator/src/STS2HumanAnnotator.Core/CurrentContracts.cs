@@ -342,17 +342,18 @@ public static class FullRunCoverageContract
         IReadOnlyList<FullRunCoverageEntry> entries)
     {
         IReadOnlyList<string> structuralErrors = Validate(entries);
-        HashSet<string> mandatory = MandatoryFamilies.ToHashSet(StringComparer.Ordinal);
         IReadOnlyList<string> missing = MandatoryFamilies
             .Where(family => entries.All(entry => !string.Equals(
                 entry.Family,
                 family,
                 StringComparison.Ordinal)))
             .ToArray();
+        // Qualification is a claim over the complete census, not only the
+        // currently mandatory subset. Any explicitly BLOCKED entry is an
+        // unresolved player-decision surface and therefore blocks the claim.
         IReadOnlyList<string> blocked = entries
             .Where(entry => entry.Classification == FullRunCoverageClassifications.Blocked)
             .Select(entry => entry.Family)
-            .Where(mandatory.Contains)
             .Distinct(StringComparer.Ordinal)
             .OrderBy(family => family, StringComparer.Ordinal)
             .ToArray();

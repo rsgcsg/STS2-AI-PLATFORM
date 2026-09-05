@@ -393,9 +393,22 @@ internal static class NativeBossRelicSelectionPatch
             };
             if (RelicsField?.GetValue(__instance) is not IReadOnlyList<RelicModel> nativeRelics)
             {
-                NativeUiObservationSafety.Report(
-                    "boss_relic.accepted_carrier",
-                    "The exact native relic option list is unavailable.");
+                RecorderRuntime.ObserveAcceptedSemanticUiFailure(
+                    nativeActionType,
+                    observed,
+                    new NativeWitnessEvidence(
+                        isSkip ? "native_boss_relic_skip_ui" : "native_boss_relic_select_ui",
+                        nativeActionType,
+                        __state.Relic == null
+                            ? NativeWitnessIdentity.Get(__instance, "screen")
+                            : NativeWitnessIdentity.Get(__state.Relic, "relic"),
+                        new Dictionary<string, string>(StringComparer.Ordinal)
+                        {
+                            ["screen"] = NativeWitnessIdentity.Get(__instance, "screen")
+                        },
+                        DateTimeOffset.UtcNow),
+                    "boss_relic_accepted_carrier_unavailable",
+                    "The exact native relic option list is unavailable after the UI callback.");
                 return;
             }
             if (!NativeBossRelicDecisionProvider.TryGetRegisteredChoiceCarrier(
@@ -404,8 +417,21 @@ internal static class NativeBossRelicSelectionPatch
                     out string carrierDetail)
                 || carrier?.ParentLineage.ParentAction == null)
             {
-                NativeUiObservationSafety.Report(
-                    "boss_relic.accepted_carrier",
+                RecorderRuntime.ObserveAcceptedSemanticUiFailure(
+                    nativeActionType,
+                    observed,
+                    new NativeWitnessEvidence(
+                        isSkip ? "native_boss_relic_skip_ui" : "native_boss_relic_select_ui",
+                        nativeActionType,
+                        __state.Relic == null
+                            ? NativeWitnessIdentity.Get(__instance, "screen")
+                            : NativeWitnessIdentity.Get(__state.Relic, "relic"),
+                        new Dictionary<string, string>(StringComparer.Ordinal)
+                        {
+                            ["screen"] = NativeWitnessIdentity.Get(__instance, "screen")
+                        },
+                        DateTimeOffset.UtcNow),
+                    "boss_relic_accepted_carrier_unavailable",
                     carrierDetail);
                 return;
             }
@@ -476,19 +502,47 @@ internal static class NativeBossRelicCommitPatch
         {
             if (!NativeBossRelicDecisionProvider.TryGetRegisteredCurrentChoiceCarrier(
                     out NativeBossRelicChoiceCarrier? carrier,
-                    out _)
-                || carrier?.ParentLineage.ParentAction == null)
+                    out GameAction? currentParent,
+                    out string carrierDetail))
+            {
+                string? pendingActionWitnessId = currentParent == null
+                    ? null
+                    : NativeUiCompletionRootBindings.TryGet(
+                        currentParent,
+                        out string? witness)
+                        ? witness
+                        : null;
+                RecorderRuntime.ObserveSemanticUiNativeCommitBindingFailure(
+                    pendingActionWitnessId,
+                    "boss_relic_choice",
+                    NativeBossRelicDecisionProvider.CommitSeam,
+                    carrierDetail);
+                if (currentParent != null)
+                    NativeBossRelicDecisionProvider.ConsumeRegisteredChoice(
+                        currentParent);
+                return;
+            }
+            if (carrier?.ParentLineage.ParentAction == null)
                 return;
             object parent = carrier.ParentLineage.ParentAction;
             string? actionWitnessId = NativeUiCompletionRootBindings.Take(parent);
             if (actionWitnessId == null)
+            {
+                RecorderRuntime.ObserveSemanticUiNativeCommitBindingFailure(
+                    null,
+                    "boss_relic_choice",
+                    NativeBossRelicDecisionProvider.CommitSeam,
+                    "The exact Human root binding is unavailable at boss relic Commit.");
                 return;
+            }
             RecorderRuntime.ObserveSemanticUiNativeCommit(
                 actionWitnessId,
                 "boss_relic_choice",
                 NativeBossRelicDecisionProvider.CommitSeam,
                 nativeOwner: __instance,
                 nativeLineage: parent);
+            NativeBossRelicDecisionProvider.ConsumeRegisteredChoice(
+                (GameAction)parent);
         }
         catch (Exception exception)
         {
@@ -738,6 +792,9 @@ internal static class NativeUiCompletionRootBindings
     }
 
     private static readonly ConditionalWeakTable<object, RootBinding> Bindings = new();
+    private static readonly object ActionBindingGate = new();
+    private static readonly Dictionary<string, WeakReference<GameAction>> ActionBindings = new(
+        StringComparer.Ordinal);
 
     internal static void Remember(object? owner, string? actionWitnessId)
     {
@@ -745,6 +802,11 @@ internal static class NativeUiCompletionRootBindings
             return;
         Bindings.Remove(owner);
         Bindings.Add(owner, new RootBinding(actionWitnessId));
+        if (owner is GameAction action)
+        {
+            lock (ActionBindingGate)
+                ActionBindings[actionWitnessId] = new WeakReference<GameAction>(action);
+        }
     }
 
     internal static string? Take(object? owner)
@@ -752,11 +814,45 @@ internal static class NativeUiCompletionRootBindings
         if (owner == null || !Bindings.TryGetValue(owner, out RootBinding? binding))
             return null;
         Bindings.Remove(owner);
+        if (owner is GameAction)
+        {
+            lock (ActionBindingGate)
+                ActionBindings.Remove(binding.ActionWitnessId);
+        }
         return binding.ActionWitnessId;
     }
 
     internal static bool Contains(object? owner) =>
         owner != null && Bindings.TryGetValue(owner, out _);
+
+    internal static bool TryGet(object? owner, out string? actionWitnessId)
+    {
+        actionWitnessId = null;
+        return owner != null
+            && Bindings.TryGetValue(owner, out RootBinding? binding)
+            && (actionWitnessId = binding.ActionWitnessId) != null;
+    }
+
+    internal static bool TryGetAction(
+        string actionWitnessId,
+        out GameAction? action)
+    {
+        action = null;
+        if (string.IsNullOrWhiteSpace(actionWitnessId))
+            return false;
+        lock (ActionBindingGate)
+        {
+            if (!ActionBindings.TryGetValue(
+                    actionWitnessId,
+                    out WeakReference<GameAction>? reference)
+                || !reference.TryGetTarget(out action))
+            {
+                ActionBindings.Remove(actionWitnessId);
+                return false;
+            }
+        }
+        return true;
+    }
 
     internal static string? TakeCurrentRewardOrTreasure()
     {
