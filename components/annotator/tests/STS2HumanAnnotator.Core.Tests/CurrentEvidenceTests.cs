@@ -46,6 +46,75 @@ public sealed class CurrentEvidenceTests
         }
     }
 
+    [Fact]
+    public void FullRunCoverageDeclaresEveryMandatoryFamilyAndBlocksQualification()
+    {
+        IReadOnlyList<FullRunCoverageEntry> entries = FullRunCoverageContract.Entries;
+        HashSet<string> declared = entries
+            .Select(entry => entry.Family)
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.All(
+            FullRunCoverageContract.MandatoryFamilies,
+            family => Assert.Contains(family, declared));
+
+        FullRunCoverageValidation validation =
+            FullRunCoverageContract.ValidateForQualification();
+        Assert.False(validation.QualificationReady);
+        Assert.NotEmpty(validation.BlockedInScopeFamilies);
+        Assert.Contains(
+            "in_scope_blocked:generic_simple_card_selector",
+            validation.Errors);
+        Assert.Contains(
+            "in_scope_blocked:shop_inventory.card_removal_nested_selector",
+            validation.Errors);
+
+        string[] unprovedFamilies =
+        {
+            "reward_nested.replacement_selection",
+            "generic_simple_card_selector",
+            "generic_deck_card_selector",
+            "generic_combat_pile_selector",
+            "generic_card_bundle_selector",
+            "target_picker.cancel",
+            "shop_inventory.card_removal_nested_selector",
+            "event_option.nested_selector",
+            "rest_site.nested_selector"
+        };
+        foreach (string family in unprovedFamilies)
+        {
+            FullRunCoverageEntry entry = Assert.Single(
+                entries,
+                value => value.Family == family);
+            Assert.Equal(FullRunCoverageClassifications.Blocked, entry.Classification);
+            Assert.Contains("BLOCKED", string.Join("|", new[]
+            {
+                entry.UiInput,
+                entry.NativeOwner,
+                entry.SemanticProvider,
+                entry.AcceptedSeam,
+                entry.LifecycleCommit,
+                entry.NextAuthoritativeBoundary,
+                entry.Justification
+            }));
+        }
+    }
+
+    [Fact]
+    public void FullRunCoverageValidationRejectsOmittedMandatoryFamily()
+    {
+        IReadOnlyList<FullRunCoverageEntry> entries = FullRunCoverageContract.Entries
+            .Where(entry => entry.Family != "target_picker.cancel")
+            .ToArray();
+
+        FullRunCoverageValidation validation =
+            FullRunCoverageContract.ValidateForQualification(entries);
+        Assert.False(validation.IsValid);
+        Assert.False(validation.QualificationReady);
+        Assert.Contains("target_picker.cancel", validation.MissingMandatoryFamilies);
+        Assert.Contains("mandatory_family_missing:target_picker.cancel", validation.Errors);
+    }
+
     [Theory]
     [InlineData("ordinary_combat", "play", "ordinary_combat.play_card")]
     [InlineData("ordinary_combat", "end_turn", "ordinary_combat.end_turn")]

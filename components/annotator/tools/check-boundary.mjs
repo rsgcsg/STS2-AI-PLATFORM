@@ -51,7 +51,8 @@ if (!sources.includes("ReferenceEquals(staged.Card, stagedCard)"))
   errors.push("staged card frames must remain bound to the exact native card reference");
 if (!sources.includes("context.AcceptsRootAction(nativeActionType)"))
   errors.push("same-type game actions must not claim the human root before exact mapping");
-if (!sources.includes("if (!IsExact(match) || !context.TryClaimRootAction(nativeActionType))"))
+if (!sources.includes("!hasMapping || match == null || !IsExact(match)")
+    || !sources.includes("context.TryClaimRootAction(nativeActionType)"))
   errors.push("the recorder must exact-match before claiming the human root action");
 if (!applicationService.includes("RecordingCommandResult Execute(RecordingCommand command)"))
   errors.push("all recording views must use the typed RecordingService command boundary");

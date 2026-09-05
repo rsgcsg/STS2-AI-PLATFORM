@@ -177,6 +177,90 @@ public static class NativeBossRelicDecisionProvider
         return true;
     }
 
+    /// <summary>
+    /// Returns the exact command-owned option list and parent carrier used by
+    /// <see cref="RelicSelectCmd.FromChooseARelicScreen"/>.  Consumers must
+    /// pass the live native list; a projected holder list is not accepted.
+    /// </summary>
+    public static bool TryGetRegisteredChoiceCarrier(
+        IReadOnlyList<RelicModel> nativeRelics,
+        out NativeBossRelicChoiceCarrier? carrier,
+        out string detail)
+    {
+        carrier = null;
+        if (!TryGetCurrentChoice(nativeRelics, out PendingChoice? pending, out detail))
+            return false;
+
+        PendingChoice request = pending!;
+        carrier = new NativeBossRelicChoiceCarrier(
+            request.Options,
+            request.Player,
+            request.Lineage);
+        detail = "exact registered RelicSelectCmd option and PlayerChoice parent carrier";
+        return true;
+    }
+
+    /// <summary>
+    /// Returns the registered carrier whose exact parent is the currently
+    /// executing PlayerChoice continuation.  This is intentionally a
+    /// fail-closed, unique match; the Annotator consumes the returned parent
+    /// object rather than capturing a fresh ambient lineage.
+    /// </summary>
+    public static bool TryGetRegisteredCurrentChoiceCarrier(
+        out NativeBossRelicChoiceCarrier? carrier,
+        out string detail)
+    {
+        carrier = null;
+        NativePlayerChoiceLineage current = NativePlayerChoiceLineage.Capture();
+        if (current.ParentAction == null)
+        {
+            detail = "The current PlayerChoice parent is unavailable.";
+            return false;
+        }
+
+        PendingChoice[] matches;
+        lock (Gate)
+        {
+            RemoveCollectedChoices();
+            matches = PendingChoices
+                .Where(candidate => candidate.Lineage.ParentAction != null
+                    && ReferenceEquals(
+                        candidate.Lineage.ParentAction,
+                        current.ParentAction))
+                .ToArray();
+        }
+        if (matches.Length != 1)
+        {
+            detail = matches.Length == 0
+                ? "No registered RelicSelectCmd carrier matches the current PlayerChoice parent."
+                : "Multiple registered RelicSelectCmd carriers match the current PlayerChoice parent.";
+            return false;
+        }
+
+        PendingChoice request = matches[0];
+        try
+        {
+            if (!LocalContext.IsMe(request.Player)
+                || request.Player.RunState.Players.Count != 1)
+            {
+                detail = "The registered relic command is not the local single-player choice.";
+                return false;
+            }
+        }
+        catch (Exception exception)
+        {
+            detail = $"The local single-player command owner is unavailable: {exception.GetType().Name}.";
+            return false;
+        }
+
+        carrier = new NativeBossRelicChoiceCarrier(
+            request.Options,
+            request.Player,
+            request.Lineage);
+        detail = "exact registered RelicSelectCmd parent carrier";
+        return true;
+    }
+
     private static bool TryGetCurrentChoice(
         IReadOnlyList<RelicModel> nativeRelics,
         out PendingChoice? pending,
@@ -275,3 +359,13 @@ public sealed record NativeBossRelicDecision(
     string CommitSeam,
     string NextBoundary,
     string? Detail);
+
+/// <summary>
+/// Typed carrier shared by the Native Foundation owner registration and the
+/// Annotator's UI/Commit adapters.  The list and parent are the same native
+/// objects supplied by RelicSelectCmd; no ambient/latest lookup is implied.
+/// </summary>
+public sealed record NativeBossRelicChoiceCarrier(
+    IReadOnlyList<RelicModel> Options,
+    Player Player,
+    NativePlayerChoiceLineage ParentLineage);

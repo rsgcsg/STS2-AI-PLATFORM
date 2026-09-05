@@ -1267,6 +1267,14 @@ internal static class RecorderRuntime
 
     internal static void ObserveAcceptedAction(GameAction action)
     {
+        // Some native UI callbacks enqueue a known child action inside the
+        // UI method whose accepted occurrence is already being staged. The
+        // exact object binding is installed in RequestEnqueue's Prefix, before
+        // GameAction.OnEnqueued fires. Do not let the generic observer create
+        // a second disposition or a NativeTypeMismatch for that same root.
+        if (NativeUiCompletionRootBindings.Contains(action))
+            return;
+
         HumanActionContext? context = HumanActionScope.Current;
         string nativeActionType = action.GetType().Name;
         try
@@ -3211,6 +3219,8 @@ internal static class RecorderRuntime
             "NChooseACardSelectionScreen.OnSkipButtonReleased" => "native_generated_card_choice.skip",
             "NChooseARelicSelection.SelectHolder" => "boss_relic.select",
             "NChooseARelicSelection.OnSkipButtonReleased" => "boss_relic.skip",
+            "NPotionPopup.OnDiscardButtonPressed" => "reward_potion_belt.discard_replace",
+            nameof(DiscardPotionGameAction) => "reward_potion_belt.discard_replace",
             nameof(VoteForMapCoordAction) => "map_navigation.travel",
             "NRewardButton.OnRelease" => "reward_claim.claim",
             "NRewardsScreen.OnProceedButtonPressed" => "reward_claim.proceed",
@@ -3601,11 +3611,20 @@ internal static class RecorderRuntime
             // The native event remains authoritative evidence, but an
             // incomplete post-entry read leaves the root explicitly pending
             // for closeout; no later frame is backfilled here.
-            AppendJournal(
-                "act_entered_boundary_unavailable",
-                null,
-                _lastSnapshotId,
-                exception.Message);
+            try
+            {
+                AppendJournal(
+                    "act_entered_boundary_unavailable",
+                    null,
+                    _lastSnapshotId,
+                    exception.Message);
+            }
+            catch (Exception journalException)
+            {
+                NativeUiObservationSafety.Report(
+                    "act_entered.boundary_unavailable",
+                    journalException);
+            }
         }
     }
 

@@ -184,6 +184,71 @@ public static class FullRunCoverageContract
             new("rest_site.proceed", FullRunCoverageClassifications.InScopeImplemented,
                 "NRestSiteRoom.OnProceedButtonReleased", "NRestSiteRoom", "NativeRoomDecisionProvider",
                 "NRestSiteRoom.OnProceedButtonReleased", "room handoff", "next exact room boundary"),
+            new("reward_potion_belt.discard_replace", FullRunCoverageClassifications.InScopeImplemented,
+                "NPotionPopup.OnDiscardButtonPressed(NButton)",
+                "NPotionPopup -> ActionQueueSynchronizer.RequestEnqueue(DiscardPotionGameAction)",
+                "NativeRewardDecisionProvider (full belt discard actions)",
+                "NPotionPopup.OnDiscardButtonPressed + exact current potion action binding",
+                "DiscardPotionGameAction.ExecuteAction -> PotionCmd.Discard",
+                "NRewardsScreen reward set after exact potion-slot post-state",
+                "Full potion belt replacement is a real player decision; the popup cancel path has no mutation."),
+            new("reward_potion_belt.cancel", FullRunCoverageClassifications.NotAPlayerDecisionWithNativeJustification,
+                "NPotionPopup._Input(cancel/pauseAndBack/outside click)", "NPotionPopup", "none",
+                "none: NPotionPopup.Remove", "no native reward/potion mutation",
+                "outer NRewardsScreen remains authoritative",
+                "Cancel closes the popup without enqueueing DiscardPotionGameAction; it is not an accepted player decision."),
+            new("reward_nested.card_selection", FullRunCoverageClassifications.InScopeImplemented,
+                "NCardRewardSelectionScreen.SelectCard", "NCardRewardSelectionScreen",
+                "NativeCardRewardDecisionProvider", "NCardRewardSelectionScreen.SelectCard",
+                "card reward owner completion", "next exact reward boundary",
+                "The card-reward child has an exact native screen owner and parent reward binding."),
+            new("reward_nested.replacement_selection", FullRunCoverageClassifications.Blocked,
+                "Reward child replacement/selection callbacks beyond NCardRewardSelectionScreen",
+                "exact child native owner not proven in bounded v0.111.0 census",
+                "NativeRewardDecisionProvider (outer parent only)",
+                "BLOCKED: no exact reward-child parent carrier", "BLOCKED: no exact child Commit seam",
+                "BLOCKED: outer NRewardsScreen continuation only",
+                "BLOCKED: no exact parent carrier was proven; ambient/FIFO/latest binding would be guesswork."),
+            new("generic_simple_card_selector", FullRunCoverageClassifications.Blocked,
+                "NCardGrid.HolderPressed: choose/select/replace/deselect/confirm/cancel/back",
+                "NCardGrid plus exact simple-card selector owner not proven for Annotator",
+                "NativeSimpleCardSelection (Connector presentation provider only)",
+                "BLOCKED: no exact Annotator parent registration seam",
+                "BLOCKED: selector child lifecycle/Commit owner not proven",
+                "BLOCKED: parent continuation unavailable",
+                "BLOCKED: bounded source audit proves presentation controls but no exact parent carrier."),
+            new("generic_deck_card_selector", FullRunCoverageClassifications.Blocked,
+                "NCardGrid.HolderPressed: choose/select/replace/deselect/confirm/cancel/back",
+                "NCardGrid plus exact deck-card selector owner not proven for Annotator",
+                "NativeDeckCardSelection (Connector presentation provider only)",
+                "BLOCKED: no exact Annotator parent registration seam",
+                "BLOCKED: selector child lifecycle/Commit owner not proven",
+                "BLOCKED: parent continuation unavailable",
+                "BLOCKED: bounded source audit proves presentation controls but no exact parent carrier."),
+            new("generic_combat_pile_selector", FullRunCoverageClassifications.Blocked,
+                "NCardGrid.HolderPressed: choose/select/replace/deselect/confirm/cancel/back",
+                "NCardGrid plus exact combat-pile selector owner not proven for Annotator",
+                "NativeCombatPileSelection (Connector presentation provider only)",
+                "BLOCKED: no exact Annotator parent registration seam",
+                "BLOCKED: selector child lifecycle/Commit owner not proven",
+                "BLOCKED: parent continuation unavailable",
+                "BLOCKED: bounded source audit proves presentation controls but no exact parent carrier."),
+            new("generic_card_bundle_selector", FullRunCoverageClassifications.Blocked,
+                "NCardBundle.Hitbox and Confirm/Cancel/Back: choose/select/replace/deselect/confirm/cancel/back",
+                "NCardBundle exact child owner not proven for Annotator",
+                "CardBundleSelectionSurfaceReader (Connector presentation provider only)",
+                "BLOCKED: no exact Annotator parent registration seam",
+                "BLOCKED: selector child lifecycle/Commit owner not proven",
+                "BLOCKED: parent continuation unavailable",
+                "BLOCKED: bounded source audit proves connector controls but no exact parent carrier."),
+            new("target_picker.cancel", FullRunCoverageClassifications.Blocked,
+                "exact target-picker cancel/back control not proven in bounded census",
+                "BLOCKED: exact target-picker native owner not established",
+                "BLOCKED: no exact target-picker provider carrier",
+                "BLOCKED: no exact Annotator parent registration seam",
+                "BLOCKED: target-picker cancel Commit/mutation not proven",
+                "BLOCKED: parent continuation unavailable",
+                "BLOCKED: do not guess a target-picker owner or treat a generic cancel as a root."),
             new("run_setup.start", FullRunCoverageClassifications.NotAPlayerDecisionWithNativeJustification,
                 "none: RunManager.Launch is native lifecycle setup", "RunManager", "RecorderRuntime",
                 "RunManager.Launch", "RunManager.RunStarted event", "RunManager.RoomEntered/first interactive boundary",
@@ -207,10 +272,37 @@ public static class FullRunCoverageContract
                 "RestSiteSynchronizer.ChooseOption task is parent outcome only", "BLOCKED: exact factory/caller passes cards+prefs and no RestSiteOption identity."),
         };
 
-    public static IReadOnlyList<string> Validate()
+    /// <summary>
+    /// Mandatory census families. A family must be declared even while its
+    /// exact native parent carrier is BLOCKED; omission is not a valid way to
+    /// make qualification appear complete.
+    /// </summary>
+    public static IReadOnlyList<string> MandatoryFamilies { get; } =
+        new[]
+        {
+            "reward_potion_belt.discard_replace",
+            "reward_nested.card_selection",
+            "reward_nested.replacement_selection",
+            "generic_simple_card_selector",
+            "generic_deck_card_selector",
+            "generic_combat_pile_selector",
+            "generic_card_bundle_selector",
+            "target_picker.cancel",
+            "native_generated_card_choice.skip",
+            "boss_relic.select",
+            "boss_relic.skip",
+            "shop_inventory.card_removal_nested_selector",
+            "event_option.nested_selector",
+            "rest_site.nested_selector"
+        };
+
+    public static IReadOnlyList<string> Validate() => Validate(Entries);
+
+    public static IReadOnlyList<string> Validate(
+        IReadOnlyList<FullRunCoverageEntry> entries)
     {
         var errors = new List<string>();
-        foreach (FullRunCoverageEntry entry in Entries)
+        foreach (FullRunCoverageEntry entry in entries)
         {
             if (string.IsNullOrWhiteSpace(entry.Family)
                 || string.IsNullOrWhiteSpace(entry.Classification)
@@ -225,13 +317,63 @@ public static class FullRunCoverageContract
                 && !entry.UiInput.Contains("BLOCKED", StringComparison.Ordinal)
                 && !entry.AcceptedSeam.Contains("BLOCKED", StringComparison.Ordinal))
                 errors.Add($"blocked_entry_missing_reason:{entry.Family}");
+            if (entry.Classification is not FullRunCoverageClassifications.InScopeImplemented
+                and not FullRunCoverageClassifications.NotAPlayerDecisionWithNativeJustification
+                and not FullRunCoverageClassifications.OutOfScopeWithJustification
+                and not FullRunCoverageClassifications.Blocked)
+                errors.Add($"coverage_classification_unknown:{entry.Family}");
         }
-        errors.AddRange(Entries.GroupBy(entry => entry.Family, StringComparer.Ordinal)
+        errors.AddRange(entries.GroupBy(entry => entry.Family, StringComparer.Ordinal)
             .Where(group => group.Count() != 1)
             .Select(group => $"coverage_family_duplicate:{group.Key}"));
+        var declared = entries
+            .Select(entry => entry.Family)
+            .ToHashSet(StringComparer.Ordinal);
+        errors.AddRange(MandatoryFamilies
+            .Where(family => !declared.Contains(family))
+            .Select(family => $"mandatory_family_missing:{family}"));
         return errors;
     }
+
+    public static FullRunCoverageValidation ValidateForQualification() =>
+        ValidateForQualification(Entries);
+
+    public static FullRunCoverageValidation ValidateForQualification(
+        IReadOnlyList<FullRunCoverageEntry> entries)
+    {
+        IReadOnlyList<string> structuralErrors = Validate(entries);
+        HashSet<string> mandatory = MandatoryFamilies.ToHashSet(StringComparer.Ordinal);
+        IReadOnlyList<string> missing = MandatoryFamilies
+            .Where(family => entries.All(entry => !string.Equals(
+                entry.Family,
+                family,
+                StringComparison.Ordinal)))
+            .ToArray();
+        IReadOnlyList<string> blocked = entries
+            .Where(entry => entry.Classification == FullRunCoverageClassifications.Blocked)
+            .Select(entry => entry.Family)
+            .Where(mandatory.Contains)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(family => family, StringComparer.Ordinal)
+            .ToArray();
+        var errors = structuralErrors
+            .Concat(blocked.Select(family => $"in_scope_blocked:{family}"))
+            .ToArray();
+        return new FullRunCoverageValidation(
+            errors.Length == 0,
+            errors.Length == 0 && missing.Count == 0 && blocked.Count == 0,
+            errors,
+            missing,
+            blocked);
+    }
 }
+
+public sealed record FullRunCoverageValidation(
+    bool IsValid,
+    bool QualificationReady,
+    IReadOnlyList<string> Errors,
+    IReadOnlyList<string> MissingMandatoryFamilies,
+    IReadOnlyList<string> BlockedInScopeFamilies);
 
 public sealed record ReadEvidence(
     int SchemaVersion,
