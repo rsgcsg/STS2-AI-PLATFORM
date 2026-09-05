@@ -2894,7 +2894,7 @@ internal static class RecorderRuntime
             continuation.Kind);
     }
 
-    internal static void ObserveAcceptedNestedHumanContinuation(
+    internal static bool ObserveAcceptedNestedHumanContinuation(
         string parentActionWitnessId,
         string family,
         string verb,
@@ -2932,7 +2932,10 @@ internal static class RecorderRuntime
                     parentActionWitnessId,
                     continuation);
             }
+            if (drafts.Count == 0)
+                return false;
             PersistSemanticBoundaryDrafts(drafts);
+            return true;
         }
         catch (Exception exception)
         {
@@ -2942,6 +2945,31 @@ internal static class RecorderRuntime
                 _lastSnapshotId,
                 nativeMechanism,
                 "failed_closed");
+            return false;
+        }
+    }
+
+    internal static bool ObserveNestedHumanContinuationUnavailable(
+        string parentActionWitnessId,
+        string nativeMechanism,
+        string reason)
+    {
+        try
+        {
+            Quarantine(
+                "native_nested_continuation_unavailable",
+                $"parent={parentActionWitnessId};mechanism={nativeMechanism};reason={reason}",
+                _lastSnapshotId,
+                nativeMechanism,
+                "decision_and_lifecycle_only");
+            return true;
+        }
+        catch (Exception exception)
+        {
+            NativeUiObservationSafety.Report(
+                "native_nested_continuation_unavailable",
+                exception);
+            return false;
         }
     }
 
