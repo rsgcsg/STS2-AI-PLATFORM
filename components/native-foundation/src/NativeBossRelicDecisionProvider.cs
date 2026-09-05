@@ -251,7 +251,6 @@ public static class NativeBossRelicDecisionProvider
         carrier = null;
         currentParent = null;
         NativePlayerChoiceLineage current = NativePlayerChoiceLineage.Capture();
-        currentParent = current.ParentAction;
         if (current.ParentAction == null)
         {
             detail = "The current PlayerChoice parent is unavailable.";
@@ -297,6 +296,11 @@ public static class NativeBossRelicDecisionProvider
             request.Options,
             request.Player,
             request.Lineage);
+        // Expose the parent only after the provider has proved that exactly
+        // one command-owned registration belongs to this native continuation.
+        // A failed lookup must not hand callers an ambient parent that could
+        // be used to clear another root's binding.
+        currentParent = request.Lineage.ParentAction;
         detail = "exact registered RelicSelectCmd parent carrier";
         return true;
     }
@@ -322,24 +326,6 @@ public static class NativeBossRelicDecisionProvider
             PendingChoices.RemoveAll(candidate => removed.Contains(candidate));
         }
         return removed.Length == 1;
-    }
-
-    /// <summary>
-    /// Returns the exact native PlayerChoice parent for a cleanup path that
-    /// has already been admitted as a boss-relic callback. This is not a
-    /// source of a new root or a fallback carrier; callers use it only to
-    /// clear the parent-bound registration after failed-closed accounting.
-    /// </summary>
-    public static GameAction? CurrentParentForCleanup()
-    {
-        try
-        {
-            return NativePlayerChoiceLineage.Capture().ParentAction;
-        }
-        catch
-        {
-            return null;
-        }
     }
 
     private static bool TryGetCurrentChoice(

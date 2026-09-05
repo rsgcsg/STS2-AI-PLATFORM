@@ -10,6 +10,34 @@ public sealed class SemanticBoundaryTrackerTests
     private static readonly DateTimeOffset T0 = DateTimeOffset.Parse("2026-08-26T00:00:00Z");
 
     [Fact]
+    public void FailedCarrierCanBePersistedAsOneExplicitUnknownBeforeTrackerCleanup()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference action = Action("carrier-failure", 1) with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(action, State("human-carrier-failure"));
+
+        SemanticBoundaryTraceDraft unknown = Assert.Single(
+            tracker.PreviewUnknown(
+                action.ActionWitnessId,
+                "The exact native completion carrier was ambiguous."));
+
+        Assert.Equal(SemanticBoundaryTraceKinds.TransitionUnknown, unknown.Kind);
+        Assert.Equal("evidence_commit_unknown", unknown.ProofStatus);
+        Assert.Contains("no_semantic_successor", unknown.NonClaims!);
+        Assert.True(tracker.Contains(action.ActionWitnessId));
+
+        tracker.CommitUnknown(action.ActionWitnessId);
+
+        Assert.False(tracker.HasUnresolvedActions);
+        Assert.Empty(tracker.PreviewUnknown(
+            action.ActionWitnessId,
+            "must not create a second disposition"));
+    }
+
+    [Fact]
     public void ExactActEnteredBoundarySettlesOnlyItsBoundActRoot()
     {
         var tracker = new SemanticBoundaryTracker();

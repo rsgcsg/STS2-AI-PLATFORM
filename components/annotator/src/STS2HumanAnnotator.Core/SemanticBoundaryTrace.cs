@@ -657,6 +657,41 @@ public sealed class SemanticBoundaryTracker
     }
 
     /// <summary>
+    /// Builds an explicit terminal-unknown disposition for one exact root
+    /// without changing tracker state. This is used when an accepted native
+    /// root loses its exact completion carrier; it must not be silently left
+    /// pending and must not guess a successful transition.
+    /// </summary>
+    public IReadOnlyList<SemanticBoundaryTraceDraft> PreviewUnknown(
+        string actionWitnessId,
+        string detail)
+    {
+        Entry entry = Required(actionWitnessId);
+        if (entry.Disposed)
+            return Array.Empty<SemanticBoundaryTraceDraft>();
+        return new[]
+        {
+            Draft(
+                SemanticBoundaryTraceKinds.TransitionUnknown,
+                entry,
+                "evidence_commit_unknown",
+                semanticPre: entry.SemanticPre,
+                detail: detail,
+                nonClaims: new[] { "no_semantic_successor" })
+        };
+    }
+
+    /// <summary>
+    /// Commits a previously persisted per-root unknown disposition.
+    /// </summary>
+    public void CommitUnknown(string actionWitnessId)
+    {
+        Entry entry = Required(actionWitnessId);
+        entry.Disposed = true;
+        _currentState = null;
+    }
+
+    /// <summary>
     /// Commits a previously previewed close disposition after its evidence is
     /// durable. Calling this method is intentionally side-effect-only so a
     /// failed persistence attempt cannot erase accepted roots.

@@ -115,3 +115,19 @@ test("native observation callbacks contain exception barriers", () => {
   const safety = section(patches, "internal static class NativeUiObservationSafety", "[HarmonyPatch]");
   assert.match(safety, /catch\s*\{/u);
 });
+
+test("failed native carrier installation has a durable unknown disposition", () => {
+  assert.match(runtime, /ObserveSemanticUiCarrierBindingFailure\(/u);
+  assert.match(runtime, /PreviewUnknown\(/u);
+  assert.match(runtime, /CommitUnknown\(/u);
+  assert.match(runtime, /semantic_ui_action_start_persistence_failed/u);
+  assert.match(runtime, /semantic_native_action_start_persistence_failed/u);
+  assert.match(runtime, /CleanupUnstartedSemanticUiAction\(/u);
+  assert.doesNotMatch(patches, /CurrentParentForCleanup\(/u);
+});
+
+test("exact child witness collisions cannot silently replace a carrier", () => {
+  assert.match(patches, /ExactWitnessBindingTable<GameAction>/u);
+  assert.match(patches, /already bound to a different child action/u);
+  assert.match(patches, /ObserveSemanticUiCarrierBindingFailure\(/u);
+});
