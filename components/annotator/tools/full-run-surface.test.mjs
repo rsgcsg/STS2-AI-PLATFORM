@@ -58,6 +58,8 @@ test("boss relic uses the registered native parent exactly once", () => {
   assert.doesNotMatch(patches, /class NativeBossRelicCommandPatch/u);
   assert.match(selection, /TryGetRegisteredChoiceCarrier\(/u);
   assert.match(selection, /carrier\.ParentLineage\.ParentAction/u);
+  assert.match(selection, /bool accepted = RecorderRuntime\.ObserveAcceptedSemanticUiAction\(/u);
+  assert.match(selection, /if \(!accepted\)\s*return;/u);
   assert.match(selection, /NativeUiCompletionRootBindings\.Remember\(/u);
   assert.doesNotMatch(selection, /NativePlayerChoiceLineage\.Capture\(/u);
   assert.match(commit, /TryGetRegisteredCurrentChoiceCarrier\(/u);
@@ -192,8 +194,8 @@ test("nested selectors bind exact parent scope to exact screen without ambient g
   assert.match(nestedSelectors, /Screens\.TryBindCurrent\(/u);
   assert.match(exactAsyncBindings, /AsyncLocal<Frame\?>/u);
   assert.match(exactAsyncBindings, /ConditionalWeakTable<TKey, Holder>/u);
-  assert.match(nestedSelectors, /NativePlayerChoiceLineage\.Capture\(\)/u);
-  assert.match(nestedSelectors, /NativeUiCompletionRootBindings\.TryGet\(action/u);
+  assert.doesNotMatch(nestedSelectors, /NativePlayerChoiceLineage\.Capture\(\)/u);
+  assert.match(nestedSelectors, /exact_parent_root_unavailable/u);
   assert.match(runtime, /StartSemanticNativeAction[\s\S]*?NativeUiCompletionRootBindings\.Remember\(action, actionWitnessId\)/u);
   assert.match(nestedSelectors, /ObserveAcceptedNestedHumanContinuation\(/u);
   assert.match(nestedSelectors, /TryReadCompletedSelection\(/u);
@@ -208,10 +210,17 @@ test("card reward alternatives and removal use exact owner carriers", () => {
   assert.match(nestedSelectors, /OnAlternateRewardSelected/u);
   assert.match(nestedSelectors, /TryGetAlternative\(/u);
   assert.match(nestedSelectors, /CardReward\.Reroll/u);
+  assert.match(nestedSelectors, /TwoSignalCommitGate CommitGate/u);
+  assert.match(nestedSelectors, /if \(!accepted\)[\s\S]*?EndReroll/u);
+  assert.match(nestedSelectors, /catch[\s\S]*?ExitNativeUiScope\(scope\)[\s\S]*?throw;/u);
+  assert.match(nestedSelectors, /TryBeginCommit\(reward, binding\)/u);
+  assert.match(nestedSelectors, /CommitFailed\(reward, binding\)/u);
   assert.match(nestedSelectors, /Reward\.SelectUnsynchronized/u);
   assert.match(nestedSelectors, /CardRemovalReward\.OnSelect/u);
   assert.match(nestedSelectors, /reward_card_removal\.nested_selector/u);
   assert.doesNotMatch(nestedSelectors, /CardRewardAlternative\.Generate\(__instance\)/u);
+  assert.doesNotMatch(nestedSelectors, /Tasks\.Remove\(reward\);\s*Tasks\.Add/u);
+  assert.match(nestedSelectors, /ArgumentNullException\.ThrowIfNull\(alternatives\)[\s\S]*?alternatives\.ToArray\(\)[\s\S]*?lock \(Gate\)/u);
 });
 
 test("merchant removal uses exact shipped three-argument outer carrier", () => {
@@ -245,6 +254,29 @@ test("only terminal selector callbacks create one child continuation", () => {
   assert.match(accepted, /ConfirmSelection/u);
   assert.match(accepted, /CloseSelection/u);
   assert.doesNotMatch(accepted, /CancelSelection/u);
-  assert.match(accepted, /NativeNestedSelectorBindings\.TryTake/u);
-  assert.match(accepted, /task\.IsCompleted/u);
+  assert.match(accepted, /NativeNestedSelectorBindings\.TryReserve/u);
+  assert.match(accepted, /NativeNestedSelectorBindings\.TryConsume/u);
+  assert.match(accepted, /NativeNestedSelectorBindings\.TryRelease/u);
+  assert.match(accepted, /NativeTerminalTaskDisposition\.Classify\(task\)/u);
+  assert.match(exactAsyncBindings, /holder\.Reserved/u);
+  assert.doesNotMatch(accepted, /task\.IsFaulted[\s\S]*?cancelled\s*=\s*true/u);
+});
+
+test("binding collisions and rejected acceptance stay fail closed", () => {
+  const roots = section(patches, "internal static class NativeUiCompletionRootBindings", "internal static class NativeTreasureChestChoicePatch");
+  const reward = section(patches, "internal static class NativeRewardClaimStartPatch", "internal static class NativeRewardProceedPatch");
+  const event = section(patches, "internal static class NativeEventOptionPatch", "internal static class NativeEventOptionCompletionPatch");
+  const rest = section(patches, "internal static class NativeRestSiteButtonPatch", "internal static class NativeRestSiteProceedPatch");
+  const merchant = section(patches, "internal static class NativeShopPurchasePatch", "internal static class NativeShopRoomOpenPatch");
+
+  assert.match(roots, /AmbiguousBindings\.TryGetValue\(owner/u);
+  assert.match(roots, /MarkAmbiguous\(owner, actionWitnessId\)/u);
+  for (const body of [reward, event]) {
+    assert.match(body, /if \(!accepted\)[\s\S]*?Take\(/u);
+    assert.match(body, /if \(!__state\.RootBound\)|if \(!accepted\)/u);
+  }
+  assert.match(rest, /ObserveSemanticUiNativeCommitBindingFailure\(/u);
+  assert.match(rest, /ExitNativeUiScope\(scope\);\s*return default;/u);
+  assert.match(merchant, /ObserveSemanticUiNativeCommitBindingFailure\(/u);
+  assert.match(merchant, /ExitNativeUiScope\(scope\);\s*return default;/u);
 });

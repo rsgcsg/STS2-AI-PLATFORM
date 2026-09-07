@@ -20,6 +20,7 @@ public sealed class ExactAsyncOwnerBindingScope<TKey, TContext, TBinding>
         internal Holder(TBinding binding) => Binding = binding;
 
         internal TBinding Binding { get; }
+        internal bool Reserved { get; set; }
     }
 
     private sealed class Scope : IDisposable
@@ -100,31 +101,59 @@ public sealed class ExactAsyncOwnerBindingScope<TKey, TContext, TBinding>
         return false;
     }
 
-    public bool TryTake(TKey key, out TBinding? binding)
+    /// <summary>
+    /// Atomically reserves one exact carrier for a terminal durable write.
+    /// Competing native callbacks cannot both append evidence for the same
+    /// screen. A failed write must release this reservation.
+    /// </summary>
+    public bool TryReserve(TKey key, out TBinding? binding)
     {
+        ArgumentNullException.ThrowIfNull(key);
         lock (_gate)
         {
-            if (!_bindings.TryGetValue(key, out Holder? holder))
+            if (!_bindings.TryGetValue(key, out Holder? holder)
+                || holder.Reserved)
             {
                 binding = null;
                 return false;
             }
+            holder.Reserved = true;
             binding = holder.Binding;
-            _bindings.Remove(key);
             return true;
         }
     }
 
-    public bool TryTakeExpected(TKey key, TBinding expected)
+    /// <summary>
+    /// Removes the binding only when the caller still owns the exact value it
+    /// previously read. This is the terminal callback's compare-and-remove:
+    /// native evidence must reach durable storage before this method is used.
+    /// </summary>
+    public bool TryConsume(TKey key, TBinding expected)
     {
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(expected);
         lock (_gate)
         {
             if (!_bindings.TryGetValue(key, out Holder? holder)
+                || !holder.Reserved
                 || !EqualityComparer<TBinding>.Default.Equals(holder.Binding, expected))
                 return false;
             _bindings.Remove(key);
+            return true;
+        }
+    }
+
+    public bool TryRelease(TKey key, TBinding expected)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(expected);
+        lock (_gate)
+        {
+            if (!_bindings.TryGetValue(key, out Holder? holder)
+                || !holder.Reserved
+                || !EqualityComparer<TBinding>.Default.Equals(holder.Binding, expected))
+                return false;
+            holder.Reserved = false;
             return true;
         }
     }

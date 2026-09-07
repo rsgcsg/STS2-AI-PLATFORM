@@ -1955,12 +1955,18 @@ internal static class NativeEventOptionPatch
             if (NativeEventOptionCompletionPatch.TryTakeTask(option, out Task? task)
                 && task != null)
             {
-                string? actionWitnessId = NativeUiCompletionRootBindings.Take(option);
-                RecorderRuntime.QueueNativePostCommitBoundary(
-                    task,
-                    "EventOption.Chosen",
-                    nativeOperand: option,
-                    expectedActionWitnessId: actionWitnessId);
+                if (NativeUiCompletionRootBindings.TryGet(
+                        option,
+                        out string? actionWitnessId)
+                    && actionWitnessId != null)
+                {
+                    RecorderRuntime.QueueNativePostCommitBoundary(
+                        task,
+                        "EventOption.Chosen",
+                        nativeOperand: option,
+                        expectedActionWitnessId: actionWitnessId);
+                    NativeUiCompletionRootBindings.TakeIfMatches(option, actionWitnessId);
+                }
             }
         }
         catch (Exception exception)
@@ -2104,7 +2110,7 @@ internal static class NativeRestSiteOptionPatch
             actionWitnessId: actionWitnessId);
         if (!accepted)
         {
-            NativeUiCompletionRootBindings.Take(option);
+            NativeUiCompletionRootBindings.TakeIfMatches(option, actionWitnessId);
             return;
         }
         if (__result != null)
@@ -2115,7 +2121,7 @@ internal static class NativeRestSiteOptionPatch
                 nativeOwner: __instance,
                 nativeOperand: option,
                 expectedActionWitnessId: actionWitnessId);
-            NativeUiCompletionRootBindings.Take(option);
+            NativeUiCompletionRootBindings.TakeIfMatches(option, actionWitnessId);
         }
     }
 
@@ -2372,7 +2378,7 @@ internal static class NativeShopPurchasePatch
             actionWitnessId: __state.Scope.ActionWitnessId);
         if (!accepted)
         {
-            NativeUiCompletionRootBindings.Take(entry);
+            NativeUiCompletionRootBindings.TakeIfMatches(entry, __state.Scope.ActionWitnessId);
             return;
         }
         if (__result != null)
@@ -2382,7 +2388,7 @@ internal static class NativeShopPurchasePatch
                 nativeActionType,
                 nativeOperand: entry,
                 expectedActionWitnessId: __state.Scope.ActionWitnessId);
-            NativeUiCompletionRootBindings.Take(entry);
+            NativeUiCompletionRootBindings.TakeIfMatches(entry, __state.Scope.ActionWitnessId);
         }
     }
 

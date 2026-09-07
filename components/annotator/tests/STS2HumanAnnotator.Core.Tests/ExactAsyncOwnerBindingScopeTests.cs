@@ -38,8 +38,12 @@ public sealed class ExactAsyncOwnerBindingScopeTests
         release.SetResult();
         await child;
 
-        Assert.True(scope.TryTake(key, out Binding? binding));
+        Assert.True(scope.TryGet(key, out Binding? binding));
         Assert.Equal("parent-a", binding!.Root);
+        Assert.True(scope.TryReserve(key, out Binding? reserved));
+        Assert.Same(binding, reserved);
+        Assert.True(scope.TryConsume(key, binding));
+        Assert.False(scope.TryGet(key, out _));
         Assert.False(scope.TryBindCurrent(new Key(), context => new Binding(context.Root)));
     }
 
@@ -89,5 +93,48 @@ public sealed class ExactAsyncOwnerBindingScopeTests
         Assert.True(scope.TryGet(untouched, out Binding? other));
         Assert.Equal("old", replacement!.Root);
         Assert.Equal("other", other!.Root);
+    }
+
+    [Fact]
+    public void TerminalConsumeIsCompareAndRemoveAfterSuccessfulPersistence()
+    {
+        var scope = new ExactAsyncOwnerBindingScope<Key, Context, Binding>();
+        var key = new Key();
+        var exact = new Binding("root-a");
+        var stale = new Binding("root-b");
+
+        Assert.True(scope.TrySet(key, exact));
+        Assert.True(scope.TryGet(key, out Binding? observed));
+
+        // A failed durable append leaves the carrier available for the exact
+        // native callback to report/retry; merely reading never consumes it.
+        Assert.Same(exact, observed);
+        Assert.True(scope.TryGet(key, out _));
+
+        Assert.True(scope.TryReserve(key, out Binding? reserved));
+        Assert.Same(exact, reserved);
+        Assert.False(scope.TryConsume(key, stale));
+        Assert.True(scope.TryGet(key, out _));
+        Assert.True(scope.TryRelease(key, exact));
+        Assert.True(scope.TryReserve(key, out reserved));
+        Assert.True(scope.TryConsume(key, exact));
+        Assert.False(scope.TryConsume(key, exact));
+        Assert.False(scope.TryGet(key, out _));
+    }
+
+    [Fact]
+    public void ConcurrentTerminalReservationsAllowOnlyOneWriter()
+    {
+        var scope = new ExactAsyncOwnerBindingScope<Key, Context, Binding>();
+        var key = new Key();
+        var binding = new Binding("root-a");
+        Assert.True(scope.TrySet(key, binding));
+
+        Assert.True(scope.TryReserve(key, out Binding? first));
+        Assert.False(scope.TryReserve(key, out _));
+        Assert.True(scope.TryRelease(key, first!));
+        Assert.True(scope.TryReserve(key, out Binding? second));
+        Assert.Same(binding, second);
+        Assert.True(scope.TryConsume(key, second!));
     }
 }

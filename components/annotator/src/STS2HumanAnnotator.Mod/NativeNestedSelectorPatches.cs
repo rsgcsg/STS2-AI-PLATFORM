@@ -108,24 +108,17 @@ internal static class NativeNestedSelectorBindings
                     parent.Family,
                     $"{factory.DeclaringType?.FullName}.{factory.Name}")))
             return;
-        NativePlayerChoiceLineage lineage = NativePlayerChoiceLineage.Capture();
-        if (lineage.ParentAction is not GameAction action
-            || !NativeUiCompletionRootBindings.TryGet(action, out string? actionWitnessId)
-            || string.IsNullOrWhiteSpace(actionWitnessId))
-        {
-            return;
-        }
-        if (!Screens.TrySet(
-                screen,
-                new Binding(
-                actionWitnessId,
-                action,
-                FamilyFor(screen),
-                $"{factory.DeclaringType?.FullName}.{factory.Name}")))
-        {
+        var unavailable = new Binding(
+            "unavailable",
+            screen,
+            FamilyFor(screen),
+            $"{factory.DeclaringType?.FullName}.{factory.Name}");
+        if (!Screens.TrySet(screen, unavailable))
             throw new InvalidOperationException(
-                "The exact selector screen was already bound to a different parent root.");
-        }
+                "The exact selector screen already carries a different parent/root binding.");
+        NativeUiObservationSafety.Report(
+            unavailable.FactoryMechanism,
+            "An exact parent/root scope was unavailable; ambient current GameAction lineage is not accepted.");
     }
 
     internal static bool TryGet(object screen, out Binding? binding)
@@ -133,8 +126,14 @@ internal static class NativeNestedSelectorBindings
         return Screens.TryGet(screen, out binding);
     }
 
+    internal static bool TryReserve(object screen, out Binding? binding) =>
+        Screens.TryReserve(screen, out binding);
+
     internal static bool TryConsume(object screen, Binding expected) =>
-        Screens.TryTakeExpected(screen, expected);
+        Screens.TryConsume(screen, expected);
+
+    internal static bool TryRelease(object screen, Binding expected) =>
+        Screens.TryRelease(screen, expected);
 
     internal static void Forget(object screen) => Screens.Forget(screen);
 
@@ -269,34 +268,40 @@ internal static class NativeNestedSelectorAcceptedPatch
 
     private static void Postfix(object __instance, MethodBase __originalMethod)
     {
+        NativeNestedSelectorBindings.Binding? binding = null;
+        bool reserved = false;
         try
         {
+            if (!NativeNestedSelectorBindings.TryReserve(__instance, out binding)
+                || binding == null)
+                return;
+            reserved = true;
             if (!TryReadCompletedSelection(
                     __instance,
                     out bool taskCancelled,
                     out object[] selected,
-                    out string? unavailable)
-                || !NativeNestedSelectorBindings.TryGet(
-                    __instance,
-                    out NativeNestedSelectorBindings.Binding? binding)
-                || binding == null)
-            {
-                return;
-            }
+                    out string? unavailable))
+                unavailable = "completion_result_unavailable";
 
             bool explicitClose = string.Equals(
                 __originalMethod.Name,
                 "CloseSelection",
                 StringComparison.Ordinal);
-            if (unavailable != null
-                || !explicitClose && !taskCancelled && selected.Length == 0)
+            if (string.Equals(binding.ActionWitnessId, "unavailable", StringComparison.Ordinal)
+                || unavailable != null)
             {
                 bool persisted = RecorderRuntime.ObserveNestedHumanContinuationUnavailable(
                     binding.ActionWitnessId,
                     $"{__originalMethod.DeclaringType?.FullName}.{__originalMethod.Name}",
-                    unavailable ?? "accepted_selection_was_empty");
+                    string.Equals(binding.ActionWitnessId, "unavailable", StringComparison.Ordinal)
+                        ? "exact_parent_root_unavailable"
+                        : unavailable!);
                 if (persisted)
-                    NativeNestedSelectorBindings.TryConsume(__instance, binding);
+                {
+                    reserved = !NativeNestedSelectorBindings.TryConsume(
+                        __instance,
+                        binding);
+                }
                 return;
             }
             var operands = new Dictionary<string, object>(StringComparer.Ordinal);
@@ -312,13 +317,22 @@ internal static class NativeNestedSelectorAcceptedPatch
                 operands,
                 explicitClose || taskCancelled ? "cancelled" : "accepted");
             if (durable)
-                NativeNestedSelectorBindings.TryConsume(__instance, binding);
+            {
+                reserved = !NativeNestedSelectorBindings.TryConsume(
+                    __instance,
+                    binding);
+            }
         }
         catch (Exception exception)
         {
             NativeUiObservationSafety.Report(
                 $"{__originalMethod.DeclaringType?.FullName}.{__originalMethod.Name}",
                 exception);
+        }
+        finally
+        {
+            if (reserved && binding != null)
+                NativeNestedSelectorBindings.TryRelease(__instance, binding);
         }
     }
 
@@ -331,27 +345,48 @@ internal static class NativeNestedSelectorAcceptedPatch
         cancelled = false;
         selected = Array.Empty<object>();
         unavailable = null;
-        FieldInfo? field = FindField(screen.GetType(), "_completionSource");
-        object? source = field?.GetValue(screen);
-        object? taskObject = source?.GetType().GetProperty("Task")?.GetValue(source);
-        if (taskObject is not Task task || !task.IsCompleted)
-            return false;
-        cancelled = task.IsCanceled || task.IsFaulted;
-        if (cancelled)
-            return true;
-        object? result = task.GetType().GetProperty("Result")?.GetValue(task);
-        if (result is not IEnumerable || result is string)
+        try
         {
-            unavailable = result == null
-                ? "completion_result_null"
-                : $"completion_result_not_enumerable:{result.GetType().FullName}";
+            FieldInfo? field = FindField(screen.GetType(), "_completionSource");
+            if (field == null)
+            {
+                unavailable = "completion_source_field_unavailable";
+                return true;
+            }
+            object? source = field.GetValue(screen);
+            object? taskObject = source?.GetType().GetProperty("Task")?.GetValue(source);
+            if (taskObject is not Task task)
+            {
+                unavailable = source == null
+                    ? "completion_source_null"
+                    : $"completion_task_unavailable:{source.GetType().FullName}";
+                return true;
+            }
+            NativeTerminalTaskDisposition terminal =
+                NativeTerminalTaskDisposition.Classify(task);
+            unavailable = terminal.UnavailableReason;
+            cancelled = terminal.IsCancelled;
+            if (!terminal.IsTerminal || unavailable != null || cancelled)
+                return true;
+            object? result = task.GetType().GetProperty("Result")?.GetValue(task);
+            if (result is not IEnumerable || result is string)
+            {
+                unavailable = result == null
+                    ? "completion_result_null"
+                    : $"completion_result_not_enumerable:{result.GetType().FullName}";
+                return true;
+            }
+            var flattened = new List<object>();
+            if (!TryFlatten(result, flattened, out unavailable))
+                return true;
+            selected = flattened.ToArray();
             return true;
         }
-        var flattened = new List<object>();
-        if (!TryFlatten(result, flattened, out unavailable))
+        catch (Exception exception)
+        {
+            unavailable = $"completion_result_read_failed:{exception.GetType().Name}";
             return true;
-        selected = flattened.ToArray();
-        return true;
+        }
     }
 
     private static bool TryFlatten(
@@ -416,7 +451,18 @@ internal static class NativeNestedSelectorExitPatch
     {
         try
         {
-            NativeNestedSelectorBindings.Forget(__instance);
+            if (!NativeNestedSelectorBindings.TryReserve(
+                    __instance,
+                    out NativeNestedSelectorBindings.Binding? binding)
+                || binding == null)
+                return;
+            bool persisted = RecorderRuntime.ObserveNestedHumanContinuationUnavailable(
+                binding.ActionWitnessId,
+                $"{__instance.GetType().FullName}._ExitTree",
+                "selector_exited_without_durable_terminal");
+            if (!persisted
+                || !NativeNestedSelectorBindings.TryConsume(__instance, binding))
+                NativeNestedSelectorBindings.TryRelease(__instance, binding);
         }
         catch (Exception exception)
         {
@@ -458,9 +504,7 @@ internal static class NativeCardRewardAlternativeBindings
 
         internal string ActionWitnessId { get; }
         internal CardRewardAlternative Alternative { get; }
-        internal bool Accepted { get; set; }
-        internal bool Rerolled { get; set; }
-        internal bool Committed { get; set; }
+        internal TwoSignalCommitGate CommitGate { get; } = new();
     }
 
     private sealed class ParentScope : IDisposable
@@ -508,6 +552,8 @@ internal static class NativeCardRewardAlternativeBindings
         Parent? parent = Current.Value;
         if (screen == null || parent == null)
             return;
+        ArgumentNullException.ThrowIfNull(alternatives);
+        CardRewardAlternative[] snapshot = alternatives.ToArray();
         lock (Gate)
         {
             if (Screens.TryGetValue(screen, out ScreenBinding? existing))
@@ -526,7 +572,7 @@ internal static class NativeCardRewardAlternativeBindings
                 new ScreenBinding(
                     parent.Reward,
                     parent.RewardClaimWitnessId,
-                    alternatives.ToArray()));
+                    snapshot));
         }
     }
 
@@ -534,12 +580,14 @@ internal static class NativeCardRewardAlternativeBindings
         NCardRewardSelectionScreen screen,
         IReadOnlyList<CardRewardAlternative> alternatives)
     {
+        ArgumentNullException.ThrowIfNull(alternatives);
+        CardRewardAlternative[] snapshot = alternatives.ToArray();
         lock (Gate)
         {
             if (!Screens.TryGetValue(screen, out ScreenBinding? binding))
                 return;
             Screens.Remove(screen);
-            Screens.Add(screen, binding with { Alternatives = alternatives.ToArray() });
+            Screens.Add(screen, binding with { Alternatives = snapshot });
         }
     }
 
@@ -576,13 +624,16 @@ internal static class NativeCardRewardAlternativeBindings
         }
     }
 
-    internal static bool TryGetTask(CardReward reward, out Task<bool>? task)
+    internal static bool TryTakeTask(CardReward reward, out Task<bool>? task)
     {
         task = null;
         lock (Gate)
         {
-            return Tasks.TryGetValue(reward, out TaskBinding? binding)
-                && (task = binding.Task) != null;
+            if (!Tasks.TryGetValue(reward, out TaskBinding? binding))
+                return false;
+            Tasks.Remove(reward);
+            task = binding.Task;
+            return true;
         }
     }
 
@@ -609,6 +660,58 @@ internal static class NativeCardRewardAlternativeBindings
 
     internal static bool TryGetReroll(CardReward reward, out RerollBinding? binding) =>
         TryGetRerollCore(reward, out binding);
+
+    internal static bool MarkAccepted(
+        CardReward reward,
+        RerollBinding expected)
+    {
+        lock (Gate)
+        {
+            if (!Rerolls.TryGetValue(reward, out RerollBinding? current)
+                || !ReferenceEquals(current, expected))
+                return false;
+            return current.CommitGate.ObserveFirst();
+        }
+    }
+
+    internal static bool MarkRerolled(
+        CardReward reward,
+        RerollBinding expected)
+    {
+        lock (Gate)
+        {
+            if (!Rerolls.TryGetValue(reward, out RerollBinding? current)
+                || !ReferenceEquals(current, expected))
+                return false;
+            return current.CommitGate.ObserveSecond();
+        }
+    }
+
+    internal static bool TryBeginCommit(
+        CardReward reward,
+        RerollBinding expected)
+    {
+        lock (Gate)
+        {
+            if (!Rerolls.TryGetValue(reward, out RerollBinding? current)
+                || !ReferenceEquals(current, expected)
+                || !current.CommitGate.TryReserveCommit())
+                return false;
+            return true;
+        }
+    }
+
+    internal static void CommitFailed(
+        CardReward reward,
+        RerollBinding expected)
+    {
+        lock (Gate)
+        {
+            if (Rerolls.TryGetValue(reward, out RerollBinding? current)
+                && ReferenceEquals(current, expected))
+                current.CommitGate.TryReleaseCommit();
+        }
+    }
 
     private static bool TryGetRerollCore(CardReward reward, out RerollBinding? binding)
     {
@@ -803,14 +906,24 @@ internal static class NativeCardRewardAlternativePatch
                 "activate",
                 alternative,
                 new Dictionary<string, object>(StringComparer.Ordinal)));
-        NativeCardRewardAlternativeBindings.RerollBinding? rerollBinding =
-            reroll && scope.ActionWitnessId is { } root
-                ? NativeCardRewardAlternativeBindings.BeginReroll(
-                    binding.Reward,
-                    root,
-                    alternative)
-                : null;
-        return new PatchState(scope, binding, alternative, rerollBinding);
+        try
+        {
+            NativeCardRewardAlternativeBindings.RerollBinding? rerollBinding =
+                reroll && scope.ActionWitnessId is { } root
+                    ? NativeCardRewardAlternativeBindings.BeginReroll(
+                        binding.Reward,
+                        root,
+                        alternative)
+                    : null;
+            return new PatchState(scope, binding, alternative, rerollBinding);
+        }
+        catch
+        {
+            // Prefix safety converts the collision to a diagnostic, but this
+            // scope must be unwound here because no PatchState is returned.
+            RecorderRuntime.ExitNativeUiScope(scope);
+            throw;
+        }
     }
 
     private static void Postfix(
@@ -859,11 +972,11 @@ internal static class NativeCardRewardAlternativePatch
 
         if (state.Reroll is { } reroll)
         {
-            reroll.Accepted = true;
-            TryCommitReroll(binding.Reward, alternative, reroll);
+            if (NativeCardRewardAlternativeBindings.MarkAccepted(binding.Reward, reroll))
+                TryCommitReroll(binding.Reward, alternative, reroll);
         }
         else if (state.Scope.ActionWitnessId is { } root
-                 && NativeCardRewardAlternativeBindings.TryGetTask(
+                 && NativeCardRewardAlternativeBindings.TryTakeTask(
                      binding.Reward,
                      out Task<bool>? task)
                  && task != null)
@@ -889,16 +1002,25 @@ internal static class NativeCardRewardAlternativePatch
         CardRewardAlternative alternative,
         NativeCardRewardAlternativeBindings.RerollBinding binding)
     {
-        if (!binding.Accepted || !binding.Rerolled || binding.Committed)
+        if (!NativeCardRewardAlternativeBindings.TryBeginCommit(reward, binding))
             return;
-        binding.Committed = true;
-        RecorderRuntime.ObserveSemanticUiNativeCommit(
+        bool durable = RecorderRuntime.ObserveSemanticUiNativeCommit(
             binding.ActionWitnessId,
             "card_reward_alternative",
             "CardReward.Reroll",
             nativeOwner: reward,
             nativeOperand: alternative);
-        NativeCardRewardAlternativeBindings.EndReroll(reward, binding);
+        if (durable)
+            NativeCardRewardAlternativeBindings.EndReroll(reward, binding);
+        else
+        {
+            NativeCardRewardAlternativeBindings.CommitFailed(reward, binding);
+            RecorderRuntime.ObserveSemanticUiNativeCommitBindingFailure(
+                binding.ActionWitnessId,
+                "card_reward_alternative",
+                "CardReward.Reroll",
+                "The exact reroll Commit could not be persisted; its exact carrier remains bound.");
+        }
     }
 
     private static Exception? Finalizer(PatchState __state, Exception? __exception)
@@ -910,7 +1032,7 @@ internal static class NativeCardRewardAlternativePatch
             {
                 if (__state.Binding is { } binding
                     && __state.Reroll is { } reroll
-                    && (__exception != null || !reroll.Accepted))
+                    && __exception != null)
                     NativeCardRewardAlternativeBindings.EndReroll(binding.Reward, reroll);
                 RecorderRuntime.ExitNativeUiScope(__state.Scope);
             });
@@ -938,12 +1060,12 @@ internal static class NativeCardRewardRerollCompletionPatch
                 out NativeCardRewardAlternativeBindings.RerollBinding? binding)
             || binding == null)
             return;
-        binding.Rerolled = true;
+        bool accepted = NativeCardRewardAlternativeBindings.MarkRerolled(reward, binding);
         // If TaskCompletionSource continuations ran inline, acceptance is
         // published by the enclosing callback immediately afterward.  If
         // they ran asynchronously, this call publishes the exact Commit now.
         // The shared exact-object carrier makes either ordering equivalent.
-        if (binding.Accepted)
+        if (accepted)
         {
             // The exact alternative is still recoverable from the active
             // screen binding; use the stable REROLL option identity only.

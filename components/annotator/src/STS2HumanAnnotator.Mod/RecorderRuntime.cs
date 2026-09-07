@@ -3041,6 +3041,7 @@ internal static class RecorderRuntime
         Action? onDurableDisposition = null)
     {
         Exception? failure = null;
+        bool authoritativeAppend = false;
         string[] affectedActionWitnessIds = string.IsNullOrWhiteSpace(actionWitnessId)
             ? Array.Empty<string>()
             : new[] { actionWitnessId };
@@ -3071,6 +3072,7 @@ internal static class RecorderRuntime
                         // Mark first: any failure in correlation cleanup is
                         // downstream of an already-authoritative append and
                         // must never roll the tracker back or relabel success.
+                        authoritativeAppend = true;
                         pending.MarkAuthoritativeAppend();
                         try
                         {
@@ -3084,7 +3086,11 @@ internal static class RecorderRuntime
                         }
                     });
             }
-            return true;
+            if (authoritativeAppend)
+                return true;
+            failure = new InvalidOperationException(
+                "Semantic boundary drafts were not durably appended; the tracker mutation was rolled back.");
+            NativeUiObservationSafety.Report(failureReason, failure);
         }
         catch (AppendRollbackFailedException exception)
         {
