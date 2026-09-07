@@ -77,14 +77,33 @@ public static class NativeBossRelicDecisionProvider
         lock (Gate)
         {
             RemoveCollectedChoices();
-            PendingChoice[] replaced = PendingChoices
-                .Where(candidate => candidate.Relics.TryGetTarget(
-                    out IReadOnlyList<RelicModel>? value)
-                    && ReferenceEquals(value, relics))
+            PendingChoice[] sameParent = PendingChoices
+                .Where(candidate => candidate.Lineage.ParentAction != null
+                    && ReferenceEquals(
+                        candidate.Lineage.ParentAction,
+                        lineage.ParentAction))
                 .ToArray();
-            foreach (PendingChoice candidate in replaced)
-                candidate.Observer?.Dispose();
-            PendingChoices.RemoveAll(candidate => replaced.Contains(candidate));
+            PendingChoice? idempotent = sameParent.FirstOrDefault(candidate =>
+                candidate.Relics.TryGetTarget(out IReadOnlyList<RelicModel>? value)
+                && ReferenceEquals(value, relics));
+            if (idempotent != null && sameParent.Length == 1)
+            {
+                // Harmony initialization or an idempotent command callback
+                // must not install a second observer for the same carrier.
+                pending.Observer?.Dispose();
+                return;
+            }
+            if (sameParent.Length > 0)
+            {
+                // Two distinct command option lists under one live parent are
+                // not a selectable "latest" carrier. Collapse them to one
+                // explicit ambiguous registration which remains parent-bound
+                // and lifecycle-cleaned, so every consumer fails closed.
+                foreach (PendingChoice candidate in sameParent)
+                    candidate.Observer?.Dispose();
+                PendingChoices.RemoveAll(candidate => sameParent.Contains(candidate));
+                pending = pending with { IsAmbiguous = true };
+            }
             PendingChoices.Add(pending);
             if (PendingChoices.Count > 16)
             {
@@ -277,6 +296,11 @@ public static class NativeBossRelicDecisionProvider
         }
 
         PendingChoice request = matches[0];
+        if (request.IsAmbiguous)
+        {
+            detail = "Multiple RelicSelectCmd option registrations share the exact PlayerChoice parent.";
+            return false;
+        }
         try
         {
             if (!LocalContext.IsMe(request.Player)
@@ -347,6 +371,11 @@ public static class NativeBossRelicDecisionProvider
             return false;
         }
         PendingChoice request = pending;
+        if (request.IsAmbiguous)
+        {
+            detail = "Multiple RelicSelectCmd option registrations share the exact PlayerChoice parent.";
+            return false;
+        }
         if (request.Lineage.Status != "parent_observed"
             || request.Lineage.ParentAction == null)
         {
@@ -443,7 +472,8 @@ public static class NativeBossRelicDecisionProvider
         WeakReference<IReadOnlyList<RelicModel>> Relics,
         RelicModel[] Options,
         Player Player,
-        NativePlayerChoiceLineage Lineage)
+        NativePlayerChoiceLineage Lineage,
+        bool IsAmbiguous = false)
     {
         internal NativeActionLifecycleObserver? Observer { get; set; }
     }

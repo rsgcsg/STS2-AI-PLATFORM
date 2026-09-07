@@ -218,7 +218,13 @@ public sealed class NativePostCommitCompletionLedger
         return new NativeTaskBindingResolution("matched", binding, null);
     }
 
-    public NativePostCommitCompletionResolution CompleteTask(NativeTaskCompletion completion)
+    /// <summary>
+    /// Resolves an exact task completion without consuming its binding. The
+    /// runtime removes the binding only after the resulting terminal semantic
+    /// event is durably appended.
+    /// </summary>
+    public NativePostCommitCompletionResolution PreviewTaskCompletion(
+        NativeTaskCompletion completion)
     {
         ArgumentNullException.ThrowIfNull(completion);
         if (string.IsNullOrWhiteSpace(completion.SessionId)
@@ -236,7 +242,6 @@ public sealed class NativePostCommitCompletionLedger
                 "No durable native Task binding matches this completion.");
         }
 
-        _taskBindings.Remove(binding.TaskWitnessId);
         var signal = new NativePostCommitCompletion(
             completion.SessionId,
             completion.Generation,
@@ -263,6 +268,30 @@ public sealed class NativePostCommitCompletionLedger
                     binding.NativeOperandWitnessId,
                     binding.NativeLineageWitnessId)),
             null);
+    }
+
+    public bool CommitTaskCompletion(NativeTaskCompletion completion)
+    {
+        ArgumentNullException.ThrowIfNull(completion);
+        if (!_taskBindings.TryGetValue(completion.TaskWitnessId, out NativeTaskBinding? binding)
+            || !string.Equals(binding.SessionId, completion.SessionId, StringComparison.Ordinal)
+            || binding.Generation != completion.Generation)
+        {
+            return false;
+        }
+        return _taskBindings.Remove(binding.TaskWitnessId);
+    }
+
+    /// <summary>
+    /// Compatibility convenience for callers that have no external durable
+    /// transaction. Runtime evidence ingress uses Preview + Commit instead.
+    /// </summary>
+    public NativePostCommitCompletionResolution CompleteTask(NativeTaskCompletion completion)
+    {
+        NativePostCommitCompletionResolution resolution = PreviewTaskCompletion(completion);
+        if (resolution.IsMatched)
+            CommitTaskCompletion(completion);
+        return resolution;
     }
 
     public bool Remove(string actionWitnessId)

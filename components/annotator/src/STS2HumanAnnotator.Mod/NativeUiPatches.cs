@@ -1,5 +1,4 @@
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Godot;
 using HarmonyLib;
@@ -465,12 +464,15 @@ internal static class NativeBossRelicSelectionPatch
                         carrier.ParentLineage.ParentAction,
                         actionWitnessId))
                 {
-                    RecorderRuntime.ObserveSemanticUiCarrierBindingFailure(
+                    bool durableFailure = RecorderRuntime.ObserveSemanticUiCarrierBindingFailure(
                         actionWitnessId,
                         nativeActionType,
                         "The exact boss-relic parent is already bound to a different child action.");
-                    NativeBossRelicDecisionProvider.ConsumeRegisteredChoice(
-                        carrier.ParentLineage.ParentAction);
+                    if (durableFailure)
+                    {
+                        NativeBossRelicDecisionProvider.ConsumeRegisteredChoice(
+                            carrier.ParentLineage.ParentAction);
+                    }
                 }
             }
         }
@@ -575,20 +577,14 @@ internal static class NativeBossRelicCommitPatch
                     "boss_relic_choice",
                     NativeBossRelicDecisionProvider.CommitSeam,
                     carrierDetail);
-                if (currentParent != null)
-                {
-                    NativeUiCompletionRootBindings.TakeIfMatches(
-                        currentParent,
-                        pendingActionWitnessId);
-                    NativeBossRelicDecisionProvider.ConsumeRegisteredChoice(
-                        currentParent);
-                }
+                // No exact Commit was persisted. Retain the parent-bound
+                // registration and root carrier for lifecycle/Close audit.
                 return;
             }
             if (carrier?.ParentLineage.ParentAction == null)
                 return;
             object parent = carrier.ParentLineage.ParentAction;
-            string? actionWitnessId = NativeUiCompletionRootBindings.Take(parent);
+            NativeUiCompletionRootBindings.TryGet(parent, out string? actionWitnessId);
             if (actionWitnessId == null)
             {
                 RecorderRuntime.ObserveSemanticUiNativeCommitBindingFailure(
@@ -596,23 +592,17 @@ internal static class NativeBossRelicCommitPatch
                     "boss_relic_choice",
                     NativeBossRelicDecisionProvider.CommitSeam,
                     "The exact Human root binding is unavailable at boss relic Commit.");
-                NativeBossRelicDecisionProvider.ConsumeRegisteredChoice(
-                    (GameAction)parent);
                 return;
             }
-            try
+            bool durableCommit = RecorderRuntime.ObserveSemanticUiNativeCommit(
+                actionWitnessId,
+                "boss_relic_choice",
+                NativeBossRelicDecisionProvider.CommitSeam,
+                nativeOwner: __instance,
+                nativeLineage: parent);
+            if (durableCommit)
             {
-                RecorderRuntime.ObserveSemanticUiNativeCommit(
-                    actionWitnessId,
-                    "boss_relic_choice",
-                    NativeBossRelicDecisionProvider.CommitSeam,
-                    nativeOwner: __instance,
-                    nativeLineage: parent);
-            }
-            finally
-            {
-                // Provider state is scoped to this exact parent even when
-                // durable completion observation fails.
+                NativeUiCompletionRootBindings.TakeIfMatches(parent, actionWitnessId);
                 NativeBossRelicDecisionProvider.ConsumeRegisteredChoice(
                     (GameAction)parent);
             }
@@ -857,70 +847,53 @@ internal static class NativeRewardUiContext
 /// </summary>
 internal static class NativeUiCompletionRootBindings
 {
-    private sealed class RootBinding
-    {
-        internal RootBinding(string actionWitnessId) => ActionWitnessId = actionWitnessId;
-
-        internal string ActionWitnessId { get; }
-    }
-
-    private static readonly ConditionalWeakTable<object, RootBinding> Bindings = new();
-    private static readonly ExactWitnessBindingTable<GameAction> ActionBindings = new();
+    private static readonly ExactOwnerWitnessBindingTable<object> Bindings = new();
 
     internal static bool Remember(object? owner, string? actionWitnessId)
     {
-        if (owner == null || string.IsNullOrWhiteSpace(actionWitnessId))
-            return false;
-        if (owner is GameAction action)
-        {
-            if (!ActionBindings.TryBind(actionWitnessId, action))
-                return false;
-            if (Bindings.TryGetValue(action, out RootBinding? prior))
-                ActionBindings.Remove(prior.ActionWitnessId, action);
-            // The collision check above is authoritative; remove any old
-            // witness only for this exact object, never for another root.
-            Bindings.Remove(action);
-            Bindings.Add(action, new RootBinding(actionWitnessId));
+        return Bindings.TryBind(owner, actionWitnessId);
+    }
+
+    internal static bool RememberOrFailClosed(
+        object? owner,
+        string? actionWitnessId,
+        string nativeActionType,
+        string detail)
+    {
+        if (Remember(owner, actionWitnessId))
             return true;
+        if (!string.IsNullOrWhiteSpace(actionWitnessId))
+        {
+            RecorderRuntime.ObserveSemanticUiCarrierBindingFailure(
+                actionWitnessId,
+                nativeActionType,
+                detail);
         }
-        Bindings.Remove(owner);
-        Bindings.Add(owner, new RootBinding(actionWitnessId));
-        return true;
+        else
+        {
+            NativeUiObservationSafety.Report(
+                "native_completion_root.remember",
+                detail + " Exact action witness unavailable.");
+        }
+        return false;
     }
 
     internal static string? Take(object? owner)
     {
-        if (owner == null || !Bindings.TryGetValue(owner, out RootBinding? binding))
-            return null;
-        Bindings.Remove(owner);
-        if (owner is GameAction action)
-            ActionBindings.Remove(binding.ActionWitnessId, action);
-        return binding.ActionWitnessId;
+        return Bindings.Take(owner);
     }
 
     internal static bool TakeIfMatches(object? owner, string? expectedActionWitnessId)
     {
-        if (owner == null
-            || string.IsNullOrWhiteSpace(expectedActionWitnessId)
-            || !Bindings.TryGetValue(owner, out RootBinding? binding)
-            || !string.Equals(
-                binding.ActionWitnessId,
-                expectedActionWitnessId,
-                StringComparison.Ordinal))
-            return false;
-        Take(owner);
-        return true;
+        return Bindings.TakeIfMatches(owner, expectedActionWitnessId);
     }
 
     internal static bool Contains(object? owner) =>
-        owner != null && Bindings.TryGetValue(owner, out _);
+        Bindings.Contains(owner);
 
     internal static bool TryGet(object? owner, out string? actionWitnessId)
     {
-        actionWitnessId = null;
-        return owner != null
-            && Bindings.TryGetValue(owner, out RootBinding? binding)
-            && (actionWitnessId = binding.ActionWitnessId) != null;
+        return Bindings.TryGetWitness(owner, out actionWitnessId);
     }
 
     internal static bool TryGetAction(
@@ -930,7 +903,11 @@ internal static class NativeUiCompletionRootBindings
         action = null;
         if (string.IsNullOrWhiteSpace(actionWitnessId))
             return false;
-        return ActionBindings.TryGet(actionWitnessId, out action);
+        if (!Bindings.TryGetOwner(actionWitnessId, out object? owner)
+            || owner is not GameAction exactAction)
+            return false;
+        action = exactAction;
+        return true;
     }
 
     internal static string? TakeCurrentRewardOrTreasure()
@@ -1032,7 +1009,11 @@ internal static class NativeTreasureChestChoicePatch
                 captureImmediatePostCommitBoundary: false,
                 actionWitnessId: __state.ActionWitnessId);
             if (accepted)
-                NativeUiCompletionRootBindings.Remember(NativeTreasureUiContext.CurrentUi(), __state.ActionWitnessId);
+                NativeUiCompletionRootBindings.RememberOrFailClosed(
+                    NativeTreasureUiContext.CurrentUi(),
+                    __state.ActionWitnessId,
+                    NativeActionType,
+                    "The exact treasure UI owner is already bound or unavailable.");
         }
         catch (Exception exception)
         {
@@ -1182,7 +1163,11 @@ internal static class NativeTreasureProceedPatch
                 captureImmediatePostCommitBoundary: false,
                 actionWitnessId: __state.Scope.ActionWitnessId);
             if (accepted)
-                NativeUiCompletionRootBindings.Remember(__instance, __state.Scope.ActionWitnessId);
+                NativeUiCompletionRootBindings.RememberOrFailClosed(
+                    __instance,
+                    __state.Scope.ActionWitnessId,
+                    NativeActionType,
+                    "The exact treasure proceed owner is already bound to another root.");
         }
         catch (Exception exception)
         {
@@ -1297,7 +1282,12 @@ internal static class NativeRewardClaimStartPatch
                 actionWitnessId: __state.ActionWitnessId);
             if (!accepted)
                 return;
-            NativeUiCompletionRootBindings.Remember(__instance.Reward, __state.ActionWitnessId);
+            if (!NativeUiCompletionRootBindings.RememberOrFailClosed(
+                    __instance.Reward,
+                    __state.ActionWitnessId,
+                    NativeActionType,
+                    "The exact reward operand is already bound to another root."))
+                return;
             if (__instance.Reward is CardReward reward
                 && __state.ActionWitnessId is { } actionWitnessId
                 && NOverlayStack.Instance?.Peek() is NCardRewardSelectionScreen screen)
@@ -1406,7 +1396,11 @@ internal static class NativeRewardProceedPatch
                 captureImmediatePostCommitBoundary: false,
                 actionWitnessId: __state.Scope.ActionWitnessId);
             if (accepted)
-                NativeUiCompletionRootBindings.Remember(__instance, __state.Scope.ActionWitnessId);
+                NativeUiCompletionRootBindings.RememberOrFailClosed(
+                    __instance,
+                    __state.Scope.ActionWitnessId,
+                    __state.NativeActionType,
+                    "The exact rewards screen is already bound to another root.");
         }
         catch (Exception exception)
         {
@@ -1692,9 +1686,16 @@ internal static class NativeActChangeVoteCommitPatch
         __state = null;
         try
         {
-            __state = NativeUiCompletionRootBindings.Take(__instance);
-            if (__state != null)
-                NativeUiCompletionRootBindings.Remember(RunManager.Instance, __state);
+            if (!NativeUiCompletionRootBindings.TryGet(__instance, out __state)
+                || __state == null)
+                return;
+            if (!NativeUiCompletionRootBindings.RememberOrFailClosed(
+                    RunManager.Instance,
+                    __state,
+                    NativeRewardProceedPatch.ActChangeNativeActionType,
+                    "RunManager is already bound to another exact act-change root."))
+                return;
+            NativeUiCompletionRootBindings.TakeIfMatches(__instance, __state);
         }
         catch (Exception exception)
         {
@@ -1925,7 +1926,11 @@ internal static class NativeEventOptionPatch
                 captureImmediatePostCommitBoundary: false,
                 actionWitnessId: __state.Scope.ActionWitnessId);
             if (accepted)
-                NativeUiCompletionRootBindings.Remember(option, __state.Scope.ActionWitnessId);
+                NativeUiCompletionRootBindings.RememberOrFailClosed(
+                    option,
+                    __state.Scope.ActionWitnessId,
+                    NativeActionType,
+                    "The exact EventOption is already bound to another root.");
         }
         catch (Exception exception)
         {

@@ -57,7 +57,7 @@ public sealed class RecordingSessionStore : IDisposable
             JsonSerializer.Serialize(captureProfile, EvidenceJson.IndentedOptions));
         _invalidations = OpenBufferedAppend(Path.Combine(directory, "invalidations.jsonl"));
         _journal = OpenBufferedAppend(Path.Combine(directory, "run-journal.jsonl"));
-        _semanticBoundaryTrace = OpenBufferedAppend(
+        _semanticBoundaryTrace = OpenRecoverableAppend(
             Path.Combine(directory, "semantic-boundary-trace.jsonl"));
         _canonicalTransitions = OpenBufferedAppend(
             Path.Combine(directory, "canonical-transitions.jsonl"));
@@ -401,11 +401,10 @@ public sealed class RecordingSessionStore : IDisposable
         ExecuteWrite(() =>
         {
             _performance.Measure("semantic_event_append_buffered", () =>
-            {
-                foreach (SemanticBoundaryTraceEvent value in values)
-                    AppendLine(_semanticBoundaryTrace, value, flushToDisk: false);
-                _semanticBoundaryTrace.Flush();
-            });
+                RecoverableAppendBatch.Write(
+                    _semanticBoundaryTrace,
+                    values.Select(value =>
+                        JsonSerializer.SerializeToUtf8Bytes(value, EvidenceJson.Options)).ToArray()));
         });
     }
 
@@ -419,11 +418,10 @@ public sealed class RecordingSessionStore : IDisposable
         ExecuteWrite(() =>
         {
             _performance.Measure("semantic_event_append_buffered", () =>
-            {
-                foreach (SemanticEvidenceEvent value in values)
-                    AppendLine(_semanticBoundaryTrace, value, flushToDisk: false);
-                _semanticBoundaryTrace.Flush();
-            });
+                RecoverableAppendBatch.Write(
+                    _semanticBoundaryTrace,
+                    values.Select(value =>
+                        JsonSerializer.SerializeToUtf8Bytes(value, EvidenceJson.Options)).ToArray()));
         });
     }
 
@@ -647,6 +645,19 @@ public sealed class RecordingSessionStore : IDisposable
         FileShare.Read,
         64 * 1024,
         FileOptions.SequentialScan);
+
+    private static FileStream OpenRecoverableAppend(string path)
+    {
+        var stream = new FileStream(
+            path,
+            FileMode.OpenOrCreate,
+            FileAccess.Write,
+            FileShare.Read,
+            64 * 1024,
+            FileOptions.SequentialScan);
+        stream.Position = stream.Length;
+        return stream;
+    }
 
     private static void AppendLine<T>(
         FileStream stream,

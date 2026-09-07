@@ -6,6 +6,29 @@ namespace STS2HumanAnnotator.Core.Tests;
 public sealed class NativePostCommitCompletionLedgerTests
 {
     [Fact]
+    public void CompletionPreviewRetainsExactCarrierUntilDurableCommit()
+    {
+        var ledger = new NativePostCommitCompletionLedger();
+        Assert.True(ledger.Register(Registration("root-a", "reward-a", "owner-a")));
+        Assert.True(ledger.BindTask(new NativeTaskObservation(
+            "session-a", 1, "native.select", "task-a", "owner-a", "reward-a")).IsMatched);
+        var completion = new NativeTaskCompletion(
+            "session-a", 1, "completion-a", "task-a", true);
+
+        NativePostCommitCompletionResolution first = ledger.PreviewTaskCompletion(completion);
+        Assert.True(first.IsMatched);
+        Assert.Equal(1, ledger.Count);
+        NativePostCommitCompletionResolution afterInjectedAppendFailure =
+            ledger.PreviewTaskCompletion(completion);
+        Assert.True(afterInjectedAppendFailure.IsMatched);
+        Assert.Equal("root-a", afterInjectedAppendFailure.Registration!.ActionWitnessId);
+
+        Assert.True(ledger.CommitTaskCompletion(completion));
+        Assert.Equal(0, ledger.Count);
+        Assert.Equal("no_match", ledger.PreviewTaskCompletion(completion).Status);
+    }
+
+    [Fact]
     public void NativeTaskBindsAfterUiScopeUsingExactOperationIdentity()
     {
         var ledger = new NativePostCommitCompletionLedger();

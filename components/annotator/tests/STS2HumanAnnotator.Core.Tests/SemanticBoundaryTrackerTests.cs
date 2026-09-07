@@ -10,6 +10,52 @@ public sealed class SemanticBoundaryTrackerTests
     private static readonly DateTimeOffset T0 = DateTimeOffset.Parse("2026-08-26T00:00:00Z");
 
     [Fact]
+    public void DurableMutationRollsBackWhenAuthoritativeAppendFails()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference action = Action("durable-failure", 1);
+        tracker.Accept(action, State("s0"));
+
+        Assert.Throws<IOException>((Action)(() =>
+        {
+            using SemanticBoundaryTracker.DurableMutation pending =
+                tracker.BeginDurableMutation(value => value.Started(action.ActionWitnessId));
+            Assert.Single(pending.Drafts);
+            throw new IOException("injected before authoritative append");
+        }));
+
+        // A restored root can still receive its exact lifecycle once. If the
+        // failed mutation had leaked, this second Started would carry a later
+        // execution order and corrupt causal ordering.
+        using SemanticBoundaryTracker.DurableMutation retry =
+            tracker.BeginDurableMutation(value => value.Started(action.ActionWitnessId));
+        SemanticBoundaryTraceDraft started = Assert.Single(retry.Drafts);
+        Assert.Equal(SemanticBoundaryTraceKinds.ActionStarted, started.Kind);
+        retry.MarkAuthoritativeAppend();
+        Assert.True(tracker.Contains(action.ActionWitnessId));
+    }
+
+    [Fact]
+    public void DurableMutationDoesNotRollbackAfterAuthoritativeAppend()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference action = Action("projection-failure", 1);
+        tracker.Accept(action, State("s0"));
+
+        Assert.Throws<IOException>((Action)(() =>
+        {
+            using SemanticBoundaryTracker.DurableMutation pending =
+                tracker.BeginDurableMutation(value => value.Cancelled(action.ActionWitnessId));
+            Assert.Single(pending.Drafts);
+            pending.MarkAuthoritativeAppend();
+            throw new IOException("injected derived projection failure");
+        }));
+
+        Assert.False(tracker.HasUnresolvedActions);
+        Assert.Empty(tracker.PreviewUnknown(action.ActionWitnessId, "must not duplicate"));
+    }
+
+    [Fact]
     public void FailedCarrierCanBePersistedAsOneExplicitUnknownBeforeTrackerCleanup()
     {
         var tracker = new SemanticBoundaryTracker();

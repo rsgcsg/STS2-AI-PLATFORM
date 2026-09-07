@@ -527,6 +527,30 @@ internal static class RecorderRuntime
                 },
                 onDerivedProjectionFailure: () => derivedProjectionFailed = true);
         }
+        catch (AppendRollbackFailedException exception)
+        {
+            lock (Gate)
+            {
+                _closeDispositionPersistenceFailed = true;
+                _runtimeState = "close_disposition_persistence_failed";
+                _detail = exception.Message;
+                _closeout = _closeout with
+                {
+                    State = "closing",
+                    Detail = "Close semantic append may be partial; exact roots and carriers remain retained for audit."
+                };
+            }
+            Quarantine(
+                "semantic_append_rollback_failed",
+                $"Close stream boundary={exception.OriginalLength}; "
+                    + $"rollback={exception.RollbackFailure.GetType().Name}: "
+                    + exception.RollbackFailure.Message,
+                _lastSnapshotId,
+                null,
+                "evidence_commit_unknown");
+            DisableSemanticBoundaryTrace(exception);
+            return;
+        }
         catch (Exception exception)
         {
             // A failure before the semantic stream append leaves roots live;
@@ -1610,68 +1634,29 @@ internal static class RecorderRuntime
     /// guessed success or a second Human root. The tracker is committed only
     /// after the disposition is durable.
     /// </summary>
-    internal static void ObserveSemanticUiCarrierBindingFailure(
+    internal static bool ObserveSemanticUiCarrierBindingFailure(
         string actionWitnessId,
         string nativeActionType,
         string detail)
     {
         if (string.IsNullOrWhiteSpace(actionWitnessId))
-            return;
-        IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
-        try
-        {
-            lock (Gate)
-            {
-                if (!BoundaryTracker.Contains(actionWitnessId))
-                    return;
-                drafts = BoundaryTracker.PreviewUnknown(
-                    actionWitnessId,
-                    detail);
-            }
-            if (drafts.Count == 0)
-                return;
-            bool committed = false;
-            PersistSemanticBoundaryDrafts(
-                drafts,
-                onAuthoritativeSemanticAppend: () =>
-                {
-                    lock (Gate)
-                        BoundaryTracker.CommitUnknown(actionWitnessId);
-                    committed = true;
-                });
-            if (!committed)
-                throw new InvalidOperationException(
-                    "The carrier-failure disposition was not durably committed.");
-        }
-        catch (Exception exception)
-        {
-            // Keep a separate invalidation for the installation failure. If
-            // that write also fails, disable the trace rather than leaving a
-            // root which appears actionable but has no exact completion path.
-            Quarantine(
-                "native_carrier_binding_failed",
-                detail + $" ({exception.GetType().Name}: {exception.Message})",
-                _lastSnapshotId,
-                nativeActionType,
-                "evidence_commit_unknown");
-            DisableSemanticBoundaryTrace(exception);
-            try
+            return false;
+        return PersistTrackerMutationOrUnknown(
+            actionWitnessId,
+            tracker => tracker.PreviewUnknown(actionWitnessId, detail),
+            "native_carrier_binding_failed",
+            detail,
+            nativeActionType,
+            onDurableDisposition: () =>
             {
                 lock (Gate)
                 {
                     if (BoundaryTracker.Contains(actionWitnessId))
-                        BoundaryTracker.Cancelled(actionWitnessId);
+                        BoundaryTracker.CommitUnknown(actionWitnessId);
                     SemanticProjectionEnvironments.Remove(actionWitnessId);
                     NativePostCommitCompletions.Remove(actionWitnessId);
                 }
-            }
-            catch (Exception cleanupException)
-            {
-                NativeUiObservationSafety.Report(
-                    "native_carrier_binding_failed.cleanup",
-                    cleanupException);
-            }
-        }
+            });
     }
 
     /// <summary>
@@ -2370,10 +2355,12 @@ internal static class RecorderRuntime
                 }
                 else
                 {
-                    // The GameAction object itself is the exact child owner;
-                    // when its witness could not be read, remove only this
-                    // owner's binding rather than guessing a witness/root.
-                    NativeUiCompletionRootBindings.Take(lifecycleAction);
+                    // Owner identity alone does not prove which root this
+                    // carrier belongs to. Retain it for exact Close/audit
+                    // accounting rather than consuming an unknown witness.
+                    NativeUiObservationSafety.Report(
+                        "semantic_ui_action.cleanup_binding",
+                        "The exact action witness is unavailable; carrier retained fail-closed.");
                 }
             }
         }
@@ -2383,7 +2370,7 @@ internal static class RecorderRuntime
         }
     }
 
-    internal static void ObserveSemanticUiNativeCommit(
+    internal static bool ObserveSemanticUiNativeCommit(
         string actionWitnessId,
         string family,
         string kind,
@@ -2398,7 +2385,7 @@ internal static class RecorderRuntime
             nativeOperand,
             nativeLineage);
 
-    internal static void ObserveSemanticUiNativeCommit(
+    internal static bool ObserveSemanticUiNativeCommit(
         string family,
         string kind,
         object? nativeOwner = null,
@@ -2413,7 +2400,7 @@ internal static class RecorderRuntime
             nativeOperand,
             nativeLineage);
 
-    private static void ObserveSemanticUiNativeCommitCore(
+    private static bool ObserveSemanticUiNativeCommitCore(
         string? expectedActionWitnessId,
         string family,
         string kind,
@@ -2423,7 +2410,7 @@ internal static class RecorderRuntime
     {
         if (string.IsNullOrWhiteSpace(family)
             || string.IsNullOrWhiteSpace(kind))
-            return;
+            return false;
         try
         {
             string? sessionId = SessionId;
@@ -2456,7 +2443,7 @@ internal static class RecorderRuntime
                         null,
                         null,
                         binding.Detail)
-                    : NativePostCommitCompletions.CompleteTask(
+                    : NativePostCommitCompletions.PreviewTaskCompletion(
                         new NativeTaskCompletion(
                             sessionId,
                             generation,
@@ -2476,27 +2463,49 @@ internal static class RecorderRuntime
                     null,
                     kind,
                     "decision_and_lifecycle_only");
-                return;
+                return false;
             }
             string actionWitnessId = resolution.Registration!.ActionWitnessId;
             NativeCompletionEvidence completion = ToCompletionEvidence(
                 nativeCompletion,
                 actionWitnessId);
-            IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
-            lock (Gate)
-            {
-                if (!BoundaryTracker.Contains(actionWitnessId))
-                    return;
-                var result = new List<SemanticBoundaryTraceDraft>();
-                result.AddRange(BoundaryTracker.Finished(actionWitnessId));
-                result.AddRange(BoundaryTracker.ObserveNativeCommit(actionWitnessId, completion));
-                drafts = result;
-            }
-            PersistSemanticBoundaryDrafts(drafts);
+            var taskCompletion = new NativeTaskCompletion(
+                sessionId!,
+                generation,
+                nativeCompletion.CompletionId,
+                operationWitnessId,
+                true);
+            return PersistTrackerMutationOrUnknown(
+                actionWitnessId,
+                tracker =>
+                {
+                    if (!tracker.Contains(actionWitnessId))
+                        return Array.Empty<SemanticBoundaryTraceDraft>();
+                    var result = new List<SemanticBoundaryTraceDraft>();
+                    result.AddRange(tracker.Finished(actionWitnessId));
+                    result.AddRange(tracker.ObserveNativeCommit(actionWitnessId, completion));
+                    return result;
+                },
+                "native_sync_commit_persistence_failed",
+                "The synchronous native Commit could not be durably appended; the exact root is terminal unknown.",
+                kind,
+                onDurableDisposition: () =>
+                {
+                    lock (Gate)
+                    {
+                        if (!NativePostCommitCompletions.CommitTaskCompletion(taskCompletion))
+                        {
+                            NativeUiObservationSafety.Report(
+                                "native_sync_commit.commit_binding",
+                                "The exact synchronous binding was unavailable after its authoritative append.");
+                        }
+                    }
+                });
         }
         catch (Exception exception)
         {
-            DisableSemanticBoundaryTrace(exception);
+            NativeUiObservationSafety.Report("semantic_ui_native_commit", exception);
+            return false;
         }
     }
 
@@ -2647,40 +2656,33 @@ internal static class RecorderRuntime
         };
     }
 
-    private static void ObserveSemanticLifecycle(
+    private static bool ObserveSemanticLifecycle(
         NativeActionLifecycleSubscription subscription,
         string kind)
     {
         if (!_semanticBoundaryTraceHealthy)
-            return;
-        try
-        {
-            IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
-            lock (Gate)
-            {
-                drafts = kind switch
+            return false;
+        return PersistTrackerMutationOrUnknown(
+            subscription.ActionWitnessId,
+            tracker => kind switch
                 {
                     NativeActionLifecycleKinds.Started =>
-                        BoundaryTracker.Started(subscription.ActionWitnessId),
+                        tracker.Started(subscription.ActionWitnessId),
                     NativeActionLifecycleKinds.PausedForPlayerChoice =>
-                        BoundaryTracker.PausedForPlayerChoice(subscription.ActionWitnessId),
+                        tracker.PausedForPlayerChoice(subscription.ActionWitnessId),
                     NativeActionLifecycleKinds.ReadyToResume =>
-                        BoundaryTracker.ReadyToResume(subscription.ActionWitnessId),
+                        tracker.ReadyToResume(subscription.ActionWitnessId),
                     NativeActionLifecycleKinds.Resumed =>
-                        BoundaryTracker.Resumed(subscription.ActionWitnessId),
+                        tracker.Resumed(subscription.ActionWitnessId),
                     NativeActionLifecycleKinds.Cancelled =>
-                        BoundaryTracker.Cancelled(subscription.ActionWitnessId),
+                        tracker.Cancelled(subscription.ActionWitnessId),
                     NativeActionLifecycleKinds.Finished =>
-                        BoundaryTracker.Finished(subscription.ActionWitnessId),
+                        tracker.Finished(subscription.ActionWitnessId),
                     _ => Array.Empty<SemanticBoundaryTraceDraft>()
-                };
-            }
-            PersistSemanticBoundaryDrafts(drafts);
-        }
-        catch (Exception exception)
-        {
-            DisableSemanticBoundaryTrace(exception);
-        }
+                },
+            "semantic_lifecycle_persistence_failed",
+            $"The {kind} lifecycle event could not be durably appended; the exact root is terminal unknown.",
+            subscription.NativeActionType);
     }
 
     private static void ObserveSemanticOnlyNativeActionLifecycle(
@@ -2688,6 +2690,7 @@ internal static class RecorderRuntime
         string kind)
     {
         bool terminal = NativeActionLifecycleKinds.IsTerminal(kind);
+        bool durableDisposition = false;
         bool currentSubscription = false;
         try
         {
@@ -2721,7 +2724,10 @@ internal static class RecorderRuntime
             }
             try
             {
-                ObserveSemanticLifecycle(subscription, kind);
+                durableDisposition = kind == NativeActionLifecycleKinds.Finished
+                    && subscription.FinishIsNativeCommit
+                    ? ObserveSemanticFinishedWithNativeCommit(subscription)
+                    : ObserveSemanticLifecycle(subscription, kind);
             }
             catch (Exception exception)
             {
@@ -2746,30 +2752,6 @@ internal static class RecorderRuntime
                     NativeUiObservationSafety.Report("semantic_lifecycle.continuation", exception);
                 }
             }
-            if (kind == NativeActionLifecycleKinds.Finished
-                && subscription.FinishIsNativeCommit)
-            {
-                try
-                {
-                    ObserveNativeCommit(
-                        subscription.ActionWitnessId,
-                        new NativeCompletionEvidence(
-                            $"native-completion-{Guid.NewGuid():N}",
-                            SupportedFamilyForNativeAction(subscription.NativeActionType, null)
-                                ?? "native_game_action",
-                            "GameAction.Finished",
-                            subscription.ActionWitnessId,
-                            null,
-                            NativeWitnessIdentity.Get(subscription.Action, "game_action"),
-                            null,
-                            null,
-                            true));
-                }
-                catch (Exception exception)
-                {
-                    NativeUiObservationSafety.Report("semantic_lifecycle.commit", exception);
-                }
-            }
         }
         catch (Exception exception)
         {
@@ -2777,7 +2759,7 @@ internal static class RecorderRuntime
         }
         finally
         {
-            if (terminal)
+            if (terminal && durableDisposition)
             {
                 bool removed = false;
                 try
@@ -2839,46 +2821,58 @@ internal static class RecorderRuntime
         }
     }
 
+    private static bool ObserveSemanticFinishedWithNativeCommit(
+        NativeActionLifecycleSubscription subscription)
+    {
+        NativeCompletionEvidence completion = new(
+            $"native-completion-{Guid.NewGuid():N}",
+            SupportedFamilyForNativeAction(subscription.NativeActionType, null)
+                ?? "native_game_action",
+            "GameAction.Finished",
+            subscription.ActionWitnessId,
+            null,
+            NativeWitnessIdentity.Get(subscription.Action, "game_action"),
+            null,
+            null,
+            true);
+        return PersistTrackerMutationOrUnknown(
+            subscription.ActionWitnessId,
+            tracker =>
+            {
+                var drafts = new List<SemanticBoundaryTraceDraft>();
+                drafts.AddRange(tracker.Finished(subscription.ActionWitnessId));
+                drafts.AddRange(tracker.ObserveNativeCommit(
+                    subscription.ActionWitnessId,
+                    completion));
+                return drafts;
+            },
+            "semantic_finished_commit_persistence_failed",
+            "The terminal lifecycle and exact native Commit could not be durably appended; the root is terminal unknown.",
+            subscription.NativeActionType);
+    }
+
     private static void ObserveNativeCommit(
         string actionWitnessId,
         NativeCompletionEvidence completion)
     {
-        try
-        {
-            IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
-            lock (Gate)
-            {
-                drafts = BoundaryTracker.ObserveNativeCommit(
-                    actionWitnessId,
-                    completion);
-            }
-            PersistSemanticBoundaryDrafts(drafts);
-        }
-        catch (Exception exception)
-        {
-            DisableSemanticBoundaryTrace(exception);
-        }
+        PersistTrackerMutationOrUnknown(
+            actionWitnessId,
+            tracker => tracker.ObserveNativeCommit(actionWitnessId, completion),
+            "semantic_native_commit_persistence_failed",
+            "The exact native Commit could not be durably appended; the root is terminal unknown.",
+            completion.Kind);
     }
 
     private static void ObserveNativeContinuation(
         string actionWitnessId,
         NativeContinuationEvidence continuation)
     {
-        try
-        {
-            IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
-            lock (Gate)
-            {
-                drafts = BoundaryTracker.ObserveNativeContinuation(
-                    actionWitnessId,
-                    continuation);
-            }
-            PersistSemanticBoundaryDrafts(drafts);
-        }
-        catch (Exception exception)
-        {
-            DisableSemanticBoundaryTrace(exception);
-        }
+        PersistTrackerMutationOrUnknown(
+            actionWitnessId,
+            tracker => tracker.ObserveNativeContinuation(actionWitnessId, continuation),
+            "semantic_native_continuation_persistence_failed",
+            "The exact native continuation could not be durably appended; the root is terminal unknown.",
+            continuation.Kind);
     }
 
     private static void ObserveNativePostCommitCompletion(
@@ -2886,7 +2880,7 @@ internal static class RecorderRuntime
     {
         NativePostCommitCompletionResolution resolution;
         lock (Gate)
-            resolution = NativePostCommitCompletions.CompleteTask(taskCompletion);
+            resolution = NativePostCommitCompletions.PreviewTaskCompletion(taskCompletion);
 
         if (!resolution.IsMatched)
         {
@@ -2901,28 +2895,167 @@ internal static class RecorderRuntime
 
         NativePostCommitCompletionRegistration registration = resolution.Registration!;
         NativePostCommitCompletion completion = resolution.Completion!;
-        if (!completion.Succeeded)
+        NativeCompletionEvidence evidence = ToCompletionEvidence(
+            completion,
+            registration.ActionWitnessId);
+        PersistTrackerMutationOrUnknown(
+            registration.ActionWitnessId,
+            tracker =>
+            {
+                if (!completion.Succeeded)
+                {
+                    return tracker.NativeCompletionFailed(
+                        registration.ActionWitnessId,
+                        "native_completion_failed",
+                        "STS2 reported the exact native completion as cancelled, faulted, or unsuccessful; no successor is claimed.",
+                        evidence);
+                }
+                var drafts = new List<SemanticBoundaryTraceDraft>();
+                drafts.AddRange(tracker.Finished(registration.ActionWitnessId));
+                drafts.AddRange(tracker.ObserveNativeCommit(
+                    registration.ActionWitnessId,
+                    evidence));
+                return drafts;
+            },
+            "native_completion_persistence_failed",
+            "The exact native completion could not be durably appended; the root is terminal unknown.",
+            completion.Kind,
+            onDurableDisposition: () =>
+            {
+                lock (Gate)
+                {
+                    if (!NativePostCommitCompletions.CommitTaskCompletion(taskCompletion))
+                    {
+                        NativeUiObservationSafety.Report(
+                            "native_completion.commit_binding",
+                            "The exact Task binding was unavailable after its authoritative semantic append.");
+                    }
+                }
+            });
+    }
+
+    private static bool PersistTrackerMutationOrUnknown(
+        string actionWitnessId,
+        Func<SemanticBoundaryTracker, IReadOnlyList<SemanticBoundaryTraceDraft>> mutation,
+        string failureReason,
+        string failureDetail,
+        string nativeActionType,
+        Action? onDurableDisposition = null)
+    {
+        Exception? failure = null;
+        try
         {
-            IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
             lock (Gate)
             {
-                drafts = BoundaryTracker.NativeCompletionFailed(
-                    registration.ActionWitnessId,
-                    "native_completion_failed",
-                    "STS2 reported the exact native completion as cancelled, faulted, or unsuccessful; no successor is claimed.",
-                    ToCompletionEvidence(completion, registration.ActionWitnessId));
+                using SemanticBoundaryTracker.DurableMutation pending =
+                    BoundaryTracker.BeginDurableMutation(mutation);
+                if (pending.Drafts.Count == 0)
+                {
+                    pending.MarkAuthoritativeAppend();
+                    onDurableDisposition?.Invoke();
+                    return true;
+                }
+                PersistSemanticBoundaryDrafts(
+                    pending.Drafts,
+                    onAuthoritativeSemanticAppend: () =>
+                    {
+                        // Mark first: any failure in correlation cleanup is
+                        // downstream of an already-authoritative append and
+                        // must never roll the tracker back or relabel success.
+                        pending.MarkAuthoritativeAppend();
+                        try
+                        {
+                            onDurableDisposition?.Invoke();
+                        }
+                        catch (Exception exception)
+                        {
+                            NativeUiObservationSafety.Report(
+                                "semantic_persistence.downstream_cleanup",
+                                exception);
+                        }
+                    });
             }
-            PersistSemanticBoundaryDrafts(drafts);
-            return;
+            return true;
+        }
+        catch (AppendRollbackFailedException exception)
+        {
+            // The semantic stream may contain a partial batch. It is unsafe
+            // to append an unknown to that same stream or claim the mutation
+            // was absent. Retain the exact carrier, mark the separate
+            // invalidation/status projection best-effort, and stop tracing.
+            NativeUiObservationSafety.Report(failureReason, exception);
+            Quarantine(
+                "semantic_append_rollback_failed",
+                $"{failureDetail} OriginalLength={exception.OriginalLength}; "
+                    + $"rollback={exception.RollbackFailure.GetType().Name}: "
+                    + exception.RollbackFailure.Message,
+                _lastSnapshotId,
+                nativeActionType,
+                "evidence_commit_unknown");
+            DisableSemanticBoundaryTrace(exception);
+            return false;
+        }
+        catch (Exception exception)
+        {
+            failure = exception;
+            NativeUiObservationSafety.Report(failureReason, exception);
         }
 
-        IReadOnlyList<SemanticBoundaryTraceDraft> finished;
-        lock (Gate)
-            finished = BoundaryTracker.Finished(registration.ActionWitnessId);
-        PersistSemanticBoundaryDrafts(finished);
-        ObserveNativeCommit(
-            registration.ActionWitnessId,
-            ToCompletionEvidence(completion, registration.ActionWitnessId));
+        // The provisional mutation has rolled back here. Persist one explicit
+        // unknown against the same exact root; only its successful append may
+        // consume correlation state. This is not a retry of native mutation.
+        try
+        {
+            lock (Gate)
+            {
+                if (!BoundaryTracker.Contains(actionWitnessId))
+                    return false;
+                using SemanticBoundaryTracker.DurableMutation unknown =
+                    BoundaryTracker.BeginDurableMutation(tracker =>
+                        tracker.PreviewUnknown(actionWitnessId, failureDetail));
+                PersistSemanticBoundaryDrafts(
+                    unknown.Drafts,
+                    onAuthoritativeSemanticAppend: () =>
+                    {
+                        unknown.MarkAuthoritativeAppend();
+                        BoundaryTracker.CommitUnknown(actionWitnessId);
+                        try
+                        {
+                            onDurableDisposition?.Invoke();
+                        }
+                        catch (Exception exception)
+                        {
+                            NativeUiObservationSafety.Report(
+                                "semantic_unknown.downstream_cleanup",
+                                exception);
+                        }
+                    });
+            }
+            Quarantine(
+                failureReason,
+                failureDetail,
+                _lastSnapshotId,
+                nativeActionType,
+                "evidence_commit_unknown");
+            return true;
+        }
+        catch (Exception unknownException)
+        {
+            NativeUiObservationSafety.Report(
+                "semantic_persistence.unknown_append",
+                unknownException);
+            Quarantine(
+                failureReason,
+                $"{failureDetail} ({failure?.GetType().Name}: {failure?.Message}; "
+                    + $"unknown append: {unknownException.GetType().Name}: {unknownException.Message})",
+                _lastSnapshotId,
+                nativeActionType,
+                "evidence_commit_unknown");
+            DisableSemanticBoundaryTrace(unknownException);
+            // No durable terminal disposition exists. Retain every exact
+            // carrier so Close/audit can account it; callers must not clean it.
+            return false;
+        }
     }
 
     private static NativeCompletionEvidence ToCompletionEvidence(

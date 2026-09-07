@@ -221,6 +221,67 @@ public sealed class SemanticBoundaryTracker
     private string? _lastStartedActionWitnessId;
     private long _lastStartedExecutionOrder;
 
+    /// <summary>
+    /// A reversible in-memory tracker mutation. Runtime callers persist the
+    /// returned drafts and call <see cref="MarkAuthoritativeAppend"/> at the
+    /// exact point where the semantic stream append succeeds. Disposing an
+    /// uncommitted mutation restores the tracker byte-for-byte, so a failed
+    /// write cannot consume the only live native carrier or manufacture a
+    /// later duplicate disposition.
+    /// </summary>
+    public sealed class DurableMutation : IDisposable
+    {
+        private readonly SemanticBoundaryTracker _owner;
+        private readonly TrackerCheckpoint _before;
+        private bool _authoritativeAppend;
+        private bool _disposed;
+
+        internal DurableMutation(
+            SemanticBoundaryTracker owner,
+            TrackerCheckpoint before,
+            IReadOnlyList<SemanticBoundaryTraceDraft> drafts)
+        {
+            _owner = owner;
+            _before = before;
+            Drafts = drafts;
+        }
+
+        public IReadOnlyList<SemanticBoundaryTraceDraft> Drafts { get; }
+
+        public void MarkAuthoritativeAppend() => _authoritativeAppend = true;
+
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+            _disposed = true;
+            if (!_authoritativeAppend)
+                _owner.Restore(_before);
+        }
+    }
+
+    internal sealed record EntryCheckpoint(
+        SemanticActionReference Action,
+        CurrentDecisionFrame HumanObservation,
+        CurrentDecisionFrame? SemanticPre,
+        bool Started,
+        bool Paused,
+        bool Finished,
+        bool Disposed,
+        bool NativeLifecycleTerminal,
+        NativeCompletionEvidence? NativeCommit,
+        NativeContinuationEvidence? NativeContinuation,
+        ExecutionSemanticActionSpaceEvidence? ExecutionSemanticActionSpace,
+        long? ExecutionOrder);
+
+    internal sealed record TrackerCheckpoint(
+        IReadOnlyDictionary<string, EntryCheckpoint> Entries,
+        IReadOnlyList<string> Order,
+        CurrentDecisionFrame? CurrentState,
+        long ExecutionSequence,
+        string? LastStartedActionWitnessId,
+        long LastStartedExecutionOrder);
+
     public SemanticBoundaryTracker(int capacity = 128)
     {
         if (capacity <= 0)
@@ -243,6 +304,27 @@ public sealed class SemanticBoundaryTracker
                                               && (!entry.Action.RequiresNativePostCommit
                                                   || entry.NativeCommit != null
                                                   || entry.NativeContinuation != null));
+        }
+    }
+
+    /// <summary>
+    /// Applies one tracker transition provisionally. The caller must not
+    /// overlap mutations: the runtime owns serialization with its existing
+    /// gate while persistence is in flight.
+    /// </summary>
+    public DurableMutation BeginDurableMutation(
+        Func<SemanticBoundaryTracker, IReadOnlyList<SemanticBoundaryTraceDraft>> mutation)
+    {
+        ArgumentNullException.ThrowIfNull(mutation);
+        TrackerCheckpoint checkpoint = Capture();
+        try
+        {
+            return new DurableMutation(this, checkpoint, mutation(this));
+        }
+        catch
+        {
+            Restore(checkpoint);
+            throw;
         }
     }
 
@@ -711,6 +793,56 @@ public sealed class SemanticBoundaryTracker
         _executionSequence = 0;
         _lastStartedActionWitnessId = null;
         _lastStartedExecutionOrder = 0;
+    }
+
+    private TrackerCheckpoint Capture() => new(
+        _entries.ToDictionary(
+            pair => pair.Key,
+            pair => new EntryCheckpoint(
+                pair.Value.Action,
+                pair.Value.HumanObservation,
+                pair.Value.SemanticPre,
+                pair.Value.Started,
+                pair.Value.Paused,
+                pair.Value.Finished,
+                pair.Value.Disposed,
+                pair.Value.NativeLifecycleTerminal,
+                pair.Value.NativeCommit,
+                pair.Value.NativeContinuation,
+                pair.Value.ExecutionSemanticActionSpace,
+                pair.Value.ExecutionOrder),
+            StringComparer.Ordinal),
+        _order.ToArray(),
+        _currentState,
+        _executionSequence,
+        _lastStartedActionWitnessId,
+        _lastStartedExecutionOrder);
+
+    private void Restore(TrackerCheckpoint checkpoint)
+    {
+        _entries.Clear();
+        foreach ((string key, EntryCheckpoint value) in checkpoint.Entries)
+        {
+            _entries.Add(key, new Entry(value.Action, value.HumanObservation)
+            {
+                SemanticPre = value.SemanticPre,
+                Started = value.Started,
+                Paused = value.Paused,
+                Finished = value.Finished,
+                Disposed = value.Disposed,
+                NativeLifecycleTerminal = value.NativeLifecycleTerminal,
+                NativeCommit = value.NativeCommit,
+                NativeContinuation = value.NativeContinuation,
+                ExecutionSemanticActionSpace = value.ExecutionSemanticActionSpace,
+                ExecutionOrder = value.ExecutionOrder
+            });
+        }
+        _order.Clear();
+        _order.AddRange(checkpoint.Order);
+        _currentState = checkpoint.CurrentState;
+        _executionSequence = checkpoint.ExecutionSequence;
+        _lastStartedActionWitnessId = checkpoint.LastStartedActionWitnessId;
+        _lastStartedExecutionOrder = checkpoint.LastStartedExecutionOrder;
     }
 
     private IReadOnlyList<SemanticBoundaryTraceDraft> Settle(

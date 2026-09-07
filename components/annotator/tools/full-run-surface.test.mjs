@@ -37,8 +37,9 @@ test("act-ready binds one exact queued action and skips generic duplicate ingres
   assert.doesNotMatch(enqueue, /private static void Postfix\(/u);
   assert.match(enqueue, /NativeUiCompletionRootBindings\.Remember\(action, actionWitnessId\)/u);
   assert.match(runtime, /if \(NativeUiCompletionRootBindings\.Contains\(action\)\)\s*return;/u);
-  assert.match(commit, /NativeUiCompletionRootBindings\.Take\(__instance\)/u);
-  assert.match(commit, /NativeUiCompletionRootBindings\.Remember\(RunManager\.Instance, __state\)/u);
+  assert.match(commit, /NativeUiCompletionRootBindings\.TryGet\(__instance, out __state\)/u);
+  assert.match(commit, /RememberOrFailClosed\([\s\S]*?RunManager\.Instance/u);
+  assert.match(commit, /TakeIfMatches\(__instance, __state\)/u);
   assert.match(commit, /ObserveNativeActChangeOwnerReady\(__state, __instance\)/u);
   assert.equal((commit.match(/ObserveSemanticUiNativeCommit\(/gu) ?? []).length, 1);
 });
@@ -53,7 +54,8 @@ test("boss relic uses the registered native parent exactly once", () => {
   assert.match(selection, /NativeUiCompletionRootBindings\.Remember\(/u);
   assert.doesNotMatch(selection, /NativePlayerChoiceLineage\.Capture\(/u);
   assert.match(commit, /TryGetRegisteredCurrentChoiceCarrier\(/u);
-  assert.match(commit, /NativeUiCompletionRootBindings\.Take\(parent\)/u);
+  assert.match(commit, /NativeUiCompletionRootBindings\.TryGet\(parent/u);
+  assert.match(commit, /NativeUiCompletionRootBindings\.TakeIfMatches\(parent, actionWitnessId\)/u);
   assert.doesNotMatch(commit, /NativePlayerChoiceLineage\.Capture\(/u);
   assert.equal((foundation.match(/RegisterFromChooseARelicScreen\(/gu) ?? []).length, 1);
   assert.match(gameMod, /PatchBefore\([\s\S]*?NativeBossRelicCommandPatch/u);
@@ -126,8 +128,24 @@ test("failed native carrier installation has a durable unknown disposition", () 
   assert.doesNotMatch(patches, /CurrentParentForCleanup\(/u);
 });
 
-test("exact child witness collisions cannot silently replace a carrier", () => {
-  assert.match(patches, /ExactWitnessBindingTable<GameAction>/u);
+test("all owner and witness collisions fail closed without replacement", () => {
+  assert.match(patches, /ExactOwnerWitnessBindingTable<object>/u);
+  assert.match(patches, /RememberOrFailClosed\(/u);
   assert.match(patches, /already bound to a different child action/u);
   assert.match(patches, /ObserveSemanticUiCarrierBindingFailure\(/u);
+});
+
+test("semantic mutations and task completions commit only after authoritative append", () => {
+  assert.match(runtime, /PersistTrackerMutationOrUnknown\(/u);
+  assert.match(runtime, /BeginDurableMutation\(/u);
+  assert.match(runtime, /pending\.MarkAuthoritativeAppend\(\)/u);
+  assert.match(runtime, /PreviewTaskCompletion\(taskCompletion\)/u);
+  assert.match(runtime, /CommitTaskCompletion\(taskCompletion\)/u);
+  assert.doesNotMatch(runtime, /resolution = NativePostCommitCompletions\.CompleteTask\(taskCompletion\)/u);
+});
+
+test("boss same-parent registration is idempotent or explicitly ambiguous", () => {
+  assert.match(foundation, /sameParent/u);
+  assert.match(foundation, /IsAmbiguous = true/u);
+  assert.match(foundation, /Multiple RelicSelectCmd option registrations share the exact PlayerChoice parent/u);
 });
