@@ -48,7 +48,12 @@ Shop removal uses the shipped three-argument
 `MerchantCardRemovalEntry.OnTryPurchaseWrapper`; Event uses the exact
 `EventOption.Chosen` option; Rest uses the exact option selected by
 `RestSiteSynchronizer.ChooseLocalOption`. A GameAction-owned selector uses
-`NativePlayerChoiceLineage` and the exact bound parent action. The child remains
+the exact `PlayerChoiceContext` argument carried by the context-bearing
+`CardSelectCmd` overload: `GameActionPlayerChoiceContext.Action`,
+`HookPlayerChoiceContext.GameAction`, or the exact v0.111.0 branching delegate.
+Context-free deck and bundle selectors are accepted only beneath the exact
+Event, Rest, Reward, Merchant, or Treasure logical invocation scope; they never
+consult the ambient/current GameAction. The child remains
 a durable continuation on the parent root, never a second root, Commit, ledger,
 or successor. No async `MoveNext`, FIFO, latest-frame, overlay, or timing
 association is used.

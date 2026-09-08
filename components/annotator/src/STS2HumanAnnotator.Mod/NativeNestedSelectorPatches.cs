@@ -3,10 +3,14 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using HarmonyLib;
+using MegaCrit.Sts2.Core.CardSelection;
+using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.CardRewardAlternatives;
 using MegaCrit.Sts2.Core.Entities.Cards;
+using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Events;
 using MegaCrit.Sts2.Core.GameActions;
+using MegaCrit.Sts2.Core.GameActions.Multiplayer;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes.GodotExtensions;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
@@ -69,9 +73,11 @@ internal static class NativeNestedCallbackSafety
 /// </summary>
 internal static class NativeNestedSelectorBindings
 {
+    private const string FactoryDerivedFamily = "factory_derived_generic_selector";
     internal sealed record Parent(
-        string ActionWitnessId,
-        object NativeOwner,
+        string? ActionWitnessId,
+        object? NativeOwner,
+        PlayerChoiceContext? ChoiceContext,
         string Family,
         string NativeMechanism);
 
@@ -92,6 +98,38 @@ internal static class NativeNestedSelectorBindings
         return Screens.Enter(new Parent(
             actionWitnessId,
             nativeOwner,
+            null,
+            family,
+            nativeMechanism));
+    }
+
+    internal static IDisposable EnterGenericSelectorParent(
+        string actionWitnessId,
+        object nativeOwner,
+        string nativeMechanism) =>
+        EnterParent(
+            actionWitnessId,
+            nativeOwner,
+            FactoryDerivedFamily,
+            nativeMechanism);
+
+    internal static IDisposable? EnterPlayerChoiceParent(
+        PlayerChoiceContext context,
+        string family,
+        string nativeMechanism)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        // Blocking/throwing contexts do not expose a GameAction owner. They
+        // may already be nested under an exact Event/Reward scope; do not
+        // shadow that owner with an unresolvable context.
+        if (context is not GameActionPlayerChoiceContext
+            && context is not HookPlayerChoiceContext
+            && context is not BranchingPlayerChoiceContext)
+            return null;
+        return Screens.Enter(new Parent(
+            null,
+            null,
+            context,
             family,
             nativeMechanism));
     }
@@ -100,14 +138,22 @@ internal static class NativeNestedSelectorBindings
     {
         if (screen == null)
             return;
-        if (Screens.TryBindCurrent(
-                screen,
-                parent => new Binding(
-                    parent.ActionWitnessId,
-                    parent.NativeOwner,
-                    parent.Family,
-                    $"{factory.DeclaringType?.FullName}.{factory.Name}")))
-            return;
+        try
+        {
+            if (Screens.TryBindCurrent(
+                    screen,
+                    parent => Resolve(parent, screen, factory)))
+                return;
+        }
+        catch (Exception exception)
+        {
+            // A context-bearing native invocation whose exact action/root
+            // cannot be resolved is evidence of an unavailable binding, not
+            // permission to fall back to ambient/current action state.
+            NativeUiObservationSafety.Report(
+                $"{factory.DeclaringType?.FullName}.{factory.Name}.exact_parent",
+                exception);
+        }
         var unavailable = new Binding(
             "unavailable",
             screen,
@@ -119,6 +165,95 @@ internal static class NativeNestedSelectorBindings
         NativeUiObservationSafety.Report(
             unavailable.FactoryMechanism,
             "An exact parent/root scope was unavailable; ambient current GameAction lineage is not accepted.");
+    }
+
+    private static Binding Resolve(Parent parent, object screen, MethodBase factory)
+    {
+        string factoryMechanism = $"{factory.DeclaringType?.FullName}.{factory.Name}";
+        if (parent.ActionWitnessId is { Length: > 0 } fixedRoot
+            && parent.NativeOwner != null)
+        {
+            return new Binding(
+                fixedRoot,
+                parent.NativeOwner,
+                string.Equals(
+                    parent.Family,
+                    FactoryDerivedFamily,
+                    StringComparison.Ordinal)
+                    ? FamilyFor(screen)
+                    : parent.Family,
+                factoryMechanism);
+        }
+
+        string actualFamily = FamilyFor(screen);
+        if (parent.ChoiceContext == null
+            || !string.Equals(parent.Family, actualFamily, StringComparison.Ordinal)
+            || !TryResolveExactAction(parent.ChoiceContext, out GameAction? action)
+            || action == null
+            || !NativeUiCompletionRootBindings.TryGet(action, out string? actionWitnessId)
+            || string.IsNullOrWhiteSpace(actionWitnessId))
+        {
+            throw new InvalidOperationException(
+                $"The exact {parent.Family} CardSelectCmd invocation did not carry a matching bound GameAction owner.");
+        }
+        return new Binding(
+            actionWitnessId,
+            action,
+            parent.Family,
+            factoryMechanism);
+    }
+
+    private static bool TryResolveExactAction(
+        PlayerChoiceContext context,
+        out GameAction? action) =>
+        TryResolveExactAction(
+            context,
+            new HashSet<PlayerChoiceContext>(ReferenceEqualityComparer.Instance),
+            out action);
+
+    private static bool TryResolveExactAction(
+        PlayerChoiceContext context,
+        ISet<PlayerChoiceContext> visited,
+        out GameAction? action)
+    {
+        if (!visited.Add(context))
+        {
+            action = null;
+            return false;
+        }
+        action = context switch
+        {
+            GameActionPlayerChoiceContext gameActionContext => gameActionContext.Action,
+            HookPlayerChoiceContext hookContext => hookContext.GameAction,
+            BranchingPlayerChoiceContext branchingContext =>
+                ResolveBranchingContext(branchingContext, visited),
+            _ => null
+        };
+        return action != null;
+    }
+
+    private static GameAction? ResolveBranchingContext(
+        BranchingPlayerChoiceContext context,
+        ISet<PlayerChoiceContext> visited)
+    {
+        // Exact v0.111.0 fields. The branch either creates a Hook context or
+        // delegates to the original context; recurse only through that exact
+        // object graph and never consult a global/current action.
+        FieldInfo? createdField = AccessTools.Field(
+            typeof(BranchingPlayerChoiceContext),
+            "_createdContext");
+        FieldInfo? originalField = AccessTools.Field(
+            typeof(BranchingPlayerChoiceContext),
+            "_originalContext");
+        if (createdField == null || originalField == null)
+            return null;
+        PlayerChoiceContext? selected =
+            createdField.GetValue(context) as PlayerChoiceContext
+            ?? originalField.GetValue(context) as PlayerChoiceContext;
+        return selected != null && !ReferenceEquals(selected, context)
+            && TryResolveExactAction(selected, visited, out GameAction? action)
+                ? action
+                : null;
     }
 
     internal static bool TryGet(object screen, out Binding? binding)
@@ -147,6 +282,70 @@ internal static class NativeNestedSelectorBindings
         NChooseABundleSelectionScreen => "generic_card_bundle_selector",
         _ => "generic_card_selector"
     };
+}
+
+/// <summary>
+/// Exact v0.111.0 CardSelectCmd entry points that carry their owning
+/// PlayerChoiceContext as a native argument. The context object, not a global
+/// current-action lookup, flows to the exact selector factory through the
+/// logical async invocation.
+/// </summary>
+[HarmonyPatch]
+internal static class NativeGameActionCardSelectorParentPatch
+{
+    internal static IEnumerable<MethodBase> TargetMethods()
+    {
+        yield return Required(
+            nameof(CardSelectCmd.FromSimpleGridForRewards),
+            typeof(PlayerChoiceContext),
+            typeof(List<CardCreationResult>),
+            typeof(Player),
+            typeof(CardSelectorPrefs));
+        yield return Required(
+            nameof(CardSelectCmd.FromSimpleGrid),
+            typeof(PlayerChoiceContext),
+            typeof(IReadOnlyList<CardModel>),
+            typeof(Player),
+            typeof(CardSelectorPrefs));
+        yield return Required(
+            nameof(CardSelectCmd.FromCombatPile),
+            typeof(PlayerChoiceContext),
+            typeof(CardPile),
+            typeof(Player),
+            typeof(CardSelectorPrefs),
+            typeof(Func<CardModel, bool>));
+    }
+
+    private static MethodBase Required(string name, params Type[] arguments) =>
+        AccessTools.Method(typeof(CardSelectCmd), name, arguments)
+        ?? throw new MissingMethodException(typeof(CardSelectCmd).FullName, name);
+
+    private static void Prefix(
+        [HarmonyArgument(0)] PlayerChoiceContext context,
+        MethodBase __originalMethod,
+        out IDisposable? __state)
+    {
+        __state = NativeNestedCallbackSafety.Run(
+            $"CardSelectCmd.{__originalMethod.Name}.exact_parent",
+            () => NativeNestedSelectorBindings.EnterPlayerChoiceParent(
+                context,
+                string.Equals(
+                    __originalMethod.Name,
+                    nameof(CardSelectCmd.FromCombatPile),
+                    StringComparison.Ordinal)
+                    ? "generic_combat_pile_selector"
+                    : "generic_simple_card_selector",
+                $"CardSelectCmd.{__originalMethod.Name}"),
+            fallback: null);
+    }
+
+    private static Exception? Finalizer(
+        IDisposable? __state,
+        Exception? __exception) =>
+        NativeNestedCallbackSafety.Finalize(
+            "CardSelectCmd.exact_parent.finalizer",
+            __exception,
+            () => __state?.Dispose());
 }
 
 /// <summary>
@@ -266,16 +465,30 @@ internal static class NativeNestedSelectorAcceptedPatch
         AccessTools.Method(type, name, arguments)
         ?? throw new MissingMethodException(type.FullName, name);
 
-    private static void Postfix(object __instance, MethodBase __originalMethod)
+    private static void Prefix(
+        object __instance,
+        MethodBase __originalMethod,
+        out NativeNestedSelectorBindings.Binding? __state)
     {
-        NativeNestedSelectorBindings.Binding? binding = null;
-        bool reserved = false;
+        __state = NativeNestedCallbackSafety.Run(
+            $"{__originalMethod.DeclaringType?.FullName}.{__originalMethod.Name}.reserve",
+            () => NativeNestedSelectorBindings.TryReserve(__instance, out var binding)
+                ? binding
+                : null,
+            fallback: null);
+    }
+
+    private static void Postfix(
+        object __instance,
+        MethodBase __originalMethod,
+        NativeNestedSelectorBindings.Binding? __state)
+    {
+        NativeNestedSelectorBindings.Binding? binding = __state;
+        bool reserved = binding != null;
         try
         {
-            if (!NativeNestedSelectorBindings.TryReserve(__instance, out binding)
-                || binding == null)
+            if (binding == null)
                 return;
-            reserved = true;
             if (!TryReadCompletedSelection(
                     __instance,
                     out bool taskCancelled,
@@ -335,6 +548,20 @@ internal static class NativeNestedSelectorAcceptedPatch
                 NativeNestedSelectorBindings.TryRelease(__instance, binding);
         }
     }
+
+    private static Exception? Finalizer(
+        object __instance,
+        MethodBase __originalMethod,
+        NativeNestedSelectorBindings.Binding? __state,
+        Exception? __exception) =>
+        NativeNestedCallbackSafety.Finalize(
+            $"{__originalMethod.DeclaringType?.FullName}.{__originalMethod.Name}.finalizer",
+            __exception,
+            () =>
+            {
+                if (__state != null)
+                    NativeNestedSelectorBindings.TryRelease(__instance, __state);
+            });
 
     private static bool TryReadCompletedSelection(
         object screen,
@@ -827,6 +1054,23 @@ internal static class NativeRewardSelectTaskBindingPatch
             typeof(Reward).FullName,
             nameof(Reward.SelectUnsynchronized));
 
+    private static void Prefix(Reward __instance, out IDisposable? __state)
+    {
+        __state = NativeNestedCallbackSafety.Run(
+            "Reward.SelectUnsynchronized.nested_parent",
+            () =>
+            {
+                NativeUiCompletionRootBindings.TryGet(__instance, out string? root);
+                return root == null
+                    ? null
+                    : NativeNestedSelectorBindings.EnterGenericSelectorParent(
+                        root,
+                        __instance,
+                        "Reward.SelectUnsynchronized");
+            },
+            fallback: null);
+    }
+
     private static void Postfix(Reward __instance, Task<bool> __result)
     {
         NativeNestedCallbackSafety.Run(
@@ -837,6 +1081,14 @@ internal static class NativeRewardSelectTaskBindingPatch
                     NativeCardRewardAlternativeBindings.RememberTask(reward, __result);
             });
     }
+
+    private static Exception? Finalizer(
+        IDisposable? __state,
+        Exception? __exception) =>
+        NativeNestedCallbackSafety.Finalize(
+            "Reward.SelectUnsynchronized.nested_parent.finalizer",
+            __exception,
+            () => __state?.Dispose());
 }
 
 [HarmonyPatch]

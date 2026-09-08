@@ -56,10 +56,19 @@ consumed only after the screen's own completion source has settled at a
 terminal callback. Shop removal uses the shipped three-argument
 `MerchantCardRemovalEntry.OnTryPurchaseWrapper`; Event uses `EventOption.Chosen`;
 Rest uses the exact `RestSiteOption` selected by `ChooseLocalOption`; and
-GameAction-owned selectors use `NativePlayerChoiceLineage`. The child is durable
+the context-bearing `CardSelectCmd.FromSimpleGridForRewards`, `FromSimpleGrid`,
+and five-argument `FromCombatPile` entry points carry an exact
+`GameActionPlayerChoiceContext.Action`, `HookPlayerChoiceContext.GameAction`, or
+the exact v0.111.0 `BranchingPlayerChoiceContext` delegate object. Context-free
+deck/bundle calls are admitted only while an exact Event, Rest, Reward,
+Merchant, or Treasure owner scope is active. In particular, selector-bearing
+relic `AfterObtained` calls inherit the exact `RelicReward.SelectUnsynchronized`,
+merchant-entry, Event-option, Rest-option, or treasure-pick scope; the
+save/load `RunManager` call is lifecycle restoration and is not a Human
+decision. The child is durable
 continuation evidence on the existing parent root, not a second root, Commit,
 ledger, or successor. Async `MoveNext`, FIFO, latest-frame, current-overlay,
-timer, and backfill association remain forbidden.
+global current-GameAction, timer, and backfill association remain forbidden.
 
 The shared-event census does not introduce another single-player owner. The
 local accepted occurrence still terminates at the exact selected

@@ -255,11 +255,34 @@ test("only terminal selector callbacks create one child continuation", () => {
   assert.match(accepted, /CloseSelection/u);
   assert.doesNotMatch(accepted, /CancelSelection/u);
   assert.match(accepted, /NativeNestedSelectorBindings\.TryReserve/u);
+  assert.match(accepted, /private static void Prefix\([\s\S]*?TryReserve/u);
+  assert.match(accepted, /private static void Postfix\([\s\S]*?Binding\? __state/u);
+  assert.match(accepted, /private static Exception\? Finalizer\([\s\S]*?TryRelease/u);
   assert.match(accepted, /NativeNestedSelectorBindings\.TryConsume/u);
   assert.match(accepted, /NativeNestedSelectorBindings\.TryRelease/u);
   assert.match(accepted, /NativeTerminalTaskDisposition\.Classify\(task\)/u);
   assert.match(exactAsyncBindings, /holder\.Reserved/u);
   assert.doesNotMatch(accepted, /task\.IsFaulted[\s\S]*?cancelled\s*=\s*true/u);
+});
+
+test("generic selector parents use exact native carriers without ambient action fallback", () => {
+  const parents = section(nestedSelectors, "internal static class NativeNestedSelectorBindings", "internal static class NativeGameActionCardSelectorParentPatch");
+  const gameAction = section(nestedSelectors, "internal static class NativeGameActionCardSelectorParentPatch", "internal static class NativeEventNestedSelectorParentPatch");
+  const reward = section(nestedSelectors, "internal static class NativeRewardSelectTaskBindingPatch", "internal static class NativeCardRewardAlternativePatch");
+
+  assert.match(gameAction, /CardSelectCmd\.FromSimpleGridForRewards/u);
+  assert.match(gameAction, /CardSelectCmd\.FromSimpleGrid/u);
+  assert.match(gameAction, /CardSelectCmd\.FromCombatPile/u);
+  assert.match(gameAction, /EnterPlayerChoiceParent/u);
+  assert.match(parents, /GameActionPlayerChoiceContext[\s\S]*?\.Action/u);
+  assert.match(parents, /HookPlayerChoiceContext[\s\S]*?\.GameAction/u);
+  assert.match(parents, /BranchingPlayerChoiceContext/u);
+  assert.match(parents, /_createdContext/u);
+  assert.match(parents, /_originalContext/u);
+  assert.match(parents, /ReferenceEqualityComparer\.Instance/u);
+  assert.doesNotMatch(parents, /NativePlayerChoiceLineage\.Capture\(\)/u);
+  assert.match(reward, /Reward\.SelectUnsynchronized\.nested_parent/u);
+  assert.match(reward, /EnterGenericSelectorParent/u);
 });
 
 test("binding collisions and rejected acceptance stay fail closed", () => {

@@ -137,4 +137,21 @@ public sealed class ExactAsyncOwnerBindingScopeTests
         Assert.Same(binding, second);
         Assert.True(scope.TryConsume(key, second!));
     }
+
+    [Fact]
+    public void TerminalCallbackReservationPreventsExitTreeFromStealingCarrier()
+    {
+        var scope = new ExactAsyncOwnerBindingScope<Key, Context, Binding>();
+        var key = new Key();
+        var binding = new Binding("root-a");
+        Assert.True(scope.TrySet(key, binding));
+
+        // The terminal callback reserves in its prefix, before native code can
+        // synchronously queue/free the screen and run _ExitTree. Teardown must
+        // not append an unavailable disposition for the same carrier.
+        Assert.True(scope.TryReserve(key, out Binding? terminalIntent));
+        Assert.False(scope.TryReserve(key, out _));
+        Assert.True(scope.TryConsume(key, terminalIntent!));
+        Assert.False(scope.TryGet(key, out _));
+    }
 }

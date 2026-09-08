@@ -84,12 +84,16 @@ Terminal boss/victory proceed is classified separately as `act_change.ready`:
 `ExecuteAction -> OnPlayerReady` is Commit, and `RunManager.ActEntered` is only
 observed when all native votes cause that boundary. No successor act is inferred.
 
-The parent shop card-removal, Event, and Rest-site choices remain implemented
-at their exact top-level owners. Their nested card/selector children are
-`BLOCKED` in the map: v0.111.0 `CardSelectCmd`/`NDeckCardSelectScreen` carries
-only cards and selector preferences, while Event/Rest callbacks expose no
-stable parent carrier. Ambient, FIFO, latest, timer, and backfill association
-are therefore not recording implementations.
+The parent shop card-removal, Event, and Rest-site choices and their nested
+card/selector continuations are source/test implemented at exact top-level
+owners. Context-bearing simple/combat-pile `CardSelectCmd` overloads carry their
+exact `PlayerChoiceContext` action. Context-free deck/bundle calls are admitted
+only through the exact Event-option, Rest-option, Reward, Merchant, or Treasure
+logical invocation scope. This includes selector-bearing relic
+`AfterObtained` calls reached through those exact acquisition owners. Ambient
+current-action, FIFO, latest, timer, and backfill association remain forbidden.
+A fresh exact build/load/Human canary is still required for current bytes;
+source/test closure is not runtime qualification.
 
 PR #11 pre-hard-cut source carried the Native Foundation semantic decision through
 the modern path as a typed action-space sidecar. Combat roots capture it at the
