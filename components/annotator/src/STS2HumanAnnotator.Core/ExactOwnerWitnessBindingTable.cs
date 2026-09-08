@@ -73,4 +73,31 @@ public sealed class ExactOwnerWitnessBindingTable<T>
             return true;
         }
     }
+
+    public bool TryTransfer(T? source, T? destination, string? expectedWitnessId)
+    {
+        if (source == null || destination == null
+            || string.IsNullOrWhiteSpace(expectedWitnessId)
+            || ReferenceEquals(source, destination))
+            return false;
+        lock (_gate)
+        {
+            if (!_owners.TryGetValue(source, out OwnerBinding? sourceBinding)
+                || !string.Equals(sourceBinding.WitnessId, expectedWitnessId, StringComparison.Ordinal)
+                || _owners.TryGetValue(destination, out _))
+                return false;
+            _owners.Remove(source);
+            _owners.Add(destination, sourceBinding);
+            _witnesses.Remove(expectedWitnessId, source);
+            if (_witnesses.TryBind(expectedWitnessId, destination))
+                return true;
+
+            // Restore the exact source carrier if the reverse index rejects
+            // the destination unexpectedly. No witness is silently lost.
+            _owners.Remove(destination);
+            _owners.Add(source, sourceBinding);
+            _witnesses.TryBind(expectedWitnessId, source);
+            return false;
+        }
+    }
 }

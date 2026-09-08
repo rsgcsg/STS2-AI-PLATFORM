@@ -282,6 +282,24 @@ public sealed class NativePostCommitCompletionLedgerTests
         Assert.Equal(1, ledger.Count);
     }
 
+    [Fact]
+    public void FailedOwnerToTaskTransferCanRestoreTheExactRegistration()
+    {
+        var ledger = new NativePostCommitCompletionLedger();
+        Assert.True(ledger.Register(Registration("root-a", "reward-a", "owner-a")));
+        Assert.True(ledger.BindTask(new NativeTaskObservation(
+            "session-a", 1, "native.select", "task-a", "owner-a", "reward-a"),
+            "root-a").IsMatched);
+        Assert.False(ledger.Register(Registration("root-a", "reward-a", "owner-a")));
+
+        Assert.True(ledger.RollbackTaskBinding("task-a"));
+        Assert.Equal("no_match", ledger.PreviewTaskCompletion(
+            new NativeTaskCompletion("session-a", 1, "completion-a", "task-a", true)).Status);
+        Assert.True(ledger.BindTask(new NativeTaskObservation(
+            "session-a", 1, "native.select", "task-b", "owner-a", "reward-a"),
+            "root-a").IsMatched);
+    }
+
     private static NativePostCommitCompletionRegistration Registration(
         string actionWitnessId,
         string operand,

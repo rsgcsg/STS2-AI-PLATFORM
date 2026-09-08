@@ -888,6 +888,12 @@ internal static class NativeUiCompletionRootBindings
         return Bindings.TakeIfMatches(owner, expectedActionWitnessId);
     }
 
+    internal static bool Transfer(
+        object? source,
+        object? destination,
+        string? expectedActionWitnessId) =>
+        Bindings.TryTransfer(source, destination, expectedActionWitnessId);
+
     internal static bool Contains(object? owner) =>
         Bindings.Contains(owner);
 
@@ -910,10 +916,13 @@ internal static class NativeUiCompletionRootBindings
         return true;
     }
 
-    internal static string? TakeCurrentRewardOrTreasure()
+    internal static object? CurrentRewardOrTreasureOwner()
     {
-        string? overlayRoot = Take(NOverlayStack.Instance?.Peek());
-        return overlayRoot ?? Take(NativeTreasureUiContext.CurrentUi());
+        object? overlay = NOverlayStack.Instance?.Peek();
+        if (Contains(overlay))
+            return overlay;
+        object? treasure = NativeTreasureUiContext.CurrentUi();
+        return Contains(treasure) ? treasure : null;
     }
 }
 
@@ -1008,12 +1017,12 @@ internal static class NativeTreasureChestChoicePatch
                     DateTimeOffset.UtcNow),
                 captureImmediatePostCommitBoundary: false,
                 actionWitnessId: __state.ActionWitnessId);
-            if (accepted)
-                NativeUiCompletionRootBindings.RememberOrFailClosed(
+            if (accepted && !NativeUiCompletionRootBindings.RememberOrFailClosed(
                     NativeTreasureUiContext.CurrentUi(),
                     __state.ActionWitnessId,
                     NativeActionType,
-                    "The exact treasure UI owner is already bound or unavailable.");
+                    "The exact treasure UI owner is already bound or unavailable."))
+                return;
         }
         catch (Exception exception)
         {
@@ -1162,12 +1171,12 @@ internal static class NativeTreasureProceedPatch
                     DateTimeOffset.UtcNow),
                 captureImmediatePostCommitBoundary: false,
                 actionWitnessId: __state.Scope.ActionWitnessId);
-            if (accepted)
-                NativeUiCompletionRootBindings.RememberOrFailClosed(
+            if (accepted && !NativeUiCompletionRootBindings.RememberOrFailClosed(
                     __instance,
                     __state.Scope.ActionWitnessId,
                     NativeActionType,
-                    "The exact treasure proceed owner is already bound to another root.");
+                    "The exact treasure proceed owner is already bound to another root."))
+                return;
         }
         catch (Exception exception)
         {
@@ -1199,8 +1208,7 @@ internal static class NativeTreasureNormalRewardsPatch
             "OneOffSynchronizer.DoLocalTreasureRoomRewards",
             nativeOwner: __instance,
             nativeOperand: NativeTreasureUiContext.CurrentRoom(),
-            expectedActionWitnessId: NativeUiCompletionRootBindings.Take(
-                NativeTreasureUiContext.CurrentUi()));
+            completionRootOwner: NativeTreasureUiContext.CurrentUi());
 }
 
 [HarmonyPatch]
@@ -1222,7 +1230,7 @@ internal static class NativeTreasureProceedCompletionPatch
             nativeOperand: NOverlayStack.Instance?.Peek() is NRewardsScreen
                 ? NativeRewardUiContext.CurrentRewardsSet()
                 : NativeTreasureUiContext.CurrentRoom(),
-            expectedActionWitnessId: NativeUiCompletionRootBindings.TakeCurrentRewardOrTreasure());
+            completionRootOwner: NativeUiCompletionRootBindings.CurrentRewardOrTreasureOwner());
 }
 
 [HarmonyPatch]
@@ -1395,12 +1403,12 @@ internal static class NativeRewardProceedPatch
                     DateTimeOffset.UtcNow),
                 captureImmediatePostCommitBoundary: false,
                 actionWitnessId: __state.Scope.ActionWitnessId);
-            if (accepted)
-                NativeUiCompletionRootBindings.RememberOrFailClosed(
+            if (accepted && !NativeUiCompletionRootBindings.RememberOrFailClosed(
                     __instance,
                     __state.Scope.ActionWitnessId,
                     __state.NativeActionType,
-                    "The exact rewards screen is already bound to another root.");
+                    "The exact rewards screen is already bound to another root."))
+                return;
         }
         catch (Exception exception)
         {
@@ -1601,15 +1609,17 @@ internal static class NativeRewardPotionDiscardCommitPatch
     {
         try
         {
-            string? actionWitnessId = NativeUiCompletionRootBindings.Take(__instance);
-            if (actionWitnessId == null)
+            if (!NativeUiCompletionRootBindings.TryGet(__instance, out string? actionWitnessId)
+                || actionWitnessId == null)
                 return;
-            RecorderRuntime.ObserveSemanticUiNativeCommit(
+            bool durable = RecorderRuntime.ObserveSemanticUiNativeCommit(
                 actionWitnessId,
                 NativeRewardPotionDiscardPatch.CompletionFamily,
                 "DiscardPotionGameAction.ExecuteAction",
                 nativeOwner: __instance,
                 nativeLineage: __instance);
+            if (durable)
+                NativeUiCompletionRootBindings.TakeIfMatches(__instance, actionWitnessId);
         }
         catch (Exception exception)
         {
@@ -1689,13 +1699,17 @@ internal static class NativeActChangeVoteCommitPatch
             if (!NativeUiCompletionRootBindings.TryGet(__instance, out __state)
                 || __state == null)
                 return;
-            if (!NativeUiCompletionRootBindings.RememberOrFailClosed(
+            if (!NativeUiCompletionRootBindings.Transfer(
+                    __instance,
                     RunManager.Instance,
+                    __state))
+            {
+                RecorderRuntime.ObserveSemanticUiCarrierBindingFailure(
                     __state,
                     NativeRewardProceedPatch.ActChangeNativeActionType,
-                    "RunManager is already bound to another exact act-change root."))
-                return;
-            NativeUiCompletionRootBindings.TakeIfMatches(__instance, __state);
+                    "The exact vote-to-RunManager carrier transfer was ambiguous.");
+                __state = null;
+            }
         }
         catch (Exception exception)
         {
@@ -1734,14 +1748,21 @@ internal static class NativeActChangeVoteCommitPatch
 [HarmonyPatch(typeof(RewardsSetSynchronizer), nameof(RewardsSetSynchronizer.SkipLocalRewardsSet))]
 internal static class NativeRewardSkipCommitPatch
 {
-    private static void Postfix(RewardsSetSynchronizer __instance) =>
-        RecorderRuntime.ObserveSemanticUiNativeCommit(
+    private static void Postfix(RewardsSetSynchronizer __instance)
+    {
+        object? owner = NOverlayStack.Instance?.Peek();
+        if (!NativeUiCompletionRootBindings.TryGet(owner, out string? actionWitnessId)
+            || actionWitnessId == null)
+            return;
+        bool durable = RecorderRuntime.ObserveSemanticUiNativeCommit(
+            actionWitnessId,
             "reward_proceed",
             "RewardsSetSynchronizer.SkipLocalRewardsSet",
             nativeOwner: __instance,
-            nativeOperand: NativeRewardUiContext.CurrentRewardsSet(),
-            expectedActionWitnessId: NativeUiCompletionRootBindings.Take(
-                NOverlayStack.Instance?.Peek()));
+            nativeOperand: NativeRewardUiContext.CurrentRewardsSet());
+        if (durable)
+            NativeUiCompletionRootBindings.TakeIfMatches(owner, actionWitnessId);
+    }
 }
 
 [HarmonyPatch]
@@ -1845,7 +1866,7 @@ internal static class NativeRewardClaimCompletionPatch
             "RewardsSetSynchronizer.SelectLocalReward",
             nativeOwner: __instance,
             nativeOperand: reward,
-            expectedActionWitnessId: NativeUiCompletionRootBindings.Take(reward));
+            completionRootOwner: reward);
     }
 }
 
@@ -1925,12 +1946,12 @@ internal static class NativeEventOptionPatch
                     DateTimeOffset.UtcNow),
                 captureImmediatePostCommitBoundary: false,
                 actionWitnessId: __state.Scope.ActionWitnessId);
-            if (accepted)
-                NativeUiCompletionRootBindings.RememberOrFailClosed(
+            if (accepted && !NativeUiCompletionRootBindings.RememberOrFailClosed(
                     option,
                     __state.Scope.ActionWitnessId,
                     NativeActionType,
-                    "The exact EventOption is already bound to another root.");
+                    "The exact EventOption is already bound to another root."))
+                return;
         }
         catch (Exception exception)
         {
@@ -1960,7 +1981,7 @@ internal static class NativeEventOptionCompletionPatch
                 __result,
                 "EventOption.Chosen",
                 nativeOperand: __instance,
-                expectedActionWitnessId: NativeUiCompletionRootBindings.Take(__instance));
+                completionRootOwner: __instance);
         }
     }
 }

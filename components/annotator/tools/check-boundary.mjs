@@ -80,7 +80,7 @@ if (/BoundaryTracker\.(?:HasUnresolvedActions|CanOpenNextRoot)/u.test(semanticAd
   errors.push("Human root capture must not be gated on prior successor readiness");
 if (!recorderRuntime.includes("lifecycleState == RecordingLifecycleState.Recording"))
   errors.push("Human admission must remain bounded by recording lifecycle");
-if (!recorderRuntime.includes("BoundaryTracker.ObserveBeforeActionExecution("))
+if (!recorderRuntime.includes("tracker.ObserveBeforeActionExecution("))
   errors.push("the exact next Human execution boundary must settle only through the semantic tracker");
 if (recorderRuntime.includes("overlapping_action_before_successor"))
   errors.push("legacy overlap settlement reasons must not survive in the current causal path");

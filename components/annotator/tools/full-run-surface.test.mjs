@@ -38,8 +38,7 @@ test("act-ready binds one exact queued action and skips generic duplicate ingres
   assert.match(enqueue, /NativeUiCompletionRootBindings\.Remember\(action, actionWitnessId\)/u);
   assert.match(runtime, /if \(NativeUiCompletionRootBindings\.Contains\(action\)\)\s*return;/u);
   assert.match(commit, /NativeUiCompletionRootBindings\.TryGet\(__instance, out __state\)/u);
-  assert.match(commit, /RememberOrFailClosed\([\s\S]*?RunManager\.Instance/u);
-  assert.match(commit, /TakeIfMatches\(__instance, __state\)/u);
+  assert.match(commit, /NativeUiCompletionRootBindings\.Transfer\([\s\S]*?RunManager\.Instance/u);
   assert.match(commit, /ObserveNativeActChangeOwnerReady\(__state, __instance\)/u);
   assert.equal((commit.match(/ObserveSemanticUiNativeCommit\(/gu) ?? []).length, 1);
 });
@@ -148,4 +147,34 @@ test("boss same-parent registration is idempotent or explicitly ambiguous", () =
   assert.match(foundation, /sameParent/u);
   assert.match(foundation, /IsAmbiguous = true/u);
   assert.match(foundation, /Multiple RelicSelectCmd option registrations share the exact PlayerChoice parent/u);
+});
+
+test("semantic mutation and native carrier call matrix is transactionally covered", () => {
+  for (const [start, end] of [
+    ["internal static void ObservePlayCardExecutionAborted", "internal static void ObserveAcceptedUiAction"],
+    ["private static void ObserveBeforeActionExecution", "private static void ObserveSemanticDecisionBoundary"],
+    ["private static void ObserveSemanticDecisionBoundary", "private static SemanticBoundaryObservation"],
+    ["private static bool StartSemanticUiAction", "private static void CleanupUnstartedSemanticUiAction"],
+    ["private static void StartSemanticNativeAction", "private static SemanticActionReference"],
+    ["private static void ObserveNativeActEntered", "private static void UpdateRunLifecycle"]
+  ]) {
+    const body = section(runtime, start, end);
+    assert.match(body, /PersistTrackerMutationOrUnknown|BeginDurableMutation/u, `${start} bypasses durable mutation`);
+  }
+
+  assert.doesNotMatch(patches, /NativeUiCompletionRootBindings\.Take\(/u);
+  for (const [start, end] of [
+    ["internal static class NativeTreasureNormalRewardsPatch", "internal static class NativeTreasureProceedCompletionPatch"],
+    ["internal static class NativeTreasureProceedCompletionPatch", "internal static class NativeRewardClaimStartPatch"],
+    ["internal static class NativeRewardPotionDiscardCommitPatch", "internal static class NativeActChangeVoteEnqueuePatch"],
+    ["internal static class NativeActChangeVoteCommitPatch", "internal static class NativeRewardSkipCommitPatch"],
+    ["internal static class NativeRewardSkipCommitPatch", "internal static class NativeCardRewardSelectionPatch"],
+    ["internal static class NativeRewardClaimCompletionPatch", "internal static class NativeEventOptionPatch"],
+    ["internal static class NativeEventOptionCompletionPatch", "internal static class NativeRestSiteOptionPatch"]
+  ]) {
+    const body = section(patches, start, end);
+    assert.match(body, /TryGet|completionRootOwner|Transfer/u, `${start} consumes or transfers without exact preview`);
+  }
+  assert.match(runtime, /RollbackTaskBinding\(taskWitnessId\)/u);
+  assert.match(runtime, /catch \(AppendRollbackFailedException exception\)[\s\S]*?DisableSemanticBoundaryTrace\(exception\)/u);
 });

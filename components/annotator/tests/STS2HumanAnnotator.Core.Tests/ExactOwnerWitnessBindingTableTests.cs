@@ -39,4 +39,34 @@ public sealed class ExactOwnerWitnessBindingTableTests
         Assert.True(table.TakeIfMatches(owner, "root-a"));
         Assert.False(table.TryGetOwner("root-a", out _));
     }
+
+    [Fact]
+    public void ExactTransferMovesOneWitnessWithoutAConsumptionGap()
+    {
+        var table = new ExactOwnerWitnessBindingTable<object>();
+        var source = new object();
+        var destination = new object();
+        Assert.True(table.TryBind(source, "root-a"));
+
+        Assert.True(table.TryTransfer(source, destination, "root-a"));
+        Assert.False(table.Contains(source));
+        Assert.True(table.TryGetWitness(destination, out string? witness));
+        Assert.Equal("root-a", witness);
+        Assert.True(table.TryGetOwner("root-a", out object? owner));
+        Assert.Same(destination, owner);
+    }
+
+    [Fact]
+    public void FailedTransferRetainsExactSourceCarrier()
+    {
+        var table = new ExactOwnerWitnessBindingTable<object>();
+        var source = new object();
+        var occupied = new object();
+        Assert.True(table.TryBind(source, "root-a"));
+        Assert.True(table.TryBind(occupied, "root-b"));
+
+        Assert.False(table.TryTransfer(source, occupied, "root-a"));
+        Assert.True(table.TryGetWitness(source, out string? witness));
+        Assert.Equal("root-a", witness);
+    }
 }

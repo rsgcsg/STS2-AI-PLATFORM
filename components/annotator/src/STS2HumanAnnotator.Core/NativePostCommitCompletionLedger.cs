@@ -148,6 +148,10 @@ public sealed class NativePostCommitCompletionLedger
             return false;
         }
         if (_registrations.ContainsKey(registration.ActionWitnessId)
+            || _taskBindings.Values.Any(binding => string.Equals(
+                binding.ActionWitnessId,
+                registration.ActionWitnessId,
+                StringComparison.Ordinal))
             || Count >= _capacity)
         {
             return false;
@@ -280,6 +284,32 @@ public sealed class NativePostCommitCompletionLedger
             return false;
         }
         return _taskBindings.Remove(binding.TaskWitnessId);
+    }
+
+    /// <summary>
+    /// Reverses only the in-memory registration-to-Task transfer when the
+    /// caller cannot complete its exact owner-carrier compare/remove. No
+    /// semantic event has been appended at this point.
+    /// </summary>
+    public bool RollbackTaskBinding(string taskWitnessId)
+    {
+        if (string.IsNullOrWhiteSpace(taskWitnessId)
+            || !_taskBindings.TryGetValue(taskWitnessId, out NativeTaskBinding? binding)
+            || _registrations.ContainsKey(binding.ActionWitnessId))
+            return false;
+        var registration = new NativePostCommitCompletionRegistration(
+            binding.SessionId,
+            binding.Generation,
+            binding.ActionWitnessId,
+            new NativePostCommitCompletionExpectation(
+                binding.Family,
+                binding.Kind,
+                binding.NativeOwnerWitnessId,
+                binding.NativeOperandWitnessId,
+                binding.NativeLineageWitnessId));
+        _taskBindings.Remove(taskWitnessId);
+        _registrations.Add(registration.ActionWitnessId, registration);
+        return true;
     }
 
     /// <summary>
