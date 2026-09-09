@@ -29,7 +29,7 @@ from a later Human effect.
 
 ## Current Matrix
 
-| Slice | Native witness | Source/test | Current-artifact Live |
+| Slice | Native witness | Source/test | Historical/predecessor Live (not HEAD148) |
 |---|---|---:|---:|
 | ordinary combat play / End Turn | `GameAction.OnEnqueued` + typed lifecycle + `ActionExecutor.BeforeActionExecuted` | complete | schema-3 canary: 214 `PlayCard`, 48 `EndTurn` roots proved |
 | generated-card select | exact selection callback + direct UI delivery | complete | schema-3 canary: three selects proved |
@@ -42,12 +42,18 @@ from a later Human effect.
 | card reward select | `NCardRewardSelectionScreen.SelectCard` -> enclosing `CardReward.OnSelect` completion | source/test complete; option callback alone is not a successor proof | final PR #6 session: 4 canonical |
 | map travel | `NMapScreen.OnMapPointSelectedLocally` -> `VoteForMapCoordAction` lifecycle | source/test complete | final PR #6 session: 7/7 canonical; five typed owner-ready successors complete |
 | treasure open / relic select / skip / proceed | exact room/synchronizer owner; `PickRelicAction`, normal-reward task and terminal-proceed task seams | source/test complete; visual `OnRelease` is not gameplay authority | predecessor repair sessions exercised the seam; the final exact PR #6 session did not exercise Treasure |
-| event option | `EventRoom.LocalMutableEvent.CurrentOptions` + `EventOption.Chosen` task | complete visible option catalog | `NEventRoom.OptionButtonClicked` + exact option completion ledger | source complete; final candidate live canary required |
-| shop room open / proceed | `NMerchantRoom.OpenInventory` / `HideScreen` native controls | complete room-control catalog | exact room callbacks | source complete; final candidate live canary required |
-| shop purchase / card removal | `MerchantEntry.IsStocked/EnoughGold` + `OnTryPurchaseWrapper` task | complete visible offer catalog | `MerchantEntry.OnTryPurchaseWrapper` + exact entry completion ledger | source complete; final candidate live canary required |
-| shop inventory close | `NMerchantInventory.Close` after exact BackButton delivery | complete visible close control | exact inventory close callback | source complete; final candidate live canary required |
-| rest-site option / proceed | `RestSiteSynchronizer.ChooseLocalOption` task and `NRestSiteRoom` proceed | complete visible option catalog | exact synchronizer and proceed callbacks | source complete; final candidate live canary required |
+| event option | `NEventRoom.OptionButtonClicked` + `EventOption.Chosen` task | complete visible option catalog; exact completion ledger source complete | final candidate live canary required |
+| shop room open / proceed | `NMerchantRoom.OpenInventory` / `HideScreen` native controls | complete room-control catalog; exact room callbacks source complete | final candidate live canary required |
+| shop purchase / card removal | `MerchantEntry.IsStocked/EnoughGold` + `OnTryPurchaseWrapper` task | complete visible offer catalog; exact entry ledger source complete | final candidate live canary required |
+| shop inventory close | `NMerchantInventory.Close` after exact BackButton delivery | complete visible close control; exact callback source complete | final candidate live canary required |
+| rest-site option / proceed | `RestSiteSynchronizer.ChooseLocalOption` task and `NRestSiteRoom` proceed | complete visible option catalog; exact callbacks source complete | final candidate live canary required |
 | run entry / game terminal | native `RunManager.Launch()` start and `RunManager.OnEnded(bool)` terminal seams; lifecycle-only | source/test complete for native markers; no Human action authority | fresh candidate lifecycle canary and exhaustive Full Run still required |
+
+The Live column is intentionally historical/predecessor evidence and is not
+evidence for the integrated `148c20fe` candidate or its unified artifact. The
+current candidate has source/test, clean build, and exact-game evidence only;
+installed, loaded, targeted Human canary, and continuous natural Full Run remain
+pending. No PR6/schema-3 row count in this column transfers to HEAD148.
 
 Generic nested selector continuation is source/test closed for the exact
 v0.111.0 vanilla carriers. An exact parent/root logical async invocation scope

@@ -1,4 +1,4 @@
-# PR25 Full-Run coverage inventory (reconciled 2026-09-09)
+# PR25 Full-Run coverage inventory (reconciled 2026-09-10)
 
 This is a source/evidence inventory, not an execution result. It does not
 create an action registry or admission authority: Connector owns `BoundAction`
@@ -15,14 +15,14 @@ MVID `73b63ee0-6c0a-47bb-b0d1-b21f6d94222e`, inspected with ILSpy
 `57785517...`) is historical evidence only and must not be presented as the
 current Windows artifact.
 
-The source baseline for this reconciliation is
-`agent/fullrun-docs@7513f705cc045e4c676617e21a976b7ea60b4234` (the accepted
-ingress/durable-accounting Windows continuation). The nested-selector source
-chain `dc919e9` -> `474b471` -> `de8de0e` -> `1a15d4482b4523a769280c2891c670030ecb3c4f`
-is a candidate integration, not part of that baseline. Its claims remain
-pending integration and integrated tests.
+The current integrated source boundary is
+`agent/fullrun-integrated-review@148c20fe22d348d8ce9167a66ba0f8965500fc70`,
+with accepted-ingress ancestry at `7513f705cc045e4c676617e21a976b7ea60b4234`
+and nested-selector repairs through `f7607b9d7b9bf7f76879a7e205a8db0dd4e6d303`.
+The nested chain is integrated and source/test closed; this inventory still
+does not claim a loaded runtime or Human result for the current artifact.
 
-## Accepted ingress and durable accounting in the Windows baseline
+## Accepted ingress and durable accounting in the integrated Windows candidate
 
 Accepted game actions enter through the exact Harmony seam
 `GameAction.OnEnqueued` (`AcceptedGameActionPatch.Postfix`), with lifecycle
@@ -57,9 +57,9 @@ ledger, or fabricated successor.
 
 ## Current source-supported families
 
-These are source classifications in the `7513f705` baseline, not Human/runtime
-PASS claims. Exact native owner and disposition remain required for every
-accepted action.
+These are source/test classifications in the integrated `148c20fe` candidate,
+not Human/runtime PASS claims. Exact native owner and disposition remain
+required for every accepted action.
 
 | Family | Exact native owner / completion seam | Baseline status |
 | --- | --- | --- |
@@ -70,21 +70,21 @@ accepted action.
 | map travel | `NMapScreen.OnMapPointSelectedLocally`, `VoteForMapCoordAction`/ready | InScopeImplemented |
 | reward/card reward | reward synchronizer and typed card-reward owner | InScopeImplemented |
 | treasure | `NTreasureRoom`, `PickRelicAction`, terminal proceed | InScopeImplemented |
-| event option | `NEventRoom.OptionButtonClicked`, `EventOption.Chosen()` | InScopeImplemented (nested child pending) |
-| shop open/proceed/purchase/close | `NMerchantRoom.OpenInventory`/`HideScreen`, merchant entry task, `NMerchantInventory.Close` | InScopeImplemented (nested child pending) |
-| rest option/proceed | `RestSiteSynchronizer` option task and proceed callback | InScopeImplemented (nested child pending) |
+| event option | `NEventRoom.OptionButtonClicked`, `EventOption.Chosen()` | InScopeImplemented (nested source/test closed; Human pending) |
+| shop open/proceed/purchase/close | `NMerchantRoom.OpenInventory`/`HideScreen`, merchant entry task, `NMerchantInventory.Close` | InScopeImplemented (nested source/test closed; Human pending) |
+| rest option/proceed | `RestSiteSynchronizer` option task and proceed callback | InScopeImplemented (nested source/test closed; Human pending) |
 | act change | `VoteToMoveToNextActAction.ExecuteAction`, `OnPlayerReady` | InScopeImplemented |
 | potion discard family | `NPotionPopup.OnDiscardButtonPressed`, `DiscardPotionGameAction.ExecuteAction` | InScopeImplemented for discard only |
 
 The label `reward_potion_belt.discard_replace` is a compound family label for
 the observed discard/reward path. It is not evidence of an atomic potion
 replacement transaction: no atomic potion replacement implementation is
-present in this source baseline.
+present in this source candidate.
 
 ## Nested-selector exact-context census
 
-The nested candidate adds explicit context resolution, but is not yet
-integrated into this baseline. The exact context-bearing factory seams are:
+The integrated nested selector path adds explicit context resolution. The exact
+context-bearing factory seams are:
 
 - `CardSelectCmd.FromSimpleGridForRewards(PlayerChoiceContext, List<CardCreationResult>, Player, CardSelectorPrefs)`;
 - `CardSelectCmd.FromSimpleGrid(PlayerChoiceContext, IReadOnlyList<CardModel>, Player, CardSelectorPrefs)`;
@@ -145,37 +145,29 @@ therefore excluded from the canonical action envelope by semantics, not because
 the nested candidate is incomplete. Dialogue/presentation-only callbacks and
 run-setup provenance are likewise not gameplay decisions in this inventory.
 
-## Pending nested candidate integration
+## Integrated nested selector source/test status
 
-The following are not current Full-Run source-supported claims in this
-baseline because the nested chain is not integrated and tested: generic
-simple/deck/combat-pile/bundle selectors requiring an exact parent; shop
-card-removal nested selector; event nested selector; rest nested selector;
-reward nested replacement; and `CardRemovalReward` nested removal. These are
-implemented candidate surfaces pending integration, not evidence that exact
-parent registration can be inferred. Until integrated, an absent exact parent
-must fail closed and the candidate must not be counted as Full-Run coverage.
+The generic simple/deck/combat-pile/bundle selectors requiring an exact parent,
+shop card-removal nested selector, event nested selector, rest nested selector,
+reward nested replacement, and `CardRemovalReward` nested removal are now
+integrated and covered by source/conformance tests. Exact parent registration
+remains mandatory; an absent parent fails closed and is never inferred from an
+ambient `GameAction`. The terminal reservation is terminal-only for each exact
+screen: `NDeckTransformSelectScreen.ConfirmSelection` opens the manual preview,
+while `CompleteSelection` settles the `Claws` path. Valid min-0 `SeaGlass`
+empty completion is admitted as a successful native continuation.
 
-Two concrete P1 integration repairs from the nested candidate remain pending:
-
-1. `NativeNestedSelectorAcceptedPatch.TargetMethods` includes
-   `NDeckTransformSelectScreen.ConfirmSelection`. This is nonterminal for the
-   `Claws` path; accepting it can consume the binding before the later
-   `CompleteSelection` callback. The target must be terminal-only.
-2. The candidate Postfix rejects `selected.Length == 0` as
-   `accepted_selection_was_empty`. That is incorrect for `SeaGlass`'s min-0
-   simple-grid choice; valid empty completion must be admitted.
-
-These are pending integration repairs, not fixed findings. No new exact build,
-install/load, runtime, or Human PASS is claimed for nested bytes. Historical
-Mac artifact/runtime evidence and failed/older Windows runs do not transfer to
-the current Windows identity or to the pending nested chain.
+These are source/test results for the `148c20fe` candidate only. No exact
+current-artifact install/load, runtime, or Human PASS is claimed. Historical
+macOS artifacts, older Windows runs, and the failed six-root session do not
+transfer to the current Windows identity.
 
 ## Evidence status
 
-The inventory is reconciled against source and exact native seam evidence only.
-It is not a replacement for the Full-Run cold-load/Human evidence packet.
-When the nested chain is integrated, the evidence packet must separately show
+The inventory is reconciled against integrated source and exact native seam
+evidence only. It is not a replacement for the Full-Run cold-load/Human
+evidence packet.
+For current-artifact runtime/Human qualification, the evidence packet must separately show
 accepted ingress, exact parent binding, terminal reservation -> durable append
 -> consume, carrier retention on failure, native fault versus cancel, both
 Reroll signals with scope disposal, `accepted=false` no bind/queue, callback

@@ -27,23 +27,29 @@ source checks are complete, but this source change requires a fresh exact build,
 install/load verification and a new owner Human UI canary. The predecessor
 artifact/session above does not transfer qualification to this candidate.
 
-## Full-Run completion candidate (2026-09-03)
+## Full-Run completion candidate (integrated 2026-09-10)
 
-The current Full-Run topic starts from refreshed `origin/develop` at
+The current Full-Run source candidate is
+`agent/fullrun-integrated-review@148c20fe22d348d8ce9167a66ba0f8965500fc70`,
+from refreshed `origin/develop` at
 `cd9a0fbb0c85577a13513abe715f91d794ac86eb`. It adds typed, read-only native
 room decision projection for event options, merchant room/inventory controls,
-and rest-site options, with Annotator witnesses bound to exact native
-callback/task and operand identities. Connector delivery and STS2 legality
-remain unchanged; UI remains a projection only. The profile is now
-`human-full-run-read-rich-v3`, while final-candidate Human canaries and a
-continuous natural Full Run are still required. The failed session
+rest-site options, and exact nested selector parent/context resolution, with
+Annotator witnesses bound to exact native callback/task and operand identities.
+Connector delivery and STS2 legality remain unchanged; UI remains a projection
+only. The profile is `human-full-run-read-rich-v3`. Portable root gates, BOM,
+closeout, exact-game checks, and clean unified build pass; current artifact
+identity is SHA `4e5765995e6a8b2ae1fa4dd456dc63fb9928e8c88f89343cb3e2c3ee294c3595`
+and MVID `12a389e6-25c1-471d-9798-8b040fba6b4b`.
+
+The nested source/test repairs are integrated: transform preview
+`ConfirmSelection` is not terminal (preview `CompleteSelection` is), and valid
+min-0 empty `SeaGlass` completion is admitted. The current artifact has not yet
+been installed, loaded, or owner-exercised. The failed session
 `session-20260903T102650Z-50552cf165a8439397b71d7a1967f957` remains rejected:
 six accepted roots ended at `action_started`, Event/Rest/Shop had exact
-pre-frame/task-binding failures, and terminal proof was polling-only. The
-current repair adds exact public action-shape binding, a pre-disable Rest-site
-button capture, strict root identity through shared async callbacks, and a
-native `RunManager.OnEnded(bool)` terminal marker; none of these source/test
-changes transfer the failed session or qualify new bytes. See the
+pre-frame/task-binding failures, and terminal proof was polling-only. No old
+session or predecessor artifact qualifies the current bytes. See the
 [failed-session forensic inventory](evidence/FULL_RUN_COVERAGE_INVENTORY_2026-09-03.md).
 
 ## PR #11 current recording-format hard cut (source/test, 2026-09-02)
