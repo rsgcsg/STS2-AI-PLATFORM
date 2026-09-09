@@ -125,8 +125,10 @@ Card-reward alternatives are also distinct from ordinary card selection:
 `OptionSelected`; `CardRewardAlternative.Generate` can add `Skip` and
 `REROLL`, while `PaelsWing.TryModifyCardRewardAlternatives` adds `SACRIFICE`.
 `REROLL` refreshes the same screen and leaves the outer reward task open until
-the eventual terminal selection. The candidate must preserve this one outer
-scope and atomically account for each terminal alternative.
+the eventual terminal selection. `REROLL` is itself an accepted nonterminal
+operation and must be atomically accounted for separately from the eventual
+terminal reward settlement (`Skip`, `SACRIFICE`, or card selection). The
+candidate must preserve this one outer scope and dispose it only at settlement.
 
 The exact native facts matter for admission. `NDeckTransformSelectScreen` has
 a main `ConfirmSelection` which, when `RequireManualConfirmation` is true,
@@ -135,14 +137,24 @@ opens the preview; the terminal callback is the preview's
 uses `CardSelectCmd.FromSimpleGridForRewards` with `CardSelectorPrefs` min `0`,
 so an empty selection is valid.
 
-## Exclusions and pending integration repairs
+## Native non-decisions and intentionally out-of-envelope paths
+
+Target-picker cancel before enqueue is a native nondecision: no accepted
+action, exact parent, or terminal completion exists to bind or queue. It is
+therefore excluded from the canonical action envelope by semantics, not because
+the nested candidate is incomplete. Dialogue/presentation-only callbacks and
+run-setup provenance are likewise not gameplay decisions in this inventory.
+
+## Pending nested candidate integration
 
 The following are not current Full-Run source-supported claims in this
-baseline: generic simple/deck/combat-pile/bundle selectors without an exact
-parent; target-picker cancel before enqueue; shop card-removal nested selector;
-event nested selector; rest nested selector; reward nested replacement; and
-`CardRemovalReward` nested removal. They remain excluded until the nested chain
-is integrated and its exact gates are tested.
+baseline because the nested chain is not integrated and tested: generic
+simple/deck/combat-pile/bundle selectors requiring an exact parent; shop
+card-removal nested selector; event nested selector; rest nested selector;
+reward nested replacement; and `CardRemovalReward` nested removal. These are
+implemented candidate surfaces pending integration, not evidence that exact
+parent registration can be inferred. Until integrated, an absent exact parent
+must fail closed and the candidate must not be counted as Full-Run coverage.
 
 Two concrete P1 integration repairs from the nested candidate remain pending:
 
@@ -169,3 +181,48 @@ accepted ingress, exact parent binding, terminal reservation -> durable append
 Reroll signals with scope disposal, `accepted=false` no bind/queue, callback
 barrier completion, and one root/ledger. Until then these are acceptance
 criteria, not results.
+
+## Historical failed-session forensic disposition (not qualification)
+
+The prior Windows session
+`session-20260903T102650Z-50552cf165a8439397b71d7a1967f957` is rejected for
+Human retest and does not qualify any candidate. Its manifest SHA is
+`70897d4ed041c92744be5ff8180f10ef94f3d84b7c3306a18e75aecf1ea99879`.
+The raw coverage is 76 admitted records, 124 invalidations, 1,058 materialized
+reads and zero failed reads. The invalidation reasons are 64
+`semantic_pre_frame_capture_failed`, 44 `native_task_binding_no_match`, 15
+`native_task_binding_ambiguous` and one `pre_frame_capture_failed`.
+
+The six accepted roots that started but never received a final disposition are
+listed below by their stable action witness. They are intentionally retained
+as unresolved evidence rather than backfilled or transferred:
+
+| sequence | root | native seam | bound label | final raw state |
+| ---: | --- | --- | --- | --- |
+| 202 | `ui-root-7c2927d5392f43b7b2428bc731de6b03` | `NRewardsScreen.OnProceedButtonPressed` | Continue from rewards | `action_started` only |
+| 220 | `ui-root-4030144f9d984f30809715b6d1b9c495` | `NRewardsScreen.OnProceedButtonPressed` | Skip remaining rewards and continue | `action_started` only |
+| 242 | `ui-root-b163490db86349d49ce7f48f5675bc56` | `NRewardsScreen.OnProceedButtonPressed` | Skip remaining rewards and continue | `action_started` only |
+| 264 | `ui-root-2dde6c35482c467b98407435d415a68c` | `NRewardsScreen.OnProceedButtonPressed` | Continue from rewards | `action_started` only |
+| 270 | `ui-root-074bf651491447fbafcc65efc318bf8a` | `NTreasureRoom.OnProceedButtonPressed` | Continue from the treasure room | `action_started` only |
+| 298 | `ui-root-12283f649bd44f128e2361b8323d2ecb` | `NRewardsScreen.OnProceedButtonPressed` | Continue from rewards | `action_started` only |
+
+The same trace contains one separately classified `transition_unknown` potion
+root (sequence 86) and a final PlayerChoice parent (sequence 304) that ends at
+`action_resumed`; neither is silently promoted to a terminal disposition.
+Map travel in this exact raw session is represented by native
+`VoteForMapCoordAction` roots and has no `membership_unknown` invalidation;
+that task note is stale relative to this raw evidence. The terminal tail was
+only the polling journal entry `run_ended` followed by close; no native
+`RunManager.OnEnded(bool)` marker was present.
+
+Exact shipped decomp confirms the owning seams: event option completion is
+`EventOption.Chosen()`, rest options return `RestSiteSynchronizer.ChooseLocalOption`
+after `NRestSiteButton.OnRelease` disables options, reward/treasure continuation
+uses `RunManager.ProceedFromTerminalRewardsScreen`, and victory/defeat converge
+at `RunManager.OnEnded(bool)`. The current repair therefore carries exact root
+identity through the shared async callbacks, captures rest-site pre-frame at
+the button boundary, aligns observations to the public `activate/open/cancel`
+projection, and records terminal evidence only from `OnEnded`. Polling remains
+an explicitly unproved lifecycle note; it cannot publish `RunEnded` or settle a
+root. These changes are source/test evidence only until a fresh exact build,
+cold load and new runtime session prove them.
