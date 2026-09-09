@@ -455,6 +455,8 @@ internal static class NativeNestedSelectorAcceptedPatch
         yield return Required(typeof(NDeckUpgradeSelectScreen), "CloseSelection", typeof(NButton));
         yield return Required(typeof(NDeckUpgradeSelectScreen), "ConfirmSelection", typeof(NButton));
         yield return Required(typeof(NDeckTransformSelectScreen), "CloseSelection", typeof(NButton));
+        // Transform ConfirmSelection only opens the manual-confirmation
+        // preview; the preview CompleteSelection callback is terminal.
         yield return Required(typeof(NDeckTransformSelectScreen), "CompleteSelection", typeof(NButton));
         yield return Required(typeof(NDeckEnchantSelectScreen), "CloseSelection", typeof(NButton));
         yield return Required(typeof(NDeckEnchantSelectScreen), "ConfirmSelection", typeof(NButton));
@@ -517,6 +519,9 @@ internal static class NativeNestedSelectorAcceptedPatch
                 }
                 return;
             }
+            // A terminal native result may legitimately contain no cards (for
+            // example a min-0 SimpleGrid).  Only an unreadable result is
+            // unavailable; do not reconstruct native selector legality here.
             var operands = new Dictionary<string, object>(StringComparer.Ordinal);
             for (int index = 0; index < selected.Length; index++)
                 operands[$"selected_{index}"] = selected[index];
