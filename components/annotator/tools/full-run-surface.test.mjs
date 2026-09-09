@@ -150,6 +150,11 @@ test("semantic mutations and task completions commit only after authoritative ap
   assert.match(runtime, /pending\.MarkAuthoritativeAppend\(\)/u);
   assert.match(runtime, /authoritativeAppend\s*=\s*true/u);
   assert.match(runtime, /if \(authoritativeAppend\)\s*return true/u);
+  assert.match(runtime, /unknownAuthoritativeAppend\s*=\s*true/u);
+  assert.match(runtime, /if \(!unknownAuthoritativeAppend\)/u);
+  assert.match(runtime, /if \(unknownAuthoritativeAppend\)\s*\{[\s\S]*?semantic_unknown\.downstream[\s\S]*?return true;/u);
+  assert.match(runtime, /if \(drafts\.Count == 0\)\s*return;/u);
+  assert.match(runtime, /Semantic boundary trace is unavailable for a nonempty durable append/u);
   assert.match(runtime, /emptyMutationIsSuccess\s*=\s*true/u);
   assert.match(runtime, /PreviewTaskCompletion\(taskCompletion\)/u);
   assert.match(runtime, /CommitTaskCompletion\(taskCompletion\)/u);
@@ -163,6 +168,15 @@ test("nested accepted observation uses the durable append outcome", () => {
   assert.match(nestedObservation, /persistUnknownOnFailure:\s*false/u);
   assert.doesNotMatch(nestedObservation, /PersistSemanticBoundaryDrafts\(drafts\)/u);
   assert.match(runtime, /catch \(Exception exception\)\s*\{[\s\S]*?if \(authoritativeAppend\)\s*return true;/u);
+});
+
+test("nonempty skipped writes retain the root on both primary and unknown paths", () => {
+  const helper = section(runtime, "private static bool PersistTrackerMutationOrUnknown", "private static NativeCompletionEvidence");
+  assert.match(helper, /PersistSemanticBoundaryDrafts\(\s*pending\.Drafts/u);
+  assert.match(helper, /if \(authoritativeAppend\)\s*return true;[\s\S]*?Semantic boundary drafts were not durably appended/u);
+  assert.match(helper, /PersistSemanticBoundaryDrafts\(\s*unknown\.Drafts/u);
+  assert.match(helper, /if \(!unknownAuthoritativeAppend\)[\s\S]*?return false;/u);
+  assert.match(helper, /if \(unknownAuthoritativeAppend\)[\s\S]*?semantic_unknown\.downstream[\s\S]*?return true;/u);
 });
 
 test("boss same-parent registration is idempotent or explicitly ambiguous", () => {

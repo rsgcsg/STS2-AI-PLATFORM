@@ -2934,10 +2934,10 @@ internal static class RecorderRuntime
                 disposition);
             // Keep the tracker mutation provisional until the exact native
             // continuation event is authoritative in the semantic stream.
-            // In particular, PersistSemanticBoundaryDrafts may intentionally
-            // return without invoking its callback when tracing is unhealthy;
-            // callers must then retain the exact selector carrier rather than
-            // treating the in-memory projection as accepted.
+            // In particular, PersistSemanticBoundaryDrafts rejects a nonempty
+            // write when tracing is unhealthy; callers must then retain the
+            // exact selector carrier rather than treating the in-memory
+            // projection as accepted.
             return PersistTrackerMutationOrUnknown(
                 parentActionWitnessId,
                 tracker => tracker.ObserveNativeHumanContinuation(
@@ -3159,6 +3159,7 @@ internal static class RecorderRuntime
         // The provisional mutation has rolled back here. Persist one explicit
         // unknown against the same exact root; only its successful append may
         // consume correlation state. This is not a retry of native mutation.
+        bool unknownAuthoritativeAppend = false;
         try
         {
             lock (Gate)
@@ -3176,6 +3177,7 @@ internal static class RecorderRuntime
                     unknown.Drafts,
                     onAuthoritativeSemanticAppend: () =>
                     {
+                        unknownAuthoritativeAppend = true;
                         unknown.MarkAuthoritativeAppend();
                         foreach (string id in unresolved)
                             BoundaryTracker.CommitUnknown(id);
@@ -3191,6 +3193,20 @@ internal static class RecorderRuntime
                         }
                     });
             }
+            if (!unknownAuthoritativeAppend)
+            {
+                // Trace shutdown (or another skipped append) leaves the
+                // provisional unknown mutation rolled back. Do not let the
+                // caller consume an exact carrier without a durable terminal
+                // disposition.
+                Quarantine(
+                    failureReason,
+                    $"{failureDetail} (unknown disposition was not durably appended)",
+                    _lastSnapshotId,
+                    nativeActionType,
+                    "evidence_commit_unknown");
+                return false;
+            }
             Quarantine(
                 failureReason,
                 failureDetail,
@@ -3201,6 +3217,17 @@ internal static class RecorderRuntime
         }
         catch (Exception unknownException)
         {
+            // The unknown append callback runs immediately after the
+            // authoritative stream append. Any exception after that point is
+            // downstream projection/cleanup failure; the unknown is already
+            // committed and must not be retried or relabeled.
+            if (unknownAuthoritativeAppend)
+            {
+                NativeUiObservationSafety.Report(
+                    "semantic_unknown.downstream",
+                    unknownException);
+                return true;
+            }
             NativeUiObservationSafety.Report(
                 "semantic_persistence.unknown_append",
                 unknownException);
@@ -3418,8 +3445,11 @@ internal static class RecorderRuntime
         Action? onAuthoritativeSemanticAppend = null,
         Action? onDerivedProjectionFailure = null)
     {
-        if (drafts.Count == 0 || !_semanticBoundaryTraceHealthy)
+        if (drafts.Count == 0)
             return;
+        if (!_semanticBoundaryTraceHealthy)
+            throw new InvalidOperationException(
+                "Semantic boundary trace is unavailable for a nonempty durable append.");
         RecordingSessionStore store = _store
             ?? throw new InvalidOperationException("No open recording store for semantic boundary evidence.");
         var events = new List<SemanticEvidenceEvent>(drafts.Count);
