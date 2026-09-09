@@ -242,13 +242,13 @@ test("resumed PlayerChoice parents do not rebind as a second execution boundary"
     "private static void ObserveSemanticDecisionBoundary"
   );
   const resumeGuard = beforeExecution.indexOf("phase == \"before_execution_resume\"");
-  const genericBoundary = beforeExecution.indexOf("BoundaryTracker.ObserveBeforeActionExecution(");
+  const genericBoundary = beforeExecution.indexOf("tracker.ObserveBeforeActionExecution(");
 
   assert.ok(resumeGuard >= 0);
   assert.ok(genericBoundary > resumeGuard);
   assert.match(
     beforeExecution.slice(resumeGuard, genericBoundary),
-    /BoundaryTracker\.BeforeExecutionResume\(actionWitnessId\)/u
+    /tracker\.BeforeExecutionResume\(actionWitnessId\)/u
   );
 });
 
@@ -345,7 +345,7 @@ test("accepted ingress converges on one gate and keeps unowned GameActions out o
   assert.match(observer, /MappingFailure[\s\S]*Duplicate[\s\S]*Accepted/u);
   assert.doesNotMatch(observer, /NativePostCommitCompletionLedger|Queue|FIFO|poll/iu);
   const gameActionIngress = sourceBetween(runtime, "internal static void ObserveAcceptedAction", "internal static void ObservePlayCardExecutionAborted");
-  const uiIngress = sourceBetween(runtime, "internal static void ObserveAcceptedSemanticUiAction", "private static void TryQuarantineDeferredAcceptedAction");
+  const uiIngress = sourceBetween(runtime, "internal static bool ObserveAcceptedSemanticUiAction", "private static void TryQuarantineDeferredAcceptedAction");
   assert.match(gameActionIngress, /AcceptedDecisionObserver\.Observe/u);
   assert.match(
     gameActionIngress,
@@ -394,7 +394,7 @@ test("shop accepted mapping is staged once and reused by the accepted callback",
   const shop = sourceBetween(patches, "internal static class NativeShopPurchasePatch", "[HarmonyPatch]");
 
   assert.match(shop, /string\? Operation/u);
-  assert.match(shop, /ui,\s*operation\)/u);
+  assert.match(shop, /new ProcessLocalObservedAction\(\s*operation,/u);
   assert.match(shop, /__state\.Operation/u);
   assert.doesNotMatch(
     shop,
@@ -677,12 +677,13 @@ test("task completion correlation does not consult HumanActionScope.Current", ()
   const completionMethod = sourceBetween(
     runtime,
     "private static void ObserveNativePostCommitCompletion",
-    "private static NativeCompletionEvidence ToCompletionEvidence"
+    "private static bool PersistTrackerMutationOrUnknown"
   );
 
   assert.match(queueMethod, /NativeTaskCompletion signal = new/u);
   assert.doesNotMatch(queueMethod, /HumanActionScope\.Current/u);
-  assert.match(completionMethod, /NativePostCommitCompletions\.CompleteTask\(taskCompletion\)/u);
+  assert.match(completionMethod, /NativePostCommitCompletions\.PreviewTaskCompletion\(taskCompletion\)/u);
+  assert.match(completionMethod, /NativePostCommitCompletions\.CommitTaskCompletion\(taskCompletion\)/u);
   assert.doesNotMatch(completionMethod, /HumanActionScope\.Current/u);
 });
 
@@ -696,7 +697,7 @@ test("GameAction Finished and task completion remain evidence-only before bounda
   const completionMethod = sourceBetween(
     runtime,
     "private static void ObserveNativePostCommitCompletion",
-    "private static NativeCompletionEvidence ToCompletionEvidence"
+    "private static bool PersistTrackerMutationOrUnknown"
   );
 
   assert.match(lifecycleMethod, /NativeActionLifecycleKinds\.Finished/u);
@@ -732,7 +733,7 @@ test("native completion proof has no FIFO, count, timer, or polling fallback", (
   const completionMethod = sourceBetween(
     runtime,
     "private static void ObserveNativePostCommitCompletion",
-    "private static NativeCompletionEvidence ToCompletionEvidence"
+    "private static bool PersistTrackerMutationOrUnknown"
   );
   const proofFallback = /(?:\bFIFO\b|\.Count\b|FirstOrDefault|LastOrDefault|TryDequeue|\bDequeue\(|Task\.Delay|Task\.Wait|WaitAsync|Task\.WhenAny|Thread\.Sleep|Stopwatch|System\.Timers|\bTimer\b|\bPoll(?:ing)?\b|TrySettle)/u;
 
