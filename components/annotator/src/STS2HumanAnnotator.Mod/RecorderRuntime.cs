@@ -2583,13 +2583,20 @@ internal static class RecorderRuntime
             if (!_semanticBoundaryTraceHealthy)
                 throw new InvalidOperationException(
                     "Semantic boundary trace became unavailable before durable native-action acceptance.");
-            if (!NativeUiCompletionRootBindings.RememberOrFailClosed(
+            if (!NativeUiCompletionRootBindings.Remember(
                     action,
+                    actionWitnessId))
+            {
+                // Acceptance is already authoritative at this point. Resolve
+                // the collision as one durable terminal-unknown disposition;
+                // retain the exact subscription/carrier if that append fails
+                // so Close/audit can still account for the accepted root.
+                bool durableFailure = ObserveSemanticUiCarrierBindingFailure(
                     actionWitnessId,
                     witness.NativeActionType,
-                    "The exact accepted GameAction is already bound to another root."))
-            {
-                CleanupUnstartedSemanticUiAction(actionWitnessId, action);
+                    "The exact accepted GameAction is already bound to another root.");
+                if (durableFailure)
+                    CleanupUnstartedSemanticUiAction(actionWitnessId, action);
                 return;
             }
             AppendJournal(
@@ -2925,17 +2932,22 @@ internal static class RecorderRuntime
                     : NativeWitnessIdentity.Get(nativeSubject, "nested_subject"),
                 operandWitnesses,
                 disposition);
-            IReadOnlyList<SemanticBoundaryTraceDraft> drafts;
-            lock (Gate)
-            {
-                drafts = BoundaryTracker.ObserveNativeHumanContinuation(
+            // Keep the tracker mutation provisional until the exact native
+            // continuation event is authoritative in the semantic stream.
+            // In particular, PersistSemanticBoundaryDrafts may intentionally
+            // return without invoking its callback when tracing is unhealthy;
+            // callers must then retain the exact selector carrier rather than
+            // treating the in-memory projection as accepted.
+            return PersistTrackerMutationOrUnknown(
+                parentActionWitnessId,
+                tracker => tracker.ObserveNativeHumanContinuation(
                     parentActionWitnessId,
-                    continuation);
-            }
-            if (drafts.Count == 0)
-                return false;
-            PersistSemanticBoundaryDrafts(drafts);
-            return true;
+                    continuation),
+                "native_nested_continuation_persistence_failed",
+                "The exact nested Human continuation could not be durably appended; the parent root remains unresolved.",
+                nativeMechanism,
+                emptyMutationIsSuccess: false,
+                persistUnknownOnFailure: false);
         }
         catch (Exception exception)
         {
@@ -3038,7 +3050,9 @@ internal static class RecorderRuntime
         string failureReason,
         string failureDetail,
         string nativeActionType,
-        Action? onDurableDisposition = null)
+        Action? onDurableDisposition = null,
+        bool emptyMutationIsSuccess = true,
+        bool persistUnknownOnFailure = true)
     {
         Exception? failure = null;
         bool authoritativeAppend = false;
@@ -3061,6 +3075,12 @@ internal static class RecorderRuntime
                     .ToArray();
                 if (pending.Drafts.Count == 0)
                 {
+                    // Some lifecycle mutations are intentionally idempotent
+                    // and have no event to append. Nested selector callbacks
+                    // opt out so a disposed/missing continuation cannot
+                    // consume its exact carrier as a false success.
+                    if (!emptyMutationIsSuccess)
+                        return false;
                     pending.MarkAuthoritativeAppend();
                     onDurableDisposition?.Invoke();
                     return true;
@@ -3112,8 +3132,28 @@ internal static class RecorderRuntime
         }
         catch (Exception exception)
         {
+            // The semantic append callback is authoritative. A downstream
+            // projection/cleanup exception must not cause a second unknown
+            // append for the same root (or roll back retained carriers).
+            if (authoritativeAppend)
+                return true;
             failure = exception;
             NativeUiObservationSafety.Report(failureReason, exception);
+        }
+
+        if (!persistUnknownOnFailure)
+        {
+            // A nested accepted continuation has a stricter outcome contract:
+            // only its own NativeHumanContinuation event may settle the
+            // selector carrier. Do not turn a failed child write into a
+            // successful parent unknown disposition.
+            Quarantine(
+                failureReason,
+                $"{failureDetail} ({failure?.GetType().Name}: {failure?.Message})",
+                _lastSnapshotId,
+                nativeActionType,
+                "evidence_commit_unknown");
+            return false;
         }
 
         // The provisional mutation has rolled back here. Persist one explicit

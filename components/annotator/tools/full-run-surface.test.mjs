@@ -59,7 +59,7 @@ test("boss relic uses the registered native parent exactly once", () => {
   assert.match(selection, /TryGetRegisteredChoiceCarrier\(/u);
   assert.match(selection, /carrier\.ParentLineage\.ParentAction/u);
   assert.match(selection, /bool accepted = RecorderRuntime\.ObserveAcceptedSemanticUiAction\(/u);
-  assert.match(selection, /if \(!accepted\)\s*return;/u);
+  assert.match(selection, /if \(accepted && __state\.Scope\.ActionWitnessId/u);
   assert.match(selection, /NativeUiCompletionRootBindings\.Remember\(/u);
   assert.doesNotMatch(selection, /NativePlayerChoiceLineage\.Capture\(/u);
   assert.match(commit, /TryGetRegisteredCurrentChoiceCarrier\(/u);
@@ -148,9 +148,21 @@ test("semantic mutations and task completions commit only after authoritative ap
   assert.match(runtime, /PersistTrackerMutationOrUnknown\(/u);
   assert.match(runtime, /BeginDurableMutation\(/u);
   assert.match(runtime, /pending\.MarkAuthoritativeAppend\(\)/u);
+  assert.match(runtime, /authoritativeAppend\s*=\s*true/u);
+  assert.match(runtime, /if \(authoritativeAppend\)\s*return true/u);
+  assert.match(runtime, /emptyMutationIsSuccess\s*=\s*true/u);
   assert.match(runtime, /PreviewTaskCompletion\(taskCompletion\)/u);
   assert.match(runtime, /CommitTaskCompletion\(taskCompletion\)/u);
   assert.doesNotMatch(runtime, /resolution = NativePostCommitCompletions\.CompleteTask\(taskCompletion\)/u);
+});
+
+test("nested accepted observation uses the durable append outcome", () => {
+  const nestedObservation = section(runtime, "internal static bool ObserveAcceptedNestedHumanContinuation", "internal static bool ObserveNestedHumanContinuationUnavailable");
+  assert.match(nestedObservation, /PersistTrackerMutationOrUnknown\(/u);
+  assert.match(nestedObservation, /emptyMutationIsSuccess:\s*false/u);
+  assert.match(nestedObservation, /persistUnknownOnFailure:\s*false/u);
+  assert.doesNotMatch(nestedObservation, /PersistSemanticBoundaryDrafts\(drafts\)/u);
+  assert.match(runtime, /catch \(Exception exception\)\s*\{[\s\S]*?if \(authoritativeAppend\)\s*return true;/u);
 });
 
 test("boss same-parent registration is idempotent or explicitly ambiguous", () => {
@@ -196,7 +208,7 @@ test("nested selectors bind exact parent scope to exact screen without ambient g
   assert.match(exactAsyncBindings, /ConditionalWeakTable<TKey, Holder>/u);
   assert.doesNotMatch(nestedSelectors, /NativePlayerChoiceLineage\.Capture\(\)/u);
   assert.match(nestedSelectors, /exact_parent_root_unavailable/u);
-  assert.match(runtime, /StartSemanticNativeAction[\s\S]*?NativeUiCompletionRootBindings\.Remember\(action, actionWitnessId\)/u);
+  assert.match(runtime, /StartSemanticNativeAction[\s\S]*?NativeUiCompletionRootBindings\.Remember\(/u);
   assert.match(nestedSelectors, /ObserveAcceptedNestedHumanContinuation\(/u);
   assert.match(nestedSelectors, /TryReadCompletedSelection\(/u);
   assert.doesNotMatch(nestedSelectors, /MoveNext|FIFO|latest[-_ ]frame|NOverlayStack\.Instance\?\.Peek|Task\.Delay|Timer/u);
@@ -265,6 +277,21 @@ test("only terminal selector callbacks create one child continuation", () => {
   assert.doesNotMatch(accepted, /task\.IsFaulted[\s\S]*?cancelled\s*=\s*true/u);
 });
 
+test("a completed native empty selection is accepted while unreadable results fail closed", () => {
+  const accepted = section(nestedSelectors, "internal static class NativeNestedSelectorAcceptedPatch", "internal static class NativeNestedSelectorExitPatch");
+  assert.match(accepted, /NativeTerminalTaskDisposition\.Classify\(task\)/u);
+  assert.match(accepted, /unavailable != null/u);
+  assert.match(accepted, /selected = flattened\.ToArray\(\)/u);
+  assert.doesNotMatch(accepted, /selected\.Length\s*==\s*0/u);
+  assert.match(runtime, /new NativeHumanContinuationEvidence\(/u);
+});
+
+test("durable native root collisions retain carriers until unknown append succeeds", () => {
+  const nativeStart = section(runtime, "private static void StartSemanticNativeAction", "private static SemanticActionReference CreateSemanticActionReference");
+  assert.match(nativeStart, /bool durableFailure = ObserveSemanticUiCarrierBindingFailure\(/u);
+  assert.match(nativeStart, /if \(durableFailure\)\s*CleanupUnstartedSemanticUiAction\(/u);
+});
+
 test("generic selector parents use exact native carriers without ambient action fallback", () => {
   const parents = section(nestedSelectors, "internal static class NativeNestedSelectorBindings", "internal static class NativeGameActionCardSelectorParentPatch");
   const gameAction = section(nestedSelectors, "internal static class NativeGameActionCardSelectorParentPatch", "internal static class NativeEventNestedSelectorParentPatch");
@@ -289,17 +316,19 @@ test("binding collisions and rejected acceptance stay fail closed", () => {
   const roots = section(patches, "internal static class NativeUiCompletionRootBindings", "internal static class NativeTreasureChestChoicePatch");
   const reward = section(patches, "internal static class NativeRewardClaimStartPatch", "internal static class NativeRewardProceedPatch");
   const event = section(patches, "internal static class NativeEventOptionPatch", "internal static class NativeEventOptionCompletionPatch");
-  const rest = section(patches, "internal static class NativeRestSiteButtonPatch", "internal static class NativeRestSiteProceedPatch");
+  const rest = section(patches, "internal static class NativeRestSiteOptionPatch", "internal static class NativeRestSiteButtonPatch");
   const merchant = section(patches, "internal static class NativeShopPurchasePatch", "internal static class NativeShopRoomOpenPatch");
 
-  assert.match(roots, /AmbiguousBindings\.TryGetValue\(owner/u);
-  assert.match(roots, /MarkAmbiguous\(owner, actionWitnessId\)/u);
+  assert.match(roots, /ExactOwnerWitnessBindingTable<object>/u);
+  assert.match(roots, /Bindings\.TryBind\(owner, actionWitnessId\)/u);
+  assert.match(roots, /Bindings\.TryGetOwner\(actionWitnessId/u);
   for (const body of [reward, event]) {
-    assert.match(body, /if \(!accepted\)[\s\S]*?Take\(/u);
-    assert.match(body, /if \(!__state\.RootBound\)|if \(!accepted\)/u);
+    assert.match(body, /if \(!accepted\)\s*return;|if \(accepted && !/u);
+    assert.match(body, /RememberOrFailClosed|TakeIfMatches/u);
+    assert.match(body, /if \(!__state\.RootBound\)|if \(!accepted\)|if \(accepted && !/u);
   }
-  assert.match(rest, /ObserveSemanticUiNativeCommitBindingFailure\(/u);
-  assert.match(rest, /ExitNativeUiScope\(scope\);\s*return default;/u);
-  assert.match(merchant, /ObserveSemanticUiNativeCommitBindingFailure\(/u);
-  assert.match(merchant, /ExitNativeUiScope\(scope\);\s*return default;/u);
+  assert.match(rest, /if \(!accepted\)[\s\S]*?TakeIfMatches/u);
+  assert.match(rest, /QueueNativePostCommitBoundary\(/u);
+  assert.match(merchant, /if \(!accepted\)[\s\S]*?TakeIfMatches/u);
+  assert.match(merchant, /QueueNativePostCommitBoundary\(/u);
 });

@@ -490,6 +490,49 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
+    public void CompletedNestedContinuationWithEmptyNativeResultIsValidEvidence()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        SemanticActionReference parent = Action("empty-nested-parent", 1) with
+        {
+            RequiresNativePostCommit = true
+        };
+        tracker.Accept(parent, State("empty-human"));
+        tracker.ObserveBeforeActionExecution(
+            parent.ActionWitnessId,
+            Boundary("empty-before", parent.ActionWitnessId));
+        tracker.Started(parent.ActionWitnessId);
+
+        // An empty completed typed result is a native success when the exact
+        // selector permits min=0. It is distinct from an unreadable result,
+        // which never constructs this evidence object.
+        var continuation = new NativeHumanContinuationEvidence(
+            "nested-empty-1",
+            "generic_simple_card_selector",
+            "select",
+            parent.ActionWitnessId,
+            "nested_owner:screen-empty",
+            "NSimpleCardSelectScreen.CompleteSelection",
+            null,
+            new Dictionary<string, string>(StringComparer.Ordinal),
+            "accepted");
+        SemanticBoundaryTraceDraft draft = Assert.Single(
+            tracker.ObserveNativeHumanContinuation(parent.ActionWitnessId, continuation));
+        SemanticBoundaryTraceDraft unknown = Assert.Single(tracker.CloseUnknown("test_close"));
+        SemanticBoundaryTraceEvent[] events =
+        {
+            Event(1, SemanticBoundaryTraceKinds.ActionAccepted, parent) with
+            {
+                HumanObservation = State("empty-human")
+            },
+            Event(2, draft),
+            Event(3, unknown)
+        };
+
+        Assert.Empty(SemanticBoundaryTraceValidator.Validate(events));
+    }
+
+    [Fact]
     public void ExactPlayerChoiceContinuationLetsNestedHumanChoiceSettleParentWithoutFinish()
     {
         var tracker = new SemanticBoundaryTracker();
