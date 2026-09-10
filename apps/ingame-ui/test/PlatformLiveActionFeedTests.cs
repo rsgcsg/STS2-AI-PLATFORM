@@ -16,7 +16,7 @@ public sealed class PlatformLiveActionFeedTests
     {
         var feed = new PlatformLiveActionAggregation();
         feed.Apply(Event(1, RecordingEventKind.DecisionInvalidated, null) with {
-            Action = Action("", "accepted", nativeType) with { IsDiagnostic = true } });
+            Action = Action("", nativeType, null) with { Verb = "activate", SubjectReferentId = null, IsDiagnostic = true } });
         var item = feed.Recent(1)[0];
         Assert.Contains("Diagnostic", PlatformLiveActionFeed.FormatEntry(item));
         Assert.DoesNotContain("Root / legacy", PlatformLiveActionFeed.FormatEntry(item));
