@@ -203,6 +203,9 @@ internal static class PlatformLiveActionFeed
             lines.Add($"Human occurrence: {occurrence.OccurrenceId}");
             lines.Add($"Native input: {occurrence.NativeActionType} · {occurrence.NativeMechanism}");
             lines.Add($"Capture disposition: {occurrence.Disposition}");
+            lines.Add($"Native subject witness: {occurrence.NativeSubjectWitnessId ?? "unavailable"}");
+            foreach (var operand in occurrence.NativeOperands.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+                lines.Add($"Native operand {operand.Key}: {operand.Value}");
         }
         if (action?.IsDiagnostic == true)
             lines.Add("Internal native diagnostic; not an additional Human decision.");

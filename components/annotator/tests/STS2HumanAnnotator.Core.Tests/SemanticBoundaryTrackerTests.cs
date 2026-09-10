@@ -10,6 +10,26 @@ public sealed class SemanticBoundaryTrackerTests
     private static readonly DateTimeOffset T0 = DateTimeOffset.Parse("2026-08-26T00:00:00Z");
 
     [Fact]
+    public void QueuedUiInputDoesNotSettlePriorUntilItsExactExecutionBoundary()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        tracker.Accept(Action("prior", 1), State("h-prior"));
+        tracker.ObserveBeforeActionExecution("prior", Boundary("s-prior", "prior"));
+        tracker.Started("prior");
+        tracker.Finished("prior");
+        var queued = tracker.Accept(Action("discard", 2), State("h-enemy-turn"));
+        Assert.DoesNotContain(queued, x => x.Kind == SemanticBoundaryTraceKinds.ActionStarted
+            || x.Kind == SemanticBoundaryTraceKinds.TransitionProved);
+        var boundary = tracker.ObserveBeforeActionExecution("discard", Boundary("s-next-turn", "discard"));
+        Assert.Contains(boundary, x => x.Kind == SemanticBoundaryTraceKinds.BoundaryObserved
+            && x.SemanticPre!.SnapshotId == "s-next-turn");
+        Assert.Single(tracker.Started("discard"));
+        Assert.Empty(tracker.Started("discard"));
+        Assert.Single(tracker.Finished("discard"));
+        Assert.Empty(tracker.Finished("discard"));
+    }
+
+    [Fact]
     public void UnrecordedHumanEffectPreventsFalseExactHandoffAndRollsBackWithPersistence()
     {
         var tracker = new SemanticBoundaryTracker();

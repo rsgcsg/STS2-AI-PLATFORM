@@ -28,6 +28,7 @@ internal sealed class HumanActionContext
         DateTimeOffset enteredAt)
     {
         Origin = origin;
+        ExpectedNativeActionType = expectedNativeActionType;
         ExpectedAction = expectedAction;
         Frame = frame;
         NativeSemanticDecision = nativeSemanticDecision;
@@ -39,6 +40,7 @@ internal sealed class HumanActionContext
     }
 
     internal string Origin { get; }
+    internal string ExpectedNativeActionType { get; }
 
     internal ProcessLocalObservedAction? ExpectedAction { get; }
 

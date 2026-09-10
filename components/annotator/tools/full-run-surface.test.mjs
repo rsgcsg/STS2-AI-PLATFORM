@@ -44,7 +44,7 @@ test("act-ready binds one exact queued action and skips generic duplicate ingres
   assert.match(enqueue, /private static void Prefix\(/u);
   assert.doesNotMatch(enqueue, /private static void Postfix\(/u);
   assert.match(enqueue, /NativeUiCompletionRootBindings\.TransferRewardScreenToAction\(action, actionWitnessId\)/u);
-  assert.match(runtime, /if \(NativeUiCompletionRootBindings\.Contains\(action\)\)\s*return;/u);
+  assert.match(runtime, /if \(NativeUiCompletionRootBindings\.TryGet\(action, out string\? carrierRoot\)\)[\s\S]*?ObserveSubmittedUiCarrier\(action\);\s*return;/u);
   assert.match(commit, /NativeUiCompletionRootBindings\.TryGet\(__instance, out __state\)/u);
   assert.match(commit, /NativeUiCompletionRootBindings\.Transfer\([\s\S]*?RunManager\.Instance/u);
   assert.match(commit, /ObserveNativeActChangeOwnerReady\(__state, __instance\)/u);

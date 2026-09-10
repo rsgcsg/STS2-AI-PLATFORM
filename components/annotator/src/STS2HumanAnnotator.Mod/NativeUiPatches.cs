@@ -1614,6 +1614,8 @@ internal static class NativeRewardPotionDiscardEnqueuePatch
                         NativeRewardPotionDiscardPatch.NativeActionType,
                         "The exact Human witness is already bound to a different potion-discard child action.");
                 }
+                else
+                    RecorderRuntime.ObserveSubmittedUiCarrier(action);
             }
         }
         catch (Exception exception)

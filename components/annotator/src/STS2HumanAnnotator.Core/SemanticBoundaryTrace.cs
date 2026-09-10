@@ -434,6 +434,7 @@ public sealed class SemanticBoundaryTracker
     public IReadOnlyList<SemanticBoundaryTraceDraft> Started(string actionWitnessId)
     {
         Entry entry = Required(actionWitnessId);
+        if (entry.Started) return Array.Empty<SemanticBoundaryTraceDraft>();
         entry.Started = true;
         entry.ExecutionOrder ??= ++_executionSequence;
         _lastStartedActionWitnessId = actionWitnessId;
@@ -503,6 +504,7 @@ public sealed class SemanticBoundaryTracker
     public IReadOnlyList<SemanticBoundaryTraceDraft> Finished(string actionWitnessId)
     {
         Entry entry = Required(actionWitnessId);
+        if (entry.Finished) return Array.Empty<SemanticBoundaryTraceDraft>();
         entry.Finished = true;
         entry.NativeLifecycleTerminal = true;
         return new[]

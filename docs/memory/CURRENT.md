@@ -4,6 +4,15 @@ This is a bounded handoff, not repository authority. Resolve live GitHub refs,
 open PRs, rulesets, code, tests, `platform-bom.json`, and exact runtime/evidence
 before making a current claim. Those sources override this file.
 
+## PR25 queued-carrier repair (2026-09-10)
+
+The latest Human audit fails on duplicate Started and confirms an unfenced
+EndTurn contaminating a prior canonical transition. The next candidate separates
+UI submission from exact carrier execution and routes accepted failures through
+the durable effect barrier. Early-card and terminal successor completeness remain
+open. See [repair report](../evidence/PR25_QUEUED_CARRIER_REPAIR_2026-09-10.md).
+No new Human qualification transfers from the historical session.
+
 ## PR25 v4 Human audit and popup repair (2026-09-10)
 
 The latest audited candidate has 321 accepted decisions, 311 canonical, 10

@@ -770,6 +770,7 @@ internal static partial class RecorderRuntime
 
     internal static NativeUiScopeEntry TryEnterCardScope(CardModel card, Creature? target)
     {
+        if (!AcceptingNewWitnesses() || SelectorInputActive) return default;
         var arguments = new Dictionary<string, object>(StringComparer.Ordinal);
         ProcessLocalObservedAction observed;
         if (target != null)
@@ -780,7 +781,12 @@ internal static partial class RecorderRuntime
             nameof(PlayCardAction),
             observed,
             card,
-            semanticSelection: observed);
+            semanticSelection: observed,
+            occurrence: new HumanActionOccurrenceEvidence($"human-occurrence-{Guid.NewGuid():N}",
+                nameof(PlayCardAction), "ordinary_combat.play_card", "play",
+                NativeWitnessIdentity.Get(card, "card"),
+                arguments.ToDictionary(pair => pair.Key, pair => NativeWitnessIdentity.Get(pair.Value, "target")),
+                null, null, null, null, "NCardPlay.TryPlayCard", "failed_closed"));
     }
 
     internal readonly record struct PotionUseArmHandle(
@@ -1309,6 +1315,31 @@ internal static partial class RecorderRuntime
         }
     }
 
+    internal static void ObserveSubmittedUiCarrier(GameAction action)
+    {
+        try
+        {
+            if (!NativeUiCompletionRootBindings.TryGet(action, out string? carrierRoot)) return;
+            HumanActionContext? carrierContext = HumanActionScope.Current;
+            if (carrierContext != null && !carrierContext.RootActionClaimed
+                && carrierContext.ActionWitnessId == carrierRoot
+                && carrierContext.CompletionExpectation != null
+                && carrierContext.ExpectedAction is { } input)
+                ObserveAcceptedSemanticUiAction(carrierContext.ExpectedNativeActionType, input,
+                    new NativeWitnessEvidence(carrierContext.Origin, carrierContext.ExpectedNativeActionType,
+                        input.Subject == null ? null : NativeWitnessIdentity.Get(input.Subject, "native_subject"),
+                        new Dictionary<string, string> { ["carrier"] = NativeWitnessIdentity.Get(action, "game_action") },
+                        DateTimeOffset.UtcNow),
+                    captureImmediatePostCommitBoundary: false, actionWitnessId: carrierRoot);
+        }
+        catch (Exception exception)
+        {
+            NativeUiObservationSafety.Report("native_ui_carrier.submitted", exception);
+            QuarantineAcceptedHumanEffect("native_ui_carrier_observation_failed", exception.Message,
+                _lastSnapshotId, action.GetType().Name, "failed_closed", GameActionOccurrence(action));
+        }
+    }
+
     internal static void ObserveAcceptedAction(GameAction action)
     {
         // Some native UI callbacks enqueue a known child action inside the
@@ -1316,8 +1347,14 @@ internal static partial class RecorderRuntime
         // exact object binding is installed in RequestEnqueue's Prefix, before
         // GameAction.OnEnqueued fires. Do not let the generic observer create
         // a second disposition or a NativeTypeMismatch for that same root.
-        if (NativeUiCompletionRootBindings.Contains(action))
+        if (NativeUiCompletionRootBindings.TryGet(action, out string? carrierRoot))
+        {
+            // OnEnqueued precedes ActionExecutor notification. Admit the exact
+            // UI-owned carrier here so synchronous execution cannot outrun the
+            // subscription. The later UI Postfix sees the claimed gate.
+            ObserveSubmittedUiCarrier(action);
             return;
+        }
 
         HumanActionContext? context = HumanActionScope.Current;
         string nativeActionType = action.GetType().Name;
@@ -1375,7 +1412,7 @@ internal static partial class RecorderRuntime
                 // an owned failed-closed ingress, not an unowned callback.
                 // The observer has claimed the rejection bit, so a duplicate
                 // callback will take the Duplicate branch below.
-                Quarantine(
+                QuarantineAcceptedHumanEffect(
                     "human_action_native_type_mismatch",
                     "An accepted native GameAction did not match the staged native action type.",
                     context?.Frame.Snapshot.SnapshotId,
@@ -1409,7 +1446,7 @@ internal static partial class RecorderRuntime
             }
             if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.MappingFailure)
             {
-                Quarantine(
+                QuarantineAcceptedHumanEffect(
                     failureReason ?? "native_action_exact_mapping_failed",
                     failureDetail ?? "The accepted native GameAction did not retain an exact Human mapping.",
                     context?.Frame.Snapshot.SnapshotId,
@@ -1437,7 +1474,7 @@ internal static partial class RecorderRuntime
         }
         catch (Exception exception)
         {
-            Quarantine(
+            QuarantineAcceptedHumanEffect(
                 "native_action_observation_failed",
                 exception.Message,
                 context?.Frame.Snapshot.SnapshotId ?? _lastSnapshotId,
@@ -1498,7 +1535,7 @@ internal static partial class RecorderRuntime
             }
             if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.NoScope)
             {
-                Quarantine(
+                QuarantineAcceptedHumanEffect(
                     "human_action_accepted_without_scope",
                     "An accepted native UI mutation had no staged Human witness.",
                     _lastSnapshotId,
@@ -1509,7 +1546,7 @@ internal static partial class RecorderRuntime
             }
             if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.NativeTypeMismatch)
             {
-                Quarantine(
+                QuarantineAcceptedHumanEffect(
                     "human_action_native_type_mismatch",
                     "An accepted native UI mutation did not match the staged native action type.",
                     context?.Frame.Snapshot.SnapshotId,
@@ -1522,7 +1559,7 @@ internal static partial class RecorderRuntime
                 return false;
             if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.MappingFailure)
             {
-                Quarantine(
+                QuarantineAcceptedHumanEffect(
                     "human_action_exact_mapping_failed",
                     "The accepted native mutation did not retain its exact pre-action BoundAction mapping.",
                     context?.Frame.Snapshot.SnapshotId,
@@ -1575,7 +1612,7 @@ internal static partial class RecorderRuntime
         }
         catch (Exception exception)
         {
-            Quarantine(
+            QuarantineAcceptedHumanEffect(
                 "accepted_ui_observation_failed",
                 exception.Message,
                 context?.Frame.Snapshot.SnapshotId ?? _lastSnapshotId,
@@ -1732,7 +1769,7 @@ internal static partial class RecorderRuntime
         DeferredHumanActionFailure? failure = HumanActionScope.CurrentDeferredFailure;
         if (failure == null || !failure.TryClaim(nativeActionType))
             return;
-        Quarantine(
+        QuarantineAcceptedHumanEffect(
             failure.ReasonCode,
             failure.Detail,
             failure.SnapshotId,
@@ -1846,7 +1883,10 @@ internal static partial class RecorderRuntime
 
     private static void ObserveBeforeActionExecution(GameAction action)
     {
-        string actionWitnessId = NativeWitnessIdentity.Get(action, "game_action");
+        string actionWitnessId;
+        lock (Gate)
+            actionWitnessId = NativeActionSubscriptions.TryGetValue(action, out var exactSubscription)
+                ? exactSubscription.ActionWitnessId : NativeWitnessIdentity.Get(action, "game_action");
         string phase = action.State.ToString() == "ReadyToResumeExecuting"
             ? "before_execution_resume"
             : "before_execution";
@@ -2164,7 +2204,7 @@ internal static partial class RecorderRuntime
             IReadOnlyList<string> blockers = SemanticWitnessBlockers(frame, environment);
             if (blockers.Count > 0 || !IsExact(match))
             {
-                Quarantine(
+                QuarantineAcceptedHumanEffect(
                     "semantic_action_not_eligible",
                     string.Join(",", blockers.Concat(new[] { match.Status }).Distinct(StringComparer.Ordinal)),
                     frame.Snapshot.SnapshotId,
@@ -2210,11 +2250,12 @@ internal static partial class RecorderRuntime
                     {
                         var result = new List<SemanticBoundaryTraceDraft>();
                         result.AddRange(tracker.Accept(action, humanObservation));
-                        result.AddRange(tracker.ObserveBeforeActionExecution(
-                            actionWitnessId,
-                            executionBoundary));
-                        result.AddRange(tracker.Started(actionWitnessId));
-                        if (completionExpectation == null)
+                        if (lifecycleAction == null)
+                        {
+                            result.AddRange(tracker.ObserveBeforeActionExecution(actionWitnessId, executionBoundary));
+                            result.AddRange(tracker.Started(actionWitnessId));
+                        }
+                        if (completionExpectation == null && lifecycleAction == null)
                             result.AddRange(tracker.Finished(actionWitnessId));
                         return result;
                     });
@@ -2227,12 +2268,7 @@ internal static partial class RecorderRuntime
                             sequence,
                             recordId,
                             match.BoundAction!.BoundActionId,
-                            nativeSemanticDecision == null
-                                ? null
-                                : ToExecutionSemanticActionSpace(
-                                    actionWitnessId,
-                                    nativeSemanticDecision,
-                                    match.BoundAction.BoundActionId),
+                            null,
                             ObserveSemanticOnlyNativeActionLifecycle,
                             finishIsNativeCommit: completionExpectation == null);
                     NativeActionSubscriptions[lifecycleAction] = subscription;
@@ -2562,7 +2598,7 @@ internal static partial class RecorderRuntime
             IReadOnlyList<string> blockers = SemanticWitnessBlockers(context.Frame, environment);
             if (blockers.Count > 0 || !IsExact(match))
             {
-                Quarantine(
+                QuarantineAcceptedHumanEffect(
                     "semantic_action_not_eligible",
                     string.Join(",", blockers.Concat(new[] { match.Status }).Distinct(StringComparer.Ordinal)),
                     context.Frame.Snapshot.SnapshotId,
@@ -4225,20 +4261,27 @@ internal static partial class RecorderRuntime
             "GameAction.accepted",
             "failed_closed");
 
+    private static void QuarantineAcceptedHumanEffect(
+        string reason, string detail, string? snapshotId, string? nativeActionType,
+        string evidenceLevel, HumanActionOccurrenceEvidence? occurrence = null) =>
+        Quarantine(reason, detail, snapshotId, nativeActionType, evidenceLevel, occurrence,
+            acceptedHumanEffect: true);
+
     private static void Quarantine(
         string reason,
         string detail,
         string? snapshotId,
         string? nativeActionType,
         string evidenceLevel,
-        HumanActionOccurrenceEvidence? humanOccurrence = null)
+        HumanActionOccurrenceEvidence? humanOccurrence = null,
+        bool acceptedHumanEffect = false)
     {
         try
         {
             bool diagnostic = reason == "human_action_native_type_mismatch"
                 && nativeActionType is "ReadyToBeginEnemyTurnAction" or "MoveToMapCoordAction";
-            if (!diagnostic && reason is "pre_frame_capture_failed" or "semantic_pre_frame_capture_failed"
-                or "selector_decision_pre_or_lineage_unavailable")
+            if (!diagnostic && (acceptedHumanEffect || reason is "pre_frame_capture_failed" or "semantic_pre_frame_capture_failed"
+                or "selector_decision_pre_or_lineage_unavailable"))
             {
                 humanOccurrence ??= new HumanActionOccurrenceEvidence($"human-occurrence-{Guid.NewGuid():N}",
                     nativeActionType ?? "unknown_native_input", SupportedFamilyForNativeAction(nativeActionType ?? "") ?? nativeActionType ?? "unknown",
