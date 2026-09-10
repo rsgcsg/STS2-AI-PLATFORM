@@ -66,10 +66,11 @@ truth without blocking gameplay or reconstructing legality.
 ## Compatibility and migration
 
 The current semantic wire format retains its existing outer schema. The optional
-`decision` extension has schema version 1; new runtime manifests declare
-`decision_schema_version=1` and audit requires the extension on every trace
-event. Historical manifests without this marker remain readable with their
-original semantics. Their continuation-only rows cannot be promoted into new
+`decision` extension was introduced at schema version 1. The native-origin entry
+extension below advances new manifests to `decision_schema_version=2`; audit
+requires the matching extension on every trace event. Historical version-1
+manifests and manifests without the marker remain readable with their original
+semantics. Their continuation-only rows cannot be promoted into new
 independent decisions. Root native owner is nullable when unavailable; a subject
 or recorder-generated ID must never impersonate a native owner.
 
@@ -82,3 +83,34 @@ Do not rewrite existing sessions or claim evidence transfers across artifacts.
 
 No STPD changes, consumer-created native operands, forward-only policy, automatic
 retry, hidden information, Human gameplay or Full-Run qualification claim.
+
+## Native-origin selector entry extension (2026-09-10)
+
+Decision identity version 2 adds `native_selector` for real Human selector
+input whose exact native causal owner is an already-started GenericHookGameAction
+and has no admitted Human parent. STS2's HookPlayerChoiceContext creates this
+action and awaits ExecutionStartedTask before the CardSelectCmd selector factory.
+The factory carries the exact action reference through its logical async scope;
+no current-action, most-recent EndTurn or timestamp association is permitted.
+
+The decision has no ParentDecisionId. Its CausalRootId names the actual native
+hook action, separately from its own Human input witness. Typed `native_origin`
+retains native action witness/type, choice context type and factory mechanism.
+Trace audit cross-checks the input witness's native-origin and selector-owner
+IDs and requires direct UI commit with no invented native queue ID. A bound
+Human parent continues to use `nested_selector`; an unowned ordinary GameAction
+or a factory with no exact owner remains fail-closed. The synthetic Human parent
+alternative would fabricate a Human decision and is rejected.
+
+All inputs of the same native-owned selector remain independent sibling entries
+sharing their actual native cause; evidence sequence retains order. Each has its
+own complete visible state/catalog, chosen action and proved successor or
+explicit unresolved disposition. No Human continuation is appended to an absent
+Human parent. Terminal native completion without a Human callback is not an
+input. Existing current tracker/canonical/persistence boundaries remain owners.
+
+New manifests require decision schema 2 on every trace event; historical schema
+1 remains validated with its original semantics. Consumers must explicitly
+support the new version. UI labels native-origin selectors and counts parentless
+entries under roots/entries; this counter is not a count of unique native causes.
+No historical input is backfilled. A fresh hook-selector Human canary is required.

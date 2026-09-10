@@ -9,6 +9,26 @@ public sealed class SemanticTransitionProjectionTests
     private static readonly DateTimeOffset T0 = DateTimeOffset.Parse("2026-09-01T00:00:00Z");
 
     [Fact]
+    public void NativeOriginSelectorCanonicalRetainsActualCauseAndIndependentInput()
+    {
+        var pre = Frame("input-pre", "card_selection", true);
+        var post = Frame("input-post", "card_selection", false);
+        var identity = new DecisionOccurrenceIdentity(2, "human-input", "actual-hook", null,
+            "card_selection", "combat_hand_selector", "native_selector", "screen",
+            new("actual-hook", "GenericHookGameAction", "HookPlayerChoiceContext", "SelectCards"));
+        var original = ProvedDraft(pre, post);
+        var draft = original with { Action = original.Action with {
+            NativeMechanism = "direct_ui_commit", NativeQueueId = null, Decision = identity } };
+        var canonical = SemanticTransitionProjection.CreateCanonical(draft,
+            new("input-pre", new string('1', 64), "semantic-frames/pre.json"),
+            new("input-post", new string('2', 64), "semantic-frames/post.json"), null, "session", "timeline");
+        Assert.Empty(CanonicalTransitionEvidenceValidator.Validate(canonical));
+        Assert.Equal(identity, canonical.Decision);
+        Assert.Null(canonical.Decision!.ParentDecisionId);
+        Assert.NotEqual(canonical.ActionWitnessId, canonical.Decision.CausalRootId);
+    }
+
+    [Fact]
     public void NestedCanonicalPreservesOwnFramesCatalogAndExactRootLineage()
     {
         var pre = Frame("selector-s0", "card_selection", true);

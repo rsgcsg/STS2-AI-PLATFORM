@@ -1,5 +1,14 @@
 # Status
 
+## PR25 native-origin selector canary candidate (2026-09-10)
+
+Decision identity v2 permits exact native hook-owned Human selector entries
+without fabricating a Human parent. Existing Human-parent children retain their
+lineage. UI distinguishes native-origin entries; pre-frame failures retain more
+precise diagnostics and remain fail-closed. See the [candidate report](../../../docs/evidence/PR25_NATIVE_SELECTOR_CANARY_2026-09-10.md).
+Latest exact build/install/load and CI receipts belong to Draft PR25. No new
+Human qualification or STPD adapter admission transfers from predecessor sessions.
+
 ## PR25 follow-up Human audit and carrier repairs (2026-09-10)
 
 The f011973 Human session has 481 accepted decisions, 478 canonical, two missing

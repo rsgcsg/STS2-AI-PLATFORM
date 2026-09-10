@@ -10,6 +10,32 @@ public sealed class SemanticBoundaryTrackerTests
     private static readonly DateTimeOffset T0 = DateTimeOffset.Parse("2026-08-26T00:00:00Z");
 
     [Fact]
+    public void NativeSelectorDecisionNeedsNoInventedHumanParentAndRoundTrips()
+    {
+        var origin = new NativeDecisionOriginEvidence("actual-hook", "GenericHookGameAction", "HookPlayerChoiceContext", "NPlayerHand.SelectCards");
+        var decision = new DecisionOccurrenceIdentity(2, "input-decision", "actual-hook", null,
+            "selector", "combat_hand_selector", "native_selector", "exact-hand", origin);
+        var action = Action("human-input", 1) with { NativeMechanism = "direct_ui_commit", NativeQueueId = null,
+            Decision = decision, NativeWitness = new("native_selector_input", "SelectCard", null,
+                new Dictionary<string, string> { ["native_origin"] = "actual-hook", ["selector_owner"] = "exact-hand" }, T0) };
+        var events = new[] { Event(1, SemanticBoundaryTraceKinds.ActionAccepted, action),
+            Event(2, SemanticBoundaryTraceKinds.ActionFinished, action) };
+        var decoded = JsonSerializer.Deserialize<SemanticBoundaryTraceEvent[]>(JsonSerializer.Serialize(events, EvidenceJson.Options), EvidenceJson.Options)!;
+        Assert.Empty(DecisionOccurrenceValidator.ValidateTrace(decoded));
+        Assert.Contains("decision_native_origin_witness_mismatch", DecisionOccurrenceValidator.ValidateTrace(new[] {
+            events[0] with { Action = action with { NativeWitness = null } } }));
+        foreach (var corrupt in new[] { decision with { NativeOrigin = null },
+            decision with { ParentDecisionId = "guessed-end-turn" },
+            decision with { CausalRootId = "human-input" }, decision with { SchemaVersion = 1 },
+            decision with { NativeOwnerWitnessId = null },
+            decision with { NativeOrigin = origin with { NativeActionWitnessId = "other-hook" } } })
+            Assert.Contains("decision_native_origin_invalid", DecisionOccurrenceValidator.Validate(corrupt, "human-input"));
+        Assert.Contains("decision_identity_changed", DecisionOccurrenceValidator.ValidateTrace(new[] {
+            events[0], events[1] with { Action = action with { Decision = decision with {
+                NativeOrigin = origin with { FactoryMechanism = "different-factory" } } } } }));
+    }
+
+    [Fact]
     public void DirectUiOwnerHandoffRoundTripsThroughFinalCausalValidator()
     {
         var tracker = new SemanticBoundaryTracker();

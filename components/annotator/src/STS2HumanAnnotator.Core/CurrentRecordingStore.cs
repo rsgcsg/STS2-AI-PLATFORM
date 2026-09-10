@@ -451,7 +451,7 @@ public sealed class RecordingSessionStore : IDisposable
         {
             _performance.Measure("canonical_transition_append_buffered",
                 () => AppendBufferedLine(_canonicalTransitions, value));
-            string family = value.Decision?.DecisionKind == "nested_selector"
+            string family = value.Decision?.DecisionKind is "nested_selector" or "native_selector"
                 ? "nested_selector.decision" : value.Decision?.Family ?? "legacy_unclassified";
             _recordedActionFamilies[family] = _recordedActionFamilies.GetValueOrDefault(family) + 1;
             _lastRecord = new RecordingItemStatus(value.TransitionId, value.Action.Verb, value.RecordedAt, family);

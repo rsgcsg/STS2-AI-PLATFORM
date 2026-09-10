@@ -10,6 +10,20 @@ public sealed class PlatformLiveActionFeedTests
         DateTimeOffset.Parse("2026-09-01T00:00:00Z");
 
     [Fact]
+    public void NativeOriginSelectorDoesNotDisplayAnInventedHumanParent()
+    {
+        var feed = new PlatformLiveActionAggregation();
+        feed.Apply(Event(1, RecordingEventKind.DecisionRecorded, "input") with {
+            Action = Action("bound", "Select", "card") with {
+                Decision = new(2, "decision", "actual-hook", null, "selector", "hand", "native_selector", "owner",
+                    new("actual-hook", "GenericHookGameAction", "HookPlayerChoiceContext", "SelectCards")) }});
+        var item = feed.Recent(1)[0];
+        Assert.Contains("Selector / native origin", PlatformLiveActionFeed.FormatEntry(item));
+        Assert.Contains("Parent decision: none (native origin)", PlatformLiveActionFeed.FormatDetail(item));
+        Assert.Contains("Native origin: GenericHookGameAction", PlatformLiveActionFeed.FormatDetail(item));
+    }
+
+    [Fact]
     public void CanonicalCountersDoNotUseLegacyProjectionOrFeedRetention()
     {
         string text = PlatformLiveActionFeed.FormatCounters(new(139, 83, 1397, 0,

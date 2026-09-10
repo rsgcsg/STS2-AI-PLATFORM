@@ -13,21 +13,26 @@ public sealed record DecisionOccurrenceIdentity(
     string Surface,
     string Family,
     string DecisionKind,
-    string? NativeOwnerWitnessId)
+    string? NativeOwnerWitnessId,
+    NativeDecisionOriginEvidence? NativeOrigin = null)
 {
-    public const int CurrentSchemaVersion = 1;
+    public const int CurrentSchemaVersion = 2;
 }
+
+public sealed record NativeDecisionOriginEvidence(
+    string NativeActionWitnessId, string NativeActionType,
+    string ChoiceContextType, string FactoryMechanism);
 
 public static class DecisionOccurrenceValidator
 {
     public static IReadOnlyList<string> Validate(DecisionOccurrenceIdentity value, string actionWitnessId)
     {
         var errors = new List<string>();
-        if (value.SchemaVersion != DecisionOccurrenceIdentity.CurrentSchemaVersion)
+        if (value.SchemaVersion is not (1 or DecisionOccurrenceIdentity.CurrentSchemaVersion))
             errors.Add("decision_schema_invalid");
         if (new[] { value.DecisionId, value.CausalRootId, value.Surface, value.Family }.Any(string.IsNullOrWhiteSpace))
             errors.Add("decision_identity_missing");
-        if (value.DecisionKind is not ("root" or "nested_selector"))
+        if (value.DecisionKind is not ("root" or "nested_selector" or "native_selector"))
             errors.Add("decision_kind_invalid");
         if (value.DecisionKind == "root"
             && (value.ParentDecisionId != null || value.CausalRootId != actionWitnessId))
@@ -38,6 +43,19 @@ public static class DecisionOccurrenceValidator
                 || value.CausalRootId == actionWitnessId
                 || string.IsNullOrWhiteSpace(value.NativeOwnerWitnessId)))
             errors.Add("decision_nested_lineage_invalid");
+        if (value.DecisionKind == "native_selector")
+        {
+            var origin = value.NativeOrigin;
+            if (value.SchemaVersion != 2 || value.ParentDecisionId != null
+                || value.CausalRootId == actionWitnessId
+                || string.IsNullOrWhiteSpace(value.NativeOwnerWitnessId)
+                || origin == null || origin.NativeActionWitnessId != value.CausalRootId
+                || new[] { origin.NativeActionWitnessId, origin.NativeActionType,
+                    origin.ChoiceContextType, origin.FactoryMechanism }.Any(string.IsNullOrWhiteSpace))
+                errors.Add("decision_native_origin_invalid");
+        }
+        else if (value.NativeOrigin != null)
+            errors.Add("decision_unexpected_native_origin");
         return errors;
     }
 
@@ -53,7 +71,17 @@ public static class DecisionOccurrenceValidator
             if (decision == null)
                 continue;
             errors.AddRange(Validate(decision, value.Action.ActionWitnessId));
-            var decisionFrame = decision.DecisionKind == "nested_selector"
+            if (decision.DecisionKind == "native_selector")
+            {
+                var witness = value.Action.NativeWitness;
+                if (value.Action.NativeMechanism != "direct_ui_commit" || value.Action.NativeQueueId != null
+                    || witness?.Origin != "native_selector_input"
+                    || witness.ArgumentWitnessIds == null
+                    || witness.ArgumentWitnessIds.GetValueOrDefault("native_origin") != decision.CausalRootId
+                    || witness.ArgumentWitnessIds.GetValueOrDefault("selector_owner") != decision.NativeOwnerWitnessId)
+                    errors.Add("decision_native_origin_witness_mismatch");
+            }
+            var decisionFrame = decision.DecisionKind is "nested_selector" or "native_selector"
                 ? value.SemanticPre ?? value.HumanObservation : value.HumanObservation;
             if (decisionFrame != null && decision.Surface != decisionFrame.InteractionKind)
                 errors.Add("decision_surface_mismatch");

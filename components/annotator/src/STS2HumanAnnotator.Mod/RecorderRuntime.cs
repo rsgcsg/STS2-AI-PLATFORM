@@ -1051,6 +1051,7 @@ internal static partial class RecorderRuntime
             ProcessLocalNativeWitnessFrame? selected = null;
             ProcessLocalNativeWitnessFrame? current = null;
             List<string> currentBlockers = new();
+            string stagedDisposition = "not_applicable";
 
             if (expectedAction != null && stagedCard != null)
             {
@@ -1060,6 +1061,10 @@ internal static partial class RecorderRuntime
                     staged = _stagedCardFrame;
                     _stagedCardFrame = null;
                 }
+                stagedDisposition = staged == null ? "absent_or_ineligible_at_card_start"
+                    : !ReferenceEquals(staged.Card, stagedCard) ? "different_exact_card"
+                    : DateTimeOffset.UtcNow - staged.StagedAt > TimeSpan.FromSeconds(30) ? "staged_frame_expired"
+                    : "staged_exact_action_mapping_unavailable";
                 if (staged != null
                     && ReferenceEquals(staged.Card, stagedCard)
                     && DateTimeOffset.UtcNow - staged.StagedAt <= TimeSpan.FromSeconds(30)
@@ -1091,7 +1096,8 @@ internal static partial class RecorderRuntime
                     "pre_frame_capture_failed",
                     string.Join(",", currentBlockers.Count == 0
                         ? new[] { "no_same_context_authoritative_frame" }
-                        : currentBlockers.Append("no_same_context_authoritative_frame")),
+                        : currentBlockers.Append("no_same_context_authoritative_frame"))
+                        + $";staged={stagedDisposition};current_status={current?.Snapshot.Status};interaction={current?.Snapshot.Interaction.Kind};catalog={current?.Snapshot.BoundActions.Status};candidates={current?.Snapshot.BoundActions.TotalCount}",
                     current?.Snapshot.SnapshotId,
                     "fail_closed",
                     occurrence);
@@ -2684,7 +2690,7 @@ internal static partial class RecorderRuntime
             humanObservation.SnapshotId)
         {
             NativeMechanism = nativeMechanism,
-            Decision = new DecisionOccurrenceIdentity(1, $"decision-{recordId}", actionWitnessId, null,
+            Decision = new DecisionOccurrenceIdentity(DecisionOccurrenceIdentity.CurrentSchemaVersion, $"decision-{recordId}", actionWitnessId, null,
                 humanObservation.InteractionKind, SupportedFamilyForNativeAction(nativeActionType) ?? humanObservation.InteractionKind,
                 "root", null),
             NativeWitness = witness,
@@ -4020,7 +4026,7 @@ internal static partial class RecorderRuntime
         // Current admission already captured the authoritative decision family.
         // Re-interpreting its public verb here silently dropped proved purchases.
         if (action.Decision is { } decision)
-            return decision.DecisionKind == "nested_selector" ? "nested_selector.decision" : decision.Family;
+            return decision.DecisionKind is "nested_selector" or "native_selector" ? "nested_selector.decision" : decision.Family;
         if (action.NativeActionType == nameof(PickRelicAction)
             && string.Equals(action.BoundAction?.Verb, "skip", StringComparison.Ordinal))
         {

@@ -10,7 +10,7 @@ internal static partial class RecorderRuntime
         object Owner, string Mechanism, ProcessLocalObservedAction Observed,
         ProcessLocalNativeWitnessFrame Frame, RecorderEnvironmentIdentity Environment,
         ProcessLocalNativeMatch Match, CurrentDecisionFrame Pre,
-        DecisionOccurrenceIdentity Parent, string ActionId);
+        DecisionOccurrenceIdentity? Parent, string ActionId);
 
     [ThreadStatic] private static SelectorInput? _selectorInput;
     [ThreadStatic] private static bool _selectorInputStaged;
@@ -52,7 +52,7 @@ internal static partial class RecorderRuntime
             }
             DecisionOccurrenceIdentity? parent = binding.ParentDecision
                 ?? BoundaryTracker.DecisionIdentity(binding.ActionWitnessId);
-            if (parent == null)
+            if (parent == null && binding.NativeOrigin == null)
             { _selectorInputFailure = "selector_parent_decision_missing"; return null; }
             binding.ParentDecision = parent;
             RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
@@ -118,16 +118,22 @@ internal static partial class RecorderRuntime
                 return;
             long sequence = Interlocked.Increment(ref _sequence);
             string recordId = $"semantic-record-{sequence:D8}-{Guid.NewGuid():N}";
+            var witnessArguments = new Dictionary<string, string> {
+                ["selector_owner"] = NativeWitnessIdentity.Get(input.Owner, "selector_owner") };
+            if (input.Binding.NativeOrigin is { } nativeOrigin)
+                witnessArguments["native_origin"] = nativeOrigin.NativeActionWitnessId;
             var witness = new NativeWitnessEvidence("native_selector_input", input.Mechanism,
                 input.Observed.Subject == null ? null : NativeWitnessIdentity.Get(input.Observed.Subject, "selected"),
-                new Dictionary<string, string> { ["selector_owner"] = NativeWitnessIdentity.Get(input.Owner, "selector_owner") },
+                witnessArguments,
                 DateTimeOffset.UtcNow);
             SemanticActionReference action = CreateSemanticActionReference(input.ActionId, sequence,
                 recordId, input.Mechanism, null, input.Pre, "direct_ui_commit", witness, input.Match) with
             {
-                Decision = new DecisionOccurrenceIdentity(1, $"decision-{recordId}",
-                    input.Parent.CausalRootId, input.Parent.DecisionId, input.Pre.InteractionKind,
-                    input.Binding.Family, "nested_selector", NativeWitnessIdentity.Get(input.Owner, "selector_owner"))
+                Decision = new DecisionOccurrenceIdentity(DecisionOccurrenceIdentity.CurrentSchemaVersion, $"decision-{recordId}",
+                    input.Parent?.CausalRootId ?? input.Binding.NativeOrigin!.NativeActionWitnessId,
+                    input.Parent?.DecisionId, input.Pre.InteractionKind,
+                    input.Binding.Family, input.Parent == null ? "native_selector" : "nested_selector",
+                    NativeWitnessIdentity.Get(input.Owner, "selector_owner"), input.Binding.NativeOrigin)
             };
             var before = CreateSemanticBoundaryObservation(input.Frame,
                 SemanticBoundaryWitnessKinds.BeforeHumanActionExecution, input.ActionId, input.Pre);
@@ -148,7 +154,7 @@ internal static partial class RecorderRuntime
             }
             input.Binding.DecisionHeadActionId = input.ActionId;
             AppendJournal("semantic_human_action_accepted", recordId, input.Pre.SnapshotId,
-                $"{input.Mechanism}:{input.ActionId};causal_root={input.Parent.CausalRootId}");
+                $"{input.Mechanism}:{input.ActionId};causal_root={action.Decision!.CausalRootId}");
             // An in-place selection mutation has its own exact owner-ready S'.
             // Terminal selection waits for a separately observed next decision;
             // task completion or a removed overlay is never S'.

@@ -156,8 +156,8 @@ internal static class PlatformLiveActionFeed
     {
         if (counters.Decisions is not { } d)
             return $"Decisions unavailable · Legacy records {counters.Records} · Invalidations {counters.Invalidations}";
-        return $"Accepted {d.Accepted} ({d.AcceptedRoots} roots + {d.AcceptedChildren} children)"
-            + $" · Proved {d.Proved} · Canonical {d.Canonical} ({d.CanonicalRoots} roots + {d.CanonicalChildren} children)"
+        return $"Accepted {d.Accepted} ({d.AcceptedRoots} roots/entries + {d.AcceptedChildren} children)"
+            + $" · Proved {d.Proved} · Canonical {d.Canonical} ({d.CanonicalRoots} roots/entries + {d.CanonicalChildren} children)"
             + $"\nPending {d.Pending} · Unresolved {d.Unresolved} (includes cancelled) · Invalidations {counters.Invalidations} · Legacy records {counters.Records}";
     }
 
@@ -170,7 +170,7 @@ internal static class PlatformLiveActionFeed
             or RecordingEventKind.DecisionProjectionOmitted;
 
     internal static string FormatEntry(PlatformLiveActionItem value) =>
-        $"#{value.FirstSequence}  {(value.Action?.Decision?.DecisionKind == "nested_selector" ? "↳ Selector" : "Root / legacy")}  {FormatCompactAction(value.Action)}  {FormatLifecycle(value.Kind)}"
+        $"#{value.FirstSequence}  {(value.Action?.Decision?.DecisionKind == "nested_selector" ? "↳ Selector" : value.Action?.Decision?.DecisionKind == "native_selector" ? "Selector / native origin" : "Root / legacy")}  {FormatCompactAction(value.Action)}  {FormatLifecycle(value.Kind)}"
         + (value.Action?.Decision?.ParentDecisionId is { } parent ? $"\nParent: {parent}" : "");
 
     internal static string FormatDetail(PlatformLiveActionItem value)
@@ -201,8 +201,10 @@ internal static class PlatformLiveActionFeed
         if (action?.Decision is { } decision)
         {
             lines.Add($"Decision: {decision.DecisionId} ({decision.DecisionKind})");
+            if (decision.NativeOrigin is { } origin)
+                lines.Add($"Native origin: {origin.NativeActionType} · {origin.ChoiceContextType}");
             lines.Add($"Causal root: {decision.CausalRootId}");
-            lines.Add($"Parent decision: {decision.ParentDecisionId ?? "none (root)"}");
+            lines.Add($"Parent decision: {decision.ParentDecisionId ?? (decision.NativeOrigin == null ? "none (root)" : "none (native origin)")}");
             lines.Add($"Surface: {decision.Surface} · Family: {decision.Family}");
             lines.Add($"Native selector owner: {decision.NativeOwnerWitnessId ?? "unavailable"}");
         }

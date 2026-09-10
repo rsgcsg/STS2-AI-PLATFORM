@@ -79,3 +79,8 @@ Recorder `Unresolved` includes native cancellations as well as missing successor
 the counter label states this explicitly. Calibration reports these dispositions
 separately. `Canonical` and compatibility-record validity do not certify complete
 Full-Run coverage or research admission.
+
+Decision schema 2 `native_selector` entries display `Selector / native origin`,
+the actual native action/context and `Parent decision: none (native origin)`.
+Roots/entries count parentless Human decisions, not unique native causes.
+Selectors with an actual Human parent retain that exact parent and child label.

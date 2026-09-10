@@ -592,10 +592,15 @@ public static class RecordingSessionAuditor
             Add(errors, error);
         if (manifest?.DecisionSchemaVersion is { } decisionSchema)
         {
-            if (decisionSchema != DecisionOccurrenceIdentity.CurrentSchemaVersion)
+            if (decisionSchema is not (1 or DecisionOccurrenceIdentity.CurrentSchemaVersion))
                 Add(errors, "decision_manifest_schema_invalid");
-            foreach (var value in events.Where(value => value.Action.Decision == null))
-                Add(errors, "decision_identity_required_by_manifest");
+            foreach (var value in events)
+            {
+                if (value.Action.Decision == null)
+                    Add(errors, "decision_identity_required_by_manifest");
+                else if (value.Action.Decision.SchemaVersion != decisionSchema)
+                    Add(errors, "decision_schema_manifest_mismatch");
+            }
         }
         return events;
     }

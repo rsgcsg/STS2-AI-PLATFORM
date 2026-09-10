@@ -376,3 +376,13 @@ test("carrier failure before UI admission is retained on the exact scope", () =>
   assert.match(admission, /bool accepted = StartSemanticUiAction/u);
   assert.match(admission, /if \(accepted && acceptedContext\.DeferredCarrierBindingFailure/u);
 });
+
+
+test("unowned native hook selectors retain actual action provenance without a Human parent", () => {
+  const resolve = section(nestedSelectors, "private static Binding Resolve", "private static bool TryResolveExactAction");
+  assert.match(resolve, /action is GenericHookGameAction hook && hook\.ExecutionStartedTask\.IsCompletedSuccessfully/u);
+  assert.match(resolve, /NativeWitnessIdentity\.Get\(action, "game_action"\)/u);
+  assert.match(resolve, /NativeOrigin = new NativeDecisionOriginEvidence/u);
+  assert.match(resolve, /exact_native_owner_without_human_decision/u);
+  assert.doesNotMatch(resolve, /HumanActionScope\.Current|CurrentAction|LastAction/u);
+});

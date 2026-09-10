@@ -250,3 +250,21 @@ A prior polling `run_observed_in_progress` does not suppress a later native
 marker. Historical sessions that recorded every Launch as `run_started_native`
 retain their bytes and require source-version-aware qualification; start/end
 counts alone never admit a Full Run.
+
+## Decision identity version 2
+
+New manifests declare `decision_schema_version=2`; audit supports historical 1
+but requires each explicit decision to match its manifest. `native_selector`
+adds an independently witnessed Human input with no Human parent and an exact
+real native hook action as its causal root. `native_origin` carries
+`native_action_witness_id`, `native_action_type`, `choice_context_type` and
+`factory_mechanism`. The native input witness repeats the exact origin and
+selector-owner identities for typed audit. It is a `direct_ui_commit` decision,
+never a fabricated GameAction or queue entry. Existing root/nested selector
+identities remain valid in version 2. No-origin factories remain fail-closed.
+
+The UI's roots/entries counters count parentless Human decisions, including
+native-origin selector inputs; they do not deduplicate by CausalRootId. Every
+input remains separately represented. Native-origin decisions are eligible for
+the existing nested-selector capture family only after ordinary canonical
+state/action-space/successor validation. Research admission remains external.

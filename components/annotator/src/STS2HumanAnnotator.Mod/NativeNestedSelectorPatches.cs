@@ -89,6 +89,7 @@ internal static class NativeNestedSelectorBindings
     {
         internal string? RecordingSessionId { get; } = RecorderRuntime.SessionId;
         internal string? FailureReason { get; init; }
+        internal NativeDecisionOriginEvidence? NativeOrigin { get; init; }
         internal DecisionOccurrenceIdentity? ParentDecision { get; set; }
         internal string? DecisionHeadActionId { get; set; }
     }
@@ -204,9 +205,22 @@ internal static class NativeNestedSelectorBindings
         }
         if (!NativeUiCompletionRootBindings.TryGet(action, out string? actionWitnessId)
             || string.IsNullOrWhiteSpace(actionWitnessId))
+        {
+            // HookPlayerChoiceContext creates this real native GameAction and
+            // awaits its execution before the exact CardSelectCmd factory.
+            // Its subsequent Human input need not have a Human parent decision.
+            if (action is GenericHookGameAction hook && hook.ExecutionStartedTask.IsCompletedSuccessfully)
+            {
+                string nativeRoot = NativeWitnessIdentity.Get(action, "game_action");
+                return new Binding(nativeRoot, action, parent.Family, factoryMechanism) {
+                    NativeOrigin = new NativeDecisionOriginEvidence(nativeRoot, action.GetType().FullName!,
+                        parent.ChoiceContext.GetType().FullName!, factoryMechanism)
+                };
+            }
             return new Binding("unavailable", action, parent.Family, factoryMechanism) {
                 FailureReason = $"exact_native_owner_without_human_decision:{action.GetType().Name}"
             };
+        }
         return new Binding(
             actionWitnessId,
             action,
@@ -520,6 +534,14 @@ internal static class NativeNestedSelectorAcceptedPatch
                     reserved = !NativeNestedSelectorBindings.TryConsume(__instance, binding);
                 return;
             }
+            if (binding.NativeOrigin != null)
+            {
+                // EndSelectorInput owns the first-class Human decision. There
+                // is no Human parent transition to receive a continuation.
+                if (unavailable == null)
+                    reserved = !NativeNestedSelectorBindings.TryConsume(__instance, binding);
+                return;
+            }
             bool explicitClose = string.Equals(
                 __originalMethod.Name,
                 "CloseSelection",
@@ -710,6 +732,11 @@ internal static class NativeNestedSelectorExitPatch
                     out NativeNestedSelectorBindings.Binding? binding)
                 || binding == null)
                 return;
+            if (binding.NativeOrigin != null)
+            {
+                NativeNestedSelectorBindings.TryConsume(__instance, binding);
+                return;
+            }
             bool persisted = RecorderRuntime.ObserveNestedHumanContinuationUnavailable(
                 binding.ActionWitnessId,
                 $"{__instance.GetType().FullName}._ExitTree",
