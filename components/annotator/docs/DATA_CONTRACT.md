@@ -239,3 +239,14 @@ exact owner and lineage; no GameAction pause or completion is fabricated. Queued
 GameActions still require their actual pause/finished lifecycle. Current canonical
 family filtering consumes the family already attached at decision admission,
 rather than interpreting the public verb a second time.
+
+## Native launch provenance
+
+`run_started_native` requires both the exact RunState's new-singleplayer setup
+and its native Launch. Saved-singleplayer setup produces `run_resumed_native`;
+a Launch without exact setup provenance produces
+`run_launched_native_origin_unknown`. Neither proves a fresh complete run.
+A prior polling `run_observed_in_progress` does not suppress a later native
+marker. Historical sessions that recorded every Launch as `run_started_native`
+retain their bytes and require source-version-aware qualification; start/end
+counts alone never admit a Full Run.

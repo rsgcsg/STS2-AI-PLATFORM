@@ -4,6 +4,16 @@ This is a bounded handoff, not repository authority. Resolve live GitHub refs,
 open PRs, rulesets, code, tests, `platform-bom.json`, and exact runtime/evidence
 before making a current claim. Those sources override this file.
 
+## PR25 follow-up Human audit and carrier repairs (2026-09-10)
+
+The f011973 Human session has 481 accepted decisions, 478 canonical, two missing
+successors and one cancellation; all 96 children and their parents are canonical.
+[Follow-up report](../evidence/PR25_FULLRUN_FOLLOWUP_2026-09-10.md) records exact counts and the event/Act carrier
+repairs, early failure staging, and new-versus-resumed Launch provenance.
+The repaired source still needs its own Human canary. The active game remains
+on the prior artifact in an unfinished Human combat; no Full-Run qualification
+or STPD source-adapter admission is claimed.
+
 ## PR25 decision/UI alignment (2026-09-10)
 
 The follow-up to `5b40a3a9` aligns direct-UI parent handoff, canonical family

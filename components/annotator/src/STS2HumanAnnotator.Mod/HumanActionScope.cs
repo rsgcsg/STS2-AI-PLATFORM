@@ -54,6 +54,8 @@ internal sealed class HumanActionContext
 
     internal NativeUiAttemptOutcome? NativeAttemptOutcome { get; set; }
 
+    internal string? DeferredCarrierBindingFailure { get; set; }
+
     internal DateTimeOffset EnteredAt { get; }
 
     internal bool AcceptsRootAction(string nativeActionType) =>

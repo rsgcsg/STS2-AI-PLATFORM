@@ -1529,7 +1529,7 @@ internal static partial class RecorderRuntime
                     // backfilled as a successor when this observation fails.
                 }
             }
-            return StartSemanticUiAction(
+            bool accepted = StartSemanticUiAction(
                 acceptedContext.Frame,
                 acceptedContext.NativeSemanticDecision,
                 BuildEnvironment(acceptedContext.Frame),
@@ -1547,6 +1547,12 @@ internal static partial class RecorderRuntime
                         out GameAction? boundAction)
                         ? boundAction
                         : null);
+            if (accepted && acceptedContext.DeferredCarrierBindingFailure is { } carrierFailure)
+            {
+                ObserveSemanticUiCarrierBindingFailure(
+                    acceptedContext.ActionWitnessId, nativeActionType, carrierFailure);
+            }
+            return accepted;
         }
         catch (Exception exception)
         {
@@ -1633,6 +1639,19 @@ internal static partial class RecorderRuntime
     {
         if (string.IsNullOrWhiteSpace(actionWitnessId))
             return false;
+        lock (Gate)
+        {
+            if (!BoundaryTracker.Contains(actionWitnessId)
+                && HumanActionScope.Current is { } context
+                && string.Equals(context.ActionWitnessId, actionWitnessId, StringComparison.Ordinal))
+            {
+                // Native enqueue Prefix can fail before UI Postfix admits the
+                // Human root. Retain the failure on that exact scope and persist
+                // it immediately after acceptance, never query an absent root.
+                context.DeferredCarrierBindingFailure ??= detail;
+                return false;
+            }
+        }
         return PersistTrackerMutationOrUnknown(
             actionWitnessId,
             tracker => tracker.PreviewUnknown(actionWitnessId, detail),
@@ -4375,12 +4394,11 @@ internal static partial class RecorderRuntime
     }
 
     /// <summary>
-    /// Records the exact native run-start seam. RunManager.Launch is invoked
-    /// after STS2 has initialized the RunState and before the run scene enters
-    /// its first act. It is the authority for a native start marker; the
-    /// recorder never infers a native start from a status poll.
+    /// Records exact Launch with RunState setup provenance. Launch can resume
+    /// a saved run; only new setup can produce a fresh native start marker.
+    /// The recorder never infers a native start from a status poll.
     /// </summary>
-    internal static void ObserveNativeRunStarted()
+    internal static void ObserveNativeRunStarted(string journalKind)
     {
         lock (Gate)
         {
@@ -4389,12 +4407,12 @@ internal static partial class RecorderRuntime
                 return;
             _statusRefreshRequested = true;
             AppendJournal(
-                "run_started_native",
+                journalKind,
                 null,
                 null,
-                "RunManager.Launch completed with an initialized RunState.");
+                "RunManager.Launch completed; exact RunState setup provenance: " + journalKind);
         }
-        PublishApplicationEvent(RecordingEventKind.RunStarted);
+        PublishApplicationEvent(RecordingEventKind.RunStarted, detail: journalKind);
     }
 
     /// <summary>

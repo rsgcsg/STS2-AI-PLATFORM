@@ -158,7 +158,7 @@ internal static class PlatformLiveActionFeed
             return $"Decisions unavailable · Legacy records {counters.Records} · Invalidations {counters.Invalidations}";
         return $"Accepted {d.Accepted} ({d.AcceptedRoots} roots + {d.AcceptedChildren} children)"
             + $" · Proved {d.Proved} · Canonical {d.Canonical} ({d.CanonicalRoots} roots + {d.CanonicalChildren} children)"
-            + $"\nPending {d.Pending} · Unresolved {d.Unresolved} · Invalidations {counters.Invalidations} · Legacy records {counters.Records}";
+            + $"\nPending {d.Pending} · Unresolved {d.Unresolved} (includes cancelled) · Invalidations {counters.Invalidations} · Legacy records {counters.Records}";
     }
 
 

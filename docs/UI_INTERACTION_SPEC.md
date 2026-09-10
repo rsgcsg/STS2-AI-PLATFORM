@@ -74,3 +74,8 @@ neither zero invalid records nor canonical status means Full-Run qualification.
 The paginated feed browses retained application events. Reconnect/retention gaps
 are explicit; this operational view does not replace the immutable session audit.
 The bounded stream cannot recover history it never received.
+
+Recorder `Unresolved` includes native cancellations as well as missing successors;
+the counter label states this explicitly. Calibration reports these dispositions
+separately. `Canonical` and compatibility-record validity do not certify complete
+Full-Run coverage or research admission.

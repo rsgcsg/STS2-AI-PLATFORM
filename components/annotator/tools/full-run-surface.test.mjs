@@ -43,7 +43,7 @@ test("act-ready binds one exact queued action and skips generic duplicate ingres
 
   assert.match(enqueue, /private static void Prefix\(/u);
   assert.doesNotMatch(enqueue, /private static void Postfix\(/u);
-  assert.match(enqueue, /NativeUiCompletionRootBindings\.Remember\(action, actionWitnessId\)/u);
+  assert.match(enqueue, /NativeUiCompletionRootBindings\.TransferRewardScreenToAction\(action, actionWitnessId\)/u);
   assert.match(runtime, /if \(NativeUiCompletionRootBindings\.Contains\(action\)\)\s*return;/u);
   assert.match(commit, /NativeUiCompletionRootBindings\.TryGet\(__instance, out __state\)/u);
   assert.match(commit, /NativeUiCompletionRootBindings\.Transfer\([\s\S]*?RunManager\.Instance/u);
@@ -92,7 +92,7 @@ test("bound potion and act actions retain lifecycle without duplicate root ingre
   );
 
   assert.match(enqueue, /NativeUiCompletionRootBindings\.Remember\(action, actionWitnessId\)/u);
-  assert.match(actEnqueue, /NativeUiCompletionRootBindings\.Remember\(action, actionWitnessId\)/u);
+  assert.match(actEnqueue, /NativeUiCompletionRootBindings\.TransferRewardScreenToAction\(action, actionWitnessId\)/u);
   assert.match(runtime, /TryGetAction\(actionWitnessId/u);
   assert.match(runtime, /finishIsNativeCommit:\s*completionExpectation == null/u);
   assert.match(runtime, /NativeActionLifecycleKinds\.Cancelled/u);
@@ -345,4 +345,34 @@ test("binding collisions and rejected acceptance stay fail closed", () => {
   assert.match(rest, /QueueNativePostCommitBoundary\(/u);
   assert.match(merchant, /if \(!accepted\)[\s\S]*?TakeIfMatches/u);
   assert.match(merchant, /QueueNativePostCommitBoundary\(/u);
+});
+
+
+test("act-ready transfers only the exact reward-screen carrier", () => {
+  const transfer = section(patches, "internal static bool TransferRewardScreenToAction", "internal static bool Contains");
+  assert.match(transfer, /Bindings\.TryGetOwner\(actionWitnessId/u);
+  assert.match(transfer, /owner is NRewardsScreen/u);
+  assert.match(transfer, /Bindings\.TryTransfer\(owner, action, actionWitnessId\)/u);
+  assert.doesNotMatch(transfer, /Peek\(|CurrentSemantic|TryBind/u);
+});
+
+
+test("event selector owner is staged before Chosen can create its screen", () => {
+  const event = section(patches, "internal static class NativeEventOptionPatch", "internal static class NativeEventOptionCompletionPatch");
+  const prefix = section(event, "private static void Prefix", "private static void Postfix");
+  const postfix = section(event, "private static void Postfix", "private static Exception? Finalizer");
+  assert.match(prefix, /NativeUiCompletionRootBindings\.Remember\(option, __state\.Scope\.ActionWitnessId\)/u);
+  assert.doesNotMatch(postfix, /RememberOrFailClosed|Bindings\.Remember\(/u);
+  assert.match(postfix, /CarrierBindingFailed/u);
+  assert.match(postfix, /TakeIfMatches\(option, __state\.Scope\.ActionWitnessId\)/u);
+});
+
+test("carrier failure before UI admission is retained on the exact scope", () => {
+  const failure = section(runtime, "internal static bool ObserveSemanticUiCarrierBindingFailure", "internal static void ObserveSemanticUiNativeCommitBindingFailure");
+  assert.match(failure, /!BoundaryTracker\.Contains\(actionWitnessId\)/u);
+  assert.match(failure, /string\.Equals\(context\.ActionWitnessId, actionWitnessId, StringComparison\.Ordinal\)/u);
+  assert.match(failure, /context\.DeferredCarrierBindingFailure \?\?= detail/u);
+  const admission = section(runtime, "internal static bool ObserveAcceptedSemanticUiAction", "internal static bool ObserveSemanticUiCarrierBindingFailure");
+  assert.match(admission, /bool accepted = StartSemanticUiAction/u);
+  assert.match(admission, /if \(accepted && acceptedContext\.DeferredCarrierBindingFailure/u);
 });

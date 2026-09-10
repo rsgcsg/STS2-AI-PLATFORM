@@ -154,4 +154,32 @@ public sealed class ExactAsyncOwnerBindingScopeTests
         Assert.True(scope.TryConsume(key, terminalIntent!));
         Assert.False(scope.TryGet(key, out _));
     }
+    [Fact]
+    public async Task OptionPrefixBindingSurvivesSynchronousFactoryAndTaskCarrierConsumption()
+    {
+        var owners = new ExactOwnerWitnessBindingTable<object>();
+        var selectors = new ExactAsyncOwnerBindingScope<Key, Context, Binding>();
+        var option = new object();
+        var screen = new Key();
+        var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Assert.True(owners.TryBind(option, "event-root")); // UI Prefix
+        Assert.True(owners.TryGetWitness(option, out var root)); // Chosen Prefix
+        Task choice;
+        using (selectors.Enter(new Context(root!)))
+            choice = OpenAndWait(); // factory runs before UI Postfix
+        Assert.True(owners.TakeIfMatches(option, "event-root")); // exact Task takes over
+        Assert.True(selectors.TryGet(screen, out var binding));
+        Assert.Equal("event-root", binding!.Root);
+        Assert.False(owners.TryGetWitness(new object(), out _));
+        completed.SetResult();
+        await choice;
+
+        async Task OpenAndWait()
+        {
+            Assert.True(selectors.TryBindCurrent(screen, context => new Binding(context.Root)));
+            await completed.Task;
+            Assert.True(selectors.TryGet(screen, out var exact));
+            Assert.Equal("event-root", exact!.Root);
+        }
+    }
 }

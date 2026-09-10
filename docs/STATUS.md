@@ -1,5 +1,15 @@
 # Current Status
 
+## PR25 follow-up Human audit and carrier repairs (2026-09-10)
+
+The f011973 Human session has 481 accepted decisions, 478 canonical, two missing
+successors and one cancellation; all 96 children and their parents are canonical.
+[Follow-up report](evidence/PR25_FULLRUN_FOLLOWUP_2026-09-10.md) records exact counts and the event/Act carrier
+repairs, early failure staging, and new-versus-resumed Launch provenance.
+The repaired source still needs its own Human canary. The active game remains
+on the prior artifact in an unfinished Human combat; no Full-Run qualification
+or STPD source-adapter admission is claimed.
+
 ## PR25 decision-semantics source repair (2026-09-10)
 
 The [decision repair report](evidence/PR25_DECISION_REPAIR_2026-09-10.md)

@@ -69,4 +69,24 @@ public sealed class ExactOwnerWitnessBindingTableTests
         Assert.True(table.TryGetWitness(source, out string? witness));
         Assert.Equal("root-a", witness);
     }
+    [Fact]
+    public void RewardScreenVoteRunManagerLifecyclePreservesSingleExactCarrier()
+    {
+        var table = new ExactOwnerWitnessBindingTable<object>();
+        var rewardScreen = new object();
+        var vote = new object();
+        var runManager = new object();
+        Assert.True(table.TryBind(rewardScreen, "ready"));
+        // Production Prefix used to rebind here: the screen still owned ready.
+        Assert.False(table.TryBind(vote, "ready"));
+        Assert.True(table.TryTransfer(rewardScreen, vote, "ready"));
+        Assert.True(table.TryGetWitness(vote, out var witness));
+        Assert.Equal("ready", witness);
+        Assert.False(table.TryTransfer(rewardScreen, new object(), "ready"));
+        Assert.True(table.TryTransfer(vote, runManager, "ready"));
+        Assert.False(table.TakeIfMatches(rewardScreen, "ready"));
+        Assert.False(table.TakeIfMatches(vote, "ready"));
+        Assert.True(table.TakeIfMatches(runManager, "ready"));
+        Assert.False(table.TryGetOwner("ready", out _));
+    }
 }

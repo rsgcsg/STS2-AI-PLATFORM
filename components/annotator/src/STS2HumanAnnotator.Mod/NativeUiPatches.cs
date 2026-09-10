@@ -886,6 +886,15 @@ internal static class NativeUiCompletionRootBindings
         string? expectedActionWitnessId) =>
         Bindings.TryTransfer(source, destination, expectedActionWitnessId);
 
+    internal static bool TransferRewardScreenToAction(GameAction action, string actionWitnessId)
+    {
+        // The reward Prefix already owns this witness. Move that exact screen
+        // carrier; rebinding the same witness to a second owner must fail.
+        return Bindings.TryGetOwner(actionWitnessId, out object? owner)
+            && owner is NRewardsScreen
+            && Bindings.TryTransfer(owner, action, actionWitnessId);
+    }
+
     internal static bool Contains(object? owner) =>
         Bindings.Contains(owner);
 
@@ -1680,7 +1689,7 @@ internal static class NativeActChangeVoteEnqueuePatch
             {
                 // Prefix is intentional: GameAction.OnEnqueued is raised by
                 // RequestEnqueue's original body before a Postfix can run.
-                if (!NativeUiCompletionRootBindings.Remember(action, actionWitnessId))
+                if (!NativeUiCompletionRootBindings.TransferRewardScreenToAction(action, actionWitnessId))
                 {
                     NativeUiObservationSafety.Report(
                         "act_change.vote_enqueue",
@@ -1949,6 +1958,10 @@ internal static class NativeEventOptionPatch
             option,
             verb,
             __instance);
+        // Chosen can synchronously open a selector before this callback returns.
+        if (__state.Scope.Entered)
+            __state = __state with { Scope = __state.Scope with {
+                CarrierBindingFailed = !NativeUiCompletionRootBindings.Remember(option, __state.Scope.ActionWitnessId) } };
     }
 
     private static void Postfix(PatchState __state)
@@ -1974,12 +1987,18 @@ internal static class NativeEventOptionPatch
                     DateTimeOffset.UtcNow),
                 captureImmediatePostCommitBoundary: false,
                 actionWitnessId: __state.Scope.ActionWitnessId);
-            if (accepted && !NativeUiCompletionRootBindings.RememberOrFailClosed(
-                    option,
-                    __state.Scope.ActionWitnessId,
-                    NativeActionType,
-                    "The exact EventOption is already bound to another root."))
+            if (!accepted)
+            {
+                NativeUiCompletionRootBindings.TakeIfMatches(option, __state.Scope.ActionWitnessId);
                 return;
+            }
+            if (__state.Scope.CarrierBindingFailed)
+            {
+                RecorderRuntime.ObserveSemanticUiCarrierBindingFailure(
+                    __state.Scope.ActionWitnessId!, NativeActionType,
+                    "The exact EventOption was already bound before native execution.");
+                return;
+            }
             if (NativeEventOptionCompletionPatch.TryTakeTask(option, out Task? task)
                 && task != null)
             {
@@ -2619,10 +2638,8 @@ internal static class NativeShopInventoryClosePatch
 }
 
 /// <summary>
-/// Captures the exact STS2 run-start seam. RunManager.Launch is called after
-/// the native RunState has been initialized; it is distinct from a recorder
-/// joining an already-running session, which remains an observed-in-progress
-/// marker.
+/// Captures Launch on the exact RunState. Setup provenance distinguishes new
+/// singleplayer runs from saved resumes; Launch alone is not a new-run witness.
 /// </summary>
 [HarmonyPatch]
 internal static class NativeRunStartedPatch
@@ -2633,7 +2650,32 @@ internal static class NativeRunStartedPatch
             typeof(RunManager).FullName,
             "Launch");
 
-    private static void Postfix() => RecorderRuntime.ObserveNativeRunStarted();
+    internal static readonly NativeRunLaunchProvenance<RunState> Origins = new();
+
+    private static void Postfix(RunState __result) =>
+        RecorderRuntime.ObserveNativeRunStarted(Origins.JournalKind(__result));
+}
+
+// Singleplayer is the recorder's supported admission domain. Setup observes
+// the exact RunState even while recording is closed; no gameplay is recorded.
+[HarmonyPatch(typeof(RunManager), nameof(RunManager.SetUpNewSingleplayer))]
+internal static class NativeNewRunSetupPatch
+{
+    private static void Postfix([HarmonyArgument(0)] RunState state)
+    {
+        try { NativeRunStartedPatch.Origins.ObserveSetup(state, true); }
+        catch (Exception exception) { NativeUiObservationSafety.Report("run_setup.new", exception); }
+    }
+}
+
+[HarmonyPatch(typeof(RunManager), nameof(RunManager.SetUpSavedSingleplayer))]
+internal static class NativeSavedRunSetupPatch
+{
+    private static void Postfix([HarmonyArgument(0)] RunState state)
+    {
+        try { NativeRunStartedPatch.Origins.ObserveSetup(state, false); }
+        catch (Exception exception) { NativeUiObservationSafety.Report("run_setup.saved", exception); }
+    }
 }
 
 /// <summary>

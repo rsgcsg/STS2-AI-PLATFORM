@@ -16,7 +16,7 @@ public sealed class PlatformLiveActionFeedTests
             new(385, 34, 411, 8, 375, 34)));
         Assert.Contains("Canonical 409", text);
         Assert.Contains("Legacy records 139", text);
-        Assert.Contains("Unresolved 8", text);
+        Assert.Contains("Unresolved 8 (includes cancelled)", text);
         Assert.Contains("Decisions unavailable", PlatformLiveActionFeed.FormatCounters(new(139, 83, 0, 0)));
     }
 
