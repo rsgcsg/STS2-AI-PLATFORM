@@ -373,3 +373,27 @@ test("fails closed when a content-addressed semantic frame is tampered", async (
     await rm(root, { recursive: true, force: true });
   }
 });
+
+for (const owner of ["exact-selector", null]) {
+  test(`selector owner boundary requires a durable owner: ${owner}`, async () => {
+    const { root, refs } = await fixture();
+    try {
+      const selected = action();
+      const events = [
+        event(1, "action_accepted", "a1", selected, { human_observation_ref: refs.s0 }),
+        event(2, "boundary_observed", "a1", selected, { execution_pre_ref: refs.s0 }),
+        event(3, "action_started", "a1", selected, { execution_pre_ref: refs.s0 }),
+        event(4, "action_finished", "a1", selected, { execution_pre_ref: refs.s0 }),
+        event(5, "transition_proved", "a1", selected, {
+          execution_pre_ref: refs.s0, successor_ref: refs.s1,
+          proof_status: "proved_native_owner_boundary",
+          boundary: { witness_kind: "native_decision_owner_ready", native_decision_owner_ready: { native_owner_witness_id: owner } }
+        })
+      ];
+      events.forEach(value => { value.action.native_mechanism = "direct_ui_commit"; });
+      await writeFile(path.join(root, "semantic-boundary-trace.jsonl"), events.map(JSON.stringify).join("\n") + "\n");
+      const report = await calibrate(root);
+      assert.equal(report.summary.semantic_candidate_s_a_s_prime, owner ? 1 : 0);
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+}

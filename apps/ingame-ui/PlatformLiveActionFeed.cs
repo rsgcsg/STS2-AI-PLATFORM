@@ -23,7 +23,7 @@ internal sealed record PlatformLiveActionCounts(
 
 /// <summary>
 /// Read-only, session-local projection of canonical Recorder application events.
-/// RecordId is the required Human action root identity. BoundActionId remains
+/// RecordId identifies a decision occurrence, not its enclosing causal root. BoundActionId remains
 /// presentation metadata for the state-bound candidate and is never promoted to
 /// a lifecycle correlation root. Events without RecordId remain event-level and
 /// make aggregate disposition counts explicitly inexact.
@@ -38,8 +38,9 @@ internal sealed class PlatformLiveActionAggregation
 
     internal int Count => _items.Count;
 
-    internal IReadOnlyList<PlatformLiveActionItem> Recent(int limit) => _items.Values
+    internal IReadOnlyList<PlatformLiveActionItem> Recent(int limit, int offset = 0) => _items.Values
         .OrderByDescending(value => value.FirstSequence)
+        .Skip(Math.Max(0, offset))
         .Take(Math.Max(0, limit))
         .ToArray();
 
@@ -151,13 +152,26 @@ internal static class PlatformLiveActionFeed
 {
     internal const int MaxEntries = 24;
 
+    internal static string FormatCounters(RecordingCounters counters)
+    {
+        if (counters.Decisions is not { } d)
+            return $"Decisions unavailable · Legacy records {counters.Records} · Invalidations {counters.Invalidations}";
+        return $"Accepted {d.Accepted} ({d.AcceptedRoots} roots + {d.AcceptedChildren} children)"
+            + $" · Proved {d.Proved} · Canonical {d.Canonical} ({d.CanonicalRoots} roots + {d.CanonicalChildren} children)"
+            + $"\nPending {d.Pending} · Unresolved {d.Unresolved} · Invalidations {counters.Invalidations} · Legacy records {counters.Records}";
+    }
+
+
     internal static bool IsActionEvent(RecordingEventKind kind) =>
         kind is RecordingEventKind.RootPending
             or RecordingEventKind.DecisionRecorded
-            or RecordingEventKind.DecisionInvalidated;
+            or RecordingEventKind.DecisionInvalidated
+            or RecordingEventKind.DecisionUnresolved
+            or RecordingEventKind.DecisionProjectionOmitted;
 
     internal static string FormatEntry(PlatformLiveActionItem value) =>
-        $"#{value.FirstSequence}  {FormatCompactAction(value.Action)}  {FormatLifecycle(value.Kind)}";
+        $"#{value.FirstSequence}  {(value.Action?.Decision?.DecisionKind == "nested_selector" ? "↳ Selector" : "Root / legacy")}  {FormatCompactAction(value.Action)}  {FormatLifecycle(value.Kind)}"
+        + (value.Action?.Decision?.ParentDecisionId is { } parent ? $"\nParent: {parent}" : "");
 
     internal static string FormatDetail(PlatformLiveActionItem value)
     {
@@ -180,10 +194,22 @@ internal static class PlatformLiveActionFeed
         if (value.Kind == RecordingEventKind.DecisionRecorded
             && !string.IsNullOrWhiteSpace(value.RecordId))
             lines.Add($"Record: {value.RecordId}");
-        if (value.Kind == RecordingEventKind.DecisionInvalidated)
+        if (value.Kind is RecordingEventKind.DecisionInvalidated or RecordingEventKind.DecisionUnresolved or RecordingEventKind.DecisionProjectionOmitted)
             lines.Add($"Reason: {Explicit(value.Detail, "unavailable (canonical reason not exposed)")}");
         if (!value.HasReliableCorrelation)
             lines.Add($"Correlation: unavailable ({value.CorrelationIssue ?? "stable identity not exposed"})");
+        if (action?.Decision is { } decision)
+        {
+            lines.Add($"Decision: {decision.DecisionId} ({decision.DecisionKind})");
+            lines.Add($"Causal root: {decision.CausalRootId}");
+            lines.Add($"Parent decision: {decision.ParentDecisionId ?? "none (root)"}");
+            lines.Add($"Surface: {decision.Surface} · Family: {decision.Family}");
+            lines.Add($"Native selector owner: {decision.NativeOwnerWitnessId ?? "unavailable"}");
+        }
+        else lines.Add("Decision lineage: unavailable (legacy or diagnostic event)");
+        lines.Add($"Pre-state: {action?.PreSnapshotId ?? "unavailable"}");
+        lines.Add($"Successor: {action?.SuccessorSnapshotId ?? "unavailable"}");
+        lines.Add($"Candidates: {action?.CandidateCount?.ToString() ?? "unavailable"} · Pile: {action?.PileType ?? "not exposed"}");
         lines.Add($"Action ID: {stableActionId}");
         lines.Add($"Subject/card ID: {stableSubjectId}");
         lines.Add($"Target IDs: {targets}");
@@ -196,6 +222,8 @@ internal static class PlatformLiveActionFeed
         RecordingEventKind.RootPending => "… Observed",
         RecordingEventKind.DecisionRecorded => "✓ Recorded",
         RecordingEventKind.DecisionInvalidated => "✕ Invalidated",
+        RecordingEventKind.DecisionUnresolved => "? Unresolved",
+        RecordingEventKind.DecisionProjectionOmitted => "Proved / not canonical",
         _ => "unavailable"
     };
 
@@ -205,6 +233,8 @@ internal static class PlatformLiveActionFeed
             "Status: … Observed · waiting for canonical settlement",
         RecordingEventKind.DecisionRecorded => "Status: ✓ Recorded",
         RecordingEventKind.DecisionInvalidated => "Status: ✕ Invalidated",
+        RecordingEventKind.DecisionUnresolved => "Status: ? Unresolved",
+        RecordingEventKind.DecisionProjectionOmitted => "Status: Proved / not canonical",
         _ => "Status: unavailable"
     };
 

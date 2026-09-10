@@ -469,14 +469,17 @@ internal static partial class RecorderRuntime
             action);
     }
 
-    private static RecordingActionProjection ToActionProjection(RecordedBoundAction action) =>
+    private static RecordingActionProjection ToActionProjection(RecordedBoundAction action,
+        DecisionOccurrenceIdentity? decision = null, CurrentDecisionFrame? pre = null,
+        CurrentDecisionFrame? successor = null) =>
         new(
             action.Verb,
             action.BoundActionId,
             action.SubjectReferentId,
             new Dictionary<string, string>(action.Arguments, StringComparer.Ordinal),
             action.Label,
-            null);
+            null, decision, pre?.SnapshotId, successor?.SnapshotId, pre?.CatalogCount,
+            pre?.Snapshot["interaction"]?["content"]?["surface"]?["pile_type"]?.GetValue<string>());
 
     private static void FinalizeClose()
     {
@@ -3515,15 +3518,13 @@ internal static partial class RecorderRuntime
 
         foreach (SemanticBoundaryTraceDraft draft in drafts.Where(value =>
                      value.Kind == SemanticBoundaryTraceKinds.ActionAccepted
-                     && SupportedFamilyForSemanticAction(value.Action) is { } family
-                     && CaptureProfile.SupportedActionFamilies.Contains(family, StringComparer.Ordinal)
                      && value.Action.BoundAction != null))
         {
             PublishApplicationEvent(
                 RecordingEventKind.RootPending,
                 draft.Action.RecordId,
                 draft.Action.NativeActionType,
-                ToActionProjection(draft.Action.BoundAction!));
+                ToActionProjection(draft.Action.BoundAction!, draft.Action.Decision, draft.HumanObservation));
         }
 
         bool derivedProjectionFailed = false;
@@ -3549,10 +3550,10 @@ internal static partial class RecorderRuntime
                 && draft.Action.BoundAction != null)
             {
                 PublishApplicationEvent(
-                    RecordingEventKind.DecisionInvalidated,
+                    RecordingEventKind.DecisionUnresolved,
                     draft.Action.RecordId,
                     $"{draft.Kind}: {draft.Detail}",
-                    ToActionProjection(draft.Action.BoundAction));
+                    ToActionProjection(draft.Action.BoundAction, draft.Action.Decision, draft.SemanticPre));
             }
             lock (Gate)
                 SemanticProjectionEnvironments.Remove(draft.Action.ActionWitnessId);
@@ -3568,11 +3569,16 @@ internal static partial class RecorderRuntime
         RecordingSessionStore store,
         SemanticBoundaryTraceDraft draft)
     {
-        string? family = draft.Action.Decision?.DecisionKind == "nested_selector"
-            ? "nested_selector.decision" : SupportedFamilyForSemanticAction(draft.Action);
+        string? family = SupportedFamilyForSemanticAction(draft.Action);
         if (family == null
             || !CaptureProfile.SupportedActionFamilies.Contains(family, StringComparer.Ordinal))
+        {
+            PublishApplicationEvent(RecordingEventKind.DecisionProjectionOmitted,
+                draft.Action.RecordId, "proved_but_family_outside_capture_profile",
+                draft.Action.BoundAction == null ? null : ToActionProjection(draft.Action.BoundAction,
+                    draft.Action.Decision, draft.SemanticPre, draft.SemanticSuccessor));
             return true;
+        }
 
         try
         {
@@ -3652,7 +3658,7 @@ internal static partial class RecorderRuntime
                 RecordingEventKind.DecisionRecorded,
                 draft.Action.RecordId,
                 canonical.Action.Verb,
-                ToActionProjection(canonical.Action));
+                ToActionProjection(canonical.Action, canonical.Decision, draft.SemanticPre, draft.SemanticSuccessor));
             _runtimeState = "record_appended";
             _detail = canonical.TransitionId;
             WriteStatus(environment, canonical.SuccessorRef.SnapshotId, Array.Empty<string>());
@@ -3992,6 +3998,10 @@ internal static partial class RecorderRuntime
 
     private static string? SupportedFamilyForSemanticAction(SemanticActionReference action)
     {
+        // Current admission already captured the authoritative decision family.
+        // Re-interpreting its public verb here silently dropped proved purchases.
+        if (action.Decision is { } decision)
+            return decision.DecisionKind == "nested_selector" ? "nested_selector.decision" : decision.Family;
         if (action.NativeActionType == nameof(PickRelicAction)
             && string.Equals(action.BoundAction?.Verb, "skip", StringComparison.Ordinal))
         {
@@ -4019,7 +4029,7 @@ internal static partial class RecorderRuntime
         {
             return action.BoundAction?.Verb == "open_shop_card_removal"
                 ? "shop_inventory.card_removal"
-                : action.BoundAction?.Verb is "purchase_shop_card"
+                : action.BoundAction?.Verb is "activate" or "purchase_shop_card"
                     or "purchase_shop_relic"
                     or "purchase_shop_potion"
                     ? "shop_inventory.purchase"

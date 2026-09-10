@@ -222,3 +222,20 @@ in the content-addressed Snapshot/Read evidence; opaque witnesses never grant
 access to native objects. Cancel/preview/deselect inputs are retained separately.
 Historical continuation-only records have no independent selector S/catalog
 claim and must not be upgraded by a consumer.
+
+## Recording application decision projection
+
+The additive `RecordingCounters.Decisions` snapshot counts accepted roots and
+children, proved/unresolved dispositions and canonical roots/children only after
+the corresponding authoritative append succeeds. `Records` retains its older
+compatibility-record meaning. Recorded-family scope and LastRecord follow the
+canonical stream. Application action metadata optionally copies decision identity,
+pre/successor IDs, catalog count and recorded pile type; old producers omit it.
+These fields do not authorize actions or confer research qualification.
+
+An exact selector input-owner handoff may close a started direct-UI decision
+before its enclosing native Task returns. The durable continuation names that
+exact owner and lineage; no GameAction pause or completion is fabricated. Queued
+GameActions still require their actual pause/finished lifecycle. Current canonical
+family filtering consumes the family already attached at decision admission,
+rather than interpreting the public verb a second time.

@@ -71,7 +71,7 @@ test("Drag and resize use stable global pointer coordinates and persist on relea
 test("Recorder feed is read-only, RecordId-rooted, readable, and scroll-stable", () => {
   assert.match(mod, /QueryEvents\(/u);
   assert.match(mod, /RefreshActionFeed\(status\.Recording\)/u);
-  assert.match(mod, /_actionFeed\.Recent\(PlatformLiveActionFeed\.MaxEntries\)/u);
+  assert.match(mod, /_actionFeed\.Recent\(PlatformLiveActionFeed\.MaxEntries, _actionFeedPage/u);
   assert.match(mod, /feedChanged \|= _actionFeed\.Apply\(value\)/u);
   assert.match(mod, /Text = PlatformLiveActionFeed\.FormatEntry\(value\)/u);
   assert.match(mod, /CustomMinimumSize = new Vector2\(0, 24\)/u);
@@ -114,9 +114,8 @@ test("Recorder controls use the typed application boundary", () => {
   assert.match(mod, /RecordingApplicationService\.Instance\.QueryStatus\(\)/u);
   assert.match(mod, /RecordingCommandKind\.StartNewSession/u);
   assert.match(mod, /RecordingLifecycleState\.Recording/u);
-  assert.match(mod, /Records \{recording\.Counters\.Records\}/u);
-  assert.match(mod, /Pending \{pending\}/u);
-  assert.match(mod, /Invalidated \{invalidated\}/u);
+  assert.match(mod, /PlatformLiveActionFeed\.FormatCounters\(recording\.Counters\)/u);
+  assert.doesNotMatch(mod, /Records = canonical session total/u);
 });
 
 test("Connector status is merged only after runtime/environment coherence", () => {

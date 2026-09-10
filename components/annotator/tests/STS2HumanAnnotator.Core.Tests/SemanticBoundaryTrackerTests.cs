@@ -10,6 +10,51 @@ public sealed class SemanticBoundaryTrackerTests
     private static readonly DateTimeOffset T0 = DateTimeOffset.Parse("2026-08-26T00:00:00Z");
 
     [Fact]
+    public void DirectUiOwnerHandoffRoundTripsThroughFinalCausalValidator()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        var parent = Action("parent", 1) with { NativeMechanism = "direct_ui_commit", RequiresNativePostCommit = true };
+        var all = new List<SemanticBoundaryTraceDraft>();
+        all.AddRange(tracker.Accept(parent, State("human")));
+        all.AddRange(tracker.ObserveBeforeActionExecution("parent", Boundary("pre", "parent")));
+        all.AddRange(tracker.Started("parent"));
+        all.AddRange(tracker.ObserveNestedInputBoundary("parent", PostCommitBoundary("selector-pre", "card_selection"),
+            new("handoff", "exact_selector_input_owner", "parent", "decision-owner-selector-pre", "exact-opening-owner", true)));
+        all.AddRange(tracker.Finished("parent"));
+        var events = all.Select((draft, i) => Event(i + 1, draft)).ToArray();
+        var decoded = JsonSerializer.Deserialize<SemanticBoundaryTraceEvent[]>(JsonSerializer.Serialize(events, EvidenceJson.Options), EvidenceJson.Options)!;
+        Assert.Empty(SemanticBoundaryTraceValidator.Validate(decoded));
+        Assert.Contains("semantic_transition_lifecycle_incomplete", SemanticBoundaryTraceValidator.Validate(
+            decoded.Where(x => x.Kind != SemanticBoundaryTraceKinds.NativeContinuationObserved).ToArray()));
+    }
+
+    [Theory]
+    [InlineData("direct_ui_commit", true)]
+    [InlineData("game_action", false)]
+    public void ExactInputOwnerClosesAwaitingUiDecisionWithoutInventingGameActionPause(string mechanism, bool closes)
+    {
+        var tracker = new SemanticBoundaryTracker();
+        var parent = Action("parent", 1) with { NativeMechanism = mechanism, RequiresNativePostCommit = true };
+        tracker.Accept(parent, State("human"));
+        tracker.ObserveBeforeActionExecution("parent", Boundary("pre", "parent"));
+        tracker.Started("parent");
+        var drafts = tracker.ObserveNestedInputBoundary("parent", PostCommitBoundary("selector-pre", "card_selection"),
+            new("handoff", "exact_selector_input_owner", "parent", "decision-owner-selector-pre", "exact-opening-owner", true));
+        Assert.Equal(closes ? 1 : 0, drafts.Count(x => x.Kind == SemanticBoundaryTraceKinds.TransitionProved));
+        Assert.DoesNotContain(drafts, x => x.Kind is SemanticBoundaryTraceKinds.ActionFinished or SemanticBoundaryTraceKinds.ActionPausedForPlayerChoice);
+        if (closes)
+        {
+            var child = Action("confirm", 2);
+            tracker.Accept(child, State("selector-pre"));
+            tracker.ObserveBeforeActionExecution("confirm", Boundary("selector-pre", "confirm"));
+            tracker.Started("confirm");
+            tracker.Finished("confirm");
+            Assert.Empty(tracker.ObserveNativeCommit("parent", new("complete", "rest", "native-task", "parent", null, null, null, null, true)));
+            Assert.Single(tracker.Finished("parent"));
+        }
+    }
+
+    [Fact]
     public void DecisionLineageRoundTripsAndRejectsWrongRunMissingParentAndIdentityLoss()
     {
         var parent = Action("root", 1) with { Decision = new(1, "d-root", "root", null, "combat", "play", "root", null) };
@@ -1194,7 +1239,12 @@ public sealed class SemanticBoundaryTrackerTests
                 Action("a1", 1));
 
             using (RecordingSessionStore store = RecordingSessionStore.Create(root, manifest, profile))
+            {
                 store.AppendSemanticBoundaryEvent(accepted);
+                Assert.Equal(1, store.GetSnapshot().Counters.Decisions!.AcceptedRoots);
+                Assert.Equal(0, store.GetSnapshot().Counters.Records);
+                Assert.Equal(0, store.GetSnapshot().Counters.Decisions!.Canonical);
+            }
 
             string path = Path.Combine(root, "session-test", "semantic-boundary-trace.jsonl");
             SemanticBoundaryTraceEvent persisted = JsonSerializer.Deserialize<SemanticBoundaryTraceEvent>(

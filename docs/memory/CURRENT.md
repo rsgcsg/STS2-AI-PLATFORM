@@ -4,6 +4,14 @@ This is a bounded handoff, not repository authority. Resolve live GitHub refs,
 open PRs, rulesets, code, tests, `platform-bom.json`, and exact runtime/evidence
 before making a current claim. Those sources override this file.
 
+## PR25 decision/UI alignment (2026-09-10)
+
+The follow-up to `5b40a3a9` aligns direct-UI parent handoff, canonical family
+mapping, calibration and Live UI counts/lineage. See
+[decision/UI alignment and STPD boundary review](../evidence/PR25_DECISION_UI_ALIGNMENT_2026-09-10.md).
+Exact native hooks without an admitted Human parent remain fail-closed. This
+is engineering work, not Full-Run qualification or STPD adapter admission.
+
 ## PR25 decision-semantics repair (2026-09-10)
 
 The next source candidate descends from exact PR head

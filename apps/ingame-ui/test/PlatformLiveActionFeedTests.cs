@@ -10,6 +10,36 @@ public sealed class PlatformLiveActionFeedTests
         DateTimeOffset.Parse("2026-09-01T00:00:00Z");
 
     [Fact]
+    public void CanonicalCountersDoNotUseLegacyProjectionOrFeedRetention()
+    {
+        string text = PlatformLiveActionFeed.FormatCounters(new(139, 83, 1397, 0,
+            new(385, 34, 411, 8, 375, 34)));
+        Assert.Contains("Canonical 409", text);
+        Assert.Contains("Legacy records 139", text);
+        Assert.Contains("Unresolved 8", text);
+        Assert.Contains("Decisions unavailable", PlatformLiveActionFeed.FormatCounters(new(139, 83, 0, 0)));
+    }
+
+    [Fact]
+    public void SiblingDecisionsRemainDistinctAndExposeExactParentOnEveryPage()
+    {
+        var feed = new PlatformLiveActionAggregation();
+        for (int i = 1; i <= 30; i++)
+            feed.Apply(Event(i, RecordingEventKind.DecisionRecorded, "r-" + i) with {
+                Action = Action("bound-" + i, "Select", "card") with {
+                    Decision = new(1, "d-" + i, "root", "parent", "selector", "pile", "nested_selector", "owner"),
+                    PreSnapshotId = "pre", SuccessorSnapshotId = "post", CandidateCount = 9, PileType = "draw"
+                }});
+        Assert.Equal(24, feed.Recent(24).Count);
+        Assert.Equal(6, feed.Recent(24, 24).Count);
+        string detail = PlatformLiveActionFeed.FormatDetail(feed.Recent(24, 24)[0]);
+        Assert.Contains("Parent decision: parent", detail);
+        Assert.Contains("Causal root: root", detail);
+        Assert.Contains("Candidates: 9 · Pile: draw", detail);
+        Assert.Equal(30, feed.Counts.Records);
+    }
+
+    [Fact]
     public void ObservedThenRecordedUpdatesOneActionRow()
     {
         var feed = new PlatformLiveActionAggregation();

@@ -193,6 +193,15 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame, loadAct
       : { valid: false, reason: "successor_state_action_space_incomplete" };
   }
 
+  if (proved.proof_status === "proved_native_owner_boundary") {
+    const owner = proved.boundary?.native_decision_owner_ready?.native_owner_witness_id;
+    if (proved.boundary?.witness_kind !== "native_decision_owner_ready" || !owner)
+      return { valid: false, reason: "native_owner_boundary_witness_missing" };
+    return successorStatus.complete
+      ? { valid: true, reason: "native_owner_boundary_exact" }
+      : { valid: false, reason: "successor_state_action_space_incomplete" };
+  }
+
   if (proved.proof_status === "proved_native_commit_then_owner_boundary") {
     if (proved.boundary?.witness_kind !== "native_decision_owner_ready")
       return { valid: false, reason: "native_owner_boundary_witness_missing" };

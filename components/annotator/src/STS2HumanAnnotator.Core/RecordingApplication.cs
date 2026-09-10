@@ -73,7 +73,18 @@ public sealed record RecordingCounters(
     long Records,
     long Invalidations,
     long ReadsMaterialized,
-    long ReadsFailed);
+    long ReadsFailed,
+    RecordingDecisionCounters? Decisions = null);
+
+/// <summary>Counts only facts successfully appended to the authoritative streams.</summary>
+public sealed record RecordingDecisionCounters(
+    long AcceptedRoots, long AcceptedChildren, long Proved, long Unresolved,
+    long CanonicalRoots, long CanonicalChildren)
+{
+    public long Accepted => AcceptedRoots + AcceptedChildren;
+    public long Canonical => CanonicalRoots + CanonicalChildren;
+    public long Pending => Math.Max(0, Accepted - Proved - Unresolved);
+}
 
 public sealed record RecordingStoreSnapshot(
     RecordingCounters Counters,
@@ -104,7 +115,12 @@ public sealed record RecordingActionProjection(
     string? SubjectReferentId,
     IReadOnlyDictionary<string, string> Arguments,
     string Label,
-    string? EffectSummary = null);
+    string? EffectSummary = null,
+    DecisionOccurrenceIdentity? Decision = null,
+    string? PreSnapshotId = null,
+    string? SuccessorSnapshotId = null,
+    int? CandidateCount = null,
+    string? PileType = null);
 
 public sealed record RecordingPendingRootStatus(
     string RecordId,
@@ -170,6 +186,8 @@ public enum RecordingEventKind
     RootPending,
     DecisionRecorded,
     DecisionInvalidated,
+    DecisionUnresolved,
+    DecisionProjectionOmitted,
     HealthChanged,
     CommandRejected
 }

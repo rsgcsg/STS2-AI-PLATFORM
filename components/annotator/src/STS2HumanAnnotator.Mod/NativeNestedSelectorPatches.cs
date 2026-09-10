@@ -88,6 +88,7 @@ internal static class NativeNestedSelectorBindings
         string FactoryMechanism)
     {
         internal string? RecordingSessionId { get; } = RecorderRuntime.SessionId;
+        internal string? FailureReason { get; init; }
         internal DecisionOccurrenceIdentity? ParentDecision { get; set; }
         internal string? DecisionHeadActionId { get; set; }
     }
@@ -143,6 +144,7 @@ internal static class NativeNestedSelectorBindings
     {
         if (screen == null)
             return;
+        string failureReason = "selector_factory_without_exact_parent_scope";
         try
         {
             if (Screens.TryBindCurrent(
@@ -155,6 +157,7 @@ internal static class NativeNestedSelectorBindings
             // A context-bearing native invocation whose exact action/root
             // cannot be resolved is evidence of an unavailable binding, not
             // permission to fall back to ambient/current action state.
+            failureReason = exception.Message;
             NativeUiObservationSafety.Report(
                 $"{factory.DeclaringType?.FullName}.{factory.Name}.exact_parent",
                 exception);
@@ -163,7 +166,7 @@ internal static class NativeNestedSelectorBindings
             "unavailable",
             screen,
             FamilyFor(screen),
-            $"{factory.DeclaringType?.FullName}.{factory.Name}");
+            $"{factory.DeclaringType?.FullName}.{factory.Name}") { FailureReason = failureReason };
         if (!Screens.TrySet(screen, unavailable))
             throw new InvalidOperationException(
                 "The exact selector screen already carries a different parent/root binding.");
@@ -194,13 +197,16 @@ internal static class NativeNestedSelectorBindings
         if (parent.ChoiceContext == null
             || !string.Equals(parent.Family, actualFamily, StringComparison.Ordinal)
             || !TryResolveExactAction(parent.ChoiceContext, out GameAction? action)
-            || action == null
-            || !NativeUiCompletionRootBindings.TryGet(action, out string? actionWitnessId)
-            || string.IsNullOrWhiteSpace(actionWitnessId))
+            || action == null)
         {
             throw new InvalidOperationException(
                 $"The exact {parent.Family} CardSelectCmd invocation did not carry a matching bound GameAction owner.");
         }
+        if (!NativeUiCompletionRootBindings.TryGet(action, out string? actionWitnessId)
+            || string.IsNullOrWhiteSpace(actionWitnessId))
+            return new Binding("unavailable", action, parent.Family, factoryMechanism) {
+                FailureReason = $"exact_native_owner_without_human_decision:{action.GetType().Name}"
+            };
         return new Binding(
             actionWitnessId,
             action,

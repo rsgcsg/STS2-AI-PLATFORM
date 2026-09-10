@@ -29,6 +29,7 @@ public sealed class RecordingSessionStore : IDisposable
     private readonly Dictionary<string, long> _invalidationsByReason = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _recordedActionFamilies = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _invalidatedNativeActions = new(StringComparer.Ordinal);
+    private RecordingDecisionCounters _decisions = new(0, 0, 0, 0, 0, 0);
     private long _admittedCount;
     private long _invalidationCount;
     private long _readMaterialized;
@@ -88,7 +89,7 @@ public sealed class RecordingSessionStore : IDisposable
                     _admittedCount,
                     _invalidationCount,
                     _readMaterialized,
-                    _readFailed),
+                    _readFailed, _decisions),
                 _lastRecord,
                 _lastInvalidation,
                 new Dictionary<string, long>(_recordedActionFamilies, StringComparer.Ordinal),
@@ -360,16 +361,6 @@ public sealed class RecordingSessionStore : IDisposable
                 () => AppendBufferedLine(DecisionFile(record.RunId), record));
             _admittedCount++;
             _families[record.DecisionFamily] = _families.GetValueOrDefault(record.DecisionFamily) + 1;
-            string actionFamily = HumanCaptureProfileValidator.ResolveActionFamily(
-                record.DecisionFamily,
-                record.Action.Verb);
-            _recordedActionFamilies[actionFamily] =
-                _recordedActionFamilies.GetValueOrDefault(actionFamily) + 1;
-            _lastRecord = new RecordingItemStatus(
-                record.RecordId,
-                record.Action.Verb,
-                record.RecordedAt,
-                record.DecisionFamily);
         });
     }
 
@@ -405,6 +396,8 @@ public sealed class RecordingSessionStore : IDisposable
                     _semanticBoundaryTrace,
                     values.Select(value =>
                         JsonSerializer.SerializeToUtf8Bytes(value, EvidenceJson.Options)).ToArray()));
+            foreach (var value in values)
+                CountDecisionEvent(value.Kind, value.Action.Decision);
         });
     }
 
@@ -422,7 +415,24 @@ public sealed class RecordingSessionStore : IDisposable
                     _semanticBoundaryTrace,
                     values.Select(value =>
                         JsonSerializer.SerializeToUtf8Bytes(value, EvidenceJson.Options)).ToArray()));
+            foreach (var value in values)
+                CountDecisionEvent(value.Kind, value.Action.Decision);
         });
+    }
+
+    private void CountDecisionEvent(string kind, DecisionOccurrenceIdentity? decision)
+    {
+        if (kind == SemanticBoundaryTraceKinds.ActionAccepted)
+            _decisions = decision?.DecisionKind == "nested_selector"
+                ? _decisions with { AcceptedChildren = _decisions.AcceptedChildren + 1 }
+                : _decisions with { AcceptedRoots = _decisions.AcceptedRoots + 1 };
+        else if (kind == SemanticBoundaryTraceKinds.TransitionProved)
+            _decisions = _decisions with { Proved = _decisions.Proved + 1 };
+        else if (kind is SemanticBoundaryTraceKinds.TransitionUnknown
+            or SemanticBoundaryTraceKinds.ActionCancelledBeforeStart
+            or SemanticBoundaryTraceKinds.ActionCancelledAfterStart
+            or SemanticBoundaryTraceKinds.ActionAbortedBeforeCommit)
+            _decisions = _decisions with { Unresolved = _decisions.Unresolved + 1 };
     }
 
     public void AppendCanonicalTransition(CanonicalTransitionEvidence value)
@@ -438,9 +448,17 @@ public sealed class RecordingSessionStore : IDisposable
         }
         EnsureOpen();
         ExecuteWrite(() =>
-            _performance.Measure(
-                "canonical_transition_append_buffered",
-                () => AppendBufferedLine(_canonicalTransitions, value)));
+        {
+            _performance.Measure("canonical_transition_append_buffered",
+                () => AppendBufferedLine(_canonicalTransitions, value));
+            string family = value.Decision?.DecisionKind == "nested_selector"
+                ? "nested_selector.decision" : value.Decision?.Family ?? "legacy_unclassified";
+            _recordedActionFamilies[family] = _recordedActionFamilies.GetValueOrDefault(family) + 1;
+            _lastRecord = new RecordingItemStatus(value.TransitionId, value.Action.Verb, value.RecordedAt, family);
+            _decisions = value.Decision?.DecisionKind == "nested_selector"
+                ? _decisions with { CanonicalChildren = _decisions.CanonicalChildren + 1 }
+                : _decisions with { CanonicalRoots = _decisions.CanonicalRoots + 1 };
+        });
     }
 
     public void AppendNativeSemanticDiscriminatorEvent(

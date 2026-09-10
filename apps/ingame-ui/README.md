@@ -6,9 +6,9 @@ Live Workspace and `Esc` closes it. The Workspace has exactly two peer
 surfaces, `Agent Run` and `Human Recorder`; Recorder is never a floating card
 or root overlay.
 The Recorder tab exposes only the typed New/Pause/Resume/Close application
-commands, plus a bounded Recent Actions feed and Last Action detail sourced
+commands, plus a paginated retained-decision feed and selectable evidence detail sourced
 only from the typed Annotator application-event projection of already-owned
-semantic root/lifecycle facts; missing card, target
+semantic decision/lifecycle facts; missing card, target
 or effect metadata is shown as unavailable. The UI
 calls typed Connector observation, Policy Runtime, and Annotator recording
 services; it does not publish, resolve, or submit gameplay actions itself.
@@ -42,3 +42,8 @@ See [`apps/game-mod/README.md`](../game-mod/README.md) for the only supported
 build/install/cold-load/rollback lifecycle. Loaded UI identity is not Human or
 policy-run evidence. Shadow, One-Step, and Auto remain unavailable until a
 compatible Policy Runtime with an exact Policy Manifest and artifact is running.
+
+Recorder distinguishes accepted root and selector-child decisions, canonical
+transitions, unresolved outcomes, invalidations and legacy records. Details carry
+exact parent/root lineage and captured selector metadata. Session totals are
+store-owned and remain independent of event retention; a partial feed is labeled.

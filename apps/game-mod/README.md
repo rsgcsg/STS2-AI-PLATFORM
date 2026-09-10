@@ -35,7 +35,7 @@ Restore with:
 npm run game-mod:rollback
 ```
 
-After cold load, press `K` to open/close the five-page Platform UI; `Escape`
+After cold load, press `K` to open/close the two-tab Platform Workspace; `Escape`
 also closes it. Verification requires one exact `STS2_PLATFORM` Modset, one
 common loaded SHA/MVID for Connector/Annotator/UI, component-specific embedded
 source provenance, a ready UI node, and Connector execution availability.

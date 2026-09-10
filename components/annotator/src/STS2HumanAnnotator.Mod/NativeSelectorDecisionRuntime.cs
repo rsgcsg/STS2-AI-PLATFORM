@@ -16,6 +16,7 @@ internal static partial class RecorderRuntime
     [ThreadStatic] private static bool _selectorInputStaged;
     [ThreadStatic] private static object? _selectorInputOwner;
     [ThreadStatic] private static HumanActionOccurrenceEvidence? _selectorInputAttempt;
+    [ThreadStatic] private static string? _selectorInputFailure;
     internal static bool SelectorInputOwns(object owner) => _selectorInputStaged && _selectorInputAttempt != null && ReferenceEquals(_selectorInputOwner, owner);
     internal static bool SelectorInputActive => _selectorInputStaged;
 
@@ -25,6 +26,7 @@ internal static partial class RecorderRuntime
         if (!AcceptingNewWitnesses() || SelectorInputActive)
             return null;
         _selectorInputStaged = true;
+        _selectorInputFailure = "selector_pre_capture_failed";
         _selectorInputOwner = owner;
         try
         {
@@ -39,20 +41,29 @@ internal static partial class RecorderRuntime
                 _selectorInputAttempt = null;
                 return null;
             }
-            if (!NativeNestedSelectorBindings.TryGet(owner, out var binding)
-                || binding == null || binding.ActionWitnessId == "unavailable"
-                || binding.RecordingSessionId != SessionId)
+            if (!NativeNestedSelectorBindings.TryGet(owner, out var binding) || binding == null)
+            { _selectorInputFailure = "selector_binding_missing"; return null; }
+            if (binding.RecordingSessionId != SessionId)
+            { _selectorInputFailure = "selector_binding_session_mismatch"; return null; }
+            if (binding.ActionWitnessId == "unavailable")
+            {
+                _selectorInputFailure = $"{binding.FailureReason ?? "selector_parent_unavailable"};factory={binding.FactoryMechanism};native_owner={NativeWitnessIdentity.Get(binding.ParentOwner, "native_owner")}";
                 return null;
+            }
             DecisionOccurrenceIdentity? parent = binding.ParentDecision
                 ?? BoundaryTracker.DecisionIdentity(binding.ActionWitnessId);
             if (parent == null)
-                return null;
+            { _selectorInputFailure = "selector_parent_decision_missing"; return null; }
             binding.ParentDecision = parent;
             RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
             var matches = operations.Select(operation => frame.ResolveNativeInput(owner, operation, subject))
                 .Where(IsExact).DistinctBy(match => match.BoundActionId).ToArray();
-            if (SemanticWitnessBlockers(frame, environment).Count != 0 || matches.Length != 1)
+            var blockers = SemanticWitnessBlockers(frame, environment);
+            if (blockers.Count != 0 || matches.Length != 1)
+            {
+                _selectorInputFailure = $"selector_pre_blockers={string.Join(',', blockers)};exact_input_matches={matches.Length}";
                 return null;
+            }
             CurrentDecisionFrame pre = FreezeSemanticBoundary(frame, environment);
             string actionId = $"selector-decision-{Guid.NewGuid():N}";
             string parentActionId = binding.DecisionHeadActionId ?? binding.ActionWitnessId;
@@ -93,7 +104,7 @@ internal static partial class RecorderRuntime
         {
             if (_selectorInputStaged && accepted && _selectorInputAttempt != null)
                 Quarantine("selector_decision_pre_or_lineage_unavailable",
-                    "The accepted selector input has no exact complete pre-state/catalog/parent binding.",
+                    $"The accepted selector input has no exact complete pre-state/catalog/parent binding: {_selectorInputFailure ?? "unavailable"}.",
                     _lastSnapshotId, _selectorInputAttempt?.NativeActionType ?? "native_selector_input",
                     "failed_closed", _selectorInputAttempt);
             _selectorInputStaged = false;

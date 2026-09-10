@@ -101,9 +101,9 @@ const recordedApplicationProjection = `PublishApplicationEvent(
                 RecordingEventKind.DecisionRecorded,
                 draft.Action.RecordId,
                 canonical.Action.Verb,
-                ToActionProjection(canonical.Action));`;
+                ToActionProjection(canonical.Action, canonical.Decision, draft.SemanticPre, draft.SemanticSuccessor));`;
 if (!recorderRuntime.includes(recordedApplicationProjection))
-  errors.push("recorded application events must correlate on the semantic Human root RecordId");
+  errors.push("recorded application events must correlate on the semantic decision RecordId");
 if (recorderRuntime.includes(`PublishApplicationEvent(
                 RecordingEventKind.DecisionRecorded,
                 eventId,`))

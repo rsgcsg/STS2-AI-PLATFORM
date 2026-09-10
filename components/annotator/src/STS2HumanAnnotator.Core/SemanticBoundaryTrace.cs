@@ -349,7 +349,14 @@ public sealed class SemanticBoundaryTracker
             || boundary.NativeDecisionOwnerReady!.NativeOwnerWitnessId != continuation.NativeOwnerWitnessId)
             throw new InvalidOperationException("Nested decision boundary requires exact native owner lineage.");
         var drafts = new List<SemanticBoundaryTraceDraft>();
-        if (!parent.Paused && !parent.Finished)
+        // Direct UI operations await their exact selector without a GameAction pause.
+        // The input-owner handoff closes the decision, not the enclosing Task.
+        bool directOwnerHandoff = parent.Started
+            && parent.Action.NativeMechanism == "direct_ui_commit"
+            && parent.Action.RequiresNativePostCommit
+            && continuation.Kind == "exact_selector_input_owner"
+            && !string.IsNullOrWhiteSpace(continuation.NativeLineageWitnessId);
+        if (!parent.Paused && !parent.Finished && !directOwnerHandoff)
             return Array.Empty<SemanticBoundaryTraceDraft>(); // Never invent a native pause.
         if (parent.NativeCommit == null && parent.NativeContinuation == null)
             drafts.AddRange(ObserveNativeContinuation(parentActionWitnessId, continuation));
@@ -705,7 +712,9 @@ public sealed class SemanticBoundaryTracker
                 entry,
                 "native_player_choice_continuation_observed",
                 semanticPre: entry.SemanticPre,
-                detail: "STS2 paused this exact GameAction for a nested PlayerChoice; the parent has not finished and the successor remains pending.",
+                detail: continuation.Kind == "exact_selector_input_owner"
+                    ? "An exactly bound selector acquired input within this causal root; the enclosing native operation has not finished."
+                    : "STS2 paused this exact GameAction for a nested PlayerChoice; the parent has not finished and the successor remains pending.",
                 nonClaims: new[] { "native_continuation_is_not_semantic_successor", "parent_not_finished" }) with
             {
                 NativeContinuation = continuation
@@ -1301,7 +1310,17 @@ public static class SemanticBoundaryTraceValidator
                 errors.Add("semantic_action_started_twice");
             foreach (SemanticBoundaryTraceEvent disposition in actionEvents.Where(IsDisposition))
             {
-                bool lifecycleFinished = actionEvents.Any(value =>
+                bool exactUiHandoff = disposition.Action.NativeMechanism == "direct_ui_commit"
+                    && disposition.Action.RequiresNativePostCommit
+                    && disposition.NativeContinuation is { Kind: "exact_selector_input_owner", Succeeded: true } handoff
+                    && handoff.ActionWitnessId == disposition.Action.ActionWitnessId
+                    && !string.IsNullOrWhiteSpace(handoff.NativeLineageWitnessId)
+                    && disposition.Boundary?.NativeDecisionOwnerReady?.NativeOwnerWitnessId == handoff.NativeOwnerWitnessId
+                    && disposition.Boundary?.IsNativeDecisionOwnerReadyBoundary == true
+                    && actionEvents.Any(value => value.Sequence < disposition.Sequence
+                        && value.Kind == SemanticBoundaryTraceKinds.NativeContinuationObserved
+                        && value.NativeContinuation == handoff);
+                bool lifecycleFinished = exactUiHandoff || actionEvents.Any(value =>
                     value.Sequence < disposition.Sequence
                     && value.Kind is SemanticBoundaryTraceKinds.ActionFinished
                         or SemanticBoundaryTraceKinds.ActionPausedForPlayerChoice);
@@ -1310,6 +1329,7 @@ public static class SemanticBoundaryTraceValidator
                     errors.Add("semantic_transition_lifecycle_incomplete");
                 if (disposition.Kind == SemanticBoundaryTraceKinds.TransitionProved
                     && disposition.NativeContinuation != null
+                    && !exactUiHandoff
                     && !actionEvents.Any(value =>
                         value.Sequence < disposition.Sequence
                         && value.Kind == SemanticBoundaryTraceKinds.ActionPausedForPlayerChoice))

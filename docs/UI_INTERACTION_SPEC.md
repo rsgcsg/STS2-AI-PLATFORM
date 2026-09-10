@@ -56,3 +56,21 @@ Human canary or policy qualification. Connector observation, Policy Runtime
 mode/tick commands, and Annotator recording controls are the only application
 commands exposed by the UI; gameplay actions remain owned by Connector and the
 runtime authority path.
+
+## Decision evidence presentation
+
+Recorder uses the canonical decision occurrence as its presentation unit, with
+causal root, exact opening parent and native selector owner shown separately.
+Sibling inputs remain distinct rows; no synthetic GameAction is implied by a
+selector row. Selecting a row shows its surface/family, pre/successor Snapshot
+IDs, chosen subject, catalog count and pile provenance when recorded. Missing
+facts remain unavailable. A parent's canonical status is never inferred from a
+child's status.
+
+Session totals come from successfully appended trace/canonical facts: accepted
+roots/children, proved, unresolved, pending and canonical roots/children.
+Invalidation occurrences and legacy compatibility records are separate totals;
+neither zero invalid records nor canonical status means Full-Run qualification.
+The paginated feed browses retained application events. Reconnect/retention gaps
+are explicit; this operational view does not replace the immutable session audit.
+The bounded stream cannot recover history it never received.
