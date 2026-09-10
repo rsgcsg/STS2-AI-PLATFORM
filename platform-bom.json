@@ -22,9 +22,9 @@
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "6c5ec60a8c6bb96e24f85d437f5306ff94c22551",
-      "component_tree_revision": "61f48a5a23e50ed774b54e4b1b700ecc4df09c4a",
-      "component_source_digest_sha256": "77b10b96f9a64ca164e275eb4f45f934a1cd57a375f30dd20e01d17cd56775cb"
+      "source_revision": "f01197312902b0f167c83af03b23a0ac982b1c6a",
+      "component_tree_revision": "1778a98c2d46957e8843fd418609ca193e22afdd",
+      "component_source_digest_sha256": "6e93a9907b2cf26225559e99135e98d1e318fbdbf82e83b832c907dc4c17567a"
     },
     "evidence": {
       "version": "0.1.0-rc.1",
@@ -46,15 +46,15 @@
     },
     "live_ui": {
       "version": "0.1.0-rc.1",
-      "source_revision": "cae0f2f5e98dcf3ebcd46165a01ecc526b39048d",
-      "component_tree_revision": "3dccf58a1ae3f7b4d3c5a1f785f82f71748a9fdb",
-      "component_source_digest_sha256": "31e903e3d10f37fed20fbb2ad3f6e992d774f2c6507c4b940ad17cfc5129b6bf"
+      "source_revision": "f01197312902b0f167c83af03b23a0ac982b1c6a",
+      "component_tree_revision": "01d771f42db1ceafb8a6dc43e0844d534d4756a3",
+      "component_source_digest_sha256": "18d597e2b21561f627b70839b221ddcc6ac944024c4d8b472996306ee3e53986"
     },
     "game_mod": {
       "version": "0.2.0-rc.1",
-      "source_revision": "69079b22f3b053ae817d08ce644f7f6eb3deb2c4",
-      "component_tree_revision": "c997b4ce1a9dc0e0ae094aa34c8b9ec5bf447586",
-      "component_source_digest_sha256": "20a3caa065ac943e50383f8aa9e0191269a959bb43cb90b24311f039e9a62ff5"
+      "source_revision": "f01197312902b0f167c83af03b23a0ac982b1c6a",
+      "component_tree_revision": "27b088cd4df810d1610720618afbe6cba5974401",
+      "component_source_digest_sha256": "8cdeea6b1f9dd2b033a0e39f5a2f5d05ad44ec9d5bd07c8e8161736cd6f31dcf"
     },
     "player_environment_protocol": "1.0.0",
     "typescript_sdk": "1.1.0-rc.1"
@@ -297,7 +297,9 @@
       "environment_fingerprint": "190234e4a3b270d4447e13598c45aa205d40766b98f6efa2b99c3790b77386d2",
       "modset_status": "exact_platform_modset",
       "modset_fingerprint": "968a30c304f7ba8befd459f279a1f36957eb5dbebed94e8016111bce3389288c",
-      "loaded_mod_ids": ["STS2_PLATFORM"],
+      "loaded_mod_ids": [
+        "STS2_PLATFORM"
+      ],
       "runtime_status": "recording_closed_process_exited",
       "owner_canary": {
         "session_id": "session-20260830T064823Z-ed1d683fe0b44e1db312c7489cda7fba",
@@ -358,7 +360,9 @@
       "environment_fingerprint": "f0cbd53a1be10fad5630252aa4f4ee484b426d733ac3f4d52a04d069584b1c37",
       "modset_status": "exact_platform_modset",
       "modset_fingerprint": "d5054e7bbfc30d8787c3573f57ada09bb808874c0c4f82485433c0e725a96e8d",
-      "loaded_mod_ids": ["STS2_PLATFORM"],
+      "loaded_mod_ids": [
+        "STS2_PLATFORM"
+      ],
       "automated_live_ui": {
         "loaded_identity": "pass",
         "interactive_snapshot": "pass_main_menu_complete",
@@ -428,7 +432,9 @@
       "environment_fingerprint": "a52b5cc5f903bd1583af6463f098123226a1abf6fd74ca0b2a99b1ef3cd24889",
       "modset_status": "exact_platform_modset",
       "modset_fingerprint": "e5693d19c7571c1a30a07c2bca584eeced6b64e675bc5fb37acbb1638a1cb86c",
-      "loaded_mod_ids": ["STS2_PLATFORM"],
+      "loaded_mod_ids": [
+        "STS2_PLATFORM"
+      ],
       "automated_live_ui": {
         "loaded_identity": "pass",
         "interactive_snapshot": "pass_main_menu_complete",
@@ -447,7 +453,9 @@
         "environment_fingerprint": "73b37f526c3db9403d7eb39b0796d0a5aa3d92fc0f5eef86344cddcce06d0112",
         "modset_status": "exact_platform_modset",
         "modset_fingerprint": "7140e294e14fede34ac1b566fecfe70b1ff56a04333e80ca0b87deb70d83b638",
-        "loaded_mod_ids": ["STS2_PLATFORM"],
+        "loaded_mod_ids": [
+          "STS2_PLATFORM"
+        ],
         "snapshot_status": "interactive",
         "interaction_kind": "main_menu",
         "bound_actions": "complete_one",
@@ -477,7 +485,9 @@
         "environment_fingerprint": "9e0e0cfe9fd7d4cae507059e6588c3cb1ee67f466ccef6d8044269a4c8ee8c7e",
         "modset_status": "exact_platform_modset",
         "modset_fingerprint": "1f1bdecc945fd4af54d0a5f1296cf6b91d0e82fca180d8b6b3c619bdd52ed135",
-        "loaded_mod_ids": ["STS2_PLATFORM"],
+        "loaded_mod_ids": [
+          "STS2_PLATFORM"
+        ],
         "session_id": "session-20260831T072650Z-b0608291ae7f416d96b058078f441794",
         "timeline_id": "timeline-d9b5829a46d54e8cb460dab5d8647a16",
         "audit_status": "pass",
@@ -554,7 +564,9 @@
       "environment_fingerprint": "36ec4fa719d62ed5ab99db3c3026a3120bfac5a8dd17a552c47a2148790cae88",
       "modset_status": "exact_platform_modset",
       "modset_fingerprint": "eb862f2123995708937057b6616bc61a790788e2a6015653c9de9fe2455384c8",
-      "loaded_mod_ids": ["STS2_PLATFORM"],
+      "loaded_mod_ids": [
+        "STS2_PLATFORM"
+      ],
       "built": "pass",
       "installed": "pass",
       "installed_identity": "verified_unified_platform_sidecar",
@@ -593,7 +605,9 @@
       "environment_fingerprint": "982ceeb769c540757f5a15175eda04d505a07314dee682bee9cb255405a6a896",
       "modset_status": "exact_platform_modset",
       "modset_fingerprint": "ccf22e83596ee521f2c97d7691b6b70cb7501dc1b35739719c678053b3983e80",
-      "loaded_mod_ids": ["STS2_PLATFORM"],
+      "loaded_mod_ids": [
+        "STS2_PLATFORM"
+      ],
       "owner_canary": {
         "session_id": "session-20260827T042832Z-652d5bd7d9ed4943b74ac6252427cbe2",
         "timeline_id": "timeline-ae3b48160b094613bb6df45bd8683137",
@@ -669,7 +683,9 @@
       },
       "modset": {
         "status": "exact_sole_platform_expected",
-        "ids": ["STS2_PLATFORM"]
+        "ids": [
+          "STS2_PLATFORM"
+        ]
       },
       "protocol": "1.0.0",
       "built": "pass",
@@ -679,7 +695,9 @@
       "environment_fingerprint": "c9cc1a5dadbaa9efa64425fb6925818688d0d05972d3daaa2c1e0e553fdb3d2f",
       "modset_status": "exact_platform_modset",
       "modset_fingerprint": "79bdf7caa3c176fff995c980c350c79cb8a88ecd2b6854481b5873bf0502725e",
-      "loaded_mod_ids": ["STS2_PLATFORM"],
+      "loaded_mod_ids": [
+        "STS2_PLATFORM"
+      ],
       "rollback": "apps/game-mod/.local/deployments/2026-09-01T06-02-50.002Z",
       "human_runtime": "pass_owner_attested_exact",
       "human_qualification": {
@@ -692,7 +710,10 @@
         "unresolved": 0,
         "recording_close_drain_timeout": 0,
         "invalidations": 36,
-        "invalidations_by_reason": {"serialized_evidence_overlap": 35, "pre_frame_capture_failed": 1},
+        "invalidations_by_reason": {
+          "serialized_evidence_overlap": 35,
+          "pre_frame_capture_failed": 1
+        },
         "identity_contamination": false
       },
       "evidence_transfer_from_predecessor": false
@@ -729,7 +750,9 @@
       "environment_fingerprint": "c0d853c8d82980dd04b1e5ba6baa97f2deb622a780755cafe28fe6d3245b9b7d",
       "modset_status": "exact_platform_modset",
       "modset_fingerprint": "3f9a379fc61497d3618350921c5b13c2e6845089a4528e18ada832ea4625cbbc",
-      "loaded_mod_ids": ["STS2_PLATFORM"],
+      "loaded_mod_ids": [
+        "STS2_PLATFORM"
+      ],
       "runtime_status": "ready_no_session",
       "rollback": "apps/game-mod/.local/deployments/2026-09-01T08-16-00.279Z",
       "predecessor_session_compatibility_audit": {
@@ -801,7 +824,9 @@
       "environment_fingerprint": "15177b88c13f87fac1c4b676aee2529a643411952eeda50b82ca67837be1f15f",
       "modset_status": "exact_platform_modset",
       "modset_fingerprint": "2263e3958c03544a5a43ed462be1f85406a9a1c0fba8bf981a0c4c69fe54b544",
-      "loaded_mod_ids": ["STS2_PLATFORM"],
+      "loaded_mod_ids": [
+        "STS2_PLATFORM"
+      ],
       "prior_full_run_canary": {
         "session_id": "session-20260827T151912Z-4c7f26e56b954b498cfa0c3213e4b488",
         "timeline_id": "timeline-43913dee384646d5a9f390da136e909b",
@@ -823,7 +848,9 @@
         "annotator_component_source_digest_sha256": "724aafeb04bdb7980585dc3973e3d4199252b3774b504fc2a1f3cd75074e600b",
         "source_test_status": "pass",
         "annotator_core_tests": 80,
-        "implemented_slices": ["potion_use_target_cancel"],
+        "implemented_slices": [
+          "potion_use_target_cancel"
+        ],
         "semantic_trace_persistence": "causal_batch_os_flush_close_fsync",
         "built": "pass",
         "installed": "pass",
@@ -891,7 +918,9 @@
       "compatibility_status": "canary_exact",
       "modset_status": "exact_platform_modset",
       "modset_fingerprint": "2aee9e7e2f5d8611cf139319049d2bf9090c6cfff9e5491a00085685e7073be3",
-      "loaded_mod_ids": ["STS2_PLATFORM"],
+      "loaded_mod_ids": [
+        "STS2_PLATFORM"
+      ],
       "execution_available": true
     },
     "automated_gates": {
@@ -1146,7 +1175,9 @@
       "environment_fingerprint": "f079e1f45a3dfa04bd368e5563c0e6ca45dad36bfd6647791c21fc7d970ec637",
       "modset_status": "exact_platform_modset",
       "modset_fingerprint": "e8a7f7c39a212ec9680a92284a1a7e3060347e0fecf099f1dba3bd1b4f12e026",
-      "loaded_mod_ids": ["STS2_PLATFORM"]
+      "loaded_mod_ids": [
+        "STS2_PLATFORM"
+      ]
     },
     "human_qualification": "not_applicable_superseded_pre_hard_cut",
     "non_claims": [
