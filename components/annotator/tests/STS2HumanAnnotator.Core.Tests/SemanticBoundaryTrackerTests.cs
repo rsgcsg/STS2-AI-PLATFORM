@@ -10,6 +10,70 @@ public sealed class SemanticBoundaryTrackerTests
     private static readonly DateTimeOffset T0 = DateTimeOffset.Parse("2026-08-26T00:00:00Z");
 
     [Fact]
+    public void DecisionLineageRoundTripsAndRejectsWrongRunMissingParentAndIdentityLoss()
+    {
+        var parent = Action("root", 1) with { Decision = new(1, "d-root", "root", null, "combat", "play", "root", null) };
+        var child = Action("child", 2) with { Decision = new(1, "d-child", "root", "d-root", "selector", "hand", "nested_selector", "exact-owner") };
+        var events = new[] { Event(1, SemanticBoundaryTraceKinds.ActionAccepted, parent),
+            Event(2, SemanticBoundaryTraceKinds.ActionAccepted, child),
+            Event(3, SemanticBoundaryTraceKinds.ActionFinished, child) };
+        var decoded = JsonSerializer.Deserialize<SemanticBoundaryTraceEvent[]>(
+            JsonSerializer.Serialize(events, EvidenceJson.Options), EvidenceJson.Options)!;
+        Assert.Empty(DecisionOccurrenceValidator.ValidateTrace(decoded));
+        Assert.Contains("decision_parent_missing_or_not_prior", DecisionOccurrenceValidator.ValidateTrace(events.Skip(1).ToArray()));
+        Assert.Contains("decision_parent_lineage_mismatch", DecisionOccurrenceValidator.ValidateTrace(
+            new[] { events[0], events[1] with { RunId = "other-run" } }));
+        Assert.Contains("decision_identity_missing_from_event", DecisionOccurrenceValidator.ValidateTrace(
+            new[] { events[0], events[1], events[2] with { Action = child with { Decision = null } } }));
+        Assert.Contains("decision_nested_lineage_invalid", DecisionOccurrenceValidator.Validate(child.Decision! with { NativeOwnerWitnessId = null }, "child"));
+        Assert.Contains("decision_id_duplicate", DecisionOccurrenceValidator.ValidateTrace(new[] { events[0], events[0] }));
+    }
+
+    [Fact]
+    public void ExactSelectorInputSettlesParentAndPreservesIndependentSelectDeselectDecisions()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        var parent = Action("parent", 1) with { RequiresNativePostCommit = true,
+            Decision = new(1, "decision-parent", "parent", null, "combat", "play", "root", "action-owner") };
+        tracker.Accept(parent, State("human"));
+        tracker.ObserveBeforeActionExecution("parent", Boundary("combat-pre", "parent"));
+        tracker.Started("parent");
+        tracker.PausedForPlayerChoice("parent");
+        var handoff = tracker.ObserveNestedInputBoundary("parent", PostCommitBoundary("selector-pre", "card_selection"),
+            new("handoff", "exact_selector_input_owner", "parent", "decision-owner-selector-pre", "action-owner", true));
+        Assert.Single(handoff, draft => draft.Kind == SemanticBoundaryTraceKinds.TransitionProved);
+        Assert.True(tracker.Contains("parent"));
+        foreach (var (id, sequence, pre, post) in new[] {
+            ("select", 2L, "selector-pre", "selected"), ("deselect", 3L, "selected", "deselected") })
+        {
+            var child = Action(id, sequence) with {
+                Decision = new(1, "decision-" + id, "parent", "decision-parent", "card_selection", "hand", "nested_selector", "selector-owner") };
+            tracker.Accept(child, State(pre, "card_selection"));
+            Assert.DoesNotContain(tracker.ObserveBeforeActionExecution(id, Boundary(pre, id, "card_selection")),
+                draft => draft.Kind == SemanticBoundaryTraceKinds.TransitionUnknown);
+            tracker.Started(id);
+            tracker.Finished(id);
+            var proved = Assert.Single(tracker.ObserveDecisionBoundaryForAction(id, PostCommitBoundary(post, "card_selection")),
+                draft => draft.Kind == SemanticBoundaryTraceKinds.TransitionProved);
+            Assert.Equal((pre, post), TransitionIds(proved));
+            Assert.Equal("parent", proved.Action.Decision!.CausalRootId);
+            Assert.Equal("decision-parent", proved.Action.Decision.ParentDecisionId);
+        }
+        Assert.Single(tracker.Finished("parent"));
+    }
+
+    [Fact]
+    public void NestedInputCannotUsePollingOrMismatchedContinuationAsSuccessorProof()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        tracker.Accept(Action("parent", 1), State("human"));
+        Assert.Throws<InvalidOperationException>(() => tracker.ObserveNestedInputBoundary("parent", Boundary("poll"),
+            new("handoff", "exact_selector_input_owner", "parent", "owner", "action", true)));
+        Assert.Throws<InvalidOperationException>(() => tracker.ObserveNestedInputBoundary("parent", PostCommitBoundary("selector"),
+            new("handoff", "exact_selector_input_owner", "wrong-parent", "owner", "action", true)));
+    }
+
+    [Fact]
     public void DurableMutationRollsBackWhenAuthoritativeAppendFails()
     {
         var tracker = new SemanticBoundaryTracker();

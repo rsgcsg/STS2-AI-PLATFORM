@@ -62,10 +62,13 @@ internal sealed class ProcessLocalCaptureProfiler
 /// same observation. It can correlate an observed native action but cannot
 /// authorize or deliver one.
 /// </summary>
+internal sealed record ProcessLocalNativeInputBinding(string BoundActionId, string Operation, IReadOnlyList<object> Owners, IReadOnlyList<object> Subjects);
+
 public sealed class ProcessLocalNativeWitnessFrame
 {
     private readonly IReadOnlyDictionary<string, object> _exactEntities;
     private readonly IReadOnlySet<string> _exactBindingIds;
+    private readonly IReadOnlyList<ProcessLocalNativeInputBinding> _nativeInputs;
 
     internal ProcessLocalNativeWitnessFrame(
         PlayerEnvironmentSnapshot snapshot,
@@ -75,8 +78,10 @@ public sealed class ProcessLocalNativeWitnessFrame
         IReadOnlyDictionary<string, object> exactEntities,
         IReadOnlySet<string> exactBindingIds,
         IReadOnlyDictionary<string, ProcessLocalReadCapture>? reads = null,
-        IReadOnlyList<ProcessLocalCaptureTiming>? captureTimings = null)
+        IReadOnlyList<ProcessLocalCaptureTiming>? captureTimings = null,
+        IReadOnlyList<ProcessLocalNativeInputBinding>? nativeInputs = null)
     {
+        _nativeInputs = nativeInputs ?? Array.Empty<ProcessLocalNativeInputBinding>();
         Snapshot = snapshot;
         Capabilities = capabilities;
         SourceDigest = sourceDigest;
@@ -154,6 +159,26 @@ public sealed class ProcessLocalNativeWitnessFrame
             null);
     }
 
+    /// <summary>Correlates an exact native callback with a frozen Host binding.
+    /// Owner and operation are process-local facts, never consumer operands.</summary>
+    public bool HasNativeInputOwner(object owner) =>
+        Snapshot.Status == "interactive" && Snapshot.BoundActions.Status == "complete"
+        && _nativeInputs.Any(binding => binding.Owners.Any(value => ReferenceEquals(value, owner)));
+
+    public ProcessLocalNativeMatch ResolveNativeInput(object owner, string operation, object? subject = null)
+    {
+        var ids = _nativeInputs.Where(binding => binding.Operation == operation
+                && binding.Owners.Any(value => ReferenceEquals(value, owner))
+                && (subject == null || binding.Subjects.Any(value => ReferenceEquals(value, subject))))
+            .Select(binding => binding.BoundActionId).ToHashSet(StringComparer.Ordinal);
+        var matches = Snapshot.Status == "interactive" && Snapshot.BoundActions.Status == "complete"
+            ? Snapshot.BoundActions.Actions.Where(action => ids.Contains(action.BoundActionId)).ToArray()
+            : Array.Empty<PlayerEnvironmentBoundAction>();
+        return new ProcessLocalNativeMatch(matches.Length == 1 ? "exact_unique" : matches.Length == 0 ? "zero" : "ambiguous",
+            matches.Length, matches.Length == 1 ? matches[0].BoundActionId : null,
+            matches.Length == 1 ? matches[0] : null, "exact_native_owner_operation_and_frozen_host_binding", null);
+    }
+
     private bool Matches(
         PlayerEnvironmentBoundAction action,
         ProcessLocalObservedAction observed)
@@ -228,6 +253,7 @@ public static class PlayerEnvironmentNativeWitness
                     .Append(action.SubjectReferentId))
                 .Where(referentId => referentId != null)
                 .Cast<string>()
+                .Concat(frame.Bindings.Values.SelectMany(binding => binding.NativeAction.Candidate.EntityBindings.Select(entity => entity.EntityId)))
                 .ToHashSet(StringComparer.Ordinal));
         IReadOnlyDictionary<string, ProcessLocalReadCapture> reads = profiler.Measure(
             "read_materialization",
@@ -252,7 +278,15 @@ public static class PlayerEnvironmentNativeWitness
             exactReferences,
             exactBindingIds,
             reads,
-            profiler.Snapshot());
+            profiler.Snapshot(),
+            frame.Bindings.Select(pair => new ProcessLocalNativeInputBinding(
+                pair.Key, pair.Value.NativeAction.Candidate.Operation,
+                pair.Value.NativeAction.Candidate.EntityBindings
+                    .Where(entity => entity.Role is "screen" or "hand" or "owner" || entity.Role.EndsWith("_screen", StringComparison.Ordinal))
+                    .Where(entity => exactReferences.ContainsKey(entity.EntityId)).Select(entity => exactReferences[entity.EntityId]).ToArray(),
+                pair.Value.NativeAction.Candidate.EntityBindings
+                    .Where(entity => entity.Role is not ("screen" or "hand" or "owner"))
+                    .Where(entity => exactReferences.ContainsKey(entity.EntityId)).Select(entity => exactReferences[entity.EntityId]).ToArray())).ToArray());
     }
 
     private static IReadOnlyDictionary<string, ProcessLocalReadCapture> MaterializeReads(

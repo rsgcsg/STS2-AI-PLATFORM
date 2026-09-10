@@ -180,6 +180,7 @@ public static class SemanticTransitionProjection
                 "capture_profile_scoped"
             })
         {
+            Decision = draft.Action.Decision,
             ActionSpaceAuthority = actionSpaceAuthority,
             ExecutionSemanticActionSpaceRef = executionSemanticActionSpaceRef
         };

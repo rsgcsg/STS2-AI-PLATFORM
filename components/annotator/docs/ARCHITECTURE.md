@@ -67,7 +67,7 @@ additional Human decisions.
 ## Exact Mapping
 
 The frozen Connector frame holds strong process-local references only for
-referents in the frozen BoundAction catalog. A native card and target match by
+referents and private owner/operand bindings in the frozen BoundAction catalog. A native card and target match by
 `ReferenceEquals`; verb, subject, argument roles, and argument count must also
 match. Native witness IDs are opaque recording evidence and cannot resolve back
 to game objects.
@@ -187,3 +187,23 @@ The application event stream is typed, process-local and bounded. A consumer
 queries current status, then requests events after sequence N. A gap means the
 consumer must query status again. Application events are operational state, not
 Human evidence and not action authority.
+
+## Decision occurrences
+
+The [decision identity ADR](../../../docs/adr/0006-decision-occurrences-within-causal-roots.md)
+adds first-class nested decisions to the same tracker and canonical stream.
+The screen/hand factory inherits an exact native parent binding; each Human
+input observes its own complete pre-state and native dispatch. Inputs inside
+that selector share the opening parent's causal lineage and do not invalidate
+it as external Human effects. An actual unrelated next Human effect still does.
+The enclosing native Task/action remains subscribed through its real finish.
+
+A frozen process-local Connector query resolves exact owner, operation and
+operand; it cannot execute or publish an action. Post-input state is a successor
+only while the same native selector owns a complete catalog. Terminal selection
+and native Task completion alone do not provide S'. Automatic revalidation and
+selection completion never establish Human origin.
+
+Run observation provenance is independent of run activity: a RunState poll may
+establish an observed run, and a subsequent native Launch records its start
+without creating another run ID. Polling never manufactures native start/end.

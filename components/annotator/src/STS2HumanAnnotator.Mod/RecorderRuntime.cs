@@ -20,7 +20,7 @@ using STS2Platform.NativeFoundation;
 
 namespace STS2HumanAnnotator.Mod;
 
-internal static class RecorderRuntime
+internal static partial class RecorderRuntime
 {
     private sealed record ExactDecisionFrame(
         ProcessLocalNativeWitnessFrame Frame,
@@ -65,7 +65,6 @@ internal static class RecorderRuntime
     private static volatile bool _statusRefreshRequested;
     private static ActionExecutor? _observedActionExecutor;
     private static bool _semanticBoundaryTraceHealthy = true;
-    private static bool _nativeRunStartedObserved;
     private static string _runtimeState = "initializing";
     private static string? _detail;
     private static RecorderEnvironmentIdentity? _lastEnvironment;
@@ -100,13 +99,11 @@ internal static class RecorderRuntime
     // and the roots unresolved; never close on an in-memory-only unknown.
     private static bool _closeDispositionPersistenceFailed;
     private static bool _closeProjectionPersistenceFailed;
-    private static int _runSequence;
-    private static bool _runActive;
+    private static readonly RecordingRunLifecycle RunLifecycle = new();
     // A native RunManager.OnEnded observation is the only authoritative
     // terminal marker.  Polling IsInProgress may describe a transition, but
     // it must never publish a successful terminal disposition by itself.
-    private static bool _nativeRunEndedObserved;
-    private static string _currentRunId = "run-unassigned";
+    private static string _currentRunId => RunLifecycle.RunId;
     private static readonly HumanCaptureProfile CaptureProfile =
         HumanCaptureProfiles.FullRunReadRich;
     private static readonly string[] DeclaredOutOfScopeActionFamilies =
@@ -366,7 +363,8 @@ internal static class RecorderRuntime
             CaptureProfile.ProfileId,
             EvidenceIdentity.Sha256Json(CaptureProfile),
             CaptureProfile.SupportedActionFamilies,
-            CaptureProfile.NonClaims.Append("not_human_validated").ToArray());
+            CaptureProfile.NonClaims.Append("not_human_validated").ToArray())
+        { DecisionSchemaVersion = DecisionOccurrenceIdentity.CurrentSchemaVersion };
         RecordingSessionStore store = RecordingSessionStore.Create(
             _configuration.RecordingRoot,
             manifest,
@@ -383,11 +381,7 @@ internal static class RecorderRuntime
         _semanticBoundaryEventSequence = 0;
         _lastIdleStatusAt = DateTimeOffset.MinValue;
         _statusRefreshRequested = true;
-        _runSequence = 0;
-        _runActive = false;
-        _nativeRunStartedObserved = false;
-        _nativeRunEndedObserved = false;
-        _currentRunId = "run-unassigned";
+        RunLifecycle.Reset();
         ResetNativeActionTrackingUnsafe();
         _semanticBoundaryTraceHealthy = true;
         _stagedCardFrame = null;
@@ -689,7 +683,6 @@ internal static class RecorderRuntime
         ArmedPotionUses.Clear();
         BoundaryTracker.Reset();
         NativeSemanticDiscriminatorRuntime.Reset();
-        _nativeRunEndedObserved = false;
     }
 
     private static IReadOnlyList<string> LifecycleBlockers(RecordingLifecycleState state) =>
@@ -1036,7 +1029,7 @@ internal static class RecorderRuntime
         ProcessLocalObservedAction? semanticSelection = null,
         HumanActionOccurrenceEvidence? occurrence = null)
     {
-        if (!AcceptingNewWitnesses())
+        if (!AcceptingNewWitnesses() || SelectorInputActive)
             return default;
         if (!CanOpenSemanticEvidenceWindow())
         {
@@ -1144,7 +1137,7 @@ internal static class RecorderRuntime
         NativePostCommitCompletionExpectation? completionExpectation = null,
         ProcessLocalObservedAction? nativeSemanticSelection = null)
     {
-        if (!AcceptingNewWitnesses())
+        if (!AcceptingNewWitnesses() || SelectorInputActive)
             return default;
         if (HumanActionScope.Current != null)
         {
@@ -1247,6 +1240,10 @@ internal static class RecorderRuntime
         }
     }
 
+    internal static void ObserveRejectedNativeUiInput(string nativeActionType, object operand) =>
+        AppendJournal("native_human_input_rejected", null, _lastSnapshotId,
+            $"{nativeActionType};native_operand={NativeWitnessIdentity.Get(operand, "native_operand")};native_result=false");
+
     internal static void ExitNativeUiScope(NativeUiScopeEntry entry)
     {
         if (entry.Entered)
@@ -1258,6 +1255,7 @@ internal static class RecorderRuntime
             {
                 lock (Gate)
                     NativePostCommitCompletions.Remove(actionWitnessId);
+                NativeUiCompletionRootBindings.ReleaseUnclaimed(actionWitnessId);
             }
             HumanActionScope.Exit();
         }
@@ -2664,6 +2662,9 @@ internal static class RecorderRuntime
             humanObservation.SnapshotId)
         {
             NativeMechanism = nativeMechanism,
+            Decision = new DecisionOccurrenceIdentity(1, $"decision-{recordId}", actionWitnessId, null,
+                humanObservation.InteractionKind, SupportedFamilyForNativeAction(nativeActionType) ?? humanObservation.InteractionKind,
+                "root", null),
             NativeWitness = witness,
             Mapping = new ExactMappingEvidence(
                 match.Status,
@@ -3567,7 +3568,8 @@ internal static class RecorderRuntime
         RecordingSessionStore store,
         SemanticBoundaryTraceDraft draft)
     {
-        string? family = SupportedFamilyForSemanticAction(draft.Action);
+        string? family = draft.Action.Decision?.DecisionKind == "nested_selector"
+            ? "nested_selector.decision" : SupportedFamilyForSemanticAction(draft.Action);
         if (family == null
             || !CaptureProfile.SupportedActionFamilies.Contains(family, StringComparer.Ordinal))
             return true;
@@ -4058,6 +4060,7 @@ internal static class RecorderRuntime
             "NRewardsScreen.OnProceedButtonPressed" => "reward_claim.proceed",
             "NRewardsScreen.OnProceedButtonPressed.act_change_ready" => "act_change.ready",
             "NCardRewardSelectionScreen.SelectCard" => "card_reward_selection.select",
+            "NCardRewardSelectionScreen.OnAlternateRewardSelected" => "reward_nested.replacement_selection",
             "NTreasureRoom.OnChestButtonReleased" => "treasure_room.open",
             nameof(PickRelicAction) => "treasure_room.select",
             "NTreasureRoom.OnProceedButtonPressed" => "treasure_room.proceed",
@@ -4352,11 +4355,9 @@ internal static class RecorderRuntime
         string detail = $"RunManager.OnEnded(isVictory={isVictory.ToString().ToLowerInvariant()})";
         lock (Gate)
         {
-            if (_store == null || _nativeRunEndedObserved)
+            if (_store == null
+                || RunLifecycle.ObserveNativeEnded() != RecordingRunObservation.EndedNative)
                 return;
-            _nativeRunEndedObserved = true;
-            _nativeRunStartedObserved = false;
-            _runActive = false;
             AppendJournal("run_ended_native", null, _lastSnapshotId, detail);
             _statusRefreshRequested = true;
         }
@@ -4373,12 +4374,9 @@ internal static class RecorderRuntime
     {
         lock (Gate)
         {
-            if (_store == null || _nativeRunStartedObserved || _runActive)
+            if (_store == null
+                || RunLifecycle.ObserveNativeStarted() != RecordingRunObservation.StartedNative)
                 return;
-            _runSequence++;
-            _currentRunId = $"run-{_runSequence:D4}";
-            _runActive = true;
-            _nativeRunStartedObserved = true;
             _statusRefreshRequested = true;
             AppendJournal(
                 "run_started_native",
@@ -4471,13 +4469,10 @@ internal static class RecorderRuntime
 
     private static void UpdateRunLifecycle()
     {
-        bool inProgress = RunManager.Instance.IsInProgress;
-        if (inProgress && !_runActive && !_nativeRunEndedObserved)
+        RecordingRunObservation observation = RunLifecycle.ObserveInProgress(
+            RunManager.Instance.IsInProgress);
+        if (observation == RecordingRunObservation.ObservedInProgress)
         {
-            _runSequence++;
-            _currentRunId = $"run-{_runSequence:D4}";
-            _runActive = true;
-            _nativeRunStartedObserved = false;
             _statusRefreshRequested = true;
             AppendJournal(
                 "run_observed_in_progress",
@@ -4486,23 +4481,15 @@ internal static class RecorderRuntime
                 "Recorder observed an already-active run without a native start witness.");
             PublishApplicationEvent(RecordingEventKind.RunStarted);
         }
-        else if (!inProgress && _runActive)
+        else if (observation == RecordingRunObservation.EndedUnproved)
         {
-            // This is only a lifecycle observation.  Without the native
-            // OnEnded callback it is deliberately unproved and must not be
-            // surfaced as RecordingEventKind.RunEnded.
+            // A poll cannot prove a native terminal or settle pending roots.
             AppendJournal(
                 "run_ended_unproved",
                 null,
                 null,
                 "RunManager is no longer in progress without a native OnEnded witness.");
-            _runActive = false;
             _statusRefreshRequested = true;
-        }
-        if (!inProgress)
-        {
-            _nativeRunStartedObserved = false;
-            _nativeRunEndedObserved = false;
         }
     }
 }

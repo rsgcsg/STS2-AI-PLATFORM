@@ -55,6 +55,7 @@ public sealed record SemanticActionReference(
     uint? NativeQueueId,
     string HumanObservationSnapshotId)
 {
+    public DecisionOccurrenceIdentity? Decision { get; init; }
     public string NativeMechanism { get; init; } = "game_action";
     public bool RequiresNativePostCommit { get; init; }
     public NativeWitnessEvidence? NativeWitness { get; init; }
@@ -329,6 +330,31 @@ public sealed class SemanticBoundaryTracker
             Restore(checkpoint);
             throw;
         }
+    }
+
+    public DecisionOccurrenceIdentity? DecisionIdentity(string actionWitnessId) =>
+        _entries.TryGetValue(actionWitnessId, out Entry? entry) ? entry.Action.Decision : null;
+
+    /// <summary>An exact selector owner has acquired input within this causal flow.
+    /// This settles the previous decision, never the enclosing native operation.</summary>
+    public IReadOnlyList<SemanticBoundaryTraceDraft> ObserveNestedInputBoundary(
+        string parentActionWitnessId, SemanticBoundaryObservation boundary,
+        NativeContinuationEvidence continuation)
+    {
+        Entry parent = Required(parentActionWitnessId);
+        if (parent.Disposed)
+            return Array.Empty<SemanticBoundaryTraceDraft>();
+        if (!boundary.IsNativeDecisionOwnerReadyBoundary
+            || continuation.ActionWitnessId != parentActionWitnessId || !continuation.Succeeded
+            || boundary.NativeDecisionOwnerReady!.NativeOwnerWitnessId != continuation.NativeOwnerWitnessId)
+            throw new InvalidOperationException("Nested decision boundary requires exact native owner lineage.");
+        var drafts = new List<SemanticBoundaryTraceDraft>();
+        if (!parent.Paused && !parent.Finished)
+            return Array.Empty<SemanticBoundaryTraceDraft>(); // Never invent a native pause.
+        if (parent.NativeCommit == null && parent.NativeContinuation == null)
+            drafts.AddRange(ObserveNativeContinuation(parentActionWitnessId, continuation));
+        drafts.AddRange(Settle(parent, boundary, null));
+        return drafts;
     }
 
     public IReadOnlyList<SemanticBoundaryTraceDraft> Accept(
@@ -696,8 +722,6 @@ public sealed class SemanticBoundaryTracker
         NativeHumanContinuationEvidence continuation)
     {
         Entry entry = Required(actionWitnessId);
-        if (entry.Disposed)
-            return Array.Empty<SemanticBoundaryTraceDraft>();
         if (!string.Equals(
                 continuation.ParentActionWitnessId,
                 actionWitnessId,
@@ -1330,6 +1354,7 @@ public static class SemanticBoundaryTraceValidator
                     errors.Add("semantic_transition_pre_not_execution_boundary");
             }
         }
+        errors.AddRange(DecisionOccurrenceValidator.ValidateTrace(events));
         return errors.Distinct(StringComparer.Ordinal).ToArray();
     }
 

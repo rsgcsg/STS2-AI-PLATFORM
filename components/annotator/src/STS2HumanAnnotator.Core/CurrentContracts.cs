@@ -203,6 +203,10 @@ public static class FullRunCoverageContract
                 "NativeCardRewardDecisionProvider", "NCardRewardSelectionScreen.SelectCard",
                 "card reward owner completion", "next exact reward boundary",
                 "The card-reward child has an exact native screen owner and parent reward binding."),
+            new("nested_selector.decision", FullRunCoverageClassifications.InScopeImplemented,
+                "exact selector input callback", "screen or hand episode", "Connector complete selector catalog",
+                "exact native accepted selection/control callback", "native selector state mutation or completion",
+                "same owner next state or exact next decision boundary", "Versioned decision occurrence; no second native root."),
             new("reward_nested.replacement_selection", FullRunCoverageClassifications.InScopeImplemented,
                 "NCardRewardSelectionScreen.OnAlternateRewardSelected: Skip/REROLL/PaelsWing SACRIFICE",
                 "NCardRewardSelectionScreen/CardReward/CardRewardAlternative",
@@ -476,7 +480,10 @@ public sealed record CurrentRecordingManifest(
     string CaptureProfileId,
     string CaptureProfileSha256,
     IReadOnlyList<string> SupportedFamilies,
-    IReadOnlyList<string> NonClaims);
+    IReadOnlyList<string> NonClaims)
+{
+    public int? DecisionSchemaVersion { get; init; }
+}
 
 public sealed record CurrentCoverageSummary(
     int SchemaVersion,

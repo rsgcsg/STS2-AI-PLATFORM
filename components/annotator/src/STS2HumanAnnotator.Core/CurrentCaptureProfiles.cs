@@ -28,6 +28,8 @@ public static class HumanCaptureProfiles
             "reward_claim.proceed",
             "act_change.ready",
             "card_reward_selection.select",
+            "reward_nested.replacement_selection",
+            "nested_selector.decision",
             "treasure_room.open",
             "treasure_room.select",
             "treasure_room.skip",

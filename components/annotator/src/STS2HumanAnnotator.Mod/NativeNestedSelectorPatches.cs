@@ -85,7 +85,12 @@ internal static class NativeNestedSelectorBindings
         string ActionWitnessId,
         object ParentOwner,
         string Family,
-        string FactoryMechanism);
+        string FactoryMechanism)
+    {
+        internal string? RecordingSessionId { get; } = RecorderRuntime.SessionId;
+        internal DecisionOccurrenceIdentity? ParentDecision { get; set; }
+        internal string? DecisionHeadActionId { get; set; }
+    }
 
     private static readonly ExactAsyncOwnerBindingScope<object, Parent, Binding> Screens = new();
 
@@ -272,9 +277,12 @@ internal static class NativeNestedSelectorBindings
 
     internal static void Forget(object screen) => Screens.Forget(screen);
 
-    private static string FamilyFor(object screen) => screen switch
+    internal static string FamilyFor(object screen) => screen switch
     {
         NSimpleCardSelectScreen => "generic_simple_card_selector",
+        MegaCrit.Sts2.Core.Nodes.Combat.NPlayerHand => "combat_hand_selector",
+        NCardRewardSelectionScreen => "reward_nested.replacement_selection",
+        NChooseACardSelectionScreen => "native_generated_card_choice",
         NDeckCardSelectScreen or NDeckUpgradeSelectScreen
             or NDeckTransformSelectScreen or NDeckEnchantSelectScreen =>
             "generic_deck_card_selector",
@@ -498,6 +506,14 @@ internal static class NativeNestedSelectorAcceptedPatch
                     out string? unavailable))
                 unavailable = "completion_result_unavailable";
 
+            if (!RecorderRuntime.SelectorInputOwns(__instance))
+            {
+                // Native pile revalidation can complete this Task without a
+                // Human input. Preserve native lifecycle, never label it Human.
+                if (unavailable == null)
+                    reserved = !NativeNestedSelectorBindings.TryConsume(__instance, binding);
+                return;
+            }
             bool explicitClose = string.Equals(
                 __originalMethod.Name,
                 "CloseSelection",

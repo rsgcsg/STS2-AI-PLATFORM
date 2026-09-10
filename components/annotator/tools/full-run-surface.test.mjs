@@ -337,7 +337,7 @@ test("binding collisions and rejected acceptance stay fail closed", () => {
   assert.match(roots, /Bindings\.TryBind\(owner, actionWitnessId\)/u);
   assert.match(roots, /Bindings\.TryGetOwner\(actionWitnessId/u);
   for (const body of [reward, event]) {
-    assert.match(body, /if \(!accepted\)\s*return;|if \(accepted && !/u);
+    assert.match(body, /if \(!accepted\)\s*(?:return;|\{)|if \(accepted && !/u);
     assert.match(body, /RememberOrFailClosed|TakeIfMatches/u);
     assert.match(body, /if \(!__state\.RootBound\)|if \(!accepted\)|if \(accepted && !/u);
   }

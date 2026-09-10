@@ -4,6 +4,18 @@ This is a bounded handoff, not repository authority. Resolve live GitHub refs,
 open PRs, rulesets, code, tests, `platform-bom.json`, and exact runtime/evidence
 before making a current claim. Those sources override this file.
 
+## PR25 decision-semantics repair (2026-09-10)
+
+The next source candidate descends from exact PR head
+`783721ab5db6e9e562979e3a93ed6fc40ddedd51` and base
+`cd9a0fbb0c85577a13513abe715f91d794ac86eb`. ADR-0006 separates causal roots
+from first-class selector decisions in the existing trace/canonical stream.
+The bounded source report is
+[PR25 decision repair](../evidence/PR25_DECISION_REPAIR_2026-09-10.md).
+Resolve the latest Draft PR #25 head and its CI/load receipts before claiming
+runtime readiness. This entry records source decisions, not Human qualification;
+the older Windows candidate below is historical provenance.
+
 ## PR25 Windows Full-Run integrated source candidate (2026-09-10)
 
 The current qualification checkout is `agent/fullrun-integrated-review@148c20fe`

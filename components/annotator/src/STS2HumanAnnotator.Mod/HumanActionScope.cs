@@ -6,7 +6,10 @@ namespace STS2HumanAnnotator.Mod;
 internal readonly record struct NativeUiScopeEntry(
     bool Entered,
     bool DeferredFailure,
-    string? ActionWitnessId = null);
+    string? ActionWitnessId = null,
+    bool CarrierBindingFailed = false);
+
+internal sealed record NativeUiAttemptOutcome(object Operand, Task<bool> Result);
 
 internal sealed class HumanActionContext
 {
@@ -48,6 +51,8 @@ internal sealed class HumanActionContext
     internal NativePostCommitCompletionExpectation? CompletionExpectation { get; }
 
     internal HumanActionOccurrenceEvidence? Occurrence { get; }
+
+    internal NativeUiAttemptOutcome? NativeAttemptOutcome { get; set; }
 
     internal DateTimeOffset EnteredAt { get; }
 
@@ -96,6 +101,8 @@ internal sealed class DeferredHumanActionFailure
     internal string EvidenceLevel { get; }
 
     internal HumanActionOccurrenceEvidence? Occurrence { get; }
+
+    internal NativeUiAttemptOutcome? NativeAttemptOutcome { get; set; }
 
     internal bool TryClaim(string nativeActionType) =>
         _rootActionGate.TryClaim(nativeActionType);

@@ -42,6 +42,7 @@ public sealed record CanonicalTransitionEvidence(
     IReadOnlyList<string> Invariants,
     IReadOnlyList<string> NonClaims)
 {
+    public DecisionOccurrenceIdentity? Decision { get; init; }
     public string? ActionSpaceAuthority { get; init; }
     public ExecutionSemanticActionSpaceReference? ExecutionSemanticActionSpaceRef { get; init; }
 }
@@ -80,6 +81,8 @@ public static class CanonicalTransitionEvidenceValidator
                 value.SchemaVersion,
                 value.Schema))
             errors.Add("schema_invalid");
+        if (value.Decision != null)
+            errors.AddRange(DecisionOccurrenceValidator.Validate(value.Decision, value.ActionWitnessId));
         bool legacy = value.SchemaVersion == CanonicalTransitionEvidenceContract.LegacySchemaVersion;
         string expectedCollectionMode = legacy
             ? CanonicalTransitionEvidenceContract.LegacyCollectionMode

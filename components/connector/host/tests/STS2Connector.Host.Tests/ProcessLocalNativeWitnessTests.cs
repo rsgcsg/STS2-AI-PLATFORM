@@ -144,6 +144,38 @@ public sealed class ProcessLocalNativeWitnessTests
         Assert.Equal(0, result.MatchCount);
     }
 
+    [Fact]
+    public void NativeInputNeedsExactOwnerOperationAndSubjectFromFrozenCatalog()
+    {
+        var owner = new object();
+        var card = new object();
+        var entities = new NativeEntityRegistry();
+        var action = Action("select-a", "select", entities.GetId(card, "card"));
+        var frame = Frame(entities, new[] { action }, "interactive", "complete",
+            new[] { new ProcessLocalNativeInputBinding("select-a", "native_select", new[] { owner }, new[] { card }) });
+        Assert.Equal("select-a", frame.ResolveNativeInput(owner, "native_select", card).BoundActionId);
+        Assert.Null(frame.ResolveNativeInput(new object(), "native_select", card).BoundActionId);
+        Assert.Null(frame.ResolveNativeInput(owner, "native_deselect", card).BoundActionId);
+        Assert.Null(frame.ResolveNativeInput(owner, "native_select", new object()).BoundActionId);
+        Assert.True(frame.HasNativeInputOwner(owner));
+        Assert.False(frame.HasNativeInputOwner(new object()));
+    }
+
+    [Fact]
+    public void NativeInputRejectsAmbiguityAndIncompleteCatalog()
+    {
+        var owner = new object();
+        var entities = new NativeEntityRegistry();
+        var actions = new[] { Action("a", "confirm", null), Action("b", "confirm", null) };
+        var bindings = actions.Select(action => new ProcessLocalNativeInputBinding(
+            action.BoundActionId, "confirm", new[] { owner }, Array.Empty<object>())).ToArray();
+        Assert.Equal("ambiguous", Frame(entities, actions, "interactive", "complete", bindings)
+            .ResolveNativeInput(owner, "confirm").Status);
+        var incomplete = Frame(entities, actions, "interactive", "partial", bindings);
+        Assert.Null(incomplete.ResolveNativeInput(owner, "confirm").BoundActionId);
+        Assert.False(incomplete.HasNativeInputOwner(owner));
+    }
+
     private static PlayerEnvironmentBoundAction Action(
         string id,
         string verb,
@@ -160,7 +192,8 @@ public sealed class ProcessLocalNativeWitnessTests
         NativeEntityRegistry entities,
         IReadOnlyList<PlayerEnvironmentBoundAction> actions,
         string snapshotStatus,
-        string projectionStatus)
+        string projectionStatus,
+        IReadOnlyList<ProcessLocalNativeInputBinding>? nativeInputs = null)
     {
         var snapshot = new PlayerEnvironmentSnapshot(
             PlayerEnvironmentContract.ProtocolVersion,
@@ -211,6 +244,7 @@ public sealed class ProcessLocalNativeWitnessTests
                     .Append(action.SubjectReferentId))
                     .Where(referentId => referentId != null)
                     .Cast<string>()),
-            actions.Select(action => action.BoundActionId).ToHashSet(StringComparer.Ordinal));
+            actions.Select(action => action.BoundActionId).ToHashSet(StringComparer.Ordinal),
+            nativeInputs: nativeInputs);
     }
 }

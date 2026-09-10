@@ -202,3 +202,23 @@ identity and its own research admission before a bundle enters a corpus. The
 current CLI accepts only the current manifest; predecessor V1 bundles require
 the explicit historical packer. Preserve both raw sessions and accepted bundles
 read-only.
+
+## Decision identity extension
+
+[ADR-0006](../../../docs/adr/0006-decision-occurrences-within-causal-roots.md)
+distinguishes `CausalRoot` from `DecisionOccurrence`. New runtime manifests set
+`decision_schema_version: 1`. Every semantic trace action and canonical row
+carries `decision` with `schema_version`, `decision_id`, `causal_root_id`,
+`parent_decision_id`, `surface`, `family`, `decision_kind` and
+`native_owner_witness_id`. Root owners may be null; nested owners must be exact.
+Audit checks earlier parent acceptance in the same session/timeline/run,
+immutable identity, canonical-to-trace equality and required metadata presence.
+
+Nested decisions retain their own frozen execution pre, complete Connector
+catalog, chosen BoundAction and successor or explicit unknown in the existing
+streams. A null native queue ID is intentional: this is a native UI decision,
+not an invented GameAction. Selected cards and available pile provenance remain
+in the content-addressed Snapshot/Read evidence; opaque witnesses never grant
+access to native objects. Cancel/preview/deselect inputs are retained separately.
+Historical continuation-only records have no independent selector S/catalog
+claim and must not be upgraded by a consumer.

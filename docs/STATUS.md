@@ -1,5 +1,14 @@
 # Current Status
 
+## PR25 decision-semantics source repair (2026-09-10)
+
+The [decision repair report](evidence/PR25_DECISION_REPAIR_2026-09-10.md)
+records the next candidate derived from PR25 head `783721ab`. It separates
+causal roots from nested selector decisions, repairs native-start provenance
+and synchronous owner-to-task handoff, and retains fail-closed missing evidence.
+Latest-head CI and exact install/load receipts belong to Draft PR #25; the
+source report does not transfer older Human qualification.
+
 ## Historical Live UI reconciliation candidate (superseded, 2026-09-03)
 
 The historical `ui-testing` line has been audited from merge base

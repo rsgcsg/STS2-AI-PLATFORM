@@ -261,6 +261,8 @@ public static class RecordingSessionAuditor
                 continue;
             }
             SemanticBoundaryTraceEvent proof = proofs[0];
+            if (value.Decision != proof.Action.Decision)
+                Add(errors, "canonical_transition_decision_mismatch");
             if (recordId != proof.Action.RecordId
                 || value.RunId != proof.Action.RunId
                 || value.ActionSequence != proof.Action.ActionSequence
@@ -588,6 +590,13 @@ public static class RecordingSessionAuditor
         }
         foreach (string error in SemanticBoundaryTraceValidator.Validate(events))
             Add(errors, error);
+        if (manifest?.DecisionSchemaVersion is { } decisionSchema)
+        {
+            if (decisionSchema != DecisionOccurrenceIdentity.CurrentSchemaVersion)
+                Add(errors, "decision_manifest_schema_invalid");
+            foreach (var value in events.Where(value => value.Action.Decision == null))
+                Add(errors, "decision_identity_required_by_manifest");
+        }
         return events;
     }
 

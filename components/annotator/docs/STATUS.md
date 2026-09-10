@@ -1,5 +1,16 @@
 # Status
 
+## Decision occurrence repair (2026-09-10)
+
+The current source implements ADR-0006 decision identity and exact native
+selector input capture in the existing semantic/canonical stream. It repairs
+RunState-before-Launch provenance, Skip family admission, synchronous
+reward/treasure owner staging, rejected reward/merchant input classification,
+and automatic-selector Human misattribution. See the
+[bounded source report](../../../docs/evidence/PR25_DECISION_REPAIR_2026-09-10.md).
+These changes require their own exact artifact and Human canary; historical
+counts and predecessor qualification below do not transfer.
+
 ## Current recording-format hard cut (PR #11, 2026-09-02)
 
 The active recorder/store/audit/bundle/tool path is current-only and uses the

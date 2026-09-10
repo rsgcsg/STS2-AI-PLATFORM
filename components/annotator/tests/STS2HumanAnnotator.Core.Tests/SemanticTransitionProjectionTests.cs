@@ -9,6 +9,25 @@ public sealed class SemanticTransitionProjectionTests
     private static readonly DateTimeOffset T0 = DateTimeOffset.Parse("2026-09-01T00:00:00Z");
 
     [Fact]
+    public void NestedCanonicalPreservesOwnFramesCatalogAndExactRootLineage()
+    {
+        var pre = Frame("selector-s0", "card_selection", true);
+        var post = Frame("selector-s1", "card_selection", false);
+        var original = ProvedDraft(pre, post);
+        var identity = new DecisionOccurrenceIdentity(1, "selector-decision", "real-native-root",
+            "parent-decision", "card_selection", "combat_pile", "nested_selector", "exact-screen");
+        var draft = original with { Action = original.Action with {
+            NativeMechanism = "direct_ui_commit", NativeQueueId = null, Decision = identity } };
+        var canonical = SemanticTransitionProjection.CreateCanonical(draft,
+            new("selector-s0", new string('1', 64), "semantic-frames/pre.json"),
+            new("selector-s1", new string('2', 64), "semantic-frames/post.json"), null, "session", "timeline");
+        Assert.Equal(identity, canonical.Decision);
+        Assert.Equal("public_bound_actions", canonical.ActionSpaceAuthority);
+        Assert.Empty(CanonicalTransitionEvidenceValidator.Validate(canonical));
+        Assert.Equal(draft.Action.BoundAction, canonical.Action);
+    }
+
+    [Fact]
     public void ProvedSemanticTransitionProjectsWithoutBecomingAuthority()
     {
         RecorderEnvironmentIdentity environment = Environment();

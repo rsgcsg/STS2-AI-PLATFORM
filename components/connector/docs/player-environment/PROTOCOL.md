@@ -45,7 +45,9 @@ The in-process C# assembly additionally offers a non-wire witness API for
 conformance tools. It freezes the public Snapshot plus exact references from
 that observation and can compare an already accepted native action to the
 catalog by reference equality. It is read-only, process-local, not transported,
-and cannot create or deliver a BoundAction.
+and cannot create or deliver a BoundAction. The frozen witness also supports
+exact native owner/operation/operand matching for selector input callbacks.
+Private owner bindings are never serialized into the public Snapshot.
 
 `bound_actions.status=complete` proves every current finite binding was
 materialized. `truncated` preserves the Snapshot but grants no consumer input
