@@ -226,7 +226,8 @@ test("execution semantic action space is captured once and preserved without bec
   const projection = read("components/annotator/src/STS2HumanAnnotator.Core/SemanticTransitionProjection.cs");
 
   assert.match(beforeExecution, /ProcessLocalNativeWitnessFrame frame = CaptureSemanticFrame\(\)/u);
-  assert.match(beforeExecution, /PlayerEnvironmentNativeSemanticWitness\.Capture\(phase, action, frame\)/u);
+  assert.equal((beforeExecution.match(/PlayerEnvironmentNativeSemanticWitness\.Capture\(/gu) ?? []).length, 1);
+  assert.match(beforeExecution, /PlayerEnvironmentNativeSemanticWitness\.Capture\(\s*phase, action, frame,\s*semanticNativeActionType: subscription\?\.SemanticNativeActionType,\s*semanticSelection: subscription\?\.NativeSemanticSelection\)/u);
   assert.match(beforeExecution, /capturedValue: semanticCapture/u);
   assert.match(beforeExecution, /ToExecutionSemanticActionSpace[\s\S]*executionSemanticActionSpace: actionSpace/u);
   assert.match(projection, /ExecutionSemanticActionSpaceValidator\.Validate/u);
