@@ -1,5 +1,15 @@
 # Current Status
 
+## PR25 v4 Human audit and popup repair (2026-09-10)
+
+The latest audited candidate has 321 accepted decisions, 311 canonical, 10
+unresolved and 45 invalidations. All 45 selector children and parents are
+canonical. Rest-site potion discard exposed a shared input-owner precedence
+bypass; the next candidate unifies that resolution and improves failed-stage
+diagnostics. Rapid-card pre-state and terminal successor gaps remain open.
+See the [audit and repair report](evidence/PR25_POPUP_PRECEDENCE_REPAIR_2026-09-10.md).
+No all-valid Full-Run or STPD research admission is claimed.
+
 ## PR25 native-origin selector canary candidate (2026-09-10)
 
 Decision identity v2 permits exact native hook-owned Human selector entries

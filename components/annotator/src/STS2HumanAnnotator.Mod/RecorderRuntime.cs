@@ -29,7 +29,9 @@ internal static partial class RecorderRuntime
     private sealed record StagedCardFrame(
         ExactDecisionFrame Decision,
         CardModel Card,
-        DateTimeOffset StagedAt);
+        DateTimeOffset StagedAt,
+        IReadOnlyList<string> Blockers,
+        string NativeReadiness);
 
     private sealed record ArmedPotionUse(
         long Generation,
@@ -741,12 +743,10 @@ internal static partial class RecorderRuntime
         {
             ProcessLocalNativeWitnessFrame frame = CaptureReadRichFrame();
             RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
-            var staged = EligibilityBlockers(frame, environment, requireReads: true).Count == 0
-                ? new StagedCardFrame(
-                    new ExactDecisionFrame(frame, environment),
-                    card,
-                    DateTimeOffset.UtcNow)
-                : null;
+            var staged = new StagedCardFrame(
+                new ExactDecisionFrame(frame, environment), card, DateTimeOffset.UtcNow,
+                EligibilityBlockers(frame, environment, requireReads: true),
+                DescribeNativeCardReadiness(card));
             lock (Gate)
                 _stagedCardFrame = staged;
         }
@@ -755,6 +755,17 @@ internal static partial class RecorderRuntime
             lock (Gate)
                 _stagedCardFrame = null;
         }
+    }
+
+    // Diagnostic native facts at the exact capture seam; never an admission override.
+    private static string DescribeNativeCardReadiness(CardModel? card)
+    {
+        var combat = MegaCrit.Sts2.Core.Combat.CombatManager.Instance;
+        var hand = MegaCrit.Sts2.Core.Nodes.Combat.NPlayerHand.Instance;
+        var player = card?.Owner;
+        return $"combat={combat.IsInProgress}|disabled={combat.PlayerActionsDisabled}"
+            + $"|phase={player?.PlayerCombatState?.Phase}|part_of_turn={(player == null ? null : (bool?)combat.IsPartOfPlayerTurn(player))}"
+            + $"|in_card_play={hand?.InCardPlay}|mode={hand?.CurrentMode}|peeking={hand?.PeekButton?.IsPeeking}";
     }
 
     internal static NativeUiScopeEntry TryEnterCardScope(CardModel card, Creature? target)
@@ -1061,11 +1072,12 @@ internal static partial class RecorderRuntime
                     staged = _stagedCardFrame;
                     _stagedCardFrame = null;
                 }
-                stagedDisposition = staged == null ? "absent_or_ineligible_at_card_start"
+                stagedDisposition = staged == null ? "absent_at_card_start"
                     : !ReferenceEquals(staged.Card, stagedCard) ? "different_exact_card"
+                    : staged.Blockers.Count > 0 ? "ineligible_at_card_start:" + string.Join("|", staged.Blockers) + ";stage_native=" + staged.NativeReadiness
                     : DateTimeOffset.UtcNow - staged.StagedAt > TimeSpan.FromSeconds(30) ? "staged_frame_expired"
                     : "staged_exact_action_mapping_unavailable";
-                if (staged != null
+                if (staged != null && staged.Blockers.Count == 0
                     && ReferenceEquals(staged.Card, stagedCard)
                     && DateTimeOffset.UtcNow - staged.StagedAt <= TimeSpan.FromSeconds(30)
                     && IsExact(staged.Decision.Frame.Resolve(expectedAction)))
@@ -1097,7 +1109,7 @@ internal static partial class RecorderRuntime
                     string.Join(",", currentBlockers.Count == 0
                         ? new[] { "no_same_context_authoritative_frame" }
                         : currentBlockers.Append("no_same_context_authoritative_frame"))
-                        + $";staged={stagedDisposition};current_status={current?.Snapshot.Status};interaction={current?.Snapshot.Interaction.Kind};catalog={current?.Snapshot.BoundActions.Status};candidates={current?.Snapshot.BoundActions.TotalCount}",
+                        + $";staged={stagedDisposition};current_status={current?.Snapshot.Status};interaction={current?.Snapshot.Interaction.Kind};catalog={current?.Snapshot.BoundActions.Status};candidates={current?.Snapshot.BoundActions.TotalCount};native={DescribeNativeCardReadiness(stagedCard)}",
                     current?.Snapshot.SnapshotId,
                     "fail_closed",
                     occurrence);
@@ -1185,7 +1197,8 @@ internal static partial class RecorderRuntime
                 HumanActionScope.EnterDeferredFailure(
                     nativeActionType,
                     "semantic_pre_frame_capture_failed",
-                    string.Join(",", blockers.Concat(new[] { match.Status }).Distinct(StringComparer.Ordinal)),
+                    string.Join(",", blockers.Concat(new[] { match.Status }).Distinct(StringComparer.Ordinal))
+                        + $";interaction={frame.Snapshot.Interaction.Kind};status={frame.Snapshot.Status};candidates={frame.Snapshot.BoundActions.TotalCount}",
                     frame.Snapshot.SnapshotId,
                     "fail_closed");
                 return new NativeUiScopeEntry(false, true);

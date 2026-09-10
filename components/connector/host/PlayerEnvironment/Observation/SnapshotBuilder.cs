@@ -28,8 +28,7 @@ internal static partial class PlayerEnvironmentService
             "game_identity",
             EnvironmentIdentityRuntime.ReadGame);
         LiveObservation draft = Measure("native_surface_state", () =>
-        {
-            LiveObservation? sourceFreeSurface =
+            LiveObservationReader.Build(Entities, game, () =>
             NativeGeneratedCardChoice.TryBuild(Entities, game)
                 ?? NativeBossRelicSelection.TryBuild(Entities, game)
                 ?? NativeSimpleCardSelection.TryBuild(Entities, game)
@@ -37,9 +36,7 @@ internal static partial class PlayerEnvironmentService
                 ?? NativeDeckTransformSelection.TryBuild(Entities, game)
                 ?? NativeCombatPileSelection.TryBuild(Entities, game)
                 ?? NativeDeckCardSelection.TryBuild(Entities, game)
-                ?? NativeRestSite.TryBuild(Entities, game);
-            return sourceFreeSurface ?? LiveObservationReader.Build(Entities, game);
-        });
+                ?? NativeRestSite.TryBuild(Entities, game)));
         if (suppressNativePageEvidence)
             draft = NativePageEvidence.SuppressMutation(draft);
         draft = draft with

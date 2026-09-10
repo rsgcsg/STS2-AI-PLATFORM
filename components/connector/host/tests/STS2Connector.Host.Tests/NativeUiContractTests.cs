@@ -22,6 +22,52 @@ namespace STS2Connector.Tests;
 public sealed class NativeUiContractTests
 {
     [Fact]
+    public void PopupPreemptsSpecializedRoomAndSelectorWithoutEvaluatingThem()
+    {
+        var popup = new LiveObservation("popup", "ready", null!,
+            new PotionPopupSurface("potion_popup", "popup", "potion", "BLOCK_POTION", "Block", 0, false, true),
+            null!, null!, Array.Empty<string>());
+        var result = ActiveInputResolver.ResolvePreferredSurface(false, () => popup,
+            () => throw new InvalidOperationException("Underlying room must not be read"));
+        Assert.Same(popup, result!.Draft);
+        Assert.Null(result.Failure);
+        Assert.Contains(NativeUiActionRuntime.DescribePotionPopupCommands((PotionPopupSurface)result.Draft!.Surface),
+            action => action.Kind == "discard_potion");
+    }
+
+    [Fact]
+    public void ModalPreemptsPopupAndSpecializedSurface()
+    {
+        Assert.Null(ActiveInputResolver.ResolvePreferredSurface(true,
+            () => throw new InvalidOperationException("Popup must not be read"),
+            () => throw new InvalidOperationException("Room must not be read")));
+    }
+
+    [Fact]
+    public void AmbiguousPopupCannotFallBackToUnderlyingRoom()
+    {
+        var result = ActiveInputResolver.ResolvePreferredSurface(false,
+            () => throw new InvalidOperationException("Ambiguous popup"),
+            () => throw new Exception("Must not evaluate room"));
+        Assert.Null(result!.Draft);
+        Assert.Equal("potion_popup", result.FailedProvider);
+        Assert.IsType<InvalidOperationException>(result.Failure);
+    }
+
+    [Fact]
+    public void AbsentPopupAllowsSpecializedSurfaceAndPreservesItsFailure()
+    {
+        bool evaluated = false;
+        Assert.Null(ActiveInputResolver.ResolvePreferredSurface(false, () => null,
+            () => { evaluated = true; return null; }));
+        Assert.True(evaluated);
+        var result = ActiveInputResolver.ResolvePreferredSurface(false, () => null,
+            () => throw new InvalidOperationException("Missing exact selector owner"));
+        Assert.Equal("specialized_surface", result!.FailedProvider);
+        Assert.Null(result.Draft);
+    }
+
+    [Fact]
     public void PotionPopupPreservesCompleteNativeUseTargetDomain()
     {
         var surface = new PotionPopupSurface("potion_popup", "popup", "potion", "POTION", "Potion", 0, true, true)

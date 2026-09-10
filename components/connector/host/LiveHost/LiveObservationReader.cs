@@ -72,7 +72,8 @@ internal static class LiveObservationReader
 
     public static LiveObservation Build(
         NativeEntityRegistry entities,
-        GameBuildIdentity game)
+        GameBuildIdentity game,
+        Func<LiveObservation?>? specializedSurface = null)
     {
         IReadOnlyList<ILiveSurfaceReader> providers = CreateReaders();
         ActiveSurfaceSnapshot snapshot;
@@ -133,7 +134,8 @@ internal static class LiveObservationReader
             snapshot,
             providers,
             entities,
-            game);
+            game,
+            specializedSurface);
         if (resolution.Failure != null)
         {
             string provider = resolution.FailedProvider ?? "unknown";
