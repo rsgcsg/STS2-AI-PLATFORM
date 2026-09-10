@@ -30,7 +30,7 @@ test("Product navigation exposes exactly Agent Run and Human Recorder", () => {
   assert.match(mod, /BuildRecorderPage\(_surfaceViewport\)/u);
   assert.match(mod, /_surfaces\.Add\(_agentRunPage\)/u);
   assert.match(mod, /_surfaces\.Add\(_recorderPage\)/u);
-  assert.doesNotMatch(mod, /Overview|Environment|Human Data|Diagnostics|AddPage/u);
+  assert.doesNotMatch(mod, /Overview|Environment|Human Data|"Diagnostics"|AddPage/u);
   assert.doesNotMatch(`${mod}\n${presentation}`, /"(Overview|Environment|Human Data|Diagnostics)"|BodyCollapsed|ActiveTab|ToggleActiveTabBody/u);
 });
 
@@ -151,4 +151,9 @@ test("Workspace shortcuts use native key events without frame polling", () => {
   assert.match(mod, /shortcutHost\.Pressed \+= ToggleWorkspace/u);
   assert.match(mod, /Modulate = new Color\(1, 1, 1, 0\)/u);
   assert.doesNotMatch(mod, /Input\.Is(KeyPressed|PhysicalKeyPressed)|_kWasPressed|_escapeWasPressed/u);
+});
+
+
+test("explicit native diagnostics use a neutral border before failure styling", () => {
+  assert.match(mod, /Color border = value\.Action\?\.IsDiagnostic == true \? new Color\("#4f91a6"\) : value\.Kind switch/u);
 });

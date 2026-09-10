@@ -9,16 +9,30 @@ public sealed class PlatformLiveActionFeedTests
     private static readonly DateTimeOffset T0 =
         DateTimeOffset.Parse("2026-09-01T00:00:00Z");
 
-    [Fact]
-    public void NativeDiagnosticDoesNotImpersonateHumanRoot()
+    [Theory]
+    [InlineData("MoveToMapCoordAction")]
+    [InlineData("ReadyToBeginEnemyTurnAction")]
+    public void NativeDiagnosticDoesNotImpersonateHumanRoot(string nativeType)
     {
         var feed = new PlatformLiveActionAggregation();
         feed.Apply(Event(1, RecordingEventKind.DecisionInvalidated, null) with {
-            Action = Action("", "accepted", "ReadyToBeginEnemyTurnAction") with { IsDiagnostic = true } });
+            Action = Action("", "accepted", nativeType) with { IsDiagnostic = true } });
         var item = feed.Recent(1)[0];
         Assert.Contains("Diagnostic", PlatformLiveActionFeed.FormatEntry(item));
         Assert.DoesNotContain("Root / legacy", PlatformLiveActionFeed.FormatEntry(item));
         Assert.Contains("not an additional Human decision", PlatformLiveActionFeed.FormatDetail(item));
+        Assert.DoesNotContain("Invalidated", PlatformLiveActionFeed.FormatEntry(item));
+        Assert.DoesNotContain("Status: ✕ Invalidated", PlatformLiveActionFeed.FormatDetail(item));
+        Assert.False(PlatformLiveActionFeed.IsFailure(item));
+        Assert.Equal(0, feed.Counts.Invalidated);
+        Assert.Equal(0, feed.Counts.Records);
+        Assert.Equal(1, feed.Counts.Diagnostics);
+        Assert.True(feed.Counts.Exact);
+        Assert.Contains(nativeType, PlatformLiveActionFeed.FormatEntry(item));
+        feed.Apply(Event(2, RecordingEventKind.DecisionInvalidated, "failed-human"));
+        Assert.Equal(1, feed.Counts.Invalidated);
+        Assert.Equal(1, feed.Counts.Diagnostics);
+        Assert.True(PlatformLiveActionFeed.IsFailure(feed.Recent(1)[0]));
     }
 
     [Fact]

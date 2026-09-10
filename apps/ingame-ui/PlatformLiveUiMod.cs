@@ -1068,7 +1068,7 @@ internal sealed class PlatformLivePanel : IDisposable
         PlatformLiveActionCounts counts = _actionFeed.Counts;
         _recorderHealth.Text =
             $"● {recording.Lifecycle.State} | Connector: {_connectorTransport}\n{PlatformLiveActionFeed.FormatCounters(recording.Counters)}";
-        _recorderCountScope.Text = "Canonical means recorded evidence, not Full-Run qualification. Legacy records are a separate compatibility projection."
+        _recorderCountScope.Text = $"Canonical means recorded evidence, not Full-Run qualification. Legacy records are a separate compatibility projection. Retained feed: {counts.Diagnostics} native diagnostics, {counts.Invalidated} capture failures."
             + (counts.Exact ? "" : " Feed correlation/history incomplete; session totals remain authoritative.");
         _recorderHealth.AddThemeColorOverride("font_color", recording.Lifecycle.State switch
         {
@@ -1168,7 +1168,7 @@ internal sealed class PlatformLivePanel : IDisposable
                 SizeFlagsVertical = SizeFlags.ShrinkBegin,
                 CustomMinimumSize = new Vector2(0, 30)
             };
-            Color border = value.Kind switch
+            Color border = value.Action?.IsDiagnostic == true ? new Color("#4f91a6") : value.Kind switch
             {
                 STS2HumanAnnotator.Core.RecordingEventKind.DecisionRecorded => new Color("#4fa77c"),
                 STS2HumanAnnotator.Core.RecordingEventKind.DecisionInvalidated => new Color("#c26b69"),
