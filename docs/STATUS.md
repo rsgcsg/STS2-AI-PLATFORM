@@ -2,7 +2,7 @@
 
 ## PR25 Act execution repair (2026-09-11)
 
-Latest closed Human audit passes structurally: 356 accepted, 350 canonical,
+The long-session Human audit passes structurally: 356 accepted, 350 canonical,
 6 unresolved, 33 invalidations. It is a resumed run with one native end.
 The candidate repairs act Commit seam mismatch, disabled empty-reward state
 completeness, and exact queued selection recapture. Rapid-card H and terminal
