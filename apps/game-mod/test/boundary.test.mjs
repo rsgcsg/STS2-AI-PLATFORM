@@ -658,9 +658,15 @@ test("run start provenance comes from native Launch and separates join observati
     patches,
     /class NativeRunStartedPatch[\s\S]*AccessTools\.Method\([\s\S]*typeof\(RunManager\)[\s\S]*"Launch"[\s\S]*ObserveNativeRunStarted/u
   );
-  assert.match(runtime, /run_started_native/u);
+  const provenance = read("components/annotator/src/STS2HumanAnnotator.Core/NativeRunLaunchProvenance.cs");
+  assert.match(provenance, /run_started_native/u);
+  assert.match(provenance, /run_resumed_native/u);
+  assert.match(provenance, /run_launched_native_origin_unknown/u);
+  assert.match(patches, /Origins\.JournalKind\(__result\)/u);
+  assert.match(patches, /nameof\(RunManager\.SetUpNewSingleplayer\)/u);
+  assert.match(patches, /nameof\(RunManager\.SetUpSavedSingleplayer\)/u);
   assert.match(runtime, /run_observed_in_progress/u);
-  assert.match(runtime, /RunManager\.Launch completed with an initialized RunState/u);
+  assert.match(runtime, /AppendJournal\(\s*journalKind/u);
   assert.doesNotMatch(
     runtime,
     /if \(inProgress && !_runActive && !_nativeRunEndedObserved\)[\s\S]*AppendJournal\("run_started"/u
