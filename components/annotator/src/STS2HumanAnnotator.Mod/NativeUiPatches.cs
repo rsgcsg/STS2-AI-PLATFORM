@@ -1378,7 +1378,7 @@ internal static class NativeRewardProceedPatch
             NativePostCommitCompletionExpectation completion = isActChangeReady
                 ? new NativePostCommitCompletionExpectation(
                     "act_change.ready",
-                    "VoteToMoveToNextActAction.ExecuteAction")
+                    NativeActChangeDecisionProvider.CommitSeam)
                 : new NativePostCommitCompletionExpectation(
                     "reward_proceed",
                     "RunManager.ProceedFromTerminalRewardsScreen",

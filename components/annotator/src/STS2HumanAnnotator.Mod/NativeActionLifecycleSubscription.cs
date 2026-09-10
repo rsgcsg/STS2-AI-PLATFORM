@@ -1,3 +1,4 @@
+using STS2Connector.PlayerEnvironment.Witness;
 using MegaCrit.Sts2.Core.GameActions;
 using STS2HumanAnnotator.Core;
 using STS2Platform.NativeFoundation;
@@ -19,7 +20,9 @@ internal sealed class NativeActionLifecycleSubscription : IDisposable
         string humanBoundActionId,
         ExecutionSemanticActionSpaceEvidence? nativeSemanticDecision,
         Action<NativeActionLifecycleSubscription, string> observer,
-        bool finishIsNativeCommit = true)
+        bool finishIsNativeCommit = true,
+        ProcessLocalObservedAction? nativeSemanticSelection = null,
+        string? semanticNativeActionType = null)
     {
         _action = action;
         ActionWitnessId = actionWitnessId;
@@ -28,6 +31,8 @@ internal sealed class NativeActionLifecycleSubscription : IDisposable
         HumanBoundActionId = humanBoundActionId;
         NativeSemanticDecision = nativeSemanticDecision;
         FinishIsNativeCommit = finishIsNativeCommit;
+        NativeSemanticSelection = nativeSemanticSelection;
+        SemanticNativeActionType = semanticNativeActionType;
         _observer = observer;
         _nativeObserver = new NativeActionLifecycleObserver(
             action,
@@ -41,6 +46,8 @@ internal sealed class NativeActionLifecycleSubscription : IDisposable
     internal string HumanBoundActionId { get; }
     internal ExecutionSemanticActionSpaceEvidence? NativeSemanticDecision { get; }
     internal bool FinishIsNativeCommit { get; }
+    internal ProcessLocalObservedAction? NativeSemanticSelection { get; }
+    internal string? SemanticNativeActionType { get; }
     internal string NativeActionType => _action.GetType().Name;
     internal uint? NativeQueueId => _action.Id;
     internal string NativeState => _action.State.ToString().ToLowerInvariant();

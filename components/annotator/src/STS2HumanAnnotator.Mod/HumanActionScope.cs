@@ -25,13 +25,15 @@ internal sealed class HumanActionContext
         string? actionWitnessId,
         NativePostCommitCompletionExpectation? completionExpectation,
         HumanActionOccurrenceEvidence? occurrence,
-        DateTimeOffset enteredAt)
+        DateTimeOffset enteredAt,
+        ProcessLocalObservedAction? nativeSemanticSelection = null)
     {
         Origin = origin;
         ExpectedNativeActionType = expectedNativeActionType;
         ExpectedAction = expectedAction;
         Frame = frame;
         NativeSemanticDecision = nativeSemanticDecision;
+        NativeSemanticSelection = nativeSemanticSelection;
         ActionWitnessId = actionWitnessId ?? $"scope-action-{Guid.NewGuid():N}";
         CompletionExpectation = completionExpectation;
         Occurrence = occurrence;
@@ -47,6 +49,8 @@ internal sealed class HumanActionContext
     internal ProcessLocalNativeWitnessFrame Frame { get; }
 
     internal ProcessLocalNativeSemanticCapture? NativeSemanticDecision { get; }
+
+    internal ProcessLocalObservedAction? NativeSemanticSelection { get; }
 
     internal string ActionWitnessId { get; }
 
@@ -134,7 +138,8 @@ internal static class HumanActionScope
         ProcessLocalNativeSemanticCapture? nativeSemanticDecision = null,
         string? actionWitnessId = null,
         NativePostCommitCompletionExpectation? completionExpectation = null,
-        HumanActionOccurrenceEvidence? occurrence = null)
+        HumanActionOccurrenceEvidence? occurrence = null,
+        ProcessLocalObservedAction? nativeSemanticSelection = null)
     {
         _stack ??= new Stack<HumanActionContext>();
         _stack.Push(new HumanActionContext(
@@ -146,7 +151,8 @@ internal static class HumanActionScope
             actionWitnessId,
             completionExpectation,
             occurrence,
-            DateTimeOffset.UtcNow));
+            DateTimeOffset.UtcNow,
+            nativeSemanticSelection));
     }
 
     internal static void Exit()

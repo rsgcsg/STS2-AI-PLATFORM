@@ -396,3 +396,20 @@ test("failed Human admission fences pending evidence and potion Commit waits for
   assert.match(potion, /SuccessfulDiscard\(__result, __instance\)/u);
   assert.match(potion, /GameActionState\.Canceled/u);
 });
+
+
+test("act-ready expectation and completion use the same owning seam", () => {
+  const proceed = section(patches, "internal static class NativeRewardProceedPatch", "internal static class NativeRewardPotionDiscardPatch");
+  const commit = section(patches, "internal static class NativeActChangeVoteCommitPatch", "[HarmonyPatch(typeof(RewardsSetSynchronizer)");
+  assert.match(proceed, /new NativePostCommitCompletionExpectation\(\s*"act_change.ready",\s*NativeActChangeDecisionProvider\.CommitSeam\)/u);
+  assert.match(commit, /"act_change.ready",\s*NativeActChangeDecisionProvider\.CommitSeam/u);
+});
+
+test("queued UI execution recaptures native operands instead of reusing the admission catalog", () => {
+  const execution = section(runtime, "private static void ObserveBeforeActionExecution", "private static void ObserveSemanticDecisionBoundary");
+  assert.match(execution, /semanticNativeActionType: subscription\?\.SemanticNativeActionType/u);
+  assert.match(execution, /semanticSelection: subscription\?\.NativeSemanticSelection/u);
+  const ingress = section(runtime, "private static bool StartSemanticUiAction", "internal static bool ObserveSemanticUiNativeCommit");
+  assert.match(ingress, /match\.BoundAction!\.BoundActionId,\s*null,\s*ObserveSemanticOnlyNativeActionLifecycle/u);
+  assert.match(ingress, /nativeSemanticSelection: nativeSemanticSelection/u);
+});

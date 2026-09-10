@@ -1252,7 +1252,8 @@ internal static partial class RecorderRuntime
                     frame,
                     semanticDecision,
                     actionWitnessId,
-                    completionExpectation);
+                    completionExpectation,
+                    nativeSemanticSelection: nativeSemanticSelection ?? observed);
                 return new NativeUiScopeEntry(true, false, actionWitnessId);
             }
         }
@@ -1602,7 +1603,8 @@ internal static partial class RecorderRuntime
                     : NativeUiCompletionRootBindings.TryGetAction(actionWitnessId,
                         out GameAction? boundAction)
                         ? boundAction
-                        : null);
+                        : null,
+                nativeSemanticSelection: acceptedContext.NativeSemanticSelection);
             if (accepted && acceptedContext.DeferredCarrierBindingFailure is { } carrierFailure)
             {
                 ObserveSemanticUiCarrierBindingFailure(
@@ -1951,11 +1953,17 @@ internal static partial class RecorderRuntime
         try
         {
             ProcessLocalNativeWitnessFrame frame = CaptureSemanticFrame();
-            ProcessLocalNativeSemanticCapture semanticCapture =
-                PlayerEnvironmentNativeSemanticWitness.Capture(phase, action, frame);
             NativeActionLifecycleSubscription? subscription;
             lock (Gate)
                 NativeActionSubscriptions.TryGetValue(action, out subscription);
+            // Retain operands, never the admission-time catalog, for queued UI
+            // carriers. The owning native provider revalidates exact membership
+            // against this execution frame; changed owners remain unknown.
+            ProcessLocalNativeSemanticCapture semanticCapture =
+                PlayerEnvironmentNativeSemanticWitness.Capture(
+                    phase, action, frame,
+                    semanticNativeActionType: subscription?.SemanticNativeActionType,
+                    semanticSelection: subscription?.NativeSemanticSelection);
             ExecutionSemanticActionSpaceEvidence? actionSpace =
                 subscription?.NativeSemanticDecision;
             actionSpace ??= phase == "before_execution"
@@ -2192,7 +2200,8 @@ internal static partial class RecorderRuntime
         ProcessLocalNativeWitnessFrame? postCommitFrame = null,
         NativePostCommitCompletionExpectation? completionExpectation = null,
         string? actionWitnessIdOverride = null,
-        GameAction? lifecycleAction = null)
+        GameAction? lifecycleAction = null,
+        ProcessLocalObservedAction? nativeSemanticSelection = null)
     {
         bool durablyAccepted = false;
         bool semanticStreamMayContainPartialAppend = false;
@@ -2270,7 +2279,9 @@ internal static partial class RecorderRuntime
                             match.BoundAction!.BoundActionId,
                             null,
                             ObserveSemanticOnlyNativeActionLifecycle,
-                            finishIsNativeCommit: completionExpectation == null);
+                            finishIsNativeCommit: completionExpectation == null,
+                            nativeSemanticSelection: nativeSemanticSelection,
+                            semanticNativeActionType: nativeActionType);
                     NativeActionSubscriptions[lifecycleAction] = subscription;
                     SemanticOnlyNativeActionIds.Add(actionWitnessId);
                 }

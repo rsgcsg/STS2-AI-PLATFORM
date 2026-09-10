@@ -1,13 +1,13 @@
 # Current Status
 
-## PR25 queued-carrier repair (2026-09-10)
+## PR25 Act execution repair (2026-09-11)
 
-The latest Human audit fails on duplicate Started and confirms an unfenced
-EndTurn contaminating a prior canonical transition. The next candidate separates
-UI submission from exact carrier execution and routes accepted failures through
-the durable effect barrier. Early-card and terminal successor completeness remain
-open. See [repair report](evidence/PR25_QUEUED_CARRIER_REPAIR_2026-09-10.md).
-No new Human qualification transfers from the historical session.
+Latest closed Human audit passes structurally: 356 accepted, 350 canonical,
+6 unresolved, 33 invalidations. It is a resumed run with one native end.
+The candidate repairs act Commit seam mismatch, disabled empty-reward state
+completeness, and exact queued selection recapture. Rapid-card H and terminal
+successor gaps remain open. See [audit and repair report](evidence/PR25_ACT_EXECUTION_REPAIR_2026-09-11.md).
+No all-valid Full Run or new Human qualification is claimed.
 
 ## PR25 v4 Human audit and popup repair (2026-09-10)
 
