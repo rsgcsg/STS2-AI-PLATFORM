@@ -80,3 +80,14 @@ retain honest dispositions. No unsupported family is silently labeled valid.
 This candidate is prepared for Human testing, not a promise of exhaustive game
 coverage. Rollback uses the exact backup produced by owning Game Mod deployment;
 PR25 remains Draft and is neither merged nor marked ready.
+
+
+## Runtime UI follow-up
+
+Native cold load reached the main menu, but repeated short K taps did not open
+the panel. The old ProcessFrame key-state polling can miss a press and release
+between frames. K and Escape now use built-in Godot Shortcut/Button events;
+the global K host is transparent, mouse-ignoring and non-focusable, while
+Escape belongs to the visible Close button. This preserves the hidden Workspace
+and requires no unsupported custom Godot input override or gameplay listener.
+Exact final package and runtime receipts supersede the initial canary build.

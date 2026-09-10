@@ -150,8 +150,6 @@ internal sealed class PlatformLivePanel : IDisposable
     private string _connectorTransport = "checking";
     private Button _tickButton = null!;
     private PlatformCommandMode _mode = PlatformCommandMode.Human;
-    private bool _kWasPressed;
-    private bool _escapeWasPressed;
     private bool _disposed;
     private int _pollInFlight;
     private PlatformLiveStatus? _pendingStatus;
@@ -209,8 +207,30 @@ internal sealed class PlatformLivePanel : IDisposable
         _statusClient.Dispose();
     }
 
+    private static Shortcut WorkspaceShortcut(Key key) => new()
+    {
+        Events = new Godot.Collections.Array {
+            new InputEventKey { Keycode = key },
+            new InputEventKey { PhysicalKeycode = key }
+        }
+    };
+
     private void BuildUi()
     {
+        // Native shortcut dispatch observes key events even when down/up both
+        // arrive between ProcessFrame calls. This host is visually transparent,
+        // never focusable/clickable, and introduces no permanent HUD.
+        var shortcutHost = new Button
+        {
+            Name = "PlatformWorkspaceShortcut",
+            Modulate = new Color(1, 1, 1, 0),
+            MouseFilter = MouseFilterEnum.Ignore,
+            FocusMode = FocusModeEnum.None,
+            Shortcut = WorkspaceShortcut(Key.K),
+            ShortcutInTooltip = false
+        };
+        shortcutHost.Pressed += ToggleWorkspace;
+        Root.AddChild(shortcutHost);
         _workspace = new PanelContainer
         {
             Position = _layout.WorkspacePosition,
@@ -275,7 +295,9 @@ internal sealed class PlatformLivePanel : IDisposable
         _workspaceTitle.AddThemeColorOverride("font_color", TextPrimary);
         titleRow.AddChild(_workspaceTitle);
         titleRow.AddChild(BuildHeaderButton("Reset", ResetLayout, "Restore position, size and active surface."));
-        titleRow.AddChild(BuildHeaderButton("Close", HidePanel, "Close workspace and return to gameplay."));
+        var closeButton = BuildHeaderButton("Close", HidePanel, "Close workspace and return to gameplay.");
+        closeButton.Shortcut = WorkspaceShortcut(Key.Escape);
+        titleRow.AddChild(closeButton);
         _workspaceBody.AddChild(titleRow);
 
         _workspaceContent = new VBoxContainer
@@ -1218,32 +1240,22 @@ internal sealed class PlatformLivePanel : IDisposable
             }
         }
 
-        bool kPressed = Input.IsKeyPressed(Key.K) || Input.IsPhysicalKeyPressed(Key.K);
-        if (kPressed && !_kWasPressed)
-        {
-            _workspace.Visible = !_workspace.Visible;
-            if (_workspace.Visible)
-            {
-                _layout = _layout with { ActiveSurface = "agent_run" };
-                ApplyLayout();
-                _ = PollAsync();
-            }
-            else
-            {
-                ApplyPresentationVisibility();
-            }
-            GD.Print($"[STS2 Platform Live UI] toggle; input=K; visible={_workspace.Visible.ToString().ToLowerInvariant()}");
-            Root.GetViewport().SetInputAsHandled();
-        }
-        _kWasPressed = kPressed;
+    }
 
-        bool escapePressed = Input.IsKeyPressed(Key.Escape);
-        if (_workspace.Visible && escapePressed && !_escapeWasPressed)
+    private void ToggleWorkspace()
+    {
+        _workspace.Visible = !_workspace.Visible;
+        if (_workspace.Visible)
         {
-            HidePanel();
-            Root.GetViewport().SetInputAsHandled();
+            _layout = _layout with { ActiveSurface = "agent_run" };
+            ApplyLayout();
+            _ = PollAsync();
         }
-        _escapeWasPressed = escapePressed;
+        else
+        {
+            ApplyPresentationVisibility();
+        }
+        GD.Print($"[STS2 Platform Live UI] toggle; input=K; visible={_workspace.Visible.ToString().ToLowerInvariant()}");
     }
 
     private void HidePanel()

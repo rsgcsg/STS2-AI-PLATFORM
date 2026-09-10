@@ -143,3 +143,12 @@ test("Current Action Feed lifecycle fixtures pass", () => {
   );
   assert.equal(result.status, 0, `Action Feed fixtures failed.\n${result.stdout}\n${result.stderr}`);
 });
+
+
+test("Workspace shortcuts use native key events without frame polling", () => {
+  assert.match(mod, /Shortcut = WorkspaceShortcut\(Key\.K\)/u);
+  assert.match(mod, /closeButton\.Shortcut = WorkspaceShortcut\(Key\.Escape\)/u);
+  assert.match(mod, /shortcutHost\.Pressed \+= ToggleWorkspace/u);
+  assert.match(mod, /Modulate = new Color\(1, 1, 1, 0\)/u);
+  assert.doesNotMatch(mod, /Input\.Is(KeyPressed|PhysicalKeyPressed)|_kWasPressed|_escapeWasPressed/u);
+});

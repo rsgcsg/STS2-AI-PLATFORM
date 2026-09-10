@@ -84,3 +84,8 @@ Decision schema 2 `native_selector` entries display `Selector / native origin`,
 the actual native action/context and `Parent decision: none (native origin)`.
 Roots/entries count parentless Human decisions, not unique native causes.
 Selectors with an actual Human parent retain that exact parent and child label.
+
+Workspace K and Close/Escape use Godot native Shortcut events, not ProcessFrame
+key-state polling, so short taps are observed. The K shortcut host is transparent,
+non-focusable and mouse-ignoring; no permanent HUD or additional navigation
+surface is introduced. Escape's shortcut belongs to the visible Close button.
