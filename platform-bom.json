@@ -10,9 +10,9 @@
     },
     "connector": {
       "version": "1.2.0-rc.6",
-      "source_revision": "6c5ec60a8c6bb96e24f85d437f5306ff94c22551",
-      "component_tree_revision": "ae21eb26bfdee775b69e466500e7933c6f8a1950",
-      "component_source_digest_sha256": "85980873483b2e25ea513e3d47bb17944156d641e62102e6673e82b87ab1a250"
+      "source_revision": "7a255157e8b679c2b80bcbc39322aeec414471fb",
+      "component_tree_revision": "37bdcd33df0b10832652635d917643f7637c4cbe",
+      "component_source_digest_sha256": "d40ded897be7d34f2420931e790df9ed2c55ff88115c08a1712822d5d93e7adf"
     },
     "host_runtime": {
       "version": "1.1.0-rc.7",
@@ -22,9 +22,9 @@
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "90413c146e518f92af0f47e7469fd53b85f17e4a",
-      "component_tree_revision": "f84fc173ec2383c2813e6087b8ae53b1f4faa749",
-      "component_source_digest_sha256": "46f2f903b9df7c1573e4db4e496fedbac1913ba928e9b50e7ab528729e9db252"
+      "source_revision": "7a255157e8b679c2b80bcbc39322aeec414471fb",
+      "component_tree_revision": "d328b52de3e5e6551deb03661fa30f62f7fadcca",
+      "component_source_digest_sha256": "d97fcf1b6f02e4690c91ec779aa9c5b4b76a0ab251e843284d1831e9bd21fdd6"
     },
     "evidence": {
       "version": "0.1.0-rc.1",
@@ -46,9 +46,9 @@
     },
     "live_ui": {
       "version": "0.1.0-rc.1",
-      "source_revision": "d7b8e15bd7f5227fd93f907f63f1f12bcd7c1287",
-      "component_tree_revision": "c4afffecf5eaa4971afd68d10b547b3fdfc4efcf",
-      "component_source_digest_sha256": "f8107ebe42af19b9153063c56b51cd4c51fec917c751aa968a090aa5d0eaefc5"
+      "source_revision": "7a255157e8b679c2b80bcbc39322aeec414471fb",
+      "component_tree_revision": "a0a3ac2d3a217391d88eddc8b6225c3c89605447",
+      "component_source_digest_sha256": "1ad4153e2831db56ba3c229d2fa31c2219f7117ddf6757628e6ef9feefbf72fd"
     },
     "game_mod": {
       "version": "0.2.0-rc.1",
@@ -154,8 +154,8 @@
     },
     "connector": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
-      "current_component_source_revision": "6c5ec60a8c6bb96e24f85d437f5306ff94c22551",
-      "current_component_source_digest_sha256": "85980873483b2e25ea513e3d47bb17944156d641e62102e6673e82b87ab1a250",
+      "current_component_source_revision": "7a255157e8b679c2b80bcbc39322aeec414471fb",
+      "current_component_source_digest_sha256": "d40ded897be7d34f2420931e790df9ed2c55ff88115c08a1712822d5d93e7adf",
       "source_relation": "loaded_human_v2_artifact_precedes_unified_platform_source",
       "artifact_sha256": "6c66cbf06757dca3e7d910467fb56b89376f109c6d7d0ba47d2bc0260ab4a3d2",
       "artifact_mvid": "11f1da35-558f-4346-8ec9-a493fea95cb8",
@@ -167,8 +167,8 @@
     "annotator": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
       "source_digest_sha256": "8d23f1015a7b0df800f78a7545da5c86bfee521131c4391b398c884ff917918f",
-      "current_component_source_revision": "90413c146e518f92af0f47e7469fd53b85f17e4a",
-      "current_component_source_digest_sha256": "46f2f903b9df7c1573e4db4e496fedbac1913ba928e9b50e7ab528729e9db252",
+      "current_component_source_revision": "7a255157e8b679c2b80bcbc39322aeec414471fb",
+      "current_component_source_digest_sha256": "d97fcf1b6f02e4690c91ec779aa9c5b4b76a0ab251e843284d1831e9bd21fdd6",
       "source_relation": "loaded_human_v2_artifact_precedes_unified_platform_source",
       "artifact_sha256": "4e911dd616afa55753a5320a42c11ce0cebe9d4d10fefd66c8f8a431884cf105",
       "artifact_mvid": "692e9dd9-4bc7-4203-ae12-511ef95a5331",
@@ -255,8 +255,8 @@
     "connector": {
       "source_revision": "4de52cfd72c6bf5b0d2312538152e81c616dabfb",
       "source_digest_sha256": "8651b47e2fec8e0c77689a8e8774377795d79c188f2d69910a116e72db8f78c1",
-      "current_component_source_revision": "6c5ec60a8c6bb96e24f85d437f5306ff94c22551",
-      "current_component_source_digest_sha256": "85980873483b2e25ea513e3d47bb17944156d641e62102e6673e82b87ab1a250",
+      "current_component_source_revision": "7a255157e8b679c2b80bcbc39322aeec414471fb",
+      "current_component_source_digest_sha256": "d40ded897be7d34f2420931e790df9ed2c55ff88115c08a1712822d5d93e7adf",
       "source_relation": "loaded_native_source_precedes_current_discriminator_source",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b",
@@ -270,8 +270,8 @@
     "annotator": {
       "source_revision": "cb20bfa6e4e0e64b3ee8fdf0e1d472e8a668450b",
       "source_digest_sha256": "3910bcbc71599610b125c91c62e9860541ce9edea9b2c0a9f41842eb53651071",
-      "current_component_source_revision": "90413c146e518f92af0f47e7469fd53b85f17e4a",
-      "current_component_source_digest_sha256": "46f2f903b9df7c1573e4db4e496fedbac1913ba928e9b50e7ab528729e9db252",
+      "current_component_source_revision": "7a255157e8b679c2b80bcbc39322aeec414471fb",
+      "current_component_source_digest_sha256": "d97fcf1b6f02e4690c91ec779aa9c5b4b76a0ab251e843284d1831e9bd21fdd6",
       "source_relation": "loaded_native_source_precedes_current_audit_closeout_source",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b"
@@ -893,8 +893,8 @@
     "live_ui": {
       "source_revision": "305a2cac80f0bd3126d66cfc5818477c583a8ce5",
       "source_digest_sha256": "c2a75214cb69678913fceb965ae4d41784a6cb1580311b53a2cc5b4c0c4cb1c4",
-      "current_component_source_revision": "d7b8e15bd7f5227fd93f907f63f1f12bcd7c1287",
-      "current_component_source_digest_sha256": "f8107ebe42af19b9153063c56b51cd4c51fec917c751aa968a090aa5d0eaefc5",
+      "current_component_source_revision": "7a255157e8b679c2b80bcbc39322aeec414471fb",
+      "current_component_source_digest_sha256": "1ad4153e2831db56ba3c229d2fa31c2219f7117ddf6757628e6ef9feefbf72fd",
       "source_relation": "loaded_native_source_scope_matches_current_component",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b"
