@@ -89,11 +89,13 @@ test("component initializers are disabled only in the unified build", () => {
   }
 });
 
-test("Live UI uses K from the SceneTree signal and logs readiness", () => {
+test("Live UI uses native K shortcuts and SceneTree status signals", () => {
   const source = read("apps/ingame-ui/PlatformLiveUiMod.cs");
   assert.match(source, /internal sealed class PlatformLivePanel : IDisposable/u);
   assert.match(source, /tree\.ProcessFrame \+= _processFrameHandler/u);
-  assert.match(source, /Input\.IsKeyPressed\(Key\.K\) \|\| Input\.IsPhysicalKeyPressed\(Key\.K\)/u);
+  assert.match(source, /Shortcut = WorkspaceShortcut\(Key\.K\)/u);
+  assert.match(source, /shortcutHost\.Pressed \+= ToggleWorkspace/u);
+  assert.doesNotMatch(source, /Input\.IsKeyPressed|Input\.IsPhysicalKeyPressed/u);
   assert.doesNotMatch(source, /class PlatformLivePanel : Control/u);
   assert.doesNotMatch(source, /override void _(Ready|Process|Input)/u);
   assert.match(source, /adding layer to SceneTree root/u);
