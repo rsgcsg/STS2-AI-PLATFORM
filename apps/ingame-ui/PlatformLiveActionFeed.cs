@@ -170,7 +170,7 @@ internal static class PlatformLiveActionFeed
             or RecordingEventKind.DecisionProjectionOmitted;
 
     internal static string FormatEntry(PlatformLiveActionItem value) =>
-        $"#{value.FirstSequence}  {(value.Action?.Decision?.DecisionKind == "nested_selector" ? "↳ Selector" : value.Action?.Decision?.DecisionKind == "native_selector" ? "Selector / native origin" : "Root / legacy")}  {FormatCompactAction(value.Action)}  {FormatLifecycle(value.Kind)}"
+        $"#{value.FirstSequence}  {(value.Action?.IsDiagnostic == true ? "Diagnostic" : value.Action?.FailedOccurrence != null ? "Human input / failed capture" : value.Kind == RecordingEventKind.DecisionInvalidated ? "Capture failure" : value.Action?.Decision?.DecisionKind == "nested_selector" ? "↳ Selector" : value.Action?.Decision?.DecisionKind == "native_selector" ? "Selector / native origin" : value.Action?.Decision?.DecisionKind == "root" ? "Root" : "Legacy / unclassified")}  {FormatCompactAction(value.Action)}  {FormatLifecycle(value.Kind)}"
         + (value.Action?.Decision?.ParentDecisionId is { } parent ? $"\nParent: {parent}" : "");
 
     internal static string FormatDetail(PlatformLiveActionItem value)
@@ -198,6 +198,14 @@ internal static class PlatformLiveActionFeed
             lines.Add($"Reason: {Explicit(value.Detail, "unavailable (canonical reason not exposed)")}");
         if (!value.HasReliableCorrelation)
             lines.Add($"Correlation: unavailable ({value.CorrelationIssue ?? "stable identity not exposed"})");
+        if (action?.FailedOccurrence is { } occurrence)
+        {
+            lines.Add($"Human occurrence: {occurrence.OccurrenceId}");
+            lines.Add($"Native input: {occurrence.NativeActionType} · {occurrence.NativeMechanism}");
+            lines.Add($"Capture disposition: {occurrence.Disposition}");
+        }
+        if (action?.IsDiagnostic == true)
+            lines.Add("Internal native diagnostic; not an additional Human decision.");
         if (action?.Decision is { } decision)
         {
             lines.Add($"Decision: {decision.DecisionId} ({decision.DecisionKind})");
@@ -243,7 +251,7 @@ internal static class PlatformLiveActionFeed
     private static string FormatCompactAction(RecordingActionProjection? action)
     {
         if (action == null)
-            return "Action unavailable (canonical evidence omitted action facts)";
+            return "Action unavailable (event has no action projection)";
         string verb = Humanize(action.Verb, "Action unavailable");
         string label = string.IsNullOrWhiteSpace(action.Label) ? "unavailable" : action.Label.Trim();
         string actionText = string.Equals(verb, label, StringComparison.OrdinalIgnoreCase)

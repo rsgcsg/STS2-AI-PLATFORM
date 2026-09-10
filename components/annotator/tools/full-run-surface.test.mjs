@@ -384,5 +384,15 @@ test("unowned native hook selectors retain actual action provenance without a Hu
   assert.match(resolve, /NativeWitnessIdentity\.Get\(action, "game_action"\)/u);
   assert.match(resolve, /NativeOrigin = new NativeDecisionOriginEvidence/u);
   assert.match(resolve, /exact_native_owner_without_human_decision/u);
+  assert.match(resolve, /action is PlayCardAction && action\.State == MegaCrit\.Sts2\.Core\.Entities\.Actions\.GameActionState\.GatheringPlayerChoice/u);
   assert.doesNotMatch(resolve, /HumanActionScope\.Current|CurrentAction|LastAction/u);
+});
+
+test("failed Human admission fences pending evidence and potion Commit waits for the native task", () => {
+  assert.match(runtime, /tracker => tracker\.ObserveUnrecordedHumanEffect\(occurrenceId\)/u);
+  assert.match(runtime, /human_effect_barrier_persistence_failed/u);
+  const potion = section(patches, "internal static class NativeRewardPotionDiscardPatch", "internal static class NativeActChangeVoteEnqueuePatch");
+  assert.doesNotMatch(potion, /Peek\(\) as NRewardsScreen/u);
+  assert.match(potion, /SuccessfulDiscard\(__result, __instance\)/u);
+  assert.match(potion, /GameActionState\.Canceled/u);
 });

@@ -89,3 +89,8 @@ Workspace K and Close/Escape use Godot native Shortcut events, not ProcessFrame
 key-state polling, so short taps are observed. The K shortcut host is transparent,
 non-focusable and mouse-ignoring; no permanent HUD or additional navigation
 surface is introduced. Escape's shortcut belongs to the visible Close button.
+
+Failed-capture events expose available native occurrence/type/mechanism without
+invented BoundAction IDs. Internal native diagnostic mismatches are labeled
+Diagnostic rather than Human roots. Typed root decisions are labeled Root;
+unclassified historical events retain an explicit legacy label.

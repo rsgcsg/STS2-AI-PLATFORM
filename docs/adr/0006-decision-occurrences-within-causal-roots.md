@@ -114,3 +114,13 @@ New manifests require decision schema 2 on every trace event; historical schema
 support the new version. UI labels native-origin selectors and counts parentless
 entries under roots/entries; this counter is not a count of unique native causes.
 No historical input is backfilled. A fresh hook-selector Human canary is required.
+
+## Native PlayCard selector and unrecorded-effect boundary amendment
+
+An exact factory-owned PlayCardAction in GatheringPlayerChoice may also be the
+native origin of first-class Human selector inputs without an established
+Human parent. This identifies the real native cause; it does not assert the
+original action was automatic. Existing Human-parent binding takes precedence.
+Other states remain fail-closed. Accepted Human inputs that cannot be admitted
+must fence pending transitions from later successor attribution. Equal adjacent
+state references alone do not prove that all intervening Human inputs exist.

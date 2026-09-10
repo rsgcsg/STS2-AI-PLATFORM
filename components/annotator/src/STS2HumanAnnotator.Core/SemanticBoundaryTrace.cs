@@ -795,6 +795,19 @@ public sealed class SemanticBoundaryTracker
         };
     }
 
+    /// <summary>An exact accepted Human effect escaped canonical admission. No pending
+    /// transition may absorb that effect into a later successor, even if snapshot IDs join.</summary>
+    public IReadOnlyList<SemanticBoundaryTraceDraft> ObserveUnrecordedHumanEffect(string occurrenceId)
+    {
+        if (string.IsNullOrWhiteSpace(occurrenceId)) throw new ArgumentException("Exact Human occurrence required.", nameof(occurrenceId));
+        var result = new List<SemanticBoundaryTraceDraft>();
+        foreach (Entry entry in _order.Select(id => _entries[id]).Where(entry => !entry.Disposed).ToArray())
+            result.AddRange(DisposeUnknown(entry, "unrecorded_human_effect_before_successor", null,
+                $"Accepted Human occurrence {occurrenceId} has no admitted transition; later state cannot be attributed across its effect."));
+        _currentState = null;
+        return result;
+    }
+
     public IReadOnlyList<SemanticBoundaryTraceDraft> CloseUnknown(string proofStatus)
     {
         IReadOnlyList<SemanticBoundaryTraceDraft> drafts = PreviewCloseUnknown(proofStatus);
@@ -1068,7 +1081,7 @@ public sealed class SemanticBoundaryTracker
     private static IReadOnlyList<SemanticBoundaryTraceDraft> DisposeUnknown(
         Entry entry,
         string proofStatus,
-        string relatedActionWitnessId,
+        string? relatedActionWitnessId,
         string detail)
     {
         entry.Disposed = true;

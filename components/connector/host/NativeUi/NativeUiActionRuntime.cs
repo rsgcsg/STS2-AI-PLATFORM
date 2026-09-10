@@ -20,6 +20,33 @@ internal static partial class NativeUiActionRuntime
         LiveObservation draft) => FindSurfaceAdapter(draft.Surface)?.BuildBindings(draft)
             ?? Array.Empty<NativeUiBoundAction>();
 
+    private static IReadOnlyList<NativeUiBoundAction> BuildPotionPopupBindings(LiveObservation draft, PotionPopupSurface surface) =>
+        DescribePotionPopupCommands(surface).Select(action => BindActionToCurrentObservation(draft, action)!).ToArray();
+
+    internal static IReadOnlyList<NativeUiActionDescriptor> DescribePotionPopupCommands(PotionPopupSurface surface)
+    {
+        var bindings = new[] { new ActionEntityBinding("screen", surface.ScreenEntityId), new ActionEntityBinding("potion", surface.PotionEntityId) };
+        var result = new List<NativeUiActionDescriptor>();
+        if (surface.CanDiscard) result.Add(NativeDescriptor("discard:" + surface.PotionEntityId, "discard_potion", "potion", "Discard " + surface.Name, "NPotionPopup.DiscardButton", bindings));
+        if (surface.CanUse)
+        {
+            if (surface.DirectCombatUse)
+            {
+                string?[] targets = surface.UseTargetEntityIds.Count == 0 ? new string?[] { null } : surface.UseTargetEntityIds.Cast<string?>().ToArray();
+                foreach (string? target in targets)
+                    result.Add(NativeDescriptor("use:" + surface.PotionEntityId + ":" + target, "use_potion", "potion", "Use " + surface.Name,
+                        "NPotionPopup.UseButton+NativeCombatDecisionProvider", target == null ? bindings : bindings.Concat(new[] { new ActionEntityBinding("target", target) }).ToArray()));
+            }
+            else result.Add(NativeDescriptor("use:" + surface.PotionEntityId, "choose_potion_use", "potion", "Use " + surface.Name, "NPotionPopup.UseButton", bindings));
+        }
+        result.Add(NativeDescriptor("close:" + surface.ScreenEntityId, "cancel_potion_popup", "navigation", "Close potion popup", "NPotionPopup.Remove", new[] { bindings[0] }));
+        return result;
+    }
+    private static NativeInputResult StartPotionPopupCommand(LiveObservation draft, NativeUiInput request, NativeUiBoundAction binding) =>
+        draft.Surface is PotionPopupSurface surface && HasExactOperand(request, "screen_id", surface.ScreenEntityId)
+            ? PotionPopupSurfaceReader.Start(Entities, surface, binding.Candidate.Operation, request.Operands?.GetValueOrDefault("target_id"))
+            : NativeInputResult.Rejected("potion_popup_changed", "Exact potion popup changed.");
+
     private static IReadOnlyList<NativeUiBoundAction> BuildCombatBindings(
         LiveObservation draft,
         CombatTurnSurface surface)

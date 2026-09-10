@@ -10,6 +10,18 @@ public sealed class PlatformLiveActionFeedTests
         DateTimeOffset.Parse("2026-09-01T00:00:00Z");
 
     [Fact]
+    public void NativeDiagnosticDoesNotImpersonateHumanRoot()
+    {
+        var feed = new PlatformLiveActionAggregation();
+        feed.Apply(Event(1, RecordingEventKind.DecisionInvalidated, null) with {
+            Action = Action("", "accepted", "ReadyToBeginEnemyTurnAction") with { IsDiagnostic = true } });
+        var item = feed.Recent(1)[0];
+        Assert.Contains("Diagnostic", PlatformLiveActionFeed.FormatEntry(item));
+        Assert.DoesNotContain("Root / legacy", PlatformLiveActionFeed.FormatEntry(item));
+        Assert.Contains("not an additional Human decision", PlatformLiveActionFeed.FormatDetail(item));
+    }
+
+    [Fact]
     public void NativeOriginSelectorDoesNotDisplayAnInventedHumanParent()
     {
         var feed = new PlatformLiveActionAggregation();

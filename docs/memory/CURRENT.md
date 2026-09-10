@@ -124,3 +124,12 @@ Use `npm run project:context` to start work and `npm run project:closeout` befor
 PR closeout. See [Engineering Governance](../ENGINEERING_GOVERNANCE.md),
 [Testing and Evidence](../TESTING.md), and
 [Development Workflow](../DEVELOPMENT_WORKFLOW.md).
+
+## PR25 potion ingress and causal barrier follow-up (2026-09-10)
+
+The post-Human audit found a silently omitted potion discard contaminating a
+map transition despite matching successor/pre references. The current candidate
+adds an exact native popup catalog, global discard witnessing, native task
+completion, unrecorded-Human-effect barriers and typed diagnostic UI. See
+[repair evidence](../evidence/PR25_POTION_CAUSAL_REPAIR_2026-09-10.md). Exact current CI/artifact/runtime receipts supersede this
+handoff; pre-frame and terminal successor non-claims remain explicit.

@@ -107,6 +107,19 @@ internal static class ActiveInputResolver
         NativeEntityRegistry entities,
         GameBuildIdentity game)
     {
+        // Native top-bar potion popup is independent of room/overlay selection.
+        if (snapshot.OpenModal == null)
+        {
+            try
+            {
+                if (PotionPopupSurfaceReader.Capture(entities, game) is { } potion)
+                    return new ActiveSurfaceResolution(potion, new[] { "potion_popup" }, null, null);
+            }
+            catch (Exception exception)
+            {
+                return new ActiveSurfaceResolution(null, Array.Empty<string>(), "potion_popup", exception);
+            }
+        }
         var matches = new List<(string Kind, LiveObservation Draft)>();
         foreach (ILiveSurfaceReader provider in providers.Where(provider =>
                      IsActiveLayer(

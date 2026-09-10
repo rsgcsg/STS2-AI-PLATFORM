@@ -185,6 +185,11 @@ public static class FullRunCoverageContract
             new("rest_site.proceed", FullRunCoverageClassifications.InScopeImplemented,
                 "NRestSiteRoom.OnProceedButtonReleased", "NRestSiteRoom", "NativeRoomDecisionProvider",
                 "NRestSiteRoom.OnProceedButtonReleased", "room handoff", "next exact room boundary"),
+            new("potion_belt.discard", FullRunCoverageClassifications.InScopeImplemented,
+                "NPotionPopup.OnDiscardButtonPressed(NButton)", "NPotionPopup/DiscardPotionGameAction",
+                "PotionPopupSurfaceReader native enabled controls", "exact popup potion and native action carrier",
+                "DiscardPotionGameAction.ExecuteAction task with native cancellation check",
+                "exact next decision boundary", "Independent discard in every native allowed room; no implied reward claim."),
             new("reward_potion_belt.discard_replace", FullRunCoverageClassifications.InScopeImplemented,
                 "NPotionPopup.OnDiscardButtonPressed(NButton)",
                 "NPotionPopup -> ActionQueueSynchronizer.RequestEnqueue(DiscardPotionGameAction)",
@@ -286,6 +291,7 @@ public static class FullRunCoverageContract
     public static IReadOnlyList<string> MandatoryFamilies { get; } =
         new[]
         {
+            "potion_belt.discard",
             "reward_potion_belt.discard_replace",
             "reward_nested.card_selection",
             "reward_nested.replacement_selection",

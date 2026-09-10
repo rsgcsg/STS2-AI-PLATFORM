@@ -268,3 +268,11 @@ native-origin selector inputs; they do not deduplicate by CausalRootId. Every
 input remains separately represented. Native-origin decisions are eligible for
 the existing nested-selector capture family only after ordinary canonical
 state/action-space/successor validation. Research admission remains external.
+
+The current Full-Run profile is `human-full-run-read-rich-v4`, adding
+`potion_belt.discard` for the native potion popup across rooms. Historical v3
+profiles retain their exact stored meaning. Native-origin decisions can name an
+exact PlayCardAction in GatheringPlayerChoice when no Human parent was admitted;
+this does not assert automatic origin. `unrecorded_human_effect_before_successor`
+means an accepted but uncaptured Human input fenced a pending transition. No
+later frame may be projected as that transition's causal successor.

@@ -853,3 +853,12 @@ not a semantic seal. See the dated owner-canary report.
 - The current S1 Policy Manifest is validated, but its exact checkpoint is not
   present on this Mac. Real-model Shadow, One-Step, Auto, policy Agent evidence
   and legacy/new path parity are therefore `not exercised`.
+
+## PR25 potion ingress and causal barrier follow-up (2026-09-10)
+
+The post-Human audit found a silently omitted potion discard contaminating a
+map transition despite matching successor/pre references. The current candidate
+adds an exact native popup catalog, global discard witnessing, native task
+completion, unrecorded-Human-effect barriers and typed diagnostic UI. See
+[repair evidence](evidence/PR25_POTION_CAUSAL_REPAIR_2026-09-10.md). Exact current CI/artifact/runtime receipts supersede this
+handoff; pre-frame and terminal successor non-claims remain explicit.

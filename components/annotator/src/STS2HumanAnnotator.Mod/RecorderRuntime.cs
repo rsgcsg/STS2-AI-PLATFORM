@@ -4088,8 +4088,8 @@ internal static partial class RecorderRuntime
             "NChooseACardSelectionScreen.OnSkipButtonReleased" => "native_generated_card_choice.skip",
             "NChooseARelicSelection.SelectHolder" => "boss_relic.select",
             "NChooseARelicSelection.OnSkipButtonReleased" => "boss_relic.skip",
-            "NPotionPopup.OnDiscardButtonPressed" => "reward_potion_belt.discard_replace",
-            nameof(DiscardPotionGameAction) => "reward_potion_belt.discard_replace",
+            "NPotionPopup.OnDiscardButtonPressed" => "potion_belt.discard",
+            nameof(DiscardPotionGameAction) => "potion_belt.discard",
             nameof(VoteForMapCoordAction) => "map_navigation.travel",
             "NRewardButton.OnRelease" => "reward_claim.claim",
             "NRewardsScreen.OnProceedButtonPressed" => "reward_claim.proceed",
@@ -4222,6 +4222,22 @@ internal static partial class RecorderRuntime
     {
         try
         {
+            bool diagnostic = reason == "human_action_native_type_mismatch"
+                && nativeActionType is "ReadyToBeginEnemyTurnAction" or "MoveToMapCoordAction";
+            if (!diagnostic && reason is "pre_frame_capture_failed" or "semantic_pre_frame_capture_failed"
+                or "selector_decision_pre_or_lineage_unavailable")
+            {
+                humanOccurrence ??= new HumanActionOccurrenceEvidence($"human-occurrence-{Guid.NewGuid():N}",
+                    nativeActionType ?? "unknown_native_input", SupportedFamilyForNativeAction(nativeActionType ?? "") ?? nativeActionType ?? "unknown",
+                    "accepted", null, new Dictionary<string, string>(), null, null, null, null,
+                    nativeActionType ?? "native_input", "failed_closed");
+                string occurrenceId = humanOccurrence.OccurrenceId;
+                if (!PersistTrackerMutationOrUnknown(null,
+                    tracker => tracker.ObserveUnrecordedHumanEffect(occurrenceId),
+                    "human_effect_barrier_persistence_failed", "Cannot persist the exact unrecorded Human effect barrier.",
+                    nativeActionType ?? "unknown"))
+                    DisableSemanticBoundaryTrace(new InvalidOperationException("Human effect barrier was not durable."));
+            }
             _store?.AppendInvalidation(new InvalidationRecord(
                 CurrentRecordingContract.SchemaVersion,
                 CurrentRecordingContract.InvalidationSchema,
@@ -4240,7 +4256,10 @@ internal static partial class RecorderRuntime
             AppendJournal("decision_invalidated", null, snapshotId, $"{reason}: {detail}");
             PublishApplicationEvent(
                 RecordingEventKind.DecisionInvalidated,
-                detail: $"{reason}: {detail}");
+                detail: $"{reason}: {detail}",
+                action: new RecordingActionProjection(humanOccurrence?.Verb ?? "accepted", "", null,
+                    new Dictionary<string, string>(), nativeActionType ?? "Unidentified native input",
+                    FailedOccurrence: humanOccurrence, IsDiagnostic: diagnostic));
             _runtimeState = "quarantined";
             _detail = $"{reason}: {detail}";
             GD.PrintErr($"[STS2 Human Annotator] quarantined {reason}: {detail}");

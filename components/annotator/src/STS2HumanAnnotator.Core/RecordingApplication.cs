@@ -120,7 +120,9 @@ public sealed record RecordingActionProjection(
     string? PreSnapshotId = null,
     string? SuccessorSnapshotId = null,
     int? CandidateCount = null,
-    string? PileType = null);
+    string? PileType = null,
+    HumanActionOccurrenceEvidence? FailedOccurrence = null,
+    bool IsDiagnostic = false);
 
 public sealed record RecordingPendingRootStatus(
     string RecordId,

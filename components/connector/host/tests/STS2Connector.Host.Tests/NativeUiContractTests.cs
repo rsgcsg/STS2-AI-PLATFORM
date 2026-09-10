@@ -22,6 +22,33 @@ namespace STS2Connector.Tests;
 public sealed class NativeUiContractTests
 {
     [Fact]
+    public void PotionPopupPreservesCompleteNativeUseTargetDomain()
+    {
+        var surface = new PotionPopupSurface("potion_popup", "popup", "potion", "POTION", "Potion", 0, true, true)
+            { DirectCombatUse = true, UseTargetEntityIds = new[] { "enemy1", "enemy2" } };
+        var actions = NativeUiActionRuntime.DescribePotionPopupCommands(surface);
+        var uses = actions.Where(action => action.Kind == "use_potion").ToArray();
+        Assert.Equal(2, uses.Length);
+        Assert.All(uses, action => Assert.Single(action.EntityBindings!, binding => binding.Role == "target"));
+        Assert.DoesNotContain(actions, action => action.Kind == "choose_potion_use");
+    }
+
+    [Theory]
+    [InlineData(true, true, 3)]
+    [InlineData(false, true, 2)]
+    [InlineData(false, false, 1)]
+    public void PotionPopupCatalogUsesNativeEnabledControls(bool use, bool discard, int count)
+    {
+        var surface = new PotionPopupSurface("potion_popup", "popup", "potion", "BLOCK_POTION", "Block potion", 0, use, discard);
+        var commands = NativeUiActionRuntime.DescribePotionPopupCommands(surface);
+        Assert.Equal(count, commands.Count);
+        Assert.Equal(discard, commands.Any(x => x.Kind == "discard_potion"));
+        Assert.Equal(use, commands.Any(x => x.Kind == "choose_potion_use"));
+        Assert.Contains(commands, x => x.Kind == "cancel_potion_popup");
+        Assert.Equal(commands.Count, commands.Select(x => x.Kind).Distinct().Count());
+    }
+
+    [Fact]
     public void CurrentGameTutorialModalsHaveExactAuditedBindings()
     {
         const BindingFlags flags = BindingFlags.Instance
@@ -1407,6 +1434,7 @@ public sealed class NativeUiContractTests
             "game_over",
             "main_menu",
             "map_navigation",
+            "potion_popup",
             "reward_claim",
             "shop_inventory",
             "shop_room",

@@ -209,7 +209,8 @@ internal static class NativeNestedSelectorBindings
             // HookPlayerChoiceContext creates this real native GameAction and
             // awaits its execution before the exact CardSelectCmd factory.
             // Its subsequent Human input need not have a Human parent decision.
-            if (action is GenericHookGameAction hook && hook.ExecutionStartedTask.IsCompletedSuccessfully)
+            if (action is GenericHookGameAction hook && hook.ExecutionStartedTask.IsCompletedSuccessfully
+                || action is PlayCardAction && action.State == MegaCrit.Sts2.Core.Entities.Actions.GameActionState.GatheringPlayerChoice)
             {
                 string nativeRoot = NativeWitnessIdentity.Get(action, "game_action");
                 return new Binding(nativeRoot, action, parent.Family, factoryMechanism) {

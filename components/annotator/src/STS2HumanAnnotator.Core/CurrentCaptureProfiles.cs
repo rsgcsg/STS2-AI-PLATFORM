@@ -9,13 +9,14 @@ public static class HumanCaptureProfiles
     public static HumanCaptureProfile FullRunReadRich { get; } = new(
         CurrentRecordingContract.SchemaVersion,
         CurrentRecordingContract.CaptureProfileSchema,
-        "human-full-run-read-rich-v3",
+        "human-full-run-read-rich-v4",
         CurrentRecordingContract.RecordSchema,
         new[]
         {
             "ordinary_combat.play_card",
             "ordinary_combat.end_turn",
             "ordinary_combat.use_potion",
+            "potion_belt.discard",
             "combat_hand_selector.select",
             "combat_hand_selector.deselect",
             "combat_hand_selector.confirm",

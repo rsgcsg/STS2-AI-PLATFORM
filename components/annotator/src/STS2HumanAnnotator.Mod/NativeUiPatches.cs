@@ -1461,7 +1461,7 @@ internal static class NativeRewardProceedPatch
 }
 
 /// <summary>
-/// Full potion belts open an NPotionPopup. Its discard button is the Human
+/// Every native potion popup has its own discard decision, in any room. Its discard button is the Human
 /// input; the popup enqueues the exact DiscardPotionGameAction, whose
 /// ExecuteAction is the native mutation owner. The action object is bound in
 /// RequestEnqueue Prefix because GameAction.OnEnqueued runs inside that
@@ -1471,7 +1471,7 @@ internal static class NativeRewardProceedPatch
 internal static class NativeRewardPotionDiscardPatch
 {
     internal const string NativeActionType = "NPotionPopup.OnDiscardButtonPressed";
-    internal const string CompletionFamily = "reward_potion_belt.discard_replace";
+    internal const string CompletionFamily = "potion_belt.discard";
 
     private static readonly FieldInfo? HolderField =
         typeof(NPotionPopup).GetField(
@@ -1481,7 +1481,7 @@ internal static class NativeRewardPotionDiscardPatch
     private readonly record struct PatchState(
         NativeUiScopeEntry Scope,
         PotionModel? Potion,
-        NRewardsScreen? RewardsScreen);
+        NPotionPopup? Popup);
 
     internal static MethodBase TargetMethod() =>
         AccessTools.Method(
@@ -1501,8 +1501,7 @@ internal static class NativeRewardPotionDiscardPatch
         {
             NPotionHolder? holder = HolderField?.GetValue(__instance) as NPotionHolder;
             PotionModel? potion = holder?.Potion?.Model;
-            NRewardsScreen? rewardsScreen = NOverlayStack.Instance?.Peek() as NRewardsScreen;
-            if (potion == null || rewardsScreen == null)
+            if (potion == null)
                 return;
 
             __state = new PatchState(
@@ -1517,11 +1516,11 @@ internal static class NativeRewardPotionDiscardPatch
                         CompletionFamily,
                         "DiscardPotionGameAction.ExecuteAction"),
                     new ProcessLocalObservedAction(
-                        "discard",
+                        "activate",
                         potion,
                         new Dictionary<string, object>(StringComparer.Ordinal))),
                 potion,
-                rewardsScreen);
+                __instance);
         }
         catch (Exception exception)
         {
@@ -1537,7 +1536,7 @@ internal static class NativeRewardPotionDiscardPatch
         {
             if ((!__state.Scope.Entered && !__state.Scope.DeferredFailure)
                 || __state.Potion == null
-                || __state.RewardsScreen == null)
+                || __state.Popup == null)
                 return;
 
             RecorderRuntime.ObserveAcceptedSemanticUiAction(
@@ -1553,7 +1552,7 @@ internal static class NativeRewardPotionDiscardPatch
                     new Dictionary<string, string>(StringComparer.Ordinal)
                     {
                         ["screen"] = NativeWitnessIdentity.Get(
-                            __state.RewardsScreen,
+                            __state.Popup,
                             "screen"),
                         ["popup"] = NativeWitnessIdentity.Get(__instance, "popup")
                     },
@@ -1635,27 +1634,28 @@ internal static class NativeRewardPotionDiscardCommitPatch
             typeof(DiscardPotionGameAction).FullName,
             "ExecuteAction");
 
-    private static void Prefix(DiscardPotionGameAction __instance)
+    private static void Postfix(DiscardPotionGameAction __instance, Task __result)
     {
         try
         {
             if (!NativeUiCompletionRootBindings.TryGet(__instance, out string? actionWitnessId)
-                || actionWitnessId == null)
-                return;
-            bool durable = RecorderRuntime.ObserveSemanticUiNativeCommit(
-                actionWitnessId,
-                NativeRewardPotionDiscardPatch.CompletionFamily,
-                "DiscardPotionGameAction.ExecuteAction",
-                nativeOwner: __instance,
-                nativeLineage: __instance);
-            if (durable)
-                NativeUiCompletionRootBindings.TakeIfMatches(__instance, actionWitnessId);
+                || actionWitnessId == null) return;
+            RecorderRuntime.QueueNativePostCommitBoundary(
+                SuccessfulDiscard(__result, __instance), "DiscardPotionGameAction.ExecuteAction",
+                nativeOwner: __instance, nativeLineage: __instance,
+                expectedActionWitnessId: actionWitnessId, completionRootOwner: __instance);
         }
         catch (Exception exception)
         {
-            NativeUiObservationSafety.Report("reward_potion_discard.commit", exception);
+            NativeUiObservationSafety.Report("potion_discard.commit", exception);
         }
     }
+    private static async Task<bool> SuccessfulDiscard(Task task, DiscardPotionGameAction action)
+    {
+        await task;
+        return action.State != MegaCrit.Sts2.Core.Entities.Actions.GameActionState.Canceled;
+    }
+
 }
 
 /// <summary>

@@ -10,6 +10,25 @@ public sealed class SemanticBoundaryTrackerTests
     private static readonly DateTimeOffset T0 = DateTimeOffset.Parse("2026-08-26T00:00:00Z");
 
     [Fact]
+    public void UnrecordedHumanEffectPreventsFalseExactHandoffAndRollsBackWithPersistence()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        tracker.Accept(Action("map", 1), State("human"));
+        tracker.ObserveBeforeActionExecution("map", Boundary("pre", "map"));
+        tracker.Started("map");
+        tracker.Finished("map");
+        using (tracker.BeginDurableMutation(t => t.ObserveUnrecordedHumanEffect("discard"))) { }
+        var fence = tracker.ObserveUnrecordedHumanEffect("discard");
+        Assert.Single(fence);
+        Assert.Equal("unrecorded_human_effect_before_successor", fence[0].ProofStatus);
+        Assert.Null(fence[0].SemanticSuccessor);
+        tracker.Accept(Action("event", 2), State("after-discard"));
+        var next = tracker.ObserveBeforeActionExecution("event", Boundary("after-discard", "event"));
+        Assert.DoesNotContain(next, x => x.Kind == SemanticBoundaryTraceKinds.TransitionProved);
+        Assert.DoesNotContain(tracker.ObserveUnrecordedHumanEffect("second-discard"), x => x.Action.ActionWitnessId == "map");
+    }
+
+    [Fact]
     public void NativeSelectorDecisionNeedsNoInventedHumanParentAndRoundTrips()
     {
         var origin = new NativeDecisionOriginEvidence("actual-hook", "GenericHookGameAction", "HookPlayerChoiceContext", "NPlayerHand.SelectCards");

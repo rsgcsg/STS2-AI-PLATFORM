@@ -892,3 +892,10 @@ public sealed record NoActionSurface(
     string Kind,
     string Reason,
     string? Message) : ILiveSurface;
+
+public sealed record PotionPopupSurface(string Kind, string ScreenEntityId, string PotionEntityId,
+    string DefinitionId, string Name, int Slot, bool CanUse, bool CanDiscard) : ILiveSurface
+{
+    public bool DirectCombatUse { get; init; }
+    public IReadOnlyList<string> UseTargetEntityIds { get; init; } = Array.Empty<string>();
+}
