@@ -90,3 +90,24 @@ continuations are explicit causes, not invented Human actions.
 
 Rollback uses the owning Game Mod deployment snapshot for the previously loaded
 artifact. Build/install/load do not promote this candidate to Human qualification.
+
+## Late bounded owner canary and offline audit repair
+
+During handoff the owner opened and closed a short session on the repaired native
+candidate (`session-20260910T211207Z-245793054228456d96739fa5c542a3b9`).
+It has six accepted, five canonical, one successor unresolved at session close,
+one internal MoveToMapCoord diagnostic, one fresh native start and no native end.
+It does not exercise an Act transition or establish all-valid Full Run.
+
+All five canonical rows intentionally omitted incompatible legacy projection.
+The audit nevertheless unconditionally required a legacy decision file. The
+current auditor now permits its absence only after canonical/trace validation
+and exact one-to-one journal accounting: every canonical ID must occur once in
+both canonical-recorded and legacy-projection-omitted events. Missing promised
+legacy files, missing omission events, empty canonical files and tampered payloads
+remain fail-closed. The regression covers both ordinary legacy and canonical-only
+sessions, missing files/omission journals and action-space tampering.
+
+The game may remain in the owner's live combat after recording closes. Do not
+terminate that run merely to promote the later offline-auditor source identity;
+report source/test/build and actual loaded identity separately.

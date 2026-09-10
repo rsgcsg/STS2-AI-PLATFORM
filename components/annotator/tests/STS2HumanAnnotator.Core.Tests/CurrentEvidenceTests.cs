@@ -1323,8 +1323,10 @@ public sealed class CurrentEvidenceTests
         }
     }
 
-    [Fact]
-    public void ExecutionSemanticActionSpaceRoundTripsIntoCanonicalAudit()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ExecutionSemanticActionSpaceRoundTripsIntoCanonicalAudit(bool omitLegacy)
     {
         string root = Temp("execution-semantic-action-space-round-trip");
         try
@@ -1342,7 +1344,7 @@ public sealed class CurrentEvidenceTests
                     source,
                     (PersistReads(store, source.Pre.SnapshotId),
                         PersistReads(store, source.Successor.SnapshotId)));
-                store.AppendDecision(decision);
+                if (!omitLegacy) store.AppendDecision(decision);
 
                 JsonNode executionSnapshot = decision.Pre.Snapshot.DeepClone();
                 executionSnapshot["snapshot_id"] = "execution-pre";
@@ -1507,11 +1509,38 @@ public sealed class CurrentEvidenceTests
                     canonicalActionSpace,
                     manifest.SessionId,
                     manifest.TimelineId));
+                if (omitLegacy)
+                {
+                    long journalSequence = 2;
+                    foreach (string kind in new[] { "canonical_transition_recorded", "current_decision_projection_omitted" })
+                        store.AppendRunEvent(new RunJournalEvent(
+                            CurrentRecordingContract.SchemaVersion,
+                            CurrentRecordingContract.RunJournalSchema,
+                            $"event-{++journalSequence}", manifest.SessionId,
+                            decision.RunId, manifest.TimelineId, journalSequence,
+                            DateTimeOffset.UtcNow, kind, $"canonical-{decision.RecordId}",
+                            canonicalSuccessor.SnapshotId, "legacy_projection_not_available"));
+                }
                 actionSpacePath = Path.Combine(session, canonicalActionSpace.ObjectRef);
             }
 
             RecordingAuditResult audit = RecordingSessionAuditor.Audit(session);
             Assert.True(audit.Status == "pass", JsonSerializer.Serialize(audit.Errors));
+            if (!omitLegacy)
+            {
+                foreach (string path in Directory.GetFiles(session, "run-*.jsonl")
+                    .Where(path => Path.GetFileName(path) != "run-journal.jsonl"))
+                    File.Delete(path);
+                Assert.Contains("decision_file_missing", RecordingSessionAuditor.Audit(session).Errors);
+            }
+            else
+            {
+                string journal = Path.Combine(session, "run-journal.jsonl");
+                string original = File.ReadAllText(journal);
+                File.WriteAllText(journal, original.Replace("current_decision_projection_omitted", "unrelated_event"));
+                Assert.Contains("decision_file_missing", RecordingSessionAuditor.Audit(session).Errors);
+                File.WriteAllText(journal, original);
+            }
             File.AppendAllText(actionSpacePath, "tampered");
             RecordingAuditResult tampered = RecordingSessionAuditor.Audit(session);
             Assert.Equal("fail", tampered.Status);

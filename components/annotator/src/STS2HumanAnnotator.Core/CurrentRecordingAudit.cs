@@ -34,11 +34,7 @@ public static class RecordingSessionAuditor
         string[] decisionPaths = Directory.Exists(directory)
             ? DecisionPaths(directory)
             : Array.Empty<string>();
-        if (decisionPaths.Length == 0)
-        {
-            Add(errors, "decision_file_missing");
-        }
-        else
+        if (decisionPaths.Length > 0)
         {
             foreach (string path in decisionPaths)
             {
@@ -99,6 +95,12 @@ public static class RecordingSessionAuditor
             errors);
         ValidateNativeSemanticDiscriminator(directory, manifest, errors);
         ValidateCanonicalTransitions(directory, manifest, semanticEvents, errors);
+        // Legacy projection is optional only when every durable canonical row
+        // has an explicit matching omission. A missing promised legacy file,
+        // empty placeholder, or malformed canonical stream still fails closed.
+        if (decisionPaths.Length == 0
+            && (errors.Count != 0 || !HasOnlyOmittedLegacyProjections(directory)))
+            Add(errors, "decision_file_missing");
         long invalidations = ValidateInvalidations(directory, manifest, errors);
         return new RecordingAuditResult(
             errors.Count == 0 && invalid == 0 ? "pass" : "fail",
@@ -114,6 +116,30 @@ public static class RecordingSessionAuditor
                 "audit_does_not_qualify_unseen_families",
                 "read_capture_is_player_visible_evidence_not_hidden_state"
             });
+    }
+
+    private static bool HasOnlyOmittedLegacyProjections(string directory)
+    {
+        string canonicalPath = Path.Combine(directory, "canonical-transitions.jsonl");
+        string journalPath = Path.Combine(directory, "run-journal.jsonl");
+        if (!File.Exists(canonicalPath) || !File.Exists(journalPath))
+            return false;
+        var canonical = Lines(canonicalPath)
+            .Select(line => JsonSerializer.Deserialize<CanonicalTransitionEvidence>(
+                line.Line, EvidenceJson.Options)!.TransitionId)
+            .ToHashSet(StringComparer.Ordinal);
+        var journal = Lines(journalPath)
+            .Select(line => JsonSerializer.Deserialize<RunJournalEvent>(
+                line.Line, EvidenceJson.Options)!).ToArray();
+        var recorded = journal.Where(row => row.Kind == "canonical_transition_recorded")
+            .Select(row => row.RecordId ?? string.Empty).ToArray();
+        var omitted = journal.Where(row => row.Kind == "current_decision_projection_omitted")
+            .Select(row => row.RecordId ?? string.Empty).ToArray();
+        return canonical.Count > 0
+            && recorded.Length == canonical.Count
+            && omitted.Length == canonical.Count
+            && canonical.SetEquals(recorded)
+            && canonical.SetEquals(omitted);
     }
 
     private static long ValidateInvalidations(
