@@ -84,7 +84,7 @@ async function fixture() {
   await store("settling1", frame("settling1", []));
   await store("a1semantic", semanticActionSpace("a1", action()));
   await store("a2semantic", semanticActionSpace("a2", action("action-2")));
-  return { root, refs };
+  return { root, refs, store };
 }
 
 test("uses durable native semantic action space when public execution catalog is empty", async () => {
@@ -157,6 +157,25 @@ test("uses durable native semantic action space when public execution catalog is
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("queued admission catalog cannot qualify execution even with exact selected membership", async () => {
+  const { root, refs, store } = await fixture();
+  try {
+    await store("admission", { ...semanticActionSpace("a1", action()), phase: "before_native_action_admission" });
+    const events = [
+      event(1, "action_accepted", "a1", action(), { human_observation_ref: refs.s0 }),
+      event(2, "action_started", "a1", action(), { execution_pre_ref: refs.settling0, execution_semantic_action_space_ref: refs.admission }),
+      event(3, "action_finished", "a1", action()),
+      event(4, "transition_proved", "a1", action(), { execution_pre_ref: refs.settling0,
+        execution_semantic_action_space_ref: refs.admission, successor_ref: refs.s1,
+        proof_status: "proved_native_commit_then_owner_boundary", boundary: { witness_kind: "native_decision_owner_ready" } })
+    ];
+    await writeFile(path.join(root, "semantic-boundary-trace.jsonl"), events.map(JSON.stringify).join("\n") + "\n");
+    const report = await calibrate(root);
+    assert.equal(report.summary.state_action_space_unresolved, 1);
+    assert.equal(report.summary.semantic_candidate_s_a_s_prime, 0);
+  } finally { await rm(root, { recursive: true, force: true }); }
 });
 
 function event(sequence, kind, id, selected, extra = {}) {

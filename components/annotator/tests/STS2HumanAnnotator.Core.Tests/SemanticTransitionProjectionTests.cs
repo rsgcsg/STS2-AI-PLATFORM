@@ -247,6 +247,25 @@ public sealed class SemanticTransitionProjectionTests
                 "timeline-test"));
     }
 
+    [Theory]
+    [InlineData("game_action", true)]
+    [InlineData("game_action", false)]
+    [InlineData("direct_ui_commit", true)]
+    public void QueuedActionCannotReuseAdmissionCatalogEvenWhenMembershipMatches(string mechanism, bool queued)
+    {
+        var draft = ProvedDraft(Frame("execution-s", "combat_turn", false), Frame("successor", "combat_turn", false));
+        var action = draft.Action with { NativeMechanism = mechanism, NativeQueueId = queued ? 1u : null };
+        var admission = SemanticActionSpace(action) with { Phase = "before_native_action_admission" };
+        Assert.Contains("queued_action_requires_execution_action_space", ExecutionSemanticActionSpaceValidator.Validate(admission, action));
+        Assert.Empty(ExecutionSemanticActionSpaceValidator.Validate(admission with { Phase = "before_execution" }, action));
+        var reference = new ExecutionSemanticActionSpaceReference(action.ActionWitnessId,
+            admission.SemanticStateDigest, admission.SemanticCatalogDigest, new string('3', 64), "space.json");
+        Assert.Throws<InvalidDataException>(() => SemanticTransitionProjection.CreateCanonical(
+            draft with { Action = action, ExecutionSemanticActionSpace = admission },
+            new("execution-s", new string('1', 64), "pre.json"),
+            new("successor", new string('2', 64), "post.json"), reference, "session", "timeline"));
+    }
+
     [Fact]
     public void ExactHumanBindingMayJoinDifferentPublicAndNativeVerbs()
     {
@@ -258,7 +277,7 @@ public sealed class SemanticTransitionProjectionTests
             Verb = "activate",
             SubjectReferentId = "map-point-a1"
         };
-        SemanticActionReference action = original.Action with { BoundAction = publicAction };
+        SemanticActionReference action = original.Action with { BoundAction = publicAction, NativeMechanism = "direct_ui_commit", NativeQueueId = null };
         ExecutionSemanticActionSpaceEvidence evidence = SemanticActionSpace(action) with
         {
             Phase = "before_native_action_admission",

@@ -95,7 +95,7 @@ function frameStatus(frame, action) {
   };
 }
 
-function semanticActionSpaceStatus(value, action, actionWitnessId) {
+function semanticActionSpaceStatus(value, action, actionWitnessId, nativeAction) {
   const actions = Array.isArray(value?.actions) ? value.actions : [];
   const observedKey = value?.observed_action_key;
   const selected = actions.filter((candidate) => candidate?.key === observedKey);
@@ -108,6 +108,8 @@ function semanticActionSpaceStatus(value, action, actionWitnessId) {
     && current
     && value.action_witness_id === actionWitnessId
     && ["before_execution", "before_native_action_admission"].includes(value.phase)
+    && (!(nativeAction?.native_mechanism === "game_action" || nativeAction?.native_queue_id != null)
+      || value.phase === "before_execution")
     && value.status === "captured"
     && value.scope !== "unavailable"
     && value.semantic_state
@@ -169,7 +171,7 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame, loadAct
     const nextActionSpace = loadActionSpace(next?.events.find((event) =>
       event.execution_semantic_action_space_ref)?.execution_semantic_action_space_ref);
     const nextMembership = nextActionSpace
-      ? semanticActionSpaceStatus(nextActionSpace, nextAction, next.id)
+      ? semanticActionSpaceStatus(nextActionSpace, nextAction, next.id, next.events[0]?.action)
       : frameStatus(successor, nextAction);
     if (!nextMembership.complete || nextMembership.action_match_count !== 1)
       return { valid: false, reason: "handoff_next_action_not_in_same_state_catalog" };
@@ -220,7 +222,7 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame, loadAct
     const nextActionSpace = loadActionSpace(next?.events.find((event) =>
       event.execution_semantic_action_space_ref)?.execution_semantic_action_space_ref);
     const nextMembership = nextActionSpace
-      ? semanticActionSpaceStatus(nextActionSpace, next.action, next.id)
+      ? semanticActionSpaceStatus(nextActionSpace, next.action, next.id, next.events[0]?.action)
       : frameStatus(successor, next.action);
     if (!nextMembership.complete || nextMembership.action_match_count !== 1)
       return { valid: false, reason: "native_commit_handoff_action_not_in_same_state_catalog" };
@@ -324,7 +326,7 @@ export async function calibrate(recordingDirectory) {
         ? "public_bound_actions"
         : "missing_execution_semantic";
     const preStatus = semanticActionSpace
-      ? semanticActionSpaceStatus(semanticActionSpace, selected, state.id)
+      ? semanticActionSpaceStatus(semanticActionSpace, selected, state.id, accepted.action)
       : publicFallbackAllowed
         ? frameStatus(pre, selected)
         : {

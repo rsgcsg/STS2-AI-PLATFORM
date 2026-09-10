@@ -123,6 +123,13 @@ public static class ExecutionSemanticActionSpaceValidator
 
         if (action != null)
         {
+            // Native admission and queue execution are different boundaries.
+            // A direct callback may bind before admission only when it has no
+            // queued carrier. Historical bytes remain readable but cannot pass
+            // current causal validation with an admission catalog labelled S.
+            if ((action.NativeMechanism == "game_action" || action.NativeQueueId != null)
+                && value.Phase != "before_execution")
+                errors.Add("queued_action_requires_execution_action_space");
             if (value.ActionWitnessId != action.ActionWitnessId)
                 errors.Add("execution_semantic_action_witness_mismatch");
             if (action.BoundAction == null)

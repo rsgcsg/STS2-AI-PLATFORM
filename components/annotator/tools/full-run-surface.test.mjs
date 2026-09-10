@@ -410,6 +410,6 @@ test("queued UI execution recaptures native operands instead of reusing the admi
   assert.match(execution, /semanticNativeActionType: subscription\?\.SemanticNativeActionType/u);
   assert.match(execution, /semanticSelection: subscription\?\.NativeSemanticSelection/u);
   const ingress = section(runtime, "private static bool StartSemanticUiAction", "internal static bool ObserveSemanticUiNativeCommit");
-  assert.match(ingress, /match\.BoundAction!\.BoundActionId,\s*null,\s*ObserveSemanticOnlyNativeActionLifecycle/u);
+  assert.match(ingress, /match\.BoundAction!\.BoundActionId,\s*ObserveSemanticOnlyNativeActionLifecycle/u);
   assert.match(ingress, /nativeSemanticSelection: nativeSemanticSelection/u);
 });

@@ -1526,6 +1526,32 @@ public sealed class CurrentEvidenceTests
 
             RecordingAuditResult audit = RecordingSessionAuditor.Audit(session);
             Assert.True(audit.Status == "pass", JsonSerializer.Serialize(audit.Errors));
+            // Reproduce the former producer defect with valid content hashes:
+            // admission A(H) is carried into a queued action's execution S.
+            // Integrity alone must not admit this historical shape.
+            JsonNode staleSpace = JsonNode.Parse(File.ReadAllText(actionSpacePath))!;
+            staleSpace["phase"] = "before_native_action_admission";
+            string stalePayload = staleSpace.ToJsonString();
+            string staleDigest = EvidenceIdentity.Sha256Bytes(System.Text.Encoding.UTF8.GetBytes(stalePayload));
+            string oldDigest = Path.GetFileNameWithoutExtension(actionSpacePath);
+            string staleRelative = $"semantic-action-spaces/sha256/{staleDigest[..2]}/{staleDigest}.json";
+            string oldRelative = $"semantic-action-spaces/sha256/{oldDigest[..2]}/{oldDigest}.json";
+            string stalePath = Path.Combine(session, staleRelative);
+            Directory.CreateDirectory(Path.GetDirectoryName(stalePath)!);
+            File.WriteAllText(stalePath, stalePayload);
+            var originalStreams = new Dictionary<string, string>();
+            foreach (string name in new[] { "semantic-boundary-trace.jsonl", "canonical-transitions.jsonl" })
+            {
+                string path = Path.Combine(session, name);
+                originalStreams[path] = File.ReadAllText(path);
+                File.WriteAllText(path, originalStreams[path].Replace(oldRelative, staleRelative).Replace(oldDigest, staleDigest));
+            }
+            RecordingAuditResult staleAudit = RecordingSessionAuditor.Audit(session);
+            Assert.Equal("fail", staleAudit.Status);
+            Assert.Contains(staleAudit.Errors.Keys, key => key.Contains("queued_action_requires_execution_action_space", StringComparison.Ordinal));
+            foreach (var pair in originalStreams) File.WriteAllText(pair.Key, pair.Value);
+            File.Delete(stalePath);
+
             if (!omitLegacy)
             {
                 foreach (string path in Directory.GetFiles(session, "run-*.jsonl")

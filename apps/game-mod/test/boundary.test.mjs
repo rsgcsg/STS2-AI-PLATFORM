@@ -255,7 +255,7 @@ test("resumed PlayerChoice parents do not rebind as a second execution boundary"
   );
 });
 
-test("combat roots carry the Native Foundation decision from admission through execution", () => {
+test("combat roots retain Human admission separately from execution evidence", () => {
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
   const uiPatches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
   const witness = read("components/connector/host/PlayerEnvironment/Witness/ProcessLocalNativeSemanticWitness.cs");
@@ -272,7 +272,14 @@ test("typed non-combat native decisions bind exact Human actions without Annotat
   const catalog = read("components/native-foundation/src/NativeDecisionContracts.cs");
 
   assert.match(runtime, /before_native_action_admission/u);
-  assert.match(runtime, /subscription\?\.NativeSemanticDecision/u);
+  const execution = sourceBetween(runtime, "private static void ObserveBeforeActionExecution", "private static void ObserveSemanticDecisionBoundary");
+  assert.doesNotMatch(execution, /NativeSemanticDecision/u);
+  assert.match(execution, /ToExecutionSemanticActionSpace\([\s\S]*semanticCapture/u);
+  const subscription = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeActionLifecycleSubscription.cs");
+  assert.doesNotMatch(subscription, /ExecutionSemanticActionSpaceEvidence|NativeSemanticDecision/u);
+  const ingress = sourceBetween(runtime, "private static void StartSemanticNativeAction", "private static void ObserveSemanticOnlyNativeActionLifecycle");
+  assert.match(ingress, /nativeSemanticSelection: context\.NativeSemanticSelection \?\? context\.ExpectedAction/u);
+  assert.match(ingress, /semanticNativeActionType: context\.ExpectedNativeActionType/u);
   assert.match(witness, /DescribeDomainSelection/u);
   assert.match(witness, /NativeSemanticActionCatalog\.DescribeByIdentity/u);
   assert.match(catalog, /mechanical identity join, not legality/u);

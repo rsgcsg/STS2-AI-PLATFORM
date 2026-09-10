@@ -18,7 +18,6 @@ internal sealed class NativeActionLifecycleSubscription : IDisposable
         long actionSequence,
         string recordId,
         string humanBoundActionId,
-        ExecutionSemanticActionSpaceEvidence? nativeSemanticDecision,
         Action<NativeActionLifecycleSubscription, string> observer,
         bool finishIsNativeCommit = true,
         ProcessLocalObservedAction? nativeSemanticSelection = null,
@@ -29,7 +28,6 @@ internal sealed class NativeActionLifecycleSubscription : IDisposable
         ActionSequence = actionSequence;
         RecordId = recordId;
         HumanBoundActionId = humanBoundActionId;
-        NativeSemanticDecision = nativeSemanticDecision;
         FinishIsNativeCommit = finishIsNativeCommit;
         NativeSemanticSelection = nativeSemanticSelection;
         SemanticNativeActionType = semanticNativeActionType;
@@ -44,7 +42,6 @@ internal sealed class NativeActionLifecycleSubscription : IDisposable
     internal long ActionSequence { get; }
     internal string RecordId { get; }
     internal string HumanBoundActionId { get; }
-    internal ExecutionSemanticActionSpaceEvidence? NativeSemanticDecision { get; }
     internal bool FinishIsNativeCommit { get; }
     internal ProcessLocalObservedAction? NativeSemanticSelection { get; }
     internal string? SemanticNativeActionType { get; }

@@ -4,6 +4,15 @@ This is a bounded handoff, not repository authority. Resolve live GitHub refs,
 open PRs, rulesets, code, tests, `platform-bom.json`, and exact runtime/evidence
 before making a current claim. Those sources override this file.
 
+## PR25 rapid input / execution-catalog audit (2026-09-11)
+
+The latest 1,132-accepted session still has 15 accepted PlayCard H-capture
+failures. A separate confirmed producer/auditor defect reused admission A(H)
+with execution S: 900 stored canonical rows have the wrong phase, and at least
+30 boundaries have visible energy/block changes. This supersedes earlier broad
+green-audit implications. The repair removes queued catalog caching and adds
+phase validation; H admission remains fail-closed. See [audit and repair](../evidence/PR25_RAPID_INPUT_EXECUTION_AUDIT_2026-09-11.md).
+
 ## PR25 Act execution repair (2026-09-11)
 
 The long-session Human audit passes structurally: 356 accepted, 350 canonical,

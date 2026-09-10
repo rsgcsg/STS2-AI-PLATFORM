@@ -276,3 +276,13 @@ exact PlayCardAction in GatheringPlayerChoice when no Human parent was admitted;
 this does not assert automatic origin. `unrecorded_human_effect_before_successor`
 means an accepted but uncaptured Human input fenced a pending transition. No
 later frame may be projected as that transition's causal successor.
+
+## Queued execution catalog phase
+
+A `game_action` or an action with `native_queue_id` requires its execution
+semantic action space to have phase `before_execution`. Admission-time native
+catalogs remain useful H evidence but cannot qualify a queued execution S.
+`before_native_action_admission` is valid for direct callbacks without queued
+carriers. Current audit/calibration reject historical rows that violate this
+existing causal boundary; they do not rewrite the historical files or recover
+missing H admission evidence.

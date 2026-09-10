@@ -1964,9 +1964,9 @@ internal static partial class RecorderRuntime
                     phase, action, frame,
                     semanticNativeActionType: subscription?.SemanticNativeActionType,
                     semanticSelection: subscription?.NativeSemanticSelection);
-            ExecutionSemanticActionSpaceEvidence? actionSpace =
-                subscription?.NativeSemanticDecision;
-            actionSpace ??= phase == "before_execution"
+            // A queued operation can wait across other native effects. Its
+            // admission catalog belongs to H, never to this execution S.
+            ExecutionSemanticActionSpaceEvidence? actionSpace = phase == "before_execution"
                 ? ToExecutionSemanticActionSpace(
                     actionWitnessId,
                     semanticCapture,
@@ -2277,7 +2277,6 @@ internal static partial class RecorderRuntime
                             sequence,
                             recordId,
                             match.BoundAction!.BoundActionId,
-                            null,
                             ObserveSemanticOnlyNativeActionLifecycle,
                             finishIsNativeCommit: completionExpectation == null,
                             nativeSemanticSelection: nativeSemanticSelection,
@@ -2638,13 +2637,6 @@ internal static partial class RecorderRuntime
             lock (Gate)
             {
                 SemanticProjectionEnvironments[actionWitnessId] = environment;
-                ExecutionSemanticActionSpaceEvidence? nativeDecision =
-                    context.NativeSemanticDecision == null
-                        ? null
-                        : ToExecutionSemanticActionSpace(
-                            actionWitnessId,
-                            context.NativeSemanticDecision,
-                            boundAction.BoundActionId);
                 using SemanticBoundaryTracker.DurableMutation pending =
                     BoundaryTracker.BeginDurableMutation(tracker =>
                         tracker.Accept(semanticAction, humanObservation));
@@ -2654,8 +2646,9 @@ internal static partial class RecorderRuntime
                     sequence,
                     recordId,
                     boundAction.BoundActionId,
-                    nativeDecision,
-                    ObserveSemanticOnlyNativeActionLifecycle);
+                    ObserveSemanticOnlyNativeActionLifecycle,
+                    nativeSemanticSelection: context.NativeSemanticSelection ?? context.ExpectedAction,
+                    semanticNativeActionType: context.ExpectedNativeActionType);
                 NativeActionSubscriptions.Add(action, subscription);
                 SemanticOnlyNativeActionIds.Add(actionWitnessId);
                 PersistSemanticBoundaryDrafts(
