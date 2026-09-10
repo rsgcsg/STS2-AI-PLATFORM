@@ -58,40 +58,11 @@ Resolve the latest Draft PR #25 head and its CI/load receipts before claiming
 runtime readiness. This entry records source decisions, not Human qualification;
 the older Windows candidate below is historical provenance.
 
-## PR25 Windows Full-Run integrated source candidate (2026-09-10)
+## Historical Windows Full-Run candidate
 
-The current qualification checkout is `agent/fullrun-integrated-review@148c20fe`
-(`148c20f...`), descended from the accepted-ingress source
-`7513f705cc045e4c676617e21a976b7ea60b4234` and the integrated nested-selector
-chain through `f7607b9d7b9bf7f76879a7e205a8db0dd4e6d303`. It has source/test
-support for accepted `GameAction.OnEnqueued` ingress, exact direct UI seams in
-`NativeUiPatches.cs`, durable append checkpoint/rollback and post-commit
-completion accounting, room/boss/act owners, potion discard, and exact nested
-selector parent/context resolution. The exact native identity is STS2 v0.111.0
-source `41cef1ea`, SHA-256
-`0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9`, MVID
-`73b63ee0-6c0a-47bb-b0d1-b21f6d94222e`. The prior macOS identity is historical
-only; it is not current Windows evidence.
-
-Nested selector source/test closure is integrated: explicit
-`PlayerChoiceContext` resolution, generic simple/deck/combat-pile/bundle
-factories, `CardRemovalReward` and merchant card-removal parents, and
-`CardReward` alternatives `Skip`, `REROLL`, and `SACRIFICE` are covered by the
-current source and tests. Exact-parent absence still fails closed and the old
-`GameAction` ambient fallback does not return. The two former P1 findings are
-fixed in the integrated source: transform preview `ConfirmSelection` is not a
-terminal reservation (the `Claws` path settles at preview `CompleteSelection`),
-and valid min-0 `SeaGlass` empty completion is admitted. The compound
-`reward_potion_belt.discard_replace` label still means discard accounting only,
-not atomic potion replacement.
-
-The integrated candidate has passed the portable root matrix, BOM, diff, closeout,
-and exact-game checks, and has clean unified build identity SHA
-`4e5765995e6a8b2ae1fa4dd456dc63fb9928e8c88f89343cb3e2c3ee294c3595`, MVID
-`12a389e6-25c1-471d-9798-8b040fba6b4b`. It has not yet been installed, loaded,
-or owner-exercised; no loaded or Human evidence transfers from older artifacts
-or the failed Windows session. Targeted canary and recorder-before-Launch
-continuous Full Run remain the final Human gates.
+The 2026-09-10 Windows integrated candidate and its older exact-game identities
+are historical. Follow [Status](../STATUS.md) for the retained evidence; they do
+not qualify current macOS source or runtime bytes.
 
 ## Last recorded integration boundary
 
