@@ -14,24 +14,11 @@ diagnostics. Rapid-card pre-state and terminal successor gaps remain open.
 See the [audit and repair report](../evidence/PR25_POPUP_PRECEDENCE_REPAIR_2026-09-10.md).
 No all-valid Full-Run or STPD research admission is claimed.
 
-## PR25 native-origin selector canary candidate (2026-09-10)
+## Earlier PR25 evidence
 
-Decision identity v2 permits exact native hook-owned Human selector entries
-without fabricating a Human parent. Existing Human-parent children retain their
-lineage. UI distinguishes native-origin entries; pre-frame failures retain more
-precise diagnostics and remain fail-closed. See the [candidate report](../evidence/PR25_NATIVE_SELECTOR_CANARY_2026-09-10.md).
-Latest exact build/install/load and CI receipts belong to Draft PR25. No new
-Human qualification or STPD adapter admission transfers from predecessor sessions.
-
-## PR25 follow-up Human audit and carrier repairs (2026-09-10)
-
-The f011973 Human session has 481 accepted decisions, 478 canonical, two missing
-successors and one cancellation; all 96 children and their parents are canonical.
-[Follow-up report](../evidence/PR25_FULLRUN_FOLLOWUP_2026-09-10.md) records exact counts and the event/Act carrier
-repairs, early failure staging, and new-versus-resumed Launch provenance.
-The repaired source still needs its own Human canary. The active game remains
-on the prior artifact in an unfinished Human combat; no Full-Run qualification
-or STPD source-adapter admission is claimed.
+Historical native-origin and carrier investigations are linked from
+[Status](../STATUS.md). Their counts and active-runtime statements describe
+predecessor candidates; use the current exact PR/runtime receipts instead.
 
 ## PR25 decision/UI alignment (2026-09-10)
 
