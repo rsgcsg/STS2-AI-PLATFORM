@@ -44,6 +44,10 @@ public sealed class CurrentEvidenceTests
             Assert.Equal(1, store.GetSnapshot().FailedActionFamilies!["nested_selector.decision"]);
             Assert.Throws<InvalidDataException>(() => store.AppendInvalidation(failure with { Disposition = "diagnostic" }));
             Assert.Equal(2, store.GetSnapshot().Counters.Decisions!.RealFailures);
+            Assert.Throws<InvalidDataException>(() => store.AppendInvalidation(diagnostic with { Disposition = "invented" }));
+            Assert.Throws<InvalidDataException>(() => store.AppendInvalidation(diagnostic with { Disposition = "failed_closed" }));
+            store.MarkDecisionAccountingUnavailable();
+            Assert.Null(store.GetSnapshot().Counters.Decisions!.RealFailures);
         }
         finally { Delete(root); }
     }

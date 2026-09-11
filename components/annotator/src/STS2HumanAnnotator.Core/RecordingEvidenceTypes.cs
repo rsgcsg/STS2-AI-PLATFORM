@@ -160,7 +160,10 @@ public static class RecordingDisposition
 
     public static IReadOnlyList<string> Validate(InvalidationRecord value)
     {
-        if (value.DecisionFailure is not { } failure) return Array.Empty<string>();
+        if (value.Disposition is not (null or "diagnostic" or "unsupported" or "failed_closed"))
+            return new[] { "invalidation_disposition_invalid" };
+        if (value.DecisionFailure is not { } failure)
+            return value.Disposition == "failed_closed" ? new[] { "invalidation_decision_failure_missing" } : Array.Empty<string>();
         if (value.Disposition != "failed_closed" || string.IsNullOrWhiteSpace(failure.DecisionWitnessId)
             || string.IsNullOrWhiteSpace(failure.ActionFamily) || failure.Kind is not ("capture" or "persistence")
             || (failure.Kind == "capture" && value.HumanOccurrence?.OccurrenceId != failure.DecisionWitnessId))

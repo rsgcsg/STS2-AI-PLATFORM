@@ -114,8 +114,14 @@ internal static partial class RecorderRuntime
         }
         try
         {
-            if (!accepted || _store == null || !_semanticBoundaryTraceHealthy)
+            if (!accepted || _store == null) return;
+            if (!_semanticBoundaryTraceHealthy)
+            {
+                _store.MarkDecisionAccountingUnavailable();
+                Quarantine("selector_acceptance_without_healthy_trace", "Native selector accepted after evidence accounting became unavailable.",
+                    input.Pre.SnapshotId, input.Mechanism, "evidence_commit_unknown", _selectorInputAttempt);
                 return;
+            }
             long sequence = Interlocked.Increment(ref _sequence);
             string recordId = $"semantic-record-{sequence:D8}-{Guid.NewGuid():N}";
             var witnessArguments = new Dictionary<string, string> {
@@ -178,6 +184,12 @@ internal static partial class RecorderRuntime
         }
         catch (Exception exception)
         {
+            // Preserve the actual accepted occurrence even when no child trace
+            // append succeeded; unavailable accounting must never display zero.
+            Quarantine("selector_acceptance_persistence_failed", exception.Message,
+                input.Pre.SnapshotId, input.Mechanism, "evidence_commit_unknown", _selectorInputAttempt,
+                decisionFailure: _selectorInputAttempt is { } attempt
+                    ? new RecordingDecisionFailure(attempt.OccurrenceId, "capture", "nested_selector.decision") : null);
             DisableSemanticBoundaryTrace(exception);
         }
         finally

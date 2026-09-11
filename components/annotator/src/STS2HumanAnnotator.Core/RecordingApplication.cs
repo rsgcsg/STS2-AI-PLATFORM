@@ -81,12 +81,12 @@ public sealed record RecordingDecisionCounters(
     long AcceptedRoots, long AcceptedChildren, long Proved, long Unresolved,
     long CanonicalRoots, long CanonicalChildren,
     long Cancelled = 0, long Aborted = 0, long CaptureFailures = 0,
-    long PersistenceFailures = 0, int DispositionVersion = 0, long FailedDecisions = 0)
+    long PersistenceFailures = 0, int DispositionVersion = 0, long FailedDecisions = 0, bool AccountingComplete = true)
 {
     public long Accepted => AcceptedRoots + AcceptedChildren;
     public long Canonical => CanonicalRoots + CanonicalChildren;
     public long Pending => Math.Max(0, Accepted - Proved - Unresolved - Cancelled - Aborted);
-    public long? RealFailures => DispositionVersion == 1
+    public long? RealFailures => DispositionVersion == 1 && AccountingComplete
         ? FailedDecisions : null;
 }
 

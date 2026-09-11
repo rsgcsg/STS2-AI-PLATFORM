@@ -11,6 +11,7 @@ using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Models.Potions;
 using MegaCrit.Sts2.Core.Multiplayer.Game;
 using MegaCrit.Sts2.Core.Nodes.Cards.Holders;
+using MegaCrit.Sts2.Core.Nodes.Combat;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 using MegaCrit.Sts2.Core.Runs;
 using STS2Connector.PlayerEnvironment.Protocol;
@@ -28,8 +29,8 @@ internal static partial class RecorderRuntime
 
     private sealed record StagedCardFrame(
         ExactDecisionFrame Decision,
-        CardModel Card,
-        DateTimeOffset StagedAt,
+        NHandCardHolder Holder,
+        long Generation,
         IReadOnlyList<string> Blockers,
         string NativeReadiness);
 
@@ -56,7 +57,8 @@ internal static partial class RecorderRuntime
         SemanticProjectionEnvironments = new(StringComparer.Ordinal);
     private static readonly NativePostCommitCompletionLedger NativePostCommitCompletions = new();
     private static readonly Queue<NativeTaskCompletion> QueuedNativePostCommitCompletions = new();
-    private static StagedCardFrame? _stagedCardFrame;
+    private static readonly ExactAsyncOwnerBindingScope<NCardPlay, StagedCardFrame, StagedCardFrame> StagedCardPlays = new();
+    private static long _cardStageGeneration;
     private static readonly Dictionary<PotionModel, ArmedPotionUse> ArmedPotionUses =
         new(ReferenceEqualityComparer.Instance);
     private static long _potionArmGeneration;
@@ -291,7 +293,7 @@ internal static partial class RecorderRuntime
                         _lifecycle = result.Lifecycle;
                     }
                     if (_lifecycle.State != RecordingLifecycleState.Recording)
-                        _stagedCardFrame = null;
+                        Interlocked.Increment(ref _cardStageGeneration);
                     if (command.Kind == RecordingCommandKind.Close && result.Accepted)
                     {
                         _closeout = new RecordingCloseoutStatus(
@@ -387,7 +389,7 @@ internal static partial class RecorderRuntime
         RunLifecycle.Reset();
         ResetNativeActionTrackingUnsafe();
         _semanticBoundaryTraceHealthy = true;
-        _stagedCardFrame = null;
+        Interlocked.Increment(ref _cardStageGeneration);
         _lastStoreSnapshot = store.GetSnapshot();
         _requiredReadsHealth = "not_checked";
         _lastPublishedHealth = null;
@@ -653,7 +655,7 @@ internal static partial class RecorderRuntime
                 "Session journal and evidence streams were flushed and closed.");
             _runtimeState = "recording_closed";
             _detail = _closeout.Detail;
-            _stagedCardFrame = null;
+            Interlocked.Increment(ref _cardStageGeneration);
             _requiredReadsHealth = "not_active";
             ResetNativeActionTrackingUnsafe();
         }
@@ -741,31 +743,32 @@ internal static partial class RecorderRuntime
             || HumanActionScope.Current != null;
     }
 
-    internal static void StageCardPlay(CardModel card)
+    internal static IDisposable? StageCardPlay(NHandCardHolder holder)
     {
-        if (!CanOpenSemanticEvidenceWindow())
-        {
-            lock (Gate)
-                _stagedCardFrame = null;
-            return;
-        }
+        if (!CanOpenSemanticEvidenceWindow()) return null;
         try
         {
             ProcessLocalNativeWitnessFrame frame = CaptureReadRichFrame();
             RecorderEnvironmentIdentity environment = BuildEnvironment(frame);
             var staged = new StagedCardFrame(
-                new ExactDecisionFrame(frame, environment), card, DateTimeOffset.UtcNow,
+                new ExactDecisionFrame(frame, environment), holder, Volatile.Read(ref _cardStageGeneration),
                 EligibilityBlockers(frame, environment, requireReads: true),
-                DescribeNativeCardReadiness(card));
-            lock (Gate)
-                _stagedCardFrame = staged;
+                DescribeNativeCardReadiness(holder.CardModel));
+            // The native factory below runs inside this StartCardPlay invocation.
+            return StagedCardPlays.Enter(staged);
         }
-        catch
+        catch (Exception exception)
         {
-            lock (Gate)
-                _stagedCardFrame = null;
+            NativeUiObservationSafety.Report("card_start.capture", exception);
+            return null;
         }
     }
+
+    internal static void BindStagedCardPlay(NCardPlay play) =>
+        StagedCardPlays.TryBindCurrent(play, staged => ReferenceEquals(play.Holder, staged.Holder)
+            ? staged : throw new InvalidOperationException("CardPlay factory changed its exact holder."));
+
+    internal static void ForgetStagedCardPlay(NCardPlay play) => StagedCardPlays.Forget(play);
 
     // Diagnostic native facts at the exact capture seam; never an admission override.
     private static string DescribeNativeCardReadiness(CardModel? card)
@@ -778,7 +781,7 @@ internal static partial class RecorderRuntime
             + $"|in_card_play={hand?.InCardPlay}|mode={hand?.CurrentMode}|peeking={hand?.PeekButton?.IsPeeking}";
     }
 
-    internal static NativeUiScopeEntry TryEnterCardScope(CardModel card, Creature? target)
+    internal static NativeUiScopeEntry TryEnterCardScope(NCardPlay owner, CardModel card, Creature? target)
     {
         if (!AcceptingNewWitnesses() || SelectorInputActive) return default;
         var arguments = new Dictionary<string, object>(StringComparer.Ordinal);
@@ -796,7 +799,8 @@ internal static partial class RecorderRuntime
                 nameof(PlayCardAction), "ordinary_combat.play_card", "play",
                 NativeWitnessIdentity.Get(card, "card"),
                 arguments.ToDictionary(pair => pair.Key, pair => NativeWitnessIdentity.Get(pair.Value, "target")),
-                null, null, null, null, "NCardPlay.TryPlayCard", "failed_closed"));
+                null, null, null, null, "NCardPlay.TryPlayCard", "failed_closed"),
+            stagedOwner: owner);
     }
 
     internal readonly record struct PotionUseArmHandle(
@@ -1054,7 +1058,8 @@ internal static partial class RecorderRuntime
         ProcessLocalObservedAction? expectedAction = null,
         CardModel? stagedCard = null,
         ProcessLocalObservedAction? semanticSelection = null,
-        HumanActionOccurrenceEvidence? occurrence = null)
+        HumanActionOccurrenceEvidence? occurrence = null,
+        NCardPlay? stagedOwner = null)
     {
         if (!AcceptingNewWitnesses() || SelectorInputActive)
             return default;
@@ -1079,24 +1084,18 @@ internal static partial class RecorderRuntime
 
             if (expectedAction != null && stagedCard != null)
             {
-                StagedCardFrame? staged;
-                lock (Gate)
-                {
-                    staged = _stagedCardFrame;
-                    _stagedCardFrame = null;
-                }
-                stagedDisposition = staged == null ? "absent_at_card_start"
-                    : !ReferenceEquals(staged.Card, stagedCard) ? "different_exact_card"
+                StagedCardFrame? staged = null;
+                if (stagedOwner != null) StagedCardPlays.TryGet(stagedOwner, out staged);
+                bool sameGeneration = staged?.Generation == Volatile.Read(ref _cardStageGeneration);
+                stagedDisposition = staged == null ? "exact_card_play_owner_unbound"
+                    : !sameGeneration ? "card_stage_context_invalidated"
+                    : !ReferenceEquals(staged.Holder.CardModel, stagedCard) ? "different_exact_card"
                     : staged.Blockers.Count > 0 ? "ineligible_at_card_start:" + string.Join("|", staged.Blockers) + ";stage_native=" + staged.NativeReadiness
-                    : DateTimeOffset.UtcNow - staged.StagedAt > TimeSpan.FromSeconds(30) ? "staged_frame_expired"
                     : "staged_exact_action_mapping_unavailable";
-                if (staged != null && staged.Blockers.Count == 0
-                    && ReferenceEquals(staged.Card, stagedCard)
-                    && DateTimeOffset.UtcNow - staged.StagedAt <= TimeSpan.FromSeconds(30)
+                if (staged != null && sameGeneration && staged.Blockers.Count == 0
+                    && ReferenceEquals(staged.Holder.CardModel, stagedCard)
                     && IsExact(staged.Decision.Frame.Resolve(expectedAction)))
-                {
                     selected = staged.Decision.Frame;
-                }
             }
 
             if (selected == null)
@@ -1865,7 +1864,7 @@ internal static partial class RecorderRuntime
                          StringComparison.Ordinal)))
             {
                 lock (Gate)
-                    _stagedCardFrame = null;
+                    Interlocked.Increment(ref _cardStageGeneration);
             }
 
             blockers = EligibilityBlockers(frame, environment, requireReads: true);
@@ -2263,7 +2262,10 @@ internal static partial class RecorderRuntime
     {
         bool durablyAccepted = false;
         bool semanticStreamMayContainPartialAppend = false;
-        string? pendingActionWitnessId = actionWitnessIdOverride;
+        string pendingActionWitnessId = actionWitnessIdOverride ?? $"ui-action-{Guid.NewGuid():N}";
+        var acceptedOccurrence = new HumanActionOccurrenceEvidence(pendingActionWitnessId, nativeActionType,
+            SupportedFamilyForNativeAction(nativeActionType) ?? nativeActionType, match.BoundAction?.Verb ?? "accepted",
+            witness.SubjectWitnessId, witness.ArgumentWitnessIds, null, null, null, null, nativeActionType, "failed_closed");
         try
         {
             if (!_semanticBoundaryTraceHealthy || _store == null)
@@ -2276,14 +2278,14 @@ internal static partial class RecorderRuntime
                     string.Join(",", blockers.Concat(new[] { match.Status }).Distinct(StringComparer.Ordinal)),
                     frame.Snapshot.SnapshotId,
                     nativeActionType,
-                    "fail_closed");
+                    "fail_closed", acceptedOccurrence);
                 return false;
             }
 
             CurrentDecisionFrame humanObservation = FreezeSemanticBoundary(frame, environment);
             long sequence = Interlocked.Increment(ref _sequence);
             string recordId = $"semantic-record-{sequence:D8}-{Guid.NewGuid():N}";
-            string actionWitnessId = actionWitnessIdOverride ?? $"ui-action-{recordId}";
+            string actionWitnessId = pendingActionWitnessId;
             pendingActionWitnessId = actionWitnessId;
             SemanticActionReference action = CreateSemanticActionReference(
             actionWitnessId,
@@ -2408,7 +2410,7 @@ internal static partial class RecorderRuntime
                 exception.Message,
                 frame.Snapshot.SnapshotId,
                 nativeActionType,
-                "evidence_commit_unknown");
+                "evidence_commit_unknown", acceptedOccurrence);
             DisableSemanticBoundaryTrace(exception);
             return false;
         }
@@ -2422,7 +2424,7 @@ internal static partial class RecorderRuntime
                     exception.Message,
                     frame.Snapshot.SnapshotId,
                     nativeActionType,
-                    "evidence_commit_unknown");
+                    "evidence_commit_unknown", acceptedOccurrence);
                 DisableSemanticBoundaryTrace(exception);
             }
             return durablyAccepted;
@@ -3783,6 +3785,16 @@ internal static partial class RecorderRuntime
                 SemanticProjectionEnvironments.TryGetValue(
                     draft.Action.ActionWitnessId,
                     out environment);
+
+            PublishApplicationEvent(
+                RecordingEventKind.DecisionRecorded,
+                draft.Action.RecordId,
+                (canonical.Action?.Verb ?? canonical.NativeInput!.Verb),
+                ToActionProjection(draft.Action, draft.SemanticPre, draft.SemanticSuccessor) with { Disposition = "recorded" });
+            // The compatibility adapter is optional; failure cannot undo an
+            // already appended canonical decision or strand its UI lifecycle.
+            try
+            {
             CurrentDecisionRecord? record = null;
             bool currentDecisionAppended = false;
             IReadOnlyList<string> compatibilityErrors;
@@ -3829,11 +3841,12 @@ internal static partial class RecorderRuntime
                     canonical.SuccessorRef.SnapshotId,
                     string.Join(",", compatibilityErrors));
             }
-            PublishApplicationEvent(
-                RecordingEventKind.DecisionRecorded,
-                draft.Action.RecordId,
-                (canonical.Action?.Verb ?? canonical.NativeInput!.Verb),
-                ToActionProjection(draft.Action, draft.SemanticPre, draft.SemanticSuccessor) with { Disposition = "recorded" });
+            }
+            catch (Exception compatibilityException)
+            {
+                Quarantine("compatibility_projection_persistence_unknown", compatibilityException.Message,
+                    canonical.SuccessorRef.SnapshotId, draft.Action.NativeActionType, "diagnostic");
+            }
             _runtimeState = "record_appended";
             _detail = canonical.TransitionId;
             WriteStatus(environment, canonical.SuccessorRef.SnapshotId, Array.Empty<string>());
@@ -3850,7 +3863,7 @@ internal static partial class RecorderRuntime
                 "evidence_commit_unknown",
                 decisionFailure: canonicalAppended ? null : new RecordingDecisionFailure(
                     draft.Action.ActionWitnessId, "persistence", family));
-            return false;
+            return canonicalAppended;
         }
     }
 
@@ -3878,6 +3891,7 @@ internal static partial class RecorderRuntime
         lock (Gate)
             SemanticProjectionEnvironments.Clear();
         _semanticBoundaryTraceHealthy = false;
+        _store?.MarkDecisionAccountingUnavailable();
         _runtimeState = "semantic_boundary_trace_unknown";
         _detail = exception.Message;
         GD.PrintErr($"[STS2 Human Annotator] semantic boundary trace disabled: {exception}");
@@ -4454,6 +4468,7 @@ internal static partial class RecorderRuntime
             AppendJournal("decision_invalidated", null, snapshotId, $"{reason}: {detail}");
             PublishApplicationEvent(
                 RecordingEventKind.DecisionInvalidated,
+                recordId: decisionFailure?.DecisionWitnessId,
                 detail: $"{reason}: {detail}",
                 action: new RecordingActionProjection(humanOccurrence?.Verb ?? "accepted", "", null,
                     new Dictionary<string, string>(), nativeActionType ?? "Unidentified native input",
@@ -4464,6 +4479,7 @@ internal static partial class RecorderRuntime
         }
         catch (Exception exception)
         {
+            _store?.MarkDecisionAccountingUnavailable();
             GD.PrintErr($"[STS2 Human Annotator] failed to persist invalidation: {exception}");
         }
     }

@@ -46,11 +46,37 @@ internal static class NativeCardStartPatch
         AccessTools.Method(typeof(NPlayerHand), "StartCardPlay")
         ?? throw new MissingMethodException(typeof(NPlayerHand).FullName, "StartCardPlay");
 
-    internal static void Prefix([HarmonyArgument(0)] NHandCardHolder holder)
+    internal static void Prefix([HarmonyArgument(0)] NHandCardHolder holder, out IDisposable? __state) =>
+        __state = RecorderRuntime.StageCardPlay(holder);
+
+    private static Exception? Finalizer(IDisposable? __state, Exception? __exception) =>
+        NativeNestedCallbackSafety.Finalize("card_start.scope", __exception, () => __state?.Dispose());
+}
+
+[HarmonyPatch]
+internal static class NativeCardPlayFactoryPatch
+{
+    internal static IEnumerable<MethodBase> TargetMethods()
     {
-        if (holder.CardModel is { } card)
-            RecorderRuntime.StageCardPlay(card);
+        yield return AccessTools.Method(typeof(NMouseCardPlay), nameof(NMouseCardPlay.Create))
+            ?? throw new MissingMethodException(typeof(NMouseCardPlay).FullName, nameof(NMouseCardPlay.Create));
+        yield return AccessTools.Method(typeof(NControllerCardPlay), nameof(NControllerCardPlay.Create))
+            ?? throw new MissingMethodException(typeof(NControllerCardPlay).FullName, nameof(NControllerCardPlay.Create));
     }
+
+    private static void Postfix(NCardPlay __result)
+    {
+        if (__result != null)
+            NativeNestedCallbackSafety.Run("card_play.factory", () => RecorderRuntime.BindStagedCardPlay(__result));
+    }
+}
+
+[HarmonyPatch]
+internal static class NativeCardPlayCleanupPatch
+{
+    internal static MethodBase TargetMethod() => AccessTools.Method(typeof(NCardPlay), "Cleanup")
+        ?? throw new MissingMethodException(typeof(NCardPlay).FullName, "Cleanup");
+    private static void Prefix(NCardPlay __instance) => RecorderRuntime.ForgetStagedCardPlay(__instance);
 }
 
 [HarmonyPatch]
@@ -66,7 +92,7 @@ internal static class NativeCardPlayPatch
         out NativeUiScopeEntry __state)
     {
         __state = __instance.Holder.CardModel is { } card
-            ? RecorderRuntime.TryEnterCardScope(card, target)
+            ? RecorderRuntime.TryEnterCardScope(__instance, card, target)
             : default;
     }
 

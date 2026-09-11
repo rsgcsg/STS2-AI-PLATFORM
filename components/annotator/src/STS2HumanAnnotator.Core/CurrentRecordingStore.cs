@@ -83,6 +83,11 @@ public sealed class RecordingSessionStore : IDisposable
     public void ObservePerformance(string phase, long elapsedMicroseconds) =>
         _performance.ObserveMicroseconds(phase, elapsedMicroseconds);
 
+    public void MarkDecisionAccountingUnavailable()
+    {
+        lock (_gate) _decisions = _decisions with { AccountingComplete = false };
+    }
+
     public RecordingStoreSnapshot GetSnapshot()
     {
         lock (_gate)
@@ -361,7 +366,8 @@ public sealed class RecordingSessionStore : IDisposable
         {
             _performance.Measure(
                 "decision_append_buffered",
-                () => AppendBufferedLine(DecisionFile(record.RunId), record));
+                () => RecoverableAppendBatch.Write(DecisionFile(record.RunId),
+                    new[] { JsonSerializer.SerializeToUtf8Bytes(record, EvidenceJson.Options) }));
             _admittedCount++;
             _families[record.DecisionFamily] = _families.GetValueOrDefault(record.DecisionFamily) + 1;
         });
@@ -434,7 +440,11 @@ public sealed class RecordingSessionStore : IDisposable
         else if (kind == SemanticBoundaryTraceKinds.TransitionUnknown)
         {
             _decisions = _decisions with { Unresolved = _decisions.Unresolved + 1 };
+            bool firstFailure = !_countedFailureIds.Contains(actionId);
             CountFailure(actionId);
+            string family = decision?.DecisionKind is "nested_selector" or "native_selector"
+                ? "nested_selector.decision" : decision?.Family ?? "unclassified";
+            if (firstFailure) _failedActionFamilies[family] = _failedActionFamilies.GetValueOrDefault(family) + 1;
         }
         else if (kind is SemanticBoundaryTraceKinds.ActionCancelledBeforeStart or SemanticBoundaryTraceKinds.ActionCancelledAfterStart)
             _decisions = _decisions with { Cancelled = _decisions.Cancelled + 1 };
@@ -667,7 +677,7 @@ public sealed class RecordingSessionStore : IDisposable
         string safe = SafeId(runId, nameof(runId));
         if (!_decisionFiles.TryGetValue(safe, out FileStream? stream))
         {
-            stream = OpenBufferedAppend(Path.Combine(DirectoryPath, $"{safe}.jsonl"));
+            stream = OpenRecoverableAppend(Path.Combine(DirectoryPath, $"{safe}.jsonl"));
             _decisionFiles.Add(safe, stream);
         }
         return stream;

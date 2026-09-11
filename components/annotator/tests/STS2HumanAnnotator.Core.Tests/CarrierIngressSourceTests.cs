@@ -14,6 +14,42 @@ public sealed class CarrierIngressSourceTests
     }
 
     [Fact]
+    public void CardObservationUsesExactNativeFactoryOwnerAndCleanupWithoutAgeHeuristic()
+    {
+        string runtime = Source("RecorderRuntime.cs");
+        string patches = Source("NativeUiPatches.cs");
+        Assert.DoesNotContain("_stagedCardFrame", runtime);
+        Assert.DoesNotContain("staged_frame_expired", runtime);
+        Assert.Contains("StagedCardPlays.Enter(staged)", runtime);
+        Assert.Contains("ReferenceEquals(play.Holder, staged.Holder)", runtime);
+        Assert.Contains("StagedCardPlays.TryGet(stagedOwner, out staged)", runtime);
+        Assert.Contains("staged?.Generation == Volatile.Read(ref _cardStageGeneration)", runtime);
+        Assert.Contains("typeof(NMouseCardPlay)", patches);
+        Assert.Contains("typeof(NControllerCardPlay)", patches);
+        Assert.Contains("RecorderRuntime.TryEnterCardScope(__instance, card, target)", patches);
+        Assert.Contains("RecorderRuntime.ForgetStagedCardPlay(__instance)", patches);
+    }
+
+    [Fact]
+    public void CanonicalSuccessIsPublishedBeforeOptionalCompatibilityAndUnavailableAccountingIsExplicit()
+    {
+        string runtime = Source("RecorderRuntime.cs");
+        int begin = runtime.IndexOf("private static bool TryPersistDerivedTransitionProjection");
+        int append = runtime.IndexOf("store.AppendCanonicalTransition(canonical)", begin);
+        int publish = runtime.IndexOf("RecordingEventKind.DecisionRecorded", append);
+        int adapter = runtime.IndexOf("SemanticTransitionProjection.CreateDecision", append);
+        Assert.True(append >= 0 && publish > append && adapter > publish);
+        Assert.Contains("catch (Exception compatibilityException)", runtime);
+        Assert.Contains("return canonicalAppended;", runtime);
+        Assert.Contains("_store?.MarkDecisionAccountingUnavailable();", runtime);
+        int start = runtime.IndexOf("private static bool StartSemanticUiAction");
+        int witness = runtime.IndexOf("var acceptedOccurrence = new HumanActionOccurrenceEvidence", start);
+        int freeze = runtime.IndexOf("FreezeSemanticBoundary(frame, environment)", start);
+        Assert.True(witness > start && freeze > witness);
+        Assert.Contains("selector_acceptance_persistence_failed", Source("NativeSelectorDecisionRuntime.cs"));
+    }
+
+    [Fact]
     public void GeneratedChoiceCommandCarriesExactContextAndPreservesEnclosingParent()
     {
         string source = Source("NativeNestedSelectorPatches.cs");
