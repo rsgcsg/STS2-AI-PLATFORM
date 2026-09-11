@@ -52,9 +52,9 @@
     },
     "game_mod": {
       "version": "0.2.0-rc.3",
-      "source_revision": "f915fa4865fe244bf1c979ea18519af580b63e90",
-      "component_tree_revision": "a73ac1476f20c400ec16bdf8d18a90488de1b8a5",
-      "component_source_digest_sha256": "aa1a00649b525fa077f0065f4f08ba33d99b330d337364ae8bbcb262972018db"
+      "source_revision": "ae6e2238ecf50963b584d812e2376b9c94dc43c2",
+      "component_tree_revision": "27acfed97147bd65f48cae8ba19622c19e856c17",
+      "component_source_digest_sha256": "b783ea1c6e16f6812915ec56ad21f1240705df42e80557579a5c509e82949228"
     },
     "player_environment_protocol": "1.0.0",
     "typescript_sdk": "1.1.0-rc.1"
@@ -903,8 +903,8 @@
       "version": "0.2.0-rc.1",
       "platform_source_revision": "b5389a0b4a1bbed37e6a9718776fdf38f06f50c9",
       "platform_source_digest_sha256": "dbcd6ec1df10cad5ad011eb61a2f2ca533d7a110cd3f1296efa9c154b98d0cea",
-      "current_component_source_revision": "f915fa4865fe244bf1c979ea18519af580b63e90",
-      "current_component_source_digest_sha256": "aa1a00649b525fa077f0065f4f08ba33d99b330d337364ae8bbcb262972018db",
+      "current_component_source_revision": "ae6e2238ecf50963b584d812e2376b9c94dc43c2",
+      "current_component_source_digest_sha256": "b783ea1c6e16f6812915ec56ad21f1240705df42e80557579a5c509e82949228",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b",
       "installed": "pass",
@@ -1241,9 +1241,9 @@
       },
       "game_mod": {
         "version": "0.2.0-rc.3",
-        "source_revision": "f915fa4865fe244bf1c979ea18519af580b63e90",
-        "component_tree_revision": "a73ac1476f20c400ec16bdf8d18a90488de1b8a5",
-        "component_source_digest_sha256": "aa1a00649b525fa077f0065f4f08ba33d99b330d337364ae8bbcb262972018db"
+        "source_revision": "ae6e2238ecf50963b584d812e2376b9c94dc43c2",
+        "component_tree_revision": "27acfed97147bd65f48cae8ba19622c19e856c17",
+        "component_source_digest_sha256": "b783ea1c6e16f6812915ec56ad21f1240705df42e80557579a5c509e82949228"
       }
     },
     "data_chain": "docs/FULL_RUN_DATA_CHAIN.md",
