@@ -12,7 +12,8 @@ bundle3; explicit compatibility record2/bundle2 and archival readers retain thei
 meaning. Recording status4/event batch2 project authoritative dispositions.
 
 This is not exhaustive game-content, crash recovery, non-interference or external
-research admission. Untested rare paths remain non-claims. Subsequent incidents
+research admission. Untested rare paths and changed native artifacts are **not human validated**
+by this session. Subsequent incidents
 follow [support and collection](../../../docs/ANNOTATOR_COLLECTION.md); historical
 failed sessions are never rewritten. A changed native artifact needs its own
 appropriate qualification rather than inheriting this Human result.
