@@ -2570,6 +2570,26 @@ internal static partial class RecorderRuntime
                 return false;
             }
             string actionWitnessId = resolution.Registration!.ActionWitnessId;
+            // A native synchronous callback can finish before the outer UI
+            // Postfix admits its root. Only this already matched Commit and
+            // its exact still-active scope can establish that accepted input.
+            HumanActionContext? context = HumanActionScope.Current;
+            if (context != null && !context.RootActionClaimed
+                && context.ActionWitnessId == actionWitnessId
+                && context.CompletionExpectation != null
+                && context.ExpectedAction is { } input)
+            {
+                bool accepted = ObserveAcceptedSemanticUiAction(
+                    context.ExpectedNativeActionType, input,
+                    new NativeWitnessEvidence(context.Origin, context.ExpectedNativeActionType,
+                        input.Subject == null ? null : NativeWitnessIdentity.Get(input.Subject, "native_subject"),
+                        input.Arguments.ToDictionary(pair => pair.Key,
+                            pair => NativeWitnessIdentity.Get(pair.Value, "native_operand"), StringComparer.Ordinal),
+                        DateTimeOffset.UtcNow),
+                    captureImmediatePostCommitBoundary: false,
+                    actionWitnessId: actionWitnessId);
+                if (!accepted) return false;
+            }
             NativeCompletionEvidence completion = ToCompletionEvidence(
                 nativeCompletion,
                 actionWitnessId);

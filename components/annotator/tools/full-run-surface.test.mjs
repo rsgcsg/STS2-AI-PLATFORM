@@ -430,3 +430,13 @@ test("queued potion discard selects its native belt provider before room overlay
   const scoped = code.slice(start);
   assert.ok(scoped.indexOf("NativePotionDiscardDecisionProvider.Capture") < scoped.indexOf("overlay is NRewardsScreen"));
 });
+
+test("matched synchronous Commit admits only its exact unclaimed scope before persistence", () => {
+  const code = runtime.slice(runtime.indexOf("private static bool ObserveSemanticUiNativeCommitCore"),
+    runtime.indexOf("private static void StartSemanticNativeAction"));
+  assert.ok(code.indexOf("if (!resolution.IsMatched") < code.indexOf("bool accepted = ObserveAcceptedSemanticUiAction"));
+  assert.match(code, /!context.RootActionClaimed/);
+  assert.match(code, /context.ActionWitnessId == actionWitnessId/);
+  assert.match(code, /if \(!accepted\) return false/);
+  assert.ok(code.indexOf("bool accepted = ObserveAcceptedSemanticUiAction") < code.indexOf("return PersistTrackerMutationOrUnknown"));
+});

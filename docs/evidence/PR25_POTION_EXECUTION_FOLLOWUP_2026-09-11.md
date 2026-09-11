@@ -62,15 +62,22 @@ existing UI availability gates. Membership still requires the exact retained
 potion object: a removed/replaced/foreign potion fails closed. No native
 operand, mutation, hidden state or public BoundAction is created.
 
-### Reward skip Commit owner: confirmed defect
+### Reward skip synchronous Commit: confirmed defect
 
 Decision #144 (02:03:10Z) had no finished or native Commit event until session
 close. It was Proceed on the nonterminal rewards opened by shop purchase #123.
-Native SkipLocalRewardsSet can synchronously complete the parent and change the
-overlay. NativeRewardSkipCommitPatch previously looked up both screen and
-RewardsSet in Postfix, after this operation. Prefix now captures the exact
+Native SkipLocalRewardsSet completes before the outer UI accepted Postfix.
+The previous shared Commit path consumed a matched completion even when no
+tracker root existed yet. A second unsafe lookup used both screen and
+RewardsSet in Postfix, after this operation, when callbacks may already have
+changed the overlay. The session does not distinguish these two loss paths.
+Prefix now captures the exact
 screen, RewardsSet and bound action witness; Postfix consumes only those
-identities, with identity-checked cleanup. This repairs that race without
+identities, with identity-checked cleanup. The shared synchronous Commit seam
+also admits an unclaimed UI root only after matching its native completion
+registration to the exact active scope. Otherwise a Commit arriving before the
+outer UI Postfix would be consumed without a tracker root. Later duplicate UI
+callbacks remain idempotent. This repairs both orderings without
 using the newly exposed owner, a timer or last-root fallback. It does not by
 itself repair the enclosing purchase's reward-tree lineage.
 
