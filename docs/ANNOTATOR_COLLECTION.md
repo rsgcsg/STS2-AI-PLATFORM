@@ -8,7 +8,9 @@ qualification from its predecessor. Retain the previous deployment for rollback.
 
 ## Local capture and handoff
 
-Recording and diagnostics stay local by default. The existing Platform launcher
+Recording and diagnostics stay local by default. For distributed collection,
+configure `recording_root` to a persistent user-owned directory and retain
+verified bundles outside temporary engineering worktrees before cleanup. The existing Platform launcher
 opens Recorder; enable recording before a fresh native run. Keep the full session
 through natural terminal and close Recorder normally. Do not pause, reload,
 resume or use the console inside the uninterrupted Full-Run qualification gate.
