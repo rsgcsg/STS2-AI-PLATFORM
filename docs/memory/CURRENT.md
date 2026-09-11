@@ -1,6 +1,7 @@
 # Current Context
 
-Resolve live refs, source, BOM, CI and loaded identity before using this handoff.
+Resolve live GitHub refs, source, BOM, CI and loaded identity before using this
+handoff. Current repository/runtime authorities override this file.
 PR25 remains Draft after the two-session Human audit. 1215 accepted decisions
 produced 1211 canonical, two native cancellations, one pre-Commit abort and one
 real unresolved event decision. The victory session has uninterrupted native
@@ -16,4 +17,8 @@ Annotator 0.3.0-rc.3 / Platform 0.2.0-rc.3 are the repair candidate; verify the
 BOM's final candidate and live receipts. Old Human bytes remain unchanged and do
 not qualify the repaired artifact. The next Human gate covers event reward +
 full belt discard-before-claim, selectors/rapid paths and an uninterrupted native
-start through natural terminal. No STPD adapter/training admission is implied.
+start through natural terminal.
+
+## Remaining Platform non-claims
+
+No STPD adapter/training admission is implied.
