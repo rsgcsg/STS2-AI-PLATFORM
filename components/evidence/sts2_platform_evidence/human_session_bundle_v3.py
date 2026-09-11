@@ -135,6 +135,7 @@ class HumanSessionBundleV3Verifier:
         audit_path = directory / "audit" / "audit-report.json"
         audit = _load_json(audit_path)
         count = _nonnegative(manifest.get("canonical_count"), "canonical_count")
+        _nonnegative(audit.get("canonical_count"), "audit canonical_count")
         _require(audit.get("schema") == AUDIT_SCHEMA and audit.get("status") == "pass"
                  and manifest.get("audit_status") == "pass" and audit.get("invalid_records") == 0
                  and audit.get("canonical_count") == count and not audit.get("errors"),

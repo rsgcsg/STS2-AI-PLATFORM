@@ -301,6 +301,16 @@ class HumanSessionBundleV3Tests(unittest.TestCase):
             self._reseal(bundle)
             self.assertEqual(verify_human_session_bundle(bundle).findings[0].code, code)
 
+    def test_audit_canonical_count_requires_integer_even_when_python_equality_matches(self) -> None:
+        bundle = self._bundle()
+        path = bundle / "audit" / "audit-report.json"
+        audit = json.loads(path.read_text(encoding="utf-8"))
+        for count in (True, 1.0):
+            audit["canonical_count"] = count
+            self._write(path, audit)
+            self._reseal(bundle)
+            self.assertEqual(verify_human_session_bundle(bundle).findings[0].code, "count_invalid")
+
     def test_capture_failure_requires_complete_typed_occurrence_identity(self) -> None:
         bundle = self._bundle(failed_only=True)
         raw = bundle / "raw"
