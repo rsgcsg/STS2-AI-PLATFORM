@@ -1284,7 +1284,8 @@ internal static class NativeTreasureProceedCompletionPatch
             && NativeUiCompletionRootBindings.TryGet(__state.Owner, out string? root)
             && root != null && HumanActionScope.Current is { } context
             && context.ActionWitnessId == root
-            && context.CompletionExpectation is { Family: "reward_proceed" or "treasure_proceed" } completion)
+            && context.CompletionExpectation is { } completion
+            && completion.AcceptsKind("RunManager.ProceedFromTerminalRewardsScreen"))
         {
             if (RecorderRuntime.ObserveSemanticUiNativeCommit(root, completion.Family,
                 "RunManager.ProceedFromTerminalRewardsScreen", __instance, __state.Operand))
