@@ -26,8 +26,10 @@ internal sealed class HumanActionContext
         NativePostCommitCompletionExpectation? completionExpectation,
         HumanActionOccurrenceEvidence? occurrence,
         DateTimeOffset enteredAt,
-        ProcessLocalObservedAction? nativeSemanticSelection = null)
+        ProcessLocalObservedAction? nativeSemanticSelection = null,
+        bool nativeInputBinding = false)
     {
+        NativeInputBinding = nativeInputBinding;
         Origin = origin;
         ExpectedNativeActionType = expectedNativeActionType;
         ExpectedAction = expectedAction;
@@ -41,6 +43,7 @@ internal sealed class HumanActionContext
         _rootActionGate = new AcceptedRootActionGate(expectedNativeActionType);
     }
 
+    internal bool NativeInputBinding { get; }
     internal string Origin { get; }
     internal string ExpectedNativeActionType { get; }
 
@@ -139,7 +142,8 @@ internal static class HumanActionScope
         string? actionWitnessId = null,
         NativePostCommitCompletionExpectation? completionExpectation = null,
         HumanActionOccurrenceEvidence? occurrence = null,
-        ProcessLocalObservedAction? nativeSemanticSelection = null)
+        ProcessLocalObservedAction? nativeSemanticSelection = null,
+        bool nativeInputBinding = false)
     {
         _stack ??= new Stack<HumanActionContext>();
         _stack.Push(new HumanActionContext(
@@ -152,7 +156,8 @@ internal static class HumanActionScope
             completionExpectation,
             occurrence,
             DateTimeOffset.UtcNow,
-            nativeSemanticSelection));
+            nativeSemanticSelection,
+            nativeInputBinding));
     }
 
     internal static void Exit()

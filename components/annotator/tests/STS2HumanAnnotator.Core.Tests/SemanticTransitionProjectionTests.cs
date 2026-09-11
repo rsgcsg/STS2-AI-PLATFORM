@@ -9,6 +9,37 @@ public sealed class SemanticTransitionProjectionTests
     private static readonly DateTimeOffset T0 = DateTimeOffset.Parse("2026-09-01T00:00:00Z");
 
     [Fact]
+    public void AcceptedNativeInputNeedsNoPublicActionButRequiresExactExecutionMembership()
+    {
+        var original = ProvedDraft(Frame("s0", "combat_turn", false), Frame("s1", "combat_turn", false));
+        var evidence = SemanticActionSpace(original.Action) with {
+            HumanBoundActionId = null, HumanNativeActionKey = "play|card-a1|" };
+        var action = original.Action with { BoundAction = null,
+            NativeInput = new("play|card-a1|", "play", "card-a1", new Dictionary<string, string>(), "Play card"),
+            Mapping = new("exact_native_input", 1, "scoped_native_input_reference_equality", null) };
+        var draft = original with { Action = action, ExecutionSemanticActionSpace = evidence };
+        var canonical = SemanticTransitionProjection.CreateCanonical(draft,
+            new("s0", new string('1', 64), "pre.json"), new("s1", new string('2', 64), "post.json"),
+            new(action.ActionWitnessId, evidence.SemanticStateDigest, evidence.SemanticCatalogDigest,
+                new string('3', 64), "catalog.json"), "session", "timeline");
+        Assert.Empty(RecordedNativeInputValidator.Validate(action));
+        Assert.Empty(ExecutionSemanticActionSpaceValidator.Validate(evidence, action));
+        Assert.Empty(CanonicalTransitionEvidenceValidator.Validate(canonical));
+        Assert.Null(canonical.Action);
+        Assert.Equal(action.NativeInput, canonical.NativeInput);
+        Assert.NotEmpty(ExecutionSemanticActionSpaceValidator.Validate(evidence with { Phase = "before_native_action_admission" }, action));
+        Assert.NotEmpty(ExecutionSemanticActionSpaceValidator.Validate(evidence with { HumanNativeActionKey = "other" }, action));
+        Assert.NotEmpty(ExecutionSemanticActionSpaceValidator.Validate(evidence, action with {
+            NativeInput = action.NativeInput! with { Arguments = new Dictionary<string, string> { ["target"] = "other" } } }));
+        Assert.NotEmpty(RecordedNativeInputValidator.Validate(action with { BoundAction = original.Action.BoundAction }));
+        Assert.NotEmpty(RecordedNativeInputValidator.Validate(action with { Mapping = original.Action.Mapping }));
+        Assert.NotEmpty(CanonicalTransitionEvidenceValidator.Validate(canonical with { Action = original.Action.BoundAction }));
+        Assert.Throws<InvalidDataException>(() => SemanticTransitionProjection.CreateCanonical(
+            draft with { Kind = SemanticBoundaryTraceKinds.ActionCancelledBeforeStart },
+            canonical.PreStateRef, canonical.SuccessorRef, canonical.ExecutionSemanticActionSpaceRef, "session", "timeline"));
+    }
+
+    [Fact]
     public void NativeOriginSelectorCanonicalRetainsActualCauseAndIndependentInput()
     {
         var pre = Frame("input-pre", "card_selection", true);
@@ -312,7 +343,7 @@ public sealed class SemanticTransitionProjectionTests
             "session-test",
             "timeline-test");
 
-        Assert.Equal("activate", canonical.Action.Verb);
+        Assert.Equal("activate", canonical.Action!.Verb);
         Assert.Equal("native_semantic_execution", canonical.ActionSpaceAuthority);
     }
 

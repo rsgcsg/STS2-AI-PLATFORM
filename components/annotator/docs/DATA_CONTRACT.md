@@ -1,8 +1,8 @@
 # Data Contract
 
 The current recording schemas are defined by
-`src/STS2HumanAnnotator.Core/CurrentContracts.cs`. Wire names ending in `-2`
-are the single current format; they are not a second active product. A current
+`src/STS2HumanAnnotator.Core/CurrentContracts.cs`. Manifest and compatibility decision wire names remain `-2`. Canonical and
+execution-action-space writers use `-3`; their readers also accept `-2`. A current
 session directory contains one immutable manifest, one append-only file per
 observed run, one append-only invalidation stream, a semantic boundary stream,
 content-addressed Read/frame/action-space objects, a minimal run journal, and
@@ -66,7 +66,7 @@ occurrence, not a mutable
 admission ledger, legality engine or second canonical truth.
 
 An execution event may additionally reference one
-`sts2.human-annotator/execution-semantic-action-space-2` object below
+`sts2.human-annotator/execution-semantic-action-space-3` object below
 `semantic-action-spaces/sha256/`. It preserves the exact read-only Native
 Foundation semantic state/catalog captured at the native action-binding
 boundary, the described native action and its exact-once membership. For a
@@ -79,6 +79,23 @@ Human/native action identity. Schema 1 remains readable historical evidence
 under its original same-verb matching rules. This object is evidence of an
 STS2-owned semantic decision, not an Annotator legality engine or Connector
 delivery catalog.
+
+For native PlayCard accepted during public settling, the scoped input is
+correlated by exact subject/operand references at `OnEnqueued`. The trace
+retains `native_input` (action key, verb, subject, arguments and label) with
+`bound_action = null` and `exact_native_input` mapping. This is an observation,
+not a public delivery action or legality proof at H. State/Reads, environment,
+modset and controller gates remain enforced. Failed matching stays fail-closed.
+Schema-3 execution evidence joins `human_native_action_key` to the same exact
+selected native key/operands at `BeforeActionExecuted`; the public-bound and
+native-input bindings are mutually exclusive. Canonical schema 3 carries the
+same XOR representation. A native-input canonical requires native execution
+evidence and cannot use a public-catalog fallback. Cancellation retains the
+input and disposition without creating a successful canonical transition.
+The legacy compatibility decision stream intentionally omits native-input rows;
+consumers must read the versioned canonical/trace contracts, not infer missing
+input from legacy counts. Existing schema-2 consumers need an explicit schema-3
+adapter update; Platform does not implement their training projection.
 
 The timeline stores Human observation H separately from execution-adjacent
 state evidence and records exact action identity,

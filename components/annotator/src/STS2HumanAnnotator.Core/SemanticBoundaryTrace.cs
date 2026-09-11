@@ -61,6 +61,7 @@ public sealed record SemanticActionReference(
     public NativeWitnessEvidence? NativeWitness { get; init; }
     public ExactMappingEvidence? Mapping { get; init; }
     public RecordedBoundAction? BoundAction { get; init; }
+    public RecordedNativeInput? NativeInput { get; init; }
 }
 
 public sealed record NativeDecisionOwnerReadyEvidence(
@@ -1196,6 +1197,7 @@ public static class SemanticBoundaryTraceValidator
         long previousSequence = 0;
         foreach (SemanticBoundaryTraceEvent value in events)
         {
+            errors.AddRange(RecordedNativeInputValidator.Validate(value.Action));
             if (!SemanticBoundaryTraceContract.IsSupported(value.SchemaVersion, value.Schema))
                 errors.Add("semantic_boundary_trace_schema_invalid");
             if (value.Sequence <= previousSequence)

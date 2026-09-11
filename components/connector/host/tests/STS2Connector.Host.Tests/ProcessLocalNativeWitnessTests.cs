@@ -9,6 +9,27 @@ namespace STS2Connector.Host.Tests;
 public sealed class ProcessLocalNativeWitnessTests
 {
     [Fact]
+    public void AcceptedInputUsesExactScopedOperandsWithoutPublishingDeliveryAction()
+    {
+        var frame = Frame(new NativeEntityRegistry(), Array.Empty<PlayerEnvironmentBoundAction>(), "settling", "complete");
+        object card = new(), target = new();
+        var expected = new ProcessLocalObservedAction("play", card, new Dictionary<string, object> { ["target"] = target });
+        var exact = frame.ResolveAcceptedInput(expected, expected with { Arguments = new Dictionary<string, object> { ["target"] = target } });
+        Assert.Equal("exact_native_input", exact.Status);
+        Assert.Null(exact.BoundAction);
+        Assert.Null(exact.BoundActionId);
+        Assert.NotNull(exact.NativeInput);
+        Assert.Empty(frame.Snapshot.BoundActions.Actions);
+        Assert.Equal("zero", frame.ResolveAcceptedInput(expected, expected with { Subject = new object() }).Status);
+        Assert.Equal("zero", frame.ResolveAcceptedInput(expected, expected with { Arguments = new Dictionary<string, object> { ["target"] = new object() } }).Status);
+        Assert.Equal("zero", frame.ResolveAcceptedInput(expected, expected with { Verb = "discard" }).Status);
+        Assert.Equal("zero", Frame(new NativeEntityRegistry(), Array.Empty<PlayerEnvironmentBoundAction>(),
+            "settling", "complete", externalController: true).ResolveAcceptedInput(expected, expected).Status);
+        Assert.Equal("zero", Frame(new NativeEntityRegistry(), Array.Empty<PlayerEnvironmentBoundAction>(),
+            "settling", "complete", completeness: "partial").ResolveAcceptedInput(expected, expected).Status);
+    }
+
+    [Fact]
     public void SemanticActionKeyIsDeterministicAndRoleOrdered()
     {
         string first = NativeSemanticActionCatalog.BuildKey(
@@ -193,7 +214,8 @@ public sealed class ProcessLocalNativeWitnessTests
         IReadOnlyList<PlayerEnvironmentBoundAction> actions,
         string snapshotStatus,
         string projectionStatus,
-        IReadOnlyList<ProcessLocalNativeInputBinding>? nativeInputs = null)
+        IReadOnlyList<ProcessLocalNativeInputBinding>? nativeInputs = null,
+        bool externalController = false, string completeness = "complete")
     {
         var snapshot = new PlayerEnvironmentSnapshot(
             PlayerEnvironmentContract.ProtocolVersion,
@@ -222,7 +244,7 @@ public sealed class ProcessLocalNativeWitnessTests
                 actions),
             Array.Empty<PlayerEnvironmentReadOpportunity>(),
             new PlayerEnvironmentCompleteness(
-                "complete",
+                completeness,
                 "test",
                 "test",
                 Array.Empty<string>(),
@@ -237,7 +259,7 @@ public sealed class ProcessLocalNativeWitnessTests
             snapshot,
             null!,
             new string('a', 64),
-            false,
+            externalController,
             entities.CaptureExactReferences(
                 actions.SelectMany(action => action.Arguments
                         .Select(argument => argument.ReferentId)

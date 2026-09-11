@@ -4,6 +4,17 @@ This is a bounded handoff, not repository authority. Resolve live GitHub refs,
 open PRs, rulesets, code, tests, `platform-bom.json`, and exact runtime/evidence
 before making a current claim. Those sources override this file.
 
+## PR25 native admission repair (2026-09-11)
+
+Latest closed test: 63 known accepted Human decisions, 61 tracked, 55 canonical,
+54 strict semantic candidates, four native cancellations, two unknowns caused
+by two rapid-card ingress failures. Nine further invalidations are internal
+diagnostics. All 12 selectors are canonical; one start and no native end.
+The repair introduces exact native-input recording when public delivery is
+settling, with independent execution membership and schema-3 canonical evidence.
+See [audit, contract and canary](../evidence/PR25_NATIVE_ADMISSION_REPAIR_2026-09-11.md).
+Fresh Human qualification and broad Full-Run coverage remain pending.
+
 ## PR25 rapid input / execution-catalog audit (2026-09-11)
 
 The latest 1,132-accepted session still has 15 accepted PlayCard H-capture

@@ -292,9 +292,10 @@ public static class RecordingSessionAuditor
             if (recordId != proof.Action.RecordId
                 || value.RunId != proof.Action.RunId
                 || value.ActionSequence != proof.Action.ActionSequence
-                || proof.Action.BoundAction == null
                 || EvidenceIdentity.Sha256Json(value.Action)
-                    != EvidenceIdentity.Sha256Json(proof.Action.BoundAction))
+                    != EvidenceIdentity.Sha256Json(proof.Action.BoundAction)
+                || EvidenceIdentity.Sha256Json(value.NativeInput)
+                    != EvidenceIdentity.Sha256Json(proof.Action.NativeInput))
                 Add(errors, "canonical_transition_semantic_action_mismatch");
             if (pre == null || proof.SemanticPre == null
                 || SemanticFrameDigest(pre) != SemanticFrameDigest(proof.SemanticPre))
@@ -325,7 +326,7 @@ public static class RecordingSessionAuditor
                 }
             }
             else if (value.ActionSpaceAuthority == "public_bound_actions"
-                     && (pre == null || !PublicCatalogContainsExactlyOnce(pre, value.Action)))
+                     && (pre == null || value.Action == null || !PublicCatalogContainsExactlyOnce(pre, value.Action)))
             {
                 Add(errors, "canonical_transition_public_action_space_invalid");
             }

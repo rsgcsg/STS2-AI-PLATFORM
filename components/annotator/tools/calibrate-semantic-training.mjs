@@ -99,10 +99,23 @@ function semanticActionSpaceStatus(value, action, actionWitnessId, nativeAction)
   const actions = Array.isArray(value?.actions) ? value.actions : [];
   const observedKey = value?.observed_action_key;
   const selected = actions.filter((candidate) => candidate?.key === observedKey);
-  const current = value?.schema === "sts2.human-annotator/execution-semantic-action-space-2"
-    && value?.schema_version === 2;
-  const matches = selected.filter(() =>
-    current && value?.human_bound_action_id === action?.bound_action_id);
+  const current = [2, 3].includes(value?.schema_version)
+    && value?.schema === `sts2.human-annotator/execution-semantic-action-space-${value.schema_version}`;
+  const input = nativeAction?.native_input;
+  const binding = input
+    ? value.schema_version === 3 && !nativeAction.bound_action && !value.human_bound_action_id
+      && value.human_native_action_key === input.action_key
+      && observedKey === input.action_key
+      && nativeAction.native_mechanism === "game_action"
+      && nativeAction.native_witness != null
+      && nativeAction.mapping?.status === "exact_native_input"
+      && nativeAction.mapping?.match_count === 1
+      && nativeAction.mapping?.basis === "scoped_native_input_reference_equality"
+    : typeof action?.bound_action_id === "string" && action.bound_action_id.length > 0
+      && value?.human_bound_action_id === action.bound_action_id && !value.human_native_action_key;
+  const matches = selected.filter((candidate) => current && binding && (!input ||
+    candidate.verb === input.verb && candidate.subject_referent_id === input.subject_referent_id
+    && canonical(normalizedArguments(candidate)) === canonical(normalizedArguments(input))));
   const complete = Boolean(
     value
     && current
@@ -122,8 +135,7 @@ function semanticActionSpaceStatus(value, action, actionWitnessId, nativeAction)
     && selected.length === 1
     && Array.isArray(value.native_evidence)
     && value.native_evidence.length > 0
-    && typeof value.human_bound_action_id === "string"
-    && value.human_bound_action_id.length > 0);
+    && binding);
   return {
     complete,
     catalog_status: complete ? "complete" : "missing_or_incomplete",
@@ -143,11 +155,12 @@ function disposition(events) {
 }
 
 function actionFromSources(accepted) {
-  return accepted?.action?.bound_action ?? null;
+  return accepted?.action?.bound_action ?? accepted?.action?.native_input ?? null;
 }
 
 function sourceForAction(accepted) {
   if (accepted?.action?.bound_action) return "semantic_trace";
+  if (accepted?.action?.native_input) return "native_input_trace";
   return "missing";
 }
 
@@ -252,7 +265,7 @@ export async function calibrate(recordingDirectory) {
       actionsById.set(id, state);
     }
     state.events.push(value);
-    if (value.action?.bound_action) state.action = value.action.bound_action;
+    if (actionFromSources(value)) state.action = actionFromSources(value);
   }
 
   const durableCanonicalByWitness = new Map();
@@ -260,8 +273,8 @@ export async function calibrate(recordingDirectory) {
   try {
     await access(canonicalPath);
     for await (const { value } of jsonLines(canonicalPath)) {
-      if (value.schema_version === 2
-        && value.schema === "sts2.human-annotator/canonical-transition-evidence-2"
+      if ([2, 3].includes(value.schema_version)
+        && value.schema === `sts2.human-annotator/canonical-transition-evidence-${value.schema_version}`
         && value.collection_mode === "causal_human_native_observation"
         && value.action_witness_id) {
         durableCanonicalByWitness.set(value.action_witness_id, value);

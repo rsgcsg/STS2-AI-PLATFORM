@@ -24,7 +24,13 @@ public sealed record ProcessLocalNativeMatch(
     string? BoundActionId,
     PlayerEnvironmentBoundAction? BoundAction,
     string Evidence,
-    string? Detail);
+    string? Detail)
+{
+    public ProcessLocalNativeInputAction? NativeInput { get; init; }
+}
+
+public sealed record ProcessLocalNativeInputAction(string ActionKey, string Verb,
+    string? SubjectReferentId, IReadOnlyDictionary<string, string> Arguments, string? Label);
 
 public sealed record ProcessLocalReadCapture(
     string Kind,
@@ -103,6 +109,36 @@ public sealed class ProcessLocalNativeWitnessFrame
     public IReadOnlyDictionary<string, ProcessLocalReadCapture> Reads { get; }
 
     public IReadOnlyList<ProcessLocalCaptureTiming> CaptureTimings { get; }
+
+    /// <summary>Correlate an exact scoped native input with its accepted
+    /// callback even when public delivery is settling. This never publishes a
+    /// BoundAction, changes Snapshot or asserts an action space at Human time.</summary>
+    public ProcessLocalNativeMatch ResolveAcceptedInput(
+        ProcessLocalObservedAction expected, ProcessLocalObservedAction accepted)
+    {
+        if (ExternalControllerActive || Snapshot.Completeness.Status != "complete"
+            || string.IsNullOrWhiteSpace(expected.Verb)
+            || expected.Subject == null || accepted.Subject == null
+            || expected.Verb != accepted.Verb || !ReferenceEquals(expected.Subject, accepted.Subject)
+            || expected.Arguments.Count != accepted.Arguments.Count
+            || expected.Arguments.Any(pair => string.IsNullOrWhiteSpace(pair.Key) || pair.Value == null
+                || !accepted.Arguments.TryGetValue(pair.Key, out object? value)
+                || !ReferenceEquals(pair.Value, value)))
+            return new("zero", 0, null, null, "scoped_native_input_reference_equality", "Exact accepted input did not match the scoped Human operands.");
+        string subject = NativeUiRuntime.Entities.GetId(expected.Subject, expected.Verb == "play" ? "card" : "subject");
+        var arguments = expected.Arguments.ToDictionary(pair => pair.Key,
+            pair => NativeUiRuntime.Entities.GetId(pair.Value,
+                pair.Value is MegaCrit.Sts2.Core.Entities.Creatures.Creature creature
+                    ? creature.IsPlayer ? "player" : creature.CombatState?.PlayerCreatures.Contains(creature) == true ? "companion" : "enemy"
+                    : "operand"), StringComparer.Ordinal);
+        string key = STS2Platform.NativeFoundation.NativeSemanticActionCatalog.BuildKey(expected.Verb, subject, arguments);
+        return new("exact_native_input", 1, null, null, "scoped_native_input_reference_equality", null)
+        {
+            NativeInput = new(key, expected.Verb, subject, arguments,
+                Snapshot.Referents.FirstOrDefault(value => value.ReferentId == subject)?.Label
+                    ?? expected.Verb + " (native accepted)")
+        };
+    }
 
     public ProcessLocalNativeMatch Resolve(ProcessLocalObservedAction observed)
     {

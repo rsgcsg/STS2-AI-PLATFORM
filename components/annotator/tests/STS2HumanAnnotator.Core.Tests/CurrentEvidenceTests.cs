@@ -1324,9 +1324,10 @@ public sealed class CurrentEvidenceTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void ExecutionSemanticActionSpaceRoundTripsIntoCanonicalAudit(bool omitLegacy)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void ExecutionSemanticActionSpaceRoundTripsIntoCanonicalAudit(bool omitLegacy, bool nativeInput)
     {
         string root = Temp("execution-semantic-action-space-round-trip");
         try
@@ -1413,6 +1414,14 @@ public sealed class CurrentEvidenceTests
                 {
                     HumanBoundActionId = decision.Action.BoundActionId
                 };
+                if (nativeInput)
+                {
+                    action = action with { BoundAction = null,
+                        NativeInput = new(semanticKey, decision.Action.Verb, decision.Action.SubjectReferentId,
+                            decision.Action.Arguments, decision.Action.Label),
+                        Mapping = new("exact_native_input", 1, "scoped_native_input_reference_equality", null) };
+                    actionSpace = actionSpace with { HumanBoundActionId = null, HumanNativeActionKey = semanticKey };
+                }
                 var tracker = new SemanticBoundaryTracker();
                 var drafts = new List<SemanticBoundaryTraceDraft>();
                 drafts.AddRange(tracker.Accept(action, decision.Pre));

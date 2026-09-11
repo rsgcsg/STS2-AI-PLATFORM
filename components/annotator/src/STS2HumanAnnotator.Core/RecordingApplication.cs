@@ -111,7 +111,7 @@ public sealed record RecordingItemStatus(
 /// </summary>
 public sealed record RecordingActionProjection(
     string Verb,
-    string BoundActionId,
+    string? BoundActionId,
     string? SubjectReferentId,
     IReadOnlyDictionary<string, string> Arguments,
     string Label,
@@ -122,7 +122,10 @@ public sealed record RecordingActionProjection(
     int? CandidateCount = null,
     string? PileType = null,
     HumanActionOccurrenceEvidence? FailedOccurrence = null,
-    bool IsDiagnostic = false);
+    bool IsDiagnostic = false)
+{
+    public string? NativeActionKey { get; init; }
+}
 
 public sealed record RecordingPendingRootStatus(
     string RecordId,

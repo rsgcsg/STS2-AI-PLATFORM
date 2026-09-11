@@ -228,6 +228,8 @@ internal static class PlatformLiveActionFeed
         lines.Add($"Successor: {action?.SuccessorSnapshotId ?? "unavailable"}");
         lines.Add($"Candidates: {action?.CandidateCount?.ToString() ?? "unavailable"} · Pile: {action?.PileType ?? "not exposed"}");
         lines.Add($"Action ID: {stableActionId}");
+        if (action?.NativeActionKey is { } nativeKey)
+            lines.Add($"Native input key: {nativeKey} (observation; no public delivery action)");
         lines.Add($"Subject/card ID: {stableSubjectId}");
         lines.Add($"Target IDs: {targets}");
         lines.Add($"Effect: {effect}");

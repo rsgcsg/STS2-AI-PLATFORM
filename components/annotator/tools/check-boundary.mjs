@@ -51,7 +51,7 @@ if (!sources.includes("ReferenceEquals(staged.Card, stagedCard)"))
   errors.push("staged card frames must remain bound to the exact native card reference");
 if (!sources.includes("context.AcceptsRootAction(nativeActionType)"))
   errors.push("same-type game actions must not claim the human root before exact mapping");
-if (!sources.includes("!hasMapping || match == null || !IsExact(match)")
+if (!sources.includes("!hasMapping || match == null || !(IsExact(match) || (context.NativeInputBinding && match.Status == \"exact_native_input\" && match.MatchCount == 1 && match.NativeInput != null))")
     || !sources.includes("context.TryClaimRootAction(nativeActionType)"))
   errors.push("the recorder must exact-match before claiming the human root action");
 if (!applicationService.includes("RecordingCommandResult Execute(RecordingCommand command)"))
@@ -100,8 +100,8 @@ if (!sources.includes("draft.Kind != SemanticBoundaryTraceKinds.TransitionProved
 const recordedApplicationProjection = `PublishApplicationEvent(
                 RecordingEventKind.DecisionRecorded,
                 draft.Action.RecordId,
-                canonical.Action.Verb,
-                ToActionProjection(canonical.Action, canonical.Decision, draft.SemanticPre, draft.SemanticSuccessor));`;
+                (canonical.Action?.Verb ?? canonical.NativeInput!.Verb),
+                ToActionProjection(draft.Action, draft.SemanticPre, draft.SemanticSuccessor));`;
 if (!recorderRuntime.includes(recordedApplicationProjection))
   errors.push("recorded application events must correlate on the semantic decision RecordId");
 if (recorderRuntime.includes(`PublishApplicationEvent(

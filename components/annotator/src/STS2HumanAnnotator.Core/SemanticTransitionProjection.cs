@@ -97,7 +97,7 @@ public static class SemanticTransitionProjection
         if (draft.Kind != SemanticBoundaryTraceKinds.TransitionProved
             || draft.SemanticPre == null
             || draft.SemanticSuccessor == null
-            || draft.Action.BoundAction == null)
+            || (draft.Action.BoundAction == null && draft.Action.NativeInput == null))
         {
             throw new InvalidDataException(
                 "Canonical evidence can only be projected from a proved semantic transition.");
@@ -141,7 +141,7 @@ public static class SemanticTransitionProjection
                 throw new InvalidDataException(
                     "A game-action transition requires a typed native execution action space.");
             }
-            if (!PublicCatalogContainsExactlyOnce(draft.SemanticPre, draft.Action.BoundAction))
+            if (draft.Action.BoundAction == null || !PublicCatalogContainsExactlyOnce(draft.SemanticPre, draft.Action.BoundAction))
                 throw new InvalidDataException(
                     "No complete authoritative execution action space contains the Human action.");
             actionSpaceAuthority = "public_bound_actions";
@@ -180,6 +180,7 @@ public static class SemanticTransitionProjection
                 "capture_profile_scoped"
             })
         {
+            NativeInput = draft.Action.NativeInput,
             Decision = draft.Action.Decision,
             ActionSpaceAuthority = actionSpaceAuthority,
             ExecutionSemanticActionSpaceRef = executionSemanticActionSpaceRef

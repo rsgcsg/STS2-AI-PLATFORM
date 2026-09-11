@@ -454,7 +454,7 @@ public sealed class RecordingSessionStore : IDisposable
             string family = value.Decision?.DecisionKind is "nested_selector" or "native_selector"
                 ? "nested_selector.decision" : value.Decision?.Family ?? "legacy_unclassified";
             _recordedActionFamilies[family] = _recordedActionFamilies.GetValueOrDefault(family) + 1;
-            _lastRecord = new RecordingItemStatus(value.TransitionId, value.Action.Verb, value.RecordedAt, family);
+            _lastRecord = new RecordingItemStatus(value.TransitionId, value.Action?.Verb ?? value.NativeInput!.Verb, value.RecordedAt, family);
             _decisions = value.Decision?.DecisionKind == "nested_selector"
                 ? _decisions with { CanonicalChildren = _decisions.CanonicalChildren + 1 }
                 : _decisions with { CanonicalRoots = _decisions.CanonicalRoots + 1 };

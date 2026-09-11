@@ -416,3 +416,31 @@ for (const owner of ["exact-selector", null]) {
     } finally { await rm(root, { recursive: true, force: true }); }
   });
 }
+
+for (const tamper of [false, true]) {
+  test(`native accepted input with empty public catalog requires exact execution operands: ${tamper}`, async () => {
+    const { root, refs, store } = await fixture();
+    try {
+      const input = { action_key: "play|card-1|", verb: "play", subject_referent_id: "card-1", arguments: {} };
+      const space = { ...semanticActionSpace("a1", action()), schema_version: 3,
+        schema: "sts2.human-annotator/execution-semantic-action-space-3",
+        human_bound_action_id: null, human_native_action_key: input.action_key };
+      if (tamper) space.actions[0].arguments = { target: "other" };
+      await store("inputspace", space);
+      const events = [event(1, "action_accepted", "a1", null, { human_observation_ref: refs.settling0 }),
+        event(2, "boundary_observed", "a1", null, { execution_pre_ref: refs.settling0 }),
+        event(3, "action_started", "a1", null, { execution_pre_ref: refs.settling0 }),
+        event(4, "action_finished", "a1", null, { execution_pre_ref: refs.settling0 }),
+        event(5, "transition_proved", "a1", null, { execution_pre_ref: refs.settling0,
+          execution_semantic_action_space_ref: refs.inputspace, successor_ref: refs.s1,
+          proof_status: "proved_native_commit_then_owner_boundary",
+          boundary: { witness_kind: "native_decision_owner_ready" } })];
+      for (const e of events) Object.assign(e.action, { native_input: input, native_mechanism: "game_action",
+        native_witness: { origin: "native_card_play_ui" },
+        mapping: { status: "exact_native_input", match_count: 1, basis: "scoped_native_input_reference_equality" } });
+      await writeFile(path.join(root, "semantic-boundary-trace.jsonl"), events.map(JSON.stringify).join("\n") + "\n");
+      const report = await calibrate(root);
+      assert.equal(report.summary.semantic_candidate_s_a_s_prime, tamper ? 0 : 1);
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+}

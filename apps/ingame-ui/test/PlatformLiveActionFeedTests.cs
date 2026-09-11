@@ -9,6 +9,20 @@ public sealed class PlatformLiveActionFeedTests
     private static readonly DateTimeOffset T0 =
         DateTimeOffset.Parse("2026-09-01T00:00:00Z");
 
+    [Fact]
+    public void NativeInputKeepsDecisionCorrelationWithoutInventingBoundActionId()
+    {
+        var feed = new PlatformLiveActionAggregation();
+        var projection = Action("unused", "Play card", null) with { BoundActionId = null, NativeActionKey = "play|card-1|" };
+        feed.Apply(Event(1, RecordingEventKind.RootPending, "record-native") with { Action = projection });
+        feed.Apply(Event(2, RecordingEventKind.DecisionRecorded, "record-native") with { Action = projection });
+        var item = Assert.Single(feed.Recent(5));
+        Assert.True(item.HasReliableCorrelation);
+        Assert.Contains("Native input key: play|card-1|", PlatformLiveActionFeed.FormatDetail(item));
+        Assert.Contains("Action ID: unavailable", PlatformLiveActionFeed.FormatDetail(item));
+        Assert.Equal(1, feed.Counts.Records);
+    }
+
     [Theory]
     [InlineData("MoveToMapCoordAction")]
     [InlineData("ReadyToBeginEnemyTurnAction")]

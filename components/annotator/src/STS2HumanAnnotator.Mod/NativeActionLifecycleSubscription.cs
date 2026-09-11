@@ -17,17 +17,19 @@ internal sealed class NativeActionLifecycleSubscription : IDisposable
         string actionWitnessId,
         long actionSequence,
         string recordId,
-        string humanBoundActionId,
+        string? humanBoundActionId,
         Action<NativeActionLifecycleSubscription, string> observer,
         bool finishIsNativeCommit = true,
         ProcessLocalObservedAction? nativeSemanticSelection = null,
-        string? semanticNativeActionType = null)
+        string? semanticNativeActionType = null,
+        string? humanNativeActionKey = null)
     {
         _action = action;
         ActionWitnessId = actionWitnessId;
         ActionSequence = actionSequence;
         RecordId = recordId;
         HumanBoundActionId = humanBoundActionId;
+        HumanNativeActionKey = humanNativeActionKey;
         FinishIsNativeCommit = finishIsNativeCommit;
         NativeSemanticSelection = nativeSemanticSelection;
         SemanticNativeActionType = semanticNativeActionType;
@@ -41,7 +43,8 @@ internal sealed class NativeActionLifecycleSubscription : IDisposable
     internal string ActionWitnessId { get; }
     internal long ActionSequence { get; }
     internal string RecordId { get; }
-    internal string HumanBoundActionId { get; }
+    internal string? HumanBoundActionId { get; }
+    internal string? HumanNativeActionKey { get; }
     internal bool FinishIsNativeCommit { get; }
     internal ProcessLocalObservedAction? NativeSemanticSelection { get; }
     internal string? SemanticNativeActionType { get; }

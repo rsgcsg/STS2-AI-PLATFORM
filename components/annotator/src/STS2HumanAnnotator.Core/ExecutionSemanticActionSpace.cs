@@ -4,15 +4,16 @@ namespace STS2HumanAnnotator.Core;
 
 public static class ExecutionSemanticActionSpaceContract
 {
-    public const int SchemaVersion = 2;
+    public const int SchemaVersion = 3;
     public const string Schema =
-        "sts2.human-annotator/execution-semantic-action-space-2";
+        "sts2.human-annotator/execution-semantic-action-space-3";
     public const int LegacySchemaVersion = 1;
     public const string LegacySchema =
         "sts2.human-annotator/execution-semantic-action-space-1";
 
     public static bool IsCurrent(int schemaVersion, string schema) =>
-        schemaVersion == SchemaVersion && schema == Schema;
+        (schemaVersion == SchemaVersion && schema == Schema)
+        || (schemaVersion == 2 && schema == "sts2.human-annotator/execution-semantic-action-space-2");
 
     public static bool IsSupported(int schemaVersion, string schema) =>
         IsCurrent(schemaVersion, schema)
@@ -60,6 +61,7 @@ public sealed record ExecutionSemanticActionSpaceEvidence(
     /// to <see cref="ObservedActionKey"/>. Public and native verbs may differ.
     /// </summary>
     public string? HumanBoundActionId { get; init; }
+    public string? HumanNativeActionKey { get; init; }
 }
 
 public sealed record ExecutionSemanticActionSpaceReference(
@@ -99,9 +101,12 @@ public static class ExecutionSemanticActionSpaceValidator
             errors.Add("execution_semantic_action_space_identity_missing");
         if (value.Phase is not ("before_execution" or "before_native_action_admission"))
             errors.Add("execution_semantic_action_space_phase_invalid");
-        if (value.SchemaVersion == ExecutionSemanticActionSpaceContract.SchemaVersion
-            && string.IsNullOrWhiteSpace(value.HumanBoundActionId))
+        if (value.SchemaVersion >= 2
+            && string.IsNullOrWhiteSpace(value.HumanBoundActionId)
+            && (value.SchemaVersion < 3 || string.IsNullOrWhiteSpace(value.HumanNativeActionKey)))
             errors.Add("execution_semantic_human_binding_missing");
+        if (value.HumanNativeActionKey != null && (value.SchemaVersion < 3 || value.HumanBoundActionId != null))
+            errors.Add("execution_semantic_human_binding_ambiguous");
         if (value.Status != "captured"
             || value.Scope == "unavailable"
             || value.Actions.Count == 0
@@ -123,6 +128,7 @@ public static class ExecutionSemanticActionSpaceValidator
 
         if (action != null)
         {
+            errors.AddRange(RecordedNativeInputValidator.Validate(action));
             // Native admission and queue execution are different boundaries.
             // A direct callback may bind before admission only when it has no
             // queued carrier. Historical bytes remain readable but cannot pass
@@ -132,16 +138,30 @@ public static class ExecutionSemanticActionSpaceValidator
                 errors.Add("queued_action_requires_execution_action_space");
             if (value.ActionWitnessId != action.ActionWitnessId)
                 errors.Add("execution_semantic_action_witness_mismatch");
-            if (action.BoundAction == null)
+            if (action.NativeInput is { } nativeInput)
+            {
+                ExecutionSemanticAction? selected = value.Actions.FirstOrDefault(candidate => candidate.Key == value.ObservedActionKey);
+                if (value.SchemaVersion < 3 || action.BoundAction != null || value.HumanBoundActionId != null
+                    || value.HumanNativeActionKey != nativeInput.ActionKey
+                    || value.ObservedActionKey != nativeInput.ActionKey
+                    || action.Mapping?.Status != "exact_native_input"
+                    || action.Mapping.MatchCount != 1
+                    || action.Mapping.Basis != "scoped_native_input_reference_equality"
+                    || action.NativeWitness == null || action.NativeMechanism != "game_action"
+                    || selected == null || selected.Verb != nativeInput.Verb
+                    || selected.SubjectReferentId != nativeInput.SubjectReferentId
+                    || !SameArguments(selected.Arguments, nativeInput.Arguments))
+                    errors.Add("execution_semantic_native_input_mismatch");
+            }
+            else if (action.BoundAction == null)
             {
                 errors.Add("execution_semantic_human_action_missing");
             }
             else
             {
-                ExecutionSemanticAction? selected = value.Actions.SingleOrDefault(candidate =>
+                ExecutionSemanticAction? selected = value.Actions.FirstOrDefault(candidate =>
                     candidate.Key == value.ObservedActionKey);
-                bool exactBinding = value.SchemaVersion
-                    == ExecutionSemanticActionSpaceContract.SchemaVersion
+                bool exactBinding = value.SchemaVersion >= 2
                     ? value.HumanBoundActionId == action.BoundAction.BoundActionId
                     : selected != null
                       && selected.Verb == action.BoundAction.Verb

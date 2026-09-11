@@ -53,7 +53,7 @@ internal static class AcceptedDecisionObserver
                 : new Outcome(OutcomeKind.Duplicate, context);
         }
 
-        if (!hasMapping || match == null || !IsExact(match))
+        if (!hasMapping || match == null || !(IsExact(match) || (context.NativeInputBinding && match.Status == "exact_native_input" && match.MatchCount == 1 && match.NativeInput != null)))
         {
             return context.TryClaimRootAction(nativeActionType)
                 ? new Outcome(OutcomeKind.MappingFailure, context, null, match)

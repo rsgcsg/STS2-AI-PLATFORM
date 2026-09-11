@@ -2,15 +2,16 @@ namespace STS2HumanAnnotator.Core;
 
 public static class CanonicalTransitionEvidenceContract
 {
-    public const int SchemaVersion = 2;
-    public const string Schema = "sts2.human-annotator/canonical-transition-evidence-2";
+    public const int SchemaVersion = 3;
+    public const string Schema = "sts2.human-annotator/canonical-transition-evidence-3";
     public const string CollectionMode = "causal_human_native_observation";
     public const int LegacySchemaVersion = 1;
     public const string LegacySchema = "sts2.human-annotator/canonical-transition-evidence-1";
     public const string LegacyCollectionMode = "serialized_human_input";
 
     public static bool IsCurrent(int schemaVersion, string schema) =>
-        schemaVersion == SchemaVersion && schema == Schema;
+        (schemaVersion == SchemaVersion && schema == Schema)
+        || (schemaVersion == 2 && schema == "sts2.human-annotator/canonical-transition-evidence-2");
 
     public static bool IsSupported(int schemaVersion, string schema) =>
         IsCurrent(schemaVersion, schema)
@@ -18,8 +19,8 @@ public static class CanonicalTransitionEvidenceContract
 }
 
 /// <summary>
-/// One mechanically qualified S + A(S) -> A -> S' row. Schema 2 is the sole
-/// current canonical format; the validator's legacy branch exists only for
+/// One mechanically qualified S + A(S) -> A -> S' row. Schema 3 supports native input without a public BoundAction; schema 2
+/// remains readable. The validator's legacy branch exists only for
 /// explicit archival callers and is never accepted by the current recorder.
 /// </summary>
 public sealed record CanonicalTransitionEvidence(
@@ -36,12 +37,13 @@ public sealed record CanonicalTransitionEvidence(
     string ActionWitnessId,
     string NativeMechanism,
     SemanticFrameReference PreStateRef,
-    RecordedBoundAction Action,
+    RecordedBoundAction? Action,
     SemanticFrameReference SuccessorRef,
     string ProofStatus,
     IReadOnlyList<string> Invariants,
     IReadOnlyList<string> NonClaims)
 {
+    public RecordedNativeInput? NativeInput { get; init; }
     public DecisionOccurrenceIdentity? Decision { get; init; }
     public string? ActionSpaceAuthority { get; init; }
     public ExecutionSemanticActionSpaceReference? ExecutionSemanticActionSpaceRef { get; init; }
@@ -102,12 +104,16 @@ public static class CanonicalTransitionEvidenceValidator
                 value.PreStateRef.SnapshotId,
                 value.PreStateRef.ContentSha256,
                 value.PreStateRef.ObjectRef,
-                value.Action.BoundActionId,
+                value.Action?.BoundActionId ?? value.NativeInput?.ActionKey,
                 value.SuccessorRef.SnapshotId,
                 value.SuccessorRef.ContentSha256,
                 value.SuccessorRef.ObjectRef
             }.Any(string.IsNullOrWhiteSpace))
             errors.Add("identity_missing");
+        if ((value.Action == null) == (value.NativeInput == null)
+            || (value.NativeInput != null && (value.SchemaVersion < 3
+                || value.ActionSpaceAuthority != "native_semantic_execution")))
+            errors.Add("canonical_action_binding_invalid");
         if (legacy && string.IsNullOrWhiteSpace(value.AdmissionEpochId))
             errors.Add("identity_missing");
         if (!legacy
