@@ -369,7 +369,7 @@ internal static partial class RecorderRuntime
             EvidenceIdentity.Sha256Json(CaptureProfile),
             CaptureProfile.SupportedActionFamilies,
             CaptureProfile.NonClaims.Append("not_human_validated").ToArray())
-        { DecisionSchemaVersion = DecisionOccurrenceIdentity.CurrentSchemaVersion };
+        { DecisionSchemaVersion = DecisionOccurrenceIdentity.CurrentSchemaVersion, DispositionSchemaVersion = 1, CloseSchemaVersion = 1 };
         RecordingSessionStore store = RecordingSessionStore.Create(
             _configuration.RecordingRoot,
             manifest,
@@ -635,29 +635,45 @@ internal static partial class RecorderRuntime
         TerminateClosePendingWork();
 
         RecordingStoreSnapshot snapshot;
-        lock (Gate)
+        try
         {
-            if (_lifecycle.State != RecordingLifecycleState.Closing
-                || HasPendingRecordingWorkUnsafe())
-                return;
-            AppendJournal("session_closed", null, _lastSnapshotId, "Session flushed and closed.");
-            RecordingSessionStore? store = _store;
-            store?.Dispose();
-            snapshot = store?.GetSnapshot() ?? _lastStoreSnapshot;
-            _lastStoreSnapshot = snapshot;
-            _store = null;
-            _sessionClosedAt = DateTimeOffset.UtcNow;
-            _lifecycle = RecordingLifecycleStateMachine.MarkClosed(_lifecycle, _sessionClosedAt.Value);
-            _closeout = new RecordingCloseoutStatus(
-                "closed",
-                _closeout.RequestedAt,
-                _sessionClosedAt,
-                "Session journal and evidence streams were flushed and closed.");
-            _runtimeState = "recording_closed";
-            _detail = _closeout.Detail;
-            Interlocked.Increment(ref _cardStageGeneration);
-            _requiredReadsHealth = "not_active";
-            ResetNativeActionTrackingUnsafe();
+            lock (Gate)
+            {
+                if (_lifecycle.State != RecordingLifecycleState.Closing
+                    || HasPendingRecordingWorkUnsafe())
+                    return;
+                AppendJournal("session_closed", null, _lastSnapshotId, "Session flushed and closed.");
+                RecordingSessionStore? store = _store;
+                store?.Dispose();
+                snapshot = store?.GetSnapshot() ?? _lastStoreSnapshot;
+                _lastStoreSnapshot = snapshot;
+                _store = null;
+                _sessionClosedAt = DateTimeOffset.UtcNow;
+                _lifecycle = RecordingLifecycleStateMachine.MarkClosed(_lifecycle, _sessionClosedAt.Value);
+                _closeout = new RecordingCloseoutStatus(
+                    "closed",
+                    _closeout.RequestedAt,
+                    _sessionClosedAt,
+                    "Session journal and evidence streams were flushed and closed.");
+                _runtimeState = "recording_closed";
+                _detail = _closeout.Detail;
+                Interlocked.Increment(ref _cardStageGeneration);
+                _requiredReadsHealth = "not_active";
+                ResetNativeActionTrackingUnsafe();
+            }
+        }
+        catch (Exception exception)
+        {
+            lock (Gate)
+            {
+                _store?.MarkDecisionAccountingUnavailable();
+                _closeDispositionPersistenceFailed = true;
+                _runtimeState = "close_durable_flush_failed";
+                _detail = exception.Message;
+                _closeout = _closeout with { State = "closing", Detail = "Durable close failed; accounting is unavailable and no completed close receipt exists." };
+            }
+            NativeUiObservationSafety.Report("recording.close.flush", exception);
+            return;
         }
         PublishApplicationEvent(RecordingEventKind.SessionClosed, detail: _closeout.Detail);
     }

@@ -8,6 +8,34 @@ namespace STS2HumanAnnotator.Core.Tests;
 public sealed class CurrentEvidenceTests
 {
     [Fact]
+    public void CloseWriteFailureLeavesAccountingUnavailableWithoutACompletedReceipt()
+    {
+        string root = Temp("close-receipt-failure");
+        RecordingSessionStore? store = null;
+        string? obstruction = null;
+        try
+        {
+            var profile = Profile();
+            var manifest = Manifest(profile) with { CloseSchemaVersion = 1 };
+            store = RecordingSessionStore.Create(root, manifest, profile);
+            obstruction = Path.Combine(store.DirectoryPath, "performance-profile.json");
+            Directory.CreateDirectory(obstruction); // actual I/O failure before terminal receipt
+            Assert.ThrowsAny<IOException>(() => store.Dispose());
+            var status = store.GetSnapshot();
+            Assert.False(status.Closed);
+            Assert.Equal("failed", status.AppendHealth);
+            Assert.Null(status.Counters.Decisions!.RealFailures);
+            Assert.False(File.Exists(Path.Combine(store.DirectoryPath, "session-close-receipt.json")));
+        }
+        finally
+        {
+            if (obstruction != null && Directory.Exists(obstruction)) Directory.Delete(obstruction);
+            store?.Dispose(); // explicit test cleanup after removing the fault; never a native retry
+            Delete(root);
+        }
+    }
+
+    [Fact]
     public void DurableDispositionCountersExcludeCancellationAndDiagnosticsAndDeduplicateExactFailure()
     {
         string root = Temp("disposition-counters");

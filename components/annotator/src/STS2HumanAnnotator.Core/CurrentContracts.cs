@@ -489,6 +489,8 @@ public sealed record CurrentRecordingManifest(
     IReadOnlyList<string> NonClaims)
 {
     public int? DecisionSchemaVersion { get; init; }
+    public int? DispositionSchemaVersion { get; init; }
+    public int? CloseSchemaVersion { get; init; }
 }
 
 public sealed record CurrentCoverageSummary(

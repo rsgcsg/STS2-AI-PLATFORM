@@ -299,7 +299,7 @@ public sealed class RecordingSessionStore : IDisposable
     {
         IReadOnlyList<string> errors = ExecutionSemanticActionSpaceValidator.Validate(value);
         if (errors.Count > 0
-            || !ExecutionSemanticActionSpaceContract.IsCurrent(value.SchemaVersion, value.Schema))
+            || (value.SchemaVersion != ExecutionSemanticActionSpaceContract.SchemaVersion || value.Schema != ExecutionSemanticActionSpaceContract.Schema))
             throw new InvalidDataException(
                 $"Execution semantic action space failed validation: {string.Join(',', errors)}");
         EnsureOpen();
@@ -462,7 +462,7 @@ public sealed class RecordingSessionStore : IDisposable
     {
         IReadOnlyList<string> errors = CanonicalTransitionEvidenceValidator.Validate(value);
         if (errors.Count > 0
-            || !CanonicalTransitionEvidenceContract.IsCurrent(value.SchemaVersion, value.Schema)
+            || (value.SchemaVersion != CanonicalTransitionEvidenceContract.SchemaVersion || value.Schema != CanonicalTransitionEvidenceContract.Schema)
             || value.SessionId != Manifest.SessionId
             || value.TimelineId != Manifest.TimelineId)
         {
@@ -512,7 +512,8 @@ public sealed class RecordingSessionStore : IDisposable
             || string.IsNullOrWhiteSpace(invalidation.InvalidationId)
             || string.IsNullOrWhiteSpace(invalidation.ReasonCode)
             || HumanActionOccurrenceEvidenceValidator.Validate(invalidation.HumanOccurrence).Count > 0
-            || RecordingDisposition.Validate(invalidation).Count > 0)
+            || RecordingDisposition.Validate(invalidation).Count > 0
+            || (Manifest.DispositionSchemaVersion == 1 && invalidation.Disposition == null))
             throw new InvalidDataException("Invalidation is invalid for this current recording.");
         EnsureOpen();
         ExecuteWrite(() =>
@@ -553,31 +554,51 @@ public sealed class RecordingSessionStore : IDisposable
         {
             if (_closed)
                 return;
-            WriteCoverage();
-            _performance.Measure("close_evidence_durable_flush", () =>
+            try
             {
+                WriteCoverage();
+                _performance.Measure("close_evidence_durable_flush", () =>
+                {
+                    foreach (FileStream stream in _decisionFiles.Values)
+                        stream.Flush(flushToDisk: true);
+                    _invalidations.Flush(flushToDisk: true);
+                    _journal.Flush(flushToDisk: true);
+                    _semanticBoundaryTrace.Flush(flushToDisk: true);
+                    _canonicalTransitions.Flush(flushToDisk: true);
+                    _nativeSemanticDiscriminator.Flush(flushToDisk: true);
+                });
+                WriteAtomic(
+                    Path.Combine(DirectoryPath, "performance-profile.json"),
+                    JsonSerializer.Serialize(
+                        _performance.Snapshot(Manifest.SessionId),
+                        EvidenceJson.IndentedOptions));
                 foreach (FileStream stream in _decisionFiles.Values)
-                    stream.Flush(flushToDisk: true);
-                _invalidations.Flush(flushToDisk: true);
-                _journal.Flush(flushToDisk: true);
-                _semanticBoundaryTrace.Flush(flushToDisk: true);
-                _canonicalTransitions.Flush(flushToDisk: true);
-                _nativeSemanticDiscriminator.Flush(flushToDisk: true);
-            });
-            foreach (FileStream stream in _decisionFiles.Values)
-                stream.Dispose();
-            _invalidations.Dispose();
-            _journal.Dispose();
-            _semanticBoundaryTrace.Dispose();
-            _canonicalTransitions.Dispose();
-            _nativeSemanticDiscriminator.Dispose();
-            WriteAtomic(
-                Path.Combine(DirectoryPath, "performance-profile.json"),
-                JsonSerializer.Serialize(
-                    _performance.Snapshot(Manifest.SessionId),
-                    EvidenceJson.IndentedOptions));
-            _closed = true;
-            _appendHealth = "closed";
+                    stream.Dispose();
+                _invalidations.Dispose();
+                _journal.Dispose();
+                _semanticBoundaryTrace.Dispose();
+                _canonicalTransitions.Dispose();
+                _nativeSemanticDiscriminator.Dispose();
+                if (Manifest.CloseSchemaVersion == 1)
+                {
+                    string receipt = Path.Combine(DirectoryPath, "session-close-receipt.json");
+                    string temporary = receipt + $".tmp-{Guid.NewGuid():N}";
+                    WriteCreateNew(temporary, JsonSerializer.Serialize(new {
+                        schema = "sts2.human-annotator/session-close-1",
+                        session_id = Manifest.SessionId, timeline_id = Manifest.TimelineId,
+                        closed_at = DateTimeOffset.UtcNow, status = "closed"
+                    }, EvidenceJson.IndentedOptions));
+                    File.Move(temporary, receipt); // only after evidence and receipt bytes flush successfully
+                }
+                _closed = true;
+                _appendHealth = "closed";
+            }
+            catch (Exception exception)
+            {
+                MarkWriteFailureUnsafe(exception);
+                _decisions = _decisions with { AccountingComplete = false };
+                throw;
+            }
         }
     }
 

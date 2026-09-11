@@ -66,6 +66,7 @@ internal static partial class RecorderRuntime
             }
             CurrentDecisionFrame pre = FreezeSemanticBoundary(frame, environment);
             string actionId = $"selector-decision-{Guid.NewGuid():N}";
+            _selectorInputAttempt = _selectorInputAttempt! with { OccurrenceId = actionId };
             string parentActionId = binding.DecisionHeadActionId ?? binding.ActionWitnessId;
             // This is the state owned by the exact native input callback, before
             // its mutation. It is never recovered from a later overlay/frame.
@@ -112,6 +113,7 @@ internal static partial class RecorderRuntime
             _selectorInputAttempt = null;
             return;
         }
+        bool acceptanceAppended = false;
         try
         {
             if (!accepted || _store == null) return;
@@ -119,7 +121,8 @@ internal static partial class RecorderRuntime
             {
                 _store.MarkDecisionAccountingUnavailable();
                 Quarantine("selector_acceptance_without_healthy_trace", "Native selector accepted after evidence accounting became unavailable.",
-                    input.Pre.SnapshotId, input.Mechanism, "evidence_commit_unknown", _selectorInputAttempt);
+                    input.Pre.SnapshotId, input.Mechanism, "evidence_commit_unknown", _selectorInputAttempt,
+                    decisionFailure: new RecordingDecisionFailure(input.ActionId, "capture", "nested_selector.decision"));
                 return;
             }
             long sequence = Interlocked.Increment(ref _sequence);
@@ -156,7 +159,10 @@ internal static partial class RecorderRuntime
                     return drafts;
                 });
                 PersistSemanticBoundaryDrafts(mutation.Drafts,
-                    onAuthoritativeSemanticAppend: mutation.MarkAuthoritativeAppend);
+                    onAuthoritativeSemanticAppend: () => {
+                        mutation.MarkAuthoritativeAppend();
+                        acceptanceAppended = true;
+                    });
             }
             input.Binding.DecisionHeadActionId = input.ActionId;
             AppendJournal("semantic_human_action_accepted", recordId, input.Pre.SnapshotId,
@@ -189,7 +195,7 @@ internal static partial class RecorderRuntime
             Quarantine("selector_acceptance_persistence_failed", exception.Message,
                 input.Pre.SnapshotId, input.Mechanism, "evidence_commit_unknown", _selectorInputAttempt,
                 decisionFailure: _selectorInputAttempt is { } attempt
-                    ? new RecordingDecisionFailure(attempt.OccurrenceId, "capture", "nested_selector.decision") : null);
+                    ? new RecordingDecisionFailure(input.ActionId, acceptanceAppended ? "persistence" : "capture", "nested_selector.decision") : null);
             DisableSemanticBoundaryTrace(exception);
         }
         finally

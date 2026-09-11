@@ -174,6 +174,9 @@ public static class RecordingSessionAuditor
                 Add(errors, "invalidation_identity_invalid");
                 continue;
             }
+            if (manifest.DispositionSchemaVersion is not (null or 1)
+                || (manifest.DispositionSchemaVersion == 1 && value.Disposition == null))
+                Add(errors, "invalidation_disposition_schema_mismatch");
             foreach (string error in RecordingDisposition.Validate(value))
                 Add(errors, error);
             foreach (string error in HumanActionOccurrenceEvidenceValidator.Validate(value.HumanOccurrence))
