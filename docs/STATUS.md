@@ -1,20 +1,11 @@
-<!-- Latest PR25 audit: see current exact refs and candidate in BOM. -->
-
-Latest Human round: [rc.3 two-session audit and rc.4 repair](evidence/PR25_RC3_TWO_SESSION_AUDIT_2026-09-11.md).
-First session has a disposition conflict and capture/successor failures; second
-has zero true failures but no recorded native start. PR25 remains Draft.
-
 # Current Status
 
-The latest two-session audit and reward-owner repair are documented in
-[the current repair report](evidence/PR25_TWO_SESSION_REWARD_HANDOFF_2026-09-11.md).
-The victory session still has one real unresolved decision; PR25 remains Draft.
-
-The preceding final engineering closeout is documented in
-[the exact closeout report](evidence/PR25_FINAL_ENGINEERING_2026-09-11.md).
-It consolidates the current data path and UI; final exact-candidate Human
-qualification remains pending. Latest GitHub refs and runtime receipts override
-this index. No predecessor session qualifies rebuilt bytes.
+PR25 rc.4 passes the bounded Full-Run Human gate: two uninterrupted native starts
+through natural defeat, all 524 accepted decisions proved/canonical, zero real
+failures or unexplained loss, and independently verified bundle3.
+See the [final exact Human audit](evidence/PR25_RC4_FULL_RUN_HUMAN_PASS_2026-09-12.md).
+Resolve live PR25/merge refs and CI for integration status. Main release promotion
+and external research admission are separate from this develop integration.
 
 See [current context](memory/CURRENT.md), [data contracts](FULL_RUN_DATA_CHAIN.md)
 and [collection / future repairs](ANNOTATOR_COLLECTION.md).
@@ -22,6 +13,10 @@ and [collection / future repairs](ANNOTATOR_COLLECTION.md).
 ## Historical evidence
 
 These dated reports describe their own exact candidates, not current readiness.
+
+- [rc.3 audit and rc.4 repair](evidence/PR25_RC3_TWO_SESSION_AUDIT_2026-09-11.md)
+- [reward-owner repair](evidence/PR25_TWO_SESSION_REWARD_HANDOFF_2026-09-11.md)
+- [final engineering cleanup](evidence/PR25_FINAL_ENGINEERING_2026-09-11.md)
 
 - [audit and repair](evidence/PR25_BLOCKING_CHOICE_REPAIR_2026-09-11.md)
 - [audit and repair](evidence/PR25_REWARD_OWNER_NOOP_REPAIR_2026-09-11.md)
