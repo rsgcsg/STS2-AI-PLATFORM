@@ -27,7 +27,7 @@ Modset `e678bfdb6d545a2fbb9020906cc847e384c5c02040d7adde52aa661acdd3cc96`.
 
 All 1895 original files were hashed before audit and remain byte-for-byte
 unchanged after audit/packing/verification. Private receipts are under
-`.local/pr25-rc4-final-human/`. No source fix, gameplay input, deployment,
+`.local/pr25-rc4-final-human/`. No production/native source fix, gameplay input, deployment,
 recording edit or historical-evidence promotion was performed in this round.
 
 ## Run and disposition audit
@@ -110,7 +110,10 @@ external responsibilities.
 
 ## Integration and support
 
-This closeout changes evidence/docs/BOM only. The native candidate retains its
+This closeout changes evidence/docs/BOM and one portable negative test fixture.
+The fixture now explicitly removes Human evidence before asserting that a
+fabricated PASS is rejected; the previous fixture depended on the live BOM
+still being pending. The validator and qualification standard are unchanged. The native candidate retains its
 existing clean exact-game/build/install/load evidence; no rebuild or cold load
 is needed to restate unchanged bytes. Full root/project/BOM checks and exact-head
 hosted Linux/Windows/portable CI qualify the final source head separately.
