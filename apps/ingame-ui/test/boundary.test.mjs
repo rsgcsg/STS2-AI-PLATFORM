@@ -166,6 +166,16 @@ test("Failure styling consumes owner disposition rather than invalidation kind",
   assert.doesNotMatch(feed, /IsFailure[\s\S]{0,120}DecisionInvalidated/u);
 });
 
+test("Compact Policy preserves unavailable mode and Recorder detail label fits its header", () => {
+  const summary = mod.split("\n").find((line) => line.includes("_compactSummary.Text") && line.includes("PolicyRuntime?.Mode"));
+  assert.ok(summary, "compact Policy status must project the observed runtime mode");
+  assert.match(summary, /PolicyRuntime\?\.Mode \?\? "unavailable"/u);
+  assert.match(summary, /PolicyRuntime\?\.Controller \?\? "unavailable"/u);
+  assert.doesNotMatch(summary, /\?\? "Human"/u);
+  assert.match(mod, /recorderHeader\.AddChild\(BuildHeaderButton\("Details"/u);
+  assert.doesNotMatch(mod, /BuildHeaderButton\("Session details"/u);
+});
+
 test("Closed UI does not poll and Recorder does not materialize Connector snapshots", () => {
   const refresh = mod.slice(mod.indexOf("private void RefreshVisibleStatus()"), mod.indexOf("private async Task SetRuntimeModeAsync"));
   assert.match(refresh, /if \(!_workspace\.Visible \|\| _disposed\)\s+return/u);

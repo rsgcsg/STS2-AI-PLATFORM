@@ -560,7 +560,7 @@ internal sealed class PlatformLivePanel : IDisposable
         _recorderTitle.AddThemeColorOverride("font_color", TextPrimary);
         var recorderHeader = new HBoxContainer();
         recorderHeader.AddChild(_recorderTitle);
-        recorderHeader.AddChild(BuildHeaderButton("Session details", () =>
+        recorderHeader.AddChild(BuildHeaderButton("Details", () =>
             _recorderCountScope.Visible = !_recorderCountScope.Visible,
             "Show session accounting and retained-view status."));
         body.AddChild(recorderHeader);
@@ -1118,7 +1118,7 @@ internal sealed class PlatformLivePanel : IDisposable
         _agentRunSummary.Text = FormatAgentRun(status);
         if (_layout.ActiveSurface == "agent_run")
         {
-            _compactSummary.Text = $"{status.PolicyRuntime?.Mode ?? "Human"} · {status.PolicyRuntime?.Controller ?? "unavailable"}";
+            _compactSummary.Text = $"{status.PolicyRuntime?.Mode ?? "unavailable"} · {status.PolicyRuntime?.Controller ?? "unavailable"}";
             _compactRecent.Text = status.PolicyRuntime == null
                 ? "Policy Runtime unavailable.\nHuman control remains available in the game."
                 : $"{status.PolicyRuntime.Policy.PolicyId}\n{status.PolicyRuntime.LastDecision?.BoundActionLabel ?? "No decision yet"}\nReceipt: {status.Receipt.Status}";
