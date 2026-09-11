@@ -32,6 +32,7 @@ internal static partial class RecorderRuntime
         NHandCardHolder Holder,
         long Generation,
         IReadOnlyList<string> Blockers,
+        IReadOnlyList<string> SemanticBlockers,
         string NativeReadiness);
 
     private sealed record ArmedPotionUse(
@@ -769,6 +770,7 @@ internal static partial class RecorderRuntime
             var staged = new StagedCardFrame(
                 new ExactDecisionFrame(frame, environment), holder, Volatile.Read(ref _cardStageGeneration),
                 EligibilityBlockers(frame, environment, requireReads: true),
+                SemanticStateBlockers(frame, environment),
                 DescribeNativeCardReadiness(holder.CardModel));
             // The native factory below runs inside this StartCardPlay invocation.
             return StagedCardPlays.Enter(staged);
@@ -1112,6 +1114,19 @@ internal static partial class RecorderRuntime
                     && ReferenceEquals(staged.Holder.CardModel, stagedCard)
                     && IsExact(staged.Decision.Frame.Resolve(expectedAction)))
                     selected = staged.Decision.Frame;
+                else if (staged != null && sameGeneration
+                    && ReferenceEquals(staged.Holder.CardModel, stagedCard)
+                    && staged.Decision.Frame.Snapshot.Interaction.Kind == "combat_turn"
+                    && staged.SemanticBlockers.Count == 0)
+                {
+                    // H belongs to this exact native CardPlay factory. Public
+                    // settling does not erase H when combat ends before release.
+                    // OnEnqueued still binds exact operands; only execution can
+                    // supply S + A(S), and a queued cancellation supplies no S'.
+                    HumanActionScope.Enter(origin, expectedNativeActionType, expectedAction,
+                        staged.Decision.Frame, occurrence: occurrence, nativeInputBinding: true);
+                    return new NativeUiScopeEntry(true, false);
+                }
             }
 
             if (selected == null)

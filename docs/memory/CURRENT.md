@@ -2,23 +2,24 @@
 
 Resolve live GitHub refs, source, BOM, CI and loaded identity before using this
 handoff. Current repository/runtime authorities override this file.
-PR25 remains Draft after the two-session Human audit. 1215 accepted decisions
-produced 1211 canonical, two native cancellations, one pre-Commit abort and one
-real unresolved event decision. The victory session has uninterrupted native
-start/terminal evidence but the event reward/potion handoff prevents all-valid
-Full-Run qualification. Knowledge Demon independent choices are now observed.
 
-The owning repair observes the exact reward input owner at native screen opening
-and synchronous parent callback return, before an independent potion effect.
-Calibration also preserves a valid predecessor boundary when the next card aborts.
-See [audit and repair](../evidence/PR25_TWO_SESSION_REWARD_HANDOFF_2026-09-11.md).
+PR25 remains Draft. The two rc.3 Human recordings contain 416 accepted roots /
+decisions and 407 canonical transitions. The first session fails structural
+audit: two queued cancellations also received earlier unknown dispositions.
+Its remaining failures are a combat-end card capture and missing map-opening
+successors. The second session has 335 canonical, one native cancellation and
+zero true failures, but starts in progress. Neither is an uninterrupted all-valid
+native-start-to-terminal Full Run.
 
-Annotator 0.3.0-rc.3 / Platform 0.2.0-rc.3 are the repair candidate; verify the
-BOM's final candidate and live receipts. Old Human bytes remain unchanged and do
-not qualify the repaired artifact. The next Human gate covers event reward +
-full belt discard-before-claim, selectors/rapid paths and an uninterrupted native
-start through natural terminal.
+The rc.4 repair retains exact CardPlay-factory H during public settling,
+keeps terminal dispositions unique, and observes synchronous reward/treasure
+Proceed map ownership at native return. See the
+[rc.3 audit and repair](../evidence/PR25_RC3_TWO_SESSION_AUDIT_2026-09-11.md).
+Exact build/load receipts and BOM own the next candidate; Human qualification
+never transfers from rc.3 bytes.
 
 ## Remaining Platform non-claims
 
-No STPD adapter/training admission is implied.
+Final Human gate: combat-end rapid queue, Proceed/map return/close, recent
+selector/potion/event/rest paths and uninterrupted native start to natural
+terminal. No STPD adapter/training admission is implied.

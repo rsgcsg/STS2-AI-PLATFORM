@@ -1266,20 +1266,41 @@ internal static class NativeTreasureProceedCompletionPatch
             typeof(RunManager).FullName,
             "ProceedFromTerminalRewardsScreen");
 
-    private sealed record OwnerState(object? Owner, object? Operand);
+    private sealed record OwnerState(object? Owner, object? Operand, NMapScreen? Map, bool MapWasOpen);
     private static void Prefix(out OwnerState __state) =>
         __state = new(NativeUiCompletionRootBindings.CurrentRewardOrTreasureOwner(),
             NOverlayStack.Instance?.Peek() is NRewardsScreen
                 ? NativeRewardUiContext.CurrentRewardsSet()
-                : NativeTreasureUiContext.CurrentRoom());
+                : NativeTreasureUiContext.CurrentRoom(), NMapScreen.Instance, NMapScreen.Instance?.IsOpen == true);
 
-    private static void Postfix(RunManager __instance, Task __result, OwnerState __state) =>
+    private static void Postfix(RunManager __instance, Task __result, OwnerState __state)
+    {
+        // Proceed's ordinary terminal-reward branch opens the map synchronously.
+        // Observe Commit and the distinct input-owner boundary before returning
+        // to Human input, not after a frame-loop completion transport delay.
+        if (__result.IsCompletedSuccessfully && !__state.MapWasOpen
+            && __state.Map is { IsOpen: true } map
+            && ReferenceEquals(NMapScreen.Instance, map)
+            && NativeUiCompletionRootBindings.TryGet(__state.Owner, out string? root)
+            && root != null && HumanActionScope.Current is { } context
+            && context.ActionWitnessId == root
+            && context.CompletionExpectation is { Family: "reward_proceed" or "treasure_proceed" } completion)
+        {
+            if (RecorderRuntime.ObserveSemanticUiNativeCommit(root, completion.Family,
+                "RunManager.ProceedFromTerminalRewardsScreen", __instance, __state.Operand))
+            {
+                NativeUiCompletionRootBindings.TakeIfMatches(__state.Owner, root);
+                NativeDecisionOwnerReadyProvider.ObserveMapProceedReady(map);
+            }
+            return;
+        }
         RecorderRuntime.QueueNativePostCommitBoundary(
             __result,
             "RunManager.ProceedFromTerminalRewardsScreen",
             nativeOwner: __instance,
             nativeOperand: __state.Operand,
             completionRootOwner: __state.Owner);
+    }
 }
 
 [HarmonyPatch]

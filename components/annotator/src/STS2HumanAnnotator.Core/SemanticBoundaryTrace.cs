@@ -523,6 +523,10 @@ public sealed class SemanticBoundaryTracker
     public IReadOnlyList<SemanticBoundaryTraceDraft> AbortedBeforeCommit(string actionWitnessId)
     {
         Entry entry = Required(actionWitnessId);
+        // Native lifecycle may arrive after an irreversible unknown/proof.
+        // It cannot append a second disposition or restore a stale current S.
+        if (entry.Disposed)
+            return Array.Empty<SemanticBoundaryTraceDraft>();
         entry.Disposed = true;
         _currentState = entry.SemanticPre;
         return new[]
@@ -540,8 +544,12 @@ public sealed class SemanticBoundaryTracker
     public IReadOnlyList<SemanticBoundaryTraceDraft> Cancelled(string actionWitnessId)
     {
         Entry entry = Required(actionWitnessId);
-        entry.Disposed = true;
         entry.NativeLifecycleTerminal = true;
+        // Native lifecycle may arrive after an irreversible unknown/proof.
+        // It cannot append a second disposition or restore a stale current S.
+        if (entry.Disposed)
+            return Array.Empty<SemanticBoundaryTraceDraft>();
+        entry.Disposed = true;
         if (entry.Started)
             _currentState = null;
         return new[]

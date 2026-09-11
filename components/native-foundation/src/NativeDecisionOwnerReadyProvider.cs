@@ -3,6 +3,7 @@ using System.Runtime.CompilerServices;
 using Godot;
 using MegaCrit.Sts2.Core.Nodes.Screens.GameOverScreen;
 using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
+using MegaCrit.Sts2.Core.Nodes.Screens.Map;
 using MegaCrit.Sts2.Core.Nodes.Screens.ScreenContext;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Context;
@@ -33,6 +34,25 @@ public static class NativeDecisionOwnerReadyProvider
     public const string GameOverDomain = "game_over";
     public const string GameOverMechanism =
         "NGameOverScreen.AnimateIn->NGameOverContinueButton.OnEnable.postfix";
+
+    public const string MapProceedMechanism =
+        "RunManager.ProceedFromTerminalRewardsScreen->NMapScreen.Open.return";
+
+    // Called at the synchronous native Proceed return, only when that invocation
+    // changed its exact map owner from closed to open. Animations are not proof.
+    public static bool ObserveMapProceedReady(NMapScreen screen)
+    {
+        if (!ReferenceEquals(NMapScreen.Instance, screen) || !screen.IsOpen
+            || !screen.IsVisibleInTree() || !ActiveScreenContext.Instance.IsCurrent(screen)
+            || RunManager.Instance.DebugOnlyGetState() is not { } run
+            || run.IsGameOver || RunManager.Instance.IsCleaningUp
+            || run.Players.Count != 1 || LocalContext.GetMe(run) == null)
+            return false;
+        Observed?.Invoke(new NativeDecisionOwnerReadyObservation(
+            "map_navigation", screen, screen.GetType().FullName ?? screen.GetType().Name,
+            MapProceedMechanism));
+        return true;
+    }
 
     private static readonly ConditionalWeakTable<NGameOverScreen, RunState> GameOverOwners = new();
 

@@ -1,3 +1,9 @@
+<!-- Latest PR25 audit: see current exact refs and candidate in BOM. -->
+
+Latest Human round: [rc.3 two-session audit and rc.4 repair](evidence/PR25_RC3_TWO_SESSION_AUDIT_2026-09-11.md).
+First session has a disposition conflict and capture/successor failures; second
+has zero true failures but no recorded native start. PR25 remains Draft.
+
 # Current Status
 
 The latest two-session audit and reward-owner repair are documented in

@@ -217,3 +217,18 @@ an independent potion input can intervene. A synchronously opened screen is
 observed on the same outer callback return after parent admission, only if its
 registered parent matches that callback exactly. Neither path waits for the
 first reward click, reassigns a potion input as a child, or repairs an old unknown.
+
+A state-complete combat H captured at the exact CardPlay factory remains the
+Human observation even if public delivery is settling and combat ends before
+release. Exact owner, generation, card, operand mapping, identity and Reads
+still gate admission. That H never supplies execution S or legality. Native
+queued cancellation remains cancellation; late cancellation/abort cannot
+append another disposition after a durable unknown or restore an old state.
+
+For the synchronous terminal-reward/treasure Proceed branch, native completion
+and closed-to-open map ownership are observed at the same native return. The
+existing exact completion binding admits only its own Human scope; the shared
+owner-ready provider independently exposes the current map owner. Connector
+must supply a complete map frame at that seam. Async event return, already-open
+map, missing binding or incomplete state remains on the existing fail-closed
+path. Closing the map for presentation cannot erase an already proved boundary.

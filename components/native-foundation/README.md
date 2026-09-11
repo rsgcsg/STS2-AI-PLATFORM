@@ -33,7 +33,8 @@ Current bounded ownership:
   `ActChangeSynchronizer.OnPlayerReady` owner-ready seams, with a conditional
   next-boundary description that never claims `EnterNextAct` has completed;
 - `NativeDecisionOwnerReadyProvider`: typed process-local notification from an
-  exact combat-turn or factory-bound game-over intro owner-ready seam;
+  exact combat-turn, synchronous Proceed map-opening, or factory-bound game-over
+  intro owner-ready seam;
   consumers must still capture and validate a complete
   Connector frame at that seam;
 - `NativeDomainOwnerProbe`: cross-domain owner discriminator only.

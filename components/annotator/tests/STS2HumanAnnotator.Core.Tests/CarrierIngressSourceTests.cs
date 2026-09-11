@@ -4,6 +4,35 @@ namespace STS2HumanAnnotator.Core.Tests;
 public sealed class CarrierIngressSourceTests
 {
     [Fact]
+    public void SettlingCardObservationKeepsExactFactoryFrameAndExecutionAuthority()
+    {
+        string runtime = Source("RecorderRuntime.cs");
+        int stage = runtime.IndexOf("else if (staged != null && sameGeneration");
+        int capture = runtime.IndexOf("current = CaptureReadRichFrame()", stage);
+        string branch = runtime[stage..capture];
+        Assert.Contains("ReferenceEquals(staged.Holder.CardModel, stagedCard)", branch);
+        Assert.Contains("staged.SemanticBlockers.Count == 0", branch);
+        Assert.Contains("staged.Decision.Frame, occurrence: occurrence, nativeInputBinding: true", branch);
+        Assert.DoesNotContain("semanticSelection:", branch);
+    }
+
+    [Fact]
+    public void SynchronousProceedUsesExactOwnerCommitBeforeMapBoundary()
+    {
+        string source = Source("NativeUiPatches.cs");
+        int start = source.IndexOf("internal static class NativeTreasureProceedCompletionPatch");
+        int end = source.IndexOf("internal static class NativeRewardClaimStartPatch", start);
+        string patch = source[start..end];
+        Assert.Contains("__result.IsCompletedSuccessfully && !__state.MapWasOpen", patch);
+        Assert.Contains("context.ActionWitnessId == root", patch);
+        Assert.Contains("ReferenceEquals(NMapScreen.Instance, map)", patch);
+        int commit = patch.IndexOf("RecorderRuntime.ObserveSemanticUiNativeCommit");
+        int boundary = patch.IndexOf("NativeDecisionOwnerReadyProvider.ObserveMapProceedReady");
+        int queued = patch.IndexOf("RecorderRuntime.QueueNativePostCommitBoundary");
+        Assert.True(commit >= 0 && boundary > commit && queued > boundary);
+    }
+
+    [Fact]
     public void RewardOpeningObservesExactOwnerBeforeAnyRewardOrPotionInput()
     {
         string source = Source("NativeRewardDecisionLineage.cs");

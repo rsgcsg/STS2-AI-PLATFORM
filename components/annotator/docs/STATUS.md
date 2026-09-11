@@ -5,12 +5,12 @@ PR25 is in final engineering closeout. Current source/test candidates remain
 Resolve exact refs, installed source/SHA/MVID, CI and current runtime from PR25
 and owning lifecycle receipts; do not infer identity from this page.
 
-The latest pre-cleanup Human session (2026-09-11 09:00 UTC) has 468 accepted
-inputs, 467 canonical, one native pre-execution cancellation and zero unresolved.
-All 71 children/parents are canonical; 49 invalidations are internal diagnostics.
-The run was interrupted and resumed. Knowledge Demon independent choice remains
-unexercised on the blocking-context repair. These bytes do not qualify the new
-UI, bundle or native staging changes.
+The latest rc.3 pair has 416 accepted and 407 canonical decisions. One session
+fails structural audit because late queued cancellation follows terminal unknown;
+the other has 335 canonical / one native cancellation / no true failure, but
+starts in progress. All 30 recorded selector children have canonical parents.
+See the [current audit](../../../docs/evidence/PR25_RC3_TWO_SESSION_AUDIT_2026-09-11.md).
+The rc.4 fixes are a new Human candidate, not a promotion of those bytes.
 
 Current engineering path: trace4, canonical3 and exact state/catalog/Read objects;
 canonical-first bundle3; explicit compatibility record2/bundle2 and archival

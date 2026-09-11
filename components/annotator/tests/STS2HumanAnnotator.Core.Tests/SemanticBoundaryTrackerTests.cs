@@ -10,6 +10,68 @@ public sealed class SemanticBoundaryTrackerTests
     private static readonly DateTimeOffset T0 = DateTimeOffset.Parse("2026-08-26T00:00:00Z");
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void LateNativeRejectionCannotReplaceDurableUnknown(bool abort)
+    {
+        var tracker = new SemanticBoundaryTracker();
+        var all = new List<SemanticBoundaryTraceDraft>();
+        all.AddRange(tracker.Accept(Action("card", 1), State("human")));
+        if (abort)
+        {
+            all.AddRange(tracker.ObserveBeforeActionExecution("card", Boundary("execution", "card")));
+            all.AddRange(tracker.Started("card"));
+        }
+        all.AddRange(tracker.ObserveUnrecordedHumanEffect("unrecorded-input"));
+        Assert.Empty(abort ? tracker.AbortedBeforeCommit("card") : tracker.Cancelled("card"));
+        Assert.Empty(tracker.Cancelled("card"));
+        Assert.Empty(tracker.CloseUnknown("closed"));
+        Assert.Empty(SemanticBoundaryTraceValidator.Validate(all.Select((d, n) => Event(n + 1, d)).ToArray()));
+    }
+
+    [Fact]
+    public void QueuedCardCancellationAfterCombatDoesNotPoisonCommittedPredecessor()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        var all = new List<SemanticBoundaryTraceDraft>();
+        all.AddRange(tracker.Accept(Action("lethal", 1), State("lethal-h")));
+        all.AddRange(tracker.ObserveBeforeActionExecution("lethal", Boundary("combat", "lethal")));
+        all.AddRange(tracker.Started("lethal"));
+        all.AddRange(tracker.Accept(Action("queued", 2), State("staged-h")));
+        all.AddRange(tracker.Finished("lethal"));
+        all.AddRange(tracker.Cancelled("queued"));
+        Assert.Empty(tracker.Cancelled("queued"));
+        all.AddRange(tracker.Accept(Action("reward", 3), State("reward", "reward_claim")));
+        all.AddRange(tracker.ObserveBeforeActionExecution("reward", Boundary("reward", "reward", "reward_claim")));
+        all.AddRange(tracker.CloseUnknown("closed"));
+        Assert.Contains(all, d => d.Kind == SemanticBoundaryTraceKinds.TransitionProved && d.Action.ActionWitnessId == "lethal");
+        Assert.DoesNotContain(all, d => d.Kind == SemanticBoundaryTraceKinds.TransitionUnknown && d.Action.ActionWitnessId == "queued");
+        Assert.Empty(SemanticBoundaryTraceValidator.Validate(all.Select((d, n) => Event(n + 1, d)).ToArray()));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ProceedMapOwnerBoundarySurvivesPresentationReturnToRewards(bool captureOwner)
+    {
+        var tracker = new SemanticBoundaryTracker();
+        var all = new List<SemanticBoundaryTraceDraft>();
+        all.AddRange(tracker.Accept(Action("proceed", 1) with { RequiresNativePostCommit = true }, State("rewards", "reward_claim")));
+        all.AddRange(tracker.ObserveBeforeActionExecution("proceed", Boundary("rewards", "proceed", "reward_claim")));
+        all.AddRange(tracker.Started("proceed"));
+        all.AddRange(tracker.Finished("proceed"));
+        all.AddRange(tracker.ObserveNativeCommit("proceed", Completion("proceed")));
+        if (captureOwner) all.AddRange(tracker.ObserveDecisionBoundary(PostCommitBoundary("map-open", "map_navigation")));
+        // The player closes the map and selects another reward. Presentation
+        // return cannot retroactively replace the native map-opening boundary.
+        all.AddRange(tracker.Accept(Action("reward", 2), State("rewards", "reward_claim")));
+        all.AddRange(tracker.ObserveBeforeActionExecution("reward", Boundary("rewards", "reward", "reward_claim")));
+        all.AddRange(tracker.CloseUnknown("closed"));
+        Assert.Equal(captureOwner, all.Any(d => d.Kind == SemanticBoundaryTraceKinds.TransitionProved && d.Action.ActionWitnessId == "proceed"));
+        Assert.Empty(SemanticBoundaryTraceValidator.Validate(all.Select((d, n) => Event(n + 1, d)).ToArray()));
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public void DelayedPotionAdmissionCannotMixItsEffectIntoEndTurnSuccessor(bool exactInput)
