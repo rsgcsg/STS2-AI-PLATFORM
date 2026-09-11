@@ -83,10 +83,41 @@ cross-language tooling compatibility, not Human qualification of new code.
 
 ## Validation and final Human gate
 
-Final exact source, portable/exact-game/CI/build/load and review receipts are
-recorded at the PR's final candidate head. Engineering validation is in progress;
-no new candidate Human PASS is claimed here. Raw sessions, native decompilation,
-logs, packages and local receipts remain outside Git.
+Engineering validation passed on source/build workspace
+`9ca0168016e486cefa184394bd7571a4a59d27ac`: complete root gates, Annotator Core
+248, Evidence 41, Live UI 17 suites, Game Mod 63, exact-game compilation and
+unified build. Hosted Linux/Windows/portable CI
+[34591290725](https://github.com/rsgcsg/STS2-AI-PLATFORM/actions/runs/34591290725)
+passed on that exact head. Subsequent report/contract wording and BOM commits do
+not change compiled native source; the PR records their latest-head CI separately.
+Independent review findings about proved projection coverage, close receipts,
+typed evidence and UI unknown-state wording were fixed with regressions. The
+Windows filesystem-failure regression accepts the platform's actual IOException
+or UnauthorizedAccessException while retaining all failed-close assertions.
+
+The unique installed and cold-loaded candidate is:
+
+| Identity | Value |
+| --- | --- |
+| Platform package | `0.2.0-rc.2` |
+| DLL SHA-256 | `94ff3849e87954efa86f824876e334cb43c130c62227c63e2c7682dad7f928f8` |
+| DLL MVID | `49525b2e-bf11-4117-bae6-fb8fc23861b1` |
+| Native Annotator source | `5752e27c5c71b0345708a02c80fe3d82667520bf` |
+| Native UI source | `d37c22404f48944c995e484694699abb31fe1c6a` |
+| Runtime | `d7cfd290292343ffa6069214789ab24f` |
+| Game | `v0.111.0 / 41cef1ea` |
+| Game assembly SHA-256 | `9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4` |
+| Environment fingerprint | `1167d85aff101e686a6de78a6c22a860d9f5f94f9233b9f1198edecd1b5cd259` |
+| Modset fingerprint | `802652faa35fdaeb10661bc9d914944b1586d7adb7b21bb84bb529be6a27bf0f` |
+| Rollback receipt | `apps/game-mod/.local/deployments/2026-09-11T10-55-44.553Z` |
+
+`game-mod:verify-loaded` passed with UI toggle canary observed, one process and
+Recorder Ready with no open session. Automated visual inspection confirmed the
+launcher, normal Recorder and Details button, compact counts/latest-three,
+restore, and compact Policy's unavailable runtime/mode. The game is left at the
+main menu with normal Recorder ready for New Session. This is load/UI evidence,
+not gameplay, Human visibility PASS or a new candidate Human PASS. Raw sessions,
+native decompilation, logs, packages and local receipts remain outside Git.
 
 The final Human gate covers: (1) fresh uninterrupted native start through natural
 terminal; (2) independent blocking and parent/child pile/generated selectors;
