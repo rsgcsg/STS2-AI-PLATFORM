@@ -1243,7 +1243,7 @@
         "component_source_digest_sha256": "16a2f56f4ad07b728f370a7fd0fca0ebfbf67bd27070733f64dbab8ec2dfe95b"
       }
     },
-    "stage": "source_candidate",
+    "stage": "loaded_candidate",
     "human_gate": "pending",
     "evidence_transfer_from_predecessor": false,
     "evidence_report": "docs/evidence/PR25_RC3_TWO_SESSION_AUDIT_2026-09-11.md",
@@ -1253,6 +1253,54 @@
       "uninterrupted_exact_candidate_full_run_pending",
       "no_stpd_adapter_or_research_admission",
       "no_exhaustive_surface_or_crash_recovery_claim"
-    ]
+    ],
+    "artifact_sha256": "af4dfd93a4236b50aadbff8e9c055a519b20e842c582ab392d7748845df40cc8",
+    "artifact_mvid": "1d53eae8-3353-4802-88fa-0eb3538fa217",
+    "workspace_revision_at_build": "ab4ee5303c8302ae209dd62c4d766a6764ebec51",
+    "runtime_instance_id": "d29a8620f6f64c398211550b3f2194f6",
+    "environment_fingerprint": "65c4eede4ea5455feef42853bc72c5ef13bfe30e0e85f385c81611bc4bc36f9b",
+    "modset_fingerprint": "e678bfdb6d545a2fbb9020906cc847e384c5c02040d7adde52aa661acdd3cc96",
+    "rollback": "apps/game-mod/.local/deployments/2026-09-11T13-34-00.772Z",
+    "loaded_native_source": {
+      "native_foundation": {
+        "source_revision": "69166fa90e79c1f6a2b2c9eb2e8603941277b63a",
+        "source_digest_sha256": "e08587a95b50831579919997a1dd9882d9349c7e7c1416ae086e439d355cfd9a",
+        "component_tree_revision": "18950756d9c039a68cf16fb6b738d25086690978",
+        "component_worktree_status": "clean",
+        "file_count": 14
+      },
+      "connector": {
+        "source_revision": "08cc7f0449a17562ba85eb841ab6d28732519775",
+        "source_digest_sha256": "407d45be73baf000c9a66d74611cd9382332f31b471a889a98e0dbaa2bd4a1e8",
+        "component_tree_revision": "78770d75a5f402bd5dec33d106eec4cfc752a68e",
+        "component_worktree_status": "clean",
+        "file_count": 76
+      },
+      "annotator": {
+        "source_revision": "e65632c58879e3240cd0febbd247d088b534b0a6",
+        "source_digest_sha256": "80f9c1f9e2a075e30ad1ec9ed7a0ba26fcee02ece7d566c01b920e9301ee0f74",
+        "component_tree_revision": "f4f028b8b0791e6bda4ff98521454184a410b90f",
+        "component_worktree_status": "clean",
+        "file_count": 57
+      },
+      "live_ui": {
+        "source_revision": "d37c22404f48944c995e484694699abb31fe1c6a",
+        "source_digest_sha256": "95fe76afac27e4616ea12e2ecc5f0af30e868a2f024dd96668ca763b4e74cf4b",
+        "component_tree_revision": "a68d94b445949fa1cd13561a8f45c671072793fc",
+        "component_worktree_status": "clean",
+        "file_count": 6
+      },
+      "game_mod": {
+        "source_revision": "69166fa90e79c1f6a2b2c9eb2e8603941277b63a",
+        "source_digest_sha256": "7a4d401fa79bb38d7722fc242228734aae0dedba91df4ac888ff6a6e6cfca68a",
+        "component_tree_revision": "84e97fbb6c8f455c4ecc282381509037873f0c4f",
+        "component_worktree_status": "clean",
+        "file_count": 4
+      }
+    },
+    "automated_ui_check": {
+      "status": "pass",
+      "detail": "CUA observed main menu and Human Recorder Ready/New Session after cold load; no session or gameplay started."
+    }
   }
 }

@@ -168,3 +168,41 @@ The next bounded Human gate is:
 
 A missing or partial native boundary stays unknown. Any true failure or failed
 structural audit blocks ready/merge; owner Human gameplay is never automated.
+
+## Exact rc.4 handoff
+
+The owning source repair is `69166fa90e79c1f6a2b2c9eb2e8603941277b63a` with
+family-neutral completion correction `e65632c58879e3240cd0febbd247d088b534b0a6`.
+The full portable root gate passes, including Annotator Core 258 tests and Game
+Mod 63 tests. Exact-game and clean unified build pass at workspace
+`ab4ee5303c8302ae209dd62c4d766a6764ebec51`.
+An initial full gate rejected hard-coded reward/treasure families at the shared
+completion seam; the corrected implementation consumes its exact completion
+expectation and retains the existing family-neutral contract.
+
+Platform 0.2.0-rc.4 / Annotator 0.3.0-rc.4 were installed and cold-loaded:
+
+- DLL SHA256 `af4dfd93a4236b50aadbff8e9c055a519b20e842c582ab392d7748845df40cc8`
+- MVID `1d53eae8-3353-4802-88fa-0eb3538fa217`
+- Native Annotator source `e65632c58879e3240cd0febbd247d088b534b0a6`
+- Native Game Mod source `69166fa90e79c1f6a2b2c9eb2e8603941277b63a`
+- Runtime `d29a8620f6f64c398211550b3f2194f6`
+- Environment `65c4eede4ea5455feef42853bc72c5ef13bfe30e0e85f385c81611bc4bc36f9b`
+- Modset `e678bfdb6d545a2fbb9020906cc847e384c5c02040d7adde52aa661acdd3cc96`
+- Rollback `apps/game-mod/.local/deployments/2026-09-11T13-34-00.772Z`
+
+Loaded verification passes. CUA observed the main menu with Human Recorder
+Ready / New Session; no recording or gameplay was started by the agent.
+The final metadata-only head retains this exact native source set, rather than
+claiming a different compilation. Latest-head hosted CI is a separate PR check.
+
+The second rc.3 session was packed and independently verified by the Python
+Evidence verifier: bundle3 content ID
+`b0ca07676107922ff5f8a80a8ce4e92fd1ff646d5667edff315bfb6ca7c9ac60`,
+335 canonical transitions, zero verifier findings. Packer rc.4 identity is
+separate from recorded rc.3 identity; neither source nor Human evidence is
+upgraded by packing. The first failed session is retained for incident repair
+and has no clean transfer claim. All original 1447 files remain unchanged.
+
+`PLATFORM_PR25_DECISION_CANARY_READY` describes engineering/runtime readiness,
+not a Full-Run Human PASS. PR25 remains Draft pending the bounded gate above.
