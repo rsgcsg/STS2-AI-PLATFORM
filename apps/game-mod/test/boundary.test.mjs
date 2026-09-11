@@ -36,8 +36,12 @@ test("production game Mod has one manifest, assembly and explicit initializer", 
   const manifest = JSON.parse(read("apps/game-mod/mod_manifest.json"));
   const project = read("apps/game-mod/STS2Platform.GameMod.csproj");
   const initializer = read("apps/game-mod/UnifiedPlatformMod.cs");
+  const packageVersion = JSON.parse(read("apps/game-mod/package.json")).version;
 
   assert.equal(manifest.id, "STS2_PLATFORM");
+  assert.equal(manifest.version, packageVersion);
+  assert.equal(project.match(/<Version>([^<]+)<\/Version>/u)?.[1], packageVersion);
+  assert.equal(initializer.match(/const string Version = "([^"]+)"/u)?.[1], packageVersion);
   assert.deepEqual(manifest.dependencies, []);
   assert.match(project, /<AssemblyName>STS2_PLATFORM<\/AssemblyName>/u);
   assert.match(project, /STS2_PLATFORM_UNIFIED/u);
