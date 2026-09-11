@@ -5,7 +5,7 @@ public static class RecordingApplicationContract
     public const string CommandSchema = "sts2.ai-platform/recording-command-1";
     public const string CommandResultSchema = "sts2.ai-platform/recording-command-result-1";
     public const string StatusSchema = "sts2.ai-platform/recording-status-4";
-    public const string EventBatchSchema = "sts2.ai-platform/recording-event-batch-1";
+    public const string EventBatchSchema = "sts2.ai-platform/recording-event-batch-2";
 }
 
 public enum RecordingLifecycleState
@@ -81,13 +81,13 @@ public sealed record RecordingDecisionCounters(
     long AcceptedRoots, long AcceptedChildren, long Proved, long Unresolved,
     long CanonicalRoots, long CanonicalChildren,
     long Cancelled = 0, long Aborted = 0, long CaptureFailures = 0,
-    long PersistenceFailures = 0, int DispositionVersion = 0)
+    long PersistenceFailures = 0, int DispositionVersion = 0, long FailedDecisions = 0)
 {
     public long Accepted => AcceptedRoots + AcceptedChildren;
     public long Canonical => CanonicalRoots + CanonicalChildren;
     public long Pending => Math.Max(0, Accepted - Proved - Unresolved - Cancelled - Aborted);
     public long? RealFailures => DispositionVersion == 1
-        ? Unresolved + CaptureFailures + PersistenceFailures : null;
+        ? FailedDecisions : null;
 }
 
 public sealed record RecordingStoreSnapshot(
@@ -100,7 +100,8 @@ public sealed record RecordingStoreSnapshot(
     string AppendHealth,
     string DiskHealth,
     string? LastError,
-    bool Closed);
+    bool Closed,
+    IReadOnlyDictionary<string, long>? FailedActionFamilies = null);
 
 public sealed record RecordingItemStatus(
     string Id,
@@ -197,6 +198,8 @@ public enum RecordingEventKind
     DecisionRecorded,
     DecisionInvalidated,
     DecisionUnresolved,
+    DecisionCancelled,
+    DecisionAborted,
     DecisionProjectionOmitted,
     HealthChanged,
     CommandRejected

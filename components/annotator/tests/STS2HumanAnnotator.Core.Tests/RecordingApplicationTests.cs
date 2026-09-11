@@ -5,6 +5,18 @@ namespace STS2HumanAnnotator.Core.Tests;
 
 public sealed class RecordingApplicationTests
 {
+    [Theory]
+    [InlineData(SemanticBoundaryTraceKinds.ActionCancelledBeforeStart, "cancelled", false)]
+    [InlineData(SemanticBoundaryTraceKinds.ActionCancelledAfterStart, "cancelled", false)]
+    [InlineData(SemanticBoundaryTraceKinds.ActionAbortedBeforeCommit, "aborted", false)]
+    [InlineData(SemanticBoundaryTraceKinds.TransitionUnknown, "unresolved", true)]
+    public void OwnerDispositionSeparatesNativeCancellationFromLostEvidence(string kind, string disposition, bool failed)
+    {
+        Assert.Equal(disposition, RecordingDisposition.FromTrace(kind));
+        Assert.Equal(failed, RecordingDisposition.IsFailure(disposition));
+        Assert.Null(new RecordingDecisionCounters(1, 0, 0, 1, 0, 0).RealFailures);
+    }
+
     private static readonly DateTimeOffset T0 = DateTimeOffset.UnixEpoch;
 
     [Fact]

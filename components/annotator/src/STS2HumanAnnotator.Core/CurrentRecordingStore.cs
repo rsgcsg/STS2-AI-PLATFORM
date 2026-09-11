@@ -29,7 +29,10 @@ public sealed class RecordingSessionStore : IDisposable
     private readonly Dictionary<string, long> _invalidationsByReason = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _recordedActionFamilies = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _invalidatedNativeActions = new(StringComparer.Ordinal);
-    private RecordingDecisionCounters _decisions = new(0, 0, 0, 0, 0, 0);
+    private RecordingDecisionCounters _decisions = new(0, 0, 0, 0, 0, 0, DispositionVersion: 1);
+    // Non-authorizing counters keyed only by already persisted exact identities.
+    private readonly HashSet<string> _countedFailureIds = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, long> _failedActionFamilies = new(StringComparer.Ordinal);
     private long _admittedCount;
     private long _invalidationCount;
     private long _readMaterialized;
@@ -98,7 +101,7 @@ public sealed class RecordingSessionStore : IDisposable
                 _appendHealth,
                 _diskHealth,
                 _lastError,
-                _closed);
+                _closed, new Dictionary<string, long>(_failedActionFamilies, StringComparer.Ordinal));
         }
     }
 
@@ -397,7 +400,7 @@ public sealed class RecordingSessionStore : IDisposable
                     values.Select(value =>
                         JsonSerializer.SerializeToUtf8Bytes(value, EvidenceJson.Options)).ToArray()));
             foreach (var value in values)
-                CountDecisionEvent(value.Kind, value.Action.Decision);
+                CountDecisionEvent(value.Kind, value.Action.Decision, value.Action.ActionWitnessId);
         });
     }
 
@@ -416,11 +419,11 @@ public sealed class RecordingSessionStore : IDisposable
                     values.Select(value =>
                         JsonSerializer.SerializeToUtf8Bytes(value, EvidenceJson.Options)).ToArray()));
             foreach (var value in values)
-                CountDecisionEvent(value.Kind, value.Action.Decision);
+                CountDecisionEvent(value.Kind, value.Action.Decision, value.Action.ActionWitnessId);
         });
     }
 
-    private void CountDecisionEvent(string kind, DecisionOccurrenceIdentity? decision)
+    private void CountDecisionEvent(string kind, DecisionOccurrenceIdentity? decision, string actionId)
     {
         if (kind == SemanticBoundaryTraceKinds.ActionAccepted)
             _decisions = decision?.DecisionKind == "nested_selector"
@@ -428,11 +431,21 @@ public sealed class RecordingSessionStore : IDisposable
                 : _decisions with { AcceptedRoots = _decisions.AcceptedRoots + 1 };
         else if (kind == SemanticBoundaryTraceKinds.TransitionProved)
             _decisions = _decisions with { Proved = _decisions.Proved + 1 };
-        else if (kind is SemanticBoundaryTraceKinds.TransitionUnknown
-            or SemanticBoundaryTraceKinds.ActionCancelledBeforeStart
-            or SemanticBoundaryTraceKinds.ActionCancelledAfterStart
-            or SemanticBoundaryTraceKinds.ActionAbortedBeforeCommit)
+        else if (kind == SemanticBoundaryTraceKinds.TransitionUnknown)
+        {
             _decisions = _decisions with { Unresolved = _decisions.Unresolved + 1 };
+            CountFailure(actionId);
+        }
+        else if (kind is SemanticBoundaryTraceKinds.ActionCancelledBeforeStart or SemanticBoundaryTraceKinds.ActionCancelledAfterStart)
+            _decisions = _decisions with { Cancelled = _decisions.Cancelled + 1 };
+        else if (kind == SemanticBoundaryTraceKinds.ActionAbortedBeforeCommit)
+            _decisions = _decisions with { Aborted = _decisions.Aborted + 1 };
+    }
+
+    private void CountFailure(string id)
+    {
+        if (_countedFailureIds.Add(id))
+            _decisions = _decisions with { FailedDecisions = _decisions.FailedDecisions + 1 };
     }
 
     public void AppendCanonicalTransition(CanonicalTransitionEvidence value)
@@ -488,7 +501,8 @@ public sealed class RecordingSessionStore : IDisposable
             || invalidation.SessionId != Manifest.SessionId
             || string.IsNullOrWhiteSpace(invalidation.InvalidationId)
             || string.IsNullOrWhiteSpace(invalidation.ReasonCode)
-            || HumanActionOccurrenceEvidenceValidator.Validate(invalidation.HumanOccurrence).Count > 0)
+            || HumanActionOccurrenceEvidenceValidator.Validate(invalidation.HumanOccurrence).Count > 0
+            || RecordingDisposition.Validate(invalidation).Count > 0)
             throw new InvalidDataException("Invalidation is invalid for this current recording.");
         EnsureOpen();
         ExecuteWrite(() =>
@@ -497,6 +511,14 @@ public sealed class RecordingSessionStore : IDisposable
                 "invalidation_append_buffered",
                 () => AppendBufferedLine(_invalidations, invalidation));
             _invalidationCount++;
+            if (invalidation.DecisionFailure is { } failure && !_countedFailureIds.Contains(failure.DecisionWitnessId))
+            {
+                CountFailure(failure.DecisionWitnessId);
+                _decisions = failure.Kind == "capture"
+                    ? _decisions with { CaptureFailures = _decisions.CaptureFailures + 1 }
+                    : _decisions with { PersistenceFailures = _decisions.PersistenceFailures + 1 };
+                _failedActionFamilies[failure.ActionFamily] = _failedActionFamilies.GetValueOrDefault(failure.ActionFamily) + 1;
+            }
             _invalidationsByReason[invalidation.ReasonCode] =
                 _invalidationsByReason.GetValueOrDefault(invalidation.ReasonCode) + 1;
             if (!string.IsNullOrWhiteSpace(invalidation.NativeActionType))

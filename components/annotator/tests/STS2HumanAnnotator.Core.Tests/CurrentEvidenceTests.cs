@@ -8,6 +8,47 @@ namespace STS2HumanAnnotator.Core.Tests;
 public sealed class CurrentEvidenceTests
 {
     [Fact]
+    public void DurableDispositionCountersExcludeCancellationAndDiagnosticsAndDeduplicateExactFailure()
+    {
+        string root = Temp("disposition-counters");
+        try
+        {
+            var profile = Profile();
+            var manifest = Manifest(profile);
+            using var store = RecordingSessionStore.Create(root, manifest, profile);
+            var action = new SemanticActionReference("action-ref", 1, "record-ref", "run-0001", "PlayCardAction", 1, "snapshot-a");
+            store.AppendSemanticEvidenceEvents(new[] {
+                SemanticEvidenceEvent(manifest, 1, SemanticBoundaryTraceKinds.ActionAccepted, action),
+                SemanticEvidenceEvent(manifest, 2, SemanticBoundaryTraceKinds.ActionCancelledBeforeStart, action),
+                SemanticEvidenceEvent(manifest, 3, SemanticBoundaryTraceKinds.ActionAccepted, action with { ActionWitnessId = "unknown-action" }),
+                SemanticEvidenceEvent(manifest, 4, SemanticBoundaryTraceKinds.TransitionUnknown, action with { ActionWitnessId = "unknown-action" })
+            });
+            var diagnostic = new InvalidationRecord(CurrentRecordingContract.SchemaVersion, CurrentRecordingContract.InvalidationSchema,
+                "diagnostic", manifest.SessionId, "run-0001", DateTimeOffset.UnixEpoch, "human_action_native_type_mismatch", "internal",
+                null, "MoveToMapCoordAction", "failed_closed") { Disposition = "diagnostic" };
+            store.AppendInvalidation(diagnostic);
+            var occurrence = new HumanActionOccurrenceEvidence("missing-choice", "SelectCard", "nested_selector.decision", "select",
+                "card", new Dictionary<string, string>(), "owner", null, null, null, "SelectCard", "failed_closed");
+            var failure = diagnostic with { InvalidationId = "missing", Disposition = "failed_closed", HumanOccurrence = occurrence,
+                DecisionFailure = new("missing-choice", "capture", "nested_selector.decision") };
+            store.AppendInvalidation(failure);
+            store.AppendInvalidation(failure with { InvalidationId = "same-exact-occurrence" });
+            store.AppendInvalidation(diagnostic with { InvalidationId = "unknown-projection", Disposition = "failed_closed",
+                DecisionFailure = new("unknown-action", "persistence", "ordinary_combat.play_card") });
+            var counts = store.GetSnapshot().Counters.Decisions!;
+            Assert.Equal(1, counts.Cancelled);
+            Assert.Equal(1, counts.Unresolved);
+            Assert.Equal(0, counts.Pending);
+            Assert.Equal(1, counts.CaptureFailures);
+            Assert.Equal(2, counts.RealFailures);
+            Assert.Equal(1, store.GetSnapshot().FailedActionFamilies!["nested_selector.decision"]);
+            Assert.Throws<InvalidDataException>(() => store.AppendInvalidation(failure with { Disposition = "diagnostic" }));
+            Assert.Equal(2, store.GetSnapshot().Counters.Decisions!.RealFailures);
+        }
+        finally { Delete(root); }
+    }
+
+    [Fact]
     public void FullRunCoverageMapIsCompleteAndClosesExactNestedLineage()
     {
         IReadOnlyList<FullRunCoverageEntry> entries = FullRunCoverageContract.Entries;

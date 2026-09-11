@@ -174,6 +174,8 @@ public static class RecordingSessionAuditor
                 Add(errors, "invalidation_identity_invalid");
                 continue;
             }
+            foreach (string error in RecordingDisposition.Validate(value))
+                Add(errors, error);
             foreach (string error in HumanActionOccurrenceEvidenceValidator.Validate(value.HumanOccurrence))
                 Add(errors, error);
             if (value.NativeActionType is "NChooseACardSelectionScreen.SelectHolder"

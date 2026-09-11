@@ -484,12 +484,14 @@ internal static partial class RecorderRuntime
             null, decision, pre?.SnapshotId, successor?.SnapshotId, pre?.CatalogCount,
             pre?.Snapshot["interaction"]?["content"]?["surface"]?["pile_type"]?.GetValue<string>());
 
-    private static RecordingActionProjection? ToActionProjection(SemanticActionReference action,
+    private static RecordingActionProjection ToActionProjection(SemanticActionReference action,
         CurrentDecisionFrame? pre = null, CurrentDecisionFrame? successor = null) =>
         action.BoundAction != null ? ToActionProjection(action.BoundAction, action.Decision, pre, successor)
         : action.NativeInput is { } input ? new RecordingActionProjection(input.Verb, null,
             input.SubjectReferentId, new Dictionary<string, string>(input.Arguments), input.Label ?? input.Verb,
-            null, action.Decision, pre?.SnapshotId, successor?.SnapshotId, pre?.CatalogCount, null) { NativeActionKey = input.ActionKey } : null;
+            null, action.Decision, pre?.SnapshotId, successor?.SnapshotId, pre?.CatalogCount, null) { NativeActionKey = input.ActionKey }
+        : new RecordingActionProjection("unavailable", null, null, new Dictionary<string, string>(),
+            action.NativeActionType, Decision: action.Decision);
 
     private static void FinalizeClose()
     {
@@ -3695,7 +3697,7 @@ internal static partial class RecorderRuntime
                 RecordingEventKind.RootPending,
                 draft.Action.RecordId,
                 draft.Action.NativeActionType,
-                ToActionProjection(draft.Action, draft.HumanObservation));
+                ToActionProjection(draft.Action, draft.HumanObservation) with { Disposition = "pending" });
         }
 
         bool derivedProjectionFailed = false;
@@ -3720,10 +3722,12 @@ internal static partial class RecorderRuntime
             if (draft.Kind != SemanticBoundaryTraceKinds.TransitionProved)
             {
                 PublishApplicationEvent(
-                    RecordingEventKind.DecisionUnresolved,
+                    draft.Kind == SemanticBoundaryTraceKinds.ActionAbortedBeforeCommit ? RecordingEventKind.DecisionAborted
+                        : draft.Kind == SemanticBoundaryTraceKinds.TransitionUnknown ? RecordingEventKind.DecisionUnresolved
+                        : RecordingEventKind.DecisionCancelled,
                     draft.Action.RecordId,
                     $"{draft.Kind}: {draft.Detail}",
-                    ToActionProjection(draft.Action, draft.SemanticPre));
+                    ToActionProjection(draft.Action, draft.SemanticPre) with { Disposition = RecordingDisposition.FromTrace(draft.Kind) });
             }
             lock (Gate)
                 SemanticProjectionEnvironments.Remove(draft.Action.ActionWitnessId);
@@ -3745,10 +3749,11 @@ internal static partial class RecorderRuntime
         {
             PublishApplicationEvent(RecordingEventKind.DecisionProjectionOmitted,
                 draft.Action.RecordId, "proved_but_family_outside_capture_profile",
-                ToActionProjection(draft.Action, draft.SemanticPre, draft.SemanticSuccessor));
+                ToActionProjection(draft.Action, draft.SemanticPre, draft.SemanticSuccessor) with { Disposition = "unsupported" });
             return true;
         }
 
+        bool canonicalAppended = false;
         try
         {
             SemanticFrameReference preRef = store.PersistSemanticFrame(draft.SemanticPre!);
@@ -3771,6 +3776,7 @@ internal static partial class RecorderRuntime
                 throw new InvalidDataException(
                     $"Canonical semantic projection failed validation: {string.Join(',', canonicalErrors)}");
             store.AppendCanonicalTransition(canonical);
+            canonicalAppended = true;
 
             RecorderEnvironmentIdentity? environment;
             lock (Gate)
@@ -3827,7 +3833,7 @@ internal static partial class RecorderRuntime
                 RecordingEventKind.DecisionRecorded,
                 draft.Action.RecordId,
                 (canonical.Action?.Verb ?? canonical.NativeInput!.Verb),
-                ToActionProjection(draft.Action, draft.SemanticPre, draft.SemanticSuccessor));
+                ToActionProjection(draft.Action, draft.SemanticPre, draft.SemanticSuccessor) with { Disposition = "recorded" });
             _runtimeState = "record_appended";
             _detail = canonical.TransitionId;
             WriteStatus(environment, canonical.SuccessorRef.SnapshotId, Array.Empty<string>());
@@ -3837,11 +3843,13 @@ internal static partial class RecorderRuntime
         catch (Exception exception)
         {
             Quarantine(
-                "semantic_projection_persistence_unknown",
+                canonicalAppended ? "compatibility_projection_persistence_unknown" : "semantic_projection_persistence_unknown",
                 exception.Message,
                 draft.SemanticPre?.SnapshotId,
                 draft.Action.NativeActionType,
-                "evidence_commit_unknown");
+                "evidence_commit_unknown",
+                decisionFailure: canonicalAppended ? null : new RecordingDecisionFailure(
+                    draft.Action.ActionWitnessId, "persistence", family));
             return false;
         }
     }
@@ -4174,13 +4182,7 @@ internal static partial class RecorderRuntime
 
     private static RecordingScopeStatus BuildScopeStatus(RecordingStoreSnapshot store)
     {
-        var failedClosed = new Dictionary<string, long>(StringComparer.Ordinal);
-        foreach ((string nativeAction, long count) in store.InvalidatedNativeActions)
-        {
-            string? family = SupportedFamilyForNativeAction(nativeAction);
-            if (family != null)
-                failedClosed[family] = failedClosed.GetValueOrDefault(family) + count;
-        }
+        var failedClosed = store.FailedActionFamilies ?? new Dictionary<string, long>(StringComparer.Ordinal);
         string[] notObserved = CaptureProfile.SupportedActionFamilies
             .Where(family => !store.RecordedActionFamilies.ContainsKey(family)
                 && !failedClosed.ContainsKey(family))
@@ -4400,7 +4402,8 @@ internal static partial class RecorderRuntime
         string? nativeActionType,
         string evidenceLevel,
         HumanActionOccurrenceEvidence? humanOccurrence = null,
-        bool acceptedHumanEffect = false)
+        bool acceptedHumanEffect = false,
+        RecordingDecisionFailure? decisionFailure = null)
     {
         try
         {
@@ -4420,6 +4423,17 @@ internal static partial class RecorderRuntime
                     nativeActionType ?? "unknown"))
                     DisableSemanticBoundaryTrace(new InvalidOperationException("Human effect barrier was not durable."));
             }
+            string? failureFamily = SupportedFamilyForNativeAction(nativeActionType ?? "");
+            if (humanOccurrence != null && CaptureProfile.SupportedActionFamilies.Contains(humanOccurrence.Family, StringComparer.Ordinal))
+                failureFamily = humanOccurrence.Family;
+            if (reason == "selector_decision_pre_or_lineage_unavailable")
+                failureFamily = "nested_selector.decision";
+            bool inScopeFailure = !diagnostic && humanOccurrence != null && failureFamily != null
+                && CaptureProfile.SupportedActionFamilies.Contains(failureFamily, StringComparer.Ordinal);
+            if (inScopeFailure)
+                decisionFailure ??= new RecordingDecisionFailure(humanOccurrence!.OccurrenceId, "capture", failureFamily!);
+            string disposition = decisionFailure != null ? "failed_closed"
+                : diagnostic ? "diagnostic" : humanOccurrence != null ? "unsupported" : "diagnostic";
             _store?.AppendInvalidation(new InvalidationRecord(
                 CurrentRecordingContract.SchemaVersion,
                 CurrentRecordingContract.InvalidationSchema,
@@ -4433,7 +4447,9 @@ internal static partial class RecorderRuntime
                 nativeActionType,
                 evidenceLevel)
             {
-                HumanOccurrence = humanOccurrence
+                HumanOccurrence = humanOccurrence,
+                DecisionFailure = decisionFailure,
+                Disposition = disposition
             });
             AppendJournal("decision_invalidated", null, snapshotId, $"{reason}: {detail}");
             PublishApplicationEvent(
@@ -4441,7 +4457,7 @@ internal static partial class RecorderRuntime
                 detail: $"{reason}: {detail}",
                 action: new RecordingActionProjection(humanOccurrence?.Verb ?? "accepted", "", null,
                     new Dictionary<string, string>(), nativeActionType ?? "Unidentified native input",
-                    FailedOccurrence: humanOccurrence, IsDiagnostic: diagnostic));
+                    FailedOccurrence: humanOccurrence, IsDiagnostic: disposition == "diagnostic") { Disposition = disposition });
             _runtimeState = "quarantined";
             _detail = $"{reason}: {detail}";
             GD.PrintErr($"[STS2 Human Annotator] quarantined {reason}: {detail}");
