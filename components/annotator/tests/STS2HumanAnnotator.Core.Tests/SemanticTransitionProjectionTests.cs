@@ -8,6 +8,27 @@ public sealed class SemanticTransitionProjectionTests
 {
     private static readonly DateTimeOffset T0 = DateTimeOffset.Parse("2026-09-01T00:00:00Z");
 
+    [Theory]
+    [InlineData("PlayCardAction", "play", "PlayCardAction", true)]
+    [InlineData("UsePotionAction", "use", "UsePotionAction", true)]
+    [InlineData("UsePotionAction", "play", "UsePotionAction", false)]
+    [InlineData("PlayCardAction", "use", "PlayCardAction", false)]
+    [InlineData("UsePotionAction", "use", "PlayCardAction", false)]
+    [InlineData("UnknownAction", "use", "UnknownAction", false)]
+    public void NativeInputRequiresSupportedTypeVerbAndMatchingWitness(
+        string nativeType, string verb, string witnessType, bool valid)
+    {
+        var original = ProvedDraft(Frame("s0", "combat_turn", false), Frame("s1", "combat_turn", false));
+        var action = original.Action with { NativeActionType = nativeType, BoundAction = null,
+            NativeWitness = original.Action.NativeWitness! with { NativeActionType = witnessType },
+            NativeInput = new($"{verb}|subject|", verb, "subject", new Dictionary<string, string>(), null),
+            Mapping = new("exact_native_input", 1, "scoped_native_input_reference_equality", null) };
+        Assert.Equal(valid, RecordedNativeInputValidator.Validate(action).Count == 0);
+        Assert.NotEmpty(RecordedNativeInputValidator.Validate(action with { NativeMechanism = "direct_ui_commit" }));
+        Assert.NotEmpty(RecordedNativeInputValidator.Validate(action with { NativeWitness = null }));
+        Assert.NotEmpty(RecordedNativeInputValidator.Validate(action with { Mapping = null }));
+    }
+
     [Fact]
     public void AcceptedNativeInputNeedsNoPublicActionButRequiresExactExecutionMembership()
     {

@@ -1,5 +1,15 @@
 # Current Status
 
+## PR25 potion input validator follow-up (2026-09-11)
+
+The latest Human fragment has 119 accepted inputs, 116 proved, 115 canonical,
+two native cancellations and one expected unfinished reward. Fruit Juice #19
+was correctly traced but a stale PlayCard-only correlation validator prevented
+canonical append. EndTurn handoff and all 15 selector parent chains are correct.
+The validator repair retains exact type/verb/witness and execution membership
+checks; original evidence stays unchanged. See [audit and repair](evidence/PR25_POTION_INPUT_VALIDATOR_REPAIR_2026-09-11.md).
+Fresh candidate Human validation and wider Full-Run coverage remain open.
+
 ## PR25 deferred potion input follow-up (2026-09-11)
 
 The latest audit validates map Fruit Juice but exposes a silently missing Colorless

@@ -1363,7 +1363,8 @@ public sealed class CurrentEvidenceTests
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(true, true)]
-    public void ExecutionSemanticActionSpaceRoundTripsIntoCanonicalAudit(bool omitLegacy, bool nativeInput)
+    [InlineData(true, true, true)]
+    public void ExecutionSemanticActionSpaceRoundTripsIntoCanonicalAudit(bool omitLegacy, bool nativeInput, bool potion = false)
     {
         string root = Temp("execution-semantic-action-space-round-trip");
         try
@@ -1450,13 +1451,29 @@ public sealed class CurrentEvidenceTests
                 {
                     HumanBoundActionId = decision.Action.BoundActionId
                 };
+                if (potion)
+                {
+                    // Real failure shape: native potion input has no public action at H,
+                    // but an independent execution catalog contains its exact target.
+                    const string potionKey = "use|potion-a1|target=player-a1";
+                    var arguments = new Dictionary<string, string> { ["target"] = "player-a1" };
+                    action = action with { NativeActionType = "UsePotionAction",
+                        NativeWitness = action.NativeWitness! with {
+                            Origin = "native_potion_use_ui", NativeActionType = "UsePotionAction",
+                            SubjectWitnessId = "native-potion", ArgumentWitnessIds = new Dictionary<string, string> { ["target"] = "native-player" } } };
+                    actionSpace = actionSpace with {
+                        Actions = new[] { new ExecutionSemanticAction(potionKey, "use", "potion-a1", arguments,
+                            "current_potion_slot+native_potion_usability_and_target_validation") },
+                        ObservedActionKey = potionKey };
+                }
                 if (nativeInput)
                 {
+                    ExecutionSemanticAction selected = actionSpace.Actions.Single();
                     action = action with { BoundAction = null,
-                        NativeInput = new(semanticKey, decision.Action.Verb, decision.Action.SubjectReferentId,
-                            decision.Action.Arguments, decision.Action.Label),
+                        NativeInput = new(selected.Key, selected.Verb, selected.SubjectReferentId,
+                            selected.Arguments, decision.Action.Label),
                         Mapping = new("exact_native_input", 1, "scoped_native_input_reference_equality", null) };
-                    actionSpace = actionSpace with { HumanBoundActionId = null, HumanNativeActionKey = semanticKey };
+                    actionSpace = actionSpace with { HumanBoundActionId = null, HumanNativeActionKey = selected.Key };
                 }
                 var tracker = new SemanticBoundaryTracker();
                 var drafts = new List<SemanticBoundaryTraceDraft>();

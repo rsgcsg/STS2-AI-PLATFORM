@@ -9,6 +9,13 @@ content-addressed Read/frame/action-space objects, a minimal run journal, and
 an atomically replaced coverage summary. The current store does not create a
 native-action ledger.
 
+Native-input correlation supports exactly `PlayCardAction`/`play` and
+`UsePotionAction`/`use`, with matching native witness type and exact scoped
+reference mapping. These inputs may lack a public BoundAction at H; the schema-3
+canonical path independently requires their exact operands and exactly-once
+membership in the execution catalog at S. Supporting the input format does not
+make native acceptance, cancellation or missing successor into canonical proof.
+
 Each admitted `CurrentDecisionRecord` contains:
 
 - exact environment and artifact identity;
