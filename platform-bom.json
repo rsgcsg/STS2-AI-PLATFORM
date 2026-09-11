@@ -1217,7 +1217,7 @@
   "evidence_scope_note": "Named predecessor runtime candidates and legacy non_claims retain their original artifact scope; they do not qualify current component source. The PR25 final candidate is separately recorded in final_full_run_candidate when build/load completes.",
   "final_full_run_candidate": {
     "schema": "sts2.ai-platform/full-run-candidate-1",
-    "stage": "source_candidate",
+    "stage": "loaded_candidate",
     "human_gate": "pending",
     "evidence_transfer_from_predecessor": false,
     "components": {
@@ -1253,6 +1253,51 @@
       "uninterrupted_exact_candidate_full_run_pending",
       "no_stpd_adapter_or_research_admission",
       "no_exhaustive_surface_or_crash_recovery_claim"
-    ]
+    ],
+    "artifact_sha256": "571b4e22fd8cd20aca30da8cdc80c813a3aca8577fc1fce243cd20e27333554a",
+    "artifact_mvid": "513336da-b4a4-4625-ac71-2e54a5f3bd49",
+    "workspace_revision_at_build": "a779f0804c279ef299eb45f8cbed903f06a093ed",
+    "runtime_instance_id": "9676ee98e6034844a4bba712700c3f75",
+    "environment_fingerprint": "f36e1499795d99fa2fcb28f1ae7e4d021a0ba28fede99a3bba2606409785553a",
+    "modset_fingerprint": "6aaddca350438aebfe0c4ceab3590486c8e7d21dc5a636e4dc5779863a1dd4bc",
+    "rollback": "apps/game-mod/.local/deployments/2026-09-11T12-22-57.593Z",
+    "loaded_native_source": {
+      "native_foundation": {
+        "source_revision": "01235974e2f5a7f99e80786017cf3b6c3d7b299d",
+        "source_digest_sha256": "1bbfcc29604878c7525359acd47f94b038f25c1009207cc0634d5fde01fbc2da",
+        "component_tree_revision": "cf8a95d3f4803bb36460012810b8a291ddb4d9b8",
+        "component_worktree_status": "clean",
+        "file_count": 14
+      },
+      "connector": {
+        "source_revision": "08cc7f0449a17562ba85eb841ab6d28732519775",
+        "source_digest_sha256": "407d45be73baf000c9a66d74611cd9382332f31b471a889a98e0dbaa2bd4a1e8",
+        "component_tree_revision": "78770d75a5f402bd5dec33d106eec4cfc752a68e",
+        "component_worktree_status": "clean",
+        "file_count": 76
+      },
+      "annotator": {
+        "source_revision": "f915fa4865fe244bf1c979ea18519af580b63e90",
+        "source_digest_sha256": "9cd4b31ab20dd5363ca820b16652111763e055641fcbb45dabe6bb6e186cad65",
+        "component_tree_revision": "4b137bb2cccc1fbc6cc65f452bdd546e01e2f003",
+        "component_worktree_status": "clean",
+        "file_count": 57
+      },
+      "live_ui": {
+        "source_revision": "d37c22404f48944c995e484694699abb31fe1c6a",
+        "source_digest_sha256": "95fe76afac27e4616ea12e2ecc5f0af30e868a2f024dd96668ca763b4e74cf4b",
+        "component_tree_revision": "a68d94b445949fa1cd13561a8f45c671072793fc",
+        "component_worktree_status": "clean",
+        "file_count": 6
+      },
+      "game_mod": {
+        "source_revision": "ae6e2238ecf50963b584d812e2376b9c94dc43c2",
+        "source_digest_sha256": "c65124e7f333146a12d45b30b178845c49dacb2debcf141e3e2c26914e6f8c74",
+        "component_tree_revision": "27acfed97147bd65f48cae8ba19622c19e856c17",
+        "component_worktree_status": "clean",
+        "file_count": 4
+      }
+    },
+    "automated_ui_check": "launcher_and_normal_recorder_ready_no_open_session_observed"
   }
 }

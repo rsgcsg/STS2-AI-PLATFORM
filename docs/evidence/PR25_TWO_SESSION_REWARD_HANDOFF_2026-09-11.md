@@ -45,7 +45,8 @@ The child keeps its independently proved evidence without inventing a parent
 canonical row. Knowledge Demon choices #461/#479 have exact independent
 BlockingPlayerChoiceContext origins, complete selectable cards and canonical
 transitions. The prior unexercised independent-choice gap is covered on these
-bytes. Four combat-pile selectors and generated-potion choices are also recorded.
+bytes. Four combat-pile selectors retain draw (one) / discard (three) provenance and
+selected cards in durable state; generated-potion choices are also recorded.
 607 successful PlayCard decisions are canonical; the other three PlayCard
 outcomes are native cancel/abort, not evidence loss. Fruit Juice and a timed
 long-aim duration are not established by this pair.
@@ -128,3 +129,35 @@ run on the new candidate is still required before all-valid Full-Run/merge.
 | `treasure_room.open` | 1 | 4 |
 | `treasure_room.proceed` | 1 | 4 |
 | `treasure_room.select` | 1 | 4 |
+
+## Exact engineering closeout
+
+Full root gates passed, including Annotator Core 251, calibration 17, Evidence
+41 and Game Mod 63; exact-game compilation/build and diff review passed. The
+package-version consistency check now binds manifest, package, assembly project
+and loaded-version declaration. Initial CURRENT marker failures were corrected
+without weakening governance. Hosted final-head CI is recorded in PR25.
+
+The final native build workspace is `a779f0804c279ef299eb45f8cbed903f06a093ed`.
+Native Annotator source is `f915fa4865fe244bf1c979ea18519af580b63e90`; Game Mod
+source is `ae6e2238ecf50963b584d812e2376b9c94dc43c2`.
+
+- DLL SHA-256: `571b4e22fd8cd20aca30da8cdc80c813a3aca8577fc1fce243cd20e27333554a`
+- MVID: `513336da-b4a4-4625-ac71-2e54a5f3bd49`
+- Loaded package: `0.2.0-rc.3`
+- Runtime: `9676ee98e6034844a4bba712700c3f75`
+- Environment: `f36e1499795d99fa2fcb28f1ae7e4d021a0ba28fede99a3bba2606409785553a`
+- Modset: `6aaddca350438aebfe0c4ceab3590486c8e7d21dc5a636e4dc5779863a1dd4bc`
+- Rollback receipt: `apps/game-mod/.local/deployments/2026-09-11T12-22-57.593Z`
+
+Owning verify-loaded passed with launcher canary observed. Automated visual
+inspection leaves the normal Human Recorder at Ready / New Session on the
+main menu; no recording or gameplay was started by the assistant. A preliminary
+package with stale version declarations was superseded before any Human session.
+No current-candidate Human PASS or merge readiness is claimed.
+
+The 1511 + 2652 raw session files were rehashed unchanged after packing. Both
+canonical bundle-3 artifacts passed the independent Python verifier:
+
+- 111847: 456 canonical; content ID `c408910067bd2990638ae1a40a03b8c4a97e3856dc5d05d1b6bfcf9ee35b6fa7`.
+- 113641: 755 canonical; content ID `97b4adbcf779008d8bab44ba9c10ca4b3a519266ed7bdfc03cb1238db3605b12`.
