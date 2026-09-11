@@ -192,6 +192,45 @@ public sealed class SemanticBoundaryTrackerTests
             decoded.Where(x => x.Kind != SemanticBoundaryTraceKinds.NativeContinuationObserved).ToArray()));
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void RewardOwnerOpeningMustPrecedeIndependentPotionEffect(bool observeAtOpening)
+    {
+        var tracker = new SemanticBoundaryTracker();
+        var all = new List<SemanticBoundaryTraceDraft>();
+        void Start(string id, long sequence, string family, string surface, string? parent = null)
+        {
+            var action = Action(id, sequence) with { NativeQueueId = null,
+                NativeMechanism = "direct_ui_commit", RequiresNativePostCommit = id == "event",
+                Decision = new(2, "decision-" + id, parent ?? id,
+                    parent == null ? null : "decision-" + parent, surface, family,
+                    parent == null ? "root" : "nested_selector", parent == null ? null : "reward-owner") };
+            all.AddRange(tracker.Accept(action, State(id + "-pre", surface)));
+            all.AddRange(tracker.ObserveBeforeActionExecution(id, Boundary(id + "-pre", id, surface)));
+            all.AddRange(tracker.Started(id));
+        }
+        void Handoff() => all.AddRange(tracker.ObserveNestedInputBoundary("event",
+            PostCommitBoundary("reward-ready", "reward_claim"),
+            new("opening", "exact_selector_input_owner", "event", "decision-owner-reward-ready", "event-option-owner", true)));
+        Start("event", 1, "event_option.choose", "event_option");
+        if (observeAtOpening) Handoff();
+        Start("discard", 2, "potion_belt.discard", "potion_popup");
+        all.AddRange(tracker.Finished("discard"));
+        if (!observeAtOpening) Handoff(); // The historical late reward click cannot repair an intervening effect.
+        Start("reward", 3, "reward_claim.claim", "reward_claim", "event");
+        all.AddRange(tracker.Finished("reward"));
+        all.AddRange(tracker.ObserveDecisionBoundaryForAction("reward", PostCommitBoundary("after-reward", "event_option")));
+        all.AddRange(tracker.ObserveNativeCommit("event", new("commit", "event", "exact-task", "event-owner", null, null, null, null, true)));
+        all.AddRange(tracker.Finished("event"));
+        Assert.Equal(observeAtOpening ? 3 : 2, all.Count(x => x.Kind == SemanticBoundaryTraceKinds.TransitionProved));
+        Assert.Equal(observeAtOpening ? 0 : 1, all.Count(x => x.Kind == SemanticBoundaryTraceKinds.TransitionUnknown));
+        var events = all.Select((draft, i) => Event(i + 1, draft)).ToArray();
+        Assert.Empty(SemanticBoundaryTraceValidator.Validate(events));
+        Assert.Empty(DecisionOccurrenceValidator.ValidateTrace(events));
+        Assert.Null(events.First(x => x.Kind == SemanticBoundaryTraceKinds.ActionAccepted && x.Action!.ActionWitnessId == "discard").Action!.Decision!.ParentDecisionId);
+    }
+
     [Fact]
     public void EventRewardAndCardChoiceKeepOneRootThroughLateOuterCommit()
     {

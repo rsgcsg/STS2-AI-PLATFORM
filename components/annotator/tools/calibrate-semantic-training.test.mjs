@@ -466,7 +466,8 @@ for (const exact of [true, false]) {
 }
 
 for (const proof of ["proved_execution_handoff_boundary", "proved_native_commit_then_execution_handoff"]) {
-  test(`preserves predecessor state before cancelled execution: ${proof}`, async () => {
+ for (const disposition of ["action_cancelled_after_start", "action_aborted_before_commit"]) {
+  test(`preserves predecessor state before rejected execution: ${proof}/${disposition}`, async () => {
     const { root, refs } = await fixture();
     try {
       const events = [
@@ -484,14 +485,14 @@ for (const proof of ["proved_execution_handoff_boundary", "proved_native_commit_
             witness_kind: "before_next_human_action_execution", state_ref: refs.settling1,
             state_completeness: "complete", required_reads_status: "complete", state_blockers: [] } }),
         event(7, "action_started", "a2", action("action-2"), { execution_pre_ref: refs.settling1 }),
-        event(8, "action_cancelled_after_start", "a2", action("action-2"), { execution_pre_ref: refs.settling1 })
+        event(8, disposition, "a2", action("action-2"), { execution_pre_ref: refs.settling1 })
       ];
       async function report(rows) {
         await writeFile(path.join(root, "semantic-boundary-trace.jsonl"), rows.map(JSON.stringify).join("\n") + "\n");
         return calibrate(root);
       }
       let result = await report(events);
-      assert.equal(result.actions[0].reason, "cancelled_next_execution_state_boundary_exact");
+      assert.equal(result.actions[0].reason, "rejected_next_execution_state_boundary_exact");
       assert.equal(result.actions[1].classification, "rejected");
       for (const change of [
         (rows) => rows.pop(),
@@ -505,4 +506,5 @@ for (const proof of ["proved_execution_handoff_boundary", "proved_native_commit_
       }
     } finally { await rm(root, { recursive: true, force: true }); }
   });
+ }
 }

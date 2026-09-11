@@ -1,6 +1,10 @@
 # Current Status
 
-PR25 final engineering closeout is documented in
+The latest two-session audit and reward-owner repair are documented in
+[the current repair report](evidence/PR25_TWO_SESSION_REWARD_HANDOFF_2026-09-11.md).
+The victory session still has one real unresolved decision; PR25 remains Draft.
+
+The preceding final engineering closeout is documented in
 [the exact closeout report](evidence/PR25_FINAL_ENGINEERING_2026-09-11.md).
 It consolidates the current data path and UI; final exact-candidate Human
 qualification remains pending. Latest GitHub refs and runtime receipts override

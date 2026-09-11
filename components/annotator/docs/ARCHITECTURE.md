@@ -210,3 +210,10 @@ binds its actual owner, and each input's frozen state hands off through the sole
 tracker before its own admission. Ordinary combat rewards remain independent
 roots. A rest Proceed callback when the native map is already open follows the
 native no-op branch and creates no accepted Human mutation or failure barrier.
+
+Reward-screen ShowScreen returns after native Push, input setup and active-screen
+update. Its exact async-bound parent receives that owner-ready boundary before
+an independent potion input can intervene. A synchronously opened screen is
+observed on the same outer callback return after parent admission, only if its
+registered parent matches that callback exactly. Neither path waits for the
+first reward click, reassigns a potion input as a child, or repairs an old unknown.

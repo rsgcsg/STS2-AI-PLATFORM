@@ -1,31 +1,19 @@
 # Current Context
 
-This is a bounded handoff, not repository authority. Resolve live GitHub refs,
-source, BOM, CI, artifact and runtime receipts before making a current claim.
-Those exact authorities override this file.
+Resolve live refs, source, BOM, CI and loaded identity before using this handoff.
+PR25 remains Draft after the two-session Human audit. 1215 accepted decisions
+produced 1211 canonical, two native cancellations, one pre-Commit abort and one
+real unresolved event decision. The victory session has uninterrupted native
+start/terminal evidence but the event reward/potion handoff prevents all-valid
+Full-Run qualification. Knowledge Demon independent choices are now observed.
 
-PR25 is in final engineering closeout: one canonical-first collection path,
-explicit compatibility, exact native CardPlay observation ownership, truthful
-recording dispositions/durable close and compact Recorder/Policy UI. See
-[the current data chain](../FULL_RUN_DATA_CHAIN.md) and
-[closeout evidence](../evidence/PR25_FINAL_ENGINEERING_2026-09-11.md).
+The owning repair observes the exact reward input owner at native screen opening
+and synchronous parent callback return, before an independent potion effect.
+Calibration also preserves a valid predecessor boundary when the next card aborts.
+See [audit and repair](../evidence/PR25_TWO_SESSION_REWARD_HANDOFF_2026-09-11.md).
 
-The latest audited predecessor session (20260911T090029Z) has 468 accepted,
-467 canonical, one native cancellation and zero unresolved. Its 49 invalidations
-are internal diagnostics; all 71 selector children and parents are canonical.
-The two run fragments are not an uninterrupted native start-to-terminal Full Run.
-They do not qualify the new candidate. Native Knowledge Demon blocking choice
-coverage remains unexercised in that session.
-
-Final Human gate must cover recent selector/potion/event/rest/rapid paths and one
-uninterrupted fresh native start -> natural run -> native terminal. Remain Draft
-until that exact candidate passes audit with no unexplained lost input or real
-failure. Only then complete evidence/BOM/PR review and normal-merge to develop.
-
-## Remaining Platform non-claims
-
-No STPD source, training admission or model execution qualification is implied.
-
-Use [Status](../STATUS.md) for the dated historical evidence index,
-[collection/incident response](../ANNOTATOR_COLLECTION.md) for distribution and
-future defects, and [Testing](../TESTING.md) for exact evidence levels.
+Annotator 0.3.0-rc.3 / Platform 0.2.0-rc.3 are the repair candidate; verify the
+BOM's final candidate and live receipts. Old Human bytes remain unchanged and do
+not qualify the repaired artifact. The next Human gate covers event reward +
+full belt discard-before-claim, selectors/rapid paths and an uninterrupted native
+start through natural terminal. No STPD adapter/training admission is implied.

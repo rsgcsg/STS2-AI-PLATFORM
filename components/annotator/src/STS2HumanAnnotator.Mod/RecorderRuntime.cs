@@ -1668,6 +1668,8 @@ internal static partial class RecorderRuntime
                 ObserveSemanticUiCarrierBindingFailure(
                     acceptedContext.ActionWitnessId, nativeActionType, carrierFailure);
             }
+            else if (accepted && acceptedContext.CompletionExpectation != null)
+                ObserveSynchronousRewardInputOwner(acceptedContext.ActionWitnessId);
             return accepted;
         }
         catch (Exception exception)

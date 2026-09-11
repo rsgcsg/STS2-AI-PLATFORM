@@ -3,6 +3,20 @@ namespace STS2HumanAnnotator.Core.Tests;
 
 public sealed class CarrierIngressSourceTests
 {
+    [Fact]
+    public void RewardOpeningObservesExactOwnerBeforeAnyRewardOrPotionInput()
+    {
+        string source = Source("NativeRewardDecisionLineage.cs");
+        Assert.Contains("HarmonyAfter(\"rsgcsg.sts2-platform.native-foundation\")", source);
+        Assert.Contains("RecorderRuntime.ObserveOpenedRewardInputOwner(__result)", source);
+        Assert.Contains("ReferenceEquals(NOverlayStack.Instance?.Peek(), screen)", source);
+        Assert.Contains("ActiveScreenContext.Instance.IsCurrent(screen)", source);
+        Assert.Contains("binding.RecordingSessionId != SessionId", source);
+        Assert.Contains("input.Binding.ActionWitnessId != requiredParentActionId", source);
+        Assert.Contains("frame.Snapshot.Interaction.Kind != \"reward_claim\"", source);
+        Assert.Contains("ObserveSynchronousRewardInputOwner(acceptedContext.ActionWitnessId)", Source("RecorderRuntime.cs"));
+    }
+
     private static string Source(string name)
     {
         for (DirectoryInfo? dir = new(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
