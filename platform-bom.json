@@ -22,9 +22,9 @@
     },
     "annotator": {
       "version": "0.3.0-rc.4",
-      "source_revision": "e65632c58879e3240cd0febbd247d088b534b0a6",
-      "component_tree_revision": "f4f028b8b0791e6bda4ff98521454184a410b90f",
-      "component_source_digest_sha256": "c01b24488fe4e8c791c9e679cf1142f03f881bcc541abc1b256264eeef99c186"
+      "source_revision": "4c6d86170558446b5415c1dfeb806f19d12de314",
+      "component_tree_revision": "263da9873432c85f82bdd21abfa2bab85102206f",
+      "component_source_digest_sha256": "85c14b335d95755b6b4b9a4e91815efb850f039359bbc3ff565a50fb9a007176"
     },
     "evidence": {
       "version": "0.1.0-rc.2",
@@ -167,8 +167,8 @@
     "annotator": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
       "source_digest_sha256": "8d23f1015a7b0df800f78a7545da5c86bfee521131c4391b398c884ff917918f",
-      "current_component_source_revision": "e65632c58879e3240cd0febbd247d088b534b0a6",
-      "current_component_source_digest_sha256": "c01b24488fe4e8c791c9e679cf1142f03f881bcc541abc1b256264eeef99c186",
+      "current_component_source_revision": "4c6d86170558446b5415c1dfeb806f19d12de314",
+      "current_component_source_digest_sha256": "85c14b335d95755b6b4b9a4e91815efb850f039359bbc3ff565a50fb9a007176",
       "source_relation": "loaded_human_v2_artifact_precedes_unified_platform_source",
       "artifact_sha256": "4e911dd616afa55753a5320a42c11ce0cebe9d4d10fefd66c8f8a431884cf105",
       "artifact_mvid": "692e9dd9-4bc7-4203-ae12-511ef95a5331",
@@ -270,8 +270,8 @@
     "annotator": {
       "source_revision": "cb20bfa6e4e0e64b3ee8fdf0e1d472e8a668450b",
       "source_digest_sha256": "3910bcbc71599610b125c91c62e9860541ce9edea9b2c0a9f41842eb53651071",
-      "current_component_source_revision": "e65632c58879e3240cd0febbd247d088b534b0a6",
-      "current_component_source_digest_sha256": "c01b24488fe4e8c791c9e679cf1142f03f881bcc541abc1b256264eeef99c186",
+      "current_component_source_revision": "4c6d86170558446b5415c1dfeb806f19d12de314",
+      "current_component_source_digest_sha256": "85c14b335d95755b6b4b9a4e91815efb850f039359bbc3ff565a50fb9a007176",
       "source_relation": "loaded_native_source_precedes_current_audit_closeout_source",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b"
@@ -1220,9 +1220,9 @@
     "components": {
       "annotator": {
         "version": "0.3.0-rc.4",
-        "source_revision": "e65632c58879e3240cd0febbd247d088b534b0a6",
-        "component_tree_revision": "f4f028b8b0791e6bda4ff98521454184a410b90f",
-        "component_source_digest_sha256": "c01b24488fe4e8c791c9e679cf1142f03f881bcc541abc1b256264eeef99c186"
+        "source_revision": "4c6d86170558446b5415c1dfeb806f19d12de314",
+        "component_tree_revision": "263da9873432c85f82bdd21abfa2bab85102206f",
+        "component_source_digest_sha256": "85c14b335d95755b6b4b9a4e91815efb850f039359bbc3ff565a50fb9a007176"
       },
       "evidence": {
         "version": "0.1.0-rc.2",
@@ -1244,15 +1244,15 @@
       }
     },
     "stage": "loaded_candidate",
-    "human_gate": "pending",
+    "human_gate": "pass",
     "evidence_transfer_from_predecessor": false,
-    "evidence_report": "docs/evidence/PR25_RC3_TWO_SESSION_AUDIT_2026-09-11.md",
+    "evidence_report": "docs/evidence/PR25_RC4_FULL_RUN_HUMAN_PASS_2026-09-12.md",
     "data_chain": "docs/FULL_RUN_DATA_CHAIN.md",
     "incident_workflow": "docs/ANNOTATOR_COLLECTION.md",
     "non_claims": [
-      "uninterrupted_exact_candidate_full_run_pending",
+      "no_exhaustive_game_content_or_crash_recovery_claim",
       "no_stpd_adapter_or_research_admission",
-      "no_exhaustive_surface_or_crash_recovery_claim"
+      "human_origin_owner_attested_not_machine_proven"
     ],
     "artifact_sha256": "af4dfd93a4236b50aadbff8e9c055a519b20e842c582ab392d7748845df40cc8",
     "artifact_mvid": "1d53eae8-3353-4802-88fa-0eb3538fa217",
@@ -1301,6 +1301,23 @@
     "automated_ui_check": {
       "status": "pass",
       "detail": "CUA observed main menu and Human Recorder Ready/New Session after cold load; no session or gameplay started."
+    },
+    "human_evidence": {
+      "session_id": "session-20260911T142616Z-72910efa8a3b44b69136e08624dbc9ef",
+      "runtime_instance_id": "d29a8620f6f64c398211550b3f2194f6",
+      "artifact_sha256": "af4dfd93a4236b50aadbff8e9c055a519b20e842c582ab392d7748845df40cc8",
+      "human_origin": "owner_attested_not_machine_proven",
+      "audit_status": "pass",
+      "real_failures": 0,
+      "unexplained_lost_inputs": 0,
+      "uninterrupted_native_start_to_terminal": true,
+      "audit_sha256": "668d12ab22589995c54139db04dc982c366286f6b9f601d63d7364e54a30d5c9",
+      "bundle_content_id": "80a76a5a3eefc41f6bb8845deba8fc970a9933fc6d07281398d5b44b7363ad7e",
+      "accepted_decisions": 524,
+      "canonical_transitions": 524,
+      "native_starts": 2,
+      "native_terminals": 2,
+      "qualification_scope": "exact_artifact_observed_native_runs_not_exhaustive_content"
     }
   }
 }
