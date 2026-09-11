@@ -20,7 +20,11 @@ public sealed class CurrentEvidenceTests
             store = RecordingSessionStore.Create(root, manifest, profile);
             obstruction = Path.Combine(store.DirectoryPath, "performance-profile.json");
             Directory.CreateDirectory(obstruction); // actual I/O failure before terminal receipt
-            Assert.ThrowsAny<IOException>(() => store.Dispose());
+            Exception? closeError = Record.Exception(() => store.Dispose());
+            // Windows reports a directory collision as access denied; POSIX
+            // reports an I/O error. Both must preserve the same failed close.
+            Assert.True(closeError is IOException or UnauthorizedAccessException,
+                closeError?.ToString() ?? "Expected the real filesystem obstruction to fail close.");
             var status = store.GetSnapshot();
             Assert.False(status.Closed);
             Assert.Equal("failed", status.AppendHealth);
