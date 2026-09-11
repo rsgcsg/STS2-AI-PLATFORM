@@ -1,7 +1,8 @@
 # Current Context
 
-This is a bounded handoff, not repository authority. Resolve current PR25 refs,
+This is a bounded handoff, not repository authority. Resolve live GitHub refs,
 source, BOM, CI, artifact and runtime receipts before making a current claim.
+Those exact authorities override this file.
 
 PR25 is in final engineering closeout: one canonical-first collection path,
 explicit compatibility, exact native CardPlay observation ownership, truthful
@@ -20,6 +21,9 @@ Final Human gate must cover recent selector/potion/event/rest/rapid paths and on
 uninterrupted fresh native start -> natural run -> native terminal. Remain Draft
 until that exact candidate passes audit with no unexplained lost input or real
 failure. Only then complete evidence/BOM/PR review and normal-merge to develop.
+
+## Remaining Platform non-claims
+
 No STPD source, training admission or model execution qualification is implied.
 
 Use [Status](../STATUS.md) for the dated historical evidence index,
