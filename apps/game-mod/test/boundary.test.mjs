@@ -361,10 +361,12 @@ test("accepted ingress converges on one gate and keeps unowned GameActions out o
     gameActionIngress,
     /OutcomeKind\.NativeTypeMismatch\)[\s\S]*human_action_native_type_mismatch/u
   );
-  assert.match(
-    gameActionIngress,
-    /OutcomeKind\.NoScope[\s\S]*OutcomeKind\.Duplicate[\s\S]*TryQuarantineDeferredAcceptedAction/u
-  );
+  assert.match(gameActionIngress, /OutcomeKind\.Duplicate\)\s*return;/u);
+  assert.match(gameActionIngress, /OutcomeKind\.NoScope[\s\S]*TryQuarantineDeferredAcceptedAction/u);
+  const duplicate = sourceBetween(gameActionIngress,
+    "if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.Duplicate)",
+    "if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.NoScope)");
+  assert.doesNotMatch(duplicate, /TryQuarantineDeferredAcceptedAction/u);
   assert.match(uiIngress, /AcceptedDecisionObserver\.Observe/u);
   assert.match(runtime, /human_action_accepted_without_scope/u);
   assert.match(runtime, /native_action_exact_mapping_failed/u);
