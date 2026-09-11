@@ -42,7 +42,7 @@ internal static class PotionPopupSurfaceReader
         var surface = new PotionPopupSurface("potion_popup", entities.GetId(popup, "screen"),
             entities.GetId(potion, "potion"), potion.Id.Entry, potion.Title.GetFormattedText(), slot,
             use.IsEnabled && ConnectorMod.IsNodeVisible(use), discard.IsEnabled && ConnectorMod.IsNodeVisible(discard));
-        NativeSemanticAction[] nativeUses = NativeCombatDecisionProvider.Capture(entities).Actions
+        NativeSemanticAction[] nativeUses = NativePotionUseDecisionProvider.Capture(entities).Actions
             .Where(action => action.Verb == "use" && ReferenceEquals(action.NativeSubject, potion)).ToArray();
         surface = surface with { DirectCombatUse = nativeUses.Length > 0,
             UseTargetEntityIds = nativeUses.SelectMany(action => action.Operands).Where(operand => operand.Role == "target")
@@ -73,7 +73,18 @@ internal static class PotionPopupSurfaceReader
             Creature? target = null;
             if (targetId != null && (!entities.TryResolve(targetId, out target) || target == null))
                 return NativeInputResult.Rejected("potion_target_changed", "Exact native target changed.");
-            return CombatTurnSurfaceReader.StartUsePotion(potion.Owner, potion, expected.Slot, target);
+            if (potion.IsQueued || !NativePotionUseDecisionProvider.Capture(entities).Actions.Any(action =>
+                    action.Verb == "use" && ReferenceEquals(action.NativeSubject, potion)
+                    && (target == null ? action.Operands.Count == 0
+                        : action.Operands.Count == 1 && ReferenceEquals(action.Operands[0].NativeValue, target))))
+                return NativeInputResult.Rejected("potion_no_longer_usable", "Exact native potion decision changed.");
+            if (MegaCrit.Sts2.Core.Combat.CombatManager.Instance.IsInProgress)
+                return CombatTurnSurfaceReader.StartUsePotion(potion.Owner, potion, expected.Slot, target);
+            // Same STS2 entry point as NPotionHolder; current popup control,
+            // belt membership and native target were revalidated above.
+            potion.EnqueueManualUse(target);
+            popup.Remove();
+            return NativeInputResult.Delivered("native_potion_use_enqueued");
         }
         string? path = operation switch { "discard_potion" => "%DiscardButton", "choose_potion_use" => "%UseButton", _ => null };
         var button = path == null ? null : popup.GetNodeOrNull<NPotionPopupButton>(path);

@@ -330,7 +330,8 @@ public static class PlayerEnvironmentNativeSemanticWitness
     {
         (string status, string scope, IReadOnlyList<NativeSemanticAction> nativeActions,
             IReadOnlyList<string> nativeEvidence, string? nativeDetail) =
-            CaptureDomainDecision(domain, entities, semanticNativeActionType);
+            CaptureDomainDecision(domain, entities, semanticNativeActionType ?? observedAction?.GetType().Name);
+        semanticSelection ??= observedAction is UsePotionAction ? TryDescribeForUi(observedAction) : null;
         IReadOnlyList<ProcessLocalSemanticAction> actions = nativeActions
             .Select(action => new ProcessLocalSemanticAction(
                 action.Key,
@@ -422,6 +423,11 @@ public static class PlayerEnvironmentNativeSemanticWitness
         // The exact native root type outranks a stale overlay during room
         // transitions. This selects a typed provider; it does not infer an
         // action or its legality.
+        if (semanticNativeActionType == nameof(UsePotionAction))
+        {
+            NativeCombatDecision decision = NativePotionUseDecisionProvider.Capture(entities);
+            return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);
+        }
         if (semanticNativeActionType == "NPotionPopup.OnDiscardButtonPressed")
         {
             NativePotionDiscardDecision decision = NativePotionDiscardDecisionProvider.Capture(entities);
@@ -600,9 +606,7 @@ public static class PlayerEnvironmentNativeSemanticWitness
             PotionModel? potion = use.Player.GetPotionAtSlotIndex((int)use.PotionIndex);
             if (potion == null)
                 return null;
-            Creature? target = use.Player.Creature.CombatState?.GetCreature(use.TargetId);
-            if (target == null && potion.TargetType is TargetType.Self or TargetType.AnyPlayer)
-                target = use.Player.Creature;
+            Creature? target = NativePotionUseDecisionProvider.ResolveTarget(use, potion);
             IReadOnlyDictionary<string, object> arguments = target == null
                 ? new Dictionary<string, object>(StringComparer.Ordinal)
                 : new Dictionary<string, object>(StringComparer.Ordinal) { ["target"] = target };

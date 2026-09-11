@@ -35,7 +35,7 @@ internal static partial class NativeUiActionRuntime
                 string?[] targets = surface.UseTargetEntityIds.Count == 0 ? new string?[] { null } : surface.UseTargetEntityIds.Cast<string?>().ToArray();
                 foreach (string? target in targets)
                     result.Add(NativeDescriptor("use:" + surface.PotionEntityId + ":" + target, "use_potion", "potion", "Use " + surface.Name,
-                        "NPotionPopup.UseButton+NativeCombatDecisionProvider", target == null ? bindings : bindings.Concat(new[] { new ActionEntityBinding("target", target) }).ToArray()));
+                        "NPotionPopup.UseButton+NativePotionUseDecisionProvider", target == null ? bindings : bindings.Concat(new[] { new ActionEntityBinding("target", target) }).ToArray()));
             }
             else result.Add(NativeDescriptor("use:" + surface.PotionEntityId, "choose_potion_use", "potion", "Use " + surface.Name, "NPotionPopup.UseButton", bindings));
         }

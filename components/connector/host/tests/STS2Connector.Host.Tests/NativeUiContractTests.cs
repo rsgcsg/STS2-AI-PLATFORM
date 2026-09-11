@@ -79,6 +79,19 @@ public sealed class NativeUiContractTests
         Assert.DoesNotContain(actions, action => action.Kind == "choose_potion_use");
     }
 
+    [Fact]
+    public void NonCombatFruitJuicePopupAdvertisesUseWithPlayerOperand()
+    {
+        var surface = new PotionPopupSurface("potion_popup", "shop-popup", "juice", "FRUIT_JUICE", "Fruit Juice", 0, true, true)
+            { DirectCombatUse = true, UseTargetEntityIds = new[] { "player1" } };
+        var actions = NativeUiActionRuntime.DescribePotionPopupCommands(surface);
+        var use = Assert.Single(actions, action => action.Kind == "use_potion");
+        Assert.Contains(use.EntityBindings!, binding => binding.Role == "target" && binding.EntityId == "player1");
+        Assert.DoesNotContain(actions, action => action.Kind == "choose_potion_use");
+        Assert.DoesNotContain(NativeUiActionRuntime.DescribePotionPopupCommands(surface with { CanUse = false }),
+            action => action.Kind == "use_potion");
+    }
+
     [Theory]
     [InlineData(true, true, 3)]
     [InlineData(false, true, 2)]

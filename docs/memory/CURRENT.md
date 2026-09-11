@@ -4,14 +4,13 @@ This is a bounded handoff, not repository authority. Resolve live GitHub refs,
 open PRs, rulesets, code, tests, `platform-bom.json`, and exact runtime/evidence
 before making a current claim. Those sources override this file.
 
-## PR25 terminal owner-ready follow-up (2026-09-11)
+## PR25 AnyTime potion follow-up (2026-09-11)
 
-Latest closed session: 647 accepted, 645 canonical/strict candidates, one native
-cancellation and one final EndTurn unknown. All 73 invalidations are internal
-diagnostics; four rapid native inputs and 53 selectors are canonical. Repair
-adds exact factory-bound game-over input readiness to the existing causal
-tracker. Terminal Human validation and reward-tree lineage remain open.
-See [audit and repair](../evidence/PR25_GAME_OVER_BOUNDARY_REPAIR_2026-09-11.md).
+Latest closed Human session: 288 known accepted inputs (287 traced), 284 canonical,
+three unknowns and one dropped Fruit Juice use. Of 32 invalidations, 31 are internal
+diagnostics. First run is 245/245 canonical including the terminal successor.
+The repair aligns non-combat AnyTime popup and execution catalogs; event reward-tree
+lineage and broader Full-Run qualification remain open. See [audit and repair](../evidence/PR25_ANYTIME_POTION_REPAIR_2026-09-11.md).
 
 ## PR25 native admission repair (2026-09-11)
 

@@ -7,6 +7,57 @@ namespace STS2Connector.Host.Tests;
 public sealed class NativeFoundationContractTests
 {
     [Fact]
+    public void FruitJuiceNonCombatCatalogKeepsExactPotionAndPlayerAtExecution()
+    {
+        // Exact-game fixture: native FruitJuice properties and IsValidTarget;
+        // initialize only the public-state backing fields, without a Godot run.
+        var player = Bare<MegaCrit.Sts2.Core.Entities.Players.Player>();
+        var creature = Bare<MegaCrit.Sts2.Core.Entities.Creatures.Creature>();
+        var juice = Bare<MegaCrit.Sts2.Core.Models.Potions.FruitJuice>();
+        SetField(player, "<Creature>k__BackingField", creature);
+        SetField(creature, "<Player>k__BackingField", player);
+        SetField(creature, "_currentHp", 57);
+        var slots = new List<MegaCrit.Sts2.Core.Models.PotionModel?> { juice, null };
+        SetField(player, "_potionSlots", slots);
+        player.CanUseOrRemovePotions = true;
+        var ids = new STS2Connector.NativeUi.NativeEntityRegistry();
+        var catalog = NativePotionUseDecisionProvider.CaptureNonCombat(player, ids);
+        var action = Assert.Single(catalog.Actions);
+        Assert.Equal("potion_belt_non_combat_use", catalog.Scope);
+        Assert.Equal("use", action.Verb);
+        Assert.Same(juice, action.NativeSubject);
+        Assert.Same(creature, Assert.Single(action.Operands).NativeValue);
+        Assert.Equal("exact_once", NativeSemanticActionCatalog.Describe(catalog.Actions, "UsePotionAction", "use", juice,
+            new Dictionary<string, object> { ["target"] = creature }).Membership);
+        // EnqueueManualUse sets IsQueued before execution: this is not loss
+        // of native semantic membership, although a second UI input is blocked.
+        SetField(juice, "<IsQueued>k__BackingField", true, typeof(MegaCrit.Sts2.Core.Models.PotionModel));
+        Assert.Single(NativePotionUseDecisionProvider.CaptureNonCombat(player, ids).Actions);
+        player.CanUseOrRemovePotions = false;
+        Assert.Empty(NativePotionUseDecisionProvider.CaptureNonCombat(player, ids).Actions);
+        player.CanUseOrRemovePotions = true;
+        SetField(creature, "_currentHp", 0);
+        Assert.Empty(NativePotionUseDecisionProvider.CaptureNonCombat(player, ids).Actions);
+        SetField(creature, "_currentHp", 62);
+        slots[0] = null;
+        Assert.Empty(NativePotionUseDecisionProvider.CaptureNonCombat(player, ids).Actions);
+    }
+
+    [Theory]
+    [InlineData(MegaCrit.Sts2.Core.Entities.Potions.PotionUsage.AnyTime, true, false, true, true)]
+    [InlineData(MegaCrit.Sts2.Core.Entities.Potions.PotionUsage.CombatOnly, true, false, true, false)]
+    [InlineData(MegaCrit.Sts2.Core.Entities.Potions.PotionUsage.Automatic, true, false, true, false)]
+    [InlineData(MegaCrit.Sts2.Core.Entities.Potions.PotionUsage.AnyTime, true, false, false, false)]
+    public void NonCombatPotionUsePreservesNativeUsageAndCustomGuard(
+        MegaCrit.Sts2.Core.Entities.Potions.PotionUsage usage, bool canUse, bool dead, bool custom, bool expected) =>
+        Assert.Equal(expected, NativePotionUseDecisionProvider.AllowsNonCombatUse(usage, canUse, dead, custom));
+
+    private static T Bare<T>() => (T)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(T));
+    private static void SetField(object target, string name, object value, Type? declaring = null) =>
+        (declaring ?? target.GetType()).GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .SetValue(target, value);
+
+    [Fact]
     public void DiscardCatalogTracksExactCurrentBeltWithoutRewardOrPopupOwner()
     {
         var type = typeof(MegaCrit.Sts2.Core.Models.PotionModel).Assembly.GetTypes()

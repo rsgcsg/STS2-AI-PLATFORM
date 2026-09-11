@@ -1,5 +1,13 @@
 # Current Status
 
+## PR25 AnyTime potion follow-up (2026-09-11)
+
+The latest Human session has 288 known accepted inputs, 284 canonical, three
+trace unknowns and one dropped non-combat Fruit Juice use. The first run has
+245/245 canonical including its terminal successor. The new source aligns potion
+popup and execution catalogs; fresh Human canary and event reward-tree lineage
+remain open. See [audit, repair and limits](evidence/PR25_ANYTIME_POTION_REPAIR_2026-09-11.md).
+
 ## PR25 Act execution repair (2026-09-11)
 
 The long-session Human audit passes structurally: 356 accepted, 350 canonical,
