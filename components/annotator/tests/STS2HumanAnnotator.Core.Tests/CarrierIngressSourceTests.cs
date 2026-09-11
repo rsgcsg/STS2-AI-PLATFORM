@@ -25,6 +25,10 @@ public sealed class CarrierIngressSourceTests
         Assert.Contains("submitted != null ? submitted.Context : HumanActionScope.Current", runtime);
         Assert.Contains("submitted.SessionId != SessionId || submitted.TimelineId != TimelineId", runtime);
         Assert.Contains("hasMapping, submittedFailure", runtime);
+        int duplicate = runtime.IndexOf("if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.Duplicate)");
+        int noScope = runtime.IndexOf("if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.NoScope)", duplicate);
+        Assert.Contains("return;", runtime[duplicate..noScope]);
+        Assert.DoesNotContain("TryQuarantine", runtime[duplicate..noScope]);
         Assert.Contains("submittedFailure: submittedFailure", runtime);
         Assert.Contains("NativePotionUseDecisionProvider.ResolveTarget(use, potion)", runtime);
         Assert.Contains("semanticDecision, nativeInputBinding: nativeInput", runtime);

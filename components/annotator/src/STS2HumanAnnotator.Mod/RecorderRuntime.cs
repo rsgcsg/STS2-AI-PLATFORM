@@ -1458,8 +1458,9 @@ internal static partial class RecorderRuntime
                     context?.Occurrence ?? OccurrenceFrom(nativeActionType, context!, observed, witness));
                 return;
             }
-            if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.NoScope
-                || outcome.Kind == AcceptedDecisionObserver.OutcomeKind.Duplicate)
+            if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.Duplicate)
+                return; // never consume a different input's ambient deferred failure
+            if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.NoScope)
             {
                 // GameAction.OnEnqueued is also raised for native/internal
                 // actions that were never staged as Human input. They remain
