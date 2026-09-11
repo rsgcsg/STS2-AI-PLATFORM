@@ -1818,6 +1818,52 @@ public sealed class CurrentEvidenceTests
     }
 
     [Fact]
+    public void DeclaredDurableCloseRequiresMatchingReceiptDuringAuditAndPack()
+    {
+        string root = Temp("close-receipt-audit");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            CurrentRecordingManifest manifest = Manifest(profile) with { CloseSchemaVersion = 1 };
+            string session;
+            using (var store = RecordingSessionStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                HistoricalDecisionRecord source = RecordValidationTests.ValidRecord();
+                store.AppendDecision(CurrentRecord(source, (
+                    PersistReads(store, source.Pre.SnapshotId), PersistReads(store, source.Successor.SnapshotId))));
+                store.AppendRunEvent(new RunJournalEvent(2, CurrentRecordingContract.RunJournalSchema,
+                    "closed-event", manifest.SessionId, "run-0001", manifest.TimelineId, 10,
+                    DateTimeOffset.UtcNow, "session_closed", null, null, "fixture closed"));
+            }
+            Assert.Equal("pass", RecordingSessionAuditor.Audit(session).Status);
+            string manifestPath = Path.Combine(session, "recording-manifest.json");
+            string manifestText = File.ReadAllText(manifestPath);
+            JsonNode wrongManifest = JsonNode.Parse(manifestText)!;
+            wrongManifest["disposition_schema_version"] = 2;
+            File.WriteAllText(manifestPath, wrongManifest.ToJsonString());
+            Assert.Contains("invalidation_disposition_schema_mismatch", RecordingSessionAuditor.Audit(session).Errors);
+            wrongManifest["disposition_schema_version"] = null;
+            wrongManifest["close_schema_version"] = 2;
+            File.WriteAllText(manifestPath, wrongManifest.ToJsonString());
+            Assert.Contains("session_close_schema_invalid", RecordingSessionAuditor.Audit(session).Errors);
+            File.WriteAllText(manifestPath, manifestText);
+            string receiptPath = Path.Combine(session, "session-close-receipt.json");
+            string receipt = File.ReadAllText(receiptPath);
+            File.Delete(receiptPath);
+            Assert.Contains("session_close_receipt_invalid_or_missing", RecordingSessionAuditor.Audit(session).Errors);
+            Assert.Throws<InvalidDataException>(() => SessionBundlePacker.Pack(session,
+                "human-001", "close-receipt-test", Path.Combine(root, "bundle"), new string('c', 40), true));
+            File.WriteAllText(receiptPath, receipt.Replace(manifest.SessionId, "wrong-session"));
+            Assert.Contains("session_close_receipt_invalid_or_missing", RecordingSessionAuditor.Audit(session).Errors);
+            File.WriteAllText(receiptPath, receipt);
+            Assert.Equal("pass", RecordingSessionAuditor.Audit(session).Status);
+        }
+        finally { Delete(root); }
+    }
+
+    [Fact]
     public void FailureOnlyClosedSessionCanBeAuditedAndBundledWithoutInventingSuccess()
     {
         string root = Temp("failure-only-bundle");

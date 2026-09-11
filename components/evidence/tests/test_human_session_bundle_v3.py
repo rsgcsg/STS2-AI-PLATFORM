@@ -251,6 +251,25 @@ class HumanSessionBundleV3Tests(unittest.TestCase):
         self._reseal(bundle)
         self.assertEqual(verify_human_session_bundle(bundle).findings[0].code, "invalidation_disposition_schema_mismatch")
 
+    def test_new_manifest_requires_exact_durable_close_seal(self) -> None:
+        bundle = self._bundle()
+        raw = bundle / "raw"
+        recording = json.loads((raw / "recording-manifest.json").read_text(encoding="utf-8"))
+        recording["close_schema_version"] = 1
+        self._write(raw / "recording-manifest.json", recording)
+        self._reseal(bundle)
+        self.assertEqual(verify_human_session_bundle(bundle).findings[0].code, "session_close_receipt_invalid_or_missing")
+        receipt = {"schema": "sts2.human-annotator/session-close-1", "session_id": recording["session_id"],
+                   "timeline_id": recording["timeline_id"], "status": "closed", "closed_at": "2026-09-11T00:00:00Z"}
+        self._write(raw / "session-close-receipt.json", receipt)
+        self._reseal(bundle)
+        result = verify_human_session_bundle(bundle)
+        self.assertTrue(result.passed, result.findings)
+        receipt["session_id"] = "different-session"
+        self._write(raw / "session-close-receipt.json", receipt)
+        self._reseal(bundle)
+        self.assertEqual(verify_human_session_bundle(bundle).findings[0].code, "session_close_receipt_invalid_or_missing")
+
     def test_read_blob_reference_cannot_escape_raw(self) -> None:
         bundle = self._bundle()
         raw = bundle / "raw"

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -169,6 +170,20 @@ class HumanSessionBundleV3Verifier:
         _require(journal[-1].get("kind") == "session_closed"
                  and sum(row.get("kind") == "session_closed" for row in journal) == 1,
                  "session_not_closed", "one final native Recorder close is required")
+        _require(recording.get("close_schema_version") in (None, 1),
+                 "session_close_schema_invalid", "unsupported close schema")
+        if recording.get("close_schema_version") == 1:
+            receipt_path = raw / "session-close-receipt.json"
+            _require(receipt_path.is_file(), "session_close_receipt_invalid_or_missing", "durable close seal missing")
+            receipt = _load_json(receipt_path)
+            _require(receipt.get("schema") == "sts2.human-annotator/session-close-1"
+                     and receipt.get("session_id") == session and receipt.get("timeline_id") == timeline
+                     and receipt.get("status") == "closed" and bool(receipt.get("closed_at")),
+                     "session_close_receipt_invalid_or_missing", "durable close seal differs")
+            try:
+                datetime.fromisoformat(str(receipt["closed_at"]).replace("Z", "+00:00"))
+            except ValueError as error:
+                raise BundleVerificationError("session_close_receipt_invalid_or_missing", "invalid close timestamp") from error
         rows = [row for _, row in _jsonl(export_path)]
         _require(len(rows) == count, "canonical_count_mismatch", "canonical row count differs")
         expected_runs = {row["run_id"] for row in rows}

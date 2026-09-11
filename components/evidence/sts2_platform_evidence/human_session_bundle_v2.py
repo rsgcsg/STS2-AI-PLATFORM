@@ -237,7 +237,6 @@ class HumanSessionBundleV2Verifier:
                 "bundle content identity differs from verified V2 facts",
             )
 
-        required = _required_reads(profile)
         records = _jsonl(export_path)
         if len(records) != record_count:
             raise BundleVerificationError("export_count_mismatch", "export count differs from manifest")
@@ -254,7 +253,6 @@ class HumanSessionBundleV2Verifier:
                 timeline_id=timeline_id,
                 profile_id=profile_id,
                 profile=profile,
-                required_reads=required,
                 seen_ids=seen_ids,
                 previous_sequence=previous_sequence,
                 read_counts=read_counts,
@@ -328,7 +326,6 @@ def _validate_record(
     timeline_id: str,
     profile_id: str,
     profile: Mapping[str, Any],
-    required_reads: Mapping[str, set[str]],
     seen_ids: set[str],
     previous_sequence: int,
     read_counts: Counter[str],

@@ -24,6 +24,10 @@ public static class RecordingSessionAuditor
                 || manifest.CaptureProfileId != profile.ProfileId
                 || manifest.CaptureProfileSha256 != EvidenceIdentity.Sha256Json(profile)))
             Add(errors, "manifest_capture_profile_mismatch");
+        if (manifest?.DispositionSchemaVersion is not (null or 1))
+            Add(errors, "invalidation_disposition_schema_mismatch");
+        if (manifest?.CloseSchemaVersion is not (null or 1))
+            Add(errors, "session_close_schema_invalid");
         if (profile != null)
         {
             RecordValidationResult result = HumanCaptureProfileValidator.Validate(profile);
@@ -195,8 +199,7 @@ public static class RecordingSessionAuditor
                 Add(errors, "invalidation_identity_invalid");
                 continue;
             }
-            if (manifest.DispositionSchemaVersion is not (null or 1)
-                || (manifest.DispositionSchemaVersion == 1 && value.Disposition == null))
+            if (manifest.DispositionSchemaVersion == 1 && value.Disposition == null)
                 Add(errors, "invalidation_disposition_schema_mismatch");
             foreach (string error in RecordingDisposition.Validate(value))
                 Add(errors, error);
@@ -556,6 +559,7 @@ public static class RecordingSessionAuditor
             return;
         }
         long previous = 0;
+        bool closed = false;
         foreach ((string line, _) in Lines(path))
         {
             RunJournalEvent? value;
@@ -580,9 +584,28 @@ public static class RecordingSessionAuditor
                 continue;
             }
             previous = value.Sequence;
+            closed |= value.Kind == "session_closed";
         }
         if (previous == 0)
             Add(errors, "run_journal_empty");
+        if (closed && manifest?.CloseSchemaVersion == 1)
+        {
+            string receiptPath = Path.Combine(directory, "session-close-receipt.json");
+            try
+            {
+                JsonNode? receipt = File.Exists(receiptPath) ? JsonNode.Parse(File.ReadAllText(receiptPath)) : null;
+                if (receipt?["schema"]?.GetValue<string>() != "sts2.human-annotator/session-close-1"
+                    || receipt?["session_id"]?.GetValue<string>() != manifest.SessionId
+                    || receipt?["timeline_id"]?.GetValue<string>() != manifest.TimelineId
+                    || receipt?["status"]?.GetValue<string>() != "closed"
+                    || !DateTimeOffset.TryParse(receipt?["closed_at"]?.GetValue<string>(), out _))
+                    Add(errors, "session_close_receipt_invalid_or_missing");
+            }
+            catch (Exception exception) when (exception is IOException or JsonException or InvalidOperationException)
+            {
+                Add(errors, "session_close_receipt_invalid_or_missing");
+            }
+        }
     }
 
     private static IReadOnlyList<SemanticBoundaryTraceEvent> ValidateSemanticBoundaryTrace(

@@ -28,7 +28,10 @@ checksums.sha256                   complete file inventory
 The content identity binds all raw bytes, canonical export, profile, Human
 attestation and the complete audit report hash. Run IDs include journal-observed
 runs even when they have no canonical rows. Packing requires exactly one final
-`session_closed` journal event and a structurally passing current audit. It does
+`session_closed` journal event and a structurally passing current audit. New
+manifests with `close_schema_version=1` additionally require a matching
+`session-close-receipt.json`, published only after stream flush/disposal succeeds;
+a journal close intention alone cannot seal those sessions. It does
 **not** require zero unresolved decisions or zero real failures: failed-only
 sessions with no canonical rows remain useful, transportable defect evidence.
 No success row is invented to make such a session exportable.
@@ -73,3 +76,8 @@ A repair receives a new exact candidate, a faithful regression, new build/load
 identity and a bounded Human reproduction. Re-auditing historical bytes may add
 a new versioned report; it cannot rewrite old evidence, promote an unknown to
 proved, or transfer Human qualification to the repaired artifact.
+
+A recording that fails during close and has no required close receipt is not a
+verified bundle. Preserve its original directory and native log privately as
+unsealed incident evidence; transfer only through an explicitly marked diagnostic
+route, never by inventing a close receipt or weakening the bundle verifier.
