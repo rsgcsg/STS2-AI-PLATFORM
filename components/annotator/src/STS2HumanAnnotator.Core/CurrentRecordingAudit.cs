@@ -103,6 +103,8 @@ public static class RecordingSessionAuditor
         // has an explicit matching omission. A missing promised legacy file,
         // empty placeholder, or malformed canonical stream still fails closed.
         long invalidations = ValidateInvalidations(directory, manifest, semanticEvents, errors);
+        if (errors.Count == 0 && (manifest?.DecisionSchemaVersion == 2 || manifest?.DispositionSchemaVersion == 1))
+            ValidateProofProjectionCoverage(directory, profile!, semanticEvents, errors);
         if (decisionPaths.Length == 0
             && (errors.Count != 0 || !(HasOnlyOmittedLegacyProjections(directory)
                 || HasOnlyNonCanonicalOccurrences(directory, manifest, semanticEvents))))
@@ -123,14 +125,55 @@ public static class RecordingSessionAuditor
             });
     }
 
+    private static void ValidateProofProjectionCoverage(
+        string directory, HumanCaptureProfile profile,
+        IReadOnlyList<SemanticBoundaryTraceEvent> events, IDictionary<string, long> errors)
+    {
+        string canonicalPath = Path.Combine(directory, "canonical-transitions.jsonl");
+        var canonical = File.Exists(canonicalPath) ? Lines(canonicalPath)
+            .Select(line => JsonSerializer.Deserialize<CanonicalTransitionEvidence>(line.Line, EvidenceJson.Options)!)
+            .GroupBy(row => row.ActionWitnessId, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal)
+            : new Dictionary<string, int>(StringComparer.Ordinal);
+        string invalidationPath = Path.Combine(directory, "invalidations.jsonl");
+        InvalidationRecord[] failures = File.Exists(invalidationPath) ? Lines(invalidationPath)
+            .Select(line => JsonSerializer.Deserialize<InvalidationRecord>(line.Line, EvidenceJson.Options)!)
+            .Where(row => row.DecisionFailure?.Kind == "persistence").ToArray() : Array.Empty<InvalidationRecord>();
+        RunJournalEvent[] omissions = Lines(Path.Combine(directory, "run-journal.jsonl"))
+            .Select(line => JsonSerializer.Deserialize<RunJournalEvent>(line.Line, EvidenceJson.Options)!)
+            .Where(row => row.Kind == "canonical_projection_unsupported").ToArray();
+        SemanticBoundaryTraceEvent[] proofs = events.Where(row => row.Kind == SemanticBoundaryTraceKinds.TransitionProved).ToArray();
+        foreach (SemanticBoundaryTraceEvent proof in proofs)
+        {
+            string witness = proof.Action.ActionWitnessId;
+            string? family = SemanticTransitionProjection.CaptureFamily(proof.Action);
+            int successes = canonical.GetValueOrDefault(witness);
+            InvalidationRecord[] failed = failures.Where(row => row.DecisionFailure!.DecisionWitnessId == witness).ToArray();
+            RunJournalEvent[] unsupported = omissions.Where(row => row.RecordId == proof.Action.RecordId).ToArray();
+            bool failureValid = failed.Length == 1
+                && failed[0].RunId == proof.Action.RunId
+                && profile.SupportedActionFamilies.Contains(failed[0].DecisionFailure!.ActionFamily, StringComparer.Ordinal)
+                && (family == null || failed[0].DecisionFailure!.ActionFamily == family);
+            bool unsupportedValid = unsupported.Length == 1 && family != null
+                && !profile.SupportedActionFamilies.Contains(family, StringComparer.Ordinal)
+                && unsupported[0].RunId == proof.Action.RunId && unsupported[0].Detail == family;
+            if (successes + (failureValid ? 1 : 0) + (unsupportedValid ? 1 : 0) != 1
+                || (failed.Length > 0 && !failureValid) || (unsupported.Length > 0 && !unsupportedValid))
+                Add(errors, "proved_action_projection_disposition_missing_or_ambiguous");
+        }
+        foreach (RunJournalEvent omission in omissions)
+            if (!proofs.Any(proof => proof.Action.RecordId == omission.RecordId))
+                Add(errors, "unsupported_projection_proof_missing");
+    }
+
     private static bool HasOnlyNonCanonicalOccurrences(
         string directory, CurrentRecordingManifest? manifest,
         IReadOnlyList<SemanticBoundaryTraceEvent> events)
     {
         // A failed/unknown-only current session is valuable immutable evidence.
         // It must not need a fabricated compatibility or canonical success row.
-        if (manifest?.DecisionSchemaVersion != DecisionOccurrenceIdentity.CurrentSchemaVersion
-            || events.Any(row => row.Kind == SemanticBoundaryTraceKinds.TransitionProved)
+        if ((manifest?.DecisionSchemaVersion != DecisionOccurrenceIdentity.CurrentSchemaVersion
+                && manifest?.DispositionSchemaVersion != 1)
             || !File.Exists(Path.Combine(directory, "canonical-transitions.jsonl"))
             || Lines(Path.Combine(directory, "canonical-transitions.jsonl")).Any())
             return false;

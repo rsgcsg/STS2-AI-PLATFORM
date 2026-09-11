@@ -215,6 +215,122 @@ class HumanSessionBundleV3Tests(unittest.TestCase):
             self._stream(target, rows)
         self._reseal(bundle)
 
+    def _remove_canonical(self, bundle: Path) -> None:
+        (bundle / "raw" / "canonical-transitions.jsonl").write_text("", encoding="utf-8")
+        for path in (bundle / "session-bundle-manifest.json", bundle / "audit" / "audit-report.json"):
+            value = json.loads(path.read_text(encoding="utf-8"))
+            value["canonical_count"] = 0
+            self._write(path, value)
+
+    def test_proved_but_failed_canonical_append_is_transportable_and_exactly_accounted(self) -> None:
+        bundle = self._bundle()
+        raw = bundle / "raw"
+        self._remove_canonical(bundle)
+        recording = json.loads((raw / "recording-manifest.json").read_text(encoding="utf-8"))
+        failure = {"schema_version": 2, "schema": "sts2.human-annotator/invalidation-2",
+                   "session_id": recording["session_id"], "run_id": "run-0001", "disposition": "failed_closed",
+                   "decision_failure": {"decision_witness_id": "action-exact", "kind": "persistence",
+                                        "action_family": "ordinary_combat.play_card"}}
+        self._stream(raw / "invalidations.jsonl", [failure])
+        audit_path = bundle / "audit" / "audit-report.json"
+        audit = json.loads(audit_path.read_text(encoding="utf-8"))
+        audit["invalidations"] = 1
+        self._write(audit_path, audit)
+        self._reseal(bundle)
+        result = verify_human_session_bundle(bundle)
+        self.assertTrue(result.passed, result.findings)
+        self.assertEqual(result.require_value().canonical_count, 0)
+        failure["decision_failure"]["action_family"] = "unrelated_family"
+        self._stream(raw / "invalidations.jsonl", [failure])
+        self._reseal(bundle)
+        self.assertEqual(verify_human_session_bundle(bundle).findings[0].code,
+                         "proved_action_projection_disposition_missing_or_ambiguous")
+        self._stream(raw / "invalidations.jsonl", [])
+        audit["invalidations"] = 0
+        self._write(audit_path, audit)
+        self._reseal(bundle)
+        self.assertEqual(verify_human_session_bundle(bundle).findings[0].code,
+                         "proved_action_projection_disposition_missing_or_ambiguous")
+
+    def test_outside_profile_proof_requires_exact_durable_unsupported_disposition(self) -> None:
+        bundle = self._bundle()
+        raw = bundle / "raw"
+        self._remove_canonical(bundle)
+        trace = self._rows(raw / "semantic-boundary-trace.jsonl")
+        for event in trace:
+            event["action"]["decision"]["family"] = "outside.capture.profile"
+        self._stream(raw / "semantic-boundary-trace.jsonl", trace)
+        journal = self._rows(raw / "run-journal.jsonl")
+        journal[-1]["sequence"] = 3
+        journal.insert(1, journal[0] | {"sequence": 2, "kind": "canonical_projection_unsupported",
+                                     "record_id": "record-exact", "detail": "outside.capture.profile"})
+        self._stream(raw / "run-journal.jsonl", journal)
+        self._reseal(bundle)
+        result = verify_human_session_bundle(bundle)
+        self.assertTrue(result.passed, result.findings)
+        journal[1]["detail"] = "ordinary_combat.play_card"
+        self._stream(raw / "run-journal.jsonl", journal)
+        self._reseal(bundle)
+        self.assertEqual(verify_human_session_bundle(bundle).findings[0].code,
+                         "proved_action_projection_disposition_missing_or_ambiguous")
+
+    def test_closed_trace_requires_one_known_terminal_per_accepted_action(self) -> None:
+        bundle = self._bundle(failed_only=True)
+        path = bundle / "raw" / "semantic-boundary-trace.jsonl"
+        rows = self._rows(path)
+        self._stream(path, rows[:1])
+        self._reseal(bundle)
+        self.assertEqual(verify_human_session_bundle(bundle).findings[0].code,
+                         "trace_action_disposition_not_exactly_one")
+        self._stream(path, rows + [rows[1] | {"sequence": 3}])
+        self._reseal(bundle)
+        self.assertEqual(verify_human_session_bundle(bundle).findings[0].code,
+                         "trace_action_disposition_not_exactly_one")
+        rows[1]["kind"] = "unrecognized_success"
+        self._stream(path, rows)
+        self._reseal(bundle)
+        self.assertEqual(verify_human_session_bundle(bundle).findings[0].code, "trace_kind_invalid")
+
+    def test_compatibility_audit_count_is_typed_and_bound_to_raw_records(self) -> None:
+        bundle = self._bundle()
+        path = bundle / "audit" / "audit-report.json"
+        audit = json.loads(path.read_text(encoding="utf-8"))
+        for count, code in ((-1, "count_invalid"), (True, "count_invalid"), (1, "compatibility_count_mismatch")):
+            audit["valid_records"] = count
+            self._write(path, audit)
+            self._reseal(bundle)
+            self.assertEqual(verify_human_session_bundle(bundle).findings[0].code, code)
+
+    def test_capture_failure_requires_complete_typed_occurrence_identity(self) -> None:
+        bundle = self._bundle(failed_only=True)
+        raw = bundle / "raw"
+        session = self._rows(raw / "semantic-boundary-trace.jsonl")[0]["session_id"]
+        occurrence = {"occurrence_id": "input-exact", "native_action_type": "PlayCardAction",
+                      "family": "ordinary_combat.play_card", "verb": "play", "native_mechanism": "native_ui",
+                      "native_operands": {}, "disposition": "failed_closed"}
+        failure = {"schema_version": 2, "schema": "sts2.human-annotator/invalidation-2",
+                   "session_id": session, "run_id": "run-0001", "disposition": "failed_closed",
+                   "human_occurrence": occurrence,
+                   "decision_failure": {"decision_witness_id": "input-exact", "kind": "capture",
+                                        "action_family": "ordinary_combat.play_card"}}
+        self._stream(raw / "invalidations.jsonl", [failure])
+        path = bundle / "audit" / "audit-report.json"
+        audit = json.loads(path.read_text(encoding="utf-8"))
+        audit["invalidations"] = 1
+        self._write(path, audit)
+        self._reseal(bundle)
+        result = verify_human_session_bundle(bundle)
+        self.assertTrue(result.passed, result.findings)
+        occurrence["native_mechanism"] = ""
+        self._stream(raw / "invalidations.jsonl", [failure])
+        self._reseal(bundle)
+        self.assertEqual(verify_human_session_bundle(bundle).findings[0].code, "human_occurrence_identity_invalid")
+        occurrence["native_mechanism"] = "native_ui"
+        occurrence["native_operands"] = {"target": ""}
+        self._stream(raw / "invalidations.jsonl", [failure])
+        self._reseal(bundle)
+        self.assertEqual(verify_human_session_bundle(bundle).findings[0].code, "human_occurrence_operands_invalid")
+
     def test_open_session_is_not_immutable_bundle(self) -> None:
         bundle = self._bundle()
         path = bundle / "raw" / "run-journal.jsonl"

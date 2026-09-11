@@ -1704,6 +1704,68 @@ public sealed class CurrentEvidenceTests
             File.AppendAllText(Path.Combine(bundlePath, "export", "canonical-transitions.jsonl"), "tamper\n");
             Assert.Throws<IOException>(() => SessionBundlePacker.Pack(session, "human-001", "canonical-test",
                 bundlePath, new string('c', 40), true));
+            if (omitLegacy && nativeInput && !potion)
+            {
+                // Faithful append-loss shape: the tracker proof was durably
+                // written, canonical append failed, and no compatibility row
+                // was attempted. The loss metadata is not a new success row.
+                string canonicalPath = Path.Combine(session, "canonical-transitions.jsonl");
+                string originalCanonical = File.ReadAllText(canonicalPath);
+                string manifestPath = Path.Combine(session, "recording-manifest.json");
+                string originalManifest = File.ReadAllText(manifestPath);
+                JsonNode currentManifest = JsonNode.Parse(originalManifest)!;
+                currentManifest["disposition_schema_version"] = 1;
+                File.WriteAllText(manifestPath, currentManifest.ToJsonString());
+                File.WriteAllText(canonicalPath, string.Empty);
+                File.WriteAllText(journalPath, string.Join("\n", sealedJournal.Split('\n').Where(line =>
+                    !line.Contains("canonical_transition_recorded", StringComparison.Ordinal)
+                    && !line.Contains("current_decision_projection_omitted", StringComparison.Ordinal))));
+                File.WriteAllText(invalidationPath, JsonSerializer.Serialize(falsePersistence, EvidenceJson.Options) + "\n");
+                RecordingAuditResult lossAudit = RecordingSessionAuditor.Audit(session);
+                Assert.True(lossAudit.Status == "pass", JsonSerializer.Serialize(lossAudit.Errors));
+                CanonicalSessionBundleResult failedBundle = SessionBundlePacker.Pack(session,
+                    "human-001", "canonical-loss-test", Path.Combine(root, "failed-bundle"), new string('c', 40), true);
+                Assert.Equal(0, failedBundle.CanonicalCount);
+                File.WriteAllText(invalidationPath, string.Empty);
+                Assert.Contains("proved_action_projection_disposition_missing_or_ambiguous",
+                    RecordingSessionAuditor.Audit(session).Errors);
+                File.WriteAllText(invalidationPath, JsonSerializer.Serialize(falsePersistence with {
+                    DecisionFailure = new("unknown-action", "persistence", "ordinary_combat.play_card") }, EvidenceJson.Options) + "\n");
+                Assert.Contains("invalidation_persistence_action_missing", RecordingSessionAuditor.Audit(session).Errors);
+                File.WriteAllText(invalidationPath, JsonSerializer.Serialize(falsePersistence with {
+                    DecisionFailure = new("execution-semantic-action", "persistence", "undeclared-family") }, EvidenceJson.Options) + "\n");
+                Assert.Contains("proved_action_projection_disposition_missing_or_ambiguous",
+                    RecordingSessionAuditor.Audit(session).Errors);
+                string tracePath = Path.Combine(session, "semantic-boundary-trace.jsonl");
+                string originalTrace = File.ReadAllText(tracePath);
+                JsonNode[] explicitTrace = File.ReadLines(tracePath).Select(line => JsonNode.Parse(line)!).ToArray();
+                foreach (JsonNode row in explicitTrace)
+                    row["action"]!["decision"] = JsonSerializer.SerializeToNode(new DecisionOccurrenceIdentity(
+                        2, "decision-outside-profile", "execution-semantic-action", null, "combat_turn",
+                        "outside.capture.profile", "root", null), EvidenceJson.Options);
+                File.WriteAllText(tracePath, string.Join("\n", explicitTrace.Select(row => row.ToJsonString(EvidenceJson.Options))) + "\n");
+                RunJournalEvent unsupported = new(2, CurrentRecordingContract.RunJournalSchema,
+                    "unsupported-event", Manifest(Profile()).SessionId, "run-0001", Manifest(Profile()).TimelineId,
+                    9, DateTimeOffset.UtcNow, "canonical_projection_unsupported",
+                    explicitTrace[0]["action"]!["record_id"]!.GetValue<string>(), null, "outside.capture.profile");
+                string lossJournal = File.ReadAllText(journalPath);
+                var journalRows = lossJournal.Split('\n').Where(line => !string.IsNullOrWhiteSpace(line))
+                    .Select(line => JsonSerializer.Deserialize<RunJournalEvent>(line, EvidenceJson.Options)!).ToList();
+                journalRows.Insert(journalRows.Count - 1, unsupported);
+                File.WriteAllText(journalPath, string.Join("\n", journalRows.Select(row => JsonSerializer.Serialize(row, EvidenceJson.Options))) + "\n");
+                File.WriteAllText(invalidationPath, string.Empty);
+                RecordingAuditResult outsideAudit = RecordingSessionAuditor.Audit(session);
+                Assert.True(outsideAudit.Status == "pass", JsonSerializer.Serialize(outsideAudit.Errors));
+                Assert.Equal(0, SessionBundlePacker.Pack(session, "human-001", "outside-profile-test",
+                    Path.Combine(root, "outside-bundle"), new string('c', 40), true).CanonicalCount);
+                File.WriteAllText(journalPath, lossJournal);
+                Assert.Contains("proved_action_projection_disposition_missing_or_ambiguous", RecordingSessionAuditor.Audit(session).Errors);
+                File.WriteAllText(tracePath, originalTrace);
+                File.WriteAllText(canonicalPath, originalCanonical);
+                File.WriteAllText(manifestPath, originalManifest);
+                File.WriteAllText(journalPath, sealedJournal);
+                File.WriteAllText(invalidationPath, originalInvalidations);
+            }
             // Reproduce the former producer defect with valid content hashes:
             // admission A(H) is carried into a queued action's execution S.
             // Integrity alone must not admit this historical shape.

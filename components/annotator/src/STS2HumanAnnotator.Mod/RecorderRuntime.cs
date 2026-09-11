@@ -3765,6 +3765,10 @@ internal static partial class RecorderRuntime
         if (family == null
             || !CaptureProfile.SupportedActionFamilies.Contains(family, StringComparer.Ordinal))
         {
+            // This is a durable disposition, not merely a transient UI event:
+            // a proved action may be intentionally outside this capture profile.
+            AppendJournal("canonical_projection_unsupported", draft.Action.RecordId,
+                draft.SemanticPre?.SnapshotId, family ?? "family_unavailable", draft.Action.RunId);
             PublishApplicationEvent(RecordingEventKind.DecisionProjectionOmitted,
                 draft.Action.RecordId, "proved_but_family_outside_capture_profile",
                 ToActionProjection(draft.Action, draft.SemanticPre, draft.SemanticSuccessor) with { Disposition = "unsupported" });
@@ -4232,8 +4236,8 @@ internal static partial class RecorderRuntime
     {
         // Current admission already captured the authoritative decision family.
         // Re-interpreting its public verb here silently dropped proved purchases.
-        if (action.Decision is { } decision)
-            return decision.DecisionKind is "nested_selector" or "native_selector" ? "nested_selector.decision" : decision.Family;
+        if (action.Decision != null)
+            return SemanticTransitionProjection.CaptureFamily(action);
         if (action.NativeActionType == nameof(PickRelicAction)
             && string.Equals(action.BoundAction?.Verb, "skip", StringComparison.Ordinal))
         {
@@ -4608,7 +4612,8 @@ internal static partial class RecorderRuntime
         string kind,
         string? recordId,
         string? snapshotId,
-        string? detail)
+        string? detail,
+        string? runId = null)
     {
         if (_store == null)
             return;
@@ -4618,7 +4623,7 @@ internal static partial class RecorderRuntime
             CurrentRecordingContract.RunJournalSchema,
             $"event-{sequence:D8}-{Guid.NewGuid():N}",
             SessionId!,
-            _currentRunId,
+            runId ?? _currentRunId,
             TimelineId!,
             sequence,
             DateTimeOffset.UtcNow,

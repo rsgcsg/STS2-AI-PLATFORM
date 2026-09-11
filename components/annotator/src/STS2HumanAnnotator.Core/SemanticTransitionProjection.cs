@@ -8,6 +8,12 @@ namespace STS2HumanAnnotator.Core;
 /// </summary>
 public static class SemanticTransitionProjection
 {
+    // The explicit current decision family is admission evidence, not a
+    // second native classification or legality reconstruction.
+    public static string? CaptureFamily(SemanticActionReference action) => action.Decision is { } decision
+        ? decision.DecisionKind is "nested_selector" or "native_selector" ? "nested_selector.decision" : decision.Family
+        : null;
+
     public static CurrentDecisionRecord CreateDecision(
         SemanticBoundaryTraceDraft draft,
         RecorderEnvironmentIdentity environment,

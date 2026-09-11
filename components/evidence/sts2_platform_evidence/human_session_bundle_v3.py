@@ -139,6 +139,17 @@ class HumanSessionBundleV3Verifier:
                  and manifest.get("audit_status") == "pass" and audit.get("invalid_records") == 0
                  and audit.get("canonical_count") == count and not audit.get("errors"),
                  "audit_failed", "producer causal audit is absent, failed or inconsistent")
+        compatibility_count = _nonnegative(audit.get("valid_records"), "valid_records")
+        _nonnegative(audit.get("invalid_records"), "invalid_records")
+        compatibility_rows = [row for path in sorted(raw.glob("run-*.jsonl"))
+                              if path.name != "run-journal.jsonl" for _, row in _jsonl(path)]
+        _require(len(compatibility_rows) == compatibility_count,
+                 "compatibility_count_mismatch", "audit compatibility count differs from raw Decision records")
+        for row in compatibility_rows:
+            _require(row.get("schema_version") == 2
+                     and row.get("schema") == "sts2.human-annotator/decision-record-2"
+                     and row.get("session_id") == session and row.get("timeline_id") == timeline,
+                     "compatibility_record_identity_mismatch", "compatibility envelope differs")
         invalidations = _nonnegative(audit.get("invalidations"), "invalidations")
         export_path = directory / "export" / "canonical-transitions.jsonl"
         export_sha = _sha256_file(export_path)
@@ -204,6 +215,17 @@ class HumanSessionBundleV3Verifier:
         _require(recording.get("disposition_schema_version") in (None, 1),
                  "invalidation_disposition_schema_mismatch", "unsupported disposition schema")
         for row in failed:
+            occurrence = row.get("human_occurrence")
+            if occurrence is not None:
+                _require(isinstance(occurrence, dict) and all(isinstance(occurrence.get(key), str)
+                         and occurrence[key].strip() for key in ("occurrence_id", "native_action_type", "family", "verb", "native_mechanism")),
+                         "human_occurrence_identity_invalid", "Human occurrence identity missing")
+                _require(occurrence.get("disposition") == "failed_closed",
+                         "human_occurrence_disposition_invalid", "Human occurrence disposition differs")
+                operands = occurrence.get("native_operands")
+                _require(isinstance(operands, dict) and all(isinstance(key, str) and key.strip()
+                         and isinstance(value, str) and value.strip() for key, value in operands.items()),
+                         "human_occurrence_operands_invalid", "Human occurrence operands are invalid")
             disposition = row.get("disposition")
             _require(disposition in (None, "diagnostic", "unsupported", "failed_closed")
                      and (recording.get("disposition_schema_version") != 1 or disposition is not None),
@@ -224,6 +246,7 @@ class HumanSessionBundleV3Verifier:
             else:
                 _require(witness in accepted_ids and witness not in canonical_ids,
                          "invalidation_persistence_action_mismatch", "persistence loss contradicts trace/canonical")
+        _verify_projection_coverage(profile, trace, rows, failed, journal)
         # A failure-only session is transportable. No zero-failure or Full-Run
         # eligibility gate belongs in the evidence logistics layer.
         return HumanSessionBundleV3(directory, manifest, profile, session, timeline,
@@ -322,6 +345,13 @@ def _verify_references(
     decision_actions: dict[str, dict[str, Any]] = {}
     proofs: dict[str, list[dict[str, Any]]] = {}
     dispositions: Counter[str] = Counter()
+    terminals_by_action: Counter[str] = Counter()
+    terminal_kinds = {"transition_proved", "transition_unknown", "action_cancelled_before_start",
+                      "action_cancelled_after_start", "action_aborted_before_commit"}
+    known_kinds = terminal_kinds | {
+        "action_accepted", "action_started", "action_paused_for_player_choice", "action_ready_to_resume",
+        "action_resumed", "action_finished", "native_commit_observed", "native_continuation_observed",
+        "native_human_continuation_observed", "boundary_observed"}
     previous = 0
     for event in trace:
         _require(event.get("schema") == "sts2.human-annotator/semantic-evidence-event-4"
@@ -335,6 +365,8 @@ def _verify_references(
         action = _object(event, "action")
         witness = _text(action, "action_witness_id")
         kind = _text(event, "kind")
+        _require(kind in known_kinds, "trace_kind_invalid", kind)
+        _require(event.get("run_id") == action.get("run_id"), "trace_run_identity_mismatch", witness)
         if kind == "action_accepted":
             _require(witness not in accepted, "trace_duplicate_acceptance", witness)
             accepted[witness] = dict(action)
@@ -359,9 +391,9 @@ def _verify_references(
         else:
             _require(witness in accepted and accepted[witness] == action,
                      "trace_action_drift", witness)
-        if kind in {"transition_proved", "transition_unknown", "action_cancelled_before_start",
-                    "action_cancelled_after_start", "action_aborted_before_commit"}:
+        if kind in terminal_kinds:
             dispositions[kind] += 1
+            terminals_by_action[witness] += 1
         if kind == "transition_proved":
             proofs.setdefault(witness, []).append(event)
         for field in ("human_observation_ref", "execution_pre_ref", "successor_ref"):
@@ -373,6 +405,8 @@ def _verify_references(
         if event.get("execution_semantic_action_space_ref") is not None:
             catalog(_object(event, "execution_semantic_action_space_ref"), action)
 
+    for witness in accepted:
+        _require(terminals_by_action[witness] == 1, "trace_action_disposition_not_exactly_one", witness)
     seen: set[str] = set()
     for row in canonical:
         _require(CANONICAL_SCHEMAS.get(row.get("schema_version")) == row.get("schema")
@@ -462,3 +496,35 @@ def _decision_identity(decision: Mapping[str, Any], action: Mapping[str, Any]) -
                  "decision_native_origin_invalid", str(witness))
     if kind != "native_selector":
         _require(decision.get("native_origin") is None, "decision_unexpected_native_origin", str(witness))
+
+
+def _verify_projection_coverage(
+    profile: Mapping[str, Any], trace: list[dict[str, Any]], canonical: list[dict[str, Any]],
+    invalidations: list[dict[str, Any]], journal: list[dict[str, Any]],
+) -> None:
+    proofs = [row for row in trace if row.get("kind") == "transition_proved"]
+    canonical_counts = Counter(row["action_witness_id"] for row in canonical)
+    failures = [row for row in invalidations if isinstance(row.get("decision_failure"), dict)
+                and row["decision_failure"].get("kind") == "persistence"]
+    omissions = [row for row in journal if row.get("kind") == "canonical_projection_unsupported"]
+    families = set(profile["supported_action_families"])
+    for proof in proofs:
+        action = proof["action"]
+        witness = action["action_witness_id"]
+        decision = action.get("decision")
+        family = None if decision is None else (
+            "nested_selector.decision" if decision.get("decision_kind") in {"nested_selector", "native_selector"}
+            else decision.get("family"))
+        failed = [row for row in failures if row["decision_failure"].get("decision_witness_id") == witness]
+        unsupported = [row for row in omissions if row.get("record_id") == action.get("record_id")]
+        failure_valid = len(failed) == 1 and failed[0].get("run_id") == action.get("run_id") \
+            and failed[0]["decision_failure"].get("action_family") in families \
+            and (family is None or failed[0]["decision_failure"].get("action_family") == family)
+        unsupported_valid = len(unsupported) == 1 and family is not None and family not in families \
+            and unsupported[0].get("run_id") == action.get("run_id") and unsupported[0].get("detail") == family
+        _require(canonical_counts[witness] + int(failure_valid) + int(unsupported_valid) == 1
+                 and (not failed or failure_valid) and (not unsupported or unsupported_valid),
+                 "proved_action_projection_disposition_missing_or_ambiguous", witness)
+    for omission in omissions:
+        _require(any(row["action"].get("record_id") == omission.get("record_id") for row in proofs),
+                 "unsupported_projection_proof_missing", str(omission.get("record_id")))

@@ -34,7 +34,13 @@ manifests with `close_schema_version=1` additionally require a matching
 a journal close intention alone cannot seal those sessions. It does
 **not** require zero unresolved decisions or zero real failures: failed-only
 sessions with no canonical rows remain useful, transportable defect evidence.
-No success row is invented to make such a session exportable.
+No success row is invented to make such a session exportable. A tracker-proved
+decision whose canonical append failed requires one exact persisted
+`decision_failure` of kind `persistence`. The reverse proof-to-projection check
+rejects missing, ambiguous or mismatched dispositions. An intentional outside-
+profile omission requires an exact `canonical_projection_unsupported` journal
+entry whose family is actually outside the recorded profile. A transient UI
+label cannot excuse a missing in-scope canonical row.
 
 `export` now writes canonical bytes and refuses to overwrite either an existing
 export or its source session. An identical pack retry reuses identical bundle
