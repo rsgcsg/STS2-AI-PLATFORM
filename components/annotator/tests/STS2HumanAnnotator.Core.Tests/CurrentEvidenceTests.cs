@@ -478,7 +478,7 @@ public sealed class CurrentEvidenceTests
             RecordingAuditResult pass = RecordingSessionAuditor.Audit(session);
             Assert.Equal("pass", pass.Status);
             string output = Path.Combine(root, "bundle");
-            SessionBundlePacker.Pack(
+            SessionBundlePacker.PackCompatibility(
                 session,
                 "human-001",
                 "human-read-rich-2026-08",
@@ -1657,10 +1657,53 @@ public sealed class CurrentEvidenceTests
                             canonicalSuccessor.SnapshotId, "legacy_projection_not_available"));
                 }
                 actionSpacePath = Path.Combine(session, canonicalActionSpace.ObjectRef);
+                store.AppendRunEvent(new RunJournalEvent(
+                    2, CurrentRecordingContract.RunJournalSchema, "closed-event", manifest.SessionId,
+                    decision.RunId, manifest.TimelineId, 10, DateTimeOffset.UtcNow,
+                    "session_closed", null, null, "fixture closed"));
             }
 
             RecordingAuditResult audit = RecordingSessionAuditor.Audit(session);
             Assert.True(audit.Status == "pass", JsonSerializer.Serialize(audit.Errors));
+            string invalidationPath = Path.Combine(session, "invalidations.jsonl");
+            string originalInvalidations = File.ReadAllText(invalidationPath);
+            var falsePersistence = new InvalidationRecord(2, CurrentRecordingContract.InvalidationSchema,
+                "false-persistence", Manifest(Profile()).SessionId, "run-0001", DateTimeOffset.UtcNow,
+                "canonical_transition_append_failed", "fixture contradiction", null, "PlayCardAction", "native_human_decision") {
+                DecisionFailure = new("execution-semantic-action", "persistence", "ordinary_combat.play_card"),
+                Disposition = "failed_closed" };
+            File.WriteAllText(invalidationPath, JsonSerializer.Serialize(falsePersistence, EvidenceJson.Options) + "\n");
+            Assert.Contains("invalidation_persistence_contradicts_canonical", RecordingSessionAuditor.Audit(session).Errors);
+            File.WriteAllText(invalidationPath, originalInvalidations);
+            string bundlePath = Path.Combine(root, "canonical-bundle");
+            CanonicalSessionBundleResult packed = SessionBundlePacker.Pack(session, "human-001", "canonical-test",
+                bundlePath, new string('c', 40), true);
+            CanonicalSessionBundleResult retry = SessionBundlePacker.Pack(session, "human-001", "canonical-test",
+                bundlePath, new string('c', 40), true);
+            Assert.Equal(packed.BundleContentId, retry.BundleContentId);
+            Assert.Equal(packed.ChecksumsSha256, retry.ChecksumsSha256);
+            JsonNode bundleManifest = JsonNode.Parse(File.ReadAllText(Path.Combine(bundlePath,
+                "session-bundle-manifest.json")))!;
+            Assert.Equal(CanonicalSessionBundleContract.Schema, bundleManifest["schema"]!.GetValue<string>());
+            Assert.Equal(1, bundleManifest["canonical_count"]!.GetValue<int>());
+            Assert.Null(bundleManifest["record_count"]);
+            Assert.Equal(File.ReadAllBytes(Path.Combine(session, "canonical-transitions.jsonl")),
+                File.ReadAllBytes(Path.Combine(bundlePath, "export", "canonical-transitions.jsonl")));
+            if (omitLegacy) Assert.Throws<InvalidDataException>(() => SessionBundlePacker.PackCompatibility(
+                session, "human-001", "canonical-test", Path.Combine(root, "legacy-bundle"), new string('c', 40), true));
+            string exportPath = Path.Combine(root, "canonical-export.jsonl");
+            Assert.Equal(1, SessionBundlePacker.ExportCanonical(session, exportPath));
+            Assert.Throws<InvalidDataException>(() => SessionBundlePacker.ExportCanonical(session,
+                Path.Combine(session, "illegal-export.jsonl")));
+            string journalPath = Path.Combine(session, "run-journal.jsonl");
+            string sealedJournal = File.ReadAllText(journalPath);
+            File.WriteAllText(journalPath, sealedJournal.Replace("session_closed", "session_close_requested"));
+            Assert.Throws<InvalidDataException>(() => SessionBundlePacker.Pack(session, "human-001", "canonical-test",
+                Path.Combine(root, "open-bundle"), new string('c', 40), true));
+            File.WriteAllText(journalPath, sealedJournal);
+            File.AppendAllText(Path.Combine(bundlePath, "export", "canonical-transitions.jsonl"), "tamper\n");
+            Assert.Throws<IOException>(() => SessionBundlePacker.Pack(session, "human-001", "canonical-test",
+                bundlePath, new string('c', 40), true));
             // Reproduce the former producer defect with valid content hashes:
             // admission A(H) is carried into a queued action's execution S.
             // Integrity alone must not admit this historical shape.
@@ -1775,6 +1818,46 @@ public sealed class CurrentEvidenceTests
     }
 
     [Fact]
+    public void FailureOnlyClosedSessionCanBeAuditedAndBundledWithoutInventingSuccess()
+    {
+        string root = Temp("failure-only-bundle");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            CurrentRecordingManifest manifest = Manifest(profile) with { DecisionSchemaVersion = 2 };
+            string session;
+            using (var store = RecordingSessionStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                var occurrence = new HumanActionOccurrenceEvidence("accepted-input", "PlayCardAction",
+                    "ordinary_combat.play_card", "play", "card-owner", new Dictionary<string, string>(),
+                    null, null, null, null, "native_ui", "failed_closed");
+                store.AppendInvalidation(new InvalidationRecord(2, CurrentRecordingContract.InvalidationSchema,
+                    "failure-only", manifest.SessionId, "run-0001", DateTimeOffset.UtcNow,
+                    "pre_frame_capture_failed", "exact accepted Human input had no frame", null,
+                    "PlayCardAction", "native_human_decision") {
+                    HumanOccurrence = occurrence, Disposition = "failed_closed",
+                    DecisionFailure = new("accepted-input", "capture", "ordinary_combat.play_card") });
+                store.AppendRunEvent(new RunJournalEvent(2, CurrentRecordingContract.RunJournalSchema,
+                    "closed-event", manifest.SessionId, "run-0001", manifest.TimelineId, 10,
+                    DateTimeOffset.UtcNow, "session_closed", null, null, "fixture closed"));
+            }
+            Assert.Equal("pass", RecordingSessionAuditor.Audit(session).Status);
+            string output = Path.Combine(root, "bundle");
+            SessionBundlePacker.Pack(session, "human-001", "failure-evidence", output, new string('c', 40), true);
+            JsonNode packed = JsonNode.Parse(File.ReadAllText(Path.Combine(output, "session-bundle-manifest.json")))!;
+            Assert.Equal(0, packed["canonical_count"]!.GetValue<int>());
+            Assert.Empty(File.ReadAllText(Path.Combine(output, "export", "canonical-transitions.jsonl")));
+            Assert.Equal(File.ReadAllText(Path.Combine(session, "invalidations.jsonl")),
+                File.ReadAllText(Path.Combine(output, "raw", "invalidations.jsonl")));
+            File.WriteAllText(Path.Combine(session, "invalidations.jsonl"), "malformed\n");
+            Assert.Equal("fail", RecordingSessionAuditor.Audit(session).Status);
+        }
+        finally { Delete(root); }
+    }
+
+    [Fact]
     public void CurrentBundleIsPortableDeterministicAndImmutable()
     {
         string root = Temp("current-bundle");
@@ -1793,14 +1876,14 @@ public sealed class CurrentEvidenceTests
                     PersistReads(store, v1.Successor.SnapshotId))));
             }
             string output = Path.Combine(root, "bundle");
-            SessionBundleResult first = SessionBundlePacker.Pack(
+            SessionBundleResult first = SessionBundlePacker.PackCompatibility(
                 session,
                 "human-001",
                 "human-read-rich-2026-08",
                 output,
                 new string('c', 40),
                 true);
-            SessionBundleResult retry = SessionBundlePacker.Pack(
+            SessionBundleResult retry = SessionBundlePacker.PackCompatibility(
                 session,
                 "human-001",
                 "human-read-rich-2026-08",
@@ -1812,7 +1895,7 @@ public sealed class CurrentEvidenceTests
             Assert.NotEmpty(Directory.GetFiles(
                 Path.Combine(output, "raw", "blobs"), "*.json", SearchOption.AllDirectories));
             File.AppendAllText(Path.Combine(output, "export", "decisions.jsonl"), "tamper\n");
-            Assert.Throws<IOException>(() => SessionBundlePacker.Pack(
+            Assert.Throws<IOException>(() => SessionBundlePacker.PackCompatibility(
                 session,
                 "human-001",
                 "human-read-rich-2026-08",

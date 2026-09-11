@@ -60,7 +60,7 @@ Exact-game lifecycle:
   launch | launch-live-connector | verify-loaded | admit-current-modset
 
 Evidence:
-  audit | audit-native-semantic | export | pack-session`);
+  audit | audit-native-semantic | export | export-compatibility | pack-session | pack-session-compatibility`);
 }
 
 function run(executable, commandArgs, options = {}) {
@@ -712,12 +712,12 @@ function auditNativeSemantic() {
   run("dotnet", [toolDll, "audit-native-semantic", directory]);
 }
 
-function exportRecords() {
+function exportRecords(compatibility = false) {
   const directory = resolveCliPath(args[0] || readJson(runtimeStatus).recording_directory);
   const output = args[1]
     ? resolveCliPath(args[1])
     : path.join(local, "exports", `${path.basename(directory)}.jsonl`);
-  run("dotnet", [toolDll, "export", directory, output]);
+  run("dotnet", [toolDll, compatibility ? "export-compatibility" : "export", directory, output]);
 }
 
 function option(name) {
@@ -726,7 +726,7 @@ function option(name) {
   return args[index + 1];
 }
 
-function packSession() {
+function packSession(compatibility = false) {
   const source = sourceState();
   if (source.worktree !== "clean")
     throw new Error("Commit or remove Annotator worktree changes before evidence packing.");
@@ -742,14 +742,15 @@ function packSession() {
     : path.join(local, "bundles", path.basename(directory));
   if (gameRunning() && fs.existsSync(runtimeStatus)) {
     const status = readJson(runtimeStatus);
-    if (path.resolve(status.recording_directory) === directory && processAlive(status.process_id))
+    if (path.resolve(status.recording_directory) === directory && processAlive(status.process_id)
+        && status.status !== "recording_closed")
       throw new Error("The active recording session must be closed before packing.");
   }
   if (manifest.schema !== "sts2.human-annotator/recording-manifest-2")
     throw new Error("The current recorder requires recording-manifest-2; historical V1 sessions are archival-only.");
   const command = [
     toolDll,
-    "pack-session",
+    compatibility ? "pack-session-compatibility" : "pack-session",
     directory,
     worker,
     campaign,
@@ -803,7 +804,9 @@ try {
   else if (command === "audit") audit();
   else if (command === "audit-native-semantic") auditNativeSemantic();
   else if (command === "export") exportRecords();
+  else if (command === "export-compatibility") exportRecords(true);
   else if (command === "pack-session") packSession();
+  else if (command === "pack-session-compatibility") packSession(true);
   else if (command === "rollback") rollback();
   else throw new Error(`Unknown command: ${command}`);
 } catch (error) {

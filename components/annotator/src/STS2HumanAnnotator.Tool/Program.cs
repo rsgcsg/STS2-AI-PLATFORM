@@ -8,9 +8,13 @@ return args switch
     ["audit", string directory] => Audit(directory),
     ["audit-native-semantic", string directory] => AuditNativeSemantic(directory),
     ["export", string directory, string output] => Export(directory, output),
+    ["export-compatibility", string directory, string output] => Export(directory, output, compatibility: true),
     ["pack-session", string directory, string worker, string campaign,
         string output, string sourceRevision, "human_origin_attested"] =>
         PackSession(directory, worker, campaign, output, sourceRevision),
+    ["pack-session-compatibility", string directory, string worker, string campaign,
+        string output, string sourceRevision, "human_origin_attested"] =>
+        PackSession(directory, worker, campaign, output, sourceRevision, compatibility: true),
     ["identity", string assembly] => Identity(assembly),
     _ => Usage()
 };
@@ -20,15 +24,12 @@ static int PackSession(
     string worker,
     string campaign,
     string output,
-    string sourceRevision)
+    string sourceRevision,
+    bool compatibility = false)
 {
-    SessionBundleResult result = SessionBundlePacker.Pack(
-        directory,
-        worker,
-        campaign,
-        output,
-        sourceRevision,
-        humanOriginAttested: true);
+    object result = compatibility
+        ? SessionBundlePacker.PackCompatibility(directory, worker, campaign, output, sourceRevision, true)
+        : SessionBundlePacker.Pack(directory, worker, campaign, output, sourceRevision, true);
     Console.WriteLine(JsonSerializer.Serialize(result, EvidenceJson.IndentedOptions));
     return 0;
 }
@@ -63,11 +64,12 @@ static int AuditNativeSemantic(string directory)
     return report.Status == "pass" ? 0 : 1;
 }
 
-static int Export(string directory, string output)
+static int Export(string directory, string output, bool compatibility = false)
 {
-    long count = RecordingSessionAuditor.ExportAdmitted(directory, output);
+    long count = compatibility ? RecordingSessionAuditor.ExportAdmitted(directory, output)
+        : SessionBundlePacker.ExportCanonical(directory, output);
     Console.WriteLine(JsonSerializer.Serialize(
-        new { status = "pass", exported_records = count, output = Path.GetFullPath(output) },
+        new { status = "pass", exported_rows = count, format = compatibility ? "decision-record-2" : "canonical-transition-evidence-3", output = Path.GetFullPath(output) },
         EvidenceJson.IndentedOptions));
     return 0;
 }
@@ -92,6 +94,6 @@ static int Identity(string assembly)
 
 static int Usage()
 {
-    Console.Error.WriteLine("usage: sts2-human-annotator audit <recording-dir> | audit-native-semantic <recording-dir> | export <recording-dir> <output.jsonl> | pack-session <recording-dir> <worker-id> <campaign-id> <output-dir> <source-revision> human_origin_attested | identity <assembly>");
+    Console.Error.WriteLine("usage: sts2-human-annotator audit <recording-dir> | audit-native-semantic <recording-dir> | export[-compatibility] <recording-dir> <output.jsonl> | pack-session[-compatibility] <recording-dir> <worker-id> <campaign-id> <output-dir> <source-revision> human_origin_attested | identity <assembly>");
     return 2;
 }

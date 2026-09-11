@@ -303,15 +303,18 @@ def _validate_profile(profile: Mapping[str, Any]) -> None:
         kind = _text(item, "kind")
         if phase not in {"pre", "successor"} or not isinstance(item.get("required"), bool):
             raise BundleVerificationError("capture_profile_invalid", "profile Read is invalid")
-        keys.append((phase, kind))
+        interaction = item.get("interaction_kind")
+        if interaction is not None and (not isinstance(interaction, str) or not interaction.strip()):
+            raise BundleVerificationError("capture_profile_invalid", "profile interaction kind is invalid")
+        keys.append((phase, kind, interaction))
     if len(keys) != len(set(keys)):
         raise BundleVerificationError("capture_profile_invalid", "profile Reads are duplicated")
 
 
-def _required_reads(profile: Mapping[str, Any]) -> dict[str, set[str]]:
+def _required_reads(profile: Mapping[str, Any], interaction_kind: str | None = None) -> dict[str, set[str]]:
     result = {"pre": set(), "successor": set()}
     for value in profile["reads"]:
-        if value.get("required") is True:
+        if value.get("required") is True and value.get("interaction_kind") in (None, interaction_kind):
             result[str(value["phase"])].add(str(value["kind"]))
     return result
 
@@ -398,7 +401,8 @@ def _validate_record(
                 read_counts[kind] += 1
             elif status not in {"not_available", "failed", "stale"}:
                 raise BundleVerificationError("read_status_invalid", f"line {line_number} {phase}/{kind}")
-        missing = required_reads[phase] - {
+        scoped_required = _required_reads(profile, frame.get("interaction_kind"))[phase]
+        missing = scoped_required - {
             kind for kind, value in by_kind.items() if value.get("status") == "materialized"
         }
         if missing:

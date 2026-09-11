@@ -98,10 +98,11 @@ public static class RecordingSessionAuditor
         // Legacy projection is optional only when every durable canonical row
         // has an explicit matching omission. A missing promised legacy file,
         // empty placeholder, or malformed canonical stream still fails closed.
+        long invalidations = ValidateInvalidations(directory, manifest, semanticEvents, errors);
         if (decisionPaths.Length == 0
-            && (errors.Count != 0 || !HasOnlyOmittedLegacyProjections(directory)))
+            && (errors.Count != 0 || !(HasOnlyOmittedLegacyProjections(directory)
+                || HasOnlyNonCanonicalOccurrences(directory, manifest, semanticEvents))))
             Add(errors, "decision_file_missing");
-        long invalidations = ValidateInvalidations(directory, manifest, errors);
         return new RecordingAuditResult(
             errors.Count == 0 && invalid == 0 ? "pass" : "fail",
             directory,
@@ -116,6 +117,25 @@ public static class RecordingSessionAuditor
                 "audit_does_not_qualify_unseen_families",
                 "read_capture_is_player_visible_evidence_not_hidden_state"
             });
+    }
+
+    private static bool HasOnlyNonCanonicalOccurrences(
+        string directory, CurrentRecordingManifest? manifest,
+        IReadOnlyList<SemanticBoundaryTraceEvent> events)
+    {
+        // A failed/unknown-only current session is valuable immutable evidence.
+        // It must not need a fabricated compatibility or canonical success row.
+        if (manifest?.DecisionSchemaVersion != DecisionOccurrenceIdentity.CurrentSchemaVersion
+            || events.Any(row => row.Kind == SemanticBoundaryTraceKinds.TransitionProved)
+            || !File.Exists(Path.Combine(directory, "canonical-transitions.jsonl"))
+            || Lines(Path.Combine(directory, "canonical-transitions.jsonl")).Any())
+            return false;
+        if (events.Any(row => row.Kind == SemanticBoundaryTraceKinds.ActionAccepted))
+            return true;
+        string path = Path.Combine(directory, "invalidations.jsonl");
+        return File.Exists(path) && Lines(path).Any(line =>
+            JsonSerializer.Deserialize<InvalidationRecord>(line.Line, EvidenceJson.Options)
+                ?.HumanOccurrence?.Disposition == "failed_closed");
     }
 
     private static bool HasOnlyOmittedLegacyProjections(string directory)
@@ -145,6 +165,7 @@ public static class RecordingSessionAuditor
     private static long ValidateInvalidations(
         string directory,
         CurrentRecordingManifest? manifest,
+        IReadOnlyList<SemanticBoundaryTraceEvent> semanticEvents,
         IDictionary<string, long> errors)
     {
         string path = Path.Combine(directory, "invalidations.jsonl");
@@ -179,6 +200,17 @@ public static class RecordingSessionAuditor
                 Add(errors, "invalidation_disposition_schema_mismatch");
             foreach (string error in RecordingDisposition.Validate(value))
                 Add(errors, error);
+            if (value.DecisionFailure is { Kind: "persistence" } failure)
+            {
+                if (!semanticEvents.Any(row => row.Kind == SemanticBoundaryTraceKinds.ActionAccepted
+                        && row.Action.ActionWitnessId == failure.DecisionWitnessId))
+                    Add(errors, "invalidation_persistence_action_missing");
+                string canonicalPath = Path.Combine(directory, "canonical-transitions.jsonl");
+                if (File.Exists(canonicalPath) && Lines(canonicalPath).Any(line =>
+                        JsonSerializer.Deserialize<CanonicalTransitionEvidence>(line.Line, EvidenceJson.Options)
+                            ?.ActionWitnessId == failure.DecisionWitnessId))
+                    Add(errors, "invalidation_persistence_contradicts_canonical");
+            }
             foreach (string error in HumanActionOccurrenceEvidenceValidator.Validate(value.HumanOccurrence))
                 Add(errors, error);
             if (value.NativeActionType is "NChooseACardSelectionScreen.SelectHolder"
