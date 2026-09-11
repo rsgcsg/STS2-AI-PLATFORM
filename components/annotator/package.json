@@ -1,6 +1,6 @@
 {
   "name": "@rsgcsg/sts2-human-annotator",
-  "version": "0.3.0-rc.1",
+  "version": "0.3.0-rc.4",
   "private": true,
   "description": "Native STS2 UI human decision recorder",
   "license": "MIT",
@@ -16,7 +16,7 @@
   "scripts": {
     "doctor": "node tools/annotator.mjs doctor",
     "build": "node tools/annotator.mjs build",
-    "test": "node tools/annotator.mjs test && node --test tools/analyze-semantic-evidence.test.mjs tools/calibrate-semantic-training.test.mjs",
+    "test": "node tools/annotator.mjs test && node --test tools/analyze-semantic-evidence.test.mjs tools/calibrate-semantic-training.test.mjs tools/full-run-surface.test.mjs",
     "test:semantic-analysis": "node --test tools/analyze-semantic-evidence.test.mjs",
     "test:semantic-calibration": "node --test tools/calibrate-semantic-training.test.mjs",
     "check:docs": "node tools/check-docs.mjs",
@@ -35,6 +35,8 @@
     "audit:native-semantic": "node tools/annotator.mjs audit-native-semantic",
     "export": "node tools/annotator.mjs export",
     "pack-session": "node tools/annotator.mjs pack-session",
+    "export-compatibility": "node tools/annotator.mjs export-compatibility",
+    "pack-session-compatibility": "node tools/annotator.mjs pack-session-compatibility",
     "rollback": "node tools/annotator.mjs rollback"
   }
 }

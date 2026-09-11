@@ -11,7 +11,7 @@ from sts2_platform_evidence.human_session_bundle import (
     HumanSessionBundleV2,
     verify_human_session_bundle,
 )
-from sts2_platform_evidence.human_session_bundle_v2 import HumanSessionBundleV2Verifier
+from sts2_platform_evidence.human_session_bundle_v2 import (HumanSessionBundleV2Verifier, _required_reads, _validate_profile)
 
 
 def canonical(value: Any) -> str:
@@ -281,6 +281,23 @@ class HumanSessionBundleV2Tests(unittest.TestCase):
         self._refresh_checksums(bundle)
         result = verify_human_session_bundle(bundle)
         self.assertEqual(result.findings[0].code, "content_identity_facts_mismatch")
+
+    def test_current_profile_read_scope_is_not_a_duplicate_or_global_requirement(self) -> None:
+        bundle = self._bundle()
+        profile = json.loads((bundle / "profile" / "capture-profile.json").read_text(encoding="utf-8"))
+        profile["reads"] = [
+            {"phase": "pre", "kind": "run_deck", "required": True},
+            {"phase": "pre", "kind": "run_deck", "required": True, "interaction_kind": "event_option"},
+            {"phase": "pre", "kind": "combat_piles", "required": True, "interaction_kind": "combat_turn"},
+            {"phase": "pre", "kind": "shop_catalog", "required": True, "interaction_kind": "shop_inventory"},
+        ]
+        _validate_profile(profile)
+        self.assertEqual(_required_reads(profile, "combat_turn")["pre"], {"run_deck", "combat_piles"})
+        self.assertEqual(_required_reads(profile, "event_option")["pre"], {"run_deck"})
+        self.assertEqual(_required_reads(profile, "shop_inventory")["pre"], {"run_deck", "shop_catalog"})
+        profile["reads"].append(dict(profile["reads"][1]))
+        with self.assertRaisesRegex(ValueError, "duplicated"):
+            _validate_profile(profile)
 
     def _rewrite_identity(self, bundle: Path) -> None:
         raw = bundle / "raw"

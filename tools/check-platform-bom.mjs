@@ -151,6 +151,43 @@ export function validatePlatformBom(bom, authorities) {
     expectEqual(errors, `${bomKey}.component_tree_revision`, component?.component_tree_revision, identity.component_tree_revision);
     expectEqual(errors, `${bomKey}.component_source_digest_sha256`, component?.component_source_digest_sha256, identity.component_source_digest_sha256);
   }
+  const finalCandidate = bom.final_full_run_candidate;
+  if (finalCandidate) {
+    expectEqual(errors, "Final Full-Run candidate schema", finalCandidate.schema,
+      "sts2.ai-platform/full-run-candidate-1");
+    if (!["pending", "pass"].includes(finalCandidate.human_gate))
+      errors.push("Final Full-Run Human gate is invalid");
+    if (finalCandidate.human_gate === "pass") {
+      const human = finalCandidate.human_evidence;
+      expectEqual(errors, "Final Full-Run Human stage", finalCandidate.stage, "loaded_candidate");
+      expectEqual(errors, "Final Full-Run Human runtime", human?.runtime_instance_id, finalCandidate.runtime_instance_id);
+      expectEqual(errors, "Final Full-Run Human artifact", human?.artifact_sha256, finalCandidate.artifact_sha256);
+      expectEqual(errors, "Final Full-Run Human origin", human?.human_origin, "owner_attested_not_machine_proven");
+      expectEqual(errors, "Final Full-Run Human audit", human?.audit_status, "pass");
+      expectEqual(errors, "Final Full-Run Human real failures", human?.real_failures, 0);
+      expectEqual(errors, "Final Full-Run Human unexplained losses", human?.unexplained_lost_inputs, 0);
+      expectEqual(errors, "Final Full-Run Human uninterrupted", human?.uninterrupted_native_start_to_terminal, true);
+      expectPattern(errors, "Final Full-Run Human session", human?.session_id, /^session-[a-zA-Z0-9-]+$/u);
+      expectPattern(errors, "Final Full-Run Human audit hash", human?.audit_sha256, SHA256);
+      expectPattern(errors, "Final Full-Run Human bundle content", human?.bundle_content_id, SHA256);
+    }
+    expectEqual(errors, "Final Full-Run predecessor transfer", finalCandidate.evidence_transfer_from_predecessor, false);
+    for (const key of ["annotator", "evidence", "live_ui", "game_mod"])
+      for (const field of ["version", "source_revision", "component_tree_revision", "component_source_digest_sha256"])
+        expectEqual(errors, `Final Full-Run ${key}.${field}`,
+          finalCandidate.components?.[key]?.[field], bom.components?.[key]?.[field]);
+    if (!["source_candidate", "loaded_candidate"].includes(finalCandidate.stage))
+      errors.push("Final Full-Run candidate stage is invalid");
+    if (finalCandidate.stage === "loaded_candidate") {
+      expectPattern(errors, "Final Full-Run artifact", finalCandidate.artifact_sha256, SHA256);
+      expectPattern(errors, "Final Full-Run MVID", finalCandidate.artifact_mvid, MVID);
+      expectPattern(errors, "Final Full-Run build workspace", finalCandidate.workspace_revision_at_build, COMMIT);
+      expectPattern(errors, "Final Full-Run runtime", finalCandidate.runtime_instance_id, /^[a-f0-9]{32}$/u);
+      expectPattern(errors, "Final Full-Run environment", finalCandidate.environment_fingerprint, SHA256);
+      expectPattern(errors, "Final Full-Run Modset", finalCandidate.modset_fingerprint, SHA256);
+      expectPattern(errors, "Final Full-Run rollback", finalCandidate.rollback, /^apps\/game-mod\/\.local\/deployments\//u);
+    }
+  }
   expectEqual(errors, "Native Foundation version", bom.components?.native_foundation?.version,
     authorities.nativeFoundationComponent.version);
   expectEqual(errors, "connector release version", bom.components?.connector?.version, authorities.connectorRelease.release.version);
@@ -976,7 +1013,7 @@ export function validatePlatformBom(bom, authorities) {
   if (fullRun?.artifact_sha256 === semanticTimeline?.artifact_sha256)
     errors.push("Full-Run source candidate must not reuse the proved schema-2 artifact identity");
   expectEqual(errors, "candidate Live UI source relation", policyCandidate?.live_ui?.source_relation,
-    "loaded_native_source_scope_matches_current_component");
+    "loaded_ui_source_precedes_current_component");
   expectEqual(errors, "candidate Connector protocol", policyCandidate?.connector?.protocol,
     bom.components?.player_environment_protocol);
   expectEqual(errors, "candidate Policy Runtime source", policyCandidate?.policy_runtime?.source_revision,
@@ -985,7 +1022,7 @@ export function validatePlatformBom(bom, authorities) {
     bom.components?.policy_runtime?.component_source_digest_sha256);
   expectEqual(errors, "candidate Policy Runtime version", policyCandidate?.policy_runtime?.version,
     bom.components?.policy_runtime?.version);
-  expectEqual(errors, "candidate Game Mod version", policyCandidate?.game_mod?.version,
+  expectEqual(errors, "candidate current Game Mod version", policyCandidate?.game_mod?.current_component_version,
     bom.components?.game_mod?.version);
   expectEqual(errors, "candidate current Game Mod source",
     policyCandidate?.game_mod?.current_component_source_revision,

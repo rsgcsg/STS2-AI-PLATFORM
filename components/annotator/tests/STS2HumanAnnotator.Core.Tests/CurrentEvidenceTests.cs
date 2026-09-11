@@ -7,6 +7,203 @@ namespace STS2HumanAnnotator.Core.Tests;
 
 public sealed class CurrentEvidenceTests
 {
+    [Fact]
+    public void CloseWriteFailureLeavesAccountingUnavailableWithoutACompletedReceipt()
+    {
+        string root = Temp("close-receipt-failure");
+        RecordingSessionStore? store = null;
+        string? obstruction = null;
+        try
+        {
+            var profile = Profile();
+            var manifest = Manifest(profile) with { CloseSchemaVersion = 1 };
+            store = RecordingSessionStore.Create(root, manifest, profile);
+            obstruction = Path.Combine(store.DirectoryPath, "performance-profile.json");
+            Directory.CreateDirectory(obstruction); // actual I/O failure before terminal receipt
+            Exception? closeError = Record.Exception(() => store.Dispose());
+            // Windows reports a directory collision as access denied; POSIX
+            // reports an I/O error. Both must preserve the same failed close.
+            Assert.True(closeError is IOException or UnauthorizedAccessException,
+                closeError?.ToString() ?? "Expected the real filesystem obstruction to fail close.");
+            var status = store.GetSnapshot();
+            Assert.False(status.Closed);
+            Assert.Equal("failed", status.AppendHealth);
+            Assert.Null(status.Counters.Decisions!.RealFailures);
+            Assert.False(File.Exists(Path.Combine(store.DirectoryPath, "session-close-receipt.json")));
+        }
+        finally
+        {
+            if (obstruction != null && Directory.Exists(obstruction)) Directory.Delete(obstruction);
+            store?.Dispose(); // explicit test cleanup after removing the fault; never a native retry
+            Delete(root);
+        }
+    }
+
+    [Fact]
+    public void DurableDispositionCountersExcludeCancellationAndDiagnosticsAndDeduplicateExactFailure()
+    {
+        string root = Temp("disposition-counters");
+        try
+        {
+            var profile = Profile();
+            var manifest = Manifest(profile);
+            using var store = RecordingSessionStore.Create(root, manifest, profile);
+            var action = new SemanticActionReference("action-ref", 1, "record-ref", "run-0001", "PlayCardAction", 1, "snapshot-a");
+            store.AppendSemanticEvidenceEvents(new[] {
+                SemanticEvidenceEvent(manifest, 1, SemanticBoundaryTraceKinds.ActionAccepted, action),
+                SemanticEvidenceEvent(manifest, 2, SemanticBoundaryTraceKinds.ActionCancelledBeforeStart, action),
+                SemanticEvidenceEvent(manifest, 3, SemanticBoundaryTraceKinds.ActionAccepted, action with { ActionWitnessId = "unknown-action" }),
+                SemanticEvidenceEvent(manifest, 4, SemanticBoundaryTraceKinds.TransitionUnknown, action with { ActionWitnessId = "unknown-action" })
+            });
+            var diagnostic = new InvalidationRecord(CurrentRecordingContract.SchemaVersion, CurrentRecordingContract.InvalidationSchema,
+                "diagnostic", manifest.SessionId, "run-0001", DateTimeOffset.UnixEpoch, "human_action_native_type_mismatch", "internal",
+                null, "MoveToMapCoordAction", "failed_closed") { Disposition = "diagnostic" };
+            store.AppendInvalidation(diagnostic);
+            var occurrence = new HumanActionOccurrenceEvidence("missing-choice", "SelectCard", "nested_selector.decision", "select",
+                "card", new Dictionary<string, string>(), "owner", null, null, null, "SelectCard", "failed_closed");
+            var failure = diagnostic with { InvalidationId = "missing", Disposition = "failed_closed", HumanOccurrence = occurrence,
+                DecisionFailure = new("missing-choice", "capture", "nested_selector.decision") };
+            store.AppendInvalidation(failure);
+            store.AppendInvalidation(failure with { InvalidationId = "same-exact-occurrence" });
+            store.AppendInvalidation(diagnostic with { InvalidationId = "unknown-projection", Disposition = "failed_closed",
+                DecisionFailure = new("unknown-action", "persistence", "ordinary_combat.play_card") });
+            var counts = store.GetSnapshot().Counters.Decisions!;
+            Assert.Equal(1, counts.Cancelled);
+            Assert.Equal(1, counts.Unresolved);
+            Assert.Equal(0, counts.Pending);
+            Assert.Equal(1, counts.CaptureFailures);
+            Assert.Equal(2, counts.RealFailures);
+            Assert.Equal(1, store.GetSnapshot().FailedActionFamilies!["nested_selector.decision"]);
+            Assert.Throws<InvalidDataException>(() => store.AppendInvalidation(failure with { Disposition = "diagnostic" }));
+            Assert.Equal(2, store.GetSnapshot().Counters.Decisions!.RealFailures);
+            Assert.Throws<InvalidDataException>(() => store.AppendInvalidation(diagnostic with { Disposition = "invented" }));
+            Assert.Throws<InvalidDataException>(() => store.AppendInvalidation(diagnostic with { Disposition = "failed_closed" }));
+            store.MarkDecisionAccountingUnavailable();
+            Assert.Null(store.GetSnapshot().Counters.Decisions!.RealFailures);
+        }
+        finally { Delete(root); }
+    }
+
+    [Fact]
+    public void FullRunCoverageMapIsCompleteAndClosesExactNestedLineage()
+    {
+        IReadOnlyList<FullRunCoverageEntry> entries = FullRunCoverageContract.Entries;
+
+        Assert.Empty(FullRunCoverageContract.Validate());
+        Assert.Equal(
+            entries.Count,
+            entries.Select(entry => entry.Family).Distinct(StringComparer.Ordinal).Count());
+
+        HumanCaptureProfile profile = HumanCaptureProfiles.FullRunReadRich;
+        foreach (string family in profile.SupportedActionFamilies)
+        {
+            FullRunCoverageEntry entry = Assert.Single(
+                entries,
+                value => string.Equals(value.Family, family, StringComparison.Ordinal));
+            Assert.Equal(FullRunCoverageClassifications.InScopeImplemented, entry.Classification);
+        }
+
+        Assert.Equal(
+            FullRunCoverageClassifications.InScopeImplemented,
+            Assert.Single(entries, value => value.Family == "boss_relic.select").Classification);
+        Assert.Equal(
+            FullRunCoverageClassifications.InScopeImplemented,
+            Assert.Single(entries, value => value.Family == "boss_relic.skip").Classification);
+        Assert.Contains(entries, value =>
+            value.Family == "act_change.ready"
+            && value.AcceptedSeam.Contains("SetLocalPlayerReady", StringComparison.Ordinal)
+            && value.LifecycleCommit.Contains("ExecuteAction", StringComparison.Ordinal)
+            && value.NextAuthoritativeBoundary.Contains("ActEntered", StringComparison.Ordinal));
+
+        foreach (FullRunCoverageEntry entry in entries.Where(value =>
+                     value.Family.Contains("nested_selector", StringComparison.Ordinal)))
+        {
+            Assert.Equal(FullRunCoverageClassifications.InScopeImplemented, entry.Classification);
+            Assert.Contains("exact", entry.AcceptedSeam, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    [Fact]
+    public void FullRunCoverageDeclaresEveryMandatoryFamilyAndIsQualificationReady()
+    {
+        IReadOnlyList<FullRunCoverageEntry> entries = FullRunCoverageContract.Entries;
+        HashSet<string> declared = entries
+            .Select(entry => entry.Family)
+            .ToHashSet(StringComparer.Ordinal);
+
+        Assert.All(
+            FullRunCoverageContract.MandatoryFamilies,
+            family => Assert.Contains(family, declared));
+
+        FullRunCoverageValidation validation =
+            FullRunCoverageContract.ValidateForQualification();
+        Assert.True(validation.QualificationReady);
+        Assert.Empty(validation.BlockedInScopeFamilies);
+        Assert.Empty(validation.Errors);
+
+        string[] implementedFamilies =
+        {
+            "generic_simple_card_selector",
+            "generic_deck_card_selector",
+            "generic_combat_pile_selector",
+            "generic_card_bundle_selector",
+            "shop_inventory.card_removal_nested_selector",
+            "event_option.nested_selector",
+            "rest_site.nested_selector",
+            "reward_card_removal.nested_selector",
+            "reward_nested.replacement_selection"
+        };
+        foreach (string family in implementedFamilies)
+        {
+            FullRunCoverageEntry entry = Assert.Single(
+                entries,
+                value => value.Family == family);
+            Assert.Equal(FullRunCoverageClassifications.InScopeImplemented, entry.Classification);
+        }
+        Assert.Equal(
+            FullRunCoverageClassifications.NotAPlayerDecisionWithNativeJustification,
+            Assert.Single(entries, value => value.Family == "target_picker.cancel").Classification);
+    }
+
+    [Fact]
+    public void FullRunCoverageValidationRejectsOmittedMandatoryFamily()
+    {
+        IReadOnlyList<FullRunCoverageEntry> entries = FullRunCoverageContract.Entries
+            .Where(entry => entry.Family != "target_picker.cancel")
+            .ToArray();
+
+        FullRunCoverageValidation validation =
+            FullRunCoverageContract.ValidateForQualification(entries);
+        Assert.False(validation.IsValid);
+        Assert.False(validation.QualificationReady);
+        Assert.Contains("target_picker.cancel", validation.MissingMandatoryFamilies);
+        Assert.Contains("mandatory_family_missing:target_picker.cancel", validation.Errors);
+    }
+
+    [Fact]
+    public void AnyEnumeratedBlockedSurfaceBlocksQualificationEvenWhenNonMandatory()
+    {
+        FullRunCoverageEntry nonMandatoryBlocked = new(
+            "census_only_surface",
+            FullRunCoverageClassifications.Blocked,
+            "BLOCKED: exact native input census pending",
+            "BLOCKED: exact native owner pending",
+            "BLOCKED: exact semantic provider pending",
+            "BLOCKED: accepted seam pending",
+            "BLOCKED: lifecycle seam pending",
+            "BLOCKED: next boundary pending",
+            "BLOCKED: bounded census has not proven the carrier.");
+        FullRunCoverageValidation validation =
+            FullRunCoverageContract.ValidateForQualification(
+                FullRunCoverageContract.Entries
+                    .Concat(new[] { nonMandatoryBlocked })
+                    .ToArray());
+
+        Assert.False(validation.QualificationReady);
+        Assert.Contains("census_only_surface", validation.BlockedInScopeFamilies);
+        Assert.Contains("in_scope_blocked:census_only_surface", validation.Errors);
+    }
+
     [Theory]
     [InlineData("ordinary_combat", "play", "ordinary_combat.play_card")]
     [InlineData("ordinary_combat", "end_turn", "ordinary_combat.end_turn")]
@@ -20,6 +217,30 @@ public sealed class CurrentEvidenceTests
         Assert.Equal(
             expected,
             HumanCaptureProfileValidator.ResolveActionFamily(decisionFamily, verb));
+    }
+
+    [Fact]
+    public void FullRunProfileDeclaresRoomFamiliesWithoutChangingReadPolicy()
+    {
+        HumanCaptureProfile profile = HumanCaptureProfiles.FullRunReadRich;
+
+        Assert.Equal("human-full-run-read-rich-v4", profile.ProfileId);
+        Assert.Contains("combat_hand_selector.select", profile.SupportedActionFamilies);
+        Assert.Contains("combat_hand_selector.deselect", profile.SupportedActionFamilies);
+        Assert.Contains("combat_hand_selector.confirm", profile.SupportedActionFamilies);
+        Assert.Contains("event_option.choose", profile.SupportedActionFamilies);
+        Assert.Contains("event_option.proceed", profile.SupportedActionFamilies);
+        Assert.Contains("shop_room.open", profile.SupportedActionFamilies);
+        Assert.Contains("shop_room.proceed", profile.SupportedActionFamilies);
+        Assert.Contains("shop_inventory.purchase", profile.SupportedActionFamilies);
+        Assert.Contains("shop_inventory.card_removal", profile.SupportedActionFamilies);
+        Assert.Contains("shop_inventory.close", profile.SupportedActionFamilies);
+        Assert.Contains("rest_site.choose", profile.SupportedActionFamilies);
+        Assert.Contains("rest_site.proceed", profile.SupportedActionFamilies);
+        Assert.Contains(profile.Reads, read =>
+            read.InteractionKind == "shop_inventory" && read.Kind == "shop_catalog");
+        Assert.Contains(profile.NonClaims, claim =>
+            claim.Contains("non_combat_successor", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -261,7 +482,7 @@ public sealed class CurrentEvidenceTests
             RecordingAuditResult pass = RecordingSessionAuditor.Audit(session);
             Assert.Equal("pass", pass.Status);
             string output = Path.Combine(root, "bundle");
-            SessionBundlePacker.Pack(
+            SessionBundlePacker.PackCompatibility(
                 session,
                 "human-001",
                 "human-read-rich-2026-08",
@@ -961,8 +1182,10 @@ public sealed class CurrentEvidenceTests
         }
     }
 
-    [Fact]
-    public void TrackerSettlementProjectsDurableDecisionAndCanonicalEvidence()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TrackerSettlementProjectsDurableDecisionAndCanonicalEvidence(bool gameOver)
     {
         string root = Temp("tracker-settlement-projection");
         try
@@ -989,6 +1212,25 @@ public sealed class CurrentEvidenceTests
                     seed.Pre.CatalogCount,
                     seed.Successor.Snapshot,
                     seed.Successor.Reads);
+                if (gameOver)
+                {
+                    JsonNode snapshot = successor.Snapshot.DeepClone();
+                    snapshot["interaction"]!["kind"] = "game_over";
+                    snapshot["bound_actions"]!["actions"] = new JsonArray(new JsonObject
+                    {
+                        ["bound_action_id"] = "terminal-continue",
+                        ["verb"] = "activate",
+                        ["subject_referent_id"] = "game-over-continue",
+                        ["arguments"] = new JsonObject(),
+                        ["label"] = "Continue"
+                    });
+                    successor = successor with
+                    {
+                        InteractionKind = "game_over", Snapshot = snapshot,
+                        CatalogDigest = EvidenceIdentity.Sha256Json(snapshot["bound_actions"]!),
+                        Reads = successor.Reads.Where(read => read.Kind == "run_deck").ToArray()
+                    };
+                }
                 SemanticActionReference action = new(
                     "tracker-settlement-action",
                     source.Sequence,
@@ -1081,8 +1323,8 @@ public sealed class CurrentEvidenceTests
                             NativeDecisionOwnerReady = new NativeDecisionOwnerReadyEvidence(
                                 successor.InteractionKind,
                                 "owner-tracker-settlement",
-                                "CombatState",
-                                "native.test.owner-ready")
+                                gameOver ? "NGameOverScreen" : "CombatState",
+                                gameOver ? "NGameOverScreen.AnimateIn->NGameOverContinueButton.OnEnable.postfix" : "native.test.owner-ready")
                         });
                 SemanticBoundaryTraceDraft proved = Assert.Single(provedDrafts);
                 drafts.AddRange(provedDrafts);
@@ -1145,7 +1387,11 @@ public sealed class CurrentEvidenceTests
                     manifest.SessionId,
                     manifest.TimelineId,
                     profile.ProfileId);
-                store.AppendDecision(decision);
+                // Legacy combat-only compatibility requires combat_piles on
+                // both ends. A terminal successor instead uses the canonical
+                // stream, as the production projection-omission path does.
+                if (!gameOver)
+                    store.AppendDecision(decision);
                 SemanticFrameReference preStateRef = store.PersistSemanticFrame(proved.SemanticPre!);
                 SemanticFrameReference successorRef = store.PersistSemanticFrame(
                     proved.SemanticSuccessor!);
@@ -1159,11 +1405,22 @@ public sealed class CurrentEvidenceTests
                     canonicalActionSpaceRef,
                     manifest.SessionId,
                     manifest.TimelineId));
+                if (gameOver)
+                {
+                    long journalSequence = 2;
+                    foreach (string kind in new[] { "canonical_transition_recorded", "current_decision_projection_omitted" })
+                        store.AppendRunEvent(new RunJournalEvent(
+                            CurrentRecordingContract.SchemaVersion, CurrentRecordingContract.RunJournalSchema,
+                            $"event-{++journalSequence}", manifest.SessionId, source.RunId,
+                            manifest.TimelineId, journalSequence, DateTimeOffset.UtcNow, kind,
+                            $"canonical-{source.RecordId}", successor.SnapshotId,
+                            "successor_required_read_missing_combat_piles"));
+                }
             }
 
             RecordingAuditResult audit = RecordingSessionAuditor.Audit(session);
             Assert.True(audit.Status == "pass", JsonSerializer.Serialize(audit.Errors));
-            Assert.Single(RecordingSessionAuditor.ReadAdmitted(session));
+            Assert.Equal(gameOver ? 0 : 1, RecordingSessionAuditor.ReadAdmitted(session).Count);
             Assert.Single(File.ReadLines(Path.Combine(session, "canonical-transitions.jsonl")));
             JsonObject provedEvent = JsonNode.Parse(
                     File.ReadLines(Path.Combine(session, "semantic-boundary-trace.jsonl"))
@@ -1179,8 +1436,12 @@ public sealed class CurrentEvidenceTests
         }
     }
 
-    [Fact]
-    public void ExecutionSemanticActionSpaceRoundTripsIntoCanonicalAudit()
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    [InlineData(true, true, true)]
+    public void ExecutionSemanticActionSpaceRoundTripsIntoCanonicalAudit(bool omitLegacy, bool nativeInput, bool potion = false)
     {
         string root = Temp("execution-semantic-action-space-round-trip");
         try
@@ -1198,7 +1459,7 @@ public sealed class CurrentEvidenceTests
                     source,
                     (PersistReads(store, source.Pre.SnapshotId),
                         PersistReads(store, source.Successor.SnapshotId)));
-                store.AppendDecision(decision);
+                if (!omitLegacy) store.AppendDecision(decision);
 
                 JsonNode executionSnapshot = decision.Pre.Snapshot.DeepClone();
                 executionSnapshot["snapshot_id"] = "execution-pre";
@@ -1267,6 +1528,30 @@ public sealed class CurrentEvidenceTests
                 {
                     HumanBoundActionId = decision.Action.BoundActionId
                 };
+                if (potion)
+                {
+                    // Real failure shape: native potion input has no public action at H,
+                    // but an independent execution catalog contains its exact target.
+                    const string potionKey = "use|potion-a1|target=player-a1";
+                    var arguments = new Dictionary<string, string> { ["target"] = "player-a1" };
+                    action = action with { NativeActionType = "UsePotionAction",
+                        NativeWitness = action.NativeWitness! with {
+                            Origin = "native_potion_use_ui", NativeActionType = "UsePotionAction",
+                            SubjectWitnessId = "native-potion", ArgumentWitnessIds = new Dictionary<string, string> { ["target"] = "native-player" } } };
+                    actionSpace = actionSpace with {
+                        Actions = new[] { new ExecutionSemanticAction(potionKey, "use", "potion-a1", arguments,
+                            "current_potion_slot+native_potion_usability_and_target_validation") },
+                        ObservedActionKey = potionKey };
+                }
+                if (nativeInput)
+                {
+                    ExecutionSemanticAction selected = actionSpace.Actions.Single();
+                    action = action with { BoundAction = null,
+                        NativeInput = new(selected.Key, selected.Verb, selected.SubjectReferentId,
+                            selected.Arguments, decision.Action.Label),
+                        Mapping = new("exact_native_input", 1, "scoped_native_input_reference_equality", null) };
+                    actionSpace = actionSpace with { HumanBoundActionId = null, HumanNativeActionKey = selected.Key };
+                }
                 var tracker = new SemanticBoundaryTracker();
                 var drafts = new List<SemanticBoundaryTraceDraft>();
                 drafts.AddRange(tracker.Accept(action, decision.Pre));
@@ -1363,11 +1648,186 @@ public sealed class CurrentEvidenceTests
                     canonicalActionSpace,
                     manifest.SessionId,
                     manifest.TimelineId));
+                if (omitLegacy)
+                {
+                    long journalSequence = 2;
+                    foreach (string kind in new[] { "canonical_transition_recorded", "current_decision_projection_omitted" })
+                        store.AppendRunEvent(new RunJournalEvent(
+                            CurrentRecordingContract.SchemaVersion,
+                            CurrentRecordingContract.RunJournalSchema,
+                            $"event-{++journalSequence}", manifest.SessionId,
+                            decision.RunId, manifest.TimelineId, journalSequence,
+                            DateTimeOffset.UtcNow, kind, $"canonical-{decision.RecordId}",
+                            canonicalSuccessor.SnapshotId, "legacy_projection_not_available"));
+                }
                 actionSpacePath = Path.Combine(session, canonicalActionSpace.ObjectRef);
+                store.AppendRunEvent(new RunJournalEvent(
+                    2, CurrentRecordingContract.RunJournalSchema, "closed-event", manifest.SessionId,
+                    decision.RunId, manifest.TimelineId, 10, DateTimeOffset.UtcNow,
+                    "session_closed", null, null, "fixture closed"));
             }
 
             RecordingAuditResult audit = RecordingSessionAuditor.Audit(session);
             Assert.True(audit.Status == "pass", JsonSerializer.Serialize(audit.Errors));
+            string invalidationPath = Path.Combine(session, "invalidations.jsonl");
+            string originalInvalidations = File.ReadAllText(invalidationPath);
+            var falsePersistence = new InvalidationRecord(2, CurrentRecordingContract.InvalidationSchema,
+                "false-persistence", Manifest(Profile()).SessionId, "run-0001", DateTimeOffset.UtcNow,
+                "canonical_transition_append_failed", "fixture contradiction", null, "PlayCardAction", "native_human_decision") {
+                DecisionFailure = new("execution-semantic-action", "persistence", "ordinary_combat.play_card"),
+                Disposition = "failed_closed" };
+            File.WriteAllText(invalidationPath, JsonSerializer.Serialize(falsePersistence, EvidenceJson.Options) + "\n");
+            Assert.Contains("invalidation_persistence_contradicts_canonical", RecordingSessionAuditor.Audit(session).Errors);
+            File.WriteAllText(invalidationPath, originalInvalidations);
+            string bundlePath = Path.Combine(root, "canonical-bundle");
+            CanonicalSessionBundleResult packed = SessionBundlePacker.Pack(session, "human-001", "canonical-test",
+                bundlePath, new string('c', 40), true);
+            CanonicalSessionBundleResult retry = SessionBundlePacker.Pack(session, "human-001", "canonical-test",
+                bundlePath, new string('c', 40), true);
+            Assert.Equal(packed.BundleContentId, retry.BundleContentId);
+            Assert.Equal(packed.ChecksumsSha256, retry.ChecksumsSha256);
+            JsonNode bundleManifest = JsonNode.Parse(File.ReadAllText(Path.Combine(bundlePath,
+                "session-bundle-manifest.json")))!;
+            Assert.Equal(CanonicalSessionBundleContract.Schema, bundleManifest["schema"]!.GetValue<string>());
+            Assert.Equal(1, bundleManifest["canonical_count"]!.GetValue<int>());
+            Assert.Null(bundleManifest["record_count"]);
+            Assert.Equal(File.ReadAllBytes(Path.Combine(session, "canonical-transitions.jsonl")),
+                File.ReadAllBytes(Path.Combine(bundlePath, "export", "canonical-transitions.jsonl")));
+            if (omitLegacy) Assert.Throws<InvalidDataException>(() => SessionBundlePacker.PackCompatibility(
+                session, "human-001", "canonical-test", Path.Combine(root, "legacy-bundle"), new string('c', 40), true));
+            string exportPath = Path.Combine(root, "canonical-export.jsonl");
+            Assert.Equal(1, SessionBundlePacker.ExportCanonical(session, exportPath));
+            if (!nativeInput)
+            {
+                // A current exporter reads schema 2 without upgrading its
+                // immutable row to the current writer's schema 3.
+                string canonicalPath = Path.Combine(session, "canonical-transitions.jsonl");
+                string originalCanonical = File.ReadAllText(canonicalPath);
+                JsonNode predecessor = JsonNode.Parse(originalCanonical)!;
+                predecessor["schema_version"] = 2;
+                predecessor["schema"] = "sts2.human-annotator/canonical-transition-evidence-2";
+                string predecessorBytes = predecessor.ToJsonString(EvidenceJson.Options) + "\n";
+                File.WriteAllText(canonicalPath, predecessorBytes);
+                string predecessorExport = Path.Combine(root, "canonical-schema2-export.jsonl");
+                Assert.Equal(1, SessionBundlePacker.ExportCanonical(session, predecessorExport));
+                Assert.Equal(File.ReadAllBytes(canonicalPath), File.ReadAllBytes(predecessorExport));
+                Assert.Equal(2, JsonNode.Parse(File.ReadAllText(predecessorExport))!["schema_version"]!.GetValue<int>());
+                File.WriteAllText(canonicalPath, originalCanonical);
+            }
+            Assert.Throws<InvalidDataException>(() => SessionBundlePacker.ExportCanonical(session,
+                Path.Combine(session, "illegal-export.jsonl")));
+            string journalPath = Path.Combine(session, "run-journal.jsonl");
+            string sealedJournal = File.ReadAllText(journalPath);
+            File.WriteAllText(journalPath, sealedJournal.Replace("session_closed", "session_close_requested"));
+            Assert.Throws<InvalidDataException>(() => SessionBundlePacker.Pack(session, "human-001", "canonical-test",
+                Path.Combine(root, "open-bundle"), new string('c', 40), true));
+            File.WriteAllText(journalPath, sealedJournal);
+            File.AppendAllText(Path.Combine(bundlePath, "export", "canonical-transitions.jsonl"), "tamper\n");
+            Assert.Throws<IOException>(() => SessionBundlePacker.Pack(session, "human-001", "canonical-test",
+                bundlePath, new string('c', 40), true));
+            if (omitLegacy && nativeInput && !potion)
+            {
+                // Faithful append-loss shape: the tracker proof was durably
+                // written, canonical append failed, and no compatibility row
+                // was attempted. The loss metadata is not a new success row.
+                string canonicalPath = Path.Combine(session, "canonical-transitions.jsonl");
+                string originalCanonical = File.ReadAllText(canonicalPath);
+                string manifestPath = Path.Combine(session, "recording-manifest.json");
+                string originalManifest = File.ReadAllText(manifestPath);
+                JsonNode currentManifest = JsonNode.Parse(originalManifest)!;
+                currentManifest["disposition_schema_version"] = 1;
+                File.WriteAllText(manifestPath, currentManifest.ToJsonString());
+                File.WriteAllText(canonicalPath, string.Empty);
+                File.WriteAllText(journalPath, string.Join("\n", sealedJournal.Split('\n').Where(line =>
+                    !line.Contains("canonical_transition_recorded", StringComparison.Ordinal)
+                    && !line.Contains("current_decision_projection_omitted", StringComparison.Ordinal))));
+                File.WriteAllText(invalidationPath, JsonSerializer.Serialize(falsePersistence, EvidenceJson.Options) + "\n");
+                RecordingAuditResult lossAudit = RecordingSessionAuditor.Audit(session);
+                Assert.True(lossAudit.Status == "pass", JsonSerializer.Serialize(lossAudit.Errors));
+                CanonicalSessionBundleResult failedBundle = SessionBundlePacker.Pack(session,
+                    "human-001", "canonical-loss-test", Path.Combine(root, "failed-bundle"), new string('c', 40), true);
+                Assert.Equal(0, failedBundle.CanonicalCount);
+                File.WriteAllText(invalidationPath, string.Empty);
+                Assert.Contains("proved_action_projection_disposition_missing_or_ambiguous",
+                    RecordingSessionAuditor.Audit(session).Errors);
+                File.WriteAllText(invalidationPath, JsonSerializer.Serialize(falsePersistence with {
+                    DecisionFailure = new("unknown-action", "persistence", "ordinary_combat.play_card") }, EvidenceJson.Options) + "\n");
+                Assert.Contains("invalidation_persistence_action_missing", RecordingSessionAuditor.Audit(session).Errors);
+                File.WriteAllText(invalidationPath, JsonSerializer.Serialize(falsePersistence with {
+                    DecisionFailure = new("execution-semantic-action", "persistence", "undeclared-family") }, EvidenceJson.Options) + "\n");
+                Assert.Contains("proved_action_projection_disposition_missing_or_ambiguous",
+                    RecordingSessionAuditor.Audit(session).Errors);
+                string tracePath = Path.Combine(session, "semantic-boundary-trace.jsonl");
+                string originalTrace = File.ReadAllText(tracePath);
+                JsonNode[] explicitTrace = File.ReadLines(tracePath).Select(line => JsonNode.Parse(line)!).ToArray();
+                foreach (JsonNode row in explicitTrace)
+                    row["action"]!["decision"] = JsonSerializer.SerializeToNode(new DecisionOccurrenceIdentity(
+                        2, "decision-outside-profile", "execution-semantic-action", null, "combat_turn",
+                        "outside.capture.profile", "root", null), EvidenceJson.Options);
+                File.WriteAllText(tracePath, string.Join("\n", explicitTrace.Select(row => row.ToJsonString(EvidenceJson.Options))) + "\n");
+                RunJournalEvent unsupported = new(2, CurrentRecordingContract.RunJournalSchema,
+                    "unsupported-event", Manifest(Profile()).SessionId, "run-0001", Manifest(Profile()).TimelineId,
+                    9, DateTimeOffset.UtcNow, "canonical_projection_unsupported",
+                    explicitTrace[0]["action"]!["record_id"]!.GetValue<string>(), null, "outside.capture.profile");
+                string lossJournal = File.ReadAllText(journalPath);
+                var journalRows = lossJournal.Split('\n').Where(line => !string.IsNullOrWhiteSpace(line))
+                    .Select(line => JsonSerializer.Deserialize<RunJournalEvent>(line, EvidenceJson.Options)!).ToList();
+                journalRows.Insert(journalRows.Count - 1, unsupported);
+                File.WriteAllText(journalPath, string.Join("\n", journalRows.Select(row => JsonSerializer.Serialize(row, EvidenceJson.Options))) + "\n");
+                File.WriteAllText(invalidationPath, string.Empty);
+                RecordingAuditResult outsideAudit = RecordingSessionAuditor.Audit(session);
+                Assert.True(outsideAudit.Status == "pass", JsonSerializer.Serialize(outsideAudit.Errors));
+                Assert.Equal(0, SessionBundlePacker.Pack(session, "human-001", "outside-profile-test",
+                    Path.Combine(root, "outside-bundle"), new string('c', 40), true).CanonicalCount);
+                File.WriteAllText(journalPath, lossJournal);
+                Assert.Contains("proved_action_projection_disposition_missing_or_ambiguous", RecordingSessionAuditor.Audit(session).Errors);
+                File.WriteAllText(tracePath, originalTrace);
+                File.WriteAllText(canonicalPath, originalCanonical);
+                File.WriteAllText(manifestPath, originalManifest);
+                File.WriteAllText(journalPath, sealedJournal);
+                File.WriteAllText(invalidationPath, originalInvalidations);
+            }
+            // Reproduce the former producer defect with valid content hashes:
+            // admission A(H) is carried into a queued action's execution S.
+            // Integrity alone must not admit this historical shape.
+            JsonNode staleSpace = JsonNode.Parse(File.ReadAllText(actionSpacePath))!;
+            staleSpace["phase"] = "before_native_action_admission";
+            string stalePayload = staleSpace.ToJsonString();
+            string staleDigest = EvidenceIdentity.Sha256Bytes(System.Text.Encoding.UTF8.GetBytes(stalePayload));
+            string oldDigest = Path.GetFileNameWithoutExtension(actionSpacePath);
+            string staleRelative = $"semantic-action-spaces/sha256/{staleDigest[..2]}/{staleDigest}.json";
+            string oldRelative = $"semantic-action-spaces/sha256/{oldDigest[..2]}/{oldDigest}.json";
+            string stalePath = Path.Combine(session, staleRelative);
+            Directory.CreateDirectory(Path.GetDirectoryName(stalePath)!);
+            File.WriteAllText(stalePath, stalePayload);
+            var originalStreams = new Dictionary<string, string>();
+            foreach (string name in new[] { "semantic-boundary-trace.jsonl", "canonical-transitions.jsonl" })
+            {
+                string path = Path.Combine(session, name);
+                originalStreams[path] = File.ReadAllText(path);
+                File.WriteAllText(path, originalStreams[path].Replace(oldRelative, staleRelative).Replace(oldDigest, staleDigest));
+            }
+            RecordingAuditResult staleAudit = RecordingSessionAuditor.Audit(session);
+            Assert.Equal("fail", staleAudit.Status);
+            Assert.Contains(staleAudit.Errors.Keys, key => key.Contains("queued_action_requires_execution_action_space", StringComparison.Ordinal));
+            foreach (var pair in originalStreams) File.WriteAllText(pair.Key, pair.Value);
+            File.Delete(stalePath);
+
+            if (!omitLegacy)
+            {
+                foreach (string path in Directory.GetFiles(session, "run-*.jsonl")
+                    .Where(path => Path.GetFileName(path) != "run-journal.jsonl"))
+                    File.Delete(path);
+                Assert.Contains("decision_file_missing", RecordingSessionAuditor.Audit(session).Errors);
+            }
+            else
+            {
+                string journal = Path.Combine(session, "run-journal.jsonl");
+                string original = File.ReadAllText(journal);
+                File.WriteAllText(journal, original.Replace("current_decision_projection_omitted", "unrelated_event"));
+                Assert.Contains("decision_file_missing", RecordingSessionAuditor.Audit(session).Errors);
+                File.WriteAllText(journal, original);
+            }
             File.AppendAllText(actionSpacePath, "tampered");
             RecordingAuditResult tampered = RecordingSessionAuditor.Audit(session);
             Assert.Equal("fail", tampered.Status);
@@ -1441,6 +1901,92 @@ public sealed class CurrentEvidenceTests
     }
 
     [Fact]
+    public void DeclaredDurableCloseRequiresMatchingReceiptDuringAuditAndPack()
+    {
+        string root = Temp("close-receipt-audit");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            CurrentRecordingManifest manifest = Manifest(profile) with { CloseSchemaVersion = 1 };
+            string session;
+            using (var store = RecordingSessionStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                HistoricalDecisionRecord source = RecordValidationTests.ValidRecord();
+                store.AppendDecision(CurrentRecord(source, (
+                    PersistReads(store, source.Pre.SnapshotId), PersistReads(store, source.Successor.SnapshotId))));
+                store.AppendRunEvent(new RunJournalEvent(2, CurrentRecordingContract.RunJournalSchema,
+                    "closed-event", manifest.SessionId, "run-0001", manifest.TimelineId, 10,
+                    DateTimeOffset.UtcNow, "session_closed", null, null, "fixture closed"));
+            }
+            Assert.Equal("pass", RecordingSessionAuditor.Audit(session).Status);
+            string manifestPath = Path.Combine(session, "recording-manifest.json");
+            string manifestText = File.ReadAllText(manifestPath);
+            JsonNode wrongManifest = JsonNode.Parse(manifestText)!;
+            wrongManifest["disposition_schema_version"] = 2;
+            File.WriteAllText(manifestPath, wrongManifest.ToJsonString());
+            Assert.Contains("invalidation_disposition_schema_mismatch", RecordingSessionAuditor.Audit(session).Errors);
+            wrongManifest["disposition_schema_version"] = null;
+            wrongManifest["close_schema_version"] = 2;
+            File.WriteAllText(manifestPath, wrongManifest.ToJsonString());
+            Assert.Contains("session_close_schema_invalid", RecordingSessionAuditor.Audit(session).Errors);
+            File.WriteAllText(manifestPath, manifestText);
+            string receiptPath = Path.Combine(session, "session-close-receipt.json");
+            string receipt = File.ReadAllText(receiptPath);
+            File.Delete(receiptPath);
+            Assert.Contains("session_close_receipt_invalid_or_missing", RecordingSessionAuditor.Audit(session).Errors);
+            Assert.Throws<InvalidDataException>(() => SessionBundlePacker.Pack(session,
+                "human-001", "close-receipt-test", Path.Combine(root, "bundle"), new string('c', 40), true));
+            File.WriteAllText(receiptPath, receipt.Replace(manifest.SessionId, "wrong-session"));
+            Assert.Contains("session_close_receipt_invalid_or_missing", RecordingSessionAuditor.Audit(session).Errors);
+            File.WriteAllText(receiptPath, receipt);
+            Assert.Equal("pass", RecordingSessionAuditor.Audit(session).Status);
+        }
+        finally { Delete(root); }
+    }
+
+    [Fact]
+    public void FailureOnlyClosedSessionCanBeAuditedAndBundledWithoutInventingSuccess()
+    {
+        string root = Temp("failure-only-bundle");
+        try
+        {
+            HumanCaptureProfile profile = Profile();
+            CurrentRecordingManifest manifest = Manifest(profile) with { DecisionSchemaVersion = 2 };
+            string session;
+            using (var store = RecordingSessionStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                var occurrence = new HumanActionOccurrenceEvidence("accepted-input", "PlayCardAction",
+                    "ordinary_combat.play_card", "play", "card-owner", new Dictionary<string, string>(),
+                    null, null, null, null, "native_ui", "failed_closed");
+                store.AppendInvalidation(new InvalidationRecord(2, CurrentRecordingContract.InvalidationSchema,
+                    "failure-only", manifest.SessionId, "run-0001", DateTimeOffset.UtcNow,
+                    "pre_frame_capture_failed", "exact accepted Human input had no frame", null,
+                    "PlayCardAction", "native_human_decision") {
+                    HumanOccurrence = occurrence, Disposition = "failed_closed",
+                    DecisionFailure = new("accepted-input", "capture", "ordinary_combat.play_card") });
+                store.AppendRunEvent(new RunJournalEvent(2, CurrentRecordingContract.RunJournalSchema,
+                    "closed-event", manifest.SessionId, "run-0001", manifest.TimelineId, 10,
+                    DateTimeOffset.UtcNow, "session_closed", null, null, "fixture closed"));
+            }
+            Assert.Equal("pass", RecordingSessionAuditor.Audit(session).Status);
+            string output = Path.Combine(root, "bundle");
+            SessionBundlePacker.Pack(session, "human-001", "failure-evidence", output, new string('c', 40), true);
+            JsonNode packed = JsonNode.Parse(File.ReadAllText(Path.Combine(output, "session-bundle-manifest.json")))!;
+            Assert.Equal(0, packed["canonical_count"]!.GetValue<int>());
+            Assert.Empty(File.ReadAllText(Path.Combine(output, "export", "canonical-transitions.jsonl")));
+            Assert.Equal(File.ReadAllText(Path.Combine(session, "invalidations.jsonl")),
+                File.ReadAllText(Path.Combine(output, "raw", "invalidations.jsonl")));
+            File.WriteAllText(Path.Combine(session, "invalidations.jsonl"), "malformed\n");
+            Assert.Equal("fail", RecordingSessionAuditor.Audit(session).Status);
+        }
+        finally { Delete(root); }
+    }
+
+    [Fact]
     public void CurrentBundleIsPortableDeterministicAndImmutable()
     {
         string root = Temp("current-bundle");
@@ -1459,14 +2005,14 @@ public sealed class CurrentEvidenceTests
                     PersistReads(store, v1.Successor.SnapshotId))));
             }
             string output = Path.Combine(root, "bundle");
-            SessionBundleResult first = SessionBundlePacker.Pack(
+            SessionBundleResult first = SessionBundlePacker.PackCompatibility(
                 session,
                 "human-001",
                 "human-read-rich-2026-08",
                 output,
                 new string('c', 40),
                 true);
-            SessionBundleResult retry = SessionBundlePacker.Pack(
+            SessionBundleResult retry = SessionBundlePacker.PackCompatibility(
                 session,
                 "human-001",
                 "human-read-rich-2026-08",
@@ -1478,7 +2024,7 @@ public sealed class CurrentEvidenceTests
             Assert.NotEmpty(Directory.GetFiles(
                 Path.Combine(output, "raw", "blobs"), "*.json", SearchOption.AllDirectories));
             File.AppendAllText(Path.Combine(output, "export", "decisions.jsonl"), "tamper\n");
-            Assert.Throws<IOException>(() => SessionBundlePacker.Pack(
+            Assert.Throws<IOException>(() => SessionBundlePacker.PackCompatibility(
                 session,
                 "human-001",
                 "human-read-rich-2026-08",

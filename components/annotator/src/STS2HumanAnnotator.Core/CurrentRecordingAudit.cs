@@ -24,6 +24,10 @@ public static class RecordingSessionAuditor
                 || manifest.CaptureProfileId != profile.ProfileId
                 || manifest.CaptureProfileSha256 != EvidenceIdentity.Sha256Json(profile)))
             Add(errors, "manifest_capture_profile_mismatch");
+        if (manifest?.DispositionSchemaVersion is not (null or 1))
+            Add(errors, "invalidation_disposition_schema_mismatch");
+        if (manifest?.CloseSchemaVersion is not (null or 1))
+            Add(errors, "session_close_schema_invalid");
         if (profile != null)
         {
             RecordValidationResult result = HumanCaptureProfileValidator.Validate(profile);
@@ -34,11 +38,7 @@ public static class RecordingSessionAuditor
         string[] decisionPaths = Directory.Exists(directory)
             ? DecisionPaths(directory)
             : Array.Empty<string>();
-        if (decisionPaths.Length == 0)
-        {
-            Add(errors, "decision_file_missing");
-        }
-        else
+        if (decisionPaths.Length > 0)
         {
             foreach (string path in decisionPaths)
             {
@@ -99,7 +99,16 @@ public static class RecordingSessionAuditor
             errors);
         ValidateNativeSemanticDiscriminator(directory, manifest, errors);
         ValidateCanonicalTransitions(directory, manifest, semanticEvents, errors);
-        long invalidations = ValidateInvalidations(directory, manifest, errors);
+        // Legacy projection is optional only when every durable canonical row
+        // has an explicit matching omission. A missing promised legacy file,
+        // empty placeholder, or malformed canonical stream still fails closed.
+        long invalidations = ValidateInvalidations(directory, manifest, semanticEvents, errors);
+        if (errors.Count == 0 && (manifest?.DecisionSchemaVersion == 2 || manifest?.DispositionSchemaVersion == 1))
+            ValidateProofProjectionCoverage(directory, profile!, semanticEvents, errors);
+        if (decisionPaths.Length == 0
+            && (errors.Count != 0 || !(HasOnlyOmittedLegacyProjections(directory)
+                || HasOnlyNonCanonicalOccurrences(directory, manifest, semanticEvents))))
+            Add(errors, "decision_file_missing");
         return new RecordingAuditResult(
             errors.Count == 0 && invalid == 0 ? "pass" : "fail",
             directory,
@@ -116,9 +125,94 @@ public static class RecordingSessionAuditor
             });
     }
 
+    private static void ValidateProofProjectionCoverage(
+        string directory, HumanCaptureProfile profile,
+        IReadOnlyList<SemanticBoundaryTraceEvent> events, IDictionary<string, long> errors)
+    {
+        string canonicalPath = Path.Combine(directory, "canonical-transitions.jsonl");
+        var canonical = File.Exists(canonicalPath) ? Lines(canonicalPath)
+            .Select(line => JsonSerializer.Deserialize<CanonicalTransitionEvidence>(line.Line, EvidenceJson.Options)!)
+            .GroupBy(row => row.ActionWitnessId, StringComparer.Ordinal)
+            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal)
+            : new Dictionary<string, int>(StringComparer.Ordinal);
+        string invalidationPath = Path.Combine(directory, "invalidations.jsonl");
+        InvalidationRecord[] failures = File.Exists(invalidationPath) ? Lines(invalidationPath)
+            .Select(line => JsonSerializer.Deserialize<InvalidationRecord>(line.Line, EvidenceJson.Options)!)
+            .Where(row => row.DecisionFailure?.Kind == "persistence").ToArray() : Array.Empty<InvalidationRecord>();
+        RunJournalEvent[] omissions = Lines(Path.Combine(directory, "run-journal.jsonl"))
+            .Select(line => JsonSerializer.Deserialize<RunJournalEvent>(line.Line, EvidenceJson.Options)!)
+            .Where(row => row.Kind == "canonical_projection_unsupported").ToArray();
+        SemanticBoundaryTraceEvent[] proofs = events.Where(row => row.Kind == SemanticBoundaryTraceKinds.TransitionProved).ToArray();
+        foreach (SemanticBoundaryTraceEvent proof in proofs)
+        {
+            string witness = proof.Action.ActionWitnessId;
+            string? family = SemanticTransitionProjection.CaptureFamily(proof.Action);
+            int successes = canonical.GetValueOrDefault(witness);
+            InvalidationRecord[] failed = failures.Where(row => row.DecisionFailure!.DecisionWitnessId == witness).ToArray();
+            RunJournalEvent[] unsupported = omissions.Where(row => row.RecordId == proof.Action.RecordId).ToArray();
+            bool failureValid = failed.Length == 1
+                && failed[0].RunId == proof.Action.RunId
+                && profile.SupportedActionFamilies.Contains(failed[0].DecisionFailure!.ActionFamily, StringComparer.Ordinal)
+                && (family == null || failed[0].DecisionFailure!.ActionFamily == family);
+            bool unsupportedValid = unsupported.Length == 1 && family != null
+                && !profile.SupportedActionFamilies.Contains(family, StringComparer.Ordinal)
+                && unsupported[0].RunId == proof.Action.RunId && unsupported[0].Detail == family;
+            if (successes + (failureValid ? 1 : 0) + (unsupportedValid ? 1 : 0) != 1
+                || (failed.Length > 0 && !failureValid) || (unsupported.Length > 0 && !unsupportedValid))
+                Add(errors, "proved_action_projection_disposition_missing_or_ambiguous");
+        }
+        foreach (RunJournalEvent omission in omissions)
+            if (!proofs.Any(proof => proof.Action.RecordId == omission.RecordId))
+                Add(errors, "unsupported_projection_proof_missing");
+    }
+
+    private static bool HasOnlyNonCanonicalOccurrences(
+        string directory, CurrentRecordingManifest? manifest,
+        IReadOnlyList<SemanticBoundaryTraceEvent> events)
+    {
+        // A failed/unknown-only current session is valuable immutable evidence.
+        // It must not need a fabricated compatibility or canonical success row.
+        if ((manifest?.DecisionSchemaVersion != DecisionOccurrenceIdentity.CurrentSchemaVersion
+                && manifest?.DispositionSchemaVersion != 1)
+            || !File.Exists(Path.Combine(directory, "canonical-transitions.jsonl"))
+            || Lines(Path.Combine(directory, "canonical-transitions.jsonl")).Any())
+            return false;
+        if (events.Any(row => row.Kind == SemanticBoundaryTraceKinds.ActionAccepted))
+            return true;
+        string path = Path.Combine(directory, "invalidations.jsonl");
+        return File.Exists(path) && Lines(path).Any(line =>
+            JsonSerializer.Deserialize<InvalidationRecord>(line.Line, EvidenceJson.Options)
+                ?.HumanOccurrence?.Disposition == "failed_closed");
+    }
+
+    private static bool HasOnlyOmittedLegacyProjections(string directory)
+    {
+        string canonicalPath = Path.Combine(directory, "canonical-transitions.jsonl");
+        string journalPath = Path.Combine(directory, "run-journal.jsonl");
+        if (!File.Exists(canonicalPath) || !File.Exists(journalPath))
+            return false;
+        var canonical = Lines(canonicalPath)
+            .Select(line => JsonSerializer.Deserialize<CanonicalTransitionEvidence>(
+                line.Line, EvidenceJson.Options)!.TransitionId)
+            .ToHashSet(StringComparer.Ordinal);
+        var journal = Lines(journalPath)
+            .Select(line => JsonSerializer.Deserialize<RunJournalEvent>(
+                line.Line, EvidenceJson.Options)!).ToArray();
+        var recorded = journal.Where(row => row.Kind == "canonical_transition_recorded")
+            .Select(row => row.RecordId ?? string.Empty).ToArray();
+        var omitted = journal.Where(row => row.Kind == "current_decision_projection_omitted")
+            .Select(row => row.RecordId ?? string.Empty).ToArray();
+        return canonical.Count > 0
+            && recorded.Length == canonical.Count
+            && omitted.Length == canonical.Count
+            && canonical.SetEquals(recorded)
+            && canonical.SetEquals(omitted);
+    }
+
     private static long ValidateInvalidations(
         string directory,
         CurrentRecordingManifest? manifest,
+        IReadOnlyList<SemanticBoundaryTraceEvent> semanticEvents,
         IDictionary<string, long> errors)
     {
         string path = Path.Combine(directory, "invalidations.jsonl");
@@ -147,6 +241,21 @@ public static class RecordingSessionAuditor
             {
                 Add(errors, "invalidation_identity_invalid");
                 continue;
+            }
+            if (manifest.DispositionSchemaVersion == 1 && value.Disposition == null)
+                Add(errors, "invalidation_disposition_schema_mismatch");
+            foreach (string error in RecordingDisposition.Validate(value))
+                Add(errors, error);
+            if (value.DecisionFailure is { Kind: "persistence" } failure)
+            {
+                if (!semanticEvents.Any(row => row.Kind == SemanticBoundaryTraceKinds.ActionAccepted
+                        && row.Action.ActionWitnessId == failure.DecisionWitnessId))
+                    Add(errors, "invalidation_persistence_action_missing");
+                string canonicalPath = Path.Combine(directory, "canonical-transitions.jsonl");
+                if (File.Exists(canonicalPath) && Lines(canonicalPath).Any(line =>
+                        JsonSerializer.Deserialize<CanonicalTransitionEvidence>(line.Line, EvidenceJson.Options)
+                            ?.ActionWitnessId == failure.DecisionWitnessId))
+                    Add(errors, "invalidation_persistence_contradicts_canonical");
             }
             foreach (string error in HumanActionOccurrenceEvidenceValidator.Validate(value.HumanOccurrence))
                 Add(errors, error);
@@ -261,12 +370,15 @@ public static class RecordingSessionAuditor
                 continue;
             }
             SemanticBoundaryTraceEvent proof = proofs[0];
+            if (value.Decision != proof.Action.Decision)
+                Add(errors, "canonical_transition_decision_mismatch");
             if (recordId != proof.Action.RecordId
                 || value.RunId != proof.Action.RunId
                 || value.ActionSequence != proof.Action.ActionSequence
-                || proof.Action.BoundAction == null
                 || EvidenceIdentity.Sha256Json(value.Action)
-                    != EvidenceIdentity.Sha256Json(proof.Action.BoundAction))
+                    != EvidenceIdentity.Sha256Json(proof.Action.BoundAction)
+                || EvidenceIdentity.Sha256Json(value.NativeInput)
+                    != EvidenceIdentity.Sha256Json(proof.Action.NativeInput))
                 Add(errors, "canonical_transition_semantic_action_mismatch");
             if (pre == null || proof.SemanticPre == null
                 || SemanticFrameDigest(pre) != SemanticFrameDigest(proof.SemanticPre))
@@ -297,7 +409,7 @@ public static class RecordingSessionAuditor
                 }
             }
             else if (value.ActionSpaceAuthority == "public_bound_actions"
-                     && (pre == null || !PublicCatalogContainsExactlyOnce(pre, value.Action)))
+                     && (pre == null || value.Action == null || !PublicCatalogContainsExactlyOnce(pre, value.Action)))
             {
                 Add(errors, "canonical_transition_public_action_space_invalid");
             }
@@ -490,6 +602,7 @@ public static class RecordingSessionAuditor
             return;
         }
         long previous = 0;
+        bool closed = false;
         foreach ((string line, _) in Lines(path))
         {
             RunJournalEvent? value;
@@ -514,9 +627,28 @@ public static class RecordingSessionAuditor
                 continue;
             }
             previous = value.Sequence;
+            closed |= value.Kind == "session_closed";
         }
         if (previous == 0)
             Add(errors, "run_journal_empty");
+        if (closed && manifest?.CloseSchemaVersion == 1)
+        {
+            string receiptPath = Path.Combine(directory, "session-close-receipt.json");
+            try
+            {
+                JsonNode? receipt = File.Exists(receiptPath) ? JsonNode.Parse(File.ReadAllText(receiptPath)) : null;
+                if (receipt?["schema"]?.GetValue<string>() != "sts2.human-annotator/session-close-1"
+                    || receipt?["session_id"]?.GetValue<string>() != manifest.SessionId
+                    || receipt?["timeline_id"]?.GetValue<string>() != manifest.TimelineId
+                    || receipt?["status"]?.GetValue<string>() != "closed"
+                    || !DateTimeOffset.TryParse(receipt?["closed_at"]?.GetValue<string>(), out _))
+                    Add(errors, "session_close_receipt_invalid_or_missing");
+            }
+            catch (Exception exception) when (exception is IOException or JsonException or InvalidOperationException)
+            {
+                Add(errors, "session_close_receipt_invalid_or_missing");
+            }
+        }
     }
 
     private static IReadOnlyList<SemanticBoundaryTraceEvent> ValidateSemanticBoundaryTrace(
@@ -588,6 +720,18 @@ public static class RecordingSessionAuditor
         }
         foreach (string error in SemanticBoundaryTraceValidator.Validate(events))
             Add(errors, error);
+        if (manifest?.DecisionSchemaVersion is { } decisionSchema)
+        {
+            if (decisionSchema is not (1 or DecisionOccurrenceIdentity.CurrentSchemaVersion))
+                Add(errors, "decision_manifest_schema_invalid");
+            foreach (var value in events)
+            {
+                if (value.Action.Decision == null)
+                    Add(errors, "decision_identity_required_by_manifest");
+                else if (value.Action.Decision.SchemaVersion != decisionSchema)
+                    Add(errors, "decision_schema_manifest_mismatch");
+            }
+        }
         return events;
     }
 
@@ -672,6 +816,7 @@ public static class RecordingSessionAuditor
             HumanObservation = humanObservation,
             NativeCompletion = value.NativeCompletion,
             NativeContinuation = value.NativeContinuation,
+            NativeHumanContinuation = value.NativeHumanContinuation,
             ExecutionSemanticActionSpace = executionSemanticActionSpace
         };
     }

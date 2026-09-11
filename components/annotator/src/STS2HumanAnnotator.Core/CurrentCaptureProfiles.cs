@@ -9,23 +9,41 @@ public static class HumanCaptureProfiles
     public static HumanCaptureProfile FullRunReadRich { get; } = new(
         CurrentRecordingContract.SchemaVersion,
         CurrentRecordingContract.CaptureProfileSchema,
-        "human-full-run-read-rich-v2",
+        "human-full-run-read-rich-v4",
         CurrentRecordingContract.RecordSchema,
         new[]
         {
             "ordinary_combat.play_card",
             "ordinary_combat.end_turn",
             "ordinary_combat.use_potion",
+            "potion_belt.discard",
+            "combat_hand_selector.select",
+            "combat_hand_selector.deselect",
+            "combat_hand_selector.confirm",
             "native_generated_card_choice.select",
             "native_generated_card_choice.skip",
+            "boss_relic.select",
+            "boss_relic.skip",
             "map_navigation.travel",
             "reward_claim.claim",
             "reward_claim.proceed",
+            "act_change.ready",
             "card_reward_selection.select",
+            "reward_nested.replacement_selection",
+            "nested_selector.decision",
             "treasure_room.open",
             "treasure_room.select",
             "treasure_room.skip",
-            "treasure_room.proceed"
+            "treasure_room.proceed",
+            "event_option.choose",
+            "event_option.proceed",
+            "shop_room.open",
+            "shop_room.proceed",
+            "shop_inventory.purchase",
+            "shop_inventory.card_removal",
+            "shop_inventory.close",
+            "rest_site.choose",
+            "rest_site.proceed"
         },
         new[]
         {
@@ -34,7 +52,15 @@ public static class HumanCaptureProfiles
             new CaptureReadRequirement("pre", "combat_piles", true, "combat_turn"),
             new CaptureReadRequirement("successor", "combat_piles", true, "combat_turn"),
             new CaptureReadRequirement("pre", "combat_piles", true, "generated_card_choice"),
-            new CaptureReadRequirement("successor", "combat_piles", true, "generated_card_choice")
+            new CaptureReadRequirement("successor", "combat_piles", true, "generated_card_choice"),
+            new CaptureReadRequirement("pre", "run_deck", true, "event_option"),
+            new CaptureReadRequirement("successor", "run_deck", true, "event_option"),
+            new CaptureReadRequirement("pre", "run_deck", true, "rest_site"),
+            new CaptureReadRequirement("successor", "run_deck", true, "rest_site"),
+            new CaptureReadRequirement("pre", "run_deck", true, "shop_inventory"),
+            new CaptureReadRequirement("successor", "run_deck", true, "shop_inventory"),
+            new CaptureReadRequirement("pre", "shop_catalog", true, "shop_inventory"),
+            new CaptureReadRequirement("successor", "shop_catalog", true, "shop_inventory")
         },
         new[]
         {

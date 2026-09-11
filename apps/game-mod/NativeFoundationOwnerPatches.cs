@@ -1,12 +1,15 @@
 using Godot;
 using HarmonyLib;
 using MegaCrit.Sts2.Core.Combat;
+using MegaCrit.Sts2.Core.Commands;
 using MegaCrit.Sts2.Core.Entities.CardRewardAlternatives;
 using MegaCrit.Sts2.Core.Entities.Cards;
 using MegaCrit.Sts2.Core.Entities.Players;
 using MegaCrit.Sts2.Core.Multiplayer.Game;
+using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Nodes.Screens;
+using MegaCrit.Sts2.Core.Nodes.Screens.GameOverScreen;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 using MegaCrit.Sts2.Core.Nodes.Rooms;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
@@ -90,6 +93,23 @@ internal static class NativeFoundationOwnerPatches
             AccessTools.Method(
                 typeof(NativeCombatDecisionOwnerReadyPatch),
                 nameof(NativeCombatDecisionOwnerReadyPatch.Postfix)));
+        PatchBefore(
+            harmony,
+            AccessTools.Method(
+                typeof(RelicSelectCmd),
+                nameof(RelicSelectCmd.FromChooseARelicScreen),
+                new[] { typeof(Player), typeof(IReadOnlyList<RelicModel>) }),
+            AccessTools.Method(
+                typeof(NativeBossRelicCommandPatch),
+                nameof(NativeBossRelicCommandPatch.Before)));
+        PatchPostfix(
+            harmony,
+            AccessTools.Method(typeof(NGameOverScreen), nameof(NGameOverScreen.Create)),
+            AccessTools.Method(typeof(NativeGameOverOwnerPatch), nameof(NativeGameOverOwnerPatch.Postfix)));
+        PatchPostfix(
+            harmony,
+            AccessTools.Method(typeof(NGameOverContinueButton), "OnEnable"),
+            AccessTools.Method(typeof(NativeGameOverReadyPatch), nameof(NativeGameOverReadyPatch.Postfix)));
         _initialized = true;
     }
 
@@ -101,6 +121,31 @@ internal static class NativeFoundationOwnerPatches
         if (original == null || postfix == null)
             throw new MissingMethodException("A Native Foundation owner seam is unavailable.");
         harmony.Patch(original, postfix: new HarmonyMethod(postfix));
+    }
+
+    private static void PatchBefore(
+        Harmony harmony,
+        System.Reflection.MethodInfo? original,
+        System.Reflection.MethodInfo? before)
+    {
+        if (original == null || before == null)
+            throw new MissingMethodException("A Native Foundation input seam is unavailable.");
+        harmony.Patch(original, new HarmonyMethod(before));
+    }
+}
+
+internal static class NativeBossRelicCommandPatch
+{
+    internal static void Before(Player player, IReadOnlyList<RelicModel> relics)
+    {
+        try
+        {
+            NativeBossRelicDecisionProvider.RegisterFromChooseARelicScreen(player, relics);
+        }
+        catch (Exception exception)
+        {
+            GD.PrintErr($"[STS2 Platform] native boss relic command observation failed: {exception}");
+        }
     }
 }
 
@@ -230,5 +275,31 @@ internal static class NativeCardRewardRefreshPatch
         IReadOnlyList<CardRewardAlternative> extraOptions)
     {
         NativeCardRewardOwnerPatch.TryRegister(__instance, options, extraOptions);
+    }
+}
+
+internal static class NativeGameOverOwnerPatch
+{
+    internal static void Postfix(RunState runState, NGameOverScreen? __result)
+    {
+        if (__result == null)
+            return;
+        try { NativeDecisionOwnerReadyProvider.RegisterGameOver(__result, runState); }
+        catch (Exception exception)
+        {
+            GD.PrintErr($"[STS2 Platform] native game-over owner observation failed: {exception}");
+        }
+    }
+}
+
+internal static class NativeGameOverReadyPatch
+{
+    internal static void Postfix(NGameOverContinueButton __instance)
+    {
+        try { NativeDecisionOwnerReadyProvider.ObserveGameOverReady(__instance); }
+        catch (Exception exception)
+        {
+            GD.PrintErr($"[STS2 Platform] native game-over ready observation failed: {exception}");
+        }
     }
 }

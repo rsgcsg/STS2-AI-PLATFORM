@@ -95,19 +95,34 @@ function frameStatus(frame, action) {
   };
 }
 
-function semanticActionSpaceStatus(value, action, actionWitnessId) {
+function semanticActionSpaceStatus(value, action, actionWitnessId, nativeAction) {
   const actions = Array.isArray(value?.actions) ? value.actions : [];
   const observedKey = value?.observed_action_key;
   const selected = actions.filter((candidate) => candidate?.key === observedKey);
-  const current = value?.schema === "sts2.human-annotator/execution-semantic-action-space-2"
-    && value?.schema_version === 2;
-  const matches = selected.filter(() =>
-    current && value?.human_bound_action_id === action?.bound_action_id);
+  const current = [2, 3].includes(value?.schema_version)
+    && value?.schema === `sts2.human-annotator/execution-semantic-action-space-${value.schema_version}`;
+  const input = nativeAction?.native_input;
+  const binding = input
+    ? value.schema_version === 3 && !nativeAction.bound_action && !value.human_bound_action_id
+      && value.human_native_action_key === input.action_key
+      && observedKey === input.action_key
+      && nativeAction.native_mechanism === "game_action"
+      && nativeAction.native_witness != null
+      && nativeAction.mapping?.status === "exact_native_input"
+      && nativeAction.mapping?.match_count === 1
+      && nativeAction.mapping?.basis === "scoped_native_input_reference_equality"
+    : typeof action?.bound_action_id === "string" && action.bound_action_id.length > 0
+      && value?.human_bound_action_id === action.bound_action_id && !value.human_native_action_key;
+  const matches = selected.filter((candidate) => current && binding && (!input ||
+    candidate.verb === input.verb && candidate.subject_referent_id === input.subject_referent_id
+    && canonical(normalizedArguments(candidate)) === canonical(normalizedArguments(input))));
   const complete = Boolean(
     value
     && current
     && value.action_witness_id === actionWitnessId
     && ["before_execution", "before_native_action_admission"].includes(value.phase)
+    && (!(nativeAction?.native_mechanism === "game_action" || nativeAction?.native_queue_id != null)
+      || value.phase === "before_execution")
     && value.status === "captured"
     && value.scope !== "unavailable"
     && value.semantic_state
@@ -120,8 +135,7 @@ function semanticActionSpaceStatus(value, action, actionWitnessId) {
     && selected.length === 1
     && Array.isArray(value.native_evidence)
     && value.native_evidence.length > 0
-    && typeof value.human_bound_action_id === "string"
-    && value.human_bound_action_id.length > 0);
+    && binding);
   return {
     complete,
     catalog_status: complete ? "complete" : "missing_or_incomplete",
@@ -141,12 +155,31 @@ function disposition(events) {
 }
 
 function actionFromSources(accepted) {
-  return accepted?.action?.bound_action ?? null;
+  return accepted?.action?.bound_action ?? accepted?.action?.native_input ?? null;
 }
 
 function sourceForAction(accepted) {
   if (accepted?.action?.bound_action) return "semantic_trace";
+  if (accepted?.action?.native_input) return "native_input_trace";
   return "missing";
+}
+
+// A native cancellation or pre-Commit abort does not erase the complete state
+// captured before that execution. Only the predecessor qualifies; the next
+// action stays rejected, without a successful action-membership claim.
+function rejectedExecutionHasExactState(next, boundary, successorRef) {
+  const start = next?.events.find((event) => event.kind === "action_started");
+  const rejected = next?.events.find((event) =>
+    ["action_cancelled_after_start", "action_aborted_before_commit"].includes(event.kind));
+  return Boolean(start && rejected && start.sequence < rejected.sequence
+    && boundary.sequence < start.sequence
+    && boundary.boundary?.witness_kind === "before_next_human_action_execution"
+    && boundary.boundary?.state_completeness === "complete"
+    && boundary.boundary?.required_reads_status === "complete"
+    && boundary.boundary?.state_blockers?.length === 0
+    && sameRef(boundary.boundary?.state_ref, successorRef)
+    && sameRef(start.execution_pre_ref, successorRef)
+    && !next.events.some((event) => event.kind === "transition_proved"));
 }
 
 function causalSuccessorStatus({ proved, events, actionsById, loadFrame, loadActionSpace }) {
@@ -165,11 +198,13 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame, loadAct
       && event.boundary?.immediately_consumed_by_action_witness_id === next.id);
     if (!nextBoundary || !sameRef(proved.successor_ref, nextBoundary.execution_pre_ref))
       return { valid: false, reason: "handoff_does_not_equal_next_execution_pre" };
+    if (successorStatus.complete && rejectedExecutionHasExactState(next, nextBoundary, proved.successor_ref))
+      return { valid: true, reason: "rejected_next_execution_state_boundary_exact" };
     const nextAction = next.action;
     const nextActionSpace = loadActionSpace(next?.events.find((event) =>
       event.execution_semantic_action_space_ref)?.execution_semantic_action_space_ref);
     const nextMembership = nextActionSpace
-      ? semanticActionSpaceStatus(nextActionSpace, nextAction, next.id)
+      ? semanticActionSpaceStatus(nextActionSpace, nextAction, next.id, next.events[0]?.action)
       : frameStatus(successor, nextAction);
     if (!nextMembership.complete || nextMembership.action_match_count !== 1)
       return { valid: false, reason: "handoff_next_action_not_in_same_state_catalog" };
@@ -193,6 +228,26 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame, loadAct
       : { valid: false, reason: "successor_state_action_space_incomplete" };
   }
 
+  if (["proved_native_owner_boundary", "proved_native_commit_then_owner_boundary"].includes(proved.proof_status)
+      && proved.boundary?.witness_kind === "native_act_entered") {
+      const exactAct = proved.action?.native_action_type === "NRewardsScreen.OnProceedButtonPressed.act_change_ready"
+        && successor.interaction_kind === "map_navigation"
+        && proved.boundary?.state_completeness === "complete"
+        && proved.boundary?.required_reads_status === "complete";
+      return exactAct && successorStatus.complete
+        ? { valid: true, reason: "native_act_entered_exact" }
+        : { valid: false, reason: "native_act_entered_boundary_invalid" };
+    }
+
+  if (proved.proof_status === "proved_native_owner_boundary") {
+    const owner = proved.boundary?.native_decision_owner_ready?.native_owner_witness_id;
+    if (proved.boundary?.witness_kind !== "native_decision_owner_ready" || !owner)
+      return { valid: false, reason: "native_owner_boundary_witness_missing" };
+    return successorStatus.complete
+      ? { valid: true, reason: "native_owner_boundary_exact" }
+      : { valid: false, reason: "successor_state_action_space_incomplete" };
+  }
+
   if (proved.proof_status === "proved_native_commit_then_owner_boundary") {
     if (proved.boundary?.witness_kind !== "native_decision_owner_ready")
       return { valid: false, reason: "native_owner_boundary_witness_missing" };
@@ -208,10 +263,12 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame, loadAct
       && event.boundary?.immediately_consumed_by_action_witness_id === next.id);
     if (!nextBoundary || !sameRef(proved.successor_ref, nextBoundary.execution_pre_ref))
       return { valid: false, reason: "native_commit_handoff_does_not_equal_next_execution_pre" };
+    if (successorStatus.complete && rejectedExecutionHasExactState(next, nextBoundary, proved.successor_ref))
+      return { valid: true, reason: "rejected_next_execution_state_boundary_exact" };
     const nextActionSpace = loadActionSpace(next?.events.find((event) =>
       event.execution_semantic_action_space_ref)?.execution_semantic_action_space_ref);
     const nextMembership = nextActionSpace
-      ? semanticActionSpaceStatus(nextActionSpace, next.action, next.id)
+      ? semanticActionSpaceStatus(nextActionSpace, next.action, next.id, next.events[0]?.action)
       : frameStatus(successor, next.action);
     if (!nextMembership.complete || nextMembership.action_match_count !== 1)
       return { valid: false, reason: "native_commit_handoff_action_not_in_same_state_catalog" };
@@ -241,7 +298,7 @@ export async function calibrate(recordingDirectory) {
       actionsById.set(id, state);
     }
     state.events.push(value);
-    if (value.action?.bound_action) state.action = value.action.bound_action;
+    if (actionFromSources(value)) state.action = actionFromSources(value);
   }
 
   const durableCanonicalByWitness = new Map();
@@ -249,8 +306,8 @@ export async function calibrate(recordingDirectory) {
   try {
     await access(canonicalPath);
     for await (const { value } of jsonLines(canonicalPath)) {
-      if (value.schema_version === 2
-        && value.schema === "sts2.human-annotator/canonical-transition-evidence-2"
+      if ([2, 3].includes(value.schema_version)
+        && value.schema === `sts2.human-annotator/canonical-transition-evidence-${value.schema_version}`
         && value.collection_mode === "causal_human_native_observation"
         && value.action_witness_id) {
         durableCanonicalByWitness.set(value.action_witness_id, value);
@@ -315,7 +372,7 @@ export async function calibrate(recordingDirectory) {
         ? "public_bound_actions"
         : "missing_execution_semantic";
     const preStatus = semanticActionSpace
-      ? semanticActionSpaceStatus(semanticActionSpace, selected, state.id)
+      ? semanticActionSpaceStatus(semanticActionSpace, selected, state.id, accepted.action)
       : publicFallbackAllowed
         ? frameStatus(pre, selected)
         : {

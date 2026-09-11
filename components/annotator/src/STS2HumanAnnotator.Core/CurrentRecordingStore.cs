@@ -29,6 +29,10 @@ public sealed class RecordingSessionStore : IDisposable
     private readonly Dictionary<string, long> _invalidationsByReason = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _recordedActionFamilies = new(StringComparer.Ordinal);
     private readonly Dictionary<string, long> _invalidatedNativeActions = new(StringComparer.Ordinal);
+    private RecordingDecisionCounters _decisions = new(0, 0, 0, 0, 0, 0, DispositionVersion: 1);
+    // Non-authorizing counters keyed only by already persisted exact identities.
+    private readonly HashSet<string> _countedFailureIds = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, long> _failedActionFamilies = new(StringComparer.Ordinal);
     private long _admittedCount;
     private long _invalidationCount;
     private long _readMaterialized;
@@ -57,7 +61,7 @@ public sealed class RecordingSessionStore : IDisposable
             JsonSerializer.Serialize(captureProfile, EvidenceJson.IndentedOptions));
         _invalidations = OpenBufferedAppend(Path.Combine(directory, "invalidations.jsonl"));
         _journal = OpenBufferedAppend(Path.Combine(directory, "run-journal.jsonl"));
-        _semanticBoundaryTrace = OpenBufferedAppend(
+        _semanticBoundaryTrace = OpenRecoverableAppend(
             Path.Combine(directory, "semantic-boundary-trace.jsonl"));
         _canonicalTransitions = OpenBufferedAppend(
             Path.Combine(directory, "canonical-transitions.jsonl"));
@@ -79,6 +83,11 @@ public sealed class RecordingSessionStore : IDisposable
     public void ObservePerformance(string phase, long elapsedMicroseconds) =>
         _performance.ObserveMicroseconds(phase, elapsedMicroseconds);
 
+    public void MarkDecisionAccountingUnavailable()
+    {
+        lock (_gate) _decisions = _decisions with { AccountingComplete = false };
+    }
+
     public RecordingStoreSnapshot GetSnapshot()
     {
         lock (_gate)
@@ -88,7 +97,7 @@ public sealed class RecordingSessionStore : IDisposable
                     _admittedCount,
                     _invalidationCount,
                     _readMaterialized,
-                    _readFailed),
+                    _readFailed, _decisions),
                 _lastRecord,
                 _lastInvalidation,
                 new Dictionary<string, long>(_recordedActionFamilies, StringComparer.Ordinal),
@@ -97,7 +106,7 @@ public sealed class RecordingSessionStore : IDisposable
                 _appendHealth,
                 _diskHealth,
                 _lastError,
-                _closed);
+                _closed, new Dictionary<string, long>(_failedActionFamilies, StringComparer.Ordinal));
         }
     }
 
@@ -290,7 +299,7 @@ public sealed class RecordingSessionStore : IDisposable
     {
         IReadOnlyList<string> errors = ExecutionSemanticActionSpaceValidator.Validate(value);
         if (errors.Count > 0
-            || !ExecutionSemanticActionSpaceContract.IsCurrent(value.SchemaVersion, value.Schema))
+            || (value.SchemaVersion != ExecutionSemanticActionSpaceContract.SchemaVersion || value.Schema != ExecutionSemanticActionSpaceContract.Schema))
             throw new InvalidDataException(
                 $"Execution semantic action space failed validation: {string.Join(',', errors)}");
         EnsureOpen();
@@ -357,19 +366,10 @@ public sealed class RecordingSessionStore : IDisposable
         {
             _performance.Measure(
                 "decision_append_buffered",
-                () => AppendBufferedLine(DecisionFile(record.RunId), record));
+                () => RecoverableAppendBatch.Write(DecisionFile(record.RunId),
+                    new[] { JsonSerializer.SerializeToUtf8Bytes(record, EvidenceJson.Options) }));
             _admittedCount++;
             _families[record.DecisionFamily] = _families.GetValueOrDefault(record.DecisionFamily) + 1;
-            string actionFamily = HumanCaptureProfileValidator.ResolveActionFamily(
-                record.DecisionFamily,
-                record.Action.Verb);
-            _recordedActionFamilies[actionFamily] =
-                _recordedActionFamilies.GetValueOrDefault(actionFamily) + 1;
-            _lastRecord = new RecordingItemStatus(
-                record.RecordId,
-                record.Action.Verb,
-                record.RecordedAt,
-                record.DecisionFamily);
         });
     }
 
@@ -387,28 +387,6 @@ public sealed class RecordingSessionStore : IDisposable
             _performance.Measure("journal_append_buffered", () => AppendBufferedLine(_journal, value)));
     }
 
-    public void AppendSemanticBoundaryEvent(SemanticBoundaryTraceEvent value) =>
-        AppendSemanticBoundaryEvents(new[] { value });
-
-    public void AppendSemanticBoundaryEvents(
-        IReadOnlyList<SemanticBoundaryTraceEvent> values)
-    {
-        foreach (SemanticBoundaryTraceEvent value in values)
-            ValidateSemanticBoundaryEvent(value);
-        if (values.Count == 0)
-            return;
-        EnsureOpen();
-        ExecuteWrite(() =>
-        {
-            _performance.Measure("semantic_event_append_buffered", () =>
-            {
-                foreach (SemanticBoundaryTraceEvent value in values)
-                    AppendLine(_semanticBoundaryTrace, value, flushToDisk: false);
-                _semanticBoundaryTrace.Flush();
-            });
-        });
-    }
-
     public void AppendSemanticEvidenceEvents(IReadOnlyList<SemanticEvidenceEvent> values)
     {
         foreach (SemanticEvidenceEvent value in values)
@@ -419,19 +397,49 @@ public sealed class RecordingSessionStore : IDisposable
         ExecuteWrite(() =>
         {
             _performance.Measure("semantic_event_append_buffered", () =>
-            {
-                foreach (SemanticEvidenceEvent value in values)
-                    AppendLine(_semanticBoundaryTrace, value, flushToDisk: false);
-                _semanticBoundaryTrace.Flush();
-            });
+                RecoverableAppendBatch.Write(
+                    _semanticBoundaryTrace,
+                    values.Select(value =>
+                        JsonSerializer.SerializeToUtf8Bytes(value, EvidenceJson.Options)).ToArray()));
+            foreach (var value in values)
+                CountDecisionEvent(value.Kind, value.Action.Decision, value.Action.ActionWitnessId);
         });
+    }
+
+    private void CountDecisionEvent(string kind, DecisionOccurrenceIdentity? decision, string actionId)
+    {
+        if (kind == SemanticBoundaryTraceKinds.ActionAccepted)
+            _decisions = decision?.DecisionKind == "nested_selector"
+                ? _decisions with { AcceptedChildren = _decisions.AcceptedChildren + 1 }
+                : _decisions with { AcceptedRoots = _decisions.AcceptedRoots + 1 };
+        else if (kind == SemanticBoundaryTraceKinds.TransitionProved)
+            _decisions = _decisions with { Proved = _decisions.Proved + 1 };
+        else if (kind == SemanticBoundaryTraceKinds.TransitionUnknown)
+        {
+            _decisions = _decisions with { Unresolved = _decisions.Unresolved + 1 };
+            bool firstFailure = !_countedFailureIds.Contains(actionId);
+            CountFailure(actionId);
+            string family = decision?.DecisionKind is "nested_selector" or "native_selector"
+                ? "nested_selector.decision" : decision?.Family ?? "unclassified";
+            if (firstFailure) _failedActionFamilies[family] = _failedActionFamilies.GetValueOrDefault(family) + 1;
+        }
+        else if (kind is SemanticBoundaryTraceKinds.ActionCancelledBeforeStart or SemanticBoundaryTraceKinds.ActionCancelledAfterStart)
+            _decisions = _decisions with { Cancelled = _decisions.Cancelled + 1 };
+        else if (kind == SemanticBoundaryTraceKinds.ActionAbortedBeforeCommit)
+            _decisions = _decisions with { Aborted = _decisions.Aborted + 1 };
+    }
+
+    private void CountFailure(string id)
+    {
+        if (_countedFailureIds.Add(id))
+            _decisions = _decisions with { FailedDecisions = _decisions.FailedDecisions + 1 };
     }
 
     public void AppendCanonicalTransition(CanonicalTransitionEvidence value)
     {
         IReadOnlyList<string> errors = CanonicalTransitionEvidenceValidator.Validate(value);
         if (errors.Count > 0
-            || !CanonicalTransitionEvidenceContract.IsCurrent(value.SchemaVersion, value.Schema)
+            || (value.SchemaVersion != CanonicalTransitionEvidenceContract.SchemaVersion || value.Schema != CanonicalTransitionEvidenceContract.Schema)
             || value.SessionId != Manifest.SessionId
             || value.TimelineId != Manifest.TimelineId)
         {
@@ -440,9 +448,17 @@ public sealed class RecordingSessionStore : IDisposable
         }
         EnsureOpen();
         ExecuteWrite(() =>
-            _performance.Measure(
-                "canonical_transition_append_buffered",
-                () => AppendBufferedLine(_canonicalTransitions, value)));
+        {
+            _performance.Measure("canonical_transition_append_buffered",
+                () => AppendBufferedLine(_canonicalTransitions, value));
+            string family = value.Decision?.DecisionKind is "nested_selector" or "native_selector"
+                ? "nested_selector.decision" : value.Decision?.Family ?? "legacy_unclassified";
+            _recordedActionFamilies[family] = _recordedActionFamilies.GetValueOrDefault(family) + 1;
+            _lastRecord = new RecordingItemStatus(value.TransitionId, value.Action?.Verb ?? value.NativeInput!.Verb, value.RecordedAt, family);
+            _decisions = value.Decision?.DecisionKind == "nested_selector"
+                ? _decisions with { CanonicalChildren = _decisions.CanonicalChildren + 1 }
+                : _decisions with { CanonicalRoots = _decisions.CanonicalRoots + 1 };
+        });
     }
 
     public void AppendNativeSemanticDiscriminatorEvent(
@@ -472,7 +488,9 @@ public sealed class RecordingSessionStore : IDisposable
             || invalidation.SessionId != Manifest.SessionId
             || string.IsNullOrWhiteSpace(invalidation.InvalidationId)
             || string.IsNullOrWhiteSpace(invalidation.ReasonCode)
-            || HumanActionOccurrenceEvidenceValidator.Validate(invalidation.HumanOccurrence).Count > 0)
+            || HumanActionOccurrenceEvidenceValidator.Validate(invalidation.HumanOccurrence).Count > 0
+            || RecordingDisposition.Validate(invalidation).Count > 0
+            || (Manifest.DispositionSchemaVersion == 1 && invalidation.Disposition == null))
             throw new InvalidDataException("Invalidation is invalid for this current recording.");
         EnsureOpen();
         ExecuteWrite(() =>
@@ -481,6 +499,14 @@ public sealed class RecordingSessionStore : IDisposable
                 "invalidation_append_buffered",
                 () => AppendBufferedLine(_invalidations, invalidation));
             _invalidationCount++;
+            if (invalidation.DecisionFailure is { } failure && !_countedFailureIds.Contains(failure.DecisionWitnessId))
+            {
+                CountFailure(failure.DecisionWitnessId);
+                _decisions = failure.Kind == "capture"
+                    ? _decisions with { CaptureFailures = _decisions.CaptureFailures + 1 }
+                    : _decisions with { PersistenceFailures = _decisions.PersistenceFailures + 1 };
+                _failedActionFamilies[failure.ActionFamily] = _failedActionFamilies.GetValueOrDefault(failure.ActionFamily) + 1;
+            }
             _invalidationsByReason[invalidation.ReasonCode] =
                 _invalidationsByReason.GetValueOrDefault(invalidation.ReasonCode) + 1;
             if (!string.IsNullOrWhiteSpace(invalidation.NativeActionType))
@@ -505,31 +531,51 @@ public sealed class RecordingSessionStore : IDisposable
         {
             if (_closed)
                 return;
-            WriteCoverage();
-            _performance.Measure("close_evidence_durable_flush", () =>
+            try
             {
+                WriteCoverage();
+                _performance.Measure("close_evidence_durable_flush", () =>
+                {
+                    foreach (FileStream stream in _decisionFiles.Values)
+                        stream.Flush(flushToDisk: true);
+                    _invalidations.Flush(flushToDisk: true);
+                    _journal.Flush(flushToDisk: true);
+                    _semanticBoundaryTrace.Flush(flushToDisk: true);
+                    _canonicalTransitions.Flush(flushToDisk: true);
+                    _nativeSemanticDiscriminator.Flush(flushToDisk: true);
+                });
+                WriteAtomic(
+                    Path.Combine(DirectoryPath, "performance-profile.json"),
+                    JsonSerializer.Serialize(
+                        _performance.Snapshot(Manifest.SessionId),
+                        EvidenceJson.IndentedOptions));
                 foreach (FileStream stream in _decisionFiles.Values)
-                    stream.Flush(flushToDisk: true);
-                _invalidations.Flush(flushToDisk: true);
-                _journal.Flush(flushToDisk: true);
-                _semanticBoundaryTrace.Flush(flushToDisk: true);
-                _canonicalTransitions.Flush(flushToDisk: true);
-                _nativeSemanticDiscriminator.Flush(flushToDisk: true);
-            });
-            foreach (FileStream stream in _decisionFiles.Values)
-                stream.Dispose();
-            _invalidations.Dispose();
-            _journal.Dispose();
-            _semanticBoundaryTrace.Dispose();
-            _canonicalTransitions.Dispose();
-            _nativeSemanticDiscriminator.Dispose();
-            WriteAtomic(
-                Path.Combine(DirectoryPath, "performance-profile.json"),
-                JsonSerializer.Serialize(
-                    _performance.Snapshot(Manifest.SessionId),
-                    EvidenceJson.IndentedOptions));
-            _closed = true;
-            _appendHealth = "closed";
+                    stream.Dispose();
+                _invalidations.Dispose();
+                _journal.Dispose();
+                _semanticBoundaryTrace.Dispose();
+                _canonicalTransitions.Dispose();
+                _nativeSemanticDiscriminator.Dispose();
+                if (Manifest.CloseSchemaVersion == 1)
+                {
+                    string receipt = Path.Combine(DirectoryPath, "session-close-receipt.json");
+                    string temporary = receipt + $".tmp-{Guid.NewGuid():N}";
+                    WriteCreateNew(temporary, JsonSerializer.Serialize(new {
+                        schema = "sts2.human-annotator/session-close-1",
+                        session_id = Manifest.SessionId, timeline_id = Manifest.TimelineId,
+                        closed_at = DateTimeOffset.UtcNow, status = "closed"
+                    }, EvidenceJson.IndentedOptions));
+                    File.Move(temporary, receipt); // only after evidence and receipt bytes flush successfully
+                }
+                _closed = true;
+                _appendHealth = "closed";
+            }
+            catch (Exception exception)
+            {
+                MarkWriteFailureUnsafe(exception);
+                _decisions = _decisions with { AccountingComplete = false };
+                throw;
+            }
         }
     }
 
@@ -629,7 +675,7 @@ public sealed class RecordingSessionStore : IDisposable
         string safe = SafeId(runId, nameof(runId));
         if (!_decisionFiles.TryGetValue(safe, out FileStream? stream))
         {
-            stream = OpenBufferedAppend(Path.Combine(DirectoryPath, $"{safe}.jsonl"));
+            stream = OpenRecoverableAppend(Path.Combine(DirectoryPath, $"{safe}.jsonl"));
             _decisionFiles.Add(safe, stream);
         }
         return stream;
@@ -648,6 +694,19 @@ public sealed class RecordingSessionStore : IDisposable
         64 * 1024,
         FileOptions.SequentialScan);
 
+    private static FileStream OpenRecoverableAppend(string path)
+    {
+        var stream = new FileStream(
+            path,
+            FileMode.OpenOrCreate,
+            FileAccess.Write,
+            FileShare.Read,
+            64 * 1024,
+            FileOptions.SequentialScan);
+        stream.Position = stream.Length;
+        return stream;
+    }
+
     private static void AppendLine<T>(
         FileStream stream,
         T value,
@@ -664,18 +723,6 @@ public sealed class RecordingSessionStore : IDisposable
     {
         AppendLine(stream, value, flushToDisk: false);
         stream.Flush();
-    }
-
-    private void ValidateSemanticBoundaryEvent(SemanticBoundaryTraceEvent value)
-    {
-        if (!SemanticBoundaryTraceContract.IsCurrent(value.SchemaVersion, value.Schema)
-            || value.SessionId != Manifest.SessionId
-            || value.TimelineId != Manifest.TimelineId
-            || value.Sequence <= 0
-            || string.IsNullOrWhiteSpace(value.EventId)
-            || string.IsNullOrWhiteSpace(value.Kind)
-            || string.IsNullOrWhiteSpace(value.Action.ActionWitnessId))
-            throw new InvalidDataException("Semantic boundary trace event is invalid for this recording.");
     }
 
     private void ValidateSemanticEvidenceEvent(SemanticEvidenceEvent value)

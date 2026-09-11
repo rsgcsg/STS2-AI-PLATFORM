@@ -29,7 +29,7 @@ from a later Human effect.
 
 ## Current Matrix
 
-| Slice | Native witness | Source/test | Current-artifact Live |
+| Slice | Native witness | Source/test | Historical/predecessor Live (not HEAD148) |
 |---|---|---:|---:|
 | ordinary combat play / End Turn | `GameAction.OnEnqueued` + typed lifecycle + `ActionExecutor.BeforeActionExecuted` | complete | schema-3 canary: 214 `PlayCard`, 48 `EndTurn` roots proved |
 | generated-card select | exact selection callback + direct UI delivery | complete | schema-3 canary: three selects proved |
@@ -42,8 +42,61 @@ from a later Human effect.
 | card reward select | `NCardRewardSelectionScreen.SelectCard` -> enclosing `CardReward.OnSelect` completion | source/test complete; option callback alone is not a successor proof | final PR #6 session: 4 canonical |
 | map travel | `NMapScreen.OnMapPointSelectedLocally` -> `VoteForMapCoordAction` lifecycle | source/test complete | final PR #6 session: 7/7 canonical; five typed owner-ready successors complete |
 | treasure open / relic select / skip / proceed | exact room/synchronizer owner; `PickRelicAction`, normal-reward task and terminal-proceed task seams | source/test complete; visual `OnRelease` is not gameplay authority | predecessor repair sessions exercised the seam; the final exact PR #6 session did not exercise Treasure |
-| event / shop / rest | Connector observation coverage only | not implemented as shared native decisions or Human witnesses | map successors only: event (5), shop (1), rest (2); room-internal actions not exercised |
-| run entry / game terminal | observation coverage varies | not implemented as Human witnesses | final `EndTurn -> game_over` observed; run entry and exhaustive Full Run not exercised |
+| event option | `NEventRoom.OptionButtonClicked` + `EventOption.Chosen` task | complete visible option catalog; exact completion ledger source complete | final candidate live canary required |
+| shop room open / proceed | `NMerchantRoom.OpenInventory` / `HideScreen` native controls | complete room-control catalog; exact room callbacks source complete | final candidate live canary required |
+| shop purchase / card removal | `MerchantEntry.IsStocked/EnoughGold` + `OnTryPurchaseWrapper` task | complete visible offer catalog; exact entry ledger source complete | final candidate live canary required |
+| shop inventory close | `NMerchantInventory.Close` after exact BackButton delivery | complete visible close control; exact callback source complete | final candidate live canary required |
+| rest-site option / proceed | `RestSiteSynchronizer.ChooseLocalOption` task and `NRestSiteRoom` proceed | complete visible option catalog; exact callbacks source complete | final candidate live canary required |
+| run entry / game terminal | native `RunManager.Launch()` start and `RunManager.OnEnded(bool)` terminal seams; lifecycle-only | source/test complete for native markers; no Human action authority | fresh candidate lifecycle canary and exhaustive Full Run still required |
+
+The Live column is intentionally historical/predecessor evidence and is not
+evidence for the integrated `148c20fe` candidate or its unified artifact. The
+current candidate has source/test, clean build, and exact-game evidence only;
+installed, loaded, targeted Human canary, and continuous natural Full Run remain
+pending. No PR6/schema-3 row count in this column transfers to HEAD148.
+
+Generic nested selector continuation is source/test closed for the exact
+v0.111.0 vanilla carriers. An exact parent/root logical async invocation scope
+flows into the typed selector factory, and a weak screen-keyed binding is
+consumed only after the screen's own completion source has settled at a
+terminal callback. Shop removal uses the shipped three-argument
+`MerchantCardRemovalEntry.OnTryPurchaseWrapper`; Event uses `EventOption.Chosen`;
+Rest uses the exact `RestSiteOption` selected by `ChooseLocalOption`; and
+the context-bearing `CardSelectCmd.FromSimpleGridForRewards`, `FromSimpleGrid`,
+and five-argument `FromCombatPile` entry points carry an exact
+`GameActionPlayerChoiceContext.Action`, `HookPlayerChoiceContext.GameAction`, or
+the exact v0.111.0 `BranchingPlayerChoiceContext` delegate object. Context-free
+deck/bundle calls are admitted only while an exact Event, Rest, Reward,
+Merchant, or Treasure owner scope is active. In particular, selector-bearing
+relic `AfterObtained` calls inherit the exact `RelicReward.SelectUnsynchronized`,
+merchant-entry, Event-option, Rest-option, or treasure-pick scope; the
+save/load `RunManager` call is lifecycle restoration and is not a Human
+decision. The child is durable
+continuation evidence on the existing parent root, not a second root, Commit,
+ledger, or successor. Async `MoveNext`, FIFO, latest-frame, current-overlay,
+global current-GameAction, timer, and backfill association remain forbidden.
+
+The shared-event census does not introduce another single-player owner. The
+local accepted occurrence still terminates at the exact selected
+`EventOption.Chosen`; its option/root ExecutionContext is the nested-selector
+carrier. Multiplayer vote aggregation is outside the vanilla normal
+single-player qualification and is not inferred from the local callback.
+
+Card-reward alternatives are same-screen Human decisions, not a second selector.
+The exact shipped set is Skip, REROLL, and Pael's Wing SACRIFICE. They bind
+through `CardReward.OnSelect` to the exact `NCardRewardSelectionScreen`, then
+through its exact alternative index callback. REROLL commits at
+`CardReward.Reroll` because the outer reward Task intentionally remains open;
+terminating alternatives settle through the exact `Reward.SelectUnsynchronized`
+Task. Hook-added alternatives remain outside the sole-Platform-Mod qualification.
+
+`CardRemovalReward` is different: its exact `OnSelect ->
+RewardSynchronizer.DoUnsyncedCardRemoval -> CardSelectCmd.FromDeckForRemoval`
+path opens a true nested deck selector. That child is durable continuation
+evidence on the existing reward-claim root; the outer reward Task retains the
+final disposition.
+Target-picker cancel removes targeting presentation without a GameAction
+enqueue or mutation and is therefore not an accepted player decision.
 
 Current source keeps the gameplay-safe observer path and adds an independent
 process-local discriminator for ordinary combat Play/End Turn/Potion. At native
@@ -88,6 +141,26 @@ modern rows, including Map 7/7 and typed owner-ready 5/5, without unresolved
 transitions or Close drain timeout. Predecessor sessions remain classification
 evidence only. See the
 [completion-lineage source closeout](evidence/NATIVE_FOUNDATION_COMPLETION_LINEAGE_SOURCE_CLOSEOUT_2026-09-01.md).
+
+The Full-Run room extension adds a read-only Native Foundation catalog for
+event options, merchant room/inventory controls and rest-site options. Each Human witness
+still resolves against the same frozen public `BoundAction` frame. Event and
+merchant tasks carry the exact option/entry identity through asynchronous
+completion; rest-site selection uses the synchronizer's `Task<bool>` and the
+proceed control remains a direct UI decision whose successor must be observed
+at the next authoritative boundary. These seams establish source-level
+accounting without transferring any predecessor Human evidence; targeted and
+continuous qualification on the final artifact are still required.
+
+The failed Windows session
+`session-20260903T102650Z-50552cf165a8439397b71d7a1967f957` is forensic evidence
+only: six accepted roots stopped at `action_started`, while Event/Rest/Shop
+callbacks produced pre-frame or exact-task binding failures. The trace also
+ended with a polling-only `run_ended` journal entry, so terminal proof was
+unknown. Current source now uses exact public action shapes and root-bound
+async completion, captures Rest-site input before native option disabling, and
+observes `RunManager.OnEnded(bool)` as the sole native terminal marker. No old
+session or polling observation qualifies the new bytes.
 
 The successor repair adds the first production typed owner-ready publisher.
 Exact STS2 call order rejects `RoomEntered`, `CombatBegan` and visual

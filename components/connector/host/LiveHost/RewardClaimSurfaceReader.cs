@@ -120,15 +120,16 @@ internal sealed class RewardClaimSurfaceReader : ILiveSurfaceReader
                           && NativeSemanticActionCatalog.ContainsExactlyOnce(
                               nativeDecision.Actions,
                               "proceed");
-        bool hasVisibleControls = buttons.Length > 0 || proceedButton.IsEnabled;
         bool hasCurrentCommand = rewards.Any(reward => reward.Enabled)
                                  || discardablePotions.Length > 0
                                     && exactPlayer.CanUseOrRemovePotions
                                  || canProceed;
         string readiness = !catalogBoundExactly
             ? "settling"
-            : hasCurrentCommand ? "ready" : hasVisibleControls ? "settling" : "degraded";
-        var missing = hasVisibleControls ? Array.Empty<string>() : new[] { "surface.rewards_or_enabled_proceed" };
+            : hasCurrentCommand ? "ready" : "settling";
+        // Empty rewards and a disabled bound Proceed are observable state,
+        // including between submission and execution of an act-ready vote.
+        // Delivery readiness must not decide semantic state completeness.
         var surface = new RewardClaimSurface(
             SurfaceKind,
             entities.GetId(screen, "screen"),
@@ -137,8 +138,28 @@ internal sealed class RewardClaimSurfaceReader : ILiveSurfaceReader
             discardablePotions,
             canProceed,
             proceedButton.IsSkip);
-        var completeness = new StateCompleteness(
-            hasVisibleControls && catalogBoundExactly
+        StateCompleteness completeness = DescribeCompleteness(catalogBoundExactly, hasCurrentCommand);
+        string signature = StableIdentityHash.Object(new
+        {
+            game.Version,
+            surface
+        });
+        return new LiveObservation(
+            signature,
+            readiness,
+            new RewardFlowLiveContext("reward_flow", "room_rewards"),
+            surface,
+            completeness,
+            game,
+            Array.Empty<string>());
+    }
+
+    internal static StateCompleteness DescribeCompleteness(
+        bool catalogBoundExactly,
+        bool hasCurrentCommand)
+    {
+        return new StateCompleteness(
+            catalogBoundExactly
                 ? "contract_complete_for_reward_claim"
                 : "partial",
             !catalogBoundExactly
@@ -157,20 +178,7 @@ internal sealed class RewardClaimSurfaceReader : ILiveSurfaceReader
                 "RewardsSet.DisallowSkipping+Hook.ShouldProceedToNextMapPoint",
                 "NRewardsScreen.ProceedButton delivery binding"
             },
-            catalogBoundExactly ? missing : new[] { "native_reward_presentation_bijection" });
-        string signature = StableIdentityHash.Object(new
-        {
-            game.Version,
-            surface
-        });
-        return new LiveObservation(
-            signature,
-            readiness,
-            new RewardFlowLiveContext("reward_flow", "room_rewards"),
-            surface,
-            completeness,
-            game,
-            Array.Empty<string>());
+            catalogBoundExactly ? Array.Empty<string>() : new[] { "native_reward_presentation_bijection" });
     }
 
     private static VisibleReward BuildReward(

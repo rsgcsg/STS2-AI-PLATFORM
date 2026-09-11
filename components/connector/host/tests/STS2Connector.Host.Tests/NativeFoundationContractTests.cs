@@ -7,6 +7,73 @@ namespace STS2Connector.Host.Tests;
 public sealed class NativeFoundationContractTests
 {
     [Fact]
+    public void FruitJuiceNonCombatCatalogKeepsExactPotionAndPlayerAtExecution()
+    {
+        // Exact-game fixture: native FruitJuice properties and IsValidTarget;
+        // initialize only the public-state backing fields, without a Godot run.
+        var player = Bare<MegaCrit.Sts2.Core.Entities.Players.Player>();
+        var creature = Bare<MegaCrit.Sts2.Core.Entities.Creatures.Creature>();
+        var juice = Bare<MegaCrit.Sts2.Core.Models.Potions.FruitJuice>();
+        SetField(player, "<Creature>k__BackingField", creature);
+        SetField(creature, "<Player>k__BackingField", player);
+        SetField(creature, "_currentHp", 57);
+        var slots = new List<MegaCrit.Sts2.Core.Models.PotionModel?> { juice, null };
+        SetField(player, "_potionSlots", slots);
+        player.CanUseOrRemovePotions = true;
+        var ids = new STS2Connector.NativeUi.NativeEntityRegistry();
+        var catalog = NativePotionUseDecisionProvider.CaptureNonCombat(player, ids);
+        var action = Assert.Single(catalog.Actions);
+        Assert.Equal("potion_belt_non_combat_use", catalog.Scope);
+        Assert.Equal("use", action.Verb);
+        Assert.Same(juice, action.NativeSubject);
+        Assert.Same(creature, Assert.Single(action.Operands).NativeValue);
+        Assert.Equal("exact_once", NativeSemanticActionCatalog.Describe(catalog.Actions, "UsePotionAction", "use", juice,
+            new Dictionary<string, object> { ["target"] = creature }).Membership);
+        // EnqueueManualUse sets IsQueued before execution: this is not loss
+        // of native semantic membership, although a second UI input is blocked.
+        SetField(juice, "<IsQueued>k__BackingField", true, typeof(MegaCrit.Sts2.Core.Models.PotionModel));
+        Assert.Single(NativePotionUseDecisionProvider.CaptureNonCombat(player, ids).Actions);
+        player.CanUseOrRemovePotions = false;
+        Assert.Empty(NativePotionUseDecisionProvider.CaptureNonCombat(player, ids).Actions);
+        player.CanUseOrRemovePotions = true;
+        SetField(creature, "_currentHp", 0);
+        Assert.Empty(NativePotionUseDecisionProvider.CaptureNonCombat(player, ids).Actions);
+        SetField(creature, "_currentHp", 62);
+        slots[0] = null;
+        Assert.Empty(NativePotionUseDecisionProvider.CaptureNonCombat(player, ids).Actions);
+    }
+
+    [Theory]
+    [InlineData(MegaCrit.Sts2.Core.Entities.Potions.PotionUsage.AnyTime, true, false, true, true)]
+    [InlineData(MegaCrit.Sts2.Core.Entities.Potions.PotionUsage.CombatOnly, true, false, true, false)]
+    [InlineData(MegaCrit.Sts2.Core.Entities.Potions.PotionUsage.Automatic, true, false, true, false)]
+    [InlineData(MegaCrit.Sts2.Core.Entities.Potions.PotionUsage.AnyTime, true, false, false, false)]
+    public void NonCombatPotionUsePreservesNativeUsageAndCustomGuard(
+        MegaCrit.Sts2.Core.Entities.Potions.PotionUsage usage, bool canUse, bool dead, bool custom, bool expected) =>
+        Assert.Equal(expected, NativePotionUseDecisionProvider.AllowsNonCombatUse(usage, canUse, dead, custom));
+
+    private static T Bare<T>() => (T)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(typeof(T));
+    private static void SetField(object target, string name, object value, Type? declaring = null) =>
+        (declaring ?? target.GetType()).GetField(name, System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+            .SetValue(target, value);
+
+    [Fact]
+    public void DiscardCatalogTracksExactCurrentBeltWithoutRewardOrPopupOwner()
+    {
+        var type = typeof(MegaCrit.Sts2.Core.Models.PotionModel).Assembly.GetTypes()
+            .First(type => !type.IsAbstract && type.IsSubclassOf(typeof(MegaCrit.Sts2.Core.Models.PotionModel)));
+        var first = (MegaCrit.Sts2.Core.Models.PotionModel)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(type);
+        var replacement = (MegaCrit.Sts2.Core.Models.PotionModel)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(type);
+        var identities = new STS2Connector.NativeUi.NativeEntityRegistry();
+        var actions = NativePotionDiscardDecisionProvider.CaptureSlots(new[] { first, null, replacement }, identities);
+        Assert.Equal(2, actions.Count);
+        Assert.True(NativeSemanticActionCatalog.ContainsExactlyOnce(actions, "discard", first));
+        var changed = NativePotionDiscardDecisionProvider.CaptureSlots(new[] { replacement, null }, identities);
+        Assert.False(NativeSemanticActionCatalog.ContainsExactlyOnce(changed, "discard", first));
+        Assert.Empty(NativePotionDiscardDecisionProvider.CaptureSlots(Array.Empty<MegaCrit.Sts2.Core.Models.PotionModel>(), identities));
+    }
+
+    [Fact]
     public void VisibleProjectionCannotCreateSemanticAuthority()
     {
         var visible = new object();
@@ -288,6 +355,78 @@ public sealed class NativeFoundationContractTests
             new[] { Action("a", room, "proceed"), Action("b", room, "proceed") },
             "proceed",
             room));
+    }
+
+    [Fact]
+    public void BossRelicChoiceKeepsPlayerChoiceParentAndCommitSeparate()
+    {
+        Assert.Equal("NChooseARelicSelection", NativeBossRelicDecisionProvider.ScreenOwner);
+        Assert.Equal(
+            "RelicSelectCmd.FromChooseARelicScreen",
+            NativeBossRelicDecisionProvider.ParentCommand);
+        Assert.Equal(
+            "NChooseARelicSelection.RelicsSelected",
+            NativeBossRelicDecisionProvider.CompletionSeam);
+        Assert.Equal(
+            "PlayerChoiceSynchronizer.SyncLocalChoice",
+            NativeBossRelicDecisionProvider.CommitSeam);
+        Assert.Equal(
+            "NChooseARelicSelection.OnSkipButtonReleased",
+            NativeBossRelicDecisionProvider.SkipSeam);
+        Assert.True(NativeBossRelicDecisionProvider.HasExactSkipPath);
+        Assert.Contains("parent PlayerChoice continuation", NativeBossRelicDecisionProvider.NextBoundary);
+
+        var relic = new object();
+        var screen = new object();
+        NativeSemanticAction[] actions =
+        {
+            new(
+                "select|relic-1|-",
+                NativeBossRelicDecisionProvider.SelectVerb,
+                "relic-1",
+                relic,
+                Array.Empty<NativeSemanticOperand>(),
+                "NChooseARelicSelection.SelectHolder"),
+            new(
+                "skip|screen-1|-",
+                NativeBossRelicDecisionProvider.SkipVerb,
+                "screen-1",
+                screen,
+                Array.Empty<NativeSemanticOperand>(),
+                "NChooseARelicSelection.OnSkipButtonReleased")
+        };
+
+        Assert.True(NativeSemanticActionCatalog.ContainsExactlyOnce(
+            actions,
+            NativeBossRelicDecisionProvider.SelectVerb,
+            relic));
+        Assert.True(NativeSemanticActionCatalog.ContainsExactlyOnce(
+            actions,
+            NativeBossRelicDecisionProvider.SkipVerb,
+            screen));
+    }
+
+    [Fact]
+    public void BossRelicExecutionFailsClosedWithoutCommandRegistration()
+    {
+        Assert.False(NativeBossRelicDecisionProvider.ValidateCurrentExecution(
+            Array.Empty<MegaCrit.Sts2.Core.Models.RelicModel>(),
+            expectedRelic: null,
+            requireSkip: true,
+            out string detail));
+        Assert.Contains("was not registered", detail);
+    }
+
+    [Fact]
+    public void ActChangeFactsDoNotPromoteReadyEnqueueToSuccessor()
+    {
+        NativeActChangeFactContract facts = NativeActChangeDecisionProvider.Contract;
+
+        Assert.Contains("SetLocalPlayerReady", facts.AcceptedSeam);
+        Assert.Contains("VoteToMoveToNextActAction.ExecuteAction", facts.CommitSeam);
+        Assert.Contains("OnPlayerReady", facts.OwnerReadySeam);
+        Assert.Contains("all_ready", facts.ConditionalNextBoundary);
+        Assert.DoesNotContain("ActEntered", facts.OwnerReadySeam);
     }
 
     private static NativeSemanticAction Action(

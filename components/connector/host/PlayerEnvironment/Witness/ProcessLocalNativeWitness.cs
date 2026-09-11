@@ -24,7 +24,13 @@ public sealed record ProcessLocalNativeMatch(
     string? BoundActionId,
     PlayerEnvironmentBoundAction? BoundAction,
     string Evidence,
-    string? Detail);
+    string? Detail)
+{
+    public ProcessLocalNativeInputAction? NativeInput { get; init; }
+}
+
+public sealed record ProcessLocalNativeInputAction(string ActionKey, string Verb,
+    string? SubjectReferentId, IReadOnlyDictionary<string, string> Arguments, string? Label);
 
 public sealed record ProcessLocalReadCapture(
     string Kind,
@@ -62,10 +68,13 @@ internal sealed class ProcessLocalCaptureProfiler
 /// same observation. It can correlate an observed native action but cannot
 /// authorize or deliver one.
 /// </summary>
+internal sealed record ProcessLocalNativeInputBinding(string BoundActionId, string Operation, IReadOnlyList<object> Owners, IReadOnlyList<object> Subjects);
+
 public sealed class ProcessLocalNativeWitnessFrame
 {
     private readonly IReadOnlyDictionary<string, object> _exactEntities;
     private readonly IReadOnlySet<string> _exactBindingIds;
+    private readonly IReadOnlyList<ProcessLocalNativeInputBinding> _nativeInputs;
 
     internal ProcessLocalNativeWitnessFrame(
         PlayerEnvironmentSnapshot snapshot,
@@ -75,8 +84,10 @@ public sealed class ProcessLocalNativeWitnessFrame
         IReadOnlyDictionary<string, object> exactEntities,
         IReadOnlySet<string> exactBindingIds,
         IReadOnlyDictionary<string, ProcessLocalReadCapture>? reads = null,
-        IReadOnlyList<ProcessLocalCaptureTiming>? captureTimings = null)
+        IReadOnlyList<ProcessLocalCaptureTiming>? captureTimings = null,
+        IReadOnlyList<ProcessLocalNativeInputBinding>? nativeInputs = null)
     {
+        _nativeInputs = nativeInputs ?? Array.Empty<ProcessLocalNativeInputBinding>();
         Snapshot = snapshot;
         Capabilities = capabilities;
         SourceDigest = sourceDigest;
@@ -98,6 +109,36 @@ public sealed class ProcessLocalNativeWitnessFrame
     public IReadOnlyDictionary<string, ProcessLocalReadCapture> Reads { get; }
 
     public IReadOnlyList<ProcessLocalCaptureTiming> CaptureTimings { get; }
+
+    /// <summary>Correlate an exact scoped native input with its accepted
+    /// callback even when public delivery is settling. This never publishes a
+    /// BoundAction, changes Snapshot or asserts an action space at Human time.</summary>
+    public ProcessLocalNativeMatch ResolveAcceptedInput(
+        ProcessLocalObservedAction expected, ProcessLocalObservedAction accepted)
+    {
+        if (ExternalControllerActive || Snapshot.Completeness.Status != "complete"
+            || string.IsNullOrWhiteSpace(expected.Verb)
+            || expected.Subject == null || accepted.Subject == null
+            || expected.Verb != accepted.Verb || !ReferenceEquals(expected.Subject, accepted.Subject)
+            || expected.Arguments.Count != accepted.Arguments.Count
+            || expected.Arguments.Any(pair => string.IsNullOrWhiteSpace(pair.Key) || pair.Value == null
+                || !accepted.Arguments.TryGetValue(pair.Key, out object? value)
+                || !ReferenceEquals(pair.Value, value)))
+            return new("zero", 0, null, null, "scoped_native_input_reference_equality", "Exact accepted input did not match the scoped Human operands.");
+        string subject = NativeUiRuntime.Entities.GetId(expected.Subject, expected.Verb == "play" ? "card" : expected.Verb == "use" ? "potion" : "subject");
+        var arguments = expected.Arguments.ToDictionary(pair => pair.Key,
+            pair => NativeUiRuntime.Entities.GetId(pair.Value,
+                pair.Value is MegaCrit.Sts2.Core.Entities.Creatures.Creature creature
+                    ? creature.IsPlayer ? "player" : creature.CombatState?.PlayerCreatures.Contains(creature) == true ? "companion" : "enemy"
+                    : "operand"), StringComparer.Ordinal);
+        string key = STS2Platform.NativeFoundation.NativeSemanticActionCatalog.BuildKey(expected.Verb, subject, arguments);
+        return new("exact_native_input", 1, null, null, "scoped_native_input_reference_equality", null)
+        {
+            NativeInput = new(key, expected.Verb, subject, arguments,
+                Snapshot.Referents.FirstOrDefault(value => value.ReferentId == subject)?.Label
+                    ?? expected.Verb + " (native accepted)")
+        };
+    }
 
     public ProcessLocalNativeMatch Resolve(ProcessLocalObservedAction observed)
     {
@@ -152,6 +193,26 @@ public sealed class ProcessLocalNativeWitnessFrame
             matches[0],
             "reference_equality_to_frozen_host_binding",
             null);
+    }
+
+    /// <summary>Correlates an exact native callback with a frozen Host binding.
+    /// Owner and operation are process-local facts, never consumer operands.</summary>
+    public bool HasNativeInputOwner(object owner) =>
+        Snapshot.Status == "interactive" && Snapshot.BoundActions.Status == "complete"
+        && _nativeInputs.Any(binding => binding.Owners.Any(value => ReferenceEquals(value, owner)));
+
+    public ProcessLocalNativeMatch ResolveNativeInput(object owner, string operation, object? subject = null)
+    {
+        var ids = _nativeInputs.Where(binding => binding.Operation == operation
+                && binding.Owners.Any(value => ReferenceEquals(value, owner))
+                && (subject == null || binding.Subjects.Any(value => ReferenceEquals(value, subject))))
+            .Select(binding => binding.BoundActionId).ToHashSet(StringComparer.Ordinal);
+        var matches = Snapshot.Status == "interactive" && Snapshot.BoundActions.Status == "complete"
+            ? Snapshot.BoundActions.Actions.Where(action => ids.Contains(action.BoundActionId)).ToArray()
+            : Array.Empty<PlayerEnvironmentBoundAction>();
+        return new ProcessLocalNativeMatch(matches.Length == 1 ? "exact_unique" : matches.Length == 0 ? "zero" : "ambiguous",
+            matches.Length, matches.Length == 1 ? matches[0].BoundActionId : null,
+            matches.Length == 1 ? matches[0] : null, "exact_native_owner_operation_and_frozen_host_binding", null);
     }
 
     private bool Matches(
@@ -228,6 +289,7 @@ public static class PlayerEnvironmentNativeWitness
                     .Append(action.SubjectReferentId))
                 .Where(referentId => referentId != null)
                 .Cast<string>()
+                .Concat(frame.Bindings.Values.SelectMany(binding => binding.NativeAction.Candidate.EntityBindings.Select(entity => entity.EntityId)))
                 .ToHashSet(StringComparer.Ordinal));
         IReadOnlyDictionary<string, ProcessLocalReadCapture> reads = profiler.Measure(
             "read_materialization",
@@ -252,7 +314,15 @@ public static class PlayerEnvironmentNativeWitness
             exactReferences,
             exactBindingIds,
             reads,
-            profiler.Snapshot());
+            profiler.Snapshot(),
+            frame.Bindings.Select(pair => new ProcessLocalNativeInputBinding(
+                pair.Key, pair.Value.NativeAction.Candidate.Operation,
+                pair.Value.NativeAction.Candidate.EntityBindings
+                    .Where(entity => entity.Role is "screen" or "hand" or "owner" || entity.Role.EndsWith("_screen", StringComparison.Ordinal))
+                    .Where(entity => exactReferences.ContainsKey(entity.EntityId)).Select(entity => exactReferences[entity.EntityId]).ToArray(),
+                pair.Value.NativeAction.Candidate.EntityBindings
+                    .Where(entity => entity.Role is not ("screen" or "hand" or "owner"))
+                    .Where(entity => exactReferences.ContainsKey(entity.EntityId)).Select(entity => exactReferences[entity.EntityId]).ToArray())).ToArray());
     }
 
     private static IReadOnlyDictionary<string, ProcessLocalReadCapture> MaterializeReads(

@@ -44,6 +44,10 @@ ledger.
 - [ADR-0004: Native Foundation and Ritsu route](0004-native-foundation-and-ritsu-route.md)
 - [ADR-0005: Human Root, Commit, and Successor evidence](0005-human-root-commit-successor-evidence.md)
 
+- [ADR-0006: Decision occurrences within causal roots](0006-decision-occurrences-within-causal-roots.md)
+
+- [ADR-0007: Canonical collection and explicit recording disposition](0007-canonical-collection-and-disposition.md)
+
 ## New ADR template
 
 ```markdown

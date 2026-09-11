@@ -6,11 +6,15 @@ namespace STS2HumanAnnotator.Mod;
 internal readonly record struct NativeUiScopeEntry(
     bool Entered,
     bool DeferredFailure,
-    string? ActionWitnessId = null);
+    string? ActionWitnessId = null,
+    bool CarrierBindingFailed = false);
+
+internal sealed record NativeUiAttemptOutcome(object Operand, Task<bool> Result);
 
 internal sealed class HumanActionContext
 {
     private readonly AcceptedRootActionGate _rootActionGate;
+    private int _rejectedAcceptedIngress;
 
     internal HumanActionContext(
         string origin,
@@ -21,12 +25,17 @@ internal sealed class HumanActionContext
         string? actionWitnessId,
         NativePostCommitCompletionExpectation? completionExpectation,
         HumanActionOccurrenceEvidence? occurrence,
-        DateTimeOffset enteredAt)
+        DateTimeOffset enteredAt,
+        ProcessLocalObservedAction? nativeSemanticSelection = null,
+        bool nativeInputBinding = false)
     {
+        NativeInputBinding = nativeInputBinding;
         Origin = origin;
+        ExpectedNativeActionType = expectedNativeActionType;
         ExpectedAction = expectedAction;
         Frame = frame;
         NativeSemanticDecision = nativeSemanticDecision;
+        NativeSemanticSelection = nativeSemanticSelection;
         ActionWitnessId = actionWitnessId ?? $"scope-action-{Guid.NewGuid():N}";
         CompletionExpectation = completionExpectation;
         Occurrence = occurrence;
@@ -34,7 +43,11 @@ internal sealed class HumanActionContext
         _rootActionGate = new AcceptedRootActionGate(expectedNativeActionType);
     }
 
+    internal RecorderRuntime.NestedUiInput? NestedInput { get; set; }
+
+    internal bool NativeInputBinding { get; }
     internal string Origin { get; }
+    internal string ExpectedNativeActionType { get; }
 
     internal ProcessLocalObservedAction? ExpectedAction { get; }
 
@@ -42,11 +55,17 @@ internal sealed class HumanActionContext
 
     internal ProcessLocalNativeSemanticCapture? NativeSemanticDecision { get; }
 
+    internal ProcessLocalObservedAction? NativeSemanticSelection { get; }
+
     internal string ActionWitnessId { get; }
 
     internal NativePostCommitCompletionExpectation? CompletionExpectation { get; }
 
     internal HumanActionOccurrenceEvidence? Occurrence { get; }
+
+    internal NativeUiAttemptOutcome? NativeAttemptOutcome { get; set; }
+
+    internal string? DeferredCarrierBindingFailure { get; set; }
 
     internal DateTimeOffset EnteredAt { get; }
 
@@ -57,6 +76,13 @@ internal sealed class HumanActionContext
         _rootActionGate.TryClaim(nativeActionType);
 
     internal bool RootActionClaimed => _rootActionGate.IsClaimed;
+
+    // A different native callback must not consume the expected-root gate,
+    // but the first such accepted callback still needs one failed-closed
+    // disposition. This local bit makes that disposition idempotent without
+    // introducing another root registry or completion ledger.
+    internal bool TryClaimRejectedAcceptedIngress() =>
+        Interlocked.Exchange(ref _rejectedAcceptedIngress, 1) == 0;
 }
 
 internal sealed class DeferredHumanActionFailure
@@ -71,6 +97,7 @@ internal sealed class DeferredHumanActionFailure
         string evidenceLevel,
         HumanActionOccurrenceEvidence? occurrence)
     {
+        ExpectedNativeActionType = expectedNativeActionType;
         _rootActionGate = new AcceptedRootActionGate(expectedNativeActionType);
         ReasonCode = reasonCode;
         Detail = detail;
@@ -78,6 +105,8 @@ internal sealed class DeferredHumanActionFailure
         EvidenceLevel = evidenceLevel;
         Occurrence = occurrence;
     }
+
+    internal string ExpectedNativeActionType { get; }
 
     internal string ReasonCode { get; }
 
@@ -88,6 +117,8 @@ internal sealed class DeferredHumanActionFailure
     internal string EvidenceLevel { get; }
 
     internal HumanActionOccurrenceEvidence? Occurrence { get; }
+
+    internal NativeUiAttemptOutcome? NativeAttemptOutcome { get; set; }
 
     internal bool TryClaim(string nativeActionType) =>
         _rootActionGate.TryClaim(nativeActionType);
@@ -115,7 +146,9 @@ internal static class HumanActionScope
         ProcessLocalNativeSemanticCapture? nativeSemanticDecision = null,
         string? actionWitnessId = null,
         NativePostCommitCompletionExpectation? completionExpectation = null,
-        HumanActionOccurrenceEvidence? occurrence = null)
+        HumanActionOccurrenceEvidence? occurrence = null,
+        ProcessLocalObservedAction? nativeSemanticSelection = null,
+        bool nativeInputBinding = false)
     {
         _stack ??= new Stack<HumanActionContext>();
         _stack.Push(new HumanActionContext(
@@ -127,7 +160,9 @@ internal static class HumanActionScope
             actionWitnessId,
             completionExpectation,
             occurrence,
-            DateTimeOffset.UtcNow));
+            DateTimeOffset.UtcNow,
+            nativeSemanticSelection,
+            nativeInputBinding));
     }
 
     internal static void Exit()

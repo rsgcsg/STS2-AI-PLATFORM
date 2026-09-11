@@ -6,13 +6,32 @@ namespace STS2HumanAnnotator.Core;
 
 public static class SessionBundlePacker
 {
-    public static SessionBundleResult Pack(
+    public static CanonicalSessionBundleResult Pack(
         string recordingDirectory,
         string workerId,
         string campaignId,
         string outputDirectory,
         string packerSourceRevision,
         bool humanOriginAttested)
+    {
+        SessionBundleResult result = PackCore(recordingDirectory, workerId, campaignId, outputDirectory,
+            packerSourceRevision, humanOriginAttested, compatibility: false);
+        return new CanonicalSessionBundleResult(result.Status, result.BundleDirectory,
+            result.BundleContentId, result.SessionId, result.RecordCount,
+            result.ExportSha256, result.ChecksumsSha256);
+    }
+
+    /// <summary>Explicit compatibility export for existing Decision-record-2 consumers.</summary>
+    public static SessionBundleResult PackCompatibility(
+        string recordingDirectory, string workerId, string campaignId,
+        string outputDirectory, string packerSourceRevision, bool humanOriginAttested) =>
+        PackCore(recordingDirectory, workerId, campaignId, outputDirectory,
+            packerSourceRevision, humanOriginAttested, compatibility: true);
+
+    private static SessionBundleResult PackCore(
+        string recordingDirectory, string workerId, string campaignId,
+        string outputDirectory, string packerSourceRevision, bool humanOriginAttested,
+        bool compatibility)
     {
         if (!humanOriginAttested)
             throw new InvalidDataException("Human origin must be explicitly attested.");
@@ -22,6 +41,8 @@ public static class SessionBundlePacker
             throw new InvalidDataException("Packer source revision must be an exact Git SHA.");
         string source = Path.GetFullPath(recordingDirectory);
         string destination = Path.GetFullPath(outputDirectory);
+        if (destination == source || destination.StartsWith(source + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            throw new InvalidDataException("A bundle must not modify or be nested inside its immutable source session.");
         RecordingAuditResult audit = RecordingSessionAuditor.Audit(source);
         if (audit.Status != "pass")
             throw new InvalidDataException("Current recording audit must pass before packing.");
@@ -30,8 +51,18 @@ public static class SessionBundlePacker
         HumanCaptureProfile profile = Read<HumanCaptureProfile>(
             Path.Combine(source, "capture-profile.json"));
         IReadOnlyList<CurrentDecisionRecord> records = RecordingSessionAuditor.ReadAdmitted(source);
-        if (records.Count == 0)
-            throw new InvalidDataException("A current session bundle requires admitted records.");
+        IReadOnlyList<CanonicalTransitionEvidence> canonical = compatibility
+            ? Array.Empty<CanonicalTransitionEvidence>() : ReadCanonical(source);
+        int count = compatibility ? records.Count : canonical.Count;
+        if (compatibility && count == 0)
+            throw new InvalidDataException("A compatibility bundle requires admitted Decision records.");
+        if (!compatibility)
+            RequireClosedSession(source);
+        string schema = compatibility ? CurrentRecordingContract.SessionBundleSchema
+            : CanonicalSessionBundleContract.Schema;
+        string auditSchema = compatibility ? CurrentRecordingContract.SessionBundleAuditSchema
+            : CanonicalSessionBundleContract.AuditSchema;
+        string countKey = compatibility ? "record_count" : "canonical_count";
 
         string parent = Path.GetDirectoryName(destination)
             ?? throw new InvalidDataException("Bundle destination has no parent.");
@@ -54,7 +85,7 @@ public static class SessionBundlePacker
 
             var auditDocument = new JsonObject
             {
-                ["schema"] = CurrentRecordingContract.SessionBundleAuditSchema,
+                ["schema"] = auditSchema,
                 ["status"] = audit.Status,
                 ["valid_records"] = audit.ValidRecords,
                 ["invalid_records"] = audit.InvalidRecords,
@@ -62,12 +93,20 @@ public static class SessionBundlePacker
                 ["errors"] = JsonSerializer.SerializeToNode(audit.Errors, EvidenceJson.Options),
                 ["non_claims"] = JsonSerializer.SerializeToNode(audit.NonClaims, EvidenceJson.Options)
             };
+            if (!compatibility)
+                auditDocument["canonical_count"] = count;
             Write(Path.Combine(auditDirectory, "audit-report.json"),
                 EvidenceCanonicalJson.Serialize(auditDocument) + "\n");
-            string exportPath = Path.Combine(exportDirectory, "decisions.jsonl");
-            RecordingSessionAuditor.ExportAdmitted(source, exportPath);
+            string exportPath = Path.Combine(exportDirectory,
+                compatibility ? "decisions.jsonl" : "canonical-transitions.jsonl");
+            if (compatibility)
+                RecordingSessionAuditor.ExportAdmitted(source, exportPath);
+            else
+                File.Copy(Path.Combine(raw, "canonical-transitions.jsonl"), exportPath);
             string exportSha = EvidenceIdentity.Sha256File(exportPath);
-            string[] runIds = records.Select(record => record.RunId)
+            string[] runIds = (compatibility ? records.Select(record => record.RunId)
+                    : ReadJournal(source).Where(row => row.RunId != null).Select(row => row.RunId!)
+                        .Concat(canonical.Select(row => row.RunId)))
                 .Distinct(StringComparer.Ordinal)
                 .Order(StringComparer.Ordinal)
                 .ToArray();
@@ -79,9 +118,14 @@ public static class SessionBundlePacker
                 ["machine_verifiable"] = false
             };
             JsonObject rawSha = RecursiveChecksums(raw);
+            var packer = new JsonObject {
+                ["product"] = "STS2 Native UI Human Annotator Tool",
+                ["version"] = CurrentRecordingContract.ProductVersion,
+                ["source_revision"] = packerSourceRevision
+            };
             var identity = new JsonObject
             {
-                ["schema"] = CurrentRecordingContract.SessionBundleSchema,
+                ["schema"] = schema,
                 ["session_id"] = manifest.SessionId,
                 ["timeline_id"] = manifest.TimelineId,
                 ["capture_profile_id"] = profile.ProfileId,
@@ -89,7 +133,7 @@ public static class SessionBundlePacker
                 ["campaign_id"] = campaignId,
                 ["worker_id"] = workerId,
                 ["human_origin_attestation"] = attestation.DeepClone(),
-                ["record_count"] = records.Count,
+                [countKey] = count,
                 ["run_ids"] = new JsonArray(runIds
                     .Select(runId => (JsonNode?)JsonValue.Create(runId)).ToArray()),
                 ["export_sha256"] = exportSha,
@@ -102,11 +146,18 @@ public static class SessionBundlePacker
                     ["invalidations"] = audit.Invalidations
                 }
             };
+            if (!compatibility)
+            {
+                identity["audit"]!["canonical_count"] = count;
+                identity["packer"] = packer.DeepClone();
+                identity["audit_sha256"] = EvidenceIdentity.Sha256File(
+                    Path.Combine(auditDirectory, "audit-report.json"));
+            }
             string contentId = EvidenceIdentity.Sha256Text(EvidenceCanonicalJson.Serialize(identity));
             var bundleManifest = new JsonObject
             {
-                ["schema_version"] = CurrentRecordingContract.SchemaVersion,
-                ["schema"] = CurrentRecordingContract.SessionBundleSchema,
+                ["schema_version"] = compatibility ? 2 : CanonicalSessionBundleContract.SchemaVersion,
+                ["schema"] = schema,
                 ["bundle_content_id"] = contentId,
                 ["session_id"] = manifest.SessionId,
                 ["timeline_id"] = manifest.TimelineId,
@@ -116,13 +167,8 @@ public static class SessionBundlePacker
                 ["worker_id"] = workerId,
                 ["human_origin_attestation"] = attestation,
                 ["created_at"] = manifest.CreatedAt.ToUniversalTime().ToString("O"),
-                ["packer"] = new JsonObject
-                {
-                    ["product"] = "STS2 Native UI Human Annotator Tool",
-                    ["version"] = CurrentRecordingContract.ProductVersion,
-                    ["source_revision"] = packerSourceRevision
-                },
-                ["record_count"] = records.Count,
+                ["packer"] = packer,
+                [countKey] = count,
                 ["run_ids"] = new JsonArray(runIds
                     .Select(runId => (JsonNode?)JsonValue.Create(runId)).ToArray()),
                 ["export_sha256"] = exportSha,
@@ -148,7 +194,7 @@ public static class SessionBundlePacker
                 destination,
                 contentId,
                 manifest.SessionId,
-                records.Count,
+                count,
                 exportSha,
                 EvidenceIdentity.Sha256File(Path.Combine(destination, "checksums.sha256")));
         }
@@ -158,6 +204,42 @@ public static class SessionBundlePacker
                 Directory.Delete(temporary, true);
             throw;
         }
+    }
+
+    public static long ExportCanonical(string recordingDirectory, string output)
+    {
+        string source = Path.GetFullPath(recordingDirectory);
+        RecordingAuditResult audit = RecordingSessionAuditor.Audit(source);
+        if (audit.Status != "pass")
+            throw new InvalidDataException("Current recording audit must pass before export.");
+        RequireClosedSession(source);
+        IReadOnlyList<CanonicalTransitionEvidence> rows = ReadCanonical(source);
+        string destination = Path.GetFullPath(output);
+        if (destination.StartsWith(source + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+            throw new InvalidDataException("An export must not modify its immutable source session.");
+        Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+        File.Copy(Path.Combine(source, "canonical-transitions.jsonl"), destination, overwrite: false);
+        return rows.Count;
+    }
+
+    private static IReadOnlyList<CanonicalTransitionEvidence> ReadCanonical(string source) =>
+        File.ReadLines(Path.Combine(source, "canonical-transitions.jsonl"))
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .Select(line => JsonSerializer.Deserialize<CanonicalTransitionEvidence>(line, EvidenceJson.Options)
+                ?? throw new InvalidDataException("Canonical transition is null."))
+            .ToArray();
+
+    private static RunJournalEvent[] ReadJournal(string source) =>
+        File.ReadLines(Path.Combine(source, "run-journal.jsonl"))
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .Select(line => JsonSerializer.Deserialize<RunJournalEvent>(line, EvidenceJson.Options)!).ToArray();
+
+    private static void RequireClosedSession(string source)
+    {
+        RunJournalEvent[] journal = ReadJournal(source);
+        if (journal.Length == 0 || journal[^1].Kind != "session_closed"
+            || journal.Count(row => row.Kind == "session_closed") != 1)
+            throw new InvalidDataException("Current bundle/export requires a sealed, closed session.");
     }
 
     private static JsonObject RecursiveChecksums(string directory)
@@ -235,3 +317,14 @@ public static class SessionBundlePacker
         File.WriteAllText(path, content, new UTF8Encoding(false));
     }
 }
+
+public static class CanonicalSessionBundleContract
+{
+    public const int SchemaVersion = 3;
+    public const string Schema = "sts2.human-annotator/session-bundle-3";
+    public const string AuditSchema = "sts2.human-annotator/session-bundle-audit-3";
+}
+
+public sealed record CanonicalSessionBundleResult(
+    string Status, string BundleDirectory, string BundleContentId, string SessionId,
+    long CanonicalCount, string ExportSha256, string ChecksumsSha256);

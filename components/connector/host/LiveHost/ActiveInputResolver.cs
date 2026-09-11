@@ -105,8 +105,14 @@ internal static class ActiveInputResolver
         ActiveSurfaceSnapshot snapshot,
         IReadOnlyList<ILiveSurfaceReader> providers,
         NativeEntityRegistry entities,
-        GameBuildIdentity game)
+        GameBuildIdentity game,
+        Func<LiveObservation?>? specializedSurface = null)
     {
+        ActiveSurfaceResolution? preferred = ResolvePreferredSurface(
+            snapshot.OpenModal != null,
+            () => PotionPopupSurfaceReader.Capture(entities, game),
+            specializedSurface);
+        if (preferred != null) return preferred;
         var matches = new List<(string Kind, LiveObservation Draft)>();
         foreach (ILiveSurfaceReader provider in providers.Where(provider =>
                      IsActiveLayer(
@@ -137,6 +143,31 @@ internal static class ActiveInputResolver
             matches.Select(match => match.Kind).ToArray(),
             null,
             null);
+    }
+
+    // Both public snapshot paths use the same precedence and failure boundary.
+    // A room/selector adapter must never hide a top-bar popup or a modal.
+    internal static ActiveSurfaceResolution? ResolvePreferredSurface(
+        bool hasOpenModal,
+        Func<LiveObservation?> popup,
+        Func<LiveObservation?>? specializedSurface)
+    {
+        if (hasOpenModal) return null;
+        string provider = "potion_popup";
+        try
+        {
+            LiveObservation? draft = popup();
+            if (draft != null)
+                return new ActiveSurfaceResolution(draft, new[] { draft.Surface.Kind }, null, null);
+            provider = "specialized_surface";
+            draft = specializedSurface?.Invoke();
+            return draft == null ? null
+                : new ActiveSurfaceResolution(draft, new[] { draft.Surface.Kind }, null, null);
+        }
+        catch (Exception exception)
+        {
+            return new ActiveSurfaceResolution(null, Array.Empty<string>(), provider, exception);
+        }
     }
 
     internal static InputOwnerLayer SelectLayer(

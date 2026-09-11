@@ -1,9 +1,11 @@
 using System.Text;
 using System.Text.Json;
 
-namespace STS2HumanAnnotator.Core;
+using STS2HumanAnnotator.Core;
 
-public sealed class HistoricalRecordingStore : IDisposable
+namespace STS2HumanAnnotator.Core.Tests;
+
+internal sealed class HistoricalRecordingFixtureWriter : IDisposable
 {
     private static readonly Encoding Utf8NoBom = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false);
     private readonly object _gate = new();
@@ -14,7 +16,7 @@ public sealed class HistoricalRecordingStore : IDisposable
     private long _admittedCount;
     private long _invalidationCount;
 
-    private HistoricalRecordingStore(string directory, HistoricalRecordingManifest manifest)
+    private HistoricalRecordingFixtureWriter(string directory, HistoricalRecordingManifest manifest)
     {
         DirectoryPath = directory;
         Manifest = manifest;
@@ -30,12 +32,12 @@ public sealed class HistoricalRecordingStore : IDisposable
 
     public HistoricalRecordingManifest Manifest { get; }
 
-    public static HistoricalRecordingStore Create(string root, HistoricalRecordingManifest manifest)
+    public static HistoricalRecordingFixtureWriter Create(string root, HistoricalRecordingManifest manifest)
     {
         string safeSession = manifest.SessionId.All(ch => char.IsLetterOrDigit(ch) || ch is '-' or '_')
             ? manifest.SessionId
             : throw new ArgumentException("Session ID contains unsafe path characters.", nameof(manifest));
-        return new HistoricalRecordingStore(Path.Combine(Path.GetFullPath(root), safeSession), manifest);
+        return new HistoricalRecordingFixtureWriter(Path.Combine(Path.GetFullPath(root), safeSession), manifest);
     }
 
     public void AppendDecision(HistoricalDecisionRecord record)
@@ -62,11 +64,6 @@ public sealed class HistoricalRecordingStore : IDisposable
                 _invalidationsByReason.GetValueOrDefault(invalidation.ReasonCode) + 1;
             WriteCoverage();
         }
-    }
-
-    public void WriteRuntimeStatus(string path, RecorderRuntimeStatus status)
-    {
-        WriteAtomic(path, JsonSerializer.Serialize(status, EvidenceJson.IndentedOptions));
     }
 
     public void Dispose()

@@ -251,3 +251,19 @@ test("BOM check rejects unified artifact, identity and evidence promotion", asyn
     "Live-proved semantic execution-order rebind retains a stale non-claim"
   ));
 });
+
+
+test("final Full-Run candidate cannot borrow historical identity or Human qualification", async () => {
+  const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
+  assert.ok(bom.final_full_run_candidate);
+  bom.final_full_run_candidate.components.annotator.source_revision = "0".repeat(40);
+  bom.final_full_run_candidate.human_gate = "pass";
+  // Explicitly model a fabricated PASS; the live BOM may legitimately contain
+  // a completed Human gate after final qualification.
+  delete bom.final_full_run_candidate.human_evidence;
+  bom.final_full_run_candidate.evidence_transfer_from_predecessor = true;
+  const errors = validatePlatformBom(bom, await readBomAuthorities(root));
+  assert.ok(errors.some(error => error.startsWith("Final Full-Run annotator.source_revision:")));
+  assert.ok(errors.some(error => error.startsWith("Final Full-Run Human audit:")));
+  assert.ok(errors.some(error => error.startsWith("Final Full-Run predecessor transfer:")));
+});

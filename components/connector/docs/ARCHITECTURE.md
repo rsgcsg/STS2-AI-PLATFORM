@@ -38,7 +38,11 @@ launcher such as STS2-headless.
 An optional process-local witness seam may freeze one public Snapshot/catalog
 and correlate an already accepted native UI action against the same Host-local
 object bindings. It returns only zero, ambiguous, or exact-unique correlation;
-it cannot execute an action and is absent from REST, MCP, and the SDK. This is
+The scoped native-input variant also correlates expected and accepted operand
+references when public delivery is settling, returning `exact_native_input`
+without a BoundAction. It preserves observation identity and makes no legality
+claim at Human time. Neither variant can execute an action; both are absent
+from REST, MCP, and the SDK. This is
 conformance/recording infrastructure, not a second authority path.
 
 ## Canonical Contract

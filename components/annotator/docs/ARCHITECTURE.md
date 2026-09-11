@@ -19,7 +19,7 @@ Human UI scope captures H and exact public BoundAction binding
    (pre-admission for source-local callbacks, or BeforeActionExecuted for GameAction roots)
 -> typed native lifecycle proves Commit
 -> SemanticBoundaryTracker proves a separate causal successor boundary
--> non-authorizing projections write the current Decision record and canonical evidence
+-> one canonical projection writes canonical evidence; optional compatibility adapters follow
 ```
 
 `SemanticBoundaryTracker` never publishes or executes actions. Human H is not
@@ -52,22 +52,18 @@ skip a method, alter an argument/result, transpile game code, or enqueue an
 action. Connector-origin actions call a different native entry path and do not
 enter the human UI scope.
 
-Starting a native card play moves its holder out of the active hand before
-`TryPlayCard(target)` commits. The recorder stages H at `StartCardPlay`, then
-uses it only when the exact same card reference, runtime, environment,
-interaction and target resolve to one frozen public BoundAction within 30
-seconds. There is no latest-frame fallback. This Human-time binding proves the
-chosen public action and correlation; it is not execution S or execution
-legality. At first native execution the typed Native Foundation provider
-independently describes the same native operand and requires exact-once
-membership in `A_sem(S)`. Each scope admits exactly one expected root action;
-game-owned actions caused by that root are ignored rather than mislabeled as
-additional Human decisions.
+Starting a native card play removes its holder from the hand. The observer
+captures H before `NPlayerHand.StartCardPlay`, carries that exact invocation to
+the Mouse/Controller CardPlay factory, and binds the returned native object only
+when its holder matches. TryPlayCard consumes its own binding; native Cleanup
+forgets that owner. Session/lifecycle invalidation changes the binding generation.
+No wall-clock expiry or global latest card frame grants correlation. Execution
+still captures S and independently proves exact-once membership in A(S).
 
 ## Exact Mapping
 
 The frozen Connector frame holds strong process-local references only for
-referents in the frozen BoundAction catalog. A native card and target match by
+referents and private owner/operand bindings in the frozen BoundAction catalog. A native card and target match by
 `ReferenceEquals`; verb, subject, argument roles, and argument count must also
 match. Native witness IDs are opaque recording evidence and cannot resolve back
 to game objects.
@@ -187,3 +183,52 @@ The application event stream is typed, process-local and bounded. A consumer
 queries current status, then requests events after sequence N. A gap means the
 consumer must query status again. Application events are operational state, not
 Human evidence and not action authority.
+
+## Decision occurrences
+
+The [decision identity ADR](../../../docs/adr/0006-decision-occurrences-within-causal-roots.md)
+adds first-class nested decisions to the same tracker and canonical stream.
+The screen/hand factory inherits an exact native parent binding; each Human
+input observes its own complete pre-state and native dispatch. Inputs inside
+that selector share the opening parent's causal lineage and do not invalidate
+it as external Human effects. An actual unrelated next Human effect still does.
+The enclosing native Task/action remains subscribed through its real finish.
+
+A frozen process-local Connector query resolves exact owner, operation and
+operand; it cannot execute or publish an action. Post-input state is a successor
+only while the same native selector owns a complete catalog. Terminal selection
+and native Task completion alone do not provide S'. Automatic revalidation and
+selection completion never establish Human origin.
+
+Run observation provenance is independent of run activity: a RunState poll may
+establish an observed run, and a subsequent native Launch records its start
+without creating another run ID. Polling never manufactures native start/end.
+
+Reward claim/proceed inputs opened by an exact event async owner use the same
+nested decision lineage as card selectors. The native NRewardsScreen factory
+binds its actual owner, and each input's frozen state hands off through the sole
+tracker before its own admission. Ordinary combat rewards remain independent
+roots. A rest Proceed callback when the native map is already open follows the
+native no-op branch and creates no accepted Human mutation or failure barrier.
+
+Reward-screen ShowScreen returns after native Push, input setup and active-screen
+update. Its exact async-bound parent receives that owner-ready boundary before
+an independent potion input can intervene. A synchronously opened screen is
+observed on the same outer callback return after parent admission, only if its
+registered parent matches that callback exactly. Neither path waits for the
+first reward click, reassigns a potion input as a child, or repairs an old unknown.
+
+A state-complete combat H captured at the exact CardPlay factory remains the
+Human observation even if public delivery is settling and combat ends before
+release. Exact owner, generation, card, operand mapping, identity and Reads
+still gate admission. That H never supplies execution S or legality. Native
+queued cancellation remains cancellation; late cancellation/abort cannot
+append another disposition after a durable unknown or restore an old state.
+
+For the synchronous terminal-reward/treasure Proceed branch, native completion
+and closed-to-open map ownership are observed at the same native return. The
+existing exact completion binding admits only its own Human scope; the shared
+owner-ready provider independently exposes the current map owner. Connector
+must supply a complete map frame at that seam. Async event return, already-open
+map, missing binding or incomplete state remains on the existing fail-closed
+path. Closing the map for presentation cannot erase an already proved boundary.

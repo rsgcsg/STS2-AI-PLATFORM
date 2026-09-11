@@ -110,6 +110,32 @@ public sealed class NativePostCommitCompletionLedger
 
     public int Count => _registrations.Count + _taskBindings.Count;
 
+    /// <summary>
+    /// Reports whether this exact native Task kind is currently expected by a
+    /// staged Human root in the same session generation. Native callbacks can
+    /// legitimately occur without a Human root (for example, an internal
+    /// continuation); those observations must not become phantom
+    /// invalidations. An expectation that exists but fails identity matching
+    /// remains fail-closed at BindTask.
+    /// </summary>
+    public bool HasPendingExpectation(
+        string sessionId,
+        long generation,
+        string kind)
+    {
+        if (string.IsNullOrWhiteSpace(sessionId)
+            || generation <= 0
+            || string.IsNullOrWhiteSpace(kind))
+        {
+            return false;
+        }
+
+        return _registrations.Values.Any(registration =>
+            string.Equals(registration.SessionId, sessionId, StringComparison.Ordinal)
+            && registration.Generation == generation
+            && registration.Expectation.AcceptsKind(kind));
+    }
+
     public bool Register(NativePostCommitCompletionRegistration registration)
     {
         ArgumentNullException.ThrowIfNull(registration);
@@ -122,6 +148,10 @@ public sealed class NativePostCommitCompletionLedger
             return false;
         }
         if (_registrations.ContainsKey(registration.ActionWitnessId)
+            || _taskBindings.Values.Any(binding => string.Equals(
+                binding.ActionWitnessId,
+                registration.ActionWitnessId,
+                StringComparison.Ordinal))
             || Count >= _capacity)
         {
             return false;
@@ -136,7 +166,9 @@ public sealed class NativePostCommitCompletionLedger
     /// continuation uses this durable binding and never reads an ambient UI
     /// scope or chooses a current/FIFO root.
     /// </summary>
-    public NativeTaskBindingResolution BindTask(NativeTaskObservation observation)
+    public NativeTaskBindingResolution BindTask(
+        NativeTaskObservation observation,
+        string? expectedActionWitnessId = null)
     {
         ArgumentNullException.ThrowIfNull(observation);
         if (string.IsNullOrWhiteSpace(observation.SessionId)
@@ -151,16 +183,25 @@ public sealed class NativePostCommitCompletionLedger
                 "The native Task observation is malformed or was already bound.");
         }
 
-        NativePostCommitCompletionRegistration[] matches = _registrations.Values
-            .Where(registration => Matches(registration, observation))
-            .ToArray();
+        NativePostCommitCompletionRegistration[] matches = expectedActionWitnessId == null
+            ? _registrations.Values
+                .Where(registration => Matches(registration, observation))
+                .ToArray()
+            : _registrations.TryGetValue(
+                    expectedActionWitnessId,
+                    out NativePostCommitCompletionRegistration? exact)
+                && Matches(exact, observation)
+                ? new[] { exact }
+                : Array.Empty<NativePostCommitCompletionRegistration>();
         if (matches.Length != 1)
         {
             return new NativeTaskBindingResolution(
                 matches.Length == 0 ? "no_match" : "ambiguous",
                 null,
                 matches.Length == 0
-                    ? "No staged Human root matches the exact native Task identity."
+                    ? expectedActionWitnessId == null
+                        ? "No staged Human root matches the exact native Task identity."
+                        : "The supplied Human root identity does not match the exact native Task identity."
                     : "More than one staged Human root matches the native Task identity.");
         }
 
@@ -181,7 +222,13 @@ public sealed class NativePostCommitCompletionLedger
         return new NativeTaskBindingResolution("matched", binding, null);
     }
 
-    public NativePostCommitCompletionResolution CompleteTask(NativeTaskCompletion completion)
+    /// <summary>
+    /// Resolves an exact task completion without consuming its binding. The
+    /// runtime removes the binding only after the resulting terminal semantic
+    /// event is durably appended.
+    /// </summary>
+    public NativePostCommitCompletionResolution PreviewTaskCompletion(
+        NativeTaskCompletion completion)
     {
         ArgumentNullException.ThrowIfNull(completion);
         if (string.IsNullOrWhiteSpace(completion.SessionId)
@@ -199,7 +246,6 @@ public sealed class NativePostCommitCompletionLedger
                 "No durable native Task binding matches this completion.");
         }
 
-        _taskBindings.Remove(binding.TaskWitnessId);
         var signal = new NativePostCommitCompletion(
             completion.SessionId,
             completion.Generation,
@@ -226,6 +272,56 @@ public sealed class NativePostCommitCompletionLedger
                     binding.NativeOperandWitnessId,
                     binding.NativeLineageWitnessId)),
             null);
+    }
+
+    public bool CommitTaskCompletion(NativeTaskCompletion completion)
+    {
+        ArgumentNullException.ThrowIfNull(completion);
+        if (!_taskBindings.TryGetValue(completion.TaskWitnessId, out NativeTaskBinding? binding)
+            || !string.Equals(binding.SessionId, completion.SessionId, StringComparison.Ordinal)
+            || binding.Generation != completion.Generation)
+        {
+            return false;
+        }
+        return _taskBindings.Remove(binding.TaskWitnessId);
+    }
+
+    /// <summary>
+    /// Reverses only the in-memory registration-to-Task transfer when the
+    /// caller cannot complete its exact owner-carrier compare/remove. No
+    /// semantic event has been appended at this point.
+    /// </summary>
+    public bool RollbackTaskBinding(string taskWitnessId)
+    {
+        if (string.IsNullOrWhiteSpace(taskWitnessId)
+            || !_taskBindings.TryGetValue(taskWitnessId, out NativeTaskBinding? binding)
+            || _registrations.ContainsKey(binding.ActionWitnessId))
+            return false;
+        var registration = new NativePostCommitCompletionRegistration(
+            binding.SessionId,
+            binding.Generation,
+            binding.ActionWitnessId,
+            new NativePostCommitCompletionExpectation(
+                binding.Family,
+                binding.Kind,
+                binding.NativeOwnerWitnessId,
+                binding.NativeOperandWitnessId,
+                binding.NativeLineageWitnessId));
+        _taskBindings.Remove(taskWitnessId);
+        _registrations.Add(registration.ActionWitnessId, registration);
+        return true;
+    }
+
+    /// <summary>
+    /// Compatibility convenience for callers that have no external durable
+    /// transaction. Runtime evidence ingress uses Preview + Commit instead.
+    /// </summary>
+    public NativePostCommitCompletionResolution CompleteTask(NativeTaskCompletion completion)
+    {
+        NativePostCommitCompletionResolution resolution = PreviewTaskCompletion(completion);
+        if (resolution.IsMatched)
+            CommitTaskCompletion(completion);
+        return resolution;
     }
 
     public bool Remove(string actionWitnessId)

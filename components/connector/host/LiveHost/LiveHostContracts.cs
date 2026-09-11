@@ -629,6 +629,18 @@ public sealed record TreasureRoomSurface(
     bool CanProceed) : ILiveSurface;
 
 /// <summary>
+/// The native one-of-N relic choice is a child of a PlayerChoice command.
+/// Parent lineage stays in Native Foundation; this surface contains only
+/// relics and controls rendered to the local player.
+/// </summary>
+internal sealed record NativeBossRelicSelectionSurface(
+    string Kind,
+    string ScreenEntityId,
+    IReadOnlyList<VisibleRelic> Relics,
+    IReadOnlyList<string> SelectableRelicEntityIds,
+    bool CanSkip) : ILiveSurface;
+
+/// <summary>
 /// The ordinary single-player game-over lifecycle. The intro and summary are
 /// separate stages; returning to the main menu is not legal before the actual
 /// summary control becomes visible and enabled.
@@ -880,3 +892,11 @@ public sealed record NoActionSurface(
     string Kind,
     string Reason,
     string? Message) : ILiveSurface;
+
+public sealed record PotionPopupSurface(string Kind, string ScreenEntityId, string PotionEntityId,
+    string DefinitionId, string Name, int Slot, bool CanUse, bool CanDiscard) : ILiveSurface
+{
+    // Legacy wire name: exact direct native use also includes non-combat AnyTime potions.
+    public bool DirectCombatUse { get; init; }
+    public IReadOnlyList<string> UseTargetEntityIds { get; init; } = Array.Empty<string>();
+}

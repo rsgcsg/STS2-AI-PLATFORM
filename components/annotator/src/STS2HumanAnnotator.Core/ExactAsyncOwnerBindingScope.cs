@@ -1,0 +1,174 @@
+using System.Runtime.CompilerServices;
+using System.Threading;
+
+namespace STS2HumanAnnotator.Core;
+
+/// <summary>
+/// Carries one immutable exact owner through .NET ExecutionContext and binds
+/// the resulting native object by identity.  It deliberately has no global
+/// "latest" value, ordering fallback, timeout, or enumerable lookup.
+/// </summary>
+public sealed class ExactAsyncOwnerBindingScope<TKey, TContext, TBinding>
+    where TKey : class
+    where TContext : class
+    where TBinding : class
+{
+    private sealed record Frame(TContext Context, Frame? Previous);
+
+    private sealed class Holder
+    {
+        internal Holder(TBinding binding) => Binding = binding;
+
+        internal TBinding Binding { get; }
+        internal bool Reserved { get; set; }
+    }
+
+    private sealed class Scope : IDisposable
+    {
+        private readonly ExactAsyncOwnerBindingScope<TKey, TContext, TBinding> _owner;
+        private readonly Frame _frame;
+        private bool _disposed;
+
+        internal Scope(
+            ExactAsyncOwnerBindingScope<TKey, TContext, TBinding> owner,
+            Frame frame)
+        {
+            _owner = owner;
+            _frame = frame;
+        }
+
+        public void Dispose()
+        {
+            if (_disposed)
+                return;
+            _disposed = true;
+            // A continuation that captured this frame owns an independent
+            // ExecutionContext value. Restoring the caller cannot erase it.
+            if (ReferenceEquals(_owner._current.Value, _frame))
+                _owner._current.Value = _frame.Previous;
+        }
+    }
+
+    private readonly AsyncLocal<Frame?> _current = new();
+    private readonly ConditionalWeakTable<TKey, Holder> _bindings = new();
+    private readonly object _gate = new();
+
+    public IDisposable Enter(TContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        var frame = new Frame(context, _current.Value);
+        _current.Value = frame;
+        return new Scope(this, frame);
+    }
+
+    /// <summary>Use a native context only when this exact invocation has no enclosing owner.</summary>
+    public IDisposable? EnterIfAbsent(TContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return _current.Value == null ? Enter(context) : null;
+    }
+
+    public bool TryBindCurrent(
+        TKey key,
+        Func<TContext, TBinding> createBinding)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(createBinding);
+        Frame? frame = _current.Value;
+        if (frame == null)
+            return false;
+        return TrySet(key, createBinding(frame.Context));
+    }
+
+    public bool TrySet(TKey key, TBinding binding)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(binding);
+        lock (_gate)
+        {
+            if (_bindings.TryGetValue(key, out Holder? existing))
+                return EqualityComparer<TBinding>.Default.Equals(existing.Binding, binding);
+            _bindings.Add(key, new Holder(binding));
+            return true;
+        }
+    }
+
+    public bool TryGet(TKey key, out TBinding? binding)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        lock (_gate)
+        {
+            if (_bindings.TryGetValue(key, out Holder? holder))
+            {
+                binding = holder.Binding;
+                return true;
+            }
+        }
+        binding = null;
+        return false;
+    }
+
+    /// <summary>
+    /// Atomically reserves one exact carrier for a terminal durable write.
+    /// Competing native callbacks cannot both append evidence for the same
+    /// screen. A failed write must release this reservation.
+    /// </summary>
+    public bool TryReserve(TKey key, out TBinding? binding)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        lock (_gate)
+        {
+            if (!_bindings.TryGetValue(key, out Holder? holder)
+                || holder.Reserved)
+            {
+                binding = null;
+                return false;
+            }
+            holder.Reserved = true;
+            binding = holder.Binding;
+            return true;
+        }
+    }
+
+    /// <summary>
+    /// Removes the binding only when the caller still owns the exact value it
+    /// previously read. This is the terminal callback's compare-and-remove:
+    /// native evidence must reach durable storage before this method is used.
+    /// </summary>
+    public bool TryConsume(TKey key, TBinding expected)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(expected);
+        lock (_gate)
+        {
+            if (!_bindings.TryGetValue(key, out Holder? holder)
+                || !holder.Reserved
+                || !EqualityComparer<TBinding>.Default.Equals(holder.Binding, expected))
+                return false;
+            _bindings.Remove(key);
+            return true;
+        }
+    }
+
+    public bool TryRelease(TKey key, TBinding expected)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(expected);
+        lock (_gate)
+        {
+            if (!_bindings.TryGetValue(key, out Holder? holder)
+                || !holder.Reserved
+                || !EqualityComparer<TBinding>.Default.Equals(holder.Binding, expected))
+                return false;
+            holder.Reserved = false;
+            return true;
+        }
+    }
+
+    public void Forget(TKey key)
+    {
+        ArgumentNullException.ThrowIfNull(key);
+        lock (_gate)
+            _bindings.Remove(key);
+    }
+}

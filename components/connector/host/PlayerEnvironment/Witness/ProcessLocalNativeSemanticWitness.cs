@@ -96,7 +96,8 @@ public static class PlayerEnvironmentNativeSemanticWitness
         try
         {
             RunState? run = RunManager.Instance.DebugOnlyGetState();
-            if (run?.CurrentRoom is not CombatRoom combatRoom
+            if (semanticNativeActionType == "NPotionPopup.OnDiscardButtonPressed"
+                || run?.CurrentRoom is not CombatRoom combatRoom
                 || !CombatManager.Instance.IsInProgress)
             {
                 NativeDomainOwnerObservation domain = NativeDomainOwnerProbe.Capture();
@@ -329,7 +330,8 @@ public static class PlayerEnvironmentNativeSemanticWitness
     {
         (string status, string scope, IReadOnlyList<NativeSemanticAction> nativeActions,
             IReadOnlyList<string> nativeEvidence, string? nativeDetail) =
-            CaptureDomainDecision(domain, entities, semanticNativeActionType);
+            CaptureDomainDecision(domain, entities, semanticNativeActionType ?? observedAction?.GetType().Name);
+        semanticSelection ??= observedAction is UsePotionAction ? TryDescribeForUi(observedAction) : null;
         IReadOnlyList<ProcessLocalSemanticAction> actions = nativeActions
             .Select(action => new ProcessLocalSemanticAction(
                 action.Key,
@@ -421,8 +423,17 @@ public static class PlayerEnvironmentNativeSemanticWitness
         // The exact native root type outranks a stale overlay during room
         // transitions. This selects a typed provider; it does not infer an
         // action or its legality.
-        if (semanticNativeActionType == nameof(VoteForMapCoordAction)
-            && NMapScreen.Instance?.IsOpen == true)
+        if (semanticNativeActionType == nameof(UsePotionAction))
+        {
+            NativeCombatDecision decision = NativePotionUseDecisionProvider.Capture(entities);
+            return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);
+        }
+        if (semanticNativeActionType == "NPotionPopup.OnDiscardButtonPressed")
+        {
+            NativePotionDiscardDecision decision = NativePotionDiscardDecisionProvider.Capture(entities);
+            return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);
+        }
+        if (semanticNativeActionType == nameof(VoteForMapCoordAction))
         {
             NativeMapDecision decision = NativeMapDecisionProvider.Capture(entities);
             return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);
@@ -435,6 +446,22 @@ public static class PlayerEnvironmentNativeSemanticWitness
             return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);
         }
         object? overlay = NOverlayStack.Instance?.Peek();
+        if ((semanticNativeActionType is
+                "NChooseARelicSelection.SelectHolder" or
+                "NChooseARelicSelection.OnSkipButtonReleased")
+            && overlay is NChooseARelicSelection bossRelicScreen)
+        {
+            NativeBossRelicDecision decision =
+                CaptureBossRelicDecision(bossRelicScreen, entities);
+            return (decision.Status, decision.Scope, decision.Actions, new[]
+            {
+                $"NativePlayerChoiceLineage:{decision.ParentLineage.Status}",
+                NativeBossRelicDecisionProvider.ParentCommand,
+                NativeBossRelicDecisionProvider.CommitSeam
+            }.Concat(decision.Detail == null
+                ? Array.Empty<string>()
+                : new[] { decision.Detail }).ToArray(), decision.Detail);
+        }
         if (overlay is NRewardsScreen rewards)
         {
             NativeRewardDecision decision =
@@ -459,12 +486,49 @@ public static class PlayerEnvironmentNativeSemanticWitness
                 NativeTreasureDecisionProvider.Capture(treasure, entities);
             return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);
         }
+        if (RunManager.Instance.DebugOnlyGetState()?.CurrentRoom is
+            MegaCrit.Sts2.Core.Rooms.EventRoom or
+            MegaCrit.Sts2.Core.Rooms.MerchantRoom or
+            MegaCrit.Sts2.Core.Rooms.RestSiteRoom)
+        {
+            NativeRoomDecision decision = NativeRoomDecisionProvider.Capture(entities);
+            return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);
+        }
         return (
             domain.Status,
             domain.SemanticDomain,
             Array.Empty<NativeSemanticAction>(),
             Array.Empty<string>(),
             "No migrated native decision adapter owns the current domain.");
+    }
+
+    private static NativeBossRelicDecision CaptureBossRelicDecision(
+        NChooseARelicSelection screen,
+        NativeEntityRegistry entities)
+    {
+        var relicsField = typeof(NChooseARelicSelection).GetField(
+            "_relics",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        return relicsField?.GetValue(screen) is IReadOnlyList<RelicModel> relics
+            ? NativeBossRelicDecisionProvider.Capture(screen, relics, entities)
+            : new NativeBossRelicDecision(
+                "capture_failed",
+                "boss_relic_choice",
+                false,
+                Array.Empty<RelicModel>(),
+                Array.Empty<NativeSemanticAction>(),
+                new NativePlayerChoiceLineage(
+                    "unavailable",
+                    null,
+                    null,
+                    "The exact NChooseARelicSelection._relics binding is unavailable."),
+                false,
+                NativeBossRelicDecisionProvider.ScreenOwner,
+                NativeBossRelicDecisionProvider.ParentCommand,
+                NativeBossRelicDecisionProvider.CompletionSeam,
+                NativeBossRelicDecisionProvider.CommitSeam,
+                NativeBossRelicDecisionProvider.NextBoundary,
+                "The exact NChooseARelicSelection._relics binding is unavailable.");
     }
 
     private static ProcessLocalUiCatalogObservation BuildUiCatalog(
@@ -542,9 +606,7 @@ public static class PlayerEnvironmentNativeSemanticWitness
             PotionModel? potion = use.Player.GetPotionAtSlotIndex((int)use.PotionIndex);
             if (potion == null)
                 return null;
-            Creature? target = use.Player.Creature.CombatState?.GetCreature(use.TargetId);
-            if (target == null && potion.TargetType is TargetType.Self or TargetType.AnyPlayer)
-                target = use.Player.Creature;
+            Creature? target = NativePotionUseDecisionProvider.ResolveTarget(use, potion);
             IReadOnlyDictionary<string, object> arguments = target == null
                 ? new Dictionary<string, object>(StringComparer.Ordinal)
                 : new Dictionary<string, object>(StringComparer.Ordinal) { ["target"] = target };

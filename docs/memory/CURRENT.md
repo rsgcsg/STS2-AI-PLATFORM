@@ -1,50 +1,23 @@
 # Current Context
 
-This is a bounded handoff, not repository authority. Resolve live GitHub refs,
-open PRs, rulesets, code, tests, `platform-bom.json`, and exact runtime/evidence
-before making a current claim. Those sources override this file.
+Resolve live GitHub refs, source, BOM, CI and loaded identity before using this
+handoff. Current repository/runtime authorities override this file.
 
-## Last recorded integration boundary
+PR25 rc.4 has passed its bounded Full-Run Human gate: two uninterrupted native
+new-run starts to natural defeat, 524 accepted/proved/canonical decisions,
+zero real failures or unexplained lost inputs in observed scope, 53 canonical
+children with canonical parents, and independently verified bundle3.
+See the [final Human audit](../evidence/PR25_RC4_FULL_RUN_HUMAN_PASS_2026-09-12.md).
 
-The last verified integration boundary before this governance synthesis was the
-post-CI-hardening `develop` state in which:
-
-- the recorder had one active Human causal/successor authority and one canonical
-  durable transition path;
-- predecessor recording formats and ledgers were archival readers only;
-- Linux and Windows both ran the complete portable root gate behind the required
-  `portable` aggregate;
-- current path-scoped component revision remained Git commit provenance, so
-  component-source PRs required normal merge.
-
-Use GitHub to resolve the exact current `develop` SHA and active pull request.
-Do not copy this handoff's integration boundary to a newer head.
-
-## Active Live UI integration work
-
-The current bounded topic is the selective reconciliation of historical
-`ui-testing` presentation work with current `develop`. It changes Live UI and a
-narrow Annotator application-event projection. It is classified `G4`: the
-game-bound component and runtime lifecycle require exact build/install/load,
-while Human origin, causal admission, and durable evidence semantics are
-unchanged. Portable, exact-game, install, cold-load, and a bounded
-owner-operated Human UI canary are recorded in the dated Live UI integration
-closeout. PR #15 now has a follow-up convergence candidate that reduces the
-presentation to exactly Agent Run and Human Recorder, removes the old collapse
-and dashboard scaffold, and requires a fresh exact build/load plus a new Human
-UI canary. Prior sessions do not qualify those bytes. Resolve the exact topic
-branch, pull request, and latest head from GitHub rather than this handoff.
+Native DLL af4dfd93a4236b50aadbff8e9c055a519b20e842c582ab392d7748845df40cc8
+remains the exact Human-tested artifact. The final evidence/docs/BOM closeout
+changes no compiled native source. Resolve PR25's live disposition and latest
+head/merge CI; integrate by normal merge into develop. Main is a separate
+release line. Historical work tips may be archived as tags before branch cleanup;
+worktree files and immutable sessions are retained.
 
 ## Remaining Platform non-claims
 
-Bounded prior Human qualification was not exhaustive Full-Run qualification.
-Shop/Event/Rest internal Human decisions, generated skip, hand-selector
-variants, potion target-picker cancel, run entry, and exhaustive terminal paths
-still require their own coverage where applicable. Business outcome correctness,
-STPD model/training quality, and controlled Recorder OFF/ON performance
-improvement remain unclaimed unless newer exact evidence says otherwise.
-
-Use `npm run project:context` to start work and `npm run project:closeout` before
-PR closeout. See [Engineering Governance](../ENGINEERING_GOVERNANCE.md),
-[Testing and Evidence](../TESTING.md), and
-[Development Workflow](../DEVELOPMENT_WORKFLOW.md).
+This is bounded observed Full-Run qualification, not exhaustive game-content,
+crash-recovery, non-interference or STPD research/training admission. Future
+incidents follow docs/ANNOTATOR_COLLECTION.md and retain exact failed evidence.
