@@ -88,8 +88,10 @@ Engineering validation passed on source/build workspace
 248, Evidence 41, Live UI 17 suites, Game Mod 63, exact-game compilation and
 unified build. Hosted Linux/Windows/portable CI
 [34591290725](https://github.com/rsgcsg/STS2-AI-PLATFORM/actions/runs/34591290725)
-passed on that exact head. Subsequent report/contract wording and BOM commits do
-not change compiled native source; the PR records their latest-head CI separately.
+passed on that exact head. Subsequent CLI export-label, report/contract wording
+and BOM commits do not change compiled native source; the PR records their
+latest-head CI separately. The CLI labels canonical export without inventing a
+schema upgrade for historical rows; exported bytes retain their original schema.
 Independent review findings about proved projection coverage, close receipts,
 typed evidence and UI unknown-state wording were fixed with regressions. The
 Windows filesystem-failure regression accepts the platform's actual IOException
@@ -113,7 +115,7 @@ The unique installed and cold-loaded candidate is:
 
 `game-mod:verify-loaded` passed with UI toggle canary observed, one process and
 Recorder Ready with no open session. Automated visual inspection confirmed the
-launcher, normal Recorder and Details button, compact counts/latest-three,
+launcher, normal Recorder and Details button, compact counters and empty recent-list layout,
 restore, and compact Policy's unavailable runtime/mode. The game is left at the
 main menu with normal Recorder ready for New Session. This is load/UI evidence,
 not gameplay, Human visibility PASS or a new candidate Human PASS. Raw sessions,

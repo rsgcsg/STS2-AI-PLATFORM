@@ -12,8 +12,8 @@ Recording and diagnostics stay local by default. For distributed collection,
 configure `recording_root` to a persistent user-owned directory and retain
 verified bundles outside temporary engineering worktrees before cleanup. The existing Platform launcher
 opens Recorder; enable recording before a fresh native run. Keep the full session
-through natural terminal and close Recorder normally. Do not pause, reload,
-resume or use the console inside the uninterrupted Full-Run qualification gate.
+through natural terminal and close Recorder normally. Do not pause Recorder,
+reload/resume the run or use the console inside the uninterrupted Full-Run qualification gate.
 Those paths may have separate bounded tests. Close must finish successfully;
 a journal close entry alone is insufficient for close-capability-1 sessions.
 
