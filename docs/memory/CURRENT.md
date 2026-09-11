@@ -14,16 +14,6 @@ The validator repair retains exact type/verb/witness and execution membership
 checks; original evidence stays unchanged. See [audit and repair](../evidence/PR25_POTION_INPUT_VALIDATOR_REPAIR_2026-09-11.md).
 Fresh candidate Human validation and wider Full-Run coverage remain open.
 
-## PR25 deferred potion input follow-up (2026-09-11)
-
-Latest Human fragment: 189 trace accepted / 188 canonical, plus a silently missing
-Colorless Potion use and failed selector (at least 191 known decisions). EndTurn
-#43's formal canonical successor is held for potion-effect contamination. Map
-Fruit Juice succeeded. The repair retains exact submitted GameAction input/failure
-through delayed native acceptance; no unbound selector fallback or historical
-backfill. See [audit and repair](../evidence/PR25_DEFERRED_POTION_INGRESS_REPAIR_2026-09-11.md).
-Fresh Human qualification and enclosing event reward-tree lineage remain open.
-
 ## PR25 native admission repair (2026-09-11)
 
 Latest closed test: 63 known accepted Human decisions, 61 tracked, 55 canonical,
