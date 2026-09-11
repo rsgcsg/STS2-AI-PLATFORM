@@ -1105,8 +1105,10 @@ public sealed class CurrentEvidenceTests
         }
     }
 
-    [Fact]
-    public void TrackerSettlementProjectsDurableDecisionAndCanonicalEvidence()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TrackerSettlementProjectsDurableDecisionAndCanonicalEvidence(bool gameOver)
     {
         string root = Temp("tracker-settlement-projection");
         try
@@ -1133,6 +1135,25 @@ public sealed class CurrentEvidenceTests
                     seed.Pre.CatalogCount,
                     seed.Successor.Snapshot,
                     seed.Successor.Reads);
+                if (gameOver)
+                {
+                    JsonNode snapshot = successor.Snapshot.DeepClone();
+                    snapshot["interaction"]!["kind"] = "game_over";
+                    snapshot["bound_actions"]!["actions"] = new JsonArray(new JsonObject
+                    {
+                        ["bound_action_id"] = "terminal-continue",
+                        ["verb"] = "activate",
+                        ["subject_referent_id"] = "game-over-continue",
+                        ["arguments"] = new JsonObject(),
+                        ["label"] = "Continue"
+                    });
+                    successor = successor with
+                    {
+                        InteractionKind = "game_over", Snapshot = snapshot,
+                        CatalogDigest = EvidenceIdentity.Sha256Json(snapshot["bound_actions"]!),
+                        Reads = successor.Reads.Where(read => read.Kind == "run_deck").ToArray()
+                    };
+                }
                 SemanticActionReference action = new(
                     "tracker-settlement-action",
                     source.Sequence,
@@ -1225,8 +1246,8 @@ public sealed class CurrentEvidenceTests
                             NativeDecisionOwnerReady = new NativeDecisionOwnerReadyEvidence(
                                 successor.InteractionKind,
                                 "owner-tracker-settlement",
-                                "CombatState",
-                                "native.test.owner-ready")
+                                gameOver ? "NGameOverScreen" : "CombatState",
+                                gameOver ? "NGameOverScreen.AnimateIn->NGameOverContinueButton.OnEnable.postfix" : "native.test.owner-ready")
                         });
                 SemanticBoundaryTraceDraft proved = Assert.Single(provedDrafts);
                 drafts.AddRange(provedDrafts);
@@ -1289,7 +1310,11 @@ public sealed class CurrentEvidenceTests
                     manifest.SessionId,
                     manifest.TimelineId,
                     profile.ProfileId);
-                store.AppendDecision(decision);
+                // Legacy combat-only compatibility requires combat_piles on
+                // both ends. A terminal successor instead uses the canonical
+                // stream, as the production projection-omission path does.
+                if (!gameOver)
+                    store.AppendDecision(decision);
                 SemanticFrameReference preStateRef = store.PersistSemanticFrame(proved.SemanticPre!);
                 SemanticFrameReference successorRef = store.PersistSemanticFrame(
                     proved.SemanticSuccessor!);
@@ -1303,11 +1328,22 @@ public sealed class CurrentEvidenceTests
                     canonicalActionSpaceRef,
                     manifest.SessionId,
                     manifest.TimelineId));
+                if (gameOver)
+                {
+                    long journalSequence = 2;
+                    foreach (string kind in new[] { "canonical_transition_recorded", "current_decision_projection_omitted" })
+                        store.AppendRunEvent(new RunJournalEvent(
+                            CurrentRecordingContract.SchemaVersion, CurrentRecordingContract.RunJournalSchema,
+                            $"event-{++journalSequence}", manifest.SessionId, source.RunId,
+                            manifest.TimelineId, journalSequence, DateTimeOffset.UtcNow, kind,
+                            $"canonical-{source.RecordId}", successor.SnapshotId,
+                            "successor_required_read_missing_combat_piles"));
+                }
             }
 
             RecordingAuditResult audit = RecordingSessionAuditor.Audit(session);
             Assert.True(audit.Status == "pass", JsonSerializer.Serialize(audit.Errors));
-            Assert.Single(RecordingSessionAuditor.ReadAdmitted(session));
+            Assert.Equal(gameOver ? 0 : 1, RecordingSessionAuditor.ReadAdmitted(session).Count);
             Assert.Single(File.ReadLines(Path.Combine(session, "canonical-transitions.jsonl")));
             JsonObject provedEvent = JsonNode.Parse(
                     File.ReadLines(Path.Combine(session, "semantic-boundary-trace.jsonl"))

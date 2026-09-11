@@ -9,6 +9,7 @@ using MegaCrit.Sts2.Core.Multiplayer.Game;
 using MegaCrit.Sts2.Core.Models;
 using MegaCrit.Sts2.Core.Nodes;
 using MegaCrit.Sts2.Core.Nodes.Screens;
+using MegaCrit.Sts2.Core.Nodes.Screens.GameOverScreen;
 using MegaCrit.Sts2.Core.Nodes.Screens.CardSelection;
 using MegaCrit.Sts2.Core.Nodes.Rooms;
 using MegaCrit.Sts2.Core.Nodes.CommonUi;
@@ -101,6 +102,14 @@ internal static class NativeFoundationOwnerPatches
             AccessTools.Method(
                 typeof(NativeBossRelicCommandPatch),
                 nameof(NativeBossRelicCommandPatch.Before)));
+        PatchPostfix(
+            harmony,
+            AccessTools.Method(typeof(NGameOverScreen), nameof(NGameOverScreen.Create)),
+            AccessTools.Method(typeof(NativeGameOverOwnerPatch), nameof(NativeGameOverOwnerPatch.Postfix)));
+        PatchPostfix(
+            harmony,
+            AccessTools.Method(typeof(NGameOverContinueButton), "OnEnable"),
+            AccessTools.Method(typeof(NativeGameOverReadyPatch), nameof(NativeGameOverReadyPatch.Postfix)));
         _initialized = true;
     }
 
@@ -266,5 +275,31 @@ internal static class NativeCardRewardRefreshPatch
         IReadOnlyList<CardRewardAlternative> extraOptions)
     {
         NativeCardRewardOwnerPatch.TryRegister(__instance, options, extraOptions);
+    }
+}
+
+internal static class NativeGameOverOwnerPatch
+{
+    internal static void Postfix(RunState runState, NGameOverScreen? __result)
+    {
+        if (__result == null)
+            return;
+        try { NativeDecisionOwnerReadyProvider.RegisterGameOver(__result, runState); }
+        catch (Exception exception)
+        {
+            GD.PrintErr($"[STS2 Platform] native game-over owner observation failed: {exception}");
+        }
+    }
+}
+
+internal static class NativeGameOverReadyPatch
+{
+    internal static void Postfix(NGameOverContinueButton __instance)
+    {
+        try { NativeDecisionOwnerReadyProvider.ObserveGameOverReady(__instance); }
+        catch (Exception exception)
+        {
+            GD.PrintErr($"[STS2 Platform] native game-over ready observation failed: {exception}");
+        }
     }
 }

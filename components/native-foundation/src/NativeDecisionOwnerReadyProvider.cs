@@ -1,4 +1,9 @@
 using System;
+using System.Runtime.CompilerServices;
+using Godot;
+using MegaCrit.Sts2.Core.Nodes.Screens.GameOverScreen;
+using MegaCrit.Sts2.Core.Nodes.Screens.Overlays;
+using MegaCrit.Sts2.Core.Nodes.Screens.ScreenContext;
 using MegaCrit.Sts2.Core.Combat;
 using MegaCrit.Sts2.Core.Context;
 using MegaCrit.Sts2.Core.Entities.Players;
@@ -25,7 +30,44 @@ public static class NativeDecisionOwnerReadyProvider
     public const string CombatTurnMechanism =
         "CombatManager.TurnStarted->NEndTurnButton.OnTurnStarted.postfix";
 
+    public const string GameOverDomain = "game_over";
+    public const string GameOverMechanism =
+        "NGameOverScreen.AnimateIn->NGameOverContinueButton.OnEnable.postfix";
+
+    private static readonly ConditionalWeakTable<NGameOverScreen, RunState> GameOverOwners = new();
+
     public static event Action<NativeDecisionOwnerReadyObservation>? Observed;
+
+    internal static void RegisterGameOver(NGameOverScreen screen, RunState run) =>
+        GameOverOwners.Add(screen, run);
+
+    /// <summary>
+    /// Native Enable has completed on the exact intro Continue control. The
+    /// factory-bound run must still own the terminal screen; a leaderboard,
+    /// stale screen, abandoned run or cleanup is not this decision boundary.
+    /// This emits no action identity or terminal-action completion.
+    /// </summary>
+    internal static bool ObserveGameOverReady(NGameOverContinueButton button)
+    {
+        if (NOverlayStack.Instance?.Peek() is not NGameOverScreen screen
+            || !GameOverOwners.TryGetValue(screen, out RunState? run)
+            || !ReferenceEquals(RunManager.Instance.DebugOnlyGetState(), run)
+            || RunManager.Instance.IsCleaningUp || RunManager.Instance.IsAbandoned
+            || !run.IsGameOver || run.GameMode != GameMode.Standard
+            || run.Players.Count != 1 || LocalContext.GetMe(run) == null
+            || !ActiveScreenContext.Instance.IsCurrent(screen)
+            || !ReferenceEquals(screen.GetNodeOrNull<NGameOverContinueButton>("%ContinueButton"), button)
+            || !screen.IsVisibleInTree() || !button.IsVisibleInTree()
+            || !button.IsEnabled || button.MouseFilter == Control.MouseFilterEnum.Ignore)
+        {
+            return false;
+        }
+
+        Observed?.Invoke(new NativeDecisionOwnerReadyObservation(
+            GameOverDomain, screen, screen.GetType().FullName ?? screen.GetType().Name,
+            GameOverMechanism));
+        return true;
+    }
 
     /// <summary>
     /// Called only by the exact-version composition patch after STS2 has run

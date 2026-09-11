@@ -9,6 +9,40 @@ public sealed class SemanticBoundaryTrackerTests
 {
     private static readonly DateTimeOffset T0 = DateTimeOffset.Parse("2026-08-26T00:00:00Z");
 
+    [Theory]
+    [InlineData("complete", true)]
+    [InlineData("no_commit", false)]
+    [InlineData("poll", false)]
+    [InlineData("partial", false)]
+    [InlineData("human_effect", false)]
+    public void GameOverOwnerReadyRequiresCommittedUninterruptedCompleteBoundary(string condition, bool expected)
+    {
+        var tracker = new SemanticBoundaryTracker();
+        var action = Action("end-turn", 1, "EndPlayerTurnAction") with { RequiresNativePostCommit = true };
+        tracker.Accept(action, State("human"));
+        tracker.ObserveBeforeActionExecution(action.ActionWitnessId, Boundary("execution", action.ActionWitnessId));
+        tracker.Started(action.ActionWitnessId);
+        tracker.Finished(action.ActionWitnessId);
+        if (condition != "no_commit")
+            tracker.ObserveNativeCommit(action.ActionWitnessId, new NativeCompletionEvidence(
+                "commit", "ordinary_combat.end_turn", "GameAction.Finished", action.ActionWitnessId,
+                null, action.ActionWitnessId, null, null, true));
+        if (condition == "human_effect")
+            tracker.ObserveUnrecordedHumanEffect("unrecorded-input");
+        var boundary = PostCommitBoundary("terminal", "game_over");
+        if (condition == "poll")
+            boundary = boundary with { WitnessKind = SemanticBoundaryWitnessKinds.HistoricalPollingSuccessor };
+        if (condition == "partial")
+            boundary = boundary with { RequiredReadsStatus = "unavailable" };
+        var drafts = tracker.ObserveDecisionBoundary(boundary);
+        Assert.Equal(expected, drafts.Any(x => x.Kind == SemanticBoundaryTraceKinds.TransitionProved));
+        if (expected)
+        {
+            Assert.Equal("game_over", Assert.Single(drafts).SemanticSuccessor!.InteractionKind);
+            Assert.Empty(tracker.ObserveDecisionBoundary(boundary));
+        }
+    }
+
     [Fact]
     public void QueuedUiInputDoesNotSettlePriorUntilItsExactExecutionBoundary()
     {

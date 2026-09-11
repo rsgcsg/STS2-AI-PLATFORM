@@ -846,3 +846,20 @@ test("delivery receipt cannot claim causal settlement", () => {
   assert.match(protocol, /not business completion or a canonical[\s\S]*causal next-decision state/u);
   assert.doesNotMatch(submission, /WaitFor.*Successor|CompletionProbe|BusinessOutcome/u);
 });
+
+
+test("game-over ready uses the factory-bound terminal owner and exact native intro control", () => {
+  const patches = read("apps/game-mod/NativeFoundationOwnerPatches.cs");
+  const provider = read("components/native-foundation/src/NativeDecisionOwnerReadyProvider.cs");
+  assert.match(patches, /typeof\(NGameOverScreen\), nameof\(NGameOverScreen.Create\)/u);
+  assert.match(patches, /typeof\(NGameOverContinueButton\), "OnEnable"/u);
+  assert.match(patches, /RegisterGameOver\(__result, runState\)/u);
+  assert.match(patches, /ObserveGameOverReady\(__instance\)/u);
+  assert.match(provider, /GameOverOwners.TryGetValue\(screen, out RunState\? run\)/u);
+  assert.match(provider, /ReferenceEquals\(RunManager.Instance.DebugOnlyGetState\(\), run\)/u);
+  assert.match(provider, /!run.IsGameOver[\s\S]*run.Players.Count != 1/u);
+  assert.match(provider, /IsCleaningUp[\s\S]*IsAbandoned/u);
+  assert.match(provider, /ReferenceEquals\(screen.GetNodeOrNull<NGameOverContinueButton>\("%ContinueButton"\), button\)/u);
+  assert.match(provider, /ActiveScreenContext.Instance.IsCurrent\(screen\)/u);
+  assert.doesNotMatch(provider, /Task.Delay|ContinueWith|MoveNext|GetCurrentAction|latestAction/u);
+});
