@@ -413,3 +413,20 @@ test("queued UI execution recaptures native operands instead of reusing the admi
   assert.match(ingress, /match\.BoundAction!\.BoundActionId,\s*ObserveSemanticOnlyNativeActionLifecycle/u);
   assert.match(ingress, /nativeSemanticSelection: nativeSemanticSelection/u);
 });
+
+test("reward skip freezes exact owner before synchronous screen removal", () => {
+  const code = patches.slice(patches.indexOf("internal static class NativeRewardSkipCommitPatch"),
+    patches.indexOf("internal static class NativeCardRewardSelectionPatch"));
+  const post = code.slice(code.indexOf("private static void Postfix"));
+  assert.match(code, /private static void Prefix/);
+  assert.match(code, /new\(owner, NativeRewardUiContext.CurrentRewardsSet\(\), actionWitnessId\)/);
+  assert.match(post, /nativeOperand: __state.Rewards/);
+  assert.doesNotMatch(post, /NOverlayStack|CurrentRewardsSet\(/);
+});
+test("queued potion discard selects its native belt provider before room overlays", () => {
+  const code = fs.readFileSync(path.resolve(root, "../connector/host/PlayerEnvironment/Witness/ProcessLocalNativeSemanticWitness.cs"), "utf8");
+  assert.match(code, /semanticNativeActionType == "NPotionPopup.OnDiscardButtonPressed"\s*\|\| run/);
+  const start = code.indexOf("CaptureDomainDecision(\n");
+  const scoped = code.slice(start);
+  assert.ok(scoped.indexOf("NativePotionDiscardDecisionProvider.Capture") < scoped.indexOf("overlay is NRewardsScreen"));
+});

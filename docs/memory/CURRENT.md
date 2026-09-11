@@ -4,6 +4,14 @@ This is a bounded handoff, not repository authority. Resolve live GitHub refs,
 open PRs, rulesets, code, tests, `platform-bom.json`, and exact runtime/evidence
 before making a current claim. Those sources override this file.
 
+## PR25 long-canary follow-up (2026-09-11)
+
+Latest session: 1,438 accepted, 1,432 canonical, five unknowns; all 12 rapid
+native inputs and 188 selectors are canonical. Repair covers potion execution
+catalog ownership, reward-skip Commit owner capture, and ActEntered calibration.
+Reward-tree parent lineage and terminal successor remain Full-Run blockers.
+See [exact audit and scope](../evidence/PR25_POTION_EXECUTION_FOLLOWUP_2026-09-11.md).
+
 ## PR25 native admission repair (2026-09-11)
 
 Latest closed test: 63 known accepted Human decisions, 61 tracked, 55 canonical,

@@ -444,3 +444,23 @@ for (const tamper of [false, true]) {
     } finally { await rm(root, { recursive: true, force: true }); }
   });
 }
+
+for (const exact of [true, false]) {
+  test(`native act-entered uses its exact act-change root: ${exact}`, async () => {
+    const { root, refs, store } = await fixture();
+    try {
+      const successor = frame("map-next"); successor.interaction_kind = "map_navigation";
+      await store("mapnext", successor);
+      const events = [event(1, "action_accepted", "a1", action(), {human_observation_ref: refs.s0}),
+        event(2, "action_started", "a1", action(), {execution_pre_ref: refs.s0}),
+        event(3, "transition_proved", "a1", action(), {execution_pre_ref: refs.s0, successor_ref: refs.mapnext,
+          proof_status: "proved_native_commit_then_owner_boundary", boundary: {witness_kind: "native_act_entered",
+            state_completeness: "complete", required_reads_status: "complete"}})];
+      for (const e of events) Object.assign(e.action, {native_mechanism: "direct_ui_commit",
+        native_action_type: exact ? "NRewardsScreen.OnProceedButtonPressed.act_change_ready" : "PlayCardAction"});
+      await writeFile(path.join(root, "semantic-boundary-trace.jsonl"), events.map(JSON.stringify).join("\n") + "\n");
+      const report = await calibrate(root);
+      assert.equal(report.summary.semantic_candidate_s_a_s_prime, exact ? 1 : 0);
+    } finally { await rm(root, {recursive:true, force:true}); }
+  });
+}

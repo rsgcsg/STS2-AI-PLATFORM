@@ -7,6 +7,22 @@ namespace STS2Connector.Host.Tests;
 public sealed class NativeFoundationContractTests
 {
     [Fact]
+    public void DiscardCatalogTracksExactCurrentBeltWithoutRewardOrPopupOwner()
+    {
+        var type = typeof(MegaCrit.Sts2.Core.Models.PotionModel).Assembly.GetTypes()
+            .First(type => !type.IsAbstract && type.IsSubclassOf(typeof(MegaCrit.Sts2.Core.Models.PotionModel)));
+        var first = (MegaCrit.Sts2.Core.Models.PotionModel)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(type);
+        var replacement = (MegaCrit.Sts2.Core.Models.PotionModel)System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(type);
+        var identities = new STS2Connector.NativeUi.NativeEntityRegistry();
+        var actions = NativePotionDiscardDecisionProvider.CaptureSlots(new[] { first, null, replacement }, identities);
+        Assert.Equal(2, actions.Count);
+        Assert.True(NativeSemanticActionCatalog.ContainsExactlyOnce(actions, "discard", first));
+        var changed = NativePotionDiscardDecisionProvider.CaptureSlots(new[] { replacement, null }, identities);
+        Assert.False(NativeSemanticActionCatalog.ContainsExactlyOnce(changed, "discard", first));
+        Assert.Empty(NativePotionDiscardDecisionProvider.CaptureSlots(Array.Empty<MegaCrit.Sts2.Core.Models.PotionModel>(), identities));
+    }
+
+    [Fact]
     public void VisibleProjectionCannotCreateSemanticAuthority()
     {
         var visible = new object();

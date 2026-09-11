@@ -1780,20 +1780,39 @@ internal static class NativeActChangeVoteCommitPatch
 [HarmonyPatch(typeof(RewardsSetSynchronizer), nameof(RewardsSetSynchronizer.SkipLocalRewardsSet))]
 internal static class NativeRewardSkipCommitPatch
 {
-    private static void Postfix(RewardsSetSynchronizer __instance)
+    private sealed record OwnerState(object? Owner, RewardsSet? Rewards, string? ActionWitnessId);
+
+    private static void Prefix(out OwnerState? __state)
     {
-        object? owner = NOverlayStack.Instance?.Peek();
-        if (!NativeUiCompletionRootBindings.TryGet(owner, out string? actionWitnessId)
-            || actionWitnessId == null)
-            return;
-        bool durable = RecorderRuntime.ObserveSemanticUiNativeCommit(
-            actionWitnessId,
-            "reward_proceed",
-            "RewardsSetSynchronizer.SkipLocalRewardsSet",
-            nativeOwner: __instance,
-            nativeOperand: NativeRewardUiContext.CurrentRewardsSet());
-        if (durable)
-            NativeUiCompletionRootBindings.TakeIfMatches(owner, actionWitnessId);
+        __state = null;
+        try
+        {
+            object? owner = NOverlayStack.Instance?.Peek();
+            if (NativeUiCompletionRootBindings.TryGet(owner, out string? actionWitnessId)
+                && actionWitnessId != null)
+                __state = new(owner, NativeRewardUiContext.CurrentRewardsSet(), actionWitnessId);
+        }
+        catch (Exception exception) { NativeUiObservationSafety.Report("reward_skip.owner", exception); }
+    }
+
+    private static void Postfix(RewardsSetSynchronizer __instance, OwnerState? __state)
+    {
+        if (__state?.ActionWitnessId == null || __state.Rewards == null) return;
+        try
+        {
+            // SkipLocalRewardsSet can synchronously complete the reward parent
+            // and remove its screen. The pre-call owner is the exact carrier;
+            // the newly exposed overlay must never supply this Commit identity.
+            bool durable = RecorderRuntime.ObserveSemanticUiNativeCommit(
+                __state.ActionWitnessId,
+                "reward_proceed",
+                "RewardsSetSynchronizer.SkipLocalRewardsSet",
+                nativeOwner: __instance,
+                nativeOperand: __state.Rewards);
+            if (durable)
+                NativeUiCompletionRootBindings.TakeIfMatches(__state.Owner, __state.ActionWitnessId);
+        }
+        catch (Exception exception) { NativeUiObservationSafety.Report("reward_skip.commit", exception); }
     }
 }
 

@@ -12,6 +12,9 @@ Exact native operands remain process-local.
 Current bounded ownership:
 
 - `NativeCombatDecisionProvider`: logical combat decision and native legality;
+- `NativePotionDiscardDecisionProvider`: execution-time occupied potion slots,
+  independent of popup lifetime and the underlying room/selector; public UI
+  availability gates remain separate from an already accepted discard;
 - `NativeActionLifecycleObserver`: exact read-only `GameAction` lifecycle;
 - `NativePlayerChoiceLineage`: current parent/continuation identity;
 - `NativeMapDecisionProvider`: game-owned map destinations from `RunState` and

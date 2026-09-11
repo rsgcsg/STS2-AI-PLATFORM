@@ -208,6 +208,17 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame, loadAct
       : { valid: false, reason: "successor_state_action_space_incomplete" };
   }
 
+  if (["proved_native_owner_boundary", "proved_native_commit_then_owner_boundary"].includes(proved.proof_status)
+      && proved.boundary?.witness_kind === "native_act_entered") {
+      const exactAct = proved.action?.native_action_type === "NRewardsScreen.OnProceedButtonPressed.act_change_ready"
+        && successor.interaction_kind === "map_navigation"
+        && proved.boundary?.state_completeness === "complete"
+        && proved.boundary?.required_reads_status === "complete";
+      return exactAct && successorStatus.complete
+        ? { valid: true, reason: "native_act_entered_exact" }
+        : { valid: false, reason: "native_act_entered_boundary_invalid" };
+    }
+
   if (proved.proof_status === "proved_native_owner_boundary") {
     const owner = proved.boundary?.native_decision_owner_ready?.native_owner_witness_id;
     if (proved.boundary?.witness_kind !== "native_decision_owner_ready" || !owner)

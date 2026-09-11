@@ -96,7 +96,8 @@ public static class PlayerEnvironmentNativeSemanticWitness
         try
         {
             RunState? run = RunManager.Instance.DebugOnlyGetState();
-            if (run?.CurrentRoom is not CombatRoom combatRoom
+            if (semanticNativeActionType == "NPotionPopup.OnDiscardButtonPressed"
+                || run?.CurrentRoom is not CombatRoom combatRoom
                 || !CombatManager.Instance.IsInProgress)
             {
                 NativeDomainOwnerObservation domain = NativeDomainOwnerProbe.Capture();
@@ -421,6 +422,11 @@ public static class PlayerEnvironmentNativeSemanticWitness
         // The exact native root type outranks a stale overlay during room
         // transitions. This selects a typed provider; it does not infer an
         // action or its legality.
+        if (semanticNativeActionType == "NPotionPopup.OnDiscardButtonPressed")
+        {
+            NativePotionDiscardDecision decision = NativePotionDiscardDecisionProvider.Capture(entities);
+            return (decision.Status, decision.Scope, decision.Actions, decision.Evidence, decision.Detail);
+        }
         if (semanticNativeActionType == nameof(VoteForMapCoordAction))
         {
             NativeMapDecision decision = NativeMapDecisionProvider.Capture(entities);
