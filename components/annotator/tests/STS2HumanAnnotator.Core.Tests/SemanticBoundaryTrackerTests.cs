@@ -139,8 +139,10 @@ public sealed class SemanticBoundaryTrackerTests
                 NativeOrigin = origin with { FactoryMechanism = "different-factory" } } } } }));
     }
 
-    [Fact]
-    public void DirectUiOwnerHandoffRoundTripsThroughFinalCausalValidator()
+    [Theory]
+    [InlineData("card_selection")]
+    [InlineData("reward_claim")]
+    public void DirectUiOwnerHandoffRoundTripsThroughFinalCausalValidator(string nestedSurface)
     {
         var tracker = new SemanticBoundaryTracker();
         var parent = Action("parent", 1) with { NativeMechanism = "direct_ui_commit", RequiresNativePostCommit = true };
@@ -148,7 +150,7 @@ public sealed class SemanticBoundaryTrackerTests
         all.AddRange(tracker.Accept(parent, State("human")));
         all.AddRange(tracker.ObserveBeforeActionExecution("parent", Boundary("pre", "parent")));
         all.AddRange(tracker.Started("parent"));
-        all.AddRange(tracker.ObserveNestedInputBoundary("parent", PostCommitBoundary("selector-pre", "card_selection"),
+        all.AddRange(tracker.ObserveNestedInputBoundary("parent", PostCommitBoundary("selector-pre", nestedSurface),
             new("handoff", "exact_selector_input_owner", "parent", "decision-owner-selector-pre", "exact-opening-owner", true)));
         all.AddRange(tracker.Finished("parent"));
         var events = all.Select((draft, i) => Event(i + 1, draft)).ToArray();
@@ -156,6 +158,45 @@ public sealed class SemanticBoundaryTrackerTests
         Assert.Empty(SemanticBoundaryTraceValidator.Validate(decoded));
         Assert.Contains("semantic_transition_lifecycle_incomplete", SemanticBoundaryTraceValidator.Validate(
             decoded.Where(x => x.Kind != SemanticBoundaryTraceKinds.NativeContinuationObserved).ToArray()));
+    }
+
+    [Fact]
+    public void EventRewardAndCardChoiceKeepOneRootThroughLateOuterCommit()
+    {
+        var tracker = new SemanticBoundaryTracker();
+        var all = new List<SemanticBoundaryTraceDraft>();
+        foreach (var (id, sequence, parentId, surface) in new[] {
+            ("event", 1L, (string?)null, "event_option"),
+            ("reward", 2L, "decision-event", "reward_claim"),
+            ("card", 3L, "decision-reward", "card_reward_selection") })
+        {
+            if (parentId != null)
+            {
+                string prior = id == "reward" ? "event" : "reward";
+                all.AddRange(tracker.ObserveNestedInputBoundary(prior, PostCommitBoundary(id + "-pre", surface),
+                    new("handoff-" + id, "exact_selector_input_owner", prior,
+                        "decision-owner-" + id + "-pre", "exact-opening-" + prior, true)));
+            }
+            var action = Action(id, sequence) with { NativeMechanism = "direct_ui_commit",
+                RequiresNativePostCommit = id != "card",
+                Decision = new(2, "decision-" + id, "event", parentId, surface, surface,
+                    parentId == null ? "root" : "nested_selector", parentId == null ? null : "owner-" + id) };
+            all.AddRange(tracker.Accept(action, State(id + "-pre", surface)));
+            all.AddRange(tracker.ObserveBeforeActionExecution(id, Boundary(id + "-pre", id, surface)));
+            all.AddRange(tracker.Started(id));
+        }
+        all.AddRange(tracker.Finished("card"));
+        all.AddRange(tracker.ObserveDecisionBoundaryForAction("card", PostCommitBoundary("after-card", "reward_claim")));
+        foreach (string id in new[] { "reward", "event" })
+        {
+            all.AddRange(tracker.ObserveNativeCommit(id, new("commit-" + id, id, "exact-task", id, null, null, null, null, true)));
+            all.AddRange(tracker.Finished(id));
+        }
+        Assert.Equal(3, all.Count(x => x.Kind == SemanticBoundaryTraceKinds.TransitionProved));
+        Assert.DoesNotContain(all, x => x.Kind == SemanticBoundaryTraceKinds.TransitionUnknown);
+        var events = all.Select((draft, i) => Event(i + 1, draft)).ToArray();
+        Assert.Empty(SemanticBoundaryTraceValidator.Validate(events));
+        Assert.Empty(DecisionOccurrenceValidator.ValidateTrace(events));
     }
 
     [Theory]

@@ -164,6 +164,22 @@ function sourceForAction(accepted) {
   return "missing";
 }
 
+// Cancellation does not erase an already captured complete state boundary.
+// This qualifies only the predecessor; the cancelled action stays rejected.
+function cancelledExecutionHasExactState(next, boundary, successorRef) {
+  const start = next?.events.find((event) => event.kind === "action_started");
+  const cancelled = next?.events.find((event) => event.kind === "action_cancelled_after_start");
+  return Boolean(start && cancelled && start.sequence < cancelled.sequence
+    && boundary.sequence < start.sequence
+    && boundary.boundary?.witness_kind === "before_next_human_action_execution"
+    && boundary.boundary?.state_completeness === "complete"
+    && boundary.boundary?.required_reads_status === "complete"
+    && boundary.boundary?.state_blockers?.length === 0
+    && sameRef(boundary.boundary?.state_ref, successorRef)
+    && sameRef(start.execution_pre_ref, successorRef)
+    && !next.events.some((event) => event.kind === "transition_proved"));
+}
+
 function causalSuccessorStatus({ proved, events, actionsById, loadFrame, loadActionSpace }) {
   if (!proved) return { valid: false, reason: "successor_not_proved" };
   const successor = loadFrame(proved.successor_ref);
@@ -180,6 +196,8 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame, loadAct
       && event.boundary?.immediately_consumed_by_action_witness_id === next.id);
     if (!nextBoundary || !sameRef(proved.successor_ref, nextBoundary.execution_pre_ref))
       return { valid: false, reason: "handoff_does_not_equal_next_execution_pre" };
+    if (successorStatus.complete && cancelledExecutionHasExactState(next, nextBoundary, proved.successor_ref))
+      return { valid: true, reason: "cancelled_next_execution_state_boundary_exact" };
     const nextAction = next.action;
     const nextActionSpace = loadActionSpace(next?.events.find((event) =>
       event.execution_semantic_action_space_ref)?.execution_semantic_action_space_ref);
@@ -243,6 +261,8 @@ function causalSuccessorStatus({ proved, events, actionsById, loadFrame, loadAct
       && event.boundary?.immediately_consumed_by_action_witness_id === next.id);
     if (!nextBoundary || !sameRef(proved.successor_ref, nextBoundary.execution_pre_ref))
       return { valid: false, reason: "native_commit_handoff_does_not_equal_next_execution_pre" };
+    if (successorStatus.complete && cancelledExecutionHasExactState(next, nextBoundary, proved.successor_ref))
+      return { valid: true, reason: "cancelled_next_execution_state_boundary_exact" };
     const nextActionSpace = loadActionSpace(next?.events.find((event) =>
       event.execution_semantic_action_space_ref)?.execution_semantic_action_space_ref);
     const nextMembership = nextActionSpace

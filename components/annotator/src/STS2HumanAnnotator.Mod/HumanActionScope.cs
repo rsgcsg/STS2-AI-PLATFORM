@@ -43,6 +43,8 @@ internal sealed class HumanActionContext
         _rootActionGate = new AcceptedRootActionGate(expectedNativeActionType);
     }
 
+    internal RecorderRuntime.NestedUiInput? NestedInput { get; set; }
+
     internal bool NativeInputBinding { get; }
     internal string Origin { get; }
     internal string ExpectedNativeActionType { get; }

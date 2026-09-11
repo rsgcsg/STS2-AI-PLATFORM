@@ -1,5 +1,14 @@
 # Current Status
 
+## PR25 long-run owner/no-op follow-up (2026-09-11)
+
+Latest session: 1533 accepted, 1527 canonical, four unknown, two native
+cancellations, two starts/ends. All 327 children and parents are canonical,
+including Colorless and Attack Potion selectors. Repairs address false rest
+Proceed effects, missing event reward-owner lineage and cancellation-boundary
+calibration. See [audit and repair](evidence/PR25_REWARD_OWNER_NOOP_REPAIR_2026-09-11.md).
+New candidate Human validation remains required; no exhaustive Full-Run claim.
+
 ## PR25 potion input validator follow-up (2026-09-11)
 
 The latest Human fragment has 119 accepted inputs, 116 proved, 115 canonical,

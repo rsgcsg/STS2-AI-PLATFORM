@@ -14,6 +14,40 @@ public sealed class CarrierIngressSourceTests
     }
 
     [Fact]
+    public void RestProceedNativeNoOpDoesNotOpenHumanScope()
+    {
+        string source = Source("NativeUiPatches.cs");
+        int start = source.IndexOf("internal static class NativeRestSiteProceedPatch");
+        int end = source.IndexOf("internal static class NativeShopPurchasePatch", start);
+        string patch = source[start..end];
+        int guard = patch.IndexOf("NMapScreen.Instance?.IsOpen == true");
+        int capture = patch.IndexOf("RecorderRuntime.TryEnterSemanticScope");
+        Assert.True(guard >= 0 && capture > guard);
+        Assert.Contains("__state = default;", patch[guard..capture]);
+        Assert.Contains("return;", patch[guard..capture]);
+    }
+
+    [Fact]
+    public void RewardFactoryLineageReachesExistingAtomicTrackerMutation()
+    {
+        string patch = Source("NativeRewardDecisionLineage.cs");
+        Assert.Contains("nameof(NRewardsScreen.ShowScreen)", patch);
+        Assert.Contains("RegisterOptionalInputOwner(__result, __originalMethod)", patch);
+        Assert.Contains("binding.RecordingSessionId != SessionId", patch);
+        Assert.Contains("BoundaryTracker.DecisionIdentity(binding.ActionWitnessId)", patch);
+        Assert.Contains("tracker.ObserveNestedInputBoundary", patch);
+        string runtime = Source("RecorderRuntime.cs");
+        Assert.Contains("nestedInput: acceptedContext.NestedInput", runtime);
+        int begin = runtime.IndexOf("private static bool StartSemanticUiAction(");
+        int handoff = runtime.IndexOf("result.AddRange(ObserveNestedUiInputBoundary", begin);
+        int accept = runtime.IndexOf("result.AddRange(tracker.Accept", begin);
+        Assert.True(handoff > begin && accept > handoff);
+        string patches = Source("NativeUiPatches.cs");
+        Assert.Contains("nestedInputOwner: NOverlayStack.Instance?.Peek() as NRewardsScreen", patches);
+        Assert.Contains("nestedInputOwner: __instance", patches);
+    }
+
+    [Fact]
     public void DeferredInputIsBoundBeforeRequestAndReusedByTrueAcceptedCallback()
     {
         string patches = Source("NativeUiPatches.cs");

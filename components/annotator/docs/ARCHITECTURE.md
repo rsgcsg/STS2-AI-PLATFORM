@@ -207,3 +207,10 @@ selection completion never establish Human origin.
 Run observation provenance is independent of run activity: a RunState poll may
 establish an observed run, and a subsequent native Launch records its start
 without creating another run ID. Polling never manufactures native start/end.
+
+Reward claim/proceed inputs opened by an exact event async owner use the same
+nested decision lineage as card selectors. The native NRewardsScreen factory
+binds its actual owner, and each input's frozen state hands off through the sole
+tracker before its own admission. Ordinary combat rewards remain independent
+roots. A rest Proceed callback when the native map is already open follows the
+native no-op branch and creates no accepted Human mutation or failure barrier.

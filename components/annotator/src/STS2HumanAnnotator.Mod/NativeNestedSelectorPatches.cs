@@ -141,6 +141,23 @@ internal static class NativeNestedSelectorBindings
             nativeMechanism));
     }
 
+    // Reward screens are also native input owners inside an EventOption Task.
+    // Ordinary combat rewards have no such scope and remain independent roots.
+    internal static void RegisterOptionalInputOwner(object owner, MethodBase factory)
+    {
+        try
+        {
+            // No scope is normal for independent combat reward screens.
+            Screens.TryBindCurrent(owner, parent => Resolve(parent, owner, factory));
+        }
+        catch
+        {
+            // Preserve an unavailable binding through the same fail-closed
+            // factory path; never turn a failed exact parent into a new root.
+            Register(owner, factory);
+        }
+    }
+
     internal static void Register(object? screen, MethodBase factory)
     {
         if (screen == null)

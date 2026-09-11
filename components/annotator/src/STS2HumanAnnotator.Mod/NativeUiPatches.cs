@@ -1280,7 +1280,8 @@ internal static class NativeRewardClaimStartPatch
                 new ProcessLocalObservedAction(
                     "claim",
                     __instance.Reward,
-                    new Dictionary<string, object>(StringComparer.Ordinal)));
+                    new Dictionary<string, object>(StringComparer.Ordinal)),
+                nestedInputOwner: NOverlayStack.Instance?.Peek() as NRewardsScreen);
         if (__state.Entered && __instance.Reward != null)
             __state = __state with { CarrierBindingFailed = !NativeUiCompletionRootBindings.Remember(__instance.Reward, __state.ActionWitnessId) };
     }
@@ -1412,7 +1413,8 @@ internal static class NativeRewardProceedPatch
                     : new ProcessLocalObservedAction(
                         "proceed",
                         owner.RewardsSet,
-                        new Dictionary<string, object>(StringComparer.Ordinal))),
+                        new Dictionary<string, object>(StringComparer.Ordinal)),
+                nestedInputOwner: __instance),
                 nativeActionType);
             if (__state.Scope.Entered)
                 __state = __state with { Scope = __state.Scope with {
@@ -2293,6 +2295,13 @@ internal static class NativeRestSiteProceedPatch
         NRestSiteRoom __instance,
         out NativeUiScopeEntry __state)
     {
+        // NRestSiteRoom delegates directly to Open(), whose IsOpen branch is
+        // a native no-op. It is not another accepted Human effect.
+        if (NMapScreen.Instance?.IsOpen == true)
+        {
+            __state = default;
+            return;
+        }
         RestSiteRoom? room = RunManager.Instance.DebugOnlyGetState()?.CurrentRoom as RestSiteRoom;
         __state = room == null
             ? default

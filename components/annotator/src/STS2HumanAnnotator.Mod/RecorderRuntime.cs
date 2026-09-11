@@ -1181,7 +1181,8 @@ internal static partial class RecorderRuntime
         string nativeActionType,
         ProcessLocalObservedAction observed,
         NativePostCommitCompletionExpectation? completionExpectation = null,
-        ProcessLocalObservedAction? nativeSemanticSelection = null)
+        ProcessLocalObservedAction? nativeSemanticSelection = null,
+        object? nestedInputOwner = null)
     {
         if (!AcceptingNewWitnesses() || SelectorInputActive)
             return default;
@@ -1228,6 +1229,7 @@ internal static partial class RecorderRuntime
                     "fail_closed");
                 return new NativeUiScopeEntry(false, true);
             }
+            NestedUiInput? nestedInput = ResolveNestedUiInput(nestedInputOwner);
             lock (Gate)
             {
                 if (!_initialized || _lifecycle.State != RecordingLifecycleState.Recording)
@@ -1273,6 +1275,7 @@ internal static partial class RecorderRuntime
                     actionWitnessId,
                     completionExpectation,
                     nativeSemanticSelection: nativeSemanticSelection ?? observed);
+                HumanActionScope.Current!.NestedInput = nestedInput;
                 return new NativeUiScopeEntry(true, false, actionWitnessId);
             }
         }
@@ -1641,7 +1644,8 @@ internal static partial class RecorderRuntime
                         out GameAction? boundAction)
                         ? boundAction
                         : null,
-                nativeSemanticSelection: acceptedContext.NativeSemanticSelection);
+                nativeSemanticSelection: acceptedContext.NativeSemanticSelection,
+                nestedInput: acceptedContext.NestedInput);
             if (accepted && acceptedContext.DeferredCarrierBindingFailure is { } carrierFailure)
             {
                 ObserveSemanticUiCarrierBindingFailure(
@@ -2242,7 +2246,8 @@ internal static partial class RecorderRuntime
         NativePostCommitCompletionExpectation? completionExpectation = null,
         string? actionWitnessIdOverride = null,
         GameAction? lifecycleAction = null,
-        ProcessLocalObservedAction? nativeSemanticSelection = null)
+        ProcessLocalObservedAction? nativeSemanticSelection = null,
+        NestedUiInput? nestedInput = null)
     {
         bool durablyAccepted = false;
         bool semanticStreamMayContainPartialAppend = false;
@@ -2281,6 +2286,12 @@ internal static partial class RecorderRuntime
         {
             RequiresNativePostCommit = completionExpectation != null
         };
+            if (nestedInput != null)
+                action = action with { Decision = action.Decision! with {
+                    CausalRootId = nestedInput.Parent.CausalRootId,
+                    ParentDecisionId = nestedInput.Parent.DecisionId,
+                    DecisionKind = "nested_selector",
+                    NativeOwnerWitnessId = NativeWitnessIdentity.Get(nestedInput.Owner, "selector_owner") } };
             SemanticBoundaryObservation executionBoundary = CreateSemanticBoundaryObservation(
             frame,
             SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
@@ -2299,6 +2310,9 @@ internal static partial class RecorderRuntime
                     BoundaryTracker.BeginDurableMutation(tracker =>
                     {
                         var result = new List<SemanticBoundaryTraceDraft>();
+                        if (nestedInput != null)
+                            result.AddRange(ObserveNestedUiInputBoundary(tracker, nestedInput,
+                                frame, humanObservation, nativeActionType));
                         result.AddRange(tracker.Accept(action, humanObservation));
                         if (lifecycleAction == null)
                         {
@@ -2333,6 +2347,8 @@ internal static partial class RecorderRuntime
                         durablyAccepted = true;
                     });
             }
+            if (nestedInput != null && durablyAccepted)
+                nestedInput.Binding.DecisionHeadActionId = actionWitnessId;
             if (!_semanticBoundaryTraceHealthy)
                 throw new InvalidOperationException(
                     "Semantic boundary trace became unavailable before durable UI-root acceptance.");

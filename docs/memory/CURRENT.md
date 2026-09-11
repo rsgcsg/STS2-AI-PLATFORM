@@ -4,15 +4,14 @@ This is a bounded handoff, not repository authority. Resolve live GitHub refs,
 open PRs, rulesets, code, tests, `platform-bom.json`, and exact runtime/evidence
 before making a current claim. Those sources override this file.
 
-## PR25 potion input validator follow-up (2026-09-11)
+## PR25 long-run owner/no-op follow-up (2026-09-11)
 
-The latest Human fragment has 119 accepted inputs, 116 proved, 115 canonical,
-two native cancellations and one expected unfinished reward. Fruit Juice #19
-was correctly traced but a stale PlayCard-only correlation validator prevented
-canonical append. EndTurn handoff and all 15 selector parent chains are correct.
-The validator repair retains exact type/verb/witness and execution membership
-checks; original evidence stays unchanged. See [audit and repair](../evidence/PR25_POTION_INPUT_VALIDATOR_REPAIR_2026-09-11.md).
-Fresh candidate Human validation and wider Full-Run coverage remain open.
+Latest session: 1533 accepted, 1527 canonical, four unknown, two native
+cancellations, two starts/ends. All 327 children and parents are canonical,
+including Colorless and Attack Potion selectors. Repairs address false rest
+Proceed effects, missing event reward-owner lineage and cancellation-boundary
+calibration. See [audit and repair](../evidence/PR25_REWARD_OWNER_NOOP_REPAIR_2026-09-11.md).
+New candidate Human validation remains required; no exhaustive Full-Run claim.
 
 ## PR25 native admission repair (2026-09-11)
 

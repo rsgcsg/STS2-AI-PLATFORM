@@ -464,3 +464,45 @@ for (const exact of [true, false]) {
     } finally { await rm(root, {recursive:true, force:true}); }
   });
 }
+
+for (const proof of ["proved_execution_handoff_boundary", "proved_native_commit_then_execution_handoff"]) {
+  test(`preserves predecessor state before cancelled execution: ${proof}`, async () => {
+    const { root, refs } = await fixture();
+    try {
+      const events = [
+        event(1, "action_accepted", "a1", action(), { human_observation_ref: refs.s0 }),
+        event(1.5, "boundary_observed", "a1", action(), { execution_pre_ref: refs.s0,
+          execution_semantic_action_space_ref: refs.a1semantic,
+          boundary: { immediately_consumed_by_action_witness_id: "a1" } }),
+        event(2, "action_started", "a1", action(), { execution_pre_ref: refs.s0 }),
+        event(3, "action_finished", "a1", action(), { execution_pre_ref: refs.s0 }),
+        event(4, "transition_proved", "a1", action(), { execution_pre_ref: refs.s0,
+          successor_ref: refs.settling1, related_action_witness_id: "a2", proof_status: proof }),
+        event(5, "action_accepted", "a2", action("action-2"), { human_observation_ref: refs.s1 }),
+        event(6, "boundary_observed", "a2", action("action-2"), { execution_pre_ref: refs.settling1,
+          boundary: { immediately_consumed_by_action_witness_id: "a2",
+            witness_kind: "before_next_human_action_execution", state_ref: refs.settling1,
+            state_completeness: "complete", required_reads_status: "complete", state_blockers: [] } }),
+        event(7, "action_started", "a2", action("action-2"), { execution_pre_ref: refs.settling1 }),
+        event(8, "action_cancelled_after_start", "a2", action("action-2"), { execution_pre_ref: refs.settling1 })
+      ];
+      async function report(rows) {
+        await writeFile(path.join(root, "semantic-boundary-trace.jsonl"), rows.map(JSON.stringify).join("\n") + "\n");
+        return calibrate(root);
+      }
+      let result = await report(events);
+      assert.equal(result.actions[0].reason, "cancelled_next_execution_state_boundary_exact");
+      assert.equal(result.actions[1].classification, "rejected");
+      for (const change of [
+        (rows) => rows.pop(),
+        (rows) => { rows.find((x) => x.sequence === 7).execution_pre_ref = refs.s0; },
+        (rows) => { rows.find((x) => x.sequence === 6).boundary.required_reads_status = "missing"; },
+        (rows) => { rows.find((x) => x.sequence === 6).boundary.witness_kind = "interactive_poll"; }
+      ]) {
+        const rows = structuredClone(events); change(rows);
+        result = await report(rows);
+        assert.notEqual(result.actions[0].classification, "semantic_candidate_s_a_s_prime");
+      }
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+}
