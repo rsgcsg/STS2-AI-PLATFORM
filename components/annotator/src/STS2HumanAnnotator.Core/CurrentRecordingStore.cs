@@ -387,29 +387,6 @@ public sealed class RecordingSessionStore : IDisposable
             _performance.Measure("journal_append_buffered", () => AppendBufferedLine(_journal, value)));
     }
 
-    public void AppendSemanticBoundaryEvent(SemanticBoundaryTraceEvent value) =>
-        AppendSemanticBoundaryEvents(new[] { value });
-
-    public void AppendSemanticBoundaryEvents(
-        IReadOnlyList<SemanticBoundaryTraceEvent> values)
-    {
-        foreach (SemanticBoundaryTraceEvent value in values)
-            ValidateSemanticBoundaryEvent(value);
-        if (values.Count == 0)
-            return;
-        EnsureOpen();
-        ExecuteWrite(() =>
-        {
-            _performance.Measure("semantic_event_append_buffered", () =>
-                RecoverableAppendBatch.Write(
-                    _semanticBoundaryTrace,
-                    values.Select(value =>
-                        JsonSerializer.SerializeToUtf8Bytes(value, EvidenceJson.Options)).ToArray()));
-            foreach (var value in values)
-                CountDecisionEvent(value.Kind, value.Action.Decision, value.Action.ActionWitnessId);
-        });
-    }
-
     public void AppendSemanticEvidenceEvents(IReadOnlyList<SemanticEvidenceEvent> values)
     {
         foreach (SemanticEvidenceEvent value in values)
@@ -746,18 +723,6 @@ public sealed class RecordingSessionStore : IDisposable
     {
         AppendLine(stream, value, flushToDisk: false);
         stream.Flush();
-    }
-
-    private void ValidateSemanticBoundaryEvent(SemanticBoundaryTraceEvent value)
-    {
-        if (!SemanticBoundaryTraceContract.IsCurrent(value.SchemaVersion, value.Schema)
-            || value.SessionId != Manifest.SessionId
-            || value.TimelineId != Manifest.TimelineId
-            || value.Sequence <= 0
-            || string.IsNullOrWhiteSpace(value.EventId)
-            || string.IsNullOrWhiteSpace(value.Kind)
-            || string.IsNullOrWhiteSpace(value.Action.ActionWitnessId))
-            throw new InvalidDataException("Semantic boundary trace event is invalid for this recording.");
     }
 
     private void ValidateSemanticEvidenceEvent(SemanticEvidenceEvent value)

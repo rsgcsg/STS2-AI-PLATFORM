@@ -1417,7 +1417,7 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
-    public void RecordingStorePersistsAdditiveSemanticTrace()
+    public void RecordingStoreEncodesTrackerFixtureThroughCurrentSemanticWriter()
     {
         string root = Path.Combine(Path.GetTempPath(), $"sts2-semantic-boundary-{Guid.NewGuid():N}");
         try
@@ -1450,9 +1450,9 @@ public sealed class SemanticBoundaryTrackerTests
             }
 
             string path = Path.Combine(root, "session-test", "semantic-boundary-trace.jsonl");
-            SemanticBoundaryTraceEvent persisted = JsonSerializer.Deserialize<SemanticBoundaryTraceEvent>(
+            SemanticEvidenceEvent persisted = JsonSerializer.Deserialize<SemanticEvidenceEvent>(
                 File.ReadAllText(path), EvidenceJson.Options)!;
-            Assert.Equal(SemanticBoundaryTraceContract.EventSchema, persisted.Schema);
+            Assert.Equal(SemanticEvidenceContract.EventSchema, persisted.Schema);
             Assert.Equal("a1", persisted.Action.ActionWitnessId);
         }
         finally

@@ -379,7 +379,7 @@ async function verifyLoaded() {
       liveUiIdentity,
       installed,
       uiPanelReady: latestUiIdentityIndex >= 0
-        && uiLog.includes("[STS2 Platform Live UI] panel ready; input=K"),
+        && uiLog.includes("[STS2 Platform Live UI] panel ready; input=launcher"),
       gameProcessIds: processIds
     });
     return { ...evaluation, status, capabilities, platformIdentity, liveUiIdentity, log, uiLog };
@@ -394,7 +394,7 @@ async function verifyLoaded() {
     runtime: status,
     connector_capabilities: capabilities,
     ui_toggle_runtime_canary: uiLog.includes(
-      "[STS2 Platform Live UI] toggle; input=K; visible=true")
+      "[STS2 Platform Live UI] toggle; input=launcher; visible=true")
       ? "observed"
       : "not_observed",
     owner_ui_visibility: "pending human runtime evidence",

@@ -16,7 +16,7 @@ canonical path independently requires their exact operands and exactly-once
 membership in the execution catalog at S. Supporting the input format does not
 make native acceptance, cancellation or missing successor into canonical proof.
 
-Each admitted `CurrentDecisionRecord` contains:
+Each compatibility `CurrentDecisionRecord` contains:
 
 - exact environment and artifact identity;
 - the full frozen pre Snapshot and catalog digest/count;
@@ -28,8 +28,9 @@ Each admitted `CurrentDecisionRecord` contains:
 
 `audit` independently recomputes and verifies nested Snapshot identity, catalog
 digest/count, chosen-action uniqueness, runtime continuity, sequence monotonicity,
-and exact identities. `export` refuses a failed audit and concatenates run files
-in deterministic order.
+and exact identities. Current `export` emits canonical transitions after a
+closed-session audit. Explicit `export-compatibility` concatenates compatible
+run files; it is not a complete Full-Run export.
 
 Historical `native-action-ledger.jsonl` evidence uses
 `sts2.human-annotator/native-action-ledger-event-2`. Each exact-correlated
@@ -173,7 +174,7 @@ retained in the `audit-native-semantic` report but do not invalidate an
 otherwise valid semantic/canonical session. Malformed JSON, schema/sequence
 errors, identity mismatches, and orphan cross-stream identities remain fatal.
 
-`canonical-transitions.jsonl` schema 2 is the non-authorizing current canonical
+`canonical-transitions.jsonl` schema 3 is the non-authorizing current canonical
 projection and the sole durable canonical truth. A row is written only after
 one complete semantic state, exact-once selected action in the authoritative
 native action space, exact Human/native
@@ -231,7 +232,7 @@ read-only.
 
 [ADR-0006](../../../docs/adr/0006-decision-occurrences-within-causal-roots.md)
 distinguishes `CausalRoot` from `DecisionOccurrence`. New runtime manifests set
-`decision_schema_version: 1`. Every semantic trace action and canonical row
+`decision_schema_version: 2`. Every semantic trace action and canonical row
 carries `decision` with `schema_version`, `decision_id`, `causal_root_id`,
 `parent_decision_id`, `surface`, `family`, `decision_kind` and
 `native_owner_witness_id`. Root owners may be null; nested owners must be exact.
@@ -317,3 +318,40 @@ catalogs remain useful H evidence but cannot qualify a queued execution S.
 carriers. Current audit/calibration reject historical rows that violate this
 existing causal boundary; they do not rewrite the historical files or recover
 missing H admission evidence.
+
+## Current writer, compatibility readers and dispositions
+
+Current writers emit canonical-transition-evidence-3 and
+execution-semantic-action-space-3. Schema2 remains readable for concrete
+predecessor data; schema1 is archive-only. Internal normalized trace2 is a
+validator representation, not another production append authority. Current
+bundle3 exports canonical rows; record2/bundle2 are explicit compatibility.
+
+Recording status4/event batch2 separate Pending, Recorded, Unresolved,
+Cancelled, Aborted, Failed closed, Diagnostic and Unsupported. Session totals
+come from successfully appended authoritative facts, not retained UI rows.
+`RealFailures` counts unique in-scope failed decision witness IDs: trace unknown,
+accepted capture loss or canonical persistence loss. It excludes native cancel,
+abort before Commit, presentation cancel, internal diagnostics and unsupported
+non-decisions. Interrupted or failed evidence accounting returns unavailable,
+never a fabricated zero. Repeated diagnostics do not create decisions.
+
+New producer manifests declare `disposition_schema_version=1`. Invalidation2
+then requires explicit `disposition`; `failed_closed` requires `decision_failure`
+with exact decision witness, capture/persistence kind and action family. Capture
+failure names the same immutable HumanOccurrence; persistence failure names the
+actual admitted action. Old manifests without this extension retain unknown
+classification, not inferred all-valid accounting. UI projection cannot author
+these dispositions.
+
+New manifests also declare `close_schema_version=1`. `session_closed` in the
+journal is a close request's terminal log record; completed closure additionally
+requires matching `session-close-receipt.json` (`session-close-1`). The receipt
+is published only after evidence stream flush/close and flushed receipt bytes.
+Close failure keeps accounting unavailable and does not publish application
+Closed. This is exception/durability evidence, not a power-loss atomicity claim.
+
+Compatibility adapter failure after canonical append is diagnostic and cannot
+undo canonical success or strand the decision presentation. A damaged current
+stream still fails audit. Structural validity and a deliverable bundle do not
+assert Human origin, full coverage or research admission.

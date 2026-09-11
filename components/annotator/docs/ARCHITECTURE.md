@@ -19,7 +19,7 @@ Human UI scope captures H and exact public BoundAction binding
    (pre-admission for source-local callbacks, or BeforeActionExecuted for GameAction roots)
 -> typed native lifecycle proves Commit
 -> SemanticBoundaryTracker proves a separate causal successor boundary
--> non-authorizing projections write the current Decision record and canonical evidence
+-> one canonical projection writes canonical evidence; optional compatibility adapters follow
 ```
 
 `SemanticBoundaryTracker` never publishes or executes actions. Human H is not
@@ -52,17 +52,13 @@ skip a method, alter an argument/result, transpile game code, or enqueue an
 action. Connector-origin actions call a different native entry path and do not
 enter the human UI scope.
 
-Starting a native card play moves its holder out of the active hand before
-`TryPlayCard(target)` commits. The recorder stages H at `StartCardPlay`, then
-uses it only when the exact same card reference, runtime, environment,
-interaction and target resolve to one frozen public BoundAction within 30
-seconds. There is no latest-frame fallback. This Human-time binding proves the
-chosen public action and correlation; it is not execution S or execution
-legality. At first native execution the typed Native Foundation provider
-independently describes the same native operand and requires exact-once
-membership in `A_sem(S)`. Each scope admits exactly one expected root action;
-game-owned actions caused by that root are ignored rather than mislabeled as
-additional Human decisions.
+Starting a native card play removes its holder from the hand. The observer
+captures H before `NPlayerHand.StartCardPlay`, carries that exact invocation to
+the Mouse/Controller CardPlay factory, and binds the returned native object only
+when its holder matches. TryPlayCard consumes its own binding; native Cleanup
+forgets that owner. Session/lifecycle invalidation changes the binding generation.
+No wall-clock expiry or global latest card frame grants correlation. Execution
+still captures S and independently proves exact-once membership in A(S).
 
 ## Exact Mapping
 

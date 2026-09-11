@@ -89,18 +89,18 @@ test("component initializers are disabled only in the unified build", () => {
   }
 });
 
-test("Live UI uses native K shortcuts and SceneTree status signals", () => {
+test("Live UI uses a visible launcher and SceneTree status signals", () => {
   const source = read("apps/ingame-ui/PlatformLiveUiMod.cs");
   assert.match(source, /internal sealed class PlatformLivePanel : IDisposable/u);
   assert.match(source, /tree\.ProcessFrame \+= _processFrameHandler/u);
-  assert.match(source, /Shortcut = WorkspaceShortcut\(Key\.K\)/u);
-  assert.match(source, /shortcutHost\.Pressed \+= ToggleWorkspace/u);
+  assert.doesNotMatch(source, /Key\.K/u);
+  assert.match(source, /BuildHeaderButton\("Platform", ShowPanel/u);
   assert.doesNotMatch(source, /Input\.IsKeyPressed|Input\.IsPhysicalKeyPressed/u);
   assert.doesNotMatch(source, /class PlatformLivePanel : Control/u);
   assert.doesNotMatch(source, /override void _(Ready|Process|Input)/u);
   assert.match(source, /adding layer to SceneTree root/u);
   assert.match(source, /panel mount failed/u);
-  assert.match(source, /panel ready; input=K/u);
+  assert.match(source, /panel ready; input=launcher/u);
   assert.doesNotMatch(source, /Key\.F\d+/u);
 });
 
@@ -183,8 +183,8 @@ test("record settlement accepts only shared exact Modsets and never retries an u
 test("native card staging reuses one exact evidence frame without a second capture guard", () => {
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
 
-  assert.match(runtime, /StageCardPlay\(CardModel card\)[\s\S]*CaptureReadRichFrame\(\)[\s\S]*new StagedCardFrame\([\s\S]*new ExactDecisionFrame\(frame, environment\)/u);
-  assert.match(runtime, /ReferenceEquals\(staged\.Card, stagedCard\)[\s\S]*IsExact\(staged\.Decision\.Frame\.Resolve\(expectedAction\)\)[\s\S]*selected = staged\.Decision\.Frame/u);
+  assert.match(runtime, /StageCardPlay\(NHandCardHolder holder\)[\s\S]*CaptureReadRichFrame\(\)[\s\S]*new StagedCardFrame\([\s\S]*new ExactDecisionFrame\(frame, environment\)/u);
+  assert.match(runtime, /ReferenceEquals\(staged\.Holder\.CardModel, stagedCard\)[\s\S]*IsExact\(staged\.Decision\.Frame\.Resolve\(expectedAction\)\)[\s\S]*selected = staged\.Decision\.Frame/u);
   assert.doesNotMatch(runtime, /StagedCardPlayGuard/u);
   assert.doesNotMatch(runtime, /cached\.Frame\.Snapshot\.SnapshotId,[\s\S]*current\.Snapshot\.SnapshotId/u);
 });
@@ -466,7 +466,7 @@ test("rapid accepted actions use one causal tracker and never fabricate successo
   assert.match(runtime, /CanOpenSemanticEvidenceWindow[\s\S]*lifecycleState/u);
   assert.match(runtime, /semantic_causal_overlap/u);
   assert.doesNotMatch(
-    sourceBetween(runtime, "private static bool CanOpenSemanticEvidenceWindow", "internal static void StageCardPlay"),
+    sourceBetween(runtime, "private static bool CanOpenSemanticEvidenceWindow", "internal static IDisposable? StageCardPlay"),
     /BoundaryTracker\.(?:HasUnresolvedActions|CanOpenNextRoot)/u
   );
   assert.match(runtime, /NativeActionLifecycleKinds\.Finished/u);
@@ -734,7 +734,7 @@ test("an unresolved root does not block the next Human root capture", () => {
   const admission = sourceBetween(
     runtime,
     "private static bool CanOpenSemanticEvidenceWindow",
-    "internal static void StageCardPlay"
+    "internal static IDisposable? StageCardPlay"
   );
   assert.match(admission, /lifecycleState\s*==\s*RecordingLifecycleState\.Recording/u);
   assert.doesNotMatch(admission, /BoundaryTracker\.(?:HasUnresolvedActions|CanOpenNextRoot)/u);

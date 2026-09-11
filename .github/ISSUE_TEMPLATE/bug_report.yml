@@ -32,3 +32,8 @@ body:
       label: Expected result
     validations:
       required: true
+  - type: textarea
+    id: recording_evidence
+    attributes:
+      label: Recording evidence and context
+      description: For Annotator, include session/runtime IDs, decision sequence, disposition/audit errors, bundle content ID and verifier version if available. State console, reload, pause or modset changes. Do not attach raw sessions, saves or credentials publicly; see docs/ANNOTATOR_COLLECTION.md for private incident transfer.
