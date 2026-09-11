@@ -25,6 +25,8 @@ MVID `513336da-b4a4-4625-ac71-2e54a5f3bd49`, runtime
 Environment fingerprint `f36e1499795d99fa2fcb28f1ae7e4d021a0ba28fede99a3bba2606409785553a`;
 Modset `6aaddca350438aebfe0c4ceab3590486c8e7d21dc5a636e4dc5779863a1dd4bc`.
 The identity is independently retained in durable decision environments.
+Both original hash inventories (292 and 1155 files) remained byte-for-byte
+unchanged after auditing.
 
 ## Audit results
 
