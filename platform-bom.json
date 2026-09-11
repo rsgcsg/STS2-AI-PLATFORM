@@ -22,9 +22,9 @@
     },
     "annotator": {
       "version": "0.3.0-rc.1",
-      "source_revision": "64c13f5ca4bd59478305754d460dea1737e99ffb",
-      "component_tree_revision": "80ff2ec73a07d4f4eba0b23c2486fcdad32edda6",
-      "component_source_digest_sha256": "229309a65b572180f06f46688635cbf211931dba4fc2c92c48f360f6de316a82"
+      "source_revision": "5fad893846d3f87980f45b3f1f59961719bf37ac",
+      "component_tree_revision": "38fa5e21da8fe03dd7d8feb81d42bc1743dc6e2e",
+      "component_source_digest_sha256": "9cd9b88f4488cddb8b9e13ce5a44ae161aef6b64352e3522dad4854b8806b15a"
     },
     "evidence": {
       "version": "0.1.0-rc.1",
@@ -167,8 +167,8 @@
     "annotator": {
       "source_revision": "09e5c2363fff64b2e8cfa07d16ec7cf22d8ad3b5",
       "source_digest_sha256": "8d23f1015a7b0df800f78a7545da5c86bfee521131c4391b398c884ff917918f",
-      "current_component_source_revision": "64c13f5ca4bd59478305754d460dea1737e99ffb",
-      "current_component_source_digest_sha256": "229309a65b572180f06f46688635cbf211931dba4fc2c92c48f360f6de316a82",
+      "current_component_source_revision": "5fad893846d3f87980f45b3f1f59961719bf37ac",
+      "current_component_source_digest_sha256": "9cd9b88f4488cddb8b9e13ce5a44ae161aef6b64352e3522dad4854b8806b15a",
       "source_relation": "loaded_human_v2_artifact_precedes_unified_platform_source",
       "artifact_sha256": "4e911dd616afa55753a5320a42c11ce0cebe9d4d10fefd66c8f8a431884cf105",
       "artifact_mvid": "692e9dd9-4bc7-4203-ae12-511ef95a5331",
@@ -270,8 +270,8 @@
     "annotator": {
       "source_revision": "cb20bfa6e4e0e64b3ee8fdf0e1d472e8a668450b",
       "source_digest_sha256": "3910bcbc71599610b125c91c62e9860541ce9edea9b2c0a9f41842eb53651071",
-      "current_component_source_revision": "64c13f5ca4bd59478305754d460dea1737e99ffb",
-      "current_component_source_digest_sha256": "229309a65b572180f06f46688635cbf211931dba4fc2c92c48f360f6de316a82",
+      "current_component_source_revision": "5fad893846d3f87980f45b3f1f59961719bf37ac",
+      "current_component_source_digest_sha256": "9cd9b88f4488cddb8b9e13ce5a44ae161aef6b64352e3522dad4854b8806b15a",
       "source_relation": "loaded_native_source_precedes_current_audit_closeout_source",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b"
