@@ -69,7 +69,7 @@ static int Export(string directory, string output, bool compatibility = false)
     long count = compatibility ? RecordingSessionAuditor.ExportAdmitted(directory, output)
         : SessionBundlePacker.ExportCanonical(directory, output);
     Console.WriteLine(JsonSerializer.Serialize(
-        new { status = "pass", exported_rows = count, format = compatibility ? "decision-record-2" : "canonical-transition-evidence-3", output = Path.GetFullPath(output) },
+        new { status = "pass", exported_rows = count, format = compatibility ? "decision-record-2" : "canonical-transitions", output = Path.GetFullPath(output) },
         EvidenceJson.IndentedOptions));
     return 0;
 }

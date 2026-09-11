@@ -1697,6 +1697,23 @@ public sealed class CurrentEvidenceTests
                 session, "human-001", "canonical-test", Path.Combine(root, "legacy-bundle"), new string('c', 40), true));
             string exportPath = Path.Combine(root, "canonical-export.jsonl");
             Assert.Equal(1, SessionBundlePacker.ExportCanonical(session, exportPath));
+            if (!nativeInput)
+            {
+                // A current exporter reads schema 2 without upgrading its
+                // immutable row to the current writer's schema 3.
+                string canonicalPath = Path.Combine(session, "canonical-transitions.jsonl");
+                string originalCanonical = File.ReadAllText(canonicalPath);
+                JsonNode predecessor = JsonNode.Parse(originalCanonical)!;
+                predecessor["schema_version"] = 2;
+                predecessor["schema"] = "sts2.human-annotator/canonical-transition-evidence-2";
+                string predecessorBytes = predecessor.ToJsonString(EvidenceJson.Options) + "\n";
+                File.WriteAllText(canonicalPath, predecessorBytes);
+                string predecessorExport = Path.Combine(root, "canonical-schema2-export.jsonl");
+                Assert.Equal(1, SessionBundlePacker.ExportCanonical(session, predecessorExport));
+                Assert.Equal(File.ReadAllBytes(canonicalPath), File.ReadAllBytes(predecessorExport));
+                Assert.Equal(2, JsonNode.Parse(File.ReadAllText(predecessorExport))!["schema_version"]!.GetValue<int>());
+                File.WriteAllText(canonicalPath, originalCanonical);
+            }
             Assert.Throws<InvalidDataException>(() => SessionBundlePacker.ExportCanonical(session,
                 Path.Combine(session, "illegal-export.jsonl")));
             string journalPath = Path.Combine(session, "run-journal.jsonl");
