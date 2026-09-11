@@ -42,6 +42,9 @@ public sealed class CarrierIngressSourceTests
         int handoff = runtime.IndexOf("result.AddRange(ObserveNestedUiInputBoundary", begin);
         int accept = runtime.IndexOf("result.AddRange(tracker.Accept", begin);
         Assert.True(handoff > begin && accept > handoff);
+        Assert.Contains("if (nestedInput != null && lifecycleAction == null)", runtime);
+        Assert.Contains("{ NestedInput = nestedInput }", runtime);
+        Assert.Contains("subscription?.NestedInput is { } nested && boundary.State != null", runtime);
         string patches = Source("NativeUiPatches.cs");
         Assert.Contains("nestedInputOwner: NOverlayStack.Instance?.Peek() as NRewardsScreen", patches);
         Assert.Contains("nestedInputOwner: __instance", patches);

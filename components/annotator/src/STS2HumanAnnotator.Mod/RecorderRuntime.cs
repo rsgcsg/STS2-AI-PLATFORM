@@ -2030,12 +2030,22 @@ internal static partial class RecorderRuntime
                 SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
                 actionWitnessId,
                 executionSemanticActionSpace: actionSpace);
-            PersistTrackerMutationOrUnknown(
+            bool persisted = PersistTrackerMutationOrUnknown(
                 actionWitnessId,
-                tracker => tracker.ObserveBeforeActionExecution(actionWitnessId, boundary),
+                tracker =>
+                {
+                    var drafts = new List<SemanticBoundaryTraceDraft>();
+                    if (subscription?.NestedInput is { } nested && boundary.State != null)
+                        drafts.AddRange(ObserveNestedUiInputBoundary(tracker, nested,
+                            frame, boundary.State, subscription.SemanticNativeActionType ?? action.GetType().Name));
+                    drafts.AddRange(tracker.ObserveBeforeActionExecution(actionWitnessId, boundary));
+                    return drafts;
+                },
                 "before_execution_boundary_persistence_failed",
                 "The exact before-execution boundary could not be durably appended.",
                 action.GetType().Name);
+            if (persisted && subscription?.NestedInput is { } input)
+                input.Binding.DecisionHeadActionId = actionWitnessId;
         }
         catch (Exception exception)
         {
@@ -2310,7 +2320,7 @@ internal static partial class RecorderRuntime
                     BoundaryTracker.BeginDurableMutation(tracker =>
                     {
                         var result = new List<SemanticBoundaryTraceDraft>();
-                        if (nestedInput != null)
+                        if (nestedInput != null && lifecycleAction == null)
                             result.AddRange(ObserveNestedUiInputBoundary(tracker, nestedInput,
                                 frame, humanObservation, nativeActionType));
                         result.AddRange(tracker.Accept(action, humanObservation));
@@ -2335,7 +2345,7 @@ internal static partial class RecorderRuntime
                             ObserveSemanticOnlyNativeActionLifecycle,
                             finishIsNativeCommit: completionExpectation == null,
                             nativeSemanticSelection: nativeSemanticSelection,
-                            semanticNativeActionType: nativeActionType);
+                            semanticNativeActionType: nativeActionType) { NestedInput = nestedInput };
                     NativeActionSubscriptions[lifecycleAction] = subscription;
                     SemanticOnlyNativeActionIds.Add(actionWitnessId);
                 }
@@ -2347,7 +2357,7 @@ internal static partial class RecorderRuntime
                         durablyAccepted = true;
                     });
             }
-            if (nestedInput != null && durablyAccepted)
+            if (nestedInput != null && durablyAccepted && lifecycleAction == null)
                 nestedInput.Binding.DecisionHeadActionId = actionWitnessId;
             if (!_semanticBoundaryTraceHealthy)
                 throw new InvalidOperationException(

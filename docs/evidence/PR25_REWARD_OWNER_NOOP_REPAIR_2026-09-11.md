@@ -76,7 +76,8 @@ and admits the child's own decision, native completion and canonical stream.
 The existing nested_selector wire kind is retained, with the actual reward family,
 independent action identity and shared causal root; no fake GameAction, new ledger,
 ambient-current-root lookup or late-frame backfill. Card selection remains a child
-of the reward claim. Ordinary combat rewards without an enclosing exact scope
+of the reward claim. Queued carriers retain this lineage on the exact lifecycle
+subscription and hand off only at actual pre-execution S, never admission H. Ordinary combat rewards without an enclosing exact scope
 remain roots. Session mismatch/missing parent fails closed. Late outer Task
 completion stays lifecycle evidence and cannot erase the child lineage.
 

@@ -21,7 +21,7 @@ internal static class NativeRewardInputOwnerPatch
 internal static partial class RecorderRuntime
 {
     internal sealed record NestedUiInput(object Owner,
-        NativeNestedSelectorBindings.Binding Binding, DecisionOccurrenceIdentity Parent);
+        NativeNestedSelectorBindings.Binding Binding, DecisionOccurrenceIdentity Parent, string ParentActionId);
 
     private static NestedUiInput? ResolveNestedUiInput(object? owner)
     {
@@ -34,14 +34,14 @@ internal static partial class RecorderRuntime
         if (parent == null)
             throw new InvalidOperationException("Reward input owner has no exact Human parent decision.");
         binding.ParentDecision = parent;
-        return new(owner, binding, parent);
+        return new(owner, binding, parent, binding.DecisionHeadActionId ?? binding.ActionWitnessId);
     }
 
     private static IReadOnlyList<SemanticBoundaryTraceDraft> ObserveNestedUiInputBoundary(
         SemanticBoundaryTracker tracker, NestedUiInput input,
         ProcessLocalNativeWitnessFrame frame, CurrentDecisionFrame pre, string mechanism)
     {
-        string parentActionId = input.Binding.DecisionHeadActionId ?? input.Binding.ActionWitnessId;
+        string parentActionId = input.ParentActionId;
         if (!tracker.Contains(parentActionId)) return Array.Empty<SemanticBoundaryTraceDraft>();
         string ownerId = NativeWitnessIdentity.Get(input.Owner, "selector_owner");
         var boundary = CreateSemanticBoundaryObservation(frame,

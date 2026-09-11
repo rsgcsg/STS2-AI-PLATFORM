@@ -39,6 +39,8 @@ internal sealed class NativeActionLifecycleSubscription : IDisposable
             (_, phase) => _observer(this, phase));
     }
 
+    internal RecorderRuntime.NestedUiInput? NestedInput { get; init; }
+
     internal GameAction Action => _action;
     internal string ActionWitnessId { get; }
     internal long ActionSequence { get; }
