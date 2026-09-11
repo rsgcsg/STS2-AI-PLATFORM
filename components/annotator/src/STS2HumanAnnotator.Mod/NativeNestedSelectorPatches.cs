@@ -126,9 +126,11 @@ internal static class NativeNestedSelectorBindings
         string nativeMechanism)
     {
         ArgumentNullException.ThrowIfNull(context);
-        // Blocking/throwing contexts do not expose a GameAction owner. They
-        // may already be nested under an exact Event/Reward scope; do not
-        // shadow that owner with an unresolvable context.
+        // A blocking choice is a real native origin without a GameAction.
+        // Preserve an enclosing exact Event/Reward owner when one exists.
+        if (context is BlockingPlayerChoiceContext)
+            return Screens.EnterIfAbsent(new Parent(null, null, context, family, nativeMechanism));
+        // Throwing contexts cannot establish a native decision origin.
         if (context is not GameActionPlayerChoiceContext
             && context is not HookPlayerChoiceContext
             && context is not BranchingPlayerChoiceContext)
@@ -212,6 +214,17 @@ internal static class NativeNestedSelectorBindings
         }
 
         string actualFamily = FamilyFor(screen);
+        if (parent.ChoiceContext is BlockingPlayerChoiceContext blocking
+            && string.Equals(parent.Family, actualFamily, StringComparison.Ordinal))
+        {
+            string nativeRoot = NativeWitnessIdentity.Get(blocking, "choice_context");
+            // The historical NativeAction* wire fields identify the actual
+            // native context here; no synthetic GameAction or Human parent.
+            return new Binding(nativeRoot, blocking, parent.Family, factoryMechanism) {
+                NativeOrigin = new NativeDecisionOriginEvidence(nativeRoot, blocking.GetType().FullName!,
+                    blocking.GetType().FullName!, factoryMechanism)
+            };
+        }
         if (parent.ChoiceContext == null
             || !string.Equals(parent.Family, actualFamily, StringComparison.Ordinal)
             || !TryResolveExactAction(parent.ChoiceContext, out GameAction? action)
@@ -342,6 +355,12 @@ internal static class NativeGameActionCardSelectorParentPatch
     internal static IEnumerable<MethodBase> TargetMethods()
     {
         yield return Required(
+            nameof(CardSelectCmd.FromChooseACardScreen),
+            typeof(PlayerChoiceContext),
+            typeof(IReadOnlyList<CardModel>),
+            typeof(Player),
+            typeof(bool));
+        yield return Required(
             nameof(CardSelectCmd.FromSimpleGridForRewards),
             typeof(PlayerChoiceContext),
             typeof(List<CardCreationResult>),
@@ -375,12 +394,11 @@ internal static class NativeGameActionCardSelectorParentPatch
             $"CardSelectCmd.{__originalMethod.Name}.exact_parent",
             () => NativeNestedSelectorBindings.EnterPlayerChoiceParent(
                 context,
-                string.Equals(
-                    __originalMethod.Name,
-                    nameof(CardSelectCmd.FromCombatPile),
-                    StringComparison.Ordinal)
-                    ? "generic_combat_pile_selector"
-                    : "generic_simple_card_selector",
+                __originalMethod.Name switch {
+                    nameof(CardSelectCmd.FromCombatPile) => "generic_combat_pile_selector",
+                    nameof(CardSelectCmd.FromChooseACardScreen) => "native_generated_card_choice",
+                    _ => "generic_simple_card_selector"
+                },
                 $"CardSelectCmd.{__originalMethod.Name}"),
             fallback: null);
     }

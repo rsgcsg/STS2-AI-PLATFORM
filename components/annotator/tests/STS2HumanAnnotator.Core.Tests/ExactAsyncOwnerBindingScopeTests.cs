@@ -9,6 +9,30 @@ public sealed class ExactAsyncOwnerBindingScopeTests
     private sealed record Context(string Root);
     private sealed record Binding(string Root);
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeContextBindsAcrossAwaitWithoutShadowingExactParent(bool hasParent)
+    {
+        var scope = new ExactAsyncOwnerBindingScope<Key, Context, Binding>();
+        var key = new Key();
+        Task child;
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using (hasParent ? scope.Enter(new Context("event-parent")) : null)
+        using (scope.EnterIfAbsent(new Context("blocking-choice")))
+        {
+            child = Task.Run(async () => {
+                await release.Task;
+                Assert.True(scope.TryBindCurrent(key, context => new Binding(context.Root)));
+            });
+        }
+        Assert.False(scope.TryBindCurrent(new Key(), context => new Binding(context.Root)));
+        release.SetResult();
+        await child;
+        Assert.True(scope.TryGet(key, out Binding? binding));
+        Assert.Equal(hasParent ? "event-parent" : "blocking-choice", binding!.Root);
+    }
+
     [Fact]
     public void FactoryWithoutExactParentScopeCannotBind()
     {

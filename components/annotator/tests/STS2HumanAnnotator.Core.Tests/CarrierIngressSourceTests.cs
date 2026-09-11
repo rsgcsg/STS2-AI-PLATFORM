@@ -14,6 +14,20 @@ public sealed class CarrierIngressSourceTests
     }
 
     [Fact]
+    public void GeneratedChoiceCommandCarriesExactContextAndPreservesEnclosingParent()
+    {
+        string source = Source("NativeNestedSelectorPatches.cs");
+        Assert.Contains("nameof(CardSelectCmd.FromChooseACardScreen)", source);
+        Assert.Contains("nameof(CardSelectCmd.FromChooseACardScreen) => \"native_generated_card_choice\"", source);
+        Assert.Contains("Screens.EnterIfAbsent(new Parent(null, null, context, family, nativeMechanism))", source);
+        Assert.Contains("NativeWitnessIdentity.Get(blocking, \"choice_context\")", source);
+        int fixedParent = source.IndexOf("parent.ActionWitnessId is { Length: > 0 } fixedRoot");
+        int nativeContext = source.IndexOf("parent.ChoiceContext is BlockingPlayerChoiceContext blocking");
+        Assert.True(fixedParent >= 0 && nativeContext > fixedParent);
+        Assert.Contains("string.Equals(parent.Family, actualFamily, StringComparison.Ordinal)", source[nativeContext..]);
+    }
+
+    [Fact]
     public void RestProceedNativeNoOpDoesNotOpenHumanScope()
     {
         string source = Source("NativeUiPatches.cs");

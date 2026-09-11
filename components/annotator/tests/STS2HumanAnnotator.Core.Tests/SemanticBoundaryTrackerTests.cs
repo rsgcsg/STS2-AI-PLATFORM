@@ -114,9 +114,41 @@ public sealed class SemanticBoundaryTrackerTests
     }
 
     [Fact]
-    public void NativeSelectorDecisionNeedsNoInventedHumanParentAndRoundTrips()
+    public void FinishedEndTurnHandsOffToIndependentBlockingChoiceWithoutInventedParent()
     {
-        var origin = new NativeDecisionOriginEvidence("actual-hook", "GenericHookGameAction", "HookPlayerChoiceContext", "NPlayerHand.SelectCards");
+        var tracker = new SemanticBoundaryTracker();
+        var end = Action("end-turn", 1) with { RequiresNativePostCommit = true };
+        tracker.Accept(end, State("human-end"));
+        tracker.ObserveBeforeActionExecution("end-turn", Boundary("end-pre", "end-turn"));
+        tracker.Started("end-turn");
+        tracker.Finished("end-turn");
+        tracker.ObserveNativeCommit("end-turn", Completion("end-turn"));
+        var origin = new NativeDecisionOriginEvidence("blocking-context", "BlockingPlayerChoiceContext",
+            "BlockingPlayerChoiceContext", "NChooseACardSelectionScreen.ShowScreen");
+        var selector = Action("choice", 2) with { NativeMechanism = "direct_ui_commit", NativeQueueId = null,
+            Decision = new(2, "choice-decision", "blocking-context", null, "card_selection",
+                "native_generated_card_choice", "native_selector", "exact-screen", origin) };
+        tracker.Accept(selector, State("choice-pre"));
+        var handoff = tracker.ObserveBeforeActionExecution("choice", Boundary("choice-pre", "choice"));
+        var endProof = Assert.Single(handoff, x => x.Kind == SemanticBoundaryTraceKinds.TransitionProved);
+        Assert.Equal("end-turn", endProof.Action.ActionWitnessId);
+        Assert.Equal("choice-pre", endProof.SemanticSuccessor!.SnapshotId);
+        tracker.Started("choice");
+        tracker.Finished("choice");
+        tracker.Accept(Action("next", 3), State("after-choice"));
+        var next = tracker.ObserveBeforeActionExecution("next", Boundary("after-choice", "next"));
+        var choiceProof = Assert.Single(next, x => x.Kind == SemanticBoundaryTraceKinds.TransitionProved);
+        Assert.Equal("choice", choiceProof.Action.ActionWitnessId);
+        Assert.Null(choiceProof.Action.Decision!.ParentDecisionId);
+        Assert.Equal("blocking-context", choiceProof.Action.Decision.CausalRootId);
+    }
+
+    [Theory]
+    [InlineData("GenericHookGameAction", "HookPlayerChoiceContext")]
+    [InlineData("BlockingPlayerChoiceContext", "BlockingPlayerChoiceContext")]
+    public void NativeSelectorDecisionNeedsNoInventedHumanParentAndRoundTrips(string nativeType, string contextType)
+    {
+        var origin = new NativeDecisionOriginEvidence("actual-hook", nativeType, contextType, "NPlayerHand.SelectCards");
         var decision = new DecisionOccurrenceIdentity(2, "input-decision", "actual-hook", null,
             "selector", "combat_hand_selector", "native_selector", "exact-hand", origin);
         var action = Action("human-input", 1) with { NativeMechanism = "direct_ui_commit", NativeQueueId = null,

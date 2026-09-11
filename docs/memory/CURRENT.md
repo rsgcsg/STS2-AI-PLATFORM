@@ -4,14 +4,14 @@ This is a bounded handoff, not repository authority. Resolve live GitHub refs,
 open PRs, rulesets, code, tests, `platform-bom.json`, and exact runtime/evidence
 before making a current claim. Those sources override this file.
 
-## PR25 long-run owner/no-op follow-up (2026-09-11)
+## PR25 native blocking choice follow-up (2026-09-11)
 
-Latest session: 1533 accepted, 1527 canonical, four unknown, two native
-cancellations, two starts/ends. All 327 children and parents are canonical,
-including Colorless and Attack Potion selectors. Repairs address false rest
-Proceed effects, missing event reward-owner lineage and cancellation-boundary
-calibration. See [audit and repair](../evidence/PR25_REWARD_OWNER_NOOP_REPAIR_2026-09-11.md).
-New candidate Human validation remains required; no exhaustive Full-Run claim.
+Latest session has 511 traced inputs, 509 canonical and two unknowns, plus two
+unrecorded Knowledge Demon curse choices. All 70 recorded children and parents
+are canonical; native diagnostics are 330 exact / zero unknown, with one native
+start/end. The shared repair captures the exact blocking choice context without
+inventing a Human parent. See [audit and repair](../evidence/PR25_BLOCKING_CHOICE_REPAIR_2026-09-11.md).
+Fresh Human canary remains required; no exhaustive all-valid Full-Run claim.
 
 ## PR25 native admission repair (2026-09-11)
 

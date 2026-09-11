@@ -280,12 +280,19 @@ counts alone never admit a Full Run.
 New manifests declare `decision_schema_version=2`; audit supports historical 1
 but requires each explicit decision to match its manifest. `native_selector`
 adds an independently witnessed Human input with no Human parent and an exact
-real native hook action as its causal root. `native_origin` carries
+real native action or exact blocking choice context as its causal root. `native_origin` carries
 `native_action_witness_id`, `native_action_type`, `choice_context_type` and
 `factory_mechanism`. The native input witness repeats the exact origin and
 selector-owner identities for typed audit. It is a `direct_ui_commit` decision,
 never a fabricated GameAction or queue entry. Existing root/nested selector
 identities remain valid in version 2. No-origin factories remain fail-closed.
+
+For `BlockingPlayerChoiceContext`, the historical `native_action_witness_id`
+and `native_action_type` fields identify the exact native context object and its
+actual CLR type, not a GameAction. `CardSelectCmd.FromChooseACardScreen` carries
+this context to its screen factory through the exact async invocation. An
+existing exact Event/Reward parent takes precedence; a standalone native choice
+has no invented Human parent. Throwing or mismatched contexts remain fail-closed.
 
 The UI's roots/entries counters count parentless Human decisions, including
 native-origin selector inputs; they do not deduplicate by CausalRootId. Every

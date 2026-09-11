@@ -61,6 +61,13 @@ public sealed class ExactAsyncOwnerBindingScope<TKey, TContext, TBinding>
         return new Scope(this, frame);
     }
 
+    /// <summary>Use a native context only when this exact invocation has no enclosing owner.</summary>
+    public IDisposable? EnterIfAbsent(TContext context)
+    {
+        ArgumentNullException.ThrowIfNull(context);
+        return _current.Value == null ? Enter(context) : null;
+    }
+
     public bool TryBindCurrent(
         TKey key,
         Func<TContext, TBinding> createBinding)
