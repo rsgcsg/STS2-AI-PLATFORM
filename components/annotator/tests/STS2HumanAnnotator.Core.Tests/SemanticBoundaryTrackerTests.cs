@@ -10,6 +10,37 @@ public sealed class SemanticBoundaryTrackerTests
     private static readonly DateTimeOffset T0 = DateTimeOffset.Parse("2026-08-26T00:00:00Z");
 
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void DelayedPotionAdmissionCannotMixItsEffectIntoEndTurnSuccessor(bool exactInput)
+    {
+        var tracker = new SemanticBoundaryTracker();
+        tracker.Accept(Action("end", 1, "EndPlayerTurnAction") with { RequiresNativePostCommit = true }, State("h-end"));
+        tracker.ObserveBeforeActionExecution("end", Boundary("s-end-potion-present", "end"));
+        tracker.Started("end");
+        tracker.Finished("end");
+        tracker.ObserveNativeCommit("end", new NativeCompletionEvidence("commit", "ordinary_combat.end_turn",
+            "GameAction.Finished", "end", null, "end", null, null, true));
+        if (exactInput)
+        {
+            tracker.Accept(Action("potion", 2, "UsePotionAction") with { RequiresNativePostCommit = true }, State("h-enemy-phase"));
+            var handoff = tracker.ObserveBeforeActionExecution("potion", Boundary("s-potion-still-present", "potion"));
+            Assert.Contains(handoff, d => d.Kind == SemanticBoundaryTraceKinds.TransitionProved
+                && d.Action.ActionWitnessId == "end" && d.SemanticSuccessor!.SnapshotId == "s-potion-still-present");
+            tracker.Started("potion");
+        }
+        else
+        {
+            var blocked = tracker.ObserveUnrecordedHumanEffect("exact-failed-potion-input");
+            Assert.Contains(blocked, d => d.Action.ActionWitnessId == "end"
+                && d.ProofStatus == "unrecorded_human_effect_before_successor");
+        }
+        var later = tracker.ObserveDecisionBoundary(PostCommitBoundary("turn-ready-potion-removed", "combat_turn"));
+        Assert.DoesNotContain(later, d => d.Kind == SemanticBoundaryTraceKinds.TransitionProved
+            && d.Action.ActionWitnessId == "end");
+    }
+
+    [Theory]
     [InlineData("complete", true)]
     [InlineData("no_commit", false)]
     [InlineData("poll", false)]

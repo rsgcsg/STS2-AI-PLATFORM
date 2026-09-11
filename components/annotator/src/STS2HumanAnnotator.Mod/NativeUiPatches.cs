@@ -166,6 +166,16 @@ internal static class NativeFtueEndTurnPatch
     }
 }
 
+// RequestEnqueue can return before OnEnqueued during an enemy turn. Bind
+// the exact object while its native Human input scope still exists.
+[HarmonyPatch(typeof(ActionQueueSynchronizer), nameof(ActionQueueSynchronizer.RequestEnqueue), new[] { typeof(GameAction) })]
+internal static class NativeSubmittedHumanInputPatch
+{
+    private static void Prefix([HarmonyArgument(0)] GameAction action) =>
+        NativeNestedCallbackSafety.Run("native_human_input.submitted",
+            () => RecorderRuntime.BindSubmittedHumanInput(action));
+}
+
 [HarmonyPatch(typeof(GameAction), nameof(GameAction.OnEnqueued))]
 internal static class AcceptedGameActionPatch
 {

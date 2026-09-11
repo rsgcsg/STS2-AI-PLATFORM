@@ -9,6 +9,23 @@ namespace STS2Connector.Host.Tests;
 public sealed class ProcessLocalNativeWitnessTests
 {
     [Fact]
+    public void QueuedPotionInputKeepsNativePotionIdentityWithNoPublicDeliveryCatalog()
+    {
+        var frame = Frame(new NativeEntityRegistry(), Array.Empty<PlayerEnvironmentBoundAction>(), "settling", "complete");
+        object potion = new(), target = new();
+        var expected = new ProcessLocalObservedAction("use", potion, new Dictionary<string, object> { ["target"] = target });
+        var exact = frame.ResolveAcceptedInput(expected, expected);
+        Assert.Equal("exact_native_input", exact.Status);
+        Assert.StartsWith("potion_", exact.NativeInput!.SubjectReferentId);
+        Assert.StartsWith("use|potion_", exact.NativeInput.ActionKey);
+        Assert.Null(exact.BoundAction);
+        Assert.Empty(frame.Snapshot.BoundActions.Actions);
+        Assert.Equal("zero", frame.ResolveAcceptedInput(expected, expected with { Subject = new object() }).Status);
+        Assert.Equal("zero", frame.ResolveAcceptedInput(expected,
+            expected with { Arguments = new Dictionary<string, object> { ["target"] = new object() } }).Status);
+    }
+
+    [Fact]
     public void AcceptedInputUsesExactScopedOperandsWithoutPublishingDeliveryAction()
     {
         var frame = Frame(new NativeEntityRegistry(), Array.Empty<PlayerEnvironmentBoundAction>(), "settling", "complete");

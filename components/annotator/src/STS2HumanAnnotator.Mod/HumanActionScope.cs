@@ -95,6 +95,7 @@ internal sealed class DeferredHumanActionFailure
         string evidenceLevel,
         HumanActionOccurrenceEvidence? occurrence)
     {
+        ExpectedNativeActionType = expectedNativeActionType;
         _rootActionGate = new AcceptedRootActionGate(expectedNativeActionType);
         ReasonCode = reasonCode;
         Detail = detail;
@@ -102,6 +103,8 @@ internal sealed class DeferredHumanActionFailure
         EvidenceLevel = evidenceLevel;
         Occurrence = occurrence;
     }
+
+    internal string ExpectedNativeActionType { get; }
 
     internal string ReasonCode { get; }
 

@@ -125,7 +125,7 @@ public sealed class ProcessLocalNativeWitnessFrame
                 || !accepted.Arguments.TryGetValue(pair.Key, out object? value)
                 || !ReferenceEquals(pair.Value, value)))
             return new("zero", 0, null, null, "scoped_native_input_reference_equality", "Exact accepted input did not match the scoped Human operands.");
-        string subject = NativeUiRuntime.Entities.GetId(expected.Subject, expected.Verb == "play" ? "card" : "subject");
+        string subject = NativeUiRuntime.Entities.GetId(expected.Subject, expected.Verb == "play" ? "card" : expected.Verb == "use" ? "potion" : "subject");
         var arguments = expected.Arguments.ToDictionary(pair => pair.Key,
             pair => NativeUiRuntime.Entities.GetId(pair.Value,
                 pair.Value is MegaCrit.Sts2.Core.Entities.Creatures.Creature creature

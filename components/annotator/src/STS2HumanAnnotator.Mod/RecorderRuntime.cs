@@ -41,7 +41,8 @@ internal static partial class RecorderRuntime
         string? FailureReason,
         string? FailureDetail,
         string? FailureSnapshotId,
-        string? FailureEvidenceLevel);
+        string? FailureEvidenceLevel,
+        bool NativeInputBinding = false);
 
     private static readonly object Gate = new();
     private static AnnotatorConfiguration? _configuration;
@@ -802,7 +803,7 @@ internal static partial class RecorderRuntime
 
     internal static PotionUseArmHandle? ArmPotionUse(PotionModel? potion)
     {
-        if (potion == null || !AcceptingNewWitnesses() || HumanActionScope.Current != null)
+        if (potion == null || !AcceptingNewWitnesses())
             return null;
         if (!CanOpenSemanticEvidenceWindow())
         {
@@ -842,7 +843,10 @@ internal static partial class RecorderRuntime
                     || TimelineId == null)
                     return null;
                 long generation = ++_potionArmGeneration;
-                ArmedPotionUses[potion] = blockers.Count == 0
+                bool nativeInput = blockers.Count != 0
+                    && frame.Snapshot.Interaction.Kind is "combat_turn" or "potion_popup"
+                    && SemanticStateBlockers(frame, environment).Count == 0;
+                ArmedPotionUses[potion] = blockers.Count == 0 || nativeInput
                     ? new ArmedPotionUse(
                         generation,
                         new ExactDecisionFrame(frame, environment),
@@ -851,7 +855,7 @@ internal static partial class RecorderRuntime
                         null,
                         null,
                         null,
-                        null)
+                        null, nativeInput)
                     : new ArmedPotionUse(
                         generation,
                         null,
@@ -926,21 +930,15 @@ internal static partial class RecorderRuntime
         }
 
         ExactDecisionFrame decision = armed.Decision;
+        // This is the same null-to-owner normalization the native method
+        // immediately performs before constructing its UsePotionAction.
+        if (target == null && potion.IsValidTarget(potion.Owner.Creature)) target = potion.Owner.Creature;
         ProcessLocalObservedAction observed = ObservedPotionUse(potion, target);
         ProcessLocalNativeMatch match = decision.Frame.Resolve(observed);
-        if (!IsExact(match) && target == null && potion.Owner.Creature != null)
-        {
-            ProcessLocalObservedAction ownerTarget =
-                ObservedPotionUse(potion, potion.Owner.Creature);
-            ProcessLocalNativeMatch ownerMatch = decision.Frame.Resolve(ownerTarget);
-            if (IsExact(ownerMatch))
-            {
-                observed = ownerTarget;
-                match = ownerMatch;
-            }
-        }
-
-        if (!IsExact(match))
+        bool nativeInput = armed.NativeInputBinding || (!IsExact(match)
+            && decision.Frame.Snapshot.Interaction.Kind is "combat_turn" or "potion_popup"
+            && SemanticStateBlockers(decision.Frame, BuildEnvironment(decision.Frame)).Count == 0);
+        if (!IsExact(match) && !nativeInput)
         {
             HumanActionScope.EnterDeferredFailure(
                 nameof(UsePotionAction),
@@ -962,7 +960,7 @@ internal static partial class RecorderRuntime
             nameof(UsePotionAction),
             observed,
             decision.Frame,
-            semanticDecision);
+            semanticDecision, nativeInputBinding: nativeInput);
         return new NativeUiScopeEntry(true, false);
     }
 
@@ -1378,7 +1376,22 @@ internal static partial class RecorderRuntime
             return;
         }
 
-        HumanActionContext? context = HumanActionScope.Current;
+        SubmittedInputs.TryGet(action, out SubmittedHumanInput? submitted);
+        if (submitted != null && (submitted.SessionId != SessionId || submitted.TimelineId != TimelineId
+            || submitted.RunId != _currentRunId
+            || _lifecycle.State is RecordingLifecycleState.Closed or RecordingLifecycleState.Ready))
+        {
+            // A session cannot inherit another session's Human H or lineage.
+            // If recording resumed meanwhile, retain a failed-closed effect.
+            if (AcceptingNewWitnesses() && (submitted.Context?.TryClaimRootAction(action.GetType().Name)
+                ?? submitted.Failure?.TryClaim(action.GetType().Name) ?? false))
+                QuarantineAcceptedHumanEffect("submitted_human_input_session_mismatch",
+                    "A native action submitted in another recording session or run was accepted here.",
+                    _lastSnapshotId, action.GetType().Name, "failed_closed", GameActionOccurrence(action));
+            return;
+        }
+        HumanActionContext? context = submitted != null ? submitted.Context : HumanActionScope.Current;
+        DeferredHumanActionFailure? submittedFailure = submitted != null ? submitted.Failure : HumanActionScope.CurrentDeferredFailure;
         string nativeActionType = action.GetType().Name;
         try
         {
@@ -1417,7 +1430,7 @@ internal static partial class RecorderRuntime
                 nativeActionType,
                 context,
                 resolvedMatch,
-                hasMapping);
+                hasMapping, submittedFailure);
 
             if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.DeferredFailure)
             {
@@ -1427,7 +1440,7 @@ internal static partial class RecorderRuntime
                     witness,
                     occurrence: context == null
                         ? GameActionOccurrence(action)
-                        : null);
+                        : null, submittedFailure: submittedFailure);
                 return;
             }
             if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.NativeTypeMismatch)
@@ -1789,9 +1802,10 @@ internal static partial class RecorderRuntime
         string nativeActionType,
         ProcessLocalObservedAction? observed = null,
         NativeWitnessEvidence? witness = null,
-        HumanActionOccurrenceEvidence? occurrence = null)
+        HumanActionOccurrenceEvidence? occurrence = null,
+        DeferredHumanActionFailure? submittedFailure = null)
     {
-        DeferredHumanActionFailure? failure = HumanActionScope.CurrentDeferredFailure;
+        DeferredHumanActionFailure? failure = submittedFailure ?? HumanActionScope.CurrentDeferredFailure;
         if (failure == null || !failure.TryClaim(nativeActionType))
             return;
         QuarantineAcceptedHumanEffect(
@@ -3886,6 +3900,37 @@ internal static partial class RecorderRuntime
                 nameof(EndPlayerTurnAction),
                 null,
                 new Dictionary<string, string>(StringComparer.Ordinal),
+                DateTimeOffset.UtcNow);
+            return true;
+        }
+
+        if (action is UsePotionAction use)
+        {
+            PotionModel? potion = use.Player.GetPotionAtSlotIndex((int)use.PotionIndex);
+            if (potion == null)
+            {
+                failureReason = "potion_native_subject_missing";
+                failureDetail = "The accepted native potion slot no longer resolves.";
+                failureEvidence = "native_witness_missing";
+                return false;
+            }
+            Creature? target = STS2Platform.NativeFoundation.NativePotionUseDecisionProvider.ResolveTarget(use, potion);
+            observed = ObservedPotionUse(potion, target);
+            var acceptedPotionArguments = observed.Arguments;
+            if (context.ExpectedAction is not { } expectedPotion
+                || !ReferenceEquals(expectedPotion.Subject, potion)
+                || expectedPotion.Arguments.Count != observed.Arguments.Count
+                || expectedPotion.Arguments.Any(pair => !acceptedPotionArguments.TryGetValue(pair.Key, out var operand)
+                    || !ReferenceEquals(pair.Value, operand)))
+            {
+                failureReason = "potion_native_operands_changed";
+                failureDetail = "Accepted potion/target differs from the exact staged Human input.";
+                failureEvidence = "native_witness_mismatch";
+                return false;
+            }
+            witness = new NativeWitnessEvidence(context.Origin, nameof(UsePotionAction),
+                NativeWitnessIdentity.Get(potion, "potion"),
+                observed.Arguments.ToDictionary(pair => pair.Key, pair => NativeWitnessIdentity.Get(pair.Value, pair.Key)),
                 DateTimeOffset.UtcNow);
             return true;
         }

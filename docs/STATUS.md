@@ -1,5 +1,14 @@
 # Current Status
 
+## PR25 deferred potion input follow-up (2026-09-11)
+
+The latest audit validates map Fruit Juice but exposes a silently missing Colorless
+Potion parent, failed selector and a contaminated formal EndTurn successor. The
+next candidate retains exact native input/failure through delayed acceptance;
+existing causal barriers and selector lineage remain authoritative. See [audit,
+repair and bounded canary](evidence/PR25_DEFERRED_POTION_INGRESS_REPAIR_2026-09-11.md).
+No new Human or exhaustive Full-Run qualification is claimed.
+
 ## PR25 AnyTime potion follow-up (2026-09-11)
 
 The latest Human session has 288 known accepted inputs, 284 canonical, three

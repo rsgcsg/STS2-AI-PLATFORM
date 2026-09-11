@@ -14,6 +14,27 @@ public sealed class CarrierIngressSourceTests
     }
 
     [Fact]
+    public void DeferredInputIsBoundBeforeRequestAndReusedByTrueAcceptedCallback()
+    {
+        string patches = Source("NativeUiPatches.cs");
+        int start = patches.IndexOf("internal static class NativeSubmittedHumanInputPatch");
+        int end = patches.IndexOf("internal static class AcceptedGameActionPatch", start);
+        Assert.Contains("private static void Prefix", patches[start..end]);
+        Assert.Contains("BindSubmittedHumanInput(action)", patches[start..end]);
+        string runtime = Source("RecorderRuntime.cs");
+        Assert.Contains("submitted != null ? submitted.Context : HumanActionScope.Current", runtime);
+        Assert.Contains("submitted.SessionId != SessionId || submitted.TimelineId != TimelineId", runtime);
+        Assert.Contains("hasMapping, submittedFailure", runtime);
+        Assert.Contains("submittedFailure: submittedFailure", runtime);
+        Assert.Contains("NativePotionUseDecisionProvider.ResolveTarget(use, potion)", runtime);
+        Assert.Contains("semanticDecision, nativeInputBinding: nativeInput", runtime);
+        string binding = Source("NativeSubmittedInputBindings.cs");
+        Assert.DoesNotContain("ObserveAcceptedAction", binding); // no speculative acceptance at request
+        Assert.DoesNotContain("CurrentRoot", binding);
+        Assert.Contains("if (SubmittedInputs.TryGet(action, out _)) return", binding);
+    }
+
+    [Fact]
     public void AcceptedMappingFailuresUseTheEffectBarrierNotReasonWhitelist()
     {
         string source = Source("RecorderRuntime.cs");

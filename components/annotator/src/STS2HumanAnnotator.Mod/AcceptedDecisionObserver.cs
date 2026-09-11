@@ -36,11 +36,12 @@ internal static class AcceptedDecisionObserver
         string nativeActionType,
         HumanActionContext? context,
         ProcessLocalNativeMatch? match,
-        bool hasMapping)
+        bool hasMapping,
+        DeferredHumanActionFailure? submittedFailure = null)
     {
         if (context == null)
         {
-            DeferredHumanActionFailure? failure = HumanActionScope.CurrentDeferredFailure;
+            DeferredHumanActionFailure? failure = submittedFailure ?? HumanActionScope.CurrentDeferredFailure;
             return failure != null
                 ? new Outcome(OutcomeKind.DeferredFailure, null, failure)
                 : new Outcome(OutcomeKind.NoScope);

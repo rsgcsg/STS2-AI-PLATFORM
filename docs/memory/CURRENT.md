@@ -4,13 +4,15 @@ This is a bounded handoff, not repository authority. Resolve live GitHub refs,
 open PRs, rulesets, code, tests, `platform-bom.json`, and exact runtime/evidence
 before making a current claim. Those sources override this file.
 
-## PR25 AnyTime potion follow-up (2026-09-11)
+## PR25 deferred potion input follow-up (2026-09-11)
 
-Latest closed Human session: 288 known accepted inputs (287 traced), 284 canonical,
-three unknowns and one dropped Fruit Juice use. Of 32 invalidations, 31 are internal
-diagnostics. First run is 245/245 canonical including the terminal successor.
-The repair aligns non-combat AnyTime popup and execution catalogs; event reward-tree
-lineage and broader Full-Run qualification remain open. See [audit and repair](../evidence/PR25_ANYTIME_POTION_REPAIR_2026-09-11.md).
+Latest Human fragment: 189 trace accepted / 188 canonical, plus a silently missing
+Colorless Potion use and failed selector (at least 191 known decisions). EndTurn
+#43's formal canonical successor is held for potion-effect contamination. Map
+Fruit Juice succeeded. The repair retains exact submitted GameAction input/failure
+through delayed native acceptance; no unbound selector fallback or historical
+backfill. See [audit and repair](../evidence/PR25_DEFERRED_POTION_INGRESS_REPAIR_2026-09-11.md).
+Fresh Human qualification and enclosing event reward-tree lineage remain open.
 
 ## PR25 native admission repair (2026-09-11)
 
