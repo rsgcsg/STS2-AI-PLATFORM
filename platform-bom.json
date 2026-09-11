@@ -46,9 +46,9 @@
     },
     "live_ui": {
       "version": "0.1.0-rc.2",
-      "source_revision": "4338d97a452654342ab2d8bb6811227f6b3946f2",
-      "component_tree_revision": "b800d6c53b11dbe472f04358a2c935e41ab3d5d9",
-      "component_source_digest_sha256": "ad6acbbf1f8000f6ca0b1a46886258c9fcc09c5624e44efd0037d94901ea856b"
+      "source_revision": "d37c22404f48944c995e484694699abb31fe1c6a",
+      "component_tree_revision": "a68d94b445949fa1cd13561a8f45c671072793fc",
+      "component_source_digest_sha256": "8bd8c4a2029c4ca1d6f712e6ea1fec14cb82acd80fa6e033e6d68e975ecf85e8"
     },
     "game_mod": {
       "version": "0.2.0-rc.2",
@@ -893,8 +893,8 @@
     "live_ui": {
       "source_revision": "305a2cac80f0bd3126d66cfc5818477c583a8ce5",
       "source_digest_sha256": "c2a75214cb69678913fceb965ae4d41784a6cb1580311b53a2cc5b4c0c4cb1c4",
-      "current_component_source_revision": "4338d97a452654342ab2d8bb6811227f6b3946f2",
-      "current_component_source_digest_sha256": "ad6acbbf1f8000f6ca0b1a46886258c9fcc09c5624e44efd0037d94901ea856b",
+      "current_component_source_revision": "d37c22404f48944c995e484694699abb31fe1c6a",
+      "current_component_source_digest_sha256": "8bd8c4a2029c4ca1d6f712e6ea1fec14cb82acd80fa6e033e6d68e975ecf85e8",
       "source_relation": "loaded_ui_source_precedes_current_component",
       "artifact_sha256": "04104ca5cd47c82329be185a8aa7017f7982b2062048fbf825488bead231d1c1",
       "artifact_mvid": "7408a183-f5a8-4f95-a997-dbf588b1536b"
@@ -1235,9 +1235,9 @@
       },
       "live_ui": {
         "version": "0.1.0-rc.2",
-        "source_revision": "4338d97a452654342ab2d8bb6811227f6b3946f2",
-        "component_tree_revision": "b800d6c53b11dbe472f04358a2c935e41ab3d5d9",
-        "component_source_digest_sha256": "ad6acbbf1f8000f6ca0b1a46886258c9fcc09c5624e44efd0037d94901ea856b"
+        "source_revision": "d37c22404f48944c995e484694699abb31fe1c6a",
+        "component_tree_revision": "a68d94b445949fa1cd13561a8f45c671072793fc",
+        "component_source_digest_sha256": "8bd8c4a2029c4ca1d6f712e6ea1fec14cb82acd80fa6e033e6d68e975ecf85e8"
       },
       "game_mod": {
         "version": "0.2.0-rc.2",
