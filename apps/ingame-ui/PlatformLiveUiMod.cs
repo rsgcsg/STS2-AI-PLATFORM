@@ -35,7 +35,7 @@ public static class PlatformLiveUiMod
             tree.Root.AddChild(layer);
             panel.Mount(tree);
             _panel = panel;
-            GD.Print("[STS2 Platform Live UI] layer added; press K to toggle. Gameplay actions are not exposed directly.");
+            GD.Print("[STS2 Platform Live UI] layer added; open the Platform button. Gameplay actions are not exposed directly.");
         }
         catch (Exception exception)
         {
@@ -58,7 +58,11 @@ public static class PlatformLiveUiMod
         };
     }
 
-    internal static PlatformArtifactIdentity CurrentArtifactIdentity()
+    private static readonly Lazy<PlatformArtifactIdentity> ArtifactIdentity = new(ReadArtifactIdentity);
+
+    internal static PlatformArtifactIdentity CurrentArtifactIdentity() => ArtifactIdentity.Value;
+
+    private static PlatformArtifactIdentity ReadArtifactIdentity()
     {
         Assembly assembly = typeof(PlatformLiveUiMod).Assembly;
         Dictionary<string, string> metadata = assembly
@@ -118,6 +122,13 @@ internal sealed class PlatformLivePanel : IDisposable
     private Action? _processFrameHandler;
     private PanelContainer _workspace = null!;
     private Control _workspaceSurface = null!;
+    private Button _launcher = null!;
+    private Control _normalView = null!;
+    private Control _compactView = null!;
+    private Label _compactSummary = null!;
+    private Label _compactRecent = null!;
+    private Button _compactHumanButton = null!;
+    private Control _resizeHandle = null!;
     private VBoxContainer _workspaceBody = null!;
     private VBoxContainer _workspaceContent = null!;
     private Control _surfaceViewport = null!;
@@ -133,7 +144,9 @@ internal sealed class PlatformLivePanel : IDisposable
     private Label _recorderHealth = null!;
     private Label _recorderCountScope = null!;
     private Label _lastAction = null!;
+    private Control _decisionInspector = null!;
     private int _actionFeedPage;
+    private string? _selectedActionIdentity;
     private Label _actionFeedPageLabel = null!;
     private VBoxContainer _actionFeedList = null!;
     private ScrollContainer _recorderScroll = null!;
@@ -147,7 +160,6 @@ internal sealed class PlatformLivePanel : IDisposable
     private PlatformLiveLayoutState _layout;
     private Label _connection = null!;
     private Label _command = null!;
-    private string _connectorTransport = "checking";
     private Button _tickButton = null!;
     private PlatformCommandMode _mode = PlatformCommandMode.Human;
     private bool _disposed;
@@ -188,8 +200,8 @@ internal sealed class PlatformLivePanel : IDisposable
             tree.ProcessFrame += _processFrameHandler;
             Root.TreeExiting += Dispose;
             ApplyLayout();
-            _ = PollAsync();
-            GD.Print("[STS2 Platform Live UI] panel ready; input=K; visible=false; HUD=hidden");
+            Root.Resized += ApplyWorkspaceBounds;
+            GD.Print("[STS2 Platform Live UI] panel ready; input=launcher; visible=false; HUD=launcher");
         }
         catch (Exception exception)
         {
@@ -204,6 +216,7 @@ internal sealed class PlatformLivePanel : IDisposable
         _disposed = true;
         if (_tree != null && _processFrameHandler != null && GodotObject.IsInstanceValid(_tree))
             _tree.ProcessFrame -= _processFrameHandler;
+        Root.Resized -= ApplyWorkspaceBounds;
         _statusClient.Dispose();
     }
 
@@ -217,20 +230,11 @@ internal sealed class PlatformLivePanel : IDisposable
 
     private void BuildUi()
     {
-        // Native shortcut dispatch observes key events even when down/up both
-        // arrive between ProcessFrame calls. This host is visually transparent,
-        // never focusable/clickable, and introduces no permanent HUD.
-        var shortcutHost = new Button
-        {
-            Name = "PlatformWorkspaceShortcut",
-            Modulate = new Color(1, 1, 1, 0),
-            MouseFilter = MouseFilterEnum.Ignore,
-            FocusMode = FocusModeEnum.None,
-            Shortcut = WorkspaceShortcut(Key.K),
-            ShortcutInTooltip = false
-        };
-        shortcutHost.Pressed += ToggleWorkspace;
-        Root.AddChild(shortcutHost);
+        _launcher = BuildHeaderButton("Platform", ShowPanel, "Open Human Recorder or Agent Run.");
+        _launcher.Name = "PlatformLauncher";
+        _launcher.Position = new Vector2(12, 12);
+        _launcher.CustomMinimumSize = new Vector2(102, 32);
+        Root.AddChild(_launcher);
         _workspace = new PanelContainer
         {
             Position = _layout.WorkspacePosition,
@@ -264,6 +268,7 @@ internal sealed class PlatformLivePanel : IDisposable
         workspaceMargin.AddThemeConstantOverride("margin_top", 10);
         workspaceMargin.AddThemeConstantOverride("margin_bottom", 10);
         _workspaceSurface.AddChild(workspaceMargin);
+        _normalView = workspaceMargin;
 
         _workspaceBody = new VBoxContainer
         {
@@ -285,7 +290,7 @@ internal sealed class PlatformLivePanel : IDisposable
         titleRow.AddThemeConstantOverride("separation", 4);
         _workspaceTitle = new Label
         {
-            Text = "STS2 PLATFORM / LIVE WORKSPACE",
+            Text = "PLATFORM",
             SizeFlagsHorizontal = SizeFlags.ExpandFill,
             MouseFilter = MouseFilterEnum.Ignore,
             ClipText = true,
@@ -294,6 +299,7 @@ internal sealed class PlatformLivePanel : IDisposable
         _workspaceTitle.AddThemeFontSizeOverride("font_size", 18);
         _workspaceTitle.AddThemeColorOverride("font_color", TextPrimary);
         titleRow.AddChild(_workspaceTitle);
+        titleRow.AddChild(BuildHeaderButton("Minimize", MinimizePanel, "Keep a small live view during play."));
         titleRow.AddChild(BuildHeaderButton("Reset", ResetLayout, "Restore position, size and active surface."));
         var closeButton = BuildHeaderButton("Close", HidePanel, "Close workspace and return to gameplay.");
         closeButton.Shortcut = WorkspaceShortcut(Key.Escape);
@@ -367,8 +373,47 @@ internal sealed class PlatformLivePanel : IDisposable
         resizeHandle.SetAnchorsAndOffsetsPreset(LayoutPreset.BottomRight, LayoutPresetMode.KeepSize);
         resizeHandle.GuiInput += OnResizeHandleInput;
         _workspaceSurface.AddChild(resizeHandle);
+        _resizeHandle = resizeHandle;
+        BuildCompactView();
         ApplySurfacePresentation(resizeWorkspace: false);
         ApplyLayout();
+    }
+
+    private void BuildCompactView()
+    {
+        var margin = new MarginContainer { MouseFilter = MouseFilterEnum.Pass, ClipContents = true };
+        margin.SetAnchorsAndOffsetsPreset(LayoutPreset.FullRect);
+        foreach (string edge in new[] { "left", "right", "top", "bottom" })
+            margin.AddThemeConstantOverride($"margin_{edge}", 10);
+        var body = new VBoxContainer { MouseFilter = MouseFilterEnum.Pass, ClipContents = true };
+        body.AddThemeConstantOverride("separation", 7);
+        var header = new HBoxContainer { MouseFilter = MouseFilterEnum.Pass };
+        _compactSummary = new Label {
+            Text = "已录入 — / 真实失败 —", SizeFlagsHorizontal = SizeFlags.ExpandFill,
+            MouseFilter = MouseFilterEnum.Ignore, ClipText = true
+        };
+        _compactSummary.AddThemeFontSizeOverride("font_size", 14);
+        _compactSummary.AddThemeColorOverride("font_color", TextPrimary);
+        header.AddChild(_compactSummary);
+        Button restore = BuildHeaderButton("↗", RestorePanel, "Restore full workspace.");
+        restore.CustomMinimumSize = new Vector2(32, 28);
+        header.AddChild(restore);
+        body.AddChild(header);
+        _compactRecent = new Label {
+            Text = "最新 3 条 · 尚无记录", MouseFilter = MouseFilterEnum.Ignore,
+            SizeFlagsHorizontal = SizeFlags.ExpandFill, SizeFlagsVertical = SizeFlags.ExpandFill,
+            ClipText = true, TextOverrunBehavior = TextServer.OverrunBehavior.TrimEllipsis
+        };
+        _compactRecent.AddThemeFontSizeOverride("font_size", 13);
+        _compactRecent.AddThemeColorOverride("font_color", TextSecondary);
+        body.AddChild(_compactRecent);
+        _compactHumanButton = BuildCommandButton("Return to Human", () => _ = SetRuntimeModeAsync(PlatformCommandMode.Human),
+            "Ask Policy Runtime to return control to Human.");
+        _compactHumanButton.Disabled = true;
+        body.AddChild(_compactHumanButton);
+        margin.AddChild(body);
+        _workspaceSurface.AddChild(margin);
+        _compactView = margin;
     }
 
     private void BuildAgentRunPage(Control surfaceViewport)
@@ -513,7 +558,12 @@ internal sealed class PlatformLivePanel : IDisposable
         };
         _recorderTitle.AddThemeFontSizeOverride("font_size", 17);
         _recorderTitle.AddThemeColorOverride("font_color", TextPrimary);
-        body.AddChild(_recorderTitle);
+        var recorderHeader = new HBoxContainer();
+        recorderHeader.AddChild(_recorderTitle);
+        recorderHeader.AddChild(BuildHeaderButton("Session details", () =>
+            _recorderCountScope.Visible = !_recorderCountScope.Visible,
+            "Show session accounting and retained-view status."));
+        body.AddChild(recorderHeader);
 
         _recorderDetails = new VBoxContainer
         {
@@ -536,7 +586,8 @@ internal sealed class PlatformLivePanel : IDisposable
 
         _recorderCountScope = new Label
         {
-            Text = "Canonical decisions and legacy records are separate totals.",
+            Text = "Session totals come from Annotator; the list below is a retained view.",
+            Visible = false,
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
             MouseFilter = MouseFilterEnum.Ignore
         };
@@ -558,18 +609,36 @@ internal sealed class PlatformLivePanel : IDisposable
 
         _lastAction = new Label
         {
-            Text = "LAST ACTION\nNone observed yet.",
+            Text = "Select a decision to inspect its recorded evidence.",
             AutowrapMode = TextServer.AutowrapMode.WordSmart,
-            CustomMinimumSize = new Vector2(0, 62),
+            SizeFlagsHorizontal = SizeFlags.ExpandFill,
             MouseFilter = MouseFilterEnum.Ignore
         };
         _lastAction.AddThemeFontSizeOverride("font_size", 13);
-        _lastAction.AddThemeColorOverride("font_color", Accent);
-        _recorderDetails.AddChild(_lastAction);
+        _lastAction.AddThemeColorOverride("font_color", TextSecondary);
+        var inspector = new VBoxContainer { Visible = false };
+        var inspectorHeader = new HBoxContainer();
+        var inspectorTitle = new Label { Text = "DECISION EVIDENCE", SizeFlagsHorizontal = SizeFlags.ExpandFill };
+        inspectorTitle.AddThemeFontSizeOverride("font_size", 12);
+        inspectorHeader.AddChild(inspectorTitle);
+        inspectorHeader.AddChild(BuildHeaderButton("Hide", () => {
+            _selectedActionIdentity = null;
+            _decisionInspector.Visible = false;
+        }, "Hide selected decision evidence."));
+        inspector.AddChild(inspectorHeader);
+        var detailScroll = new ScrollContainer {
+            CustomMinimumSize = new Vector2(0, 150),
+            HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled,
+            VerticalScrollMode = ScrollContainer.ScrollMode.Auto
+        };
+        detailScroll.AddChild(_lastAction);
+        inspector.AddChild(detailScroll);
+        _decisionInspector = inspector;
+        _recorderDetails.AddChild(inspector);
 
         var feedHeading = new Label
         {
-            Text = "DECISIONS · select a row for lineage and evidence",
+            Text = "RECENT DECISIONS",
             MouseFilter = MouseFilterEnum.Ignore
         };
         feedHeading.AddThemeFontSizeOverride("font_size", 12);
@@ -634,7 +703,7 @@ internal sealed class PlatformLivePanel : IDisposable
             TooltipText = tooltip ?? $"Annotator recording control: {text}",
             FocusMode = FocusModeEnum.None,
             MouseFilter = MouseFilterEnum.Stop,
-            CustomMinimumSize = new Vector2(118, 40)
+            CustomMinimumSize = new Vector2(96, 34)
         };
         ApplyButtonTheme(button, false);
         button.Pressed += action;
@@ -701,7 +770,7 @@ internal sealed class PlatformLivePanel : IDisposable
         {
             if (mouseButton.ButtonIndex == MouseButton.Left && mouseButton.Pressed)
             {
-                if (mouseButton.Position.X >= _workspace.Size.X - 32
+                if (!_layout.Compact && mouseButton.Position.X >= _workspace.Size.X - 32
                     && mouseButton.Position.Y >= _workspace.Size.Y - 32)
                 {
                     _resizingWorkspace = true;
@@ -741,7 +810,7 @@ internal sealed class PlatformLivePanel : IDisposable
                     + motion.GlobalPosition - _dragStartPointerGlobal;
                 _workspace.GlobalPosition = PlatformLiveLayout.ClampWorkspace(
                     new Rect2(requested, _workspace.Size),
-                    Root.Size).Position;
+                    Root.Size, _layout.Compact).Position;
             }
             _workspace.GetViewport().SetInputAsHandled();
         }
@@ -789,6 +858,7 @@ internal sealed class PlatformLivePanel : IDisposable
         _layout = next;
         ApplySurfacePresentation();
         PersistLayout();
+        RefreshVisibleStatus();
     }
 
     private void ApplySurfacePresentation(bool resizeWorkspace = true)
@@ -814,18 +884,19 @@ internal sealed class PlatformLivePanel : IDisposable
 
     private void ApplyLayout()
     {
+        ApplyPresentationVisibility();
         ApplyWorkspaceBounds();
         ApplySurfacePresentation(resizeWorkspace: false);
-        ApplyPresentationVisibility();
     }
 
     private void ApplyWorkspaceBounds()
     {
-        _workspace.CustomMinimumSize = new Vector2(640, 420);
-        Vector2 requestedSize = _layout.WorkspaceSize;
+        _workspace.CustomMinimumSize = _layout.Compact
+            ? PlatformLiveLayout.CompactSize : PlatformLiveLayout.NormalMinimumSize;
+        Vector2 requestedSize = _layout.Compact ? PlatformLiveLayout.CompactSize : _layout.WorkspaceSize;
         Rect2 workspace = PlatformLiveLayout.ClampWorkspace(
             new Rect2(_layout.WorkspacePosition, requestedSize),
-            Root.Size);
+            Root.Size, _layout.Compact);
         _workspace.Position = workspace.Position;
         _workspace.Size = workspace.Size;
     }
@@ -833,9 +904,12 @@ internal sealed class PlatformLivePanel : IDisposable
     private void ApplyPresentationVisibility()
     {
         bool workspaceVisible = _workspace.Visible;
-        // There is exactly one active presentation owner. The Workspace is
-        // the only Platform surface; its Recorder and toast regions are children.
-        _toastViewport.Visible = workspaceVisible && _toasts.Count > 0;
+        _launcher.Visible = !workspaceVisible;
+        _normalView.Visible = !_layout.Compact;
+        _compactView.Visible = _layout.Compact;
+        _resizeHandle.Visible = !_layout.Compact;
+        _compactHumanButton.Visible = _layout.ActiveSurface == "agent_run";
+        _toastViewport.Visible = workspaceVisible && !_layout.Compact && _toasts.Count > 0;
     }
 
     private void PersistLayout()
@@ -843,7 +917,7 @@ internal sealed class PlatformLivePanel : IDisposable
         _layout = _layout with
         {
             WorkspacePosition = _workspace.Position,
-            WorkspaceSize = _workspace.Size
+            WorkspaceSize = _layout.Compact ? _layout.WorkspaceSize : _workspace.Size
         };
         if (!PlatformLiveLayout.Save(_layout))
             PushToast("layout.persistence", "Layout could not be saved; using this session only.");
@@ -928,11 +1002,25 @@ internal sealed class PlatformLivePanel : IDisposable
             result.Accepted
                 ? $"Recording {kind.ToString().Replace("StartNewSession", "started", StringComparison.Ordinal).ToLowerInvariant()}."
                 : $"Recording command rejected: {result.Detail}");
+        RefreshActionFeed(authoritative);
         ApplyRecordingAvailability(authoritative);
-        _ = PollAsync();
     }
 
-    private void OnPollTimeout() => _ = PollAsync();
+    private void OnPollTimeout() => RefreshVisibleStatus();
+
+    private void RefreshVisibleStatus()
+    {
+        if (!_workspace.Visible || _disposed)
+            return;
+        if (_layout.ActiveSurface == "human_recorder")
+        {
+            var recording = STS2HumanAnnotator.Mod.RecordingApplicationService.Instance.QueryStatus();
+            RefreshActionFeed(recording);
+            ApplyRecordingAvailability(recording);
+        }
+        else
+            _ = PollAsync();
+    }
 
     private async Task SetRuntimeModeAsync(PlatformCommandMode mode)
     {
@@ -952,7 +1040,7 @@ internal sealed class PlatformLivePanel : IDisposable
                 _command.Text = $"Policy Runtime mode set to {ToRuntimeMode(mode)}.";
             }
             PushToast("policy.mode", $"Policy mode: {ToRuntimeMode(mode)}.");
-            _ = PollAsync();
+            RefreshVisibleStatus();
         }
         catch (Exception exception)
         {
@@ -970,7 +1058,7 @@ internal sealed class PlatformLivePanel : IDisposable
             await _statusClient.TickAsync();
             _command.Text = "Policy Runtime tick completed.";
             PushToast("policy.tick", "Policy Runtime tick completed.");
-            _ = PollAsync();
+            RefreshVisibleStatus();
         }
         catch (Exception exception)
         {
@@ -984,14 +1072,14 @@ internal sealed class PlatformLivePanel : IDisposable
     {
         if (Interlocked.Exchange(ref _pollInFlight, 1) != 0)
             return;
-            try
-            {
-                PlatformLiveStatus status = await _statusClient.ReadAsync();
-                Interlocked.Exchange(ref _pendingStatus, status);
-            }
-            catch (Exception exception)
-            {
-                Interlocked.Exchange(ref _pendingPollError, exception.GetType().Name);
+        try
+        {
+            PlatformLiveStatus status = await _statusClient.ReadAsync();
+            Interlocked.Exchange(ref _pendingStatus, status);
+        }
+        catch (Exception exception)
+        {
+            Interlocked.Exchange(ref _pendingPollError, exception.GetType().Name);
         }
         finally
         {
@@ -1011,7 +1099,6 @@ internal sealed class PlatformLivePanel : IDisposable
     {
         if (Interlocked.Exchange(ref _pendingPollError, null) is { } error)
         {
-            _connectorTransport = "unavailable";
             _connection.Text = $"Connector loopback: UI poll failed ({error})";
             ApplyRecordingAvailability(
                 STS2HumanAnnotator.Mod.RecordingApplicationService.Instance.QueryStatus());
@@ -1021,7 +1108,6 @@ internal sealed class PlatformLivePanel : IDisposable
 
     private void ApplyStatus(PlatformLiveStatus status)
     {
-        _connectorTransport = status.TransportStatus;
         _connection.Text =
             $"Connector: {status.TransportStatus} | Policy Runtime: {status.PolicyRuntimeTransportStatus} | observed {status.ObservedAt:HH:mm:ss} UTC";
         string policyReason = PlatformLiveLayout.PolicyUnavailableReason(status);
@@ -1030,6 +1116,13 @@ internal sealed class PlatformLivePanel : IDisposable
             _mode = ParseRuntimeMode(status.PolicyRuntime.Mode);
         ApplyModeButtonState();
         _agentRunSummary.Text = FormatAgentRun(status);
+        if (_layout.ActiveSurface == "agent_run")
+        {
+            _compactSummary.Text = $"{status.PolicyRuntime?.Mode ?? "Human"} · {status.PolicyRuntime?.Controller ?? "unavailable"}";
+            _compactRecent.Text = status.PolicyRuntime == null
+                ? "Policy Runtime unavailable.\nHuman control remains available in the game."
+                : $"{status.PolicyRuntime.Policy.PolicyId}\n{status.PolicyRuntime.LastDecision?.BoundActionLabel ?? "No decision yet"}\nReceipt: {status.Receipt.Status}";
+        }
         RefreshActionFeed(status.Recording);
         ApplyRecordingAvailability(status.Recording);
     }
@@ -1043,6 +1136,7 @@ internal sealed class PlatformLivePanel : IDisposable
                 ? button.TooltipText
                 : $"Unavailable: {reason ?? "Policy Runtime is unavailable."}";
         }
+        _compactHumanButton.Disabled = !available;
         _tickButton.Disabled = !available;
         _tickButton.TooltipText = available
             ? "Ask Policy Runtime for one bounded tick; action authority remains Connector/Runtime."
@@ -1064,12 +1158,17 @@ internal sealed class PlatformLivePanel : IDisposable
     {
         if (_recorderTitle == null)
             return;
-        _recorderTitle.Text = "RECORDER";
+        _recorderTitle.Text = $"{recording.Lifecycle.State}";
         PlatformLiveActionCounts counts = _actionFeed.Counts;
-        _recorderHealth.Text =
-            $"● {recording.Lifecycle.State} | Connector: {_connectorTransport}\n{PlatformLiveActionFeed.FormatCounters(recording.Counters)}";
-        _recorderCountScope.Text = $"Canonical means recorded evidence, not Full-Run qualification. Legacy records are a separate compatibility projection. Retained feed: {counts.Diagnostics} native diagnostics, {counts.Invalidated} capture failures."
-            + (counts.Exact ? "" : " Feed correlation/history incomplete; session totals remain authoritative.");
+        _recorderHealth.Text = PlatformLiveActionFeed.FormatCompactCounters(recording.Counters);
+        _recorderCountScope.Text = PlatformLiveActionFeed.FormatCounters(recording.Counters)
+            + $"\nRetained view: {counts.Diagnostics} diagnostics."
+            + (counts.Exact ? "" : " Partial history; session totals above remain authoritative.");
+        if (_layout.ActiveSurface == "human_recorder")
+        {
+            _compactSummary.Text = PlatformLiveActionFeed.FormatCompactCounters(recording.Counters);
+            _compactRecent.Text = PlatformLiveActionFeed.FormatCompactRecent(_actionFeed.RecentDecisions(3));
+        }
         _recorderHealth.AddThemeColorOverride("font_color", recording.Lifecycle.State switch
         {
             STS2HumanAnnotator.Core.RecordingLifecycleState.Recording => new Color("#73d39a"),
@@ -1103,6 +1202,7 @@ internal sealed class PlatformLivePanel : IDisposable
             _lastRecordingEventSequence = 0;
             _actionFeed.Reset();
             _actionFeedPage = 0;
+            _selectedActionIdentity = null;
             feedChanged = true;
         }
 
@@ -1114,9 +1214,15 @@ internal sealed class PlatformLivePanel : IDisposable
             if (batch.Gap)
             {
                 _actionFeed.Reset();
-            _actionFeedPage = 0;
+                _actionFeedPage = 0;
                 _actionFeed.MarkSourceIncomplete();
                 _lastRecordingEventSequence = Math.Max(0, batch.OldestAvailableSequence - 1);
+                // A gap response has no events. Read the available retained batch
+                // before advancing the cursor; this never retries a gameplay action.
+                batch = STS2HumanAnnotator.Mod.RecordingApplicationService.Instance.QueryEvents(
+                    _lastRecordingEventSequence);
+                if (batch.Gap)
+                    return;
                 feedChanged = true;
             }
             foreach (STS2HumanAnnotator.Core.RecordingEvent value in batch.Events)
@@ -1132,7 +1238,10 @@ internal sealed class PlatformLivePanel : IDisposable
             if (feedChanged)
             {
                 if (sessionChanged)
+                {
                     _recorderScroll.ScrollVertical = 0;
+                    _decisionInspector.Visible = false;
+                }
                 RenderActionFeed();
             }
         }
@@ -1148,16 +1257,24 @@ internal sealed class PlatformLivePanel : IDisposable
     {
         if (_actionFeedList == null || _lastAction == null)
             return;
+        if (_layout.Compact)
+            return;
         foreach (Node child in _actionFeedList.GetChildren())
+        {
+            _actionFeedList.RemoveChild(child);
             child.QueueFree();
+        }
 
         IReadOnlyList<PlatformLiveActionItem> recent =
             _actionFeed.Recent(PlatformLiveActionFeed.MaxEntries, _actionFeedPage * PlatformLiveActionFeed.MaxEntries);
         _actionFeedPageLabel.Text = $"Page {_actionFeedPage + 1} · {_actionFeed.Count} retained entries";
-        PlatformLiveActionItem? newest = recent.FirstOrDefault();
-        _lastAction.Text = newest == null
-            ? "LAST ACTION\nNone observed yet."
-            : $"LAST ACTION\n{PlatformLiveActionFeed.FormatDetail(newest)}";
+        PlatformLiveActionItem? selected = _actionFeed.Recent(PlatformLiveActionAggregation.RetainedLimit)
+            .FirstOrDefault(value => value.CorrelationIdentity == _selectedActionIdentity);
+        _decisionInspector.Visible = selected != null;
+        if (selected != null)
+            _lastAction.Text = $"DECISION DETAIL\n{PlatformLiveActionFeed.FormatDetail(selected)}";
+        if (_layout.ActiveSurface == "human_recorder")
+            _compactRecent.Text = PlatformLiveActionFeed.FormatCompactRecent(_actionFeed.RecentDecisions(3));
 
         foreach (PlatformLiveActionItem value in recent)
         {
@@ -1168,12 +1285,9 @@ internal sealed class PlatformLivePanel : IDisposable
                 SizeFlagsVertical = SizeFlags.ShrinkBegin,
                 CustomMinimumSize = new Vector2(0, 30)
             };
-            Color border = value.Action?.IsDiagnostic == true ? new Color("#4f91a6") : value.Kind switch
-            {
-                STS2HumanAnnotator.Core.RecordingEventKind.DecisionRecorded => new Color("#4fa77c"),
-                STS2HumanAnnotator.Core.RecordingEventKind.DecisionInvalidated => new Color("#c26b69"),
-                _ => new Color("#4f91a6")
-            };
+            Color border = PlatformLiveActionFeed.IsFailure(value) ? new Color("#c26b69")
+                : value.Kind == STS2HumanAnnotator.Core.RecordingEventKind.DecisionRecorded ? new Color("#4fa77c")
+                : new Color("#4f91a6");
             item.AddThemeStyleboxOverride("panel", MakePanelStyle(
                 new Color("#16222de8"), border, 6, 1, 7));
             var label = new Label
@@ -1193,7 +1307,11 @@ internal sealed class PlatformLivePanel : IDisposable
             item.GuiInput += input =>
             {
                 if (input is InputEventMouseButton { Pressed: true, ButtonIndex: MouseButton.Left })
+                {
+                    _selectedActionIdentity = value.CorrelationIdentity;
                     _lastAction.Text = $"DECISION DETAIL\n{PlatformLiveActionFeed.FormatDetail(value)}";
+                    _decisionInspector.Visible = true;
+                }
             };
             _actionFeedList.AddChild(item);
         }
@@ -1228,34 +1346,34 @@ internal sealed class PlatformLivePanel : IDisposable
         ApplyPendingStatus();
         ApplyPendingPollError();
         ExpireToasts();
-        if (!_draggingWorkspace && !_resizingWorkspace)
-        {
-            Rect2 clamped = PlatformLiveLayout.ClampWorkspace(
-                new Rect2(_workspace.Position, _workspace.Size),
-                Root.Size);
-            if (clamped.Position != _workspace.Position || clamped.Size != _workspace.Size)
-            {
-                _workspace.Position = clamped.Position;
-                _workspace.Size = clamped.Size;
-            }
-        }
-
     }
 
-    private void ToggleWorkspace()
+    private void ShowPanel()
     {
-        _workspace.Visible = !_workspace.Visible;
-        if (_workspace.Visible)
-        {
-            _layout = _layout with { ActiveSurface = "agent_run" };
-            ApplyLayout();
-            _ = PollAsync();
-        }
-        else
-        {
-            ApplyPresentationVisibility();
-        }
-        GD.Print($"[STS2 Platform Live UI] toggle; input=K; visible={_workspace.Visible.ToString().ToLowerInvariant()}");
+        _workspace.Visible = true;
+        ApplyLayout();
+        RefreshVisibleStatus();
+        GD.Print("[STS2 Platform Live UI] toggle; input=launcher; visible=true");
+    }
+
+    private void MinimizePanel()
+    {
+        PersistLayout();
+        _layout = _layout with { Compact = true };
+        ApplyLayout();
+        RefreshVisibleStatus();
+        PersistLayout();
+        GD.Print("[STS2 Platform Live UI] presentation; mode=compact");
+    }
+
+    private void RestorePanel()
+    {
+        _layout = _layout with { Compact = false };
+        ApplyLayout();
+        RenderActionFeed();
+        RefreshVisibleStatus();
+        PersistLayout();
+        GD.Print("[STS2 Platform Live UI] presentation; mode=normal");
     }
 
     private void HidePanel()

@@ -1,49 +1,65 @@
 # Platform Live UI
 
-The Platform Live UI is the in-game presentation component for Agent Run and
-Human Recorder. It is fully hidden during ordinary play; `K` opens one compact
-Live Workspace and `Esc` closes it. The Workspace has exactly two peer
-surfaces, `Agent Run` and `Human Recorder`; Recorder is never a floating card
-or root overlay.
-The Recorder tab exposes only the typed New/Pause/Resume/Close application
-commands, plus a paginated retained-decision feed and selectable evidence detail sourced
-only from the typed Annotator application-event projection of already-owned
-semantic decision/lifecycle facts; missing card, target
-or effect metadata is shown as unavailable. The UI
-calls typed Connector observation, Policy Runtime, and Annotator recording
-services; it does not publish, resolve, or submit gameplay actions itself.
+The in-game **Platform** button opens two surfaces: **Human Recorder** and
+**Agent Run**. There is no `K` shortcut. Close returns to the small launcher;
+`Esc` closes the normal workspace. Drag the header to move the workspace and
+use its corner to resize the normal view.
 
-The Runtime loopback defaults to `http://127.0.0.1:15527`. Connector Snapshot
-and Read opportunities, recording state, and loaded component identities remain
-available when no policy artifact is running; only policy scores/modes/Receipts
-are then unavailable.
+Both surfaces have a **Minimize** control and a separate, genuinely smaller
+440 × 174 view. The arrow restores the normal workspace and its previous size.
+The compact Recorder shows only **已录入 / 真实失败 / 最新 3 条**. Its totals come
+from Annotator's session counters, not the retained UI list:
 
-Workspace layout (position, size, and selected surface) is versioned
-presentation-only state under the Windows local application
-data directory. Persistence is fail-soft and never enters runtime evidence or
-contains secrets, action operands, model weights, or raw Human data. See the
-canonical [UI and interaction specification](../../docs/UI_INTERACTION_SPEC.md)
-for the shared Workbench/In-Game vocabulary. The Recorder feed preserves its
-scroll position during ordinary event updates and resets only for a new session
-or an explicit layout reset.
+- 已录入 is the durable canonical decision count.
+- 真实失败 is Annotator's versioned in-scope failure disposition total. Unknown
+  older counters display `—`; normal cancellation, abort, diagnostic
+  invalidation and unsupported/non-decision dispositions do not inflate it.
+- The latest three rows omit native diagnostics and unsupported/non-decisions.
+  They retain the owning decision status; pending and cancelled are distinct.
 
-## Ownership
+The normal Recorder contains lifecycle controls, session totals, a paginated
+retained decision list and details revealed by selecting a row. Exact parent
+and causal-root lineage, selector metadata, action and state identities remain
+available in those details. Missing metadata stays unavailable. Canonical
+recording does not itself establish Full-Run qualification or research admission.
 
-This directory has no manifest, assembly packaging, deployment, loaded-identity
-or rollback authority. `apps/game-mod` compiles this source into the repository's
-one production `STS2_PLATFORM` Mod alongside Connector and Annotator source.
-Its boundary tests remain portable:
+Agent Run uses only typed Policy Runtime controls. Its compact view keeps mode,
+controller, policy, last selected action, Receipt and **Return to Human** visible.
+It never resolves or submits a gameplay action directly. The Runtime loopback
+defaults to `http://127.0.0.1:15527`; modes and model status require a compatible
+Policy Runtime with an exact Policy Manifest and artifact.
+
+## Retention and display cost
+
+The closed workspace performs no status polling. An open Recorder queries only
+the typed Annotator status/event service once per second; it does not request a
+Connector Snapshot or action catalog. Agent Run requests its typed live status
+only while visible. Loaded assembly identity is immutable and cached once.
+The UI retains at most 512 action rows; ordered event sequence is the replay
+cursor. A reconnect gap refreshes the available batch and labels partial
+history. Authoritative session totals are independent of this retention.
+Minimized mode does not rebuild the hidden normal decision widgets.
+
+Layout version 5 stores position, normal size, compact mode and selected surface
+in local application data. This presentation-only state is fail-soft; it
+contains no Human evidence, native operands, model weights or secrets. Old UI
+layout files are not migrated because no evidence or consumer contract depends
+on their geometry. See the canonical
+[UI and interaction specification](../../docs/UI_INTERACTION_SPEC.md).
+
+## Ownership and validation
+
+This component consumes typed Connector, Policy Runtime and Annotator services.
+It owns neither gameplay/recording authority nor packaging, deployment, loaded
+identity or rollback. `apps/game-mod` compiles it into the single production
+`STS2_PLATFORM` Mod. Portable boundary and event-projection tests run with:
 
 ```bash
 npm run live-ui:check
 ```
 
-See [`apps/game-mod/README.md`](../game-mod/README.md) for the only supported
-build/install/cold-load/rollback lifecycle. Loaded UI identity is not Human or
-policy-run evidence. Shadow, One-Step, and Auto remain unavailable until a
-compatible Policy Runtime with an exact Policy Manifest and artifact is running.
-
-Recorder distinguishes accepted root and selector-child decisions, canonical
-transitions, unresolved outcomes, invalidations and legacy records. Details carry
-exact parent/root lineage and captured selector metadata. Session totals are
-store-owned and remain independent of event retention; a partial feed is labeled.
+Use [`apps/game-mod/README.md`](../game-mod/README.md) for the supported exact
+build/install/cold-load/rollback path. Source tests and compilation do not prove
+rendering, Human origin, policy operation or Full-Run qualification. Final UI
+canary checks launcher, both compact views, drag/restore and Recorder counters
+against the exact candidate's session audit.

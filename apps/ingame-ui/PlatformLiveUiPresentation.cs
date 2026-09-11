@@ -12,19 +12,22 @@ public sealed record PlatformLiveLayoutState(
     int Version,
     Vector2 WorkspacePosition,
     Vector2 WorkspaceSize,
-    string ActiveSurface)
+    string ActiveSurface,
+    bool Compact = false)
 {
-    public const int CurrentVersion = 4;
+    public const int CurrentVersion = 5;
 
     public static PlatformLiveLayoutState Defaults => new(
         CurrentVersion,
         new Vector2(52, 64),
         new Vector2(760, 500),
-        "agent_run");
+        "human_recorder");
 }
 
 public static class PlatformLiveLayout
 {
+    public static readonly Vector2 NormalMinimumSize = new(640, 420);
+    public static readonly Vector2 CompactSize = new(440, 174);
     private static readonly JsonSerializerOptions Options = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
@@ -58,7 +61,7 @@ public static class PlatformLiveLayout
     public static string LocalPath()
     {
         string root = System.Environment.GetFolderPath(System.Environment.SpecialFolder.LocalApplicationData);
-        return Path.Combine(root, "STS2Platform", "live-ui-layout-v4.json");
+        return Path.Combine(root, "STS2Platform", "live-ui-layout-v5.json");
     }
 
     public static PlatformLiveLayoutState Load()
@@ -108,10 +111,11 @@ public static class PlatformLiveLayout
 
     public static Rect2 ClampWorkspace(
         Rect2 requested,
-        Vector2 viewport)
+        Vector2 viewport,
+        bool compact = false)
     {
-        Vector2 min = new(640, 420);
-        Vector2 max = new(Math.Max(min.X, viewport.X - 32), Math.Max(min.Y, viewport.Y - 48));
+        Vector2 min = compact ? CompactSize : NormalMinimumSize;
+        Vector2 max = compact ? CompactSize : new(Math.Max(min.X, viewport.X - 32), Math.Max(min.Y, viewport.Y - 48));
         Vector2 size = new(
             Math.Clamp(requested.Size.X, min.X, max.X),
             Math.Clamp(requested.Size.Y, min.Y, max.Y));

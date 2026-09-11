@@ -70,7 +70,7 @@ public sealed class PlatformLiveActionFeedTests
             new(385, 34, 411, 8, 375, 34)));
         Assert.Contains("Canonical 409", text);
         Assert.Contains("Legacy records 139", text);
-        Assert.Contains("Unresolved 8 (includes cancelled)", text);
+        Assert.Contains("Unresolved 8 · Cancelled 0 · Aborted 0", text);
         Assert.Contains("Decisions unavailable", PlatformLiveActionFeed.FormatCounters(new(139, 83, 0, 0)));
     }
 
@@ -147,7 +147,7 @@ public sealed class PlatformLiveActionFeedTests
 
         Assert.Equal(new PlatformLiveActionCounts(0, 0, 1, true), feed.Counts);
         string detail = PlatformLiveActionFeed.FormatDetail(Assert.Single(feed.Recent(24)));
-        Assert.Contains("Status: ✕ Invalidated", detail, StringComparison.Ordinal);
+        Assert.Contains("Status: ✕ Failed closed", detail, StringComparison.Ordinal);
         Assert.Contains("Reason: successor_not_stable", detail, StringComparison.Ordinal);
     }
 
@@ -253,6 +253,89 @@ public sealed class PlatformLiveActionFeedTests
         Assert.Equal("record:record-1", rows[1].CorrelationIdentity);
     }
 
+    [Theory]
+    [InlineData("failed_closed", true)]
+    [InlineData("unresolved", true)]
+    [InlineData("cancelled", false)]
+    [InlineData("aborted", false)]
+    [InlineData("diagnostic", false)]
+    [InlineData("unsupported", false)]
+    [InlineData(null, false)]
+    public void RealFailureUsesOnlyTheAuthoritativeDisposition(string? disposition, bool failed)
+    {
+        var feed = new PlatformLiveActionAggregation();
+        feed.Apply(Event(1, RecordingEventKind.DecisionInvalidated, "input", Action("b", "Play Strike", null) with {
+            Disposition = disposition
+        }));
+        var row = Assert.Single(feed.Recent(3));
+        Assert.Equal(failed, PlatformLiveActionFeed.IsFailure(row));
+        if (disposition is "cancelled" or "aborted")
+            Assert.DoesNotContain("Invalidated", PlatformLiveActionFeed.FormatEntry(row));
+    }
+
+    [Theory]
+    [InlineData(RecordingEventKind.DecisionCancelled, "cancelled")]
+    [InlineData(RecordingEventKind.DecisionAborted, "aborted")]
+    public void CancelAndAbortSettleOnePendingRowWithoutFailure(RecordingEventKind kind, string disposition)
+    {
+        var feed = new PlatformLiveActionAggregation();
+        feed.Apply(Event(1, RecordingEventKind.RootPending, "input"));
+        feed.Apply(Event(2, kind, "input", Action("bound-input", "Play Strike", null) with {
+            Disposition = disposition
+        }));
+        var row = Assert.Single(feed.Recent(3));
+        Assert.Equal(kind, row.Kind);
+        Assert.Equal(0, feed.Counts.Pending);
+        Assert.Equal(0, feed.Counts.Records);
+        Assert.Equal(0, feed.Counts.Invalidated);
+        Assert.DoesNotContain("Unresolved", PlatformLiveActionFeed.FormatDetail(row));
+    }
+
+    [Fact]
+    public void CompactTotalsNeverUseRetainedFeedOrTreatAbsentDispositionAsZero()
+    {
+        var counters = new RecordingCounters(7, 99, 10, 0,
+            new(100, 20, 110, 2, 90, 20, Cancelled: 4, Aborted: 1,
+                CaptureFailures: 3, PersistenceFailures: 1, DispositionVersion: 1, FailedDecisions: 6));
+        Assert.Equal("已录入 110 / 真实失败 6", PlatformLiveActionFeed.FormatCompactCounters(counters));
+        Assert.Equal("已录入 110 / 真实失败 —", PlatformLiveActionFeed.FormatCompactCounters(counters with {
+            Decisions = counters.Decisions! with { DispositionVersion = 0 }
+        }));
+        Assert.Equal("已录入 — / 真实失败 —", PlatformLiveActionFeed.FormatCompactCounters(new(0, 0, 0, 0)));
+    }
+
+    [Fact]
+    public void CompactLatestThreeExcludeDiagnosticsAndDoNotDuplicateTheVerb()
+    {
+        var feed = new PlatformLiveActionAggregation();
+        for (int index = 1; index <= 5; index++)
+            feed.Apply(Event(index, RecordingEventKind.DecisionRecorded, "r-" + index,
+                Action("b-" + index, "Play Strike", null) with { Disposition = "recorded" }));
+        feed.Apply(Event(6, RecordingEventKind.DecisionInvalidated, null,
+            Action("", "Native carrier", null) with { Disposition = "diagnostic" }));
+        var recent = feed.RecentDecisions(3);
+        Assert.Equal(new long[] { 5, 4, 3 }, recent.Select(item => item.FirstSequence));
+        string text = PlatformLiveActionFeed.FormatCompactRecent(recent);
+        Assert.Equal(3, text.Split('\n').Length);
+        Assert.DoesNotContain("Native carrier", text);
+        Assert.DoesNotContain("Play Play", text);
+        Assert.DoesNotContain("Parent:", text);
+    }
+
+    [Fact]
+    public void LongSessionsRetainABoundedViewAndRejectReplayedOldEvents()
+    {
+        var feed = new PlatformLiveActionAggregation();
+        for (int index = 1; index <= 2048; index++)
+            Assert.True(feed.Apply(Event(index, RecordingEventKind.DecisionRecorded, "r-" + index)));
+        Assert.Equal(PlatformLiveActionAggregation.RetainedLimit, feed.Count);
+        Assert.False(feed.Counts.Exact);
+        Assert.False(feed.Apply(Event(1, RecordingEventKind.DecisionRecorded, "r-1")));
+        Assert.Equal(2048, feed.Recent(1)[0].FirstSequence);
+        feed.Reset();
+        Assert.True(feed.Apply(Event(1, RecordingEventKind.RootPending, "next-session")));
+    }
+
     private static RecordingEvent Event(
         long sequence,
         RecordingEventKind kind,
@@ -272,7 +355,15 @@ public sealed class PlatformLiveActionFeedTests
                 ? null
                 : action ?? (recordId == null
                     ? null
-                    : Action($"bound-{recordId}", "Thunderclap", "enemy-all")));
+                    : Action($"bound-{recordId}", "Thunderclap", "enemy-all") with {
+                        Disposition = kind switch {
+                            RecordingEventKind.DecisionRecorded => "recorded",
+                            RecordingEventKind.RootPending => "pending",
+                            RecordingEventKind.DecisionInvalidated => "failed_closed",
+                            RecordingEventKind.DecisionUnresolved => "unresolved",
+                            _ => null
+                        }
+                    }));
 
     private static RecordingActionProjection Action(
         string boundActionId,
