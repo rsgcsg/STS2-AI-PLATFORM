@@ -27,9 +27,10 @@ incidents follow docs/ANNOTATOR_COLLECTION.md and retain exact failed evidence.
 Opt-in release-bound collection tooling and an external persistent delivery
 outbox are specified in [ADR 0008](../adr/0008-release-bound-closed-session-delivery.md)
 and [Evidence delivery](../../components/evidence/DELIVERY.md). This changes no
-native Mod source or historical Human evidence. Cloud deployment and a new
-Close-to-receiver Human journey remain separate unproved gates.
+native Mod source or historical Human evidence. The dedicated first
+[Human Close-to-R2 audit](../evidence/B_PIPELINE_FIRST_HUMAN_UPLOAD_2026-09-13.md)
+passed at its exact historical source/runtime tuple.
 
 Delivery preflight now verifies actual fixed-tool/.NET/config/outbox/credential readiness.
 Game Mod deployment preserves explicit operator campaign/status locations. These portable
-repairs do not alter native C# semantics; new campaign upload still requires a Human gate.
+repairs do not alter native C# semantics; new campaigns still require their own scoped consent and first-upload gate.

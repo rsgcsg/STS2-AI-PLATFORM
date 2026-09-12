@@ -88,3 +88,6 @@ Dated reports under [`docs/evidence`](evidence/) prove only the exact source,
 artifact, runtime, and scope they name. Load the report linked by Status, the
 Full-Run matrix, or a PR when exact historical proof is relevant; it is not
 default newcomer or Codex context.
+
+- First dedicated Human Close-to-R2 gate and delivery diagnostic repair:
+  [bounded audit](evidence/B_PIPELINE_FIRST_HUMAN_UPLOAD_2026-09-13.md).

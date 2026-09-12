@@ -64,3 +64,6 @@ HTTP receipt recovery. See [ADR 0008](adr/0008-release-bound-closed-session-deli
 and [delivery operation](../components/evidence/DELIVERY.md). Native gameplay
 source and the PR25 Human artifact are unchanged. Real cloud deployment and a
 fresh Close-to-cloud Human delivery journey are not established by portable tests.
+
+- First dedicated Human Close-to-R2 gate and delivery diagnostic repair:
+  [bounded audit](evidence/B_PIPELINE_FIRST_HUMAN_UPLOAD_2026-09-13.md).
