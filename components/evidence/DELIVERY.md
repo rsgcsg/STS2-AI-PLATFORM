@@ -85,6 +85,14 @@ under a new interpretation. Status reports attempts and last error independently
 from decision dispositions. A network retry re-delivers evidence, never an
 unknown gameplay action.
 
+The receiver's explicit `verification_pending` response keeps the outbox `pending`
+with no error. Its `content_id` identifies the locally verified bundle; only a
+matching terminal receipt can make it `verified` or `quarantined`. Normal receipt
+polls still count as attempts and use the same bounded backoff. A real socket
+timeout remains a `TimeoutError` diagnostic. Older logs that used `TimeoutError`
+for both cases are ambiguous and remain unchanged; they cannot establish a
+network failure without additional evidence.
+
 Discovery requires `close_schema_version=1` and matching
 `session-close-receipt.json` (`session-close-1`). An absent seal remains
 `unsealed` in discovery counts; it is never silently promoted by elapsed time.

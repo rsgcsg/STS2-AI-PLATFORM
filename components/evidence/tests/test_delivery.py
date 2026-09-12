@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from sts2_platform_evidence.collection_tool import CollectionTool, canonical, digest
-from sts2_platform_evidence.delivery import DeliveryOutbox
+from sts2_platform_evidence.delivery import DeliveryOutbox, ReceiverVerificationPending
 from sts2_platform_evidence.delivery_cli import process_lock
 from sts2_platform_evidence.transfer import _inventory
 from tests import test_human_session_bundle_v3 as v3
@@ -77,6 +77,35 @@ class DeliveryTests(unittest.TestCase):
         self.assertEqual(restarted.drain_one(tool, self.receive, now=103)["status"], "verified")
         self.assertEqual(restarted.reconcile(source.parent)["existing"], 1)
         self.assertIsNone(restarted.drain_one(tool, self.receive, now=200))
+        self.assertEqual(_inventory(source), original)
+
+    def test_receiver_pending_is_progress_until_matching_receipt_and_socket_timeout_is_error(self) -> None:
+        outbox, tool, source = self._setup_delivery()
+        original = _inventory(source)
+        def pending(*_):
+            raise ReceiverVerificationPending()
+        def timeout(*_):
+            raise TimeoutError("socket stalled with private transport details")
+
+        first = outbox.drain_one(tool, timeout, now=100)
+        self.assertEqual((first["status"], first["error"], first["attempts"]),
+                         ("pending", "TimeoutError", 1))
+        observed = outbox.drain_one(tool, pending, now=103)
+        self.assertEqual((observed["status"], observed["error"], observed["receipt"], observed["attempts"]),
+                         ("pending", None, None, 2))
+        self.assertTrue(observed["content_id"])
+        self.assertEqual(observed["retry_at"], 107)
+        self.assertEqual(list((outbox.root / "receipts").glob("*.json")), [])
+        restarted = self._outbox()
+        self.assertIsNone(restarted.drain_one(tool, self.receive, now=106))
+        stalled = restarted.drain_one(tool, timeout, now=107)
+        self.assertEqual((stalled["status"], stalled["error"], stalled["attempts"]),
+                         ("pending", "TimeoutError", 3))
+        received = restarted.drain_one(tool, self.receive, now=116)
+        self.assertEqual((received["status"], received["error"], received["attempts"]),
+                         ("verified", None, 4))
+        self.assertEqual(received["content_id"], observed["content_id"])
+        self.assertEqual(tool.calls, 1)
         self.assertEqual(_inventory(source), original)
 
     def test_process_crash_after_remote_receive_replays_same_immutable_content(self) -> None:
