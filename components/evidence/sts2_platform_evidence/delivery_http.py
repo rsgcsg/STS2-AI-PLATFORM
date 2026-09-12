@@ -116,6 +116,8 @@ class HubTransport:
                 raise ValueError("persisted upload archive changed")
             upload_id = previous["upload_id"]
             status = self._json("GET", f"/v1/uploads/{upload_id}")
+            if status.get("status") == "transfer_failed":
+                raise ValueError("receiver transfer failed; explicit operator retry required")
             if status.get("receipt"):
                 return status["receipt"]
             if status.get("status") in {"pending", "verifying"}:
@@ -127,6 +129,8 @@ class HubTransport:
             "delivery_metadata": metadata,
         })
         upload_id = intent.get("upload_id")
+        if intent.get("status") == "transfer_failed":
+            raise ValueError("receiver transfer failed; explicit operator retry required")
         if not isinstance(upload_id, str) or not upload_id or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_" for c in upload_id):
             raise ValueError("invalid Hub upload ID")
         _atomic_json(attempt_file, {"upload_id": upload_id, "archive_sha256": archive_sha})
@@ -137,12 +141,16 @@ class HubTransport:
             raise ValueError("unsupported upload intent")
         self._validate_url(url, is_upload=True)
         headers = intent.get("upload_headers", {})
-        if not isinstance(headers, dict) or any(k.lower() in {"authorization", "cookie", "host", "content-length", "transfer-encoding"} for k in headers):
+        if not isinstance(headers, dict) or any(not isinstance(k, str) or not isinstance(v, str)
+                or k.lower() in {"authorization", "cookie", "host", "content-length", "transfer-encoding"}
+                for k, v in headers.items()):
             raise ValueError("upload intent contains forbidden headers")
         with archive.open("rb") as stream:
             self._request(urllib.request.Request(url, data=stream, method="PUT",
                 headers={**headers, "Content-Length": str(archive.stat().st_size)}), json_response=False)
         status = self._json("POST", f"/v1/uploads/{upload_id}/complete", {})
+        if status.get("status") == "transfer_failed":
+            raise ValueError("receiver transfer failed; explicit operator retry required")
         if status.get("receipt"):
             return status["receipt"]
         raise TimeoutError("cloud verification pending")

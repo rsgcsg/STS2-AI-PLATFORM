@@ -96,6 +96,12 @@ class HubTransportTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "changed"):
             third._archive(self.bundle, self.transfer)
 
+    def test_receiver_exhausted_transport_failure_is_not_retried_automatically(self) -> None:
+        transport = HubTransport("https://hub.example.com", "secret", self.root / "cache", allowed_upload_hosts=[])
+        transport._json = lambda *_: {"status": "transfer_failed", "upload_id": "upload1"}
+        with self.assertRaisesRegex(ValueError, "operator retry"):
+            transport(self.bundle, self.transfer, {})
+
 
 if __name__ == "__main__":
     unittest.main()

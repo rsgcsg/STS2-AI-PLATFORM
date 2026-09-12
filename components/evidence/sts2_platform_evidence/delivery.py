@@ -163,7 +163,8 @@ class DeliveryOutbox:
                             "collection_tool": tool.manifest}
                 _atomic_json(self.root / "metadata" / f"{key}.json", metadata)
                 receipt = transport(bundle, manifest, metadata)
-                if (receipt.get("schema") != "stpd/receive-receipt-v1"
+                if (not isinstance(receipt, dict)
+                        or receipt.get("schema") != "stpd/receive-receipt-v1"
                         or receipt.get("content_id") != manifest.content_id
                         or receipt.get("manifest_sha256") != manifest.manifest_sha256
                         or receipt.get("status") not in {"verified", "quarantined"}

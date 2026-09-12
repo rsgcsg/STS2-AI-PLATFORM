@@ -118,6 +118,9 @@ training policy:
    `receipt_id`, `status=verified|quarantined`, `content_id`,
    `manifest_sha256`, and findings. Both identities must match the local transfer.
 
+A receiver `transfer_failed` status stops automatic attempts and requires explicit
+operator recovery; it is neither a verified nor quarantined semantic receipt.
+
 The server must key retries by content ID and transfer-manifest hash, retain
 verified immutable objects, reject content collisions, and independently verify
 staged bytes before receipt. Expired presigned URLs are refreshed by repeating
