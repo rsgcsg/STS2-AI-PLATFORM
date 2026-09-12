@@ -1,0 +1,52 @@
+{
+  "schema": "sts2.platform/b-human-canary-repair-1",
+  "source_revision": "a647f11609ee083adef64217faecfc612c522585",
+  "base": "a43e0cc8095107291e2b3ac2882faa7b7e9cc70e",
+  "evidence_version": "0.1.0-rc.5",
+  "companion_source": "2f0c36e3a15dfc895c1a97007a78fa7b44a022a6",
+  "CI": 34703861972,
+  "source_gates": {
+    "root": "PASS",
+    "closeout": "PASS",
+    "annotator_core_tests": 258,
+    "evidence_tests": 66,
+    "independent_review": "PASS"
+  },
+  "historical_human_evidence": {
+    "platform_source": "d09552130d5aad0639b5d5358bc3acfed49ba493",
+    "receiver_source": "99aa8199dbbcee7c600fcdb5b923168214e92635",
+    "accepted": 413,
+    "proved": 412,
+    "canonical": 412,
+    "native_cancellations": 1,
+    "real_failures": 0,
+    "unresolved": 0,
+    "diagnostic_invalidations": 44,
+    "canonical_children": 47,
+    "native_starts": 1,
+    "native_natural_defeats": 1,
+    "origin": "explicit_owner_attestation_not_machine_proof",
+    "content_id": "eb9f9498bc0eba0a4ca0a024fcdde358e9401ed2ab80a6588b979f2d8f199c6d",
+    "archive_sha256": "3db85d2ba71eb5eb5475b6d120adb6fe1411c4ffadc7da736c1bc1243286a308",
+    "raw_files_unchanged": 1486
+  },
+  "native_mod_sha256": "af4dfd93a4236b50aadbff8e9c055a519b20e842c582ab392d7748845df40cc8",
+  "native_semantics_changed": false,
+  "repair": "Explicit receiver verification progress no longer looks like transport timeout; states/backoff/old receipts unchanged",
+  "evidence_sha256": {
+    "platform-root-gate-final.log": "74de05a1219c4855ab9c6e19698459a42118899312f5a81076023166cab001fa",
+    "platform-closeout-final.log": "3c19b94243eb7be59444c55ae1c64afdf7f45e9a63b694f4a002e5076d11fff8",
+    "ci-final.json": "8110a89eca442b15ceb52446f4aef1d00ff14b039c6df24f2030c252c442cef3",
+    "audit.json": "eb6bf74ab3bbcbb5456b3cbf3a00f63c04903d17f75c24b836789298d45e03cc",
+    "release-tool-audit.json": "eb6bf74ab3bbcbb5456b3cbf3a00f63c04903d17f75c24b836789298d45e03cc",
+    "native-semantic.json": "5202323d00e9a02c6ce0849ccc1d4049473001db59984c4ab1ed98df67c6b432",
+    "calibration.json": "e9e2e5435a02d6d9df7d16ac7c2461d68ae4da9d43e039dd55fc7a70b74f3bb4",
+    "raw-inventory.json": "889e1429acdf6de04d4f3bfa978bca92bc1ad1264d2fcfaddbc5a4f5dba53327"
+  },
+  "non_claims": [
+    "No new native build or gameplay run for external Python-only repair",
+    "No unseen content/crash-recovery/non-interference qualification",
+    "No Dataset training or GPU work",
+    "No merge or stable-release promotion"
+  ]
+}
