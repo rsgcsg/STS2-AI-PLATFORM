@@ -1,0 +1,110 @@
+{
+  "schema": "sts2.platform/b-final-closeout-receipt-1",
+  "observed_at": "2026-09-12T14:40:08.625765+00:00",
+  "status": "SOURCE_BUILD_INSTALL_LOAD_AND_DELIVERY_SERVICE_PASS_PENDING_HUMAN_CLOSE",
+  "base": "a43e0cc8095107291e2b3ac2882faa7b7e9cc70e",
+  "source_revision": "d09552130d5aad0639b5d5358bc3acfed49ba493",
+  "evidence_version": "0.1.0-rc.4",
+  "stpd_source": "99aa8199dbbcee7c600fcdb5b923168214e92635",
+  "ci": 34698025643,
+  "gates": {
+    "full_root": "PASS",
+    "exact_game": "PASS",
+    "build": "PASS",
+    "install": "PASS",
+    "loaded": "PASS",
+    "independent_review": "PASS"
+  },
+  "mod_sha256": "af4dfd93a4236b50aadbff8e9c055a519b20e842c582ab392d7748845df40cc8",
+  "mod_mvid": "1d53eae8-3353-4802-88fa-0eb3538fa217",
+  "native_byte_identity": "same bytes as previously Human-tested PR25 rc4; no new Human gate claim",
+  "collection_tool_release_id": "46a832f30ab97ba2dab34879d1cf70d95f6ede67dcf40f1c31b4900929ec13a4",
+  "terminal": {
+    "dedicated_empty_recording_root": true,
+    "outbox_created": false,
+    "delivery_started": false,
+    "attestation": "PENDING_EXPLICIT_CAMPAIGN_SCOPE"
+  },
+  "consumer_service_receipt_sha256": "cb5195c039379d06a70ca2d3abd6d7047f20d363a9255c70a32715868ace52b4",
+  "consumer_service_notes": "refs/notes/stpd-b-final-closeout",
+  "dependency_triage": {
+    "schema": "sts2.platform/dependency-risk-triage-1",
+    "observed_at": "2026-09-12T14:03:47.988627+00:00",
+    "source_revision": "d09552130d5aad0639b5d5358bc3acfed49ba493",
+    "source_modified": false,
+    "lock_sha256": {
+      "package-lock.json": "09d3003ebede9abddf4af1b6673db5da5bb337fe933e69dcb371f62445b3ce96",
+      "components/connector/sdk/typescript/package-lock.json": "f856cf965d3dc510dcc4e2aa24e063f64fe8743c076b5c5922038572890e0d0f"
+    },
+    "input_audit": {
+      "path": "npm-audit.json",
+      "sha256": "a01db6ada4f79e23e7acdd771e5aa3792dd256d17084d8db799b2db8a38dccd2"
+    },
+    "additional_audits": {
+      "npm-audit-production.json": {
+        "exit_code": 0,
+        "vulnerabilities": {
+          "info": 0,
+          "low": 0,
+          "moderate": 0,
+          "high": 0,
+          "critical": 0,
+          "total": 0
+        }
+      },
+      "npm-audit-sdk-lock.json": {
+        "exit_code": 1,
+        "vulnerabilities": {
+          "info": 0,
+          "low": 0,
+          "moderate": 2,
+          "high": 0,
+          "critical": 0,
+          "total": 2
+        }
+      }
+    },
+    "advisory": "https://github.com/vitest-dev/vitest/security/advisories/GHSA-82fw-gwwq-j7x9",
+    "installed": {
+      "vitest": "3.2.7",
+      "@vitest/mocker": "3.2.7"
+    },
+    "classification": "nonblocking_dev_dependency_maintenance_current_supported_paths_not_exposed",
+    "findings": "Two moderate package findings refer to one advisory. Both root and standalone SDK lock entries are dev-only.",
+    "actual_consumers": [
+      "Connector SDK and Policy Runtime test scripts use vitest run; no Vitest browser/config or public mockerPlugin/interceptorPlugin use found.",
+      "Production src/dist searches contain no vitest/vite/mocker imports; compiler builds only src and excludes tests.",
+      "Connector pack tool allows only dist and package metadata/README/LICENSE; no node_modules or test package bytes.",
+      "Game Mod build packages STS2_PLATFORM.dll and STS2_PLATFORM.json; npm test tooling is not in that package."
+    ],
+    "exploit_scope": "Official advisory unauthenticated path requires exposed standalone mockerPlugin/interceptorPlugin dev-server WebSocket; this path is not used by current source. Vitest browser mode requires per-run token.",
+    "next_maintenance_change": "Update both direct Vitest devDependencies to patched stable 4.1.11 or newer qualified v4; regenerate root and nested SDK locks, run both TS checks/builds then root/full latest-head CI. Do not override @vitest/mocker alone across major versions.",
+    "fixed_stable": "4.1.11",
+    "backport": "Official advisory states 2.x/3.x unmaintained and no fix planned.",
+    "non_claims": [
+      "No whole-system vulnerability-free claim",
+      "No package exploit execution",
+      "No scan of OCI OS/Python/.NET dependencies",
+      "No certification of arbitrary future developer-exposed dev servers",
+      "No dependency updates implemented in this triage"
+    ]
+  },
+  "non_claims": [
+    "New native Human run or Close-to-cloud",
+    "Whole-content Full-Run coverage",
+    "Player one-click installer or non-macOS native load",
+    "STPD research admission GPU or model quality"
+  ],
+  "evidence_sha256": {
+    "portable.log": "18508dd471a648d4eef72000ce4e02c36302988f72f32a189f12d3532b3bea46",
+    "exact-game.log": "0edb0eb378b7512088d18a684f5d11a708f032ae9fa4a5af00a1cadfcd5cf364",
+    "collection-tool.log": "2549ae55fe5acae4f37c36a20fb196ccf973aefba98516cbf7cf719b7da4ce85",
+    "project-closeout.json": "9d9643718616256c70be356cc28cd3047176437bc718df18964f13e8a03fcb3c",
+    "doctor.json": "60f9e1aff26e6032237620debb8eb626e657a1d6b4cd2e38fc263fc0b6133dcf",
+    "deploy.json": "4455fd6725ea1d7f2f904ef87aa4b572b4889a08bae238c845c884c73c763720",
+    "launch.json": "bbcd9578e0305c68cf0e5712bfcbf7d1cd93e11736ca5e6c4b0cc14b9147530d",
+    "loaded.json": "3ffdf0a9ec1a9d89e77a57a3fd1f64ed8d4a080e89dc7a2460b9287d77089d6e",
+    "ci-final.json": "da889aee8a123f54eb7c59a8852f7d3836967fdb20c53b930446875db15241a1",
+    "dependency-risk-triage.json": "d6b95bfe05a61734be6ce5b7ee2fad1213bfce7d1a4444bc1ff802d8fcd4b044"
+  }
+}
