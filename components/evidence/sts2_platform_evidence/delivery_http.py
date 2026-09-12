@@ -85,7 +85,7 @@ class HubTransport:
             return archive
         temporary = archive.with_suffix(".partial")
         total = sum(item.bytes for item in transfer.files)
-        if total > self.max_archive_bytes or len(transfer.files) > 100000:
+        if total > self.max_archive_bytes or len(transfer.files) > 50000:
             raise ValueError("transfer exceeds configured delivery limits")
         with temporary.open("wb") as output:
             with gzip.GzipFile(filename="", fileobj=output, mode="wb", mtime=0) as compressed:
@@ -105,6 +105,23 @@ class HubTransport:
         os.replace(temporary, archive)
         return archive
 
+    @staticmethod
+    def _disposition(response: dict[str, Any], *, allow_upload: bool = False) -> dict[str, Any] | None:
+        """Only the receiver's named awaiting state authorizes another PUT."""
+        status = response.get("status")
+        if status == "transfer_failed":
+            raise ValueError("receiver transfer failed; explicit operator retry required")
+        if status == "verification_pending":
+            raise TimeoutError("cloud verification pending")
+        if status in {"verified", "quarantined"}:
+            receipt = response.get("receipt")
+            if not isinstance(receipt, dict) or receipt.get("status") != status:
+                raise ValueError("receiver terminal status lacks its matching receipt")
+            return receipt
+        if status == "awaiting_upload" and allow_upload:
+            return None
+        raise ValueError("unsupported receiver upload state")
+
     def __call__(self, bundle: Path, transfer: DirectoryTransferManifest,
                  metadata: dict[str, Any]) -> dict[str, Any]:
         archive = self._archive(bundle, transfer)
@@ -116,12 +133,9 @@ class HubTransport:
                 raise ValueError("persisted upload archive changed")
             upload_id = previous["upload_id"]
             status = self._json("GET", f"/v1/uploads/{upload_id}")
-            if status.get("status") == "transfer_failed":
-                raise ValueError("receiver transfer failed; explicit operator retry required")
-            if status.get("receipt"):
-                return status["receipt"]
-            if status.get("status") in {"pending", "verifying"}:
-                raise TimeoutError("cloud verification pending")
+            receipt = self._disposition(status, allow_upload=True)
+            if receipt is not None:
+                return receipt
         # Re-request by content/manifest identity to refresh an expired presigned URL.
         intent = self._json("POST", "/v1/uploads", {
             "schema": "stpd/upload-intent-v1", "transfer_manifest": transfer.to_dict(),
@@ -129,13 +143,16 @@ class HubTransport:
             "delivery_metadata": metadata,
         })
         upload_id = intent.get("upload_id")
-        if intent.get("status") == "transfer_failed":
-            raise ValueError("receiver transfer failed; explicit operator retry required")
         if not isinstance(upload_id, str) or not upload_id or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_" for c in upload_id):
             raise ValueError("invalid Hub upload ID")
         _atomic_json(attempt_file, {"upload_id": upload_id, "archive_sha256": archive_sha})
-        if intent.get("receipt"):
-            return intent["receipt"]
+        # An already received content ID can be returned to a newly installed client.
+        # The intent endpoint may expose status only; query its durable receipt.
+        if intent.get("status") in {"verified", "quarantined"} and not intent.get("receipt"):
+            intent = self._json("GET", f"/v1/uploads/{upload_id}")
+        receipt = self._disposition(intent, allow_upload=True)
+        if receipt is not None:
+            return receipt
         url = intent.get("upload_url")
         if not isinstance(url, str) or intent.get("upload_method") != "PUT":
             raise ValueError("unsupported upload intent")
@@ -149,8 +166,4 @@ class HubTransport:
             self._request(urllib.request.Request(url, data=stream, method="PUT",
                 headers={**headers, "Content-Length": str(archive.stat().st_size)}), json_response=False)
         status = self._json("POST", f"/v1/uploads/{upload_id}/complete", {})
-        if status.get("status") == "transfer_failed":
-            raise ValueError("receiver transfer failed; explicit operator retry required")
-        if status.get("receipt"):
-            return status["receipt"]
-        raise TimeoutError("cloud verification pending")
+        return self._disposition(status)  # type: ignore[return-value]

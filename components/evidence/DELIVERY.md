@@ -59,7 +59,10 @@ python -m sts2_platform_evidence.delivery_cli status --config /absolute/delivery
 
 `run --once` performs one discovery cycle and at most ten eligible attempts.
 Continuous mode defaults to five seconds between cycles. SIGTERM/SIGINT stops
-after the current bounded attempt. The project entry point can manage this
+after the current attempt. HTTP timeouts bound socket inactivity, not total
+wall-clock upload duration; a supervising workbench can terminate its own child
+and restart from durable state. The collection subprocess has a 600-second
+hard timeout. No end-to-end network latency SLO is claimed. The project entry point can manage this
 process; it does not need to keep the game alive. An OS lifetime lock prevents
 a second background worker, including when its previous parent was killed; it
 does not guess ownership from a PID. Local SQLite serializes one
@@ -113,7 +116,7 @@ training policy:
    bearer is sent to storage. Only explicitly configured HTTPS hosts are allowed;
    loopback HTTP requires the explicit test-only option. Redirects are rejected.
 4. `POST /v1/uploads/{id}/complete` starts/queries independent verification.
-5. `GET /v1/uploads/{id}` recovers after restart. `pending`/`verifying` is not
+5. `GET /v1/uploads/{id}` recovers after restart. `verification_pending` is not
    success. A terminal receipt contains `schema=stpd/receive-receipt-v1`,
    `receipt_id`, `status=verified|quarantined`, `content_id`,
    `manifest_sha256`, and findings. Both identities must match the local transfer.

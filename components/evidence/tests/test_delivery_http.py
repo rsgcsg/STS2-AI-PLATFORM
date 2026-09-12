@@ -45,13 +45,16 @@ class HubTransportTests(unittest.TestCase):
                     self.reply({"upload_id": "upload1", "upload_method": "PUT", "upload_headers": {},
                                 "upload_url": f"http://127.0.0.1:{self.server.server_port}/object", "status": "awaiting_upload"})
                 else:
-                    self.reply({"upload_id": "upload1", "status": "verifying"})
+                    self.reply({"upload_id": "upload1", "status": "verification_pending"})
             def do_PUT(self):
                 facts["puts"] += 1
                 facts["storage_auth"] = self.headers.get("Authorization")
                 facts["archive"] = self.rfile.read(int(self.headers["Content-Length"]))
                 self.reply({})
             def do_GET(self):
+                if not facts["ready"]:
+                    self.reply({"upload_id": "upload1", "status": "verification_pending", "receipt": None})
+                    return
                 self.reply({"upload_id": "upload1", "status": "verified", "receipt": {
                     "receipt_id": "upload1", "status": "verified", "content_id": transfer.content_id,
                     "manifest_sha256": transfer.manifest_sha256}})
@@ -64,6 +67,9 @@ class HubTransportTests(unittest.TestCase):
                                     allowed_upload_hosts=["127.0.0.1"], allow_loopback_http=True)
             with self.assertRaises(TimeoutError):
                 transport()(self.bundle, transfer, {"tool_release_id": "b" * 64})
+            with self.assertRaises(TimeoutError):
+                transport()(self.bundle, transfer, {})
+            facts["ready"] = True
             self.assertEqual(transport()(self.bundle, transfer, {})["status"], "verified")
             self.assertEqual(facts["puts"], 1)
             self.assertIsNone(facts["storage_auth"])
@@ -101,6 +107,25 @@ class HubTransportTests(unittest.TestCase):
         transport._json = lambda *_: {"status": "transfer_failed", "upload_id": "upload1"}
         with self.assertRaisesRegex(ValueError, "operator retry"):
             transport(self.bundle, self.transfer, {})
+
+    def test_fresh_client_recovers_existing_terminal_receipt_without_put(self) -> None:
+        transport = HubTransport("https://hub.example.com", "secret", self.root / "cache", allowed_upload_hosts=[])
+        calls = []
+        def request(method, path, *_):
+            calls.append((method, path))
+            if method == "POST":
+                return {"status": "verified", "upload_id": "upload1"}
+            return {"status": "verified", "upload_id": "upload1", "receipt": {
+                "status": "verified", "content_id": self.transfer.content_id}}
+        transport._json = request
+        self.assertEqual(transport(self.bundle, self.transfer, {})["status"], "verified")
+        self.assertEqual(calls, [("POST", "/v1/uploads"), ("GET", "/v1/uploads/upload1")])
+
+    def test_unknown_receiver_state_does_not_authorize_put_or_invent_pending(self) -> None:
+        for status in ("unexpected", "pending", "verifying", "verified"):
+            with self.subTest(status=status):
+                with self.assertRaises(ValueError):
+                    HubTransport._disposition({"status": status}, allow_upload=True)
 
 
 if __name__ == "__main__":
