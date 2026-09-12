@@ -60,7 +60,9 @@ python -m sts2_platform_evidence.delivery_cli status --config /absolute/delivery
 `run --once` performs one discovery cycle and at most ten eligible attempts.
 Continuous mode defaults to five seconds between cycles. SIGTERM/SIGINT stops
 after the current bounded attempt. The project entry point can manage this
-process; it does not need to keep the game alive. Local SQLite serializes one
+process; it does not need to keep the game alive. An OS lifetime lock prevents
+a second background worker, including when its previous parent was killed; it
+does not guess ownership from a PID. Local SQLite serializes one
 writer with a process-owned transaction, so no expired wall-clock lease can
 overlap two delivery attempts. Read-only status uses WAL. A restarted process
 rediscovers closed sessions and reuses identical published bytes.

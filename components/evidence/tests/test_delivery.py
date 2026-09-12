@@ -8,6 +8,7 @@ from pathlib import Path
 
 from sts2_platform_evidence.collection_tool import CollectionTool, canonical, digest
 from sts2_platform_evidence.delivery import DeliveryOutbox
+from sts2_platform_evidence.delivery_cli import process_lock
 from sts2_platform_evidence.transfer import _inventory
 from tests import test_human_session_bundle_v3 as v3
 
@@ -141,6 +142,14 @@ class DeliveryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "attestation"):
             DeliveryOutbox(self.root / "outbox", worker_id="worker", campaign_id="campaign",
                            human_origin_attested=False, tool_release_id="a" * 64)
+
+    def test_os_lifetime_lock_survives_idle_and_releases_after_exit(self) -> None:
+        with process_lock(self.root):
+            with self.assertRaisesRegex(ValueError, "already owns"):
+                with process_lock(self.root):
+                    self.fail("second worker acquired lock")
+        with process_lock(self.root):
+            pass
 
 
 class CollectionToolTests(unittest.TestCase):

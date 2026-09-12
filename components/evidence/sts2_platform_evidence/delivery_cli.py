@@ -7,11 +7,44 @@ import json
 import os
 import signal
 import threading
+from contextlib import contextmanager
+from collections.abc import Iterator
 from pathlib import Path
 
 from .collection_tool import CollectionTool, read_json
 from .delivery import DeliveryOutbox, reconcile_and_drain
 from .delivery_http import HubTransport
+
+
+@contextmanager
+def process_lock(root: Path) -> Iterator[None]:
+    """OS lifetime lock; an orphan child blocks a second worker without PID guessing."""
+    with (root / "worker.lock").open("a+b") as stream:
+        if os.name == "nt":
+            import msvcrt
+            if stream.tell() == 0:
+                stream.write(b"0")
+                stream.flush()
+            stream.seek(0)
+            try:
+                msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+            except OSError:
+                raise ValueError("a delivery worker already owns this outbox") from None
+            try:
+                yield
+            finally:
+                stream.seek(0)
+                msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+            try:
+                fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                raise ValueError("a delivery worker already owns this outbox") from None
+            try:
+                yield
+            finally:
+                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -23,6 +56,9 @@ def main(argv: list[str] | None = None) -> int:
     config = read_json(args.config)
     if config.get("schema") != "sts2.evidence/delivery-config-1":
         raise ValueError("unsupported delivery config")
+    for name in ("recordings_root", "outbox_root", "tool_directory"):
+        if not isinstance(config.get(name), str) or not Path(config[name]).is_absolute():
+            raise ValueError(f"{name} must be an absolute path")
     outbox = DeliveryOutbox(config["outbox_root"], worker_id=config["worker_id"],
         campaign_id=config["campaign_id"], human_origin_attested=config["human_origin_attested"],
         tool_release_id=config["tool_release_id"])
@@ -39,14 +75,15 @@ def main(argv: list[str] | None = None) -> int:
     stop = threading.Event()
     for event in (signal.SIGINT, signal.SIGTERM):
         signal.signal(event, lambda *_: stop.set())
-    while not stop.is_set():
-        result = reconcile_and_drain(outbox, Path(config["recordings_root"]), tool, transport)
-        print(json.dumps({"discovery": result["discovery"],
-                          "processed": [{k: row[k] for k in ("id", "status", "attempts", "content_id", "error")}
-                                        for row in result["processed"]]}, sort_keys=True), flush=True)
-        if args.once:
-            break
-        stop.wait(interval)
+    with process_lock(outbox.root):
+        while not stop.is_set():
+            result = reconcile_and_drain(outbox, Path(config["recordings_root"]), tool, transport)
+            print(json.dumps({"discovery": result["discovery"],
+                              "processed": [{k: row[k] for k in ("id", "status", "attempts", "content_id", "error")}
+                                            for row in result["processed"]]}, sort_keys=True), flush=True)
+            if args.once:
+                break
+            stop.wait(interval)
     return 0
 
 
