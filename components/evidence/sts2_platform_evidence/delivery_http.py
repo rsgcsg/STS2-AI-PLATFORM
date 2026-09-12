@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from .collection_tool import canonical, read_json
-from .delivery import _atomic_json
+from .delivery import ReceiverVerificationPending, _atomic_json
 from .transfer import DirectoryTransferManifest, _sha256_file
 
 
@@ -112,7 +112,7 @@ class HubTransport:
         if status == "transfer_failed":
             raise ValueError("receiver transfer failed; explicit operator retry required")
         if status == "verification_pending":
-            raise TimeoutError("cloud verification pending")
+            raise ReceiverVerificationPending()
         if status in {"verified", "quarantined"}:
             receipt = response.get("receipt")
             if not isinstance(receipt, dict) or receipt.get("status") != status:

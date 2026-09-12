@@ -9,6 +9,7 @@ import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from sts2_platform_evidence.delivery import ReceiverVerificationPending
 from sts2_platform_evidence.delivery_http import HubTransport
 from sts2_platform_evidence.transfer import DirectoryTransferManifest
 
@@ -65,9 +66,9 @@ class HubTransportTests(unittest.TestCase):
             def transport():
                 return HubTransport(f"http://127.0.0.1:{server.server_port}", "fixture-secret", self.root / "cache",
                                     allowed_upload_hosts=["127.0.0.1"], allow_loopback_http=True)
-            with self.assertRaises(TimeoutError):
+            with self.assertRaises(ReceiverVerificationPending):
                 transport()(self.bundle, transfer, {"tool_release_id": "b" * 64})
-            with self.assertRaises(TimeoutError):
+            with self.assertRaises(ReceiverVerificationPending):
                 transport()(self.bundle, transfer, {})
             facts["ready"] = True
             self.assertEqual(transport()(self.bundle, transfer, {})["status"], "verified")

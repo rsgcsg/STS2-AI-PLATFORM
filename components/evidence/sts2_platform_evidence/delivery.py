@@ -27,6 +27,14 @@ class Transport(Protocol):
                  metadata: dict[str, Any]) -> dict[str, Any]: ...
 
 
+class ReceiverVerificationPending(Exception):
+    """The receiver explicitly accepted work and has no terminal receipt yet.
+
+    This is observed protocol progress, not a socket timeout or verification
+    success. The outbox retries the same identity until it has a matching receipt.
+    """
+
+
 def _atomic_json(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(path.name + ".partial")
@@ -173,6 +181,12 @@ class DeliveryOutbox:
                 _atomic_json(self.root / "receipts" / f"{key}.json", receipt)
                 db.execute("UPDATE sessions SET status=?,content_id=?,receipt=?,error=NULL,attempts=attempts+1 WHERE id=?",
                            (receipt["status"], manifest.content_id, canonical(receipt).decode(), key))
+            except ReceiverVerificationPending:
+                # A normal asynchronous receiver state must not look like a failed
+                # request. Content identity is local verification, not a receipt.
+                delay = min(3600, 2 ** min(row["attempts"] + 1, 11))
+                db.execute("UPDATE sessions SET attempts=attempts+1,retry_at=?,content_id=?,error=NULL WHERE id=?",
+                           (timestamp + delay, manifest.content_id, key))
             except (OSError, TimeoutError) as error:
                 # Network retry never repeats a game action. No secrets/URLs are retained from transport errors.
                 delay = min(3600, 2 ** min(row["attempts"] + 1, 11))
