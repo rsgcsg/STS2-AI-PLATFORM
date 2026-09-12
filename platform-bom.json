@@ -28,9 +28,9 @@
     },
     "evidence": {
       "version": "0.1.0-rc.3",
-      "source_revision": "3dfa227027f816a7b7a125e921c5014f9444128d",
-      "component_tree_revision": "edc23eb5b5e778dac21efe539f9925775059d0f0",
-      "component_source_digest_sha256": "fafb9e949fff64483f7e35f29cd224d7700863d1d4ed30ee5d0dd5c44ba4595a"
+      "source_revision": "8b343f6388f76a800484acc32dd77d9ef06cf4ac",
+      "component_tree_revision": "f26c19dc3f64ad58f10c7f3dbdb4d6da612fbb31",
+      "component_source_digest_sha256": "d3129a327b8fc5eb5f7a8dab2a196440f36f289c00bcdf908dd11a215056323c"
     },
     "policy_runtime": {
       "version": "0.1.0-rc.1",
@@ -1226,9 +1226,9 @@
       },
       "evidence": {
         "version": "0.1.0-rc.3",
-        "source_revision": "3dfa227027f816a7b7a125e921c5014f9444128d",
-        "component_tree_revision": "edc23eb5b5e778dac21efe539f9925775059d0f0",
-        "component_source_digest_sha256": "fafb9e949fff64483f7e35f29cd224d7700863d1d4ed30ee5d0dd5c44ba4595a"
+        "source_revision": "8b343f6388f76a800484acc32dd77d9ef06cf4ac",
+        "component_tree_revision": "f26c19dc3f64ad58f10c7f3dbdb4d6da612fbb31",
+        "component_source_digest_sha256": "d3129a327b8fc5eb5f7a8dab2a196440f36f289c00bcdf908dd11a215056323c"
       },
       "live_ui": {
         "version": "0.1.0-rc.2",
