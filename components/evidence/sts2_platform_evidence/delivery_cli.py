@@ -11,8 +11,9 @@ from contextlib import contextmanager
 from collections.abc import Iterator
 from pathlib import Path
 
-from .collection_tool import CollectionTool, read_json
+from .collection_tool import CollectionTool
 from .delivery import DeliveryOutbox, reconcile_and_drain
+from .delivery_config import DeliveryConfig, doctor, inspect_outbox
 from .delivery_http import HubTransport
 
 
@@ -49,41 +50,36 @@ def process_lock(root: Path) -> Iterator[None]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="sts2-evidence-delivery")
-    parser.add_argument("command", choices=["run", "status"])
+    parser.add_argument("command", choices=["run", "status", "doctor"])
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--once", action="store_true")
     args = parser.parse_args(argv)
-    config = read_json(args.config)
-    if config.get("schema") != "sts2.evidence/delivery-config-1":
-        raise ValueError("unsupported delivery config")
-    for name in ("recordings_root", "outbox_root", "tool_directory"):
-        if not isinstance(config.get(name), str) or not Path(config[name]).is_absolute():
-            raise ValueError(f"{name} must be an absolute path")
-    outbox = DeliveryOutbox(config["outbox_root"], worker_id=config["worker_id"],
-        campaign_id=config["campaign_id"], human_origin_attested=config["human_origin_attested"],
-        tool_release_id=config["tool_release_id"])
+    if args.command in {"doctor", "run"}:
+        report = doctor(args.config)
+        if args.command == "doctor" or report["status"] != "PASS":
+            print(json.dumps(report, sort_keys=True))
+            return 0 if report["status"] == "PASS" else 1
+    config = DeliveryConfig.load(args.config)
     if args.command == "status":
-        print(json.dumps({"schema": "sts2.evidence/delivery-status-1", "sessions": outbox.status()}, sort_keys=True))
+        print(json.dumps({"schema": "sts2.evidence/delivery-status-1", "sessions": inspect_outbox(config)}, sort_keys=True))
         return 0
-    tool = CollectionTool(config["tool_directory"], config["tool_release_id"], dotnet=config.get("dotnet", "dotnet"))
-    transport = HubTransport(config["hub_url"], os.environ.get("STPD_HUB_TOKEN", ""),
-        Path(config["outbox_root"]) / "archives", allowed_upload_hosts=config["allowed_upload_hosts"],
-        allow_loopback_http=config.get("allow_loopback_http", False))
-    interval = config.get("poll_seconds", 5)
-    if not isinstance(interval, (int, float)) or isinstance(interval, bool) or not 1 <= interval <= 300:
-        raise ValueError("poll_seconds must be between 1 and 300")
+    outbox = DeliveryOutbox(config.outbox_root, **config.identity)
+    tool = CollectionTool(config.tool_directory, config.tool_release_id, dotnet=config.dotnet)
+    transport = HubTransport(config.hub_url, os.environ.get("STPD_HUB_TOKEN", ""),
+        config.outbox_root / "archives", allowed_upload_hosts=config.allowed_upload_hosts,
+        allow_loopback_http=config.allow_loopback_http)
     stop = threading.Event()
     for event in (signal.SIGINT, signal.SIGTERM):
         signal.signal(event, lambda *_: stop.set())
     with process_lock(outbox.root):
         while not stop.is_set():
-            result = reconcile_and_drain(outbox, Path(config["recordings_root"]), tool, transport)
+            result = reconcile_and_drain(outbox, config.recordings_root, tool, transport)
             print(json.dumps({"discovery": result["discovery"],
                               "processed": [{k: row[k] for k in ("id", "status", "attempts", "content_id", "error")}
                                             for row in result["processed"]]}, sort_keys=True), flush=True)
             if args.once:
                 break
-            stop.wait(interval)
+            stop.wait(config.poll_seconds)
     return 0
 
 
