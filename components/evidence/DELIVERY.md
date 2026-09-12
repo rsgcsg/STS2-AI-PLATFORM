@@ -53,6 +53,7 @@ audit. The Hub token is read only from `STPD_HUB_TOKEN`, not the config or logs.
 The token is a transport-edge credential, not STPD research policy.
 
 ```bash
+python -m sts2_platform_evidence.delivery_cli doctor --config /absolute/delivery.json
 python -m sts2_platform_evidence.delivery_cli run --config /absolute/delivery.json
 python -m sts2_platform_evidence.delivery_cli status --config /absolute/delivery.json
 ```
@@ -138,3 +139,26 @@ concurrent writers, receiver identity mismatch, pending HTTP recovery, exact
 archive membership and credential/host boundaries. They do not establish a
 real cloud account, real R2/Hub deployment, GPU work, or a new Human delivery
 canary. Those belong to the coordinated project's exact runtime gates.
+
+## Terminal preflight and campaign isolation
+
+`doctor` returns the versioned `delivery-doctor-1` report and blocks on invalid config,
+missing credential, unusable collection-tool bytes/runtime, conflicting outbox identity or
+invalid local paths. It executes the pinned tool's read-only identity command to prove the
+actual .NET load. It never sends network requests, initializes/enrolls an outbox or changes
+its logical records. SQLite read-only access may create WAL/SHM reader-coordination files;
+it does not ignore an existing WAL. `status` likewise does not initialize a missing outbox.
+
+Inspect the reported discovered session count before starting delivery. All sealed sessions
+under the selected root are eligible for discovery: use an initially empty dedicated campaign
+recording root and separate new outbox for first Human upload. Do not infer consent from
+timestamps or assume only the next Close will upload. Configure the Mod's `recording_root`
+through its supported config/environment before cold load. Deployment preserves valid
+operator recording/status paths and rejects malformed existing configuration. Unset process
+environment overrides when expecting the config file to apply.
+
+The fixed tool release is built once by the operator; the exact Evidence package is supplied
+by the consuming workbench lock. A local `publish:collection-tool` output is not a hosted
+release or self-contained player installer. Distribution instructions are coordinated in
+the consumer's versioned terminal handoff; Platform remains the owner of preflight and
+recording/tool contracts. A PASS here is local readiness, not Human attestation or cloud IAM.

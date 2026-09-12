@@ -29,3 +29,7 @@ outbox are specified in [ADR 0008](../adr/0008-release-bound-closed-session-deli
 and [Evidence delivery](../../components/evidence/DELIVERY.md). This changes no
 native Mod source or historical Human evidence. Cloud deployment and a new
 Close-to-receiver Human journey remain separate unproved gates.
+
+Delivery preflight now verifies actual fixed-tool/.NET/config/outbox/credential readiness.
+Game Mod deployment preserves explicit operator campaign/status locations. These portable
+repairs do not alter native C# semantics; new campaign upload still requires a Human gate.
