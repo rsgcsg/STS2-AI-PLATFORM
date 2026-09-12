@@ -66,3 +66,10 @@ promotion. A failed or partial artifact is quarantined and never becomes an
 admitted object. Each receive attempt also publishes a non-authorizing
 `store-status.json` containing its last receipt so the read-only Workbench can
 show operational state without reimplementing verification.
+
+## Automatic closed-session delivery
+
+The opt-in [delivery service](DELIVERY.md) consumes a fixed collection-tool release,
+reconciles durable Close receipts, and persists packing/upload/receiver state
+outside the game. Its public Python CLI supports background use and status.
+Evidence transfer is separate from game authority and research admission.

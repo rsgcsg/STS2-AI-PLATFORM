@@ -67,6 +67,9 @@ Use the smallest route that answers the task.
 - Active Full-Run matrix: [Full-Run Semantic Coverage](FULL_RUN_SEMANTIC_COVERAGE.md).
 - Current product and evidence direction: [Roadmap](ROADMAP.md).
 
+- Closed-session tools, persistent outbox and upload receipt protocol:
+  [Evidence delivery](../components/evidence/DELIVERY.md).
+
 ## Component entry points
 
 - [Connector map](../components/connector/docs/DOCUMENT_MAP.md)

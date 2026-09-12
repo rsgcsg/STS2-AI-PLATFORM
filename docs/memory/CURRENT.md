@@ -21,3 +21,11 @@ worktree files and immutable sessions are retained.
 This is bounded observed Full-Run qualification, not exhaustive game-content,
 crash-recovery, non-interference or STPD research/training admission. Future
 incidents follow docs/ANNOTATOR_COLLECTION.md and retain exact failed evidence.
+
+## Collection delivery engineering
+
+Opt-in release-bound collection tooling and an external persistent delivery
+outbox are specified in [ADR 0008](../adr/0008-release-bound-closed-session-delivery.md)
+and [Evidence delivery](../../components/evidence/DELIVERY.md). This changes no
+native Mod source or historical Human evidence. Cloud deployment and a new
+Close-to-receiver Human journey remain separate unproved gates.

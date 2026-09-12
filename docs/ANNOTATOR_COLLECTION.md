@@ -31,7 +31,10 @@ npm run evidence -- verify-human-bundle /absolute/new-bundle-directory
 
 Use `--attest-human-origin` only with the actual operator's attestation. It is an
 explicit non-machine-verifiable statement, not something inferred from audit.
-Packing requires a clean producer checkout and a closed, structurally valid
+Developer CLI packing requires a clean producer checkout. Automatic delivery
+uses a [fixed collection-tool release](../components/evidence/DELIVERY.md), built
+from clean source and verified by an independent release ID; it does not depend
+on the current developer checkout being clean. Both require a closed, structurally valid
 session. A zero-canonical session containing valid failed-decision evidence can
 still be bundled. A truncated/corrupt/unclosed session cannot be made verified:
 retain its raw bytes and failed audit for explicitly identified incident transfer.
@@ -50,7 +53,8 @@ reproduction steps, and whether console/reload/modset changes occurred. Include
 bundle content ID and verifier version when available. The issue template asks
 for this metadata; do not put raw sessions, saves, user paths or credentials in
 public issues. An operator may choose a private issue attachment or configured
-Evidence receiver. There is no automatic upload or telemetry in this change.
+Evidence receiver. Automatic upload is opt-in through the fixed-campaign
+Evidence delivery service; credentials stay outside config and evidence.
 The existing typed Evidence transfer verifies checksums and quarantines rejected
 content before atomic promotion. Delivery success is not research admission.
 

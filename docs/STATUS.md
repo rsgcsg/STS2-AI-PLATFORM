@@ -56,3 +56,11 @@ closeout](evidence/PR6_SUCCESSOR_OWNER_READY_SOURCE_CLOSEOUT_2026-09-01.md)
 - [owner validation](evidence/RECORDING_APPLICATION_OWNER_VALIDATION_2026-08-25.md)
 - [decision gate](evidence/RECORDING_APPLICATION_DECISION_GATE_2026-08-25.md)
 - [repair evidence](evidence/PR25_POTION_CAUSAL_REPAIR_2026-09-10.md)
+
+## Collection delivery engineering
+
+Evidence 0.1.0-rc.3 adds opt-in fixed-tool closed-session delivery and persistent
+HTTP receipt recovery. See [ADR 0008](adr/0008-release-bound-closed-session-delivery.md)
+and [delivery operation](../components/evidence/DELIVERY.md). Native gameplay
+source and the PR25 Human artifact are unchanged. Real cloud deployment and a
+fresh Close-to-cloud Human delivery journey are not established by portable tests.

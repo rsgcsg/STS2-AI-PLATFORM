@@ -24,6 +24,9 @@ from .human_session_bundle import (
     load_collection_profile,
     verify_human_session_bundle,
 )
+from .collection_tool import CollectionTool
+from .delivery import DeliveryOutbox, reconcile_and_drain
+from .delivery_http import HubTransport
 from .store import ContentAddressedStore, StoreReceipt
 from .transfer import (
     DirectoryReceiver,
@@ -34,6 +37,10 @@ from .transfer import (
 
 __all__ = [
     "CollectionProfile",
+    "CollectionTool",
+    "DeliveryOutbox",
+    "HubTransport",
+    "reconcile_and_drain",
     "AgentRunEvidence",
     "AgentRunEvidenceVerifier",
     "ContentAddressedStore",
