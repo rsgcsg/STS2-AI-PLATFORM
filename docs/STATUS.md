@@ -4,8 +4,8 @@ PR25 rc.4 passes the bounded Full-Run Human gate: two uninterrupted native start
 through natural defeat, all 524 accepted decisions proved/canonical, zero real
 failures or unexplained loss, and independently verified bundle3.
 See the [final exact Human audit](evidence/PR25_RC4_FULL_RUN_HUMAN_PASS_2026-09-12.md).
-Resolve live PR25/merge refs and CI for integration status. Main release promotion
-and external research admission are separate from this develop integration.
+The native gate remains tied to its historical exact artifact. Resolve current release tags,
+merge refs and CI for integration; no merge creates new Human or research evidence.
 
 See [current context](memory/CURRENT.md), [data contracts](FULL_RUN_DATA_CHAIN.md)
 and [collection / future repairs](ANNOTATOR_COLLECTION.md).
@@ -59,7 +59,7 @@ closeout](evidence/PR6_SUCCESSOR_OWNER_READY_SOURCE_CLOSEOUT_2026-09-01.md)
 
 ## Collection delivery engineering
 
-Evidence 0.1.0-rc.3 adds opt-in fixed-tool closed-session delivery and persistent
+Current Evidence 0.1.0-rc.7 includes opt-in fixed-tool closed-session delivery and persistent
 HTTP receipt recovery. See [ADR 0008](adr/0008-release-bound-closed-session-delivery.md)
 and [delivery operation](../components/evidence/DELIVERY.md). Native gameplay
 source and the PR25 Human artifact are unchanged. Real cloud deployment and a
@@ -68,6 +68,11 @@ fresh Close-to-cloud Human delivery journey are not established by portable test
 - First dedicated Human Close-to-R2 gate and delivery diagnostic repair:
   [bounded audit](evidence/B_PIPELINE_FIRST_HUMAN_UPLOAD_2026-09-13.md).
 
-Evidence rc.7 extends the B delivery candidate with explicit same-upload credential recovery.
+Evidence rc.7 extends B delivery with explicit same-upload credential recovery.
 Typed Hub 401/403 blocks are recoverable under the owner lock; historical incident text is not
 reclassified. No additional Human, game runtime or training claim follows from these tests.
+
+The default developer collection/viewing route is now the [shared workbench handoff](ANNOTATOR_COLLECTION.md#default-project-workflow).
+The [workflow release report](evidence/B_UNIFIED_WORKFLOW_RELEASE_2026-09-13.md) separates
+historical Human/Hub verification from final merge/runtime receipts. Native Mod bytes remain
+unchanged; the service/account and portable delivery evidence do not widen the native gate.
