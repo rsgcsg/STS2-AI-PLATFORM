@@ -49,3 +49,12 @@ newer rc.5. Its recorded build `ab4ee5303c8302ae209dd62c4d766a6764ebec51`
 actually records Evidence rc.2. The historical tuple is restored from that Git
 blob and checked against it, while current Evidence remains rc.6. Old commits,
 reports, raw sessions and receipts are untouched; no qualification is transferred.
+
+## Device credential recovery candidate
+
+Evidence `0.1.0-rc.7` adds typed Hub authentication blocking and explicit stopped-worker
+`resume-auth`, preserving the original sealed bundle and durable upload identity. The owning
+contract is [DELIVERY](../../components/evidence/DELIVERY.md). Other incidents, signed-storage
+403 responses and native recording dispositions do not become successful through recovery.
+This is portable delivery engineering; account UX/Hub authorization belong to STPD and require
+separate current-source service and browser qualification. The qualified game Mod is unchanged.

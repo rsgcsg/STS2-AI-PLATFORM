@@ -67,3 +67,7 @@ fresh Close-to-cloud Human delivery journey are not established by portable test
 
 - First dedicated Human Close-to-R2 gate and delivery diagnostic repair:
   [bounded audit](evidence/B_PIPELINE_FIRST_HUMAN_UPLOAD_2026-09-13.md).
+
+Evidence rc.7 extends the B delivery candidate with explicit same-upload credential recovery.
+Typed Hub 401/403 blocks are recoverable under the owner lock; historical incident text is not
+reclassified. No additional Human, game runtime or training claim follows from these tests.
