@@ -128,14 +128,26 @@ class HubTransport:
         archive = self._archive(bundle, transfer)
         archive_sha = _sha256_file(archive)
         attempt_file = self.cache / f"{transfer.manifest_sha256}.upload.json"
+        persisted_upload_id: str | None = None
         def observe(upload_id: str, response: dict[str, Any]) -> None:
-            _atomic_json(attempt_file, {"upload_id": upload_id, "archive_sha256": archive_sha,
-                "archive_bytes": archive.stat().st_size, "status": response.get("status"), "observed_at": _now()})
+            nonlocal persisted_upload_id
+            try:
+                _atomic_json(attempt_file, {"upload_id": upload_id, "archive_sha256": archive_sha,
+                    "archive_bytes": archive.stat().st_size, "status": response.get("status"), "observed_at": _now()})
+            except OSError:
+                # First/new identity persistence is required before PUT. Once
+                # this exact identity is durable, optional UI telemetry cannot
+                # prevent a valid terminal receipt reaching the owning outbox.
+                if persisted_upload_id != upload_id:
+                    raise
+            else:
+                persisted_upload_id = upload_id
         if attempt_file.exists():
             previous = read_json(attempt_file)
             if previous.get("archive_sha256") != archive_sha:
                 raise ValueError("persisted upload archive changed")
             upload_id = previous["upload_id"]
+            persisted_upload_id = upload_id
             status = self._json("GET", f"/v1/uploads/{upload_id}")
             observe(upload_id, status)
             receipt = self._disposition(status, allow_upload=True)

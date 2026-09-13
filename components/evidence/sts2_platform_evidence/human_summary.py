@@ -75,6 +75,9 @@ def _current_summary(recording: dict[str, Any], trace: list[dict[str, Any]],
             "native_starts": len(starts), "native_ends": len(ends),
             "native_resumes": sum(event["kind"] == "run_resumed_native" for event in events),
             "outcome": outcome})
+    # The V3 caller has already required exactly one final session_closed.
+    # The durable close-seal timestamp replaces this journal observation when
+    # that versioned contract is present; neither is inferred from file mtime.
     return {"created_at": _timestamp(recording.get("created_at")),
         "closed_at": _timestamp(journal[-1].get("recorded_at")),
         "counts": counts, "runs": runs,

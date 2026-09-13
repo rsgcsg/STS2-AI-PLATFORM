@@ -50,6 +50,10 @@ The application displays worker lifecycle separately. Attempts include receipt
 polls. `enrolled_at`, row `observed_at` and `transport_observed_at` are separate
 observations; older missing timestamps remain `null`. Merely reading status
 does not establish fresh cloud contact or overwrite a terminal receipt.
+Persisting a first/new HTTP upload identity before PUT remains mandatory.
+Refreshing optional phase/time telemetry for the same durable identity is
+best-effort: unavailable telemetry retains its old observation and cannot hide
+an otherwise valid terminal receipt from the outbox.
 
 New packs persist safe summary metadata and numeric aggregate columns in the
 existing outbox transaction. Phase and transport sidecars expose already

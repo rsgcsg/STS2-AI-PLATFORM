@@ -6,12 +6,14 @@ import tarfile
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 from sts2_platform_evidence.delivery import ReceiverVerificationPending
 from sts2_platform_evidence.delivery_http import HubTransport
 from sts2_platform_evidence.transfer import DirectoryTransferManifest
+from sts2_platform_evidence.transfer import _sha256_file
 
 
 class HubTransportTests(unittest.TestCase):
@@ -133,6 +135,30 @@ class HubTransportTests(unittest.TestCase):
             with self.subTest(status=status):
                 with self.assertRaises(ValueError):
                     HubTransport._disposition({"status": status}, allow_upload=True)
+
+    def test_optional_observation_write_failure_cannot_hide_durable_terminal_receipt(self) -> None:
+        transport = HubTransport("https://hub.example.com", "secret", self.root / "cache", allowed_upload_hosts=[])
+        archive = transport._archive(self.bundle, self.transfer)
+        attempt_file = transport.cache / f"{self.transfer.manifest_sha256}.upload.json"
+        original = json.dumps({"upload_id": "durable-upload", "archive_sha256": _sha256_file(archive)})
+        attempt_file.write_text(original)
+        receipt = {"schema": "stpd/receive-receipt-v1", "status": "verified", "receipt_id": "durable-upload",
+                   "content_id": self.transfer.content_id, "manifest_sha256": self.transfer.manifest_sha256}
+        transport._json = lambda *_: {"status": "verified", "upload_id": "durable-upload", "receipt": receipt}
+        with patch("sts2_platform_evidence.delivery_http._atomic_json", side_effect=OSError("telemetry unavailable")):
+            self.assertEqual(transport(self.bundle, self.transfer, {}), receipt)
+        self.assertEqual(attempt_file.read_text(), original)
+
+    def test_initial_identity_write_failure_still_prevents_object_put(self) -> None:
+        transport = HubTransport("https://hub.example.com", "secret", self.root / "cache",
+                                 allowed_upload_hosts=["storage.example"])
+        transport._json = lambda *_: {"status": "awaiting_upload", "upload_id": "new-upload",
+            "upload_url": "https://storage.example/object", "upload_method": "PUT", "upload_headers": {}}
+        with patch("sts2_platform_evidence.delivery_http._atomic_json", side_effect=OSError("identity unavailable")), \
+             patch.object(transport, "_request", side_effect=AssertionError("PUT before identity persisted")):
+            with self.assertRaisesRegex(OSError, "identity unavailable"):
+                transport(self.bundle, self.transfer, {})
+        self.assertFalse((transport.cache / f"{self.transfer.manifest_sha256}.upload.json").exists())
 
 
 if __name__ == "__main__":
