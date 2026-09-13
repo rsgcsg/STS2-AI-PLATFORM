@@ -66,3 +66,36 @@ promotion. A failed or partial artifact is quarantined and never becomes an
 admitted object. Each receive attempt also publishes a non-authorizing
 `store-status.json` containing its last receipt so the read-only Workbench can
 show operational state without reimplementing verification.
+
+## Automatic closed-session delivery
+
+The opt-in [delivery service](DELIVERY.md) consumes a fixed collection-tool release,
+reconciles durable Close receipts, and persists packing/upload/receiver state
+outside the game. Its public Python CLI supports background use, status and
+explicit stopped-worker credential recovery. Typed Hub 401/403 blocks preserve
+exact prepared evidence and upload identity; only `resume_auth`/`resume-auth`
+can requeue them after the account owner restores same-device authorization.
+Storage failures and historical incidents are not reclassified as login issues.
+Evidence transfer is separate from game authority and research admission.
+
+## Safe application summaries
+
+`summarize_verified_human_bundle(verified_value)` is the public
+`sts2.evidence/human-bundle-summary-1` projection. The V3 verifier materializes
+its current disposition counts and native run-boundary facts from the same
+already-verified streams; summary reads never rescan raw evidence. Summary
+identity includes bundle content, checksum/export digests and verifier schema.
+The consuming service separately binds its deployed verifier source identity.
+
+The summary preserves accepted/proved/canonical, normal cancellation, abort,
+diagnostic/unsupported invalidation and unresolved counts independently. Real
+failures use the Recorder owner's unique decision-failure accounting, not the
+number of invalidation rows. Historical unsupported dispositions are `null`,
+not zero. V1/V2 remain archival and gain no invented canonical/native facts.
+`run-unassigned` remains an explicit unassigned context, not another played run.
+Native start/terminal observations and exact native victory/defeat outcome do
+not certify uninterrupted Full-Run coverage or research admission.
+
+The [delivery status projection](DELIVERY.md#application-status-projection)
+publishes bounded local lists, exact remote IDs, parsed receipts and global
+quality counts without exposing local paths, raw data or transport credentials.

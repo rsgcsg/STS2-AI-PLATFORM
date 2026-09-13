@@ -24,6 +24,12 @@ from .human_session_bundle import (
     load_collection_profile,
     verify_human_session_bundle,
 )
+from .collection_tool import CollectionTool
+from .delivery import AuthenticationBlocked, DeliveryOutbox, reconcile_and_drain
+from .delivery_recovery import resume_auth
+from .delivery_http import HubTransport
+from .delivery_summary import inspect_delivery_status
+from .human_summary import summarize_verified_human_bundle
 from .store import ContentAddressedStore, StoreReceipt
 from .transfer import (
     DirectoryReceiver,
@@ -34,6 +40,14 @@ from .transfer import (
 
 __all__ = [
     "CollectionProfile",
+    "CollectionTool",
+    "DeliveryOutbox",
+    "AuthenticationBlocked",
+    "resume_auth",
+    "HubTransport",
+    "inspect_delivery_status",
+    "summarize_verified_human_bundle",
+    "reconcile_and_drain",
     "AgentRunEvidence",
     "AgentRunEvidenceVerifier",
     "ContentAddressedStore",

@@ -267,3 +267,13 @@ test("final Full-Run candidate cannot borrow historical identity or Human qualif
   assert.ok(errors.some(error => error.startsWith("Final Full-Run Human audit:")));
   assert.ok(errors.some(error => error.startsWith("Final Full-Run predecessor transfer:")));
 });
+
+test("portable verifier changes do not relabel closed native Human evidence", async () => {
+  const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
+  assert.notEqual(bom.components.evidence.source_revision,
+    bom.final_full_run_candidate.components.evidence.source_revision);
+  assert.deepEqual(validatePlatformBom(bom, await readBomAuthorities(root)), []);
+  bom.final_full_run_candidate.components.evidence.source_revision = "f".repeat(40);
+  assert.ok(validatePlatformBom(bom, await readBomAuthorities(root))
+    .some(error => error.startsWith("Final Full-Run historical evidence source_revision:")));
+});

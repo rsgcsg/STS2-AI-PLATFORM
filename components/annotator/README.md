@@ -60,8 +60,8 @@ lost input. No unchanged-artifact or historical test covers an unseen family.
 
 Use `npm run check` and `npm run check:exact-game` at root. Build/install/load
 only an exact clean candidate through Game Mod lifecycle. Keep raw data, saves,
-game files, local receipts and credentials outside Git. No data is uploaded
-automatically. Distribution, private incident collection and versioned fixes are
+game files, local receipts and credentials outside Git. Automatic upload requires an explicitly configured fixed campaign and
+operator attestation through the [Evidence delivery service](../evidence/DELIVERY.md). Distribution, private incident collection and versioned fixes are
 specified in [Support and distribution](../../docs/ANNOTATOR_COLLECTION.md).
 
 Read [Status](docs/STATUS.md), [Architecture](docs/ARCHITECTURE.md), the

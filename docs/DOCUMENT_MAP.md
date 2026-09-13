@@ -6,6 +6,7 @@ Use the smallest route that answers the task.
 
 - [README](../README.md): zero-context product boundary and next steps.
 - [New Engineer Guide](NEW_ENGINEER_GUIDE.md): first-day setup and first PR.
+- [Collection and maintenance](ANNOTATOR_COLLECTION.md): default workbench handoff, native capture and incident ownership.
 
 ## Working on the repository
 
@@ -67,6 +68,9 @@ Use the smallest route that answers the task.
 - Active Full-Run matrix: [Full-Run Semantic Coverage](FULL_RUN_SEMANTIC_COVERAGE.md).
 - Current product and evidence direction: [Roadmap](ROADMAP.md).
 
+- Closed-session tools, persistent outbox and upload receipt protocol:
+  [Evidence delivery](../components/evidence/DELIVERY.md).
+
 ## Component entry points
 
 - [Connector map](../components/connector/docs/DOCUMENT_MAP.md)
@@ -85,3 +89,8 @@ Dated reports under [`docs/evidence`](evidence/) prove only the exact source,
 artifact, runtime, and scope they name. Load the report linked by Status, the
 Full-Run matrix, or a PR when exact historical proof is relevant; it is not
 default newcomer or Codex context.
+
+- First dedicated Human Close-to-R2 gate and delivery diagnostic repair:
+  [bounded audit](evidence/B_PIPELINE_FIRST_HUMAN_UPLOAD_2026-09-13.md).
+
+- [B workflow release evidence](evidence/B_UNIFIED_WORKFLOW_RELEASE_2026-09-13.md): exact cross-repository source/service scope and release receipt routing.

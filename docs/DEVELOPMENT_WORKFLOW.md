@@ -25,20 +25,20 @@ and do not share branches.
 
 ## Governance migration
 
-The public `main` at
-`5604050ef0e0f55f13bf2fdb720e5c215d774fd5` is preserved as
-`baseline/pre-governance-platform-20260827`. It is a green historical
-integration snapshot, not a stable-release claim. No history was rewritten.
+The original 2026-08-27 `main` at
+`5604050ef0e0f55f13bf2fdb720e5c215d774fd5` is retained as
+`baseline/pre-governance-platform-20260827`. That tag is historical evidence;
+it does not describe the current main tip. Recovery/hotfix and governed release
+history is preserved without rewriting it. `develop` is the normal integration line.
 
-`develop` was bootstrapped from that exact commit. Until the first governed
-release completes its release gates, `main` remains the frozen pre-governance
-baseline and all normal work targets `develop`. The first governed release is:
+Current main releases follow:
 
 ```text
 develop -> release/<version> -> release gates -> main -> version tag
 ```
 
-Only after that merge does `main` acquire stable-only meaning.
+A release's advertised scope and qualification come from its exact immutable assets,
+notes and receipts. The branch name alone does not certify native or scientific readiness.
 
 ## Branches
 
@@ -153,7 +153,10 @@ artifact identity remain separate.
 ## GitHub enforcement
 
 `main` and `develop` require pull requests, the `portable` status and resolved
-conversations, and block deletion and force pushes. The `portable` workflow
+conversations, and block deletion and force pushes. Temporary `release/*` branches retain
+the same PR/check/non-fast-forward protection in a separate ruleset, but may be deleted
+after verified main integration and stabilization synchronization. This exception does
+not permit deleting main/develop or bypassing a merge gate. The `portable` workflow
 status is an aggregate: it succeeds only when both the Linux and Windows full
 portable root suites succeed. It must not be redefined as a Linux-only alias.
 
@@ -173,3 +176,22 @@ runtime evidence often matures after source tests. It intentionally does not
 copy heavyweight GitFlow. See [GitHub PR standardization](https://docs.github.com/en/pull-requests/reference/managing-and-standardizing-pull-requests),
 [short-lived feature branches](https://trunkbaseddevelopment.com/short-lived-feature-branches/)
 and [Google's small-change guidance](https://google.github.io/eng-practices/review/developer/small-cls.html).
+
+## Release handoff and branch retirement
+
+The default SpireAgent collection distribution is a versioned developer combination; see
+[collection workflow](ANNOTATOR_COLLECTION.md#default-project-workflow). Release notes bind
+both repository refs, current Platform component/BOM and consumer pin, exact Mod/tool bytes,
+STPD source/lock and deployed image, actual gates, rollback and remaining non-claims.
+Publish immutable checksummed assets after the corresponding main/CI/service checks; do not
+replace an old asset or point daily users at a floating topic branch. A release includes
+operator installation instructions and a bounded first-terminal check. Scientific gates
+are separate from a developer workflow release.
+
+After integration, resolve remote refs again. Delete only reviewed retired branches. Preserve
+non-ancestor historical tips in explicit archive tags and verify their remote identity before
+branch deletion; do not merge obsolete snapshots merely to make Git call them merged. Record
+patch equivalence and the reason for archiving. Keep worktrees with local modifications or
+ignored runtime/evidence as detached checkouts at their original HEAD, with a private diff/file
+inventory. Never reset, clean or remove their data during branch cleanup. Only main/develop
+remain long-lived branches; tags preserve released and historical identities.

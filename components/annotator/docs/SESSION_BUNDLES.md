@@ -75,8 +75,9 @@ For a defect, share the bundle content ID, failing decision/native occurrence ID
 reason and exact runtime identity, with the smallest owner-approved private raw
 bundle needed to reproduce it. Include the independent verification report and
 relevant native log locally; raw gameplay, saves and logs must not enter Git or
-public PR text. No background upload or telemetry is implied. An operator
-explicitly transfers evidence through the Evidence store/receiver workflow.
+public PR text. Background upload requires explicit operator configuration of the
+[Evidence delivery service](../../evidence/DELIVERY.md). Manual transfer remains
+available through the Evidence store/receiver workflow.
 
 A repair receives a new exact candidate, a faithful regression, new build/load
 identity and a bounded Human reproduction. Re-auditing historical bytes may add

@@ -20,6 +20,7 @@ from .human_session_bundle_v1 import (
     _sha256_file, _strings, _text,
 )
 from .human_session_bundle_v2 import _capture_profile_hash, _validate_profile, _validate_journal, _required_reads
+from .human_summary import _current_summary
 
 BUNDLE_SCHEMA = "sts2.human-annotator/session-bundle-3"
 AUDIT_SCHEMA = "sts2.human-annotator/session-bundle-audit-3"
@@ -50,6 +51,7 @@ class HumanSessionBundleV3:
     run_ids: tuple[str, ...]
     invalidations: int
     dispositions: Mapping[str, int]
+    summary: Mapping[str, Any]
 
     @property
     def export_path(self) -> Path:
@@ -250,9 +252,14 @@ class HumanSessionBundleV3Verifier:
         _verify_projection_coverage(profile, trace, rows, failed, journal)
         # A failure-only session is transportable. No zero-failure or Full-Run
         # eligibility gate belongs in the evidence logistics layer.
+        summary = _current_summary(recording, trace, rows, failed, journal, run_ids)
+        if recording.get("close_schema_version") == 1:
+            summary["closed_at"] = receipt["closed_at"]
+        summary["counts"]["compatibility_valid"] = compatibility_count
+        summary["counts"]["compatibility_invalid"] = audit["invalid_records"]
         return HumanSessionBundleV3(directory, manifest, profile, session, timeline,
             worker, str(manifest["campaign_id"]), profile_id, content_id,
-            _sha256_file(checksums_path), export_sha, count, run_ids, invalidations, dispositions)
+            _sha256_file(checksums_path), export_sha, count, run_ids, invalidations, dispositions, summary)
 
 
 def _verify_references(

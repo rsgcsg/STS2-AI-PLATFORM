@@ -48,6 +48,8 @@ ledger.
 
 - [ADR-0007: Canonical collection and explicit recording disposition](0007-canonical-collection-and-disposition.md)
 
+- [ADR-0008: Release-bound closed-session delivery](0008-release-bound-closed-session-delivery.md)
+
 ## New ADR template
 
 ```markdown
