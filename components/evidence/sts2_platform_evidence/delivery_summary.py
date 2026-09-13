@@ -70,9 +70,15 @@ def _safe_receipt(value: str | None) -> dict[str, Any] | None:
     # exposes exact terminal identity and bounded finding codes only.
     result = {key: receipt.get(key) for key in ("schema", "receipt_id", "status", "content_id", "manifest_sha256")}
     findings = receipt.get("findings", [])
-    result["findings"] = [{"code": item["code"]} for item in findings
-        if isinstance(item, dict) and isinstance(item.get("code"), str)
-        and re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", item["code"])] if isinstance(findings, list) else []
+    codes = []
+    if isinstance(findings, list):
+        for item in findings:
+            # Hub receive-receipt-v1 publishes string reason codes. Typed
+            # verifier adapters may wrap the same code with private details.
+            code = item.get("code") if isinstance(item, dict) else item
+            if isinstance(code, str) and re.fullmatch(r"[A-Za-z0-9_.-]{1,128}", code):
+                codes.append({"code": code})
+    result["findings"] = codes
     return result
 
 

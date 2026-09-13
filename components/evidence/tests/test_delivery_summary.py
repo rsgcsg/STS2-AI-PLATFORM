@@ -66,6 +66,20 @@ class DeliverySummaryTests(unittest.TestCase):
         # Generic receipt identity is not guessed to be the HTTP upload ID.
         self.assertIsNone(row["upload_id"])
 
+    def test_actual_hub_string_quarantine_reason_survives_without_diagnostic_text(self):
+        outbox, tool, _ = self._setup_delivery()
+        def quarantined(bundle, manifest, metadata):
+            return self.receive(bundle, manifest, metadata) | {"status": "quarantined", "findings": [
+                "archive_hash_mismatch", "/private/path", "https://storage.example/?token=secret",
+                {"code": "checksum_mismatch", "detail": "private diagnostic"}]}
+        outbox.drain_one(tool, quarantined)
+        row = inspect_delivery_status(self.config(outbox))["sessions"][0]
+        self.assertEqual(row["receipt"]["findings"], [
+            {"code": "archive_hash_mismatch"}, {"code": "checksum_mismatch"}])
+        self.assertNotIn("private", json.dumps(row))
+        self.assertNotIn("secret", json.dumps(row))
+        self.assertEqual(row["stage"], "quarantined")
+
     def test_old_outbox_remains_readonly_then_controlled_rebuild_preserves_receipt_and_raw(self):
         outbox, tool, source = self._setup_delivery()
         outbox.drain_one(tool, self.receive)
