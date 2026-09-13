@@ -43,14 +43,17 @@ to be an upload ID. `summary_status=not_materialized` means historical or not
 yet verified metadata is unavailable, never that recording failed.
 
 Stages are `queued`, `packing`, `locally_verified`, `awaiting_upload`,
-`verification_pending`, `retry_wait`, `verified`, `quarantined`, or `incident`.
+`verification_pending`, `retry_wait`, `auth_blocked`, `verified`, `quarantined`, or `incident`.
+Global status counts include `auth_blocked`; it is a delivery credential block,
+not a recorded Human decision failure.
 They are last observed phases, not worker liveness or byte-percent progress.
 In particular a crashed worker can leave `packing` as its last observation.
 The application displays worker lifecycle separately. Attempts include receipt
 polls. `enrolled_at`, row `observed_at` and `transport_observed_at` are separate
 observations; older missing timestamps remain `null`. Merely reading status
 does not establish fresh cloud contact or overwrite a terminal receipt.
-Persisting a first/new HTTP upload identity before PUT remains mandatory.
+Persisting the first HTTP upload identity before PUT remains mandatory.
+Subsequent responses and intent refreshes cannot replace that durable upload ID.
 Refreshing optional phase/time telemetry for the same durable identity is
 best-effort: unavailable telemetry retains its old observation and cannot hide
 an otherwise valid terminal receipt from the outbox.
@@ -150,7 +153,9 @@ evidence or completed bundles automatically.
 
 ## Durable states and incidents
 
-`pending` includes locally enrolled, packed and network-retry work. `verified`
+`pending` includes locally enrolled, packed and network-retry work. `auth_blocked`
+means a Hub API explicitly rejected the device credential with HTTP 401/403;
+it is never automatically selected for another attempt. `verified`
 and `quarantined` require matching terminal server receipts. `incident` records
 a local seal/source/tool/bundle/protocol failure; it is not automatically retried
 under a new interpretation. Status reports attempts and last error independently
@@ -180,6 +185,58 @@ paths; they must not enter Git or public logs. Re-auditing an incident with new
 tooling uses a new outbox and produces additional evidence, not a rewritten
 original bundle. Automatic incident uploading of corrupt/unsealed raw data is
 not provided by the verified-bundle route.
+
+## Explicit credential recovery
+
+The authenticated Hub API edge raises typed `AuthenticationBlocked` for HTTP
+401/403. The object-store PUT edge does not: an R2/presigned-URL 403 remains a
+transport protocol incident, and 5xx/408/429 retain their network retry behavior.
+The outbox stores `auth_blocked`, safe error `hub_authentication_blocked`, and a
+private typed block anchor containing exact content/manifest/archive/upload
+identity. It records no credential, signed URL or response-body diagnostic.
+A block before the first upload intent has an explicit null upload ID.
+
+The account/device owner should first restore authorization for the **same
+logical device**, validate that identity against its service, and stop the local
+delivery worker. Platform does not own account login or assume a cloud identity
+API. Then invoke the public owner recovery operation:
+
+```python
+from sts2_platform_evidence import resume_auth
+
+report = resume_auth(config, delivery_id=outbox_id)  # omit ID for all auth-blocked rows
+```
+
+```bash
+python -m sts2_platform_evidence.delivery_cli resume-auth --config /absolute/delivery.json --delivery-id <64-hex-outbox-id>
+```
+
+`resume-auth` acquires the worker's OS lifetime lock and a SQLite writer lock.
+It checks the immutable campaign/tool configuration, enrolled source inventory
+and successful Close seal, independently verified bundle, exact prepared content
+and transfer manifest, saved metadata, archive bytes/hash and original upload
+sidecar. It neither repacks nor sends a network request. A valid block becomes
+`pending` with retry time zero; attempts, content identity, transport files,
+raw evidence, bundle and receipts remain intact. The next normal worker uses
+the replacement `STPD_HUB_TOKEN`; an already uploaded object is recovered by its
+original receipt GET, and another Hub rejection blocks again. This operation
+alone establishes neither working credentials nor remote receipt success.
+
+The `sts2.evidence/delivery-auth-recovery-1` report contains `resumed`,
+`unchanged`, `rejected` and `sessions` entries with `id`, `status`, `result`,
+`error`. Errors are stable, path-free categories. The all-rows form selects only
+`auth_blocked`; an exact ID already pending, verified, quarantined or incident
+is unchanged. Unknown IDs/missing outboxes return no matching sessions. Repeated
+successful recovery is a no-op. Invalid or missing evidence/identity leaves the
+original auth block intact and reports rejection; the CLI returns nonzero.
+Transport files are never deleted to manufacture a fresh upload.
+
+Legacy incidents with free-text 401/403 messages remain incidents. Their text
+does not distinguish Hub authorization from storage authorization and cannot
+justify automatic migration. A writer adds nullable `auth_context` storage;
+read-only status still supports older schemas. An unproven typed block without
+its exact transport anchor also remains blocked. Terminal receipts and Human
+dispositions are never rewritten by credential recovery.
 
 ## HTTP receiver protocol
 
@@ -216,7 +273,11 @@ Human origin, Full-Run qualification and STPD admission remain separate facts.
 Portable tests cover release tamper/extra dependency detection, changed source,
 wrong/missing seals, failed-only evidence, offline restart, crash after receive,
 concurrent writers, receiver identity mismatch, pending HTTP recovery, exact
-archive membership and credential/host boundaries. They do not establish a
+archive membership and credential/host boundaries. Recovery regressions cover
+real Hub 401/403 versus storage 403, credential rejection after accepted PUT,
+repeated receipt-GET rejection, same-upload recovery with one PUT, sealed-source/
+bundle/transfer/archive/upload tampering, idempotent explicit recovery, existing
+incident preservation, worker/SQLite locks and changed campaign identity. They do not establish a
 real cloud account, real R2/Hub deployment, GPU work, or a new Human delivery
 canary. Those belong to the coordinated project's exact runtime gates.
 

@@ -95,7 +95,7 @@ def inspect_delivery_status(config: DeliveryConfig, *, limit: int = 25, offset: 
     if delivery_id is not None and not _HASH.fullmatch(delivery_id):
         raise ValueError("invalid_delivery_id")
     result: dict[str, Any] = {"schema": STATUS_SCHEMA, "observed_at": _now(),
-        "sessions": [], "counts": {status: 0 for status in ("pending", "verified", "quarantined", "incident")},
+        "sessions": [], "counts": {status: 0 for status in ("pending", "auth_blocked", "verified", "quarantined", "incident")},
         "total": 0, "limit": limit, "offset": offset, "next_offset": None,
         "quality": {"summaries_available": 0, "summaries_missing": 0, "canonical": None,
                     "real_failures": None, "partial": False}}
@@ -159,7 +159,7 @@ def inspect_delivery_status(config: DeliveryConfig, *, limit: int = 25, offset: 
                 stage = "queued"
         safe_error = None
         if row["error"]:
-            safe_error = row["error"] if row["error"] in {"OSError", "TimeoutError", "ConnectionError"} else "delivery_error"
+            safe_error = row["error"] if row["error"] in {"OSError", "TimeoutError", "ConnectionError", "hub_authentication_blocked"} else "delivery_error"
         result["sessions"].append({"id": row["id"], "session_id": (summary or {}).get("session_id", projected.get("session_id")),
             "worker_id": config.worker_id, "campaign_id": config.campaign_id,
             "upload_id": upload_id, "content_id": row["content_id"] or (summary or {}).get("content_id"),

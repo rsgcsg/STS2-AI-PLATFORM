@@ -160,6 +160,31 @@ class HubTransportTests(unittest.TestCase):
                 transport(self.bundle, self.transfer, {})
         self.assertFalse((transport.cache / f"{self.transfer.manifest_sha256}.upload.json").exists())
 
+    def test_intent_refresh_cannot_replace_durable_upload_identity(self) -> None:
+        transport = HubTransport("https://hub.example.com", "new-credential", self.root / "cache", allowed_upload_hosts=[])
+        archive = transport._archive(self.bundle, self.transfer)
+        attempt = transport.cache / f"{self.transfer.manifest_sha256}.upload.json"
+        original = json.dumps({"upload_id": "original-upload", "archive_sha256": _sha256_file(archive)})
+        attempt.write_text(original)
+        def request(method, *_):
+            return {"status": "awaiting_upload", "upload_id": "original-upload" if method == "GET" else "another-upload"}
+        transport._json = request
+        with self.assertRaisesRegex(ValueError, "changed durable upload identity"):
+            transport(self.bundle, self.transfer, {})
+        self.assertEqual(json.loads(attempt.read_text())["upload_id"], "original-upload")
+
+    def test_receipt_get_cannot_replace_requested_upload_identity(self) -> None:
+        transport = HubTransport("https://hub.example.com", "new-credential", self.root / "cache", allowed_upload_hosts=[])
+        archive = transport._archive(self.bundle, self.transfer)
+        attempt = transport.cache / f"{self.transfer.manifest_sha256}.upload.json"
+        original = json.dumps({"upload_id": "original-upload", "archive_sha256": _sha256_file(archive)})
+        attempt.write_text(original)
+        transport._json = lambda *_: {"status": "verified", "upload_id": "another-upload", "receipt": {
+            "status": "verified", "content_id": self.transfer.content_id}}
+        with self.assertRaisesRegex(ValueError, "different upload identity"):
+            transport(self.bundle, self.transfer, {})
+        self.assertEqual(attempt.read_text(), original)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -7,8 +7,6 @@ import json
 import os
 import signal
 import threading
-from contextlib import contextmanager
-from collections.abc import Iterator
 from pathlib import Path
 
 from .collection_tool import CollectionTool
@@ -16,42 +14,13 @@ from .delivery import DeliveryOutbox, reconcile_and_drain
 from .delivery_config import DeliveryConfig, doctor, inspect_outbox
 from .delivery_http import HubTransport
 from .delivery_summary import inspect_delivery_status
-
-
-@contextmanager
-def process_lock(root: Path) -> Iterator[None]:
-    """OS lifetime lock; an orphan child blocks a second worker without PID guessing."""
-    with (root / "worker.lock").open("a+b") as stream:
-        if os.name == "nt":
-            import msvcrt
-            if stream.tell() == 0:
-                stream.write(b"0")
-                stream.flush()
-            stream.seek(0)
-            try:
-                msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
-            except OSError:
-                raise ValueError("a delivery worker already owns this outbox") from None
-            try:
-                yield
-            finally:
-                stream.seek(0)
-                msvcrt.locking(stream.fileno(), msvcrt.LK_UNLCK, 1)
-        else:
-            import fcntl
-            try:
-                fcntl.flock(stream.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except OSError:
-                raise ValueError("a delivery worker already owns this outbox") from None
-            try:
-                yield
-            finally:
-                fcntl.flock(stream.fileno(), fcntl.LOCK_UN)
+from .delivery_lock import process_lock
+from .delivery_recovery import resume_auth
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="sts2-evidence-delivery")
-    parser.add_argument("command", choices=["run", "status", "doctor", "summarize"])
+    parser.add_argument("command", choices=["run", "status", "doctor", "summarize", "resume-auth"])
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--once", action="store_true")
     parser.add_argument("--summary", action="store_true")
@@ -70,6 +39,10 @@ def main(argv: list[str] | None = None) -> int:
             if args.summary else {"schema": "sts2.evidence/delivery-status-1", "sessions": inspect_outbox(config)}
         print(json.dumps(value, sort_keys=True))
         return 0
+    if args.command == "resume-auth":
+        report = resume_auth(config, delivery_id=args.delivery_id)
+        print(json.dumps(report, sort_keys=True))
+        return 1 if report["rejected"] else 0
     if args.command == "summarize":
         if not (config.outbox_root / "outbox.sqlite3").is_file():
             print(json.dumps({"schema": "sts2.evidence/delivery-summary-rebuild-1", "rebuilt": 0,

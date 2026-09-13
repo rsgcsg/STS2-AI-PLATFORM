@@ -29,6 +29,22 @@ class Transport(Protocol):
                  metadata: dict[str, Any]) -> dict[str, Any]: ...
 
 
+class AuthenticationBlocked(Exception):
+    """A Hub API rejected the device credential, not a storage PUT failure.
+
+    The adapter attaches exact, secret-free transport identity before the
+    outbox persists this disposition. Recovery is an explicit local operation;
+    this exception never authorizes a new upload identity or a gameplay retry.
+    """
+
+    def __init__(self, http_status: int) -> None:
+        if http_status not in {401, 403}:
+            raise ValueError("invalid Hub authentication status")
+        super().__init__("hub_authentication_blocked")
+        self.http_status = http_status
+        self.transport_identity: dict[str, Any] | None = None
+
+
 class ReceiverVerificationPending(Exception):
     """The receiver explicitly accepted work and has no terminal receipt yet.
 
@@ -87,7 +103,7 @@ class DeliveryOutbox:
                 if existing is None or existing[0] != encoded:
                     raise ValueError("outbox configuration is immutable; use a new outbox for changed identity")
                 columns = {row[1] for row in db.execute("PRAGMA table_info(sessions)")}
-                for name, kind in (("summary", "TEXT"), ("summary_canonical", "INTEGER"), ("summary_real_failures", "INTEGER")):
+                for name, kind in (("summary", "TEXT"), ("summary_canonical", "INTEGER"), ("summary_real_failures", "INTEGER"), ("auth_context", "TEXT")):
                     if name not in columns:
                         db.execute(f"ALTER TABLE sessions ADD COLUMN {name} {kind}")
                 return
@@ -98,7 +114,7 @@ class DeliveryOutbox:
                     id TEXT PRIMARY KEY, source TEXT NOT NULL, identity TEXT NOT NULL,
                     status TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
                     retry_at REAL NOT NULL DEFAULT 0, content_id TEXT, error TEXT, receipt TEXT,
-                    summary TEXT, summary_canonical INTEGER, summary_real_failures INTEGER);
+                    summary TEXT, summary_canonical INTEGER, summary_real_failures INTEGER, auth_context TEXT);
             """)
             db.execute("INSERT OR IGNORE INTO config VALUES(1, ?)", (encoded,))
             if db.execute("SELECT value FROM config WHERE id=1").fetchone()[0] != encoded:
@@ -175,7 +191,18 @@ class DeliveryOutbox:
                 verified = verify_human_session_bundle(bundle).require_value()
                 manifest = DirectoryTransferManifest.from_directory(
                     bundle, content_id=verified.bundle_content_id, artifact_type="human-session-bundle")
-                manifest.write(self.root / "transfers" / f"{key}.json")
+                transfer_path = self.root / "transfers" / f"{key}.json"
+                # Repeated attempts must not silently reseal different bundle
+                # bytes under another content/transport identity.
+                if row["content_id"] is not None and row["content_id"] != manifest.content_id:
+                    raise ValueError("prepared bundle content identity changed")
+                if transfer_path.exists():
+                    if DirectoryTransferManifest.read(transfer_path) != manifest:
+                        raise ValueError("prepared transfer identity changed")
+                elif row["content_id"] is not None:
+                    raise ValueError("prepared transfer identity is absent")
+                else:
+                    manifest.write(transfer_path)
                 summary = summarize_verified_human_bundle(verified)
                 db.execute("UPDATE sessions SET summary=?,summary_canonical=?,summary_real_failures=? WHERE id=?",
                     (canonical(summary).decode(), summary["counts"]["canonical"], summary["counts"]["real_failures"], key))
@@ -196,6 +223,13 @@ class DeliveryOutbox:
                 _atomic_json(self.root / "receipts" / f"{key}.json", receipt)
                 db.execute("UPDATE sessions SET status=?,content_id=?,receipt=?,error=NULL,attempts=attempts+1 WHERE id=?",
                            (receipt["status"], manifest.content_id, canonical(receipt).decode(), key))
+            except AuthenticationBlocked as error:
+                context = {"schema": "sts2.evidence/delivery-auth-block-1", "http_status": error.http_status,
+                    "content_id": manifest.content_id, "manifest_sha256": manifest.manifest_sha256,
+                    "transport": error.transport_identity}
+                db.execute("UPDATE sessions SET status='auth_blocked',attempts=attempts+1,content_id=?,"
+                           "error='hub_authentication_blocked',auth_context=? WHERE id=?",
+                           (manifest.content_id, canonical(context).decode(), key))
             except ReceiverVerificationPending:
                 # A normal asynchronous receiver state must not look like a failed
                 # request. Content identity is local verification, not a receipt.

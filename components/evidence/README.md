@@ -71,7 +71,11 @@ show operational state without reimplementing verification.
 
 The opt-in [delivery service](DELIVERY.md) consumes a fixed collection-tool release,
 reconciles durable Close receipts, and persists packing/upload/receiver state
-outside the game. Its public Python CLI supports background use and status.
+outside the game. Its public Python CLI supports background use, status and
+explicit stopped-worker credential recovery. Typed Hub 401/403 blocks preserve
+exact prepared evidence and upload identity; only `resume_auth`/`resume-auth`
+can requeue them after the account owner restores same-device authorization.
+Storage failures and historical incidents are not reclassified as login issues.
 Evidence transfer is separate from game authority and research admission.
 
 ## Safe application summaries

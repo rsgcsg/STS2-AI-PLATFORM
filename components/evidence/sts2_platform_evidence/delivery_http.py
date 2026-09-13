@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from .collection_tool import canonical, read_json
-from .delivery import ReceiverVerificationPending, _atomic_json
+from .delivery import AuthenticationBlocked, ReceiverVerificationPending, _atomic_json
 from .delivery_summary import _now
 from .transfer import DirectoryTransferManifest, _sha256_file
 
@@ -54,7 +54,7 @@ class HubTransport:
         if is_upload and parsed.hostname not in self.allowed_upload_hosts:
             raise ValueError("upload URL host is not explicitly trusted")
 
-    def _request(self, request: urllib.request.Request, *, json_response: bool = True) -> dict[str, Any]:
+    def _request(self, request: urllib.request.Request, *, json_response: bool = True, hub_api: bool = False) -> dict[str, Any]:
         try:
             with self.opener.open(request, timeout=self.timeout) as response:
                 if not json_response:
@@ -68,6 +68,11 @@ class HubTransport:
                     raise ValueError("Hub response must be an object")
                 return result
         except urllib.error.HTTPError as error:
+            error.close()
+            # Only this adapter's authenticated Hub API boundary can diagnose
+            # device authentication. A presigned object-store 403 is different.
+            if hub_api and error.code in {401, 403}:
+                raise AuthenticationBlocked(error.code) from None
             # Never persist exception repr: it may contain signed URL credentials.
             if error.code >= 500 or error.code in {408, 429}:
                 raise OSError("retryable Hub/storage response") from None
@@ -78,7 +83,7 @@ class HubTransport:
     def _json(self, method: str, path: str, value: object | None = None) -> dict[str, Any]:
         return self._request(urllib.request.Request(
             self.hub_url + path, data=None if value is None else canonical(value), method=method,
-            headers={"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}))
+            headers={"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}), hub_api=True)
 
     def _archive(self, bundle: Path, transfer: DirectoryTransferManifest) -> Path:
         archive = self.cache / f"{transfer.manifest_sha256}.tar.gz"
@@ -127,13 +132,24 @@ class HubTransport:
                  metadata: dict[str, Any]) -> dict[str, Any]:
         archive = self._archive(bundle, transfer)
         archive_sha = _sha256_file(archive)
+        archive_bytes = archive.stat().st_size
         attempt_file = self.cache / f"{transfer.manifest_sha256}.upload.json"
         persisted_upload_id: str | None = None
+        def hub_json(method: str, path: str, value: object | None = None) -> dict[str, Any]:
+            try:
+                return self._json(method, path, value)
+            except AuthenticationBlocked as error:
+                error.transport_identity = {"upload_id": persisted_upload_id,
+                    "archive_sha256": archive_sha, "archive_bytes": archive_bytes}
+                raise
+
         def observe(upload_id: str, response: dict[str, Any]) -> None:
             nonlocal persisted_upload_id
+            if response.get("upload_id", upload_id) != upload_id:
+                raise ValueError("receiver returned a different upload identity")
             try:
                 _atomic_json(attempt_file, {"upload_id": upload_id, "archive_sha256": archive_sha,
-                    "archive_bytes": archive.stat().st_size, "status": response.get("status"), "observed_at": _now()})
+                    "archive_bytes": archive_bytes, "status": response.get("status"), "observed_at": _now()})
             except OSError:
                 # First/new identity persistence is required before PUT. Once
                 # this exact identity is durable, optional UI telemetry cannot
@@ -148,25 +164,27 @@ class HubTransport:
                 raise ValueError("persisted upload archive changed")
             upload_id = previous["upload_id"]
             persisted_upload_id = upload_id
-            status = self._json("GET", f"/v1/uploads/{upload_id}")
+            status = hub_json("GET", f"/v1/uploads/{upload_id}")
             observe(upload_id, status)
             receipt = self._disposition(status, allow_upload=True)
             if receipt is not None:
                 return receipt
         # Re-request by content/manifest identity to refresh an expired presigned URL.
-        intent = self._json("POST", "/v1/uploads", {
+        intent = hub_json("POST", "/v1/uploads", {
             "schema": "stpd/upload-intent-v1", "transfer_manifest": transfer.to_dict(),
-            "archive_sha256": archive_sha, "archive_bytes": archive.stat().st_size,
+            "archive_sha256": archive_sha, "archive_bytes": archive_bytes,
             "delivery_metadata": metadata,
         })
         upload_id = intent.get("upload_id")
         if not isinstance(upload_id, str) or not upload_id or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_" for c in upload_id):
             raise ValueError("invalid Hub upload ID")
+        if persisted_upload_id is not None and upload_id != persisted_upload_id:
+            raise ValueError("receiver changed durable upload identity")
         observe(upload_id, intent)
         # An already received content ID can be returned to a newly installed client.
         # The intent endpoint may expose status only; query its durable receipt.
         if intent.get("status") in {"verified", "quarantined"} and not intent.get("receipt"):
-            intent = self._json("GET", f"/v1/uploads/{upload_id}")
+            intent = hub_json("GET", f"/v1/uploads/{upload_id}")
             observe(upload_id, intent)
         receipt = self._disposition(intent, allow_upload=True)
         if receipt is not None:
@@ -182,7 +200,7 @@ class HubTransport:
             raise ValueError("upload intent contains forbidden headers")
         with archive.open("rb") as stream:
             self._request(urllib.request.Request(url, data=stream, method="PUT",
-                headers={**headers, "Content-Length": str(archive.stat().st_size)}), json_response=False)
-        status = self._json("POST", f"/v1/uploads/{upload_id}/complete", {})
+                headers={**headers, "Content-Length": str(archive_bytes)}), json_response=False)
+        status = hub_json("POST", f"/v1/uploads/{upload_id}/complete", {})
         observe(upload_id, status)
         return self._disposition(status)  # type: ignore[return-value]
