@@ -84,7 +84,7 @@ async function fixture() {
   await store("settling1", frame("settling1", []));
   await store("a1semantic", semanticActionSpace("a1", action()));
   await store("a2semantic", semanticActionSpace("a2", action("action-2")));
-  return { root, refs };
+  return { root, refs, store };
 }
 
 test("uses durable native semantic action space when public execution catalog is empty", async () => {
@@ -157,6 +157,25 @@ test("uses durable native semantic action space when public execution catalog is
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("queued admission catalog cannot qualify execution even with exact selected membership", async () => {
+  const { root, refs, store } = await fixture();
+  try {
+    await store("admission", { ...semanticActionSpace("a1", action()), phase: "before_native_action_admission" });
+    const events = [
+      event(1, "action_accepted", "a1", action(), { human_observation_ref: refs.s0 }),
+      event(2, "action_started", "a1", action(), { execution_pre_ref: refs.settling0, execution_semantic_action_space_ref: refs.admission }),
+      event(3, "action_finished", "a1", action()),
+      event(4, "transition_proved", "a1", action(), { execution_pre_ref: refs.settling0,
+        execution_semantic_action_space_ref: refs.admission, successor_ref: refs.s1,
+        proof_status: "proved_native_commit_then_owner_boundary", boundary: { witness_kind: "native_decision_owner_ready" } })
+    ];
+    await writeFile(path.join(root, "semantic-boundary-trace.jsonl"), events.map(JSON.stringify).join("\n") + "\n");
+    const report = await calibrate(root);
+    assert.equal(report.summary.state_action_space_unresolved, 1);
+    assert.equal(report.summary.semantic_candidate_s_a_s_prime, 0);
+  } finally { await rm(root, { recursive: true, force: true }); }
 });
 
 function event(sequence, kind, id, selected, extra = {}) {
@@ -373,3 +392,119 @@ test("fails closed when a content-addressed semantic frame is tampered", async (
     await rm(root, { recursive: true, force: true });
   }
 });
+
+for (const owner of ["exact-selector", null]) {
+  test(`selector owner boundary requires a durable owner: ${owner}`, async () => {
+    const { root, refs } = await fixture();
+    try {
+      const selected = action();
+      const events = [
+        event(1, "action_accepted", "a1", selected, { human_observation_ref: refs.s0 }),
+        event(2, "boundary_observed", "a1", selected, { execution_pre_ref: refs.s0 }),
+        event(3, "action_started", "a1", selected, { execution_pre_ref: refs.s0 }),
+        event(4, "action_finished", "a1", selected, { execution_pre_ref: refs.s0 }),
+        event(5, "transition_proved", "a1", selected, {
+          execution_pre_ref: refs.s0, successor_ref: refs.s1,
+          proof_status: "proved_native_owner_boundary",
+          boundary: { witness_kind: "native_decision_owner_ready", native_decision_owner_ready: { native_owner_witness_id: owner } }
+        })
+      ];
+      events.forEach(value => { value.action.native_mechanism = "direct_ui_commit"; });
+      await writeFile(path.join(root, "semantic-boundary-trace.jsonl"), events.map(JSON.stringify).join("\n") + "\n");
+      const report = await calibrate(root);
+      assert.equal(report.summary.semantic_candidate_s_a_s_prime, owner ? 1 : 0);
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+}
+
+for (const tamper of [false, true]) {
+  test(`native accepted input with empty public catalog requires exact execution operands: ${tamper}`, async () => {
+    const { root, refs, store } = await fixture();
+    try {
+      const input = { action_key: "play|card-1|", verb: "play", subject_referent_id: "card-1", arguments: {} };
+      const space = { ...semanticActionSpace("a1", action()), schema_version: 3,
+        schema: "sts2.human-annotator/execution-semantic-action-space-3",
+        human_bound_action_id: null, human_native_action_key: input.action_key };
+      if (tamper) space.actions[0].arguments = { target: "other" };
+      await store("inputspace", space);
+      const events = [event(1, "action_accepted", "a1", null, { human_observation_ref: refs.settling0 }),
+        event(2, "boundary_observed", "a1", null, { execution_pre_ref: refs.settling0 }),
+        event(3, "action_started", "a1", null, { execution_pre_ref: refs.settling0 }),
+        event(4, "action_finished", "a1", null, { execution_pre_ref: refs.settling0 }),
+        event(5, "transition_proved", "a1", null, { execution_pre_ref: refs.settling0,
+          execution_semantic_action_space_ref: refs.inputspace, successor_ref: refs.s1,
+          proof_status: "proved_native_commit_then_owner_boundary",
+          boundary: { witness_kind: "native_decision_owner_ready" } })];
+      for (const e of events) Object.assign(e.action, { native_input: input, native_mechanism: "game_action",
+        native_witness: { origin: "native_card_play_ui" },
+        mapping: { status: "exact_native_input", match_count: 1, basis: "scoped_native_input_reference_equality" } });
+      await writeFile(path.join(root, "semantic-boundary-trace.jsonl"), events.map(JSON.stringify).join("\n") + "\n");
+      const report = await calibrate(root);
+      assert.equal(report.summary.semantic_candidate_s_a_s_prime, tamper ? 0 : 1);
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+}
+
+for (const exact of [true, false]) {
+  test(`native act-entered uses its exact act-change root: ${exact}`, async () => {
+    const { root, refs, store } = await fixture();
+    try {
+      const successor = frame("map-next"); successor.interaction_kind = "map_navigation";
+      await store("mapnext", successor);
+      const events = [event(1, "action_accepted", "a1", action(), {human_observation_ref: refs.s0}),
+        event(2, "action_started", "a1", action(), {execution_pre_ref: refs.s0}),
+        event(3, "transition_proved", "a1", action(), {execution_pre_ref: refs.s0, successor_ref: refs.mapnext,
+          proof_status: "proved_native_commit_then_owner_boundary", boundary: {witness_kind: "native_act_entered",
+            state_completeness: "complete", required_reads_status: "complete"}})];
+      for (const e of events) Object.assign(e.action, {native_mechanism: "direct_ui_commit",
+        native_action_type: exact ? "NRewardsScreen.OnProceedButtonPressed.act_change_ready" : "PlayCardAction"});
+      await writeFile(path.join(root, "semantic-boundary-trace.jsonl"), events.map(JSON.stringify).join("\n") + "\n");
+      const report = await calibrate(root);
+      assert.equal(report.summary.semantic_candidate_s_a_s_prime, exact ? 1 : 0);
+    } finally { await rm(root, {recursive:true, force:true}); }
+  });
+}
+
+for (const proof of ["proved_execution_handoff_boundary", "proved_native_commit_then_execution_handoff"]) {
+ for (const disposition of ["action_cancelled_after_start", "action_aborted_before_commit"]) {
+  test(`preserves predecessor state before rejected execution: ${proof}/${disposition}`, async () => {
+    const { root, refs } = await fixture();
+    try {
+      const events = [
+        event(1, "action_accepted", "a1", action(), { human_observation_ref: refs.s0 }),
+        event(1.5, "boundary_observed", "a1", action(), { execution_pre_ref: refs.s0,
+          execution_semantic_action_space_ref: refs.a1semantic,
+          boundary: { immediately_consumed_by_action_witness_id: "a1" } }),
+        event(2, "action_started", "a1", action(), { execution_pre_ref: refs.s0 }),
+        event(3, "action_finished", "a1", action(), { execution_pre_ref: refs.s0 }),
+        event(4, "transition_proved", "a1", action(), { execution_pre_ref: refs.s0,
+          successor_ref: refs.settling1, related_action_witness_id: "a2", proof_status: proof }),
+        event(5, "action_accepted", "a2", action("action-2"), { human_observation_ref: refs.s1 }),
+        event(6, "boundary_observed", "a2", action("action-2"), { execution_pre_ref: refs.settling1,
+          boundary: { immediately_consumed_by_action_witness_id: "a2",
+            witness_kind: "before_next_human_action_execution", state_ref: refs.settling1,
+            state_completeness: "complete", required_reads_status: "complete", state_blockers: [] } }),
+        event(7, "action_started", "a2", action("action-2"), { execution_pre_ref: refs.settling1 }),
+        event(8, disposition, "a2", action("action-2"), { execution_pre_ref: refs.settling1 })
+      ];
+      async function report(rows) {
+        await writeFile(path.join(root, "semantic-boundary-trace.jsonl"), rows.map(JSON.stringify).join("\n") + "\n");
+        return calibrate(root);
+      }
+      let result = await report(events);
+      assert.equal(result.actions[0].reason, "rejected_next_execution_state_boundary_exact");
+      assert.equal(result.actions[1].classification, "rejected");
+      for (const change of [
+        (rows) => rows.pop(),
+        (rows) => { rows.find((x) => x.sequence === 7).execution_pre_ref = refs.s0; },
+        (rows) => { rows.find((x) => x.sequence === 6).boundary.required_reads_status = "missing"; },
+        (rows) => { rows.find((x) => x.sequence === 6).boundary.witness_kind = "interactive_poll"; }
+      ]) {
+        const rows = structuredClone(events); change(rows);
+        result = await report(rows);
+        assert.notEqual(result.actions[0].classification, "semantic_candidate_s_a_s_prime");
+      }
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+ }
+}

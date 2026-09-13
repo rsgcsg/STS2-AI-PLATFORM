@@ -78,17 +78,7 @@ public static class NativeRewardDecisionProvider
                 && potionSlotsFull
                 && player.CanUseOrRemovePotions)
             {
-                foreach (PotionModel potion in occupiedPotions)
-                {
-                    string id = identities.GetId(potion, "potion");
-                    actions.Add(new NativeSemanticAction(
-                        NativeSemanticActionCatalog.BuildKey("discard", id),
-                        "discard",
-                        id,
-                        potion,
-                        Array.Empty<NativeSemanticOperand>(),
-                        "PotionReward+Player.PotionSlots+Player.CanUseOrRemovePotions"));
-                }
+                actions.AddRange(NativePotionDiscardDecisionProvider.CaptureSlots(player.PotionSlots, identities));
             }
 
             bool canProceed = (!set.DisallowSkipping || set.AllRewardsSuccessfullySelected)

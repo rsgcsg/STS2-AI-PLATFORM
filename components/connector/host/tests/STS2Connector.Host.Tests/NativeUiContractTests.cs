@@ -22,6 +22,92 @@ namespace STS2Connector.Tests;
 public sealed class NativeUiContractTests
 {
     [Fact]
+    public void PopupPreemptsSpecializedRoomAndSelectorWithoutEvaluatingThem()
+    {
+        var popup = new LiveObservation("popup", "ready", null!,
+            new PotionPopupSurface("potion_popup", "popup", "potion", "BLOCK_POTION", "Block", 0, false, true),
+            null!, null!, Array.Empty<string>());
+        var result = ActiveInputResolver.ResolvePreferredSurface(false, () => popup,
+            () => throw new InvalidOperationException("Underlying room must not be read"));
+        Assert.Same(popup, result!.Draft);
+        Assert.Null(result.Failure);
+        Assert.Contains(NativeUiActionRuntime.DescribePotionPopupCommands((PotionPopupSurface)result.Draft!.Surface),
+            action => action.Kind == "discard_potion");
+    }
+
+    [Fact]
+    public void ModalPreemptsPopupAndSpecializedSurface()
+    {
+        Assert.Null(ActiveInputResolver.ResolvePreferredSurface(true,
+            () => throw new InvalidOperationException("Popup must not be read"),
+            () => throw new InvalidOperationException("Room must not be read")));
+    }
+
+    [Fact]
+    public void AmbiguousPopupCannotFallBackToUnderlyingRoom()
+    {
+        var result = ActiveInputResolver.ResolvePreferredSurface(false,
+            () => throw new InvalidOperationException("Ambiguous popup"),
+            () => throw new Exception("Must not evaluate room"));
+        Assert.Null(result!.Draft);
+        Assert.Equal("potion_popup", result.FailedProvider);
+        Assert.IsType<InvalidOperationException>(result.Failure);
+    }
+
+    [Fact]
+    public void AbsentPopupAllowsSpecializedSurfaceAndPreservesItsFailure()
+    {
+        bool evaluated = false;
+        Assert.Null(ActiveInputResolver.ResolvePreferredSurface(false, () => null,
+            () => { evaluated = true; return null; }));
+        Assert.True(evaluated);
+        var result = ActiveInputResolver.ResolvePreferredSurface(false, () => null,
+            () => throw new InvalidOperationException("Missing exact selector owner"));
+        Assert.Equal("specialized_surface", result!.FailedProvider);
+        Assert.Null(result.Draft);
+    }
+
+    [Fact]
+    public void PotionPopupPreservesCompleteNativeUseTargetDomain()
+    {
+        var surface = new PotionPopupSurface("potion_popup", "popup", "potion", "POTION", "Potion", 0, true, true)
+            { DirectCombatUse = true, UseTargetEntityIds = new[] { "enemy1", "enemy2" } };
+        var actions = NativeUiActionRuntime.DescribePotionPopupCommands(surface);
+        var uses = actions.Where(action => action.Kind == "use_potion").ToArray();
+        Assert.Equal(2, uses.Length);
+        Assert.All(uses, action => Assert.Single(action.EntityBindings!, binding => binding.Role == "target"));
+        Assert.DoesNotContain(actions, action => action.Kind == "choose_potion_use");
+    }
+
+    [Fact]
+    public void NonCombatFruitJuicePopupAdvertisesUseWithPlayerOperand()
+    {
+        var surface = new PotionPopupSurface("potion_popup", "shop-popup", "juice", "FRUIT_JUICE", "Fruit Juice", 0, true, true)
+            { DirectCombatUse = true, UseTargetEntityIds = new[] { "player1" } };
+        var actions = NativeUiActionRuntime.DescribePotionPopupCommands(surface);
+        var use = Assert.Single(actions, action => action.Kind == "use_potion");
+        Assert.Contains(use.EntityBindings!, binding => binding.Role == "target" && binding.EntityId == "player1");
+        Assert.DoesNotContain(actions, action => action.Kind == "choose_potion_use");
+        Assert.DoesNotContain(NativeUiActionRuntime.DescribePotionPopupCommands(surface with { CanUse = false }),
+            action => action.Kind == "use_potion");
+    }
+
+    [Theory]
+    [InlineData(true, true, 3)]
+    [InlineData(false, true, 2)]
+    [InlineData(false, false, 1)]
+    public void PotionPopupCatalogUsesNativeEnabledControls(bool use, bool discard, int count)
+    {
+        var surface = new PotionPopupSurface("potion_popup", "popup", "potion", "BLOCK_POTION", "Block potion", 0, use, discard);
+        var commands = NativeUiActionRuntime.DescribePotionPopupCommands(surface);
+        Assert.Equal(count, commands.Count);
+        Assert.Equal(discard, commands.Any(x => x.Kind == "discard_potion"));
+        Assert.Equal(use, commands.Any(x => x.Kind == "choose_potion_use"));
+        Assert.Contains(commands, x => x.Kind == "cancel_potion_popup");
+        Assert.Equal(commands.Count, commands.Select(x => x.Kind).Distinct().Count());
+    }
+
+    [Fact]
     public void CurrentGameTutorialModalsHaveExactAuditedBindings()
     {
         const BindingFlags flags = BindingFlags.Instance
@@ -700,6 +786,55 @@ public sealed class NativeUiContractTests
     }
 
     [Fact]
+    public void BossRelicSelectionDescriptorsBindExactScreenAndRelicOrSkipControl()
+    {
+        var relic = new VisibleRelic(
+            "relic-choice",
+            "RELIC_A",
+            "Relic A",
+            "A relic.",
+            null,
+            Array.Empty<VisibleKeyword>(),
+            Array.Empty<VisibleCard>());
+        var surface = new NativeBossRelicSelectionSurface(
+            NativeBossRelicSelection.SurfaceKind,
+            "boss-relic-screen",
+            new[] { relic },
+            new[] { relic.EntityId },
+            CanSkip: true);
+
+        NativeUiActionDescriptor[] commands =
+            NativeBossRelicSelection.DescribeCommands(surface).ToArray();
+
+        NativeUiActionDescriptor choose = Assert.Single(
+            commands,
+            command => command.Kind == NativeBossRelicSelection.SelectOperation);
+        Assert.Contains(choose.EntityBindings!, binding =>
+            binding.Role == "screen" && binding.EntityId == "boss-relic-screen");
+        Assert.Contains(choose.EntityBindings!, binding =>
+            binding.Role == "relic" && binding.EntityId == relic.EntityId);
+
+        NativeUiActionDescriptor skip = Assert.Single(
+            commands,
+            command => command.Kind == NativeBossRelicSelection.SkipOperation);
+        Assert.Contains(skip.EntityBindings!, binding =>
+            binding.Role == "screen" && binding.EntityId == "boss-relic-screen");
+        Dictionary<string, string> chooseOperands =
+            NativeUiActionRuntime.BuildCommandOperands(
+                choose.Kind,
+                "select_entity",
+                choose.EntityBindings!);
+        Assert.Equal("boss-relic-screen", chooseOperands["screen_id"]);
+        Assert.Equal(relic.EntityId, chooseOperands["choice_id"]);
+        Assert.Equal(
+            NativeBossRelicSelection.SkipOperation,
+            NativeUiActionRuntime.BuildCommandOperands(
+                skip.Kind,
+                "activate_control",
+                skip.EntityBindings!)["control_id"]);
+    }
+
+    [Fact]
     public void SimpleCardSelectionUsesCurrentUiFactsWithoutOpeningSourceAuthority()
     {
         var card = new VisibleCard(
@@ -1358,6 +1493,7 @@ public sealed class NativeUiContractTests
             "game_over",
             "main_menu",
             "map_navigation",
+            "potion_popup",
             "reward_claim",
             "shop_inventory",
             "shop_room",

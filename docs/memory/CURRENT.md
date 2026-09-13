@@ -1,50 +1,41 @@
 # Current Context
 
-This is a bounded handoff, not repository authority. Resolve live GitHub refs,
-open PRs, rulesets, code, tests, `platform-bom.json`, and exact runtime/evidence
-before making a current claim. Those sources override this file.
+Resolve live GitHub refs, main/develop, release tags, source/BOM, CI and deployed identity
+before using this handoff. Current repository/runtime authorities override this file.
 
-## Last recorded integration boundary
-
-The last verified integration boundary before this governance synthesis was the
-post-CI-hardening `develop` state in which:
-
-- the recorder had one active Human causal/successor authority and one canonical
-  durable transition path;
-- predecessor recording formats and ledgers were archival readers only;
-- Linux and Windows both ran the complete portable root gate behind the required
-  `portable` aggregate;
-- current path-scoped component revision remained Git commit provenance, so
-  component-source PRs required normal merge.
-
-Use GitHub to resolve the exact current `develop` SHA and active pull request.
-Do not copy this handoff's integration boundary to a newer head.
-
-## Active Live UI integration work
-
-The current bounded topic is the selective reconciliation of historical
-`ui-testing` presentation work with current `develop`. It changes Live UI and a
-narrow Annotator application-event projection. It is classified `G4`: the
-game-bound component and runtime lifecycle require exact build/install/load,
-while Human origin, causal admission, and durable evidence semantics are
-unchanged. Portable, exact-game, install, cold-load, and a bounded
-owner-operated Human UI canary are recorded in the dated Live UI integration
-closeout. PR #15 now has a follow-up convergence candidate that reduces the
-presentation to exactly Agent Run and Human Recorder, removes the old collapse
-and dashboard scaffold, and requires a fresh exact build/load plus a new Human
-UI canary. Prior sessions do not qualify those bytes. Resolve the exact topic
-branch, pull request, and latest head from GitHub rather than this handoff.
+The default SpireAgent developer flow is one qualified Platform Mod plus the STPD project
+workbench: download the exact release combination, invited email login, explicit computer
+binding, dedicated campaign consent/setup, Recorder Close, local queue and cloud receipt.
+Start at [collection and incident response](../ANNOTATOR_COLLECTION.md); the linked STPD
+B_PIPELINE_HANDOFF owns the complete user/cloud procedure. Platform owns native evidence and
+immutable delivery; STPD owns accounts, external operations and research admission.
 
 ## Remaining Platform non-claims
 
-Bounded prior Human qualification was not exhaustive Full-Run qualification.
-Shop/Event/Rest internal Human decisions, generated skip, hand-selector
-variants, potion target-picker cancel, run entry, and exhaustive terminal paths
-still require their own coverage where applicable. Business outcome correctness,
-STPD model/training quality, and controlled Recorder OFF/ON performance
-improvement remain unclaimed unless newer exact evidence says otherwise.
+The PR25 rc.4 native gate remains historical: two uninterrupted native starts through natural
+defeat,524 accepted/proved/canonical,0 real failures,53 canonical children with canonical
+parents. See [Human audit](../evidence/PR25_RC4_FULL_RUN_HUMAN_PASS_2026-09-12.md).
+Its unchanged DLL SHA is af4dfd93a4236b50aadbff8e9c055a519b20e842c582ab392d7748845df40cc8.
+This is not exhaustive-content/crash-recovery/non-interference/research qualification.
 
-Use `npm run project:context` to start work and `npm run project:closeout` before
-PR closeout. See [Engineering Governance](../ENGINEERING_GOVERNANCE.md),
-[Testing and Evidence](../TESTING.md), and
-[Development Workflow](../DEVELOPMENT_WORKFLOW.md).
+Evidence rc.7 owns fixed-tool closed-session transfer, safe summaries, bounded queries and
+typed Hub authentication blocking/recovery. Other incidents and signed-storage403 are not
+login failures. `resume-auth` requires stopped-worker/same-device proof and preserves the
+original seal, bundle, archive, upload ID and receipt. [DELIVERY](../../components/evidence/DELIVERY.md)
+is the contract. The historical closed Human verifier tuple stays bound to its original
+build blobs; the current portable component does not relabel old evidence.
+
+First dedicated Human Close-to-R2 evidence remains in its
+[original report](../evidence/B_PIPELINE_FIRST_HUMAN_UPLOAD_2026-09-13.md).
+The [B workflow release report](../evidence/B_UNIFIED_WORKFLOW_RELEASE_2026-09-13.md) routes the
+later bounded existing-device email/approval, local/cloud parity and exact Hub qualification.
+New accounts/devices still need their own scoped canary; login is not upload consent.
+
+Normal changes use a short-lived branch from develop, latest-head owner/root/CI gates,
+normal component-source merges, governed release promotion and exact receipt review.
+Retain raw evidence/private state outside Git and preserve archived worktrees during branch
+cleanup. Fix the owning cause, preserve failed evidence, publish a new exact combination and
+requalify only the affected native/service/Human gates. No GPU/model quality follows from B.
+
+Release identity uses the [packaging correction](../evidence/B_WORKFLOW_PACKAGING_IDENTITY_CORRECTION_2026-09-13.md):
+actual BOM file bytes and distinct tool component/workspace revisions, not old copied labels.

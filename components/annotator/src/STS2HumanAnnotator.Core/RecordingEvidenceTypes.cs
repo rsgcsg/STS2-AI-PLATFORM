@@ -138,4 +138,36 @@ public sealed record InvalidationRecord(
     string EvidenceLevel)
 {
     public HumanActionOccurrenceEvidence? HumanOccurrence { get; init; }
+    // Optional on historical evidence. Only the native observer may assert an
+    // in-scope failed Human occurrence or an exact canonical persistence loss.
+    public RecordingDecisionFailure? DecisionFailure { get; init; }
+    public string? Disposition { get; init; }
+}
+
+public sealed record RecordingDecisionFailure(string DecisionWitnessId, string Kind, string ActionFamily);
+
+public static class RecordingDisposition
+{
+    public static bool IsFailure(string? disposition) => disposition is "unresolved" or "failed_closed";
+    public static string FromTrace(string kind) => kind switch {
+        SemanticBoundaryTraceKinds.ActionAccepted => "pending",
+        SemanticBoundaryTraceKinds.TransitionProved => "recorded",
+        SemanticBoundaryTraceKinds.TransitionUnknown => "unresolved",
+        SemanticBoundaryTraceKinds.ActionCancelledBeforeStart or SemanticBoundaryTraceKinds.ActionCancelledAfterStart => "cancelled",
+        SemanticBoundaryTraceKinds.ActionAbortedBeforeCommit => "aborted",
+        _ => "diagnostic"
+    };
+
+    public static IReadOnlyList<string> Validate(InvalidationRecord value)
+    {
+        if (value.Disposition is not (null or "diagnostic" or "unsupported" or "failed_closed"))
+            return new[] { "invalidation_disposition_invalid" };
+        if (value.DecisionFailure is not { } failure)
+            return value.Disposition == "failed_closed" ? new[] { "invalidation_decision_failure_missing" } : Array.Empty<string>();
+        if (value.Disposition != "failed_closed" || string.IsNullOrWhiteSpace(failure.DecisionWitnessId)
+            || string.IsNullOrWhiteSpace(failure.ActionFamily) || failure.Kind is not ("capture" or "persistence")
+            || (failure.Kind == "capture" && value.HumanOccurrence?.OccurrenceId != failure.DecisionWitnessId))
+            return new[] { "invalidation_decision_failure_invalid" };
+        return Array.Empty<string>();
+    }
 }

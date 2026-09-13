@@ -19,11 +19,12 @@ internal sealed record PlatformLiveActionCounts(
     int Records,
     int Pending,
     int Invalidated,
-    bool Exact);
+    bool Exact,
+    int Diagnostics = 0);
 
 /// <summary>
 /// Read-only, session-local projection of canonical Recorder application events.
-/// RecordId is the required Human action root identity. BoundActionId remains
+/// RecordId identifies a decision occurrence, not its enclosing causal root. BoundActionId remains
 /// presentation metadata for the state-bound candidate and is never promoted to
 /// a lifecycle correlation root. Events without RecordId remain event-level and
 /// make aggregate disposition counts explicitly inexact.
@@ -33,12 +34,20 @@ internal sealed class PlatformLiveActionAggregation
 {
     private readonly Dictionary<string, PlatformLiveActionItem> _items =
         new(StringComparer.Ordinal);
-    private readonly HashSet<string> _seenEventIds = new(StringComparer.Ordinal);
+    internal const int RetainedLimit = 512;
+    private long _lastAppliedSequence;
     private bool _sourceComplete = true;
 
     internal int Count => _items.Count;
 
-    internal IReadOnlyList<PlatformLiveActionItem> Recent(int limit) => _items.Values
+    internal IReadOnlyList<PlatformLiveActionItem> Recent(int limit, int offset = 0) => _items.Values
+        .OrderByDescending(value => value.FirstSequence)
+        .Skip(Math.Max(0, offset))
+        .Take(Math.Max(0, limit))
+        .ToArray();
+
+    internal IReadOnlyList<PlatformLiveActionItem> RecentDecisions(int limit) => _items.Values
+        .Where(value => !PlatformLiveActionFeed.IsNonDecision(value))
         .OrderByDescending(value => value.FirstSequence)
         .Take(Math.Max(0, limit))
         .ToArray();
@@ -51,15 +60,16 @@ internal sealed class PlatformLiveActionAggregation
             return new PlatformLiveActionCounts(
                 _items.Values.Count(value => value.Kind == RecordingEventKind.DecisionRecorded),
                 _items.Values.Count(value => value.Kind == RecordingEventKind.RootPending),
-                _items.Values.Count(value => value.Kind == RecordingEventKind.DecisionInvalidated),
-                exact);
+                _items.Values.Count(PlatformLiveActionFeed.IsFailure),
+                exact,
+                _items.Values.Count(value => value.Action?.IsDiagnostic == true));
         }
     }
 
     internal void Reset()
     {
         _items.Clear();
-        _seenEventIds.Clear();
+        _lastAppliedSequence = 0;
         _sourceComplete = true;
     }
 
@@ -68,8 +78,11 @@ internal sealed class PlatformLiveActionAggregation
     internal bool Apply(RecordingEvent value)
     {
         if (!PlatformLiveActionFeed.IsActionEvent(value.Kind)
-            || !_seenEventIds.Add(value.EventId))
+            || value.Sequence <= _lastAppliedSequence)
             return false;
+        // The application stream is ordered. One sequence watermark avoids an
+        // unbounded replay-ID set while retaining exact event correlation.
+        _lastAppliedSequence = value.Sequence;
 
         (string key, bool reliable, string? issue) = Correlation(value);
         if (_items.TryGetValue(key, out PlatformLiveActionItem? existing))
@@ -90,12 +103,8 @@ internal sealed class PlatformLiveActionAggregation
             }
             else
             {
-                RecordingEventKind kind = value.Sequence >= existing.LatestSequence
-                    ? value.Kind
-                    : existing.Kind;
-                string? detail = value.Sequence >= existing.LatestSequence
-                    ? value.Detail
-                    : existing.Detail;
+                RecordingEventKind kind = value.Kind;
+                string? detail = value.Detail;
                 RecordingActionProjection? action = value.Action ?? existing.Action;
                 _items[key] = existing with
                 {
@@ -126,11 +135,19 @@ internal sealed class PlatformLiveActionAggregation
             value.Action);
         if (!reliable)
             _sourceComplete = false;
+        if (_items.Count > RetainedLimit)
+        {
+            string oldest = _items.Values.MinBy(item => item.FirstSequence)!.CorrelationIdentity;
+            _items.Remove(oldest);
+            _sourceComplete = false;
+        }
         return true;
     }
 
     private static (string Key, bool Reliable, string? Issue) Correlation(RecordingEvent value)
     {
+        if (value.Action?.IsDiagnostic == true)
+            return ($"diagnostic:{value.EventId}", true, null);
         if (!string.IsNullOrWhiteSpace(value.RecordId))
             return ($"record:{value.RecordId}", true, null);
         return (
@@ -151,13 +168,39 @@ internal static class PlatformLiveActionFeed
 {
     internal const int MaxEntries = 24;
 
+    internal static string FormatCounters(RecordingCounters counters)
+    {
+        if (counters.Decisions is not { } d)
+            return $"Decisions unavailable · Legacy records {counters.Records} · Evidence invalidations {counters.Invalidations} (includes native diagnostics)";
+        return $"Accepted {d.Accepted} ({d.AcceptedRoots} roots/entries + {d.AcceptedChildren} children)"
+            + $" · Proved {d.Proved} · Canonical {d.Canonical} ({d.CanonicalRoots} roots/entries + {d.CanonicalChildren} children)"
+            + $"\nPending {d.Pending} · Unresolved {d.Unresolved} · Cancelled {d.Cancelled} · Aborted {d.Aborted} · Evidence invalidations {counters.Invalidations} (includes native diagnostics) · Legacy records {counters.Records}";
+    }
+
+
     internal static bool IsActionEvent(RecordingEventKind kind) =>
         kind is RecordingEventKind.RootPending
             or RecordingEventKind.DecisionRecorded
-            or RecordingEventKind.DecisionInvalidated;
+            or RecordingEventKind.DecisionInvalidated
+            or RecordingEventKind.DecisionUnresolved
+            or RecordingEventKind.DecisionCancelled
+            or RecordingEventKind.DecisionAborted
+            or RecordingEventKind.DecisionProjectionOmitted;
 
     internal static string FormatEntry(PlatformLiveActionItem value) =>
-        $"#{value.FirstSequence}  {FormatCompactAction(value.Action)}  {FormatLifecycle(value.Kind)}";
+        $"#{value.FirstSequence}  {FormatDecisionKind(value)}  {FormatCompactAction(value.Action)}  {(value.Action?.IsDiagnostic == true ? "Native diagnostic · retained" : FormatDisposition(value))}"
+        + (value.Action?.Decision?.ParentDecisionId is { } parent ? $"\nParent: {parent}" : "");
+
+    private static string FormatDecisionKind(PlatformLiveActionItem value) => value.Action switch
+    {
+        { IsDiagnostic: true } or { Disposition: "diagnostic" } => "Diagnostic",
+        { Disposition: "unsupported" } => "Non-decision",
+        { FailedOccurrence: not null } => "Human input",
+        { Decision.DecisionKind: "nested_selector" } => "↳ Selector",
+        { Decision.DecisionKind: "native_selector" } => "Selector / native origin",
+        { Decision.DecisionKind: "root" } => "Root",
+        _ => "Unclassified"
+    };
 
     internal static string FormatDetail(PlatformLiveActionItem value)
     {
@@ -180,11 +223,39 @@ internal static class PlatformLiveActionFeed
         if (value.Kind == RecordingEventKind.DecisionRecorded
             && !string.IsNullOrWhiteSpace(value.RecordId))
             lines.Add($"Record: {value.RecordId}");
-        if (value.Kind == RecordingEventKind.DecisionInvalidated)
+        if (value.Kind is RecordingEventKind.DecisionInvalidated or RecordingEventKind.DecisionUnresolved
+            or RecordingEventKind.DecisionCancelled or RecordingEventKind.DecisionAborted or RecordingEventKind.DecisionProjectionOmitted)
             lines.Add($"Reason: {Explicit(value.Detail, "unavailable (canonical reason not exposed)")}");
         if (!value.HasReliableCorrelation)
             lines.Add($"Correlation: unavailable ({value.CorrelationIssue ?? "stable identity not exposed"})");
+        if (action?.IsDiagnostic != true && action?.FailedOccurrence is { } occurrence)
+        {
+            lines.Add($"Human occurrence: {occurrence.OccurrenceId}");
+            lines.Add($"Native input: {occurrence.NativeActionType} · {occurrence.NativeMechanism}");
+            lines.Add($"Capture disposition: {occurrence.Disposition}");
+            lines.Add($"Native subject witness: {occurrence.NativeSubjectWitnessId ?? "unavailable"}");
+            foreach (var operand in occurrence.NativeOperands.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+                lines.Add($"Native operand {operand.Key}: {operand.Value}");
+        }
+        if (action?.IsDiagnostic == true)
+            lines.Add("Internal native diagnostic; not an additional Human decision.");
+        if (action?.Decision is { } decision)
+        {
+            lines.Add($"Decision: {decision.DecisionId} ({decision.DecisionKind})");
+            if (decision.NativeOrigin is { } origin)
+                lines.Add($"Native origin: {origin.NativeActionType} · {origin.ChoiceContextType}");
+            lines.Add($"Causal root: {decision.CausalRootId}");
+            lines.Add($"Parent decision: {decision.ParentDecisionId ?? (decision.NativeOrigin == null ? "none (root)" : "none (native origin)")}");
+            lines.Add($"Surface: {decision.Surface} · Family: {decision.Family}");
+            lines.Add($"Native selector owner: {decision.NativeOwnerWitnessId ?? "unavailable"}");
+        }
+        else lines.Add("Decision lineage: unavailable (legacy or diagnostic event)");
+        lines.Add($"Pre-state: {action?.PreSnapshotId ?? "unavailable"}");
+        lines.Add($"Successor: {action?.SuccessorSnapshotId ?? "unavailable"}");
+        lines.Add($"Candidates: {action?.CandidateCount?.ToString() ?? "unavailable"} · Pile: {action?.PileType ?? "not exposed"}");
         lines.Add($"Action ID: {stableActionId}");
+        if (action?.NativeActionKey is { } nativeKey)
+            lines.Add($"Native input key: {nativeKey} (observation; no public delivery action)");
         lines.Add($"Subject/card ID: {stableSubjectId}");
         lines.Add($"Target IDs: {targets}");
         lines.Add($"Effect: {effect}");
@@ -196,26 +267,68 @@ internal static class PlatformLiveActionFeed
         RecordingEventKind.RootPending => "… Observed",
         RecordingEventKind.DecisionRecorded => "✓ Recorded",
         RecordingEventKind.DecisionInvalidated => "✕ Invalidated",
+        RecordingEventKind.DecisionUnresolved => "? Unresolved",
+        RecordingEventKind.DecisionCancelled => "Cancelled",
+        RecordingEventKind.DecisionAborted => "Aborted",
+        RecordingEventKind.DecisionProjectionOmitted => "Proved / not canonical",
         _ => "unavailable"
     };
 
-    private static string FormatLifecycleDetail(PlatformLiveActionItem value) => value.Kind switch
+    internal static bool IsFailure(PlatformLiveActionItem value) =>
+        value.Action?.Disposition is "unresolved" or "failed_closed";
+
+    internal static bool IsNonDecision(PlatformLiveActionItem value) =>
+        value.Action?.IsDiagnostic == true || value.Action?.Disposition is "diagnostic" or "unsupported";
+
+    internal static string FormatCompactCounters(RecordingCounters counters) =>
+        $"已录入 {counters.Decisions?.Canonical.ToString() ?? "—"} / 真实失败 {counters.Decisions?.RealFailures?.ToString() ?? "—"}";
+
+    internal static string FormatCompactRecent(IReadOnlyList<PlatformLiveActionItem> entries) =>
+        entries.Count == 0 ? "最新 3 条 · 尚无记录" : string.Join('\n', entries.Take(3).Select(value =>
+            $"{FormatDisposition(value)}  {FormatCompactAction(value.Action)}".Replace('\r', ' ').Replace('\n', ' ')));
+
+    internal static string FormatDisposition(PlatformLiveActionItem value) => value.Action?.Disposition switch
+    {
+        "pending" => "… Pending",
+        "recorded" => "✓ Recorded",
+        "failed_closed" => "✕ Failed closed",
+        "unresolved" => "✕ Unresolved",
+        "cancelled" => "Cancelled",
+        "aborted" => "Aborted",
+        "diagnostic" => "Native diagnostic · retained",
+        "unsupported" => "Unsupported / non-decision",
+        _ => FormatLifecycle(value.Kind)
+    };
+
+    private static string FormatLifecycleDetail(PlatformLiveActionItem value) =>
+        value.Action?.IsDiagnostic == true
+            ? "Status: Native diagnostic · retained (not a Human decision failure)"
+            : value.Action?.Disposition is { } disposition
+                ? $"Status: {FormatDisposition(value)}" + (disposition == "pending" ? " · waiting for canonical settlement" : "")
+                : value.Kind switch
     {
         RecordingEventKind.RootPending =>
             "Status: … Observed · waiting for canonical settlement",
         RecordingEventKind.DecisionRecorded => "Status: ✓ Recorded",
         RecordingEventKind.DecisionInvalidated => "Status: ✕ Invalidated",
+        RecordingEventKind.DecisionUnresolved => "Status: ? Unresolved",
+        RecordingEventKind.DecisionCancelled => "Status: Cancelled",
+        RecordingEventKind.DecisionAborted => "Status: Aborted",
+        RecordingEventKind.DecisionProjectionOmitted => "Status: Proved / not canonical",
         _ => "Status: unavailable"
     };
 
     private static string FormatCompactAction(RecordingActionProjection? action)
     {
         if (action == null)
-            return "Action unavailable (canonical evidence omitted action facts)";
+            return "Action unavailable (event has no action projection)";
+        if (action.IsDiagnostic)
+            return Explicit(action.Label, "Unidentified native diagnostic");
         string verb = Humanize(action.Verb, "Action unavailable");
         string label = string.IsNullOrWhiteSpace(action.Label) ? "unavailable" : action.Label.Trim();
         string actionText = string.Equals(verb, label, StringComparison.OrdinalIgnoreCase)
-            ? verb
+            || label.StartsWith(verb + " ", StringComparison.OrdinalIgnoreCase)
+            ? label
             : $"{verb} {label}";
         string targets = FormatTargets(action, includeKeys: false, unavailableWhenEmpty: false);
         return targets.Length == 0 ? actionText : $"{actionText} → {targets}";

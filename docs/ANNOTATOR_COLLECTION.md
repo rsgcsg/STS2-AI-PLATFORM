@@ -1,0 +1,132 @@
+# Annotator collection and incident response
+
+Distribute one versioned Platform package with its BOM, supported exact game
+identity, component source/contract digests and assembly SHA/MVID. The collector
+starts only after the installed and loaded identities agree. Record each
+candidate/cohort separately; a new DLL or source revision receives no Human
+qualification from its predecessor. Retain the previous deployment for rollback.
+
+## Default project workflow
+
+For SpireAgent collection, use the [versioned STPD workbench release](https://github.com/rsgcsg/STS2-The-Perfect-Defect/releases)
+and its [single project handoff](https://github.com/rsgcsg/STS2-The-Perfect-Defect/blob/main/docs/B_PIPELINE_HANDOFF.md).
+That document owns installation, account/computer binding, campaign setup, cloud viewing,
+operator deployment and maintenance. This guide owns native capture, the Platform tool
+contract and recording incidents; it does not duplicate cloud account or research rules.
+
+The release combination binds the Mod/BOM/game, fixed-tool release ID, Platform Evidence
+pin and STPD source/lock. Preserve its previous combination for rollback. Download/check the
+published inventory before installing; a newer Git branch is not an automatic upgrade.
+The game must load one qualified Mod. The external workbench then supervises the pinned
+Evidence delivery service. A project account or device approval grants no Human-origin or
+upload consent: the operator still configures an initially empty, dedicated campaign and
+obtains that campaign's attestation before opening delivery.
+
+Daily use is **open the configured workbench -> record -> Recorder Close -> inspect receipt**.
+Ordinary collectors do not manually audit/pack every session or clone Platform. The owning
+audit/pack commands below remain the developer/manual diagnosis route. Closing the browser
+does not stop delivery; reopening the same workbench configuration after a reboot resumes
+sealed work. Never repoint the campaign at historical recordings to make missing data appear.
+
+The local **采集记录** page shows the queue and linked remote receipt. The cloud page shows
+received data and its verification; it cannot see an offline computer's pending queue. Keep
+recording quality, delivery status and research admission distinct. Zero real failures is an
+owner disposition count, not a promise that every game surface has been exercised.
+
+## Local capture and handoff
+
+Recording and diagnostics stay local by default. For distributed collection,
+configure `recording_root` to a persistent user-owned directory and retain
+verified bundles outside temporary engineering worktrees before cleanup. The existing Platform launcher
+opens Recorder; enable recording before a fresh native run. Keep the full session
+through natural terminal and close Recorder normally. Do not pause Recorder,
+reload/resume the run or use the console inside the uninterrupted Full-Run qualification gate.
+Those paths may have separate bounded tests. Close must finish successfully;
+a journal close entry alone is insufficient for close-capability-1 sessions.
+
+Run the owning audit before collection. Preserve the entire original directory,
+including failed/unresolved decisions, diagnostics, journal, content objects and
+performance profile. Do not delete bad rows to create an all-valid corpus.
+
+```bash
+npm run annotator:audit -- /absolute/session-directory
+npm run annotator:pack-session -- /absolute/session-directory \
+  --worker collector-id --campaign candidate-id --attest-human-origin \
+  --output /absolute/new-bundle-directory
+npm run evidence -- verify-human-bundle /absolute/new-bundle-directory
+```
+
+Use `--attest-human-origin` only with the actual operator's attestation. It is an
+explicit non-machine-verifiable statement, not something inferred from audit.
+Developer CLI packing requires a clean producer checkout. Automatic delivery
+uses a [fixed collection-tool release](../components/evidence/DELIVERY.md), built
+from clean source and verified by an independent release ID; it does not depend
+on the current developer checkout being clean. Both require a closed, structurally valid
+session. A zero-canonical session containing valid failed-decision evidence can
+still be bundled. A truncated/corrupt/unclosed session cannot be made verified:
+retain its raw bytes and failed audit for explicitly identified incident transfer.
+
+Bundle 3 is the current canonical-first format. Existing record-2 consumers use
+explicit `export-compatibility` / `pack-session-compatibility` via Annotator CLI;
+that projection is not a complete Full-Run dataset. Pin the consumer contract.
+The version-pinned STPD bundle3 adapter, dataset eligibility policy and training/evaluation
+checks belong to STPD. Their independent release and admission checks never change the
+original recording or turn receiver verification into research qualification.
+
+## Reports and privacy
+
+A bug report includes package/component/game identities, runtime/session IDs,
+expected input and observed disposition, approximate sequence/time, audit errors,
+reproduction steps, and whether console/reload/modset changes occurred. Include
+bundle content ID and verifier version when available. The issue template asks
+for this metadata; do not put raw sessions, saves, user paths or credentials in
+public issues. An operator may choose a private issue attachment or configured
+Evidence receiver. Automatic upload is opt-in through the fixed-campaign
+Evidence delivery service; credentials stay outside config and evidence.
+The existing typed Evidence transfer verifies checksums and quarantines rejected
+content before atomic promotion. Delivery success is not research admission.
+
+## Detect and route a problem
+
+At the end of each collection, compare the local sealed session with its final receiver
+receipt and inspect the owner quality counters. Keep a visible failed/pending record visible;
+never clear an outbox, delete raw evidence or repack under a new ID just to remove an error.
+The cloud **系统** page is an observation, not an independent outage alarm. The Hub operator
+checks health, queue age, disk and backup freshness using the STPD runbook; external alerting
+is a separate, explicitly configured and tested service.
+
+| Observed problem | First owner and next action |
+| --- | --- |
+| Accepted Human decision failed-closed/unresolved, missing parent or native boundary | Platform: retain complete session, exact Mod/game/tool identity and native audit; scope affected evidence before repair |
+| Unclosed/corrupt session | Platform: retain raw bytes and failed audit; do not forge Close or upload it as a verified bundle |
+| Local seal exists but packing/verification fails | Platform Evidence/tool: retain the original seal, tool release and typed incident |
+| Hub authorization blocked | STPD account/device operator first, then Platform's explicit same-device stopped-worker recovery; keep bundle/upload IDs |
+| Signed object upload rejected, network failure or remote verification pending | STPD Hub/storage operations and the typed delivery incident; distinguish storage403 from Hub auth403 |
+| Cloud receipt exists but Dataset/model use is rejected or absent | STPD research admission; cloud acceptance did not authorize training |
+| UI disagrees with an authoritative receipt | Owning UI projection: preserve exact IDs/observation time, compare owner status, fix presentation without changing evidence |
+
+Public reports include reviewed identities, aggregate counts and a minimal reproduction.
+Private raw evidence or account details travel only through an authorized private channel.
+A release may be withdrawn from the recommended combination while its failed evidence and
+old checksums remain immutable and available for diagnosis.
+
+## Correctness incident and repair
+
+1. Preserve the original artifact and evidence hashes. Reproduce against exact
+   source/native identity; determine the first incorrect fact and owning layer.
+2. Quarantine the affected cohort or affected decision families for downstream
+   admission. Record known affected versions and explicit uncertainty. Do not
+   mutate archived evidence or label every historical session invalid by guess.
+3. Implement the owning fix on a new short-lived branch with the lowest-cost
+   faithful regression, full component/root checks and exact-game gates. No
+   later-frame workaround or automatic retry of unknown gameplay delivery.
+4. Build one new exact package, cold-load, verify and run the bounded regression
+   Human gate. Re-run Full-Run qualification when the shared causal path changed.
+5. Publish the new version and incident disposition; consumers explicitly update
+   their pin. A schema-specific re-audit can produce a new report referencing the
+   original hashes, never rewrite the original recording or its old report.
+
+After merge, verify the normal merge preserves path-scoped component identity
+and the tested tree. Record exact merge/CI/package/load receipts before claiming
+release readiness. Future defects use the same route; merge is not a claim of
+exhaustive native surface coverage, crash recovery or scientific validity.

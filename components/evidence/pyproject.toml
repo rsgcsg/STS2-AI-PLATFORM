@@ -4,13 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rsgcsg-sts2-platform-evidence"
-version = "0.1.0-rc.1"
+version = "0.1.0-rc.7"
 description = "Typed, fail-closed evidence verification and transfer primitives."
 requires-python = ">=3.11"
 dependencies = []
 
 [project.scripts]
 sts2-evidence = "sts2_platform_evidence.cli:main"
+sts2-evidence-delivery = "sts2_platform_evidence.delivery_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -137,7 +137,7 @@ public sealed class RecordValidationTests
                 "test",
                 new[] { "ordinary_combat" },
                 Array.Empty<string>());
-            using (HistoricalRecordingStore store = HistoricalRecordingStore.Create(root, manifest))
+            using (HistoricalRecordingFixtureWriter store = HistoricalRecordingFixtureWriter.Create(root, manifest))
             {
                 store.AppendDecision(ValidRecord());
                 store.AppendDecision(ValidRecord() with
@@ -284,7 +284,7 @@ public sealed class RecordValidationTests
             "osx-arm64",
             new[] { "ordinary_combat.play_card", "ordinary_combat.end_turn" },
             Array.Empty<string>());
-        using (HistoricalRecordingStore store = HistoricalRecordingStore.Create(root, manifest))
+        using (HistoricalRecordingFixtureWriter store = HistoricalRecordingFixtureWriter.Create(root, manifest))
             store.AppendDecision(ValidRecord());
         return Path.Combine(root, "session-test");
     }

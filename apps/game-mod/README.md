@@ -35,7 +35,7 @@ Restore with:
 npm run game-mod:rollback
 ```
 
-After cold load, press `K` to open/close the five-page Platform UI; `Escape`
+After cold load, click the visible Platform launcher to open the two-tab Workspace; `Escape`
 also closes it. Verification requires one exact `STS2_PLATFORM` Modset, one
 common loaded SHA/MVID for Connector/Annotator/UI, component-specific embedded
 source provenance, a ready UI node, and Connector execution availability.
@@ -51,5 +51,5 @@ Do not replace it with a custom `Node` callback unless the package explicitly
 adds and validates Godot's C# source-generator toolchain; standard single-DLL
 Mod builds do not generate those callbacks.
 
-`installed`, `loaded`, `K-visible`, Human action evidence and Policy evidence
+`installed`, `loaded`, `launcher-visible`, Human action evidence and Policy evidence
 are separate claims.

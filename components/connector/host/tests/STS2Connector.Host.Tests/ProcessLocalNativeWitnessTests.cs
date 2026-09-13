@@ -9,6 +9,44 @@ namespace STS2Connector.Host.Tests;
 public sealed class ProcessLocalNativeWitnessTests
 {
     [Fact]
+    public void QueuedPotionInputKeepsNativePotionIdentityWithNoPublicDeliveryCatalog()
+    {
+        var frame = Frame(new NativeEntityRegistry(), Array.Empty<PlayerEnvironmentBoundAction>(), "settling", "complete");
+        object potion = new(), target = new();
+        var expected = new ProcessLocalObservedAction("use", potion, new Dictionary<string, object> { ["target"] = target });
+        var exact = frame.ResolveAcceptedInput(expected, expected);
+        Assert.Equal("exact_native_input", exact.Status);
+        Assert.StartsWith("potion_", exact.NativeInput!.SubjectReferentId);
+        Assert.StartsWith("use|potion_", exact.NativeInput.ActionKey);
+        Assert.Null(exact.BoundAction);
+        Assert.Empty(frame.Snapshot.BoundActions.Actions);
+        Assert.Equal("zero", frame.ResolveAcceptedInput(expected, expected with { Subject = new object() }).Status);
+        Assert.Equal("zero", frame.ResolveAcceptedInput(expected,
+            expected with { Arguments = new Dictionary<string, object> { ["target"] = new object() } }).Status);
+    }
+
+    [Fact]
+    public void AcceptedInputUsesExactScopedOperandsWithoutPublishingDeliveryAction()
+    {
+        var frame = Frame(new NativeEntityRegistry(), Array.Empty<PlayerEnvironmentBoundAction>(), "settling", "complete");
+        object card = new(), target = new();
+        var expected = new ProcessLocalObservedAction("play", card, new Dictionary<string, object> { ["target"] = target });
+        var exact = frame.ResolveAcceptedInput(expected, expected with { Arguments = new Dictionary<string, object> { ["target"] = target } });
+        Assert.Equal("exact_native_input", exact.Status);
+        Assert.Null(exact.BoundAction);
+        Assert.Null(exact.BoundActionId);
+        Assert.NotNull(exact.NativeInput);
+        Assert.Empty(frame.Snapshot.BoundActions.Actions);
+        Assert.Equal("zero", frame.ResolveAcceptedInput(expected, expected with { Subject = new object() }).Status);
+        Assert.Equal("zero", frame.ResolveAcceptedInput(expected, expected with { Arguments = new Dictionary<string, object> { ["target"] = new object() } }).Status);
+        Assert.Equal("zero", frame.ResolveAcceptedInput(expected, expected with { Verb = "discard" }).Status);
+        Assert.Equal("zero", Frame(new NativeEntityRegistry(), Array.Empty<PlayerEnvironmentBoundAction>(),
+            "settling", "complete", externalController: true).ResolveAcceptedInput(expected, expected).Status);
+        Assert.Equal("zero", Frame(new NativeEntityRegistry(), Array.Empty<PlayerEnvironmentBoundAction>(),
+            "settling", "complete", completeness: "partial").ResolveAcceptedInput(expected, expected).Status);
+    }
+
+    [Fact]
     public void SemanticActionKeyIsDeterministicAndRoleOrdered()
     {
         string first = NativeSemanticActionCatalog.BuildKey(
@@ -144,6 +182,38 @@ public sealed class ProcessLocalNativeWitnessTests
         Assert.Equal(0, result.MatchCount);
     }
 
+    [Fact]
+    public void NativeInputNeedsExactOwnerOperationAndSubjectFromFrozenCatalog()
+    {
+        var owner = new object();
+        var card = new object();
+        var entities = new NativeEntityRegistry();
+        var action = Action("select-a", "select", entities.GetId(card, "card"));
+        var frame = Frame(entities, new[] { action }, "interactive", "complete",
+            new[] { new ProcessLocalNativeInputBinding("select-a", "native_select", new[] { owner }, new[] { card }) });
+        Assert.Equal("select-a", frame.ResolveNativeInput(owner, "native_select", card).BoundActionId);
+        Assert.Null(frame.ResolveNativeInput(new object(), "native_select", card).BoundActionId);
+        Assert.Null(frame.ResolveNativeInput(owner, "native_deselect", card).BoundActionId);
+        Assert.Null(frame.ResolveNativeInput(owner, "native_select", new object()).BoundActionId);
+        Assert.True(frame.HasNativeInputOwner(owner));
+        Assert.False(frame.HasNativeInputOwner(new object()));
+    }
+
+    [Fact]
+    public void NativeInputRejectsAmbiguityAndIncompleteCatalog()
+    {
+        var owner = new object();
+        var entities = new NativeEntityRegistry();
+        var actions = new[] { Action("a", "confirm", null), Action("b", "confirm", null) };
+        var bindings = actions.Select(action => new ProcessLocalNativeInputBinding(
+            action.BoundActionId, "confirm", new[] { owner }, Array.Empty<object>())).ToArray();
+        Assert.Equal("ambiguous", Frame(entities, actions, "interactive", "complete", bindings)
+            .ResolveNativeInput(owner, "confirm").Status);
+        var incomplete = Frame(entities, actions, "interactive", "partial", bindings);
+        Assert.Null(incomplete.ResolveNativeInput(owner, "confirm").BoundActionId);
+        Assert.False(incomplete.HasNativeInputOwner(owner));
+    }
+
     private static PlayerEnvironmentBoundAction Action(
         string id,
         string verb,
@@ -160,7 +230,9 @@ public sealed class ProcessLocalNativeWitnessTests
         NativeEntityRegistry entities,
         IReadOnlyList<PlayerEnvironmentBoundAction> actions,
         string snapshotStatus,
-        string projectionStatus)
+        string projectionStatus,
+        IReadOnlyList<ProcessLocalNativeInputBinding>? nativeInputs = null,
+        bool externalController = false, string completeness = "complete")
     {
         var snapshot = new PlayerEnvironmentSnapshot(
             PlayerEnvironmentContract.ProtocolVersion,
@@ -189,7 +261,7 @@ public sealed class ProcessLocalNativeWitnessTests
                 actions),
             Array.Empty<PlayerEnvironmentReadOpportunity>(),
             new PlayerEnvironmentCompleteness(
-                "complete",
+                completeness,
                 "test",
                 "test",
                 Array.Empty<string>(),
@@ -204,13 +276,14 @@ public sealed class ProcessLocalNativeWitnessTests
             snapshot,
             null!,
             new string('a', 64),
-            false,
+            externalController,
             entities.CaptureExactReferences(
                 actions.SelectMany(action => action.Arguments
                         .Select(argument => argument.ReferentId)
                     .Append(action.SubjectReferentId))
                     .Where(referentId => referentId != null)
                     .Cast<string>()),
-            actions.Select(action => action.BoundActionId).ToHashSet(StringComparer.Ordinal));
+            actions.Select(action => action.BoundActionId).ToHashSet(StringComparer.Ordinal),
+            nativeInputs: nativeInputs);
     }
 }

@@ -1,7 +1,9 @@
 # New Engineer Guide
 
 This is the shortest safe path from a fresh checkout to a legitimate first
-Platform pull request.
+Platform pull request. If you only collect/view SpireAgent data, use the
+[collection workbench route](ANNOTATOR_COLLECTION.md#default-project-workflow); building
+Platform is not a collector prerequisite.
 
 ## 1. Know the boundary
 

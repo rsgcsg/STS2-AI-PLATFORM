@@ -6,6 +6,29 @@ namespace STS2HumanAnnotator.Core.Tests;
 public sealed class NativePostCommitCompletionLedgerTests
 {
     [Fact]
+    public void CompletionPreviewRetainsExactCarrierUntilDurableCommit()
+    {
+        var ledger = new NativePostCommitCompletionLedger();
+        Assert.True(ledger.Register(Registration("root-a", "reward-a", "owner-a")));
+        Assert.True(ledger.BindTask(new NativeTaskObservation(
+            "session-a", 1, "native.select", "task-a", "owner-a", "reward-a")).IsMatched);
+        var completion = new NativeTaskCompletion(
+            "session-a", 1, "completion-a", "task-a", true);
+
+        NativePostCommitCompletionResolution first = ledger.PreviewTaskCompletion(completion);
+        Assert.True(first.IsMatched);
+        Assert.Equal(1, ledger.Count);
+        NativePostCommitCompletionResolution afterInjectedAppendFailure =
+            ledger.PreviewTaskCompletion(completion);
+        Assert.True(afterInjectedAppendFailure.IsMatched);
+        Assert.Equal("root-a", afterInjectedAppendFailure.Registration!.ActionWitnessId);
+
+        Assert.True(ledger.CommitTaskCompletion(completion));
+        Assert.Equal(0, ledger.Count);
+        Assert.Equal("no_match", ledger.PreviewTaskCompletion(completion).Status);
+    }
+
+    [Fact]
     public void NativeTaskBindsAfterUiScopeUsingExactOperationIdentity()
     {
         var ledger = new NativePostCommitCompletionLedger();
@@ -103,6 +126,27 @@ public sealed class NativePostCommitCompletionLedgerTests
     }
 
     [Fact]
+    public void PendingExpectationDistinguishesUnownedCallbacksFromIdentityMismatch()
+    {
+        var ledger = new NativePostCommitCompletionLedger();
+        Assert.False(ledger.HasPendingExpectation("session-a", 1, "native.internal"));
+        Assert.True(ledger.Register(new NativePostCommitCompletionRegistration(
+            "session-a",
+            1,
+            "root-a",
+            new NativePostCommitCompletionExpectation(
+                "reward_proceed",
+                "native.shared",
+                AlternativeKinds: new[] { "native.alternative" }))));
+
+        Assert.True(ledger.HasPendingExpectation("session-a", 1, "native.shared"));
+        Assert.True(ledger.HasPendingExpectation("session-a", 1, "native.alternative"));
+        Assert.False(ledger.HasPendingExpectation("session-a", 2, "native.shared"));
+        Assert.False(ledger.HasPendingExpectation("other-session", 1, "native.shared"));
+        Assert.False(ledger.HasPendingExpectation("session-a", 1, "native.internal"));
+    }
+
+    [Fact]
     public void AmbiguousTaskBindingFailsClosedWithoutConsumingRoots()
     {
         var ledger = new NativePostCommitCompletionLedger();
@@ -132,6 +176,43 @@ public sealed class NativePostCommitCompletionLedgerTests
                 "owner"));
 
         Assert.Equal("ambiguous", binding.Status);
+        Assert.Equal(2, ledger.Count);
+    }
+
+    [Fact]
+    public void ExactRootHintResolvesSharedNativeCallbackWithoutFallback()
+    {
+        var ledger = new NativePostCommitCompletionLedger();
+        Assert.True(ledger.Register(new NativePostCommitCompletionRegistration(
+            "session-a",
+            1,
+            "root-a",
+            new NativePostCommitCompletionExpectation(
+                "reward_proceed",
+                "native.shared"))));
+        Assert.True(ledger.Register(new NativePostCommitCompletionRegistration(
+            "session-a",
+            1,
+            "root-b",
+            new NativePostCommitCompletionExpectation(
+                "treasure_proceed",
+                "native.shared"))));
+
+        NativeTaskObservation observation = new(
+            "session-a",
+            1,
+            "native.shared",
+            "task-a");
+        NativeTaskBindingResolution binding = ledger.BindTask(observation, "root-b");
+
+        Assert.True(binding.IsMatched);
+        Assert.Equal("root-b", binding.Binding!.ActionWitnessId);
+        Assert.Equal(2, ledger.Count);
+        Assert.Equal(
+            "no_match",
+            ledger.BindTask(
+                observation with { Kind = "native.other", TaskWitnessId = "task-b" },
+                "root-a").Status);
         Assert.Equal(2, ledger.Count);
     }
 
@@ -199,6 +280,24 @@ public sealed class NativePostCommitCompletionLedgerTests
         Assert.Equal("no_match", ledger.CompleteTask(new NativeTaskCompletion(
             "session-a", 1, "completion-a", "", true)).Status);
         Assert.Equal(1, ledger.Count);
+    }
+
+    [Fact]
+    public void FailedOwnerToTaskTransferCanRestoreTheExactRegistration()
+    {
+        var ledger = new NativePostCommitCompletionLedger();
+        Assert.True(ledger.Register(Registration("root-a", "reward-a", "owner-a")));
+        Assert.True(ledger.BindTask(new NativeTaskObservation(
+            "session-a", 1, "native.select", "task-a", "owner-a", "reward-a"),
+            "root-a").IsMatched);
+        Assert.False(ledger.Register(Registration("root-a", "reward-a", "owner-a")));
+
+        Assert.True(ledger.RollbackTaskBinding("task-a"));
+        Assert.Equal("no_match", ledger.PreviewTaskCompletion(
+            new NativeTaskCompletion("session-a", 1, "completion-a", "task-a", true)).Status);
+        Assert.True(ledger.BindTask(new NativeTaskObservation(
+            "session-a", 1, "native.select", "task-b", "owner-a", "reward-a"),
+            "root-a").IsMatched);
     }
 
     private static NativePostCommitCompletionRegistration Registration(

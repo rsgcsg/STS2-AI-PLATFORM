@@ -238,6 +238,11 @@ internal static partial class PlayerEnvironmentService
                 value.SelectableCardEntityIds, value.CanSkip, value.IsPeeking,
                 value.Cards
             }),
+            NativeBossRelicSelectionSurface value => ToNode(new
+            {
+                value.Kind, value.Relics, value.SelectableRelicEntityIds,
+                value.CanSkip
+            }),
             NativeSimpleCardSelectionSurface value => ToNode(new
             {
                 value.Kind, value.Stage, value.Prompt,
@@ -248,6 +253,8 @@ internal static partial class PlayerEnvironmentService
                 value.CanConfirm, value.Cards
             }),
             EventOptionSurface value => ToNode(new { value.Kind, value.Options }),
+            PotionPopupSurface value => ToNode(new { value.Kind, value.PotionEntityId, value.DefinitionId,
+                value.Name, value.Slot, value.CanUse, value.CanDiscard, value.DirectCombatUse, value.UseTargetEntityIds }),
             EventDialogueSurface value => ToNode(new
             {
                 value.Kind, value.CurrentLineIndex, value.RevealedLines,

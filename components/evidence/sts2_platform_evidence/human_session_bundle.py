@@ -20,13 +20,19 @@ from .human_session_bundle_v2 import (
     HumanSessionBundleV2Verifier,
 )
 
-VerifiedHumanSessionBundle = HumanSessionBundle | HumanSessionBundleV2
+from .human_session_bundle_v3 import (
+    BUNDLE_SCHEMA as BUNDLE_V3_SCHEMA,
+    HumanSessionBundleV3,
+    HumanSessionBundleV3Verifier,
+)
+
+VerifiedHumanSessionBundle = HumanSessionBundle | HumanSessionBundleV2 | HumanSessionBundleV3
 
 DESCRIPTOR: VerifierDescriptor[VerifiedHumanSessionBundle] = VerifierDescriptor(
     "human-session-bundle",
     "sts2.human-annotator/session-bundle",
-    2,
-    HumanSessionBundle,
+    3,
+    HumanSessionBundleV3,
 )
 
 
@@ -55,7 +61,7 @@ class VersionedHumanSessionBundleVerifier:
             )
         if schema == BUNDLE_V1_SCHEMA:
             return HumanSessionBundleVerifier().verify(directory, expected)
-        if schema == BUNDLE_V2_SCHEMA:
+        if schema in (BUNDLE_V2_SCHEMA, BUNDLE_V3_SCHEMA):
             if isinstance(expected, CollectionProfile):
                 return VerificationResult(
                     self.descriptor,
@@ -63,11 +69,12 @@ class VersionedHumanSessionBundleVerifier:
                     directory,
                     findings=(VerificationFinding(
                         "expected_profile_kind_mismatch",
-                        "a V1 collection profile cannot admit a V2 capture profile",
+                        "a V1 collection profile cannot admit a current capture profile",
                     ),),
                 )
             v2_expected = expected if isinstance(expected, dict) else None
-            return HumanSessionBundleV2Verifier().verify(directory, v2_expected)
+            verifier = HumanSessionBundleV2Verifier() if schema == BUNDLE_V2_SCHEMA else HumanSessionBundleV3Verifier()
+            return verifier.verify(directory, v2_expected)
         return VerificationResult(
             self.descriptor,
             "fail",
@@ -86,11 +93,14 @@ def verify_human_session_bundle(
 __all__ = [
     "BUNDLE_V1_SCHEMA",
     "BUNDLE_V2_SCHEMA",
+    "BUNDLE_V3_SCHEMA",
     "CollectionProfile",
     "HumanSessionBundle",
     "HumanSessionBundleV2",
+    "HumanSessionBundleV3",
     "HumanSessionBundleVerifier",
     "HumanSessionBundleV2Verifier",
+    "HumanSessionBundleV3Verifier",
     "VersionedHumanSessionBundleVerifier",
     "VerifiedHumanSessionBundle",
     "load_collection_profile",

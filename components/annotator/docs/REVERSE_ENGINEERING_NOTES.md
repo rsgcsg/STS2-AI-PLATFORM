@@ -1,9 +1,10 @@
 # Exact Native Seam Notes
 
-These findings are bound to local STS2 `v0.111.0`, commit `41cef1ea`, main
-assembly SHA-256
-`9cb4f1ad8c9f284aa8fec3122ffd6d780bbf543d875c817abdd12ff63fbf12b4`,
-MVID `57785517-0b16-42b9-8b36-bad6fb28384b`.
+These findings are bound to the exact Windows STS2 `v0.111.0`, commit
+`41cef1ea`, `sts2.dll` SHA-256
+`0861bfa1df347538d932f22d580e75420f08082792eb914e53b4882764acdbe9`,
+MVID `73b63ee0-6c0a-47bb-b0d1-b21f6d94222e`.  The earlier macOS assembly
+identity is historical and is not evidence for this Windows candidate.
 
 - `NMouseCardPlay.StartAsync` reaches `NCardPlay.TryPlayCard(target)`.
 - `NPlayerHand.StartCardPlay` receives the exact `NHandCardHolder` before the
@@ -66,6 +67,30 @@ MVID `57785517-0b16-42b9-8b36-bad6fb28384b`.
   rebuilds scenes and re-enters the latest map room. Exact v0.111.0 therefore
   exposes no complete arbitrary decision-boundary clone/restore primitive for a
   low-cost twin collector.
+
+## Full-Run room and terminal seams
+
+The same Windows assembly was decompiled with ILSpy 10.1.1.8388.  The exact
+room callback shapes are:
+
+- `NEventRoom.OptionButtonClicked(EventOption,int)` invokes
+  `EventOption.Chosen()` (or the event synchronizer) from the native button;
+  the `EventOption.Chosen` task is the completion seam.
+- `NRestSiteButton.OnRelease` sets its executing flag and disables visible
+  options before awaiting `RestSiteSynchronizer.ChooseLocalOption(int)`.  The
+  button callback is therefore the last interactive pre-frame seam; the task
+  is the later native completion.
+- `NRestSiteRoom.OnProceedButtonReleased(NButton)` opens the native map screen
+  and is a direct control observation, not a successor proof.
+- `NRewardsScreen.OnProceedButtonPressed` routes either through
+  `RewardsSetSynchronizer.SkipLocalRewardsSet()` or
+  `RunManager.ProceedFromTerminalRewardsScreen()` depending on the native
+  reward state.  The shared terminal-proceed callback is bound by exact root
+  identity and native operand.
+- `RunManager.WinRun()` and the native defeat command converge at
+  `RunManager.OnEnded(bool)`.  The Annotator observes that method as a terminal
+  marker only; it never infers a successor, reward outcome or action legality
+  from `IsInProgress` polling.
 
 These are implementation evidence, not current Live evidence. Decompiled source
 and proprietary assemblies are not committed.

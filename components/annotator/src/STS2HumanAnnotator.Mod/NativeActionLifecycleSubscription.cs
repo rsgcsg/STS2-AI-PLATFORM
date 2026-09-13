@@ -1,3 +1,4 @@
+using STS2Connector.PlayerEnvironment.Witness;
 using MegaCrit.Sts2.Core.GameActions;
 using STS2HumanAnnotator.Core;
 using STS2Platform.NativeFoundation;
@@ -16,28 +17,39 @@ internal sealed class NativeActionLifecycleSubscription : IDisposable
         string actionWitnessId,
         long actionSequence,
         string recordId,
-        string humanBoundActionId,
-        ExecutionSemanticActionSpaceEvidence? nativeSemanticDecision,
-        Action<NativeActionLifecycleSubscription, string> observer)
+        string? humanBoundActionId,
+        Action<NativeActionLifecycleSubscription, string> observer,
+        bool finishIsNativeCommit = true,
+        ProcessLocalObservedAction? nativeSemanticSelection = null,
+        string? semanticNativeActionType = null,
+        string? humanNativeActionKey = null)
     {
         _action = action;
         ActionWitnessId = actionWitnessId;
         ActionSequence = actionSequence;
         RecordId = recordId;
         HumanBoundActionId = humanBoundActionId;
-        NativeSemanticDecision = nativeSemanticDecision;
+        HumanNativeActionKey = humanNativeActionKey;
+        FinishIsNativeCommit = finishIsNativeCommit;
+        NativeSemanticSelection = nativeSemanticSelection;
+        SemanticNativeActionType = semanticNativeActionType;
         _observer = observer;
         _nativeObserver = new NativeActionLifecycleObserver(
             action,
             (_, phase) => _observer(this, phase));
     }
 
+    internal RecorderRuntime.NestedUiInput? NestedInput { get; init; }
+
     internal GameAction Action => _action;
     internal string ActionWitnessId { get; }
     internal long ActionSequence { get; }
     internal string RecordId { get; }
-    internal string HumanBoundActionId { get; }
-    internal ExecutionSemanticActionSpaceEvidence? NativeSemanticDecision { get; }
+    internal string? HumanBoundActionId { get; }
+    internal string? HumanNativeActionKey { get; }
+    internal bool FinishIsNativeCommit { get; }
+    internal ProcessLocalObservedAction? NativeSemanticSelection { get; }
+    internal string? SemanticNativeActionType { get; }
     internal string NativeActionType => _action.GetType().Name;
     internal uint? NativeQueueId => _action.Id;
     internal string NativeState => _action.State.ToString().ToLowerInvariant();

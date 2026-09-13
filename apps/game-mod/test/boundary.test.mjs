@@ -36,8 +36,12 @@ test("production game Mod has one manifest, assembly and explicit initializer", 
   const manifest = JSON.parse(read("apps/game-mod/mod_manifest.json"));
   const project = read("apps/game-mod/STS2Platform.GameMod.csproj");
   const initializer = read("apps/game-mod/UnifiedPlatformMod.cs");
+  const packageVersion = JSON.parse(read("apps/game-mod/package.json")).version;
 
   assert.equal(manifest.id, "STS2_PLATFORM");
+  assert.equal(manifest.version, packageVersion);
+  assert.equal(project.match(/<Version>([^<]+)<\/Version>/u)?.[1], packageVersion);
+  assert.equal(initializer.match(/const string Version = "([^"]+)"/u)?.[1], packageVersion);
   assert.deepEqual(manifest.dependencies, []);
   assert.match(project, /<AssemblyName>STS2_PLATFORM<\/AssemblyName>/u);
   assert.match(project, /STS2_PLATFORM_UNIFIED/u);
@@ -89,16 +93,18 @@ test("component initializers are disabled only in the unified build", () => {
   }
 });
 
-test("Live UI uses K from the SceneTree signal and logs readiness", () => {
+test("Live UI uses a visible launcher and SceneTree status signals", () => {
   const source = read("apps/ingame-ui/PlatformLiveUiMod.cs");
   assert.match(source, /internal sealed class PlatformLivePanel : IDisposable/u);
   assert.match(source, /tree\.ProcessFrame \+= _processFrameHandler/u);
-  assert.match(source, /Input\.IsKeyPressed\(Key\.K\) \|\| Input\.IsPhysicalKeyPressed\(Key\.K\)/u);
+  assert.doesNotMatch(source, /Key\.K/u);
+  assert.match(source, /BuildHeaderButton\("Platform", ShowPanel/u);
+  assert.doesNotMatch(source, /Input\.IsKeyPressed|Input\.IsPhysicalKeyPressed/u);
   assert.doesNotMatch(source, /class PlatformLivePanel : Control/u);
   assert.doesNotMatch(source, /override void _(Ready|Process|Input)/u);
   assert.match(source, /adding layer to SceneTree root/u);
   assert.match(source, /panel mount failed/u);
-  assert.match(source, /panel ready; input=K/u);
+  assert.match(source, /panel ready; input=launcher/u);
   assert.doesNotMatch(source, /Key\.F\d+/u);
 });
 
@@ -181,8 +187,8 @@ test("record settlement accepts only shared exact Modsets and never retries an u
 test("native card staging reuses one exact evidence frame without a second capture guard", () => {
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
 
-  assert.match(runtime, /StageCardPlay\(CardModel card\)[\s\S]*CaptureReadRichFrame\(\)[\s\S]*new StagedCardFrame\([\s\S]*new ExactDecisionFrame\(frame, environment\)/u);
-  assert.match(runtime, /ReferenceEquals\(staged\.Card, stagedCard\)[\s\S]*IsExact\(staged\.Decision\.Frame\.Resolve\(expectedAction\)\)[\s\S]*selected = staged\.Decision\.Frame/u);
+  assert.match(runtime, /StageCardPlay\(NHandCardHolder holder\)[\s\S]*CaptureReadRichFrame\(\)[\s\S]*new StagedCardFrame\([\s\S]*new ExactDecisionFrame\(frame, environment\)/u);
+  assert.match(runtime, /ReferenceEquals\(staged\.Holder\.CardModel, stagedCard\)[\s\S]*IsExact\(staged\.Decision\.Frame\.Resolve\(expectedAction\)\)[\s\S]*selected = staged\.Decision\.Frame/u);
   assert.doesNotMatch(runtime, /StagedCardPlayGuard/u);
   assert.doesNotMatch(runtime, /cached\.Frame\.Snapshot\.SnapshotId,[\s\S]*current\.Snapshot\.SnapshotId/u);
 });
@@ -224,7 +230,8 @@ test("execution semantic action space is captured once and preserved without bec
   const projection = read("components/annotator/src/STS2HumanAnnotator.Core/SemanticTransitionProjection.cs");
 
   assert.match(beforeExecution, /ProcessLocalNativeWitnessFrame frame = CaptureSemanticFrame\(\)/u);
-  assert.match(beforeExecution, /PlayerEnvironmentNativeSemanticWitness\.Capture\(phase, action, frame\)/u);
+  assert.equal((beforeExecution.match(/PlayerEnvironmentNativeSemanticWitness\.Capture\(/gu) ?? []).length, 1);
+  assert.match(beforeExecution, /PlayerEnvironmentNativeSemanticWitness\.Capture\(\s*phase, action, frame,\s*semanticNativeActionType: subscription\?\.SemanticNativeActionType,\s*semanticSelection: subscription\?\.NativeSemanticSelection\)/u);
   assert.match(beforeExecution, /capturedValue: semanticCapture/u);
   assert.match(beforeExecution, /ToExecutionSemanticActionSpace[\s\S]*executionSemanticActionSpace: actionSpace/u);
   assert.match(projection, /ExecutionSemanticActionSpaceValidator\.Validate/u);
@@ -242,17 +249,17 @@ test("resumed PlayerChoice parents do not rebind as a second execution boundary"
     "private static void ObserveSemanticDecisionBoundary"
   );
   const resumeGuard = beforeExecution.indexOf("phase == \"before_execution_resume\"");
-  const genericBoundary = beforeExecution.indexOf("BoundaryTracker.ObserveBeforeActionExecution(");
+  const genericBoundary = beforeExecution.indexOf("tracker.ObserveBeforeActionExecution(");
 
   assert.ok(resumeGuard >= 0);
   assert.ok(genericBoundary > resumeGuard);
   assert.match(
     beforeExecution.slice(resumeGuard, genericBoundary),
-    /BoundaryTracker\.BeforeExecutionResume\(actionWitnessId\)/u
+    /tracker\.BeforeExecutionResume\(actionWitnessId\)/u
   );
 });
 
-test("combat roots carry the Native Foundation decision from admission through execution", () => {
+test("combat roots retain Human admission separately from execution evidence", () => {
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
   const uiPatches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
   const witness = read("components/connector/host/PlayerEnvironment/Witness/ProcessLocalNativeSemanticWitness.cs");
@@ -269,7 +276,14 @@ test("typed non-combat native decisions bind exact Human actions without Annotat
   const catalog = read("components/native-foundation/src/NativeDecisionContracts.cs");
 
   assert.match(runtime, /before_native_action_admission/u);
-  assert.match(runtime, /subscription\?\.NativeSemanticDecision/u);
+  const execution = sourceBetween(runtime, "private static void ObserveBeforeActionExecution", "private static void ObserveSemanticDecisionBoundary");
+  assert.doesNotMatch(execution, /NativeSemanticDecision/u);
+  assert.match(execution, /ToExecutionSemanticActionSpace\([\s\S]*semanticCapture/u);
+  const subscription = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeActionLifecycleSubscription.cs");
+  assert.doesNotMatch(subscription, /ExecutionSemanticActionSpaceEvidence|NativeSemanticDecision/u);
+  const ingress = sourceBetween(runtime, "private static void StartSemanticNativeAction", "private static void ObserveSemanticOnlyNativeActionLifecycle");
+  assert.match(ingress, /nativeSemanticSelection: context\.NativeSemanticSelection \?\? context\.ExpectedAction/u);
+  assert.match(ingress, /semanticNativeActionType: context\.ExpectedNativeActionType/u);
   assert.match(witness, /DescribeDomainSelection/u);
   assert.match(witness, /NativeSemanticActionCatalog\.DescribeByIdentity/u);
   assert.match(catalog, /mechanical identity join, not legality/u);
@@ -335,6 +349,92 @@ test("capture failures become invalidations only after the native action is acce
   assert.doesNotMatch(runtime, /if \(selected == null\)[\s\S]{0,500}Quarantine\(/u);
 });
 
+test("accepted ingress converges on one gate and keeps unowned GameActions out of the root timeline", () => {
+  const observer = read("components/annotator/src/STS2HumanAnnotator.Mod/AcceptedDecisionObserver.cs");
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+
+  assert.match(observer, /AcceptedRootActionGate|TryClaimRootAction/u);
+  assert.match(observer, /TryClaimRejectedAcceptedIngress/u);
+  assert.match(observer, /MappingFailure[\s\S]*Duplicate[\s\S]*Accepted/u);
+  assert.doesNotMatch(observer, /NativePostCommitCompletionLedger|Queue|FIFO|poll/iu);
+  const gameActionIngress = sourceBetween(runtime, "internal static void ObserveAcceptedAction", "internal static void ObservePlayCardExecutionAborted");
+  const uiIngress = sourceBetween(runtime, "internal static bool ObserveAcceptedSemanticUiAction", "private static void TryQuarantineDeferredAcceptedAction");
+  assert.match(gameActionIngress, /AcceptedDecisionObserver\.Observe/u);
+  assert.match(
+    gameActionIngress,
+    /OutcomeKind\.NativeTypeMismatch\)[\s\S]*human_action_native_type_mismatch/u
+  );
+  assert.match(gameActionIngress, /OutcomeKind\.Duplicate\)\s*return;/u);
+  assert.match(gameActionIngress, /OutcomeKind\.NoScope[\s\S]*TryQuarantineDeferredAcceptedAction/u);
+  const duplicate = sourceBetween(gameActionIngress,
+    "if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.Duplicate)",
+    "if (outcome.Kind == AcceptedDecisionObserver.OutcomeKind.NoScope)");
+  assert.doesNotMatch(duplicate, /TryQuarantineDeferredAcceptedAction/u);
+  assert.match(uiIngress, /AcceptedDecisionObserver\.Observe/u);
+  assert.match(runtime, /human_action_accepted_without_scope/u);
+  assert.match(runtime, /native_action_exact_mapping_failed/u);
+  assert.match(runtime, /ResolveAcceptedUiMatch/u);
+  assert.match(patches, /ObserveAcceptedSemanticUiAction/u);
+});
+
+test("close persistence previews unknown dispositions before committing or clearing native tracking", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const close = sourceBetween(runtime, "private static void FinalizeClose", "private static bool HasPendingRecordingWorkUnsafe");
+  const persist = sourceBetween(runtime, "private static void PersistSemanticBoundaryDrafts", "private static bool TryPersistDerivedTransitionProjection");
+
+  assert.match(close, /PreviewCloseUnknown/u);
+  assert.match(close, /PersistSemanticBoundaryDrafts\(\s*closeDrafts/u);
+  assert.match(close, /onAuthoritativeSemanticAppend/u);
+  assert.match(close, /onDerivedProjectionFailure/u);
+  assert.match(close, /CommitCloseUnknown/u);
+  assert.ok(close.indexOf("PreviewCloseUnknown") < close.indexOf("PersistSemanticBoundaryDrafts"));
+  assert.ok(close.indexOf("onAuthoritativeSemanticAppend") < close.indexOf("CommitCloseUnknown"));
+  assert.ok(close.indexOf("CommitCloseUnknown") < close.indexOf("TerminateClosePendingWork"));
+  assert.match(close, /close_disposition_persistence_failed/u);
+  assert.match(close, /close_projection_persistence_failed/u);
+  assert.equal((close.match(/PersistSemanticBoundaryDrafts\(/gu) ?? []).length, 1);
+  assert.match(close, /if \(!authoritativeDispositionPersisted\)\s*return/u);
+  assert.match(close, /derivedProjectionFailed[\s\S]*State = "closing"/u);
+  assert.ok(
+    persist.indexOf("store.AppendSemanticEvidenceEvents")
+      < persist.indexOf("onAuthoritativeSemanticAppend?.Invoke"));
+  assert.ok(
+    persist.indexOf("onAuthoritativeSemanticAppend?.Invoke")
+      < persist.indexOf("TryPersistDerivedTransitionProjection"));
+  assert.match(persist, /if \(!TryPersistDerivedTransitionProjection[\s\S]*derivedProjectionFailed/u);
+});
+
+test("shop accepted mapping is staged once and reused by the accepted callback", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+  const shop = sourceBetween(patches, "internal static class NativeShopPurchasePatch", "[HarmonyPatch]");
+
+  assert.match(shop, /string\? Operation/u);
+  assert.match(shop, /new ProcessLocalObservedAction\(\s*operation,/u);
+  assert.match(shop, /__state\.Operation/u);
+  assert.doesNotMatch(
+    shop,
+    /private static void Postfix[\s\S]*?string operation = entry switch/u
+  );
+});
+
+test("Event, Shop, and Rest accepted seams preserve Foundation-owned operation identity", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+
+  const event = sourceBetween(patches, "internal static class NativeEventOptionPatch", "[HarmonyPatch]");
+  const rest = sourceBetween(patches, "internal static class NativeRestSiteOptionPatch", "/// <summary>");
+  const shop = sourceBetween(patches, "internal static class NativeShopPurchasePatch", "[HarmonyPatch]");
+
+  assert.match(event, /proceed_event|choose_event_option/u);
+  assert.match(event, /EventOption\.Chosen/u);
+  assert.match(rest, /choose_rest_option|RestSiteSynchronizer\.ChooseLocalOption/u);
+  assert.match(rest, /rest_site/u);
+  assert.match(shop, /purchase_shop_card|purchase_shop_relic|purchase_shop_potion|open_shop_card_removal/u);
+  assert.match(runtime, /SupportedFamilyForSemanticAction[\s\S]*shop_inventory\.purchase/u);
+  assert.match(runtime, /SupportedFamilyForNativeAction[\s\S]*rest_site\.choose/u);
+});
+
 test("PlayerChoice continuation uses STS2 lifecycle and generated choices retain failed-closed lineage", () => {
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
   const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
@@ -370,7 +470,7 @@ test("rapid accepted actions use one causal tracker and never fabricate successo
   assert.match(runtime, /CanOpenSemanticEvidenceWindow[\s\S]*lifecycleState/u);
   assert.match(runtime, /semantic_causal_overlap/u);
   assert.doesNotMatch(
-    sourceBetween(runtime, "private static bool CanOpenSemanticEvidenceWindow", "internal static void StageCardPlay"),
+    sourceBetween(runtime, "private static bool CanOpenSemanticEvidenceWindow", "internal static IDisposable? StageCardPlay"),
     /BoundaryTracker\.(?:HasUnresolvedActions|CanOpenNextRoot)/u
   );
   assert.match(runtime, /NativeActionLifecycleKinds\.Finished/u);
@@ -477,6 +577,36 @@ test("non-combat Human witnesses use public bindings and exact native completion
   assert.match(patches, /ProceedFromTerminalRewardsScreen[\s\S]*QueueNativePostCommitBoundary/u);
 });
 
+test("Full-Run room witnesses use STS2-owned semantic catalogs and exact task identity", () => {
+  const provider = read("components/native-foundation/src/NativeRoomDecisionProvider.cs");
+  const witness = read("components/connector/host/PlayerEnvironment/Witness/ProcessLocalNativeSemanticWitness.cs");
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+
+  assert.match(provider, /EventRoom\.LocalMutableEvent\.CurrentOptions/u);
+  assert.match(provider, /MerchantRoom\.GetLocalInventory\+MerchantEntry\.OnTryPurchaseWrapper/u);
+  assert.match(provider, /RestSiteSynchronizer\.GetLocalOptions\+RestSiteOption\.OnSelect/u);
+  assert.match(provider, /open_shop_inventory/u);
+  assert.match(provider, /close_shop_inventory/u);
+  assert.match(witness, /NativeRoomDecisionProvider\.Capture/u);
+  assert.match(patches, /class NativeEventOptionPatch[\s\S]*EventOption\.Chosen/u);
+  assert.match(patches, /class NativeRestSiteOptionPatch[\s\S]*RestSiteSynchronizer\.ChooseLocalOption/u);
+  assert.match(patches, /class NativeShopPurchasePatch[\s\S]*MerchantEntry\.OnTryPurchaseWrapper/u);
+  assert.match(patches, /class NativeShopRoomOpenPatch[\s\S]*NMerchantRoom\.OpenInventory/u);
+  assert.match(patches, /class NativeShopRoomProceedPatch[\s\S]*HideScreen/u);
+  assert.match(patches, /class NativeShopInventoryClosePatch[\s\S]*NMerchantInventory/u);
+  assert.match(patches, /QueueNativePostCommitBoundary\([\s\S]*NativeActionType/u);
+  assert.match(runtime, /"event_option\.choose"/u);
+  assert.match(runtime, /"shop_inventory\.purchase"/u);
+  assert.match(runtime, /"shop_room\.open"/u);
+  assert.match(runtime, /"shop_inventory\.close"/u);
+  assert.match(runtime, /"rest_site\.choose"/u);
+  assert.match(runtime, /NPlayerHand\.OnSelectModeConfirmButtonPressed[\s\S]*combat_hand_selector\.confirm/u);
+  assert.match(runtime, /NSelectedHandCardContainer\.DeselectHolder[\s\S]*combat_hand_selector\.deselect/u);
+  assert.match(runtime, /"choose_event_option" or "activate"/u);
+  assert.doesNotMatch(patches, /Task\.Delay|Thread\.Sleep|\bTimer\b|FirstOrDefault|LastOrDefault/u);
+});
+
 test("terminal rewards completion is family-neutral at the shared native seam", () => {
   const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
   const completionMarker = "NativeTreasureProceedCompletionPatch";
@@ -491,6 +621,74 @@ test("terminal rewards completion is family-neutral at the shared native seam", 
   assert.doesNotMatch(sharedCompletionPatch, /"(?:reward|treasure)_proceed"/u);
 });
 
+test("full-run task seams leave an absent root hint nullable for exact owner binding", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+  const taskSeams = [
+    "NativeTreasureNormalRewardsPatch",
+    "NativeTreasureProceedCompletionPatch",
+    "NativeRewardSkipCommitPatch",
+    "NativeRewardClaimCompletionPatch",
+    "NativeEventOptionCompletionPatch",
+  ];
+
+  for (const marker of taskSeams) {
+    const start = patches.indexOf(marker);
+    assert.ok(start >= 0, `missing ${marker}`);
+    const end = patches.indexOf("[HarmonyPatch", start + marker.length);
+    const source = patches.slice(start, end < 0 ? patches.length : end);
+    assert.doesNotMatch(source, /\?\?\s*string\.Empty/u);
+  }
+});
+
+test("unowned native task callbacks do not create phantom invalidations", () => {
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  const start = runtime.indexOf("private static void QueueNativePostCommitBoundary<TTask>");
+  const end = runtime.indexOf("private static void PersistSemanticBoundaryDrafts", start);
+  const source = runtime.slice(start, end);
+
+  assert.match(source, /HasPendingExpectation\(/u);
+  assert.match(source, /if \(hasPendingExpectation\)/u);
+});
+
+test("run terminal evidence comes from native OnEnded rather than polling", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  assert.match(
+    patches,
+    /class NativeRunEndedPatch[\s\S]*AccessTools\.Method\([\s\S]*typeof\(RunManager\)[\s\S]*"OnEnded"[\s\S]*typeof\(bool\)[\s\S]*ObserveNativeRunEnded/u
+  );
+  assert.match(runtime, /run_ended_native/u);
+  assert.match(runtime, /RunManager\.OnEnded\(isVictory=/u);
+  const lifecycle = sourceBetween(runtime, "private static void UpdateRunLifecycle", "\n    }\n}");
+  assert.match(lifecycle, /run_ended_unproved/u);
+  assert.doesNotMatch(
+    lifecycle,
+    /else if \(!inProgress && _runActive\)[\s\S]*PublishApplicationEvent/u
+  );
+});
+
+test("run start provenance comes from native Launch and separates join observation", () => {
+  const patches = read("components/annotator/src/STS2HumanAnnotator.Mod/NativeUiPatches.cs");
+  const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
+  assert.match(
+    patches,
+    /class NativeRunStartedPatch[\s\S]*AccessTools\.Method\([\s\S]*typeof\(RunManager\)[\s\S]*"Launch"[\s\S]*ObserveNativeRunStarted/u
+  );
+  const provenance = read("components/annotator/src/STS2HumanAnnotator.Core/NativeRunLaunchProvenance.cs");
+  assert.match(provenance, /run_started_native/u);
+  assert.match(provenance, /run_resumed_native/u);
+  assert.match(provenance, /run_launched_native_origin_unknown/u);
+  assert.match(patches, /Origins\.JournalKind\(__result\)/u);
+  assert.match(patches, /nameof\(RunManager\.SetUpNewSingleplayer\)/u);
+  assert.match(patches, /nameof\(RunManager\.SetUpSavedSingleplayer\)/u);
+  assert.match(runtime, /run_observed_in_progress/u);
+  assert.match(runtime, /AppendJournal\(\s*journalKind/u);
+  assert.doesNotMatch(
+    runtime,
+    /if \(inProgress && !_runActive && !_nativeRunEndedObserved\)[\s\S]*AppendJournal\("run_started"/u
+  );
+});
+
 test("task completion correlation does not consult HumanActionScope.Current", () => {
   const runtime = read("components/annotator/src/STS2HumanAnnotator.Mod/RecorderRuntime.cs");
   const queueMethod = sourceBetween(
@@ -501,12 +699,13 @@ test("task completion correlation does not consult HumanActionScope.Current", ()
   const completionMethod = sourceBetween(
     runtime,
     "private static void ObserveNativePostCommitCompletion",
-    "private static NativeCompletionEvidence ToCompletionEvidence"
+    "private static bool PersistTrackerMutationOrUnknown"
   );
 
   assert.match(queueMethod, /NativeTaskCompletion signal = new/u);
   assert.doesNotMatch(queueMethod, /HumanActionScope\.Current/u);
-  assert.match(completionMethod, /NativePostCommitCompletions\.CompleteTask\(taskCompletion\)/u);
+  assert.match(completionMethod, /NativePostCommitCompletions\.PreviewTaskCompletion\(taskCompletion\)/u);
+  assert.match(completionMethod, /NativePostCommitCompletions\.CommitTaskCompletion\(taskCompletion\)/u);
   assert.doesNotMatch(completionMethod, /HumanActionScope\.Current/u);
 });
 
@@ -520,7 +719,7 @@ test("GameAction Finished and task completion remain evidence-only before bounda
   const completionMethod = sourceBetween(
     runtime,
     "private static void ObserveNativePostCommitCompletion",
-    "private static NativeCompletionEvidence ToCompletionEvidence"
+    "private static bool PersistTrackerMutationOrUnknown"
   );
 
   assert.match(lifecycleMethod, /NativeActionLifecycleKinds\.Finished/u);
@@ -539,7 +738,7 @@ test("an unresolved root does not block the next Human root capture", () => {
   const admission = sourceBetween(
     runtime,
     "private static bool CanOpenSemanticEvidenceWindow",
-    "internal static void StageCardPlay"
+    "internal static IDisposable? StageCardPlay"
   );
   assert.match(admission, /lifecycleState\s*==\s*RecordingLifecycleState\.Recording/u);
   assert.doesNotMatch(admission, /BoundaryTracker\.(?:HasUnresolvedActions|CanOpenNextRoot)/u);
@@ -556,7 +755,7 @@ test("native completion proof has no FIFO, count, timer, or polling fallback", (
   const completionMethod = sourceBetween(
     runtime,
     "private static void ObserveNativePostCommitCompletion",
-    "private static NativeCompletionEvidence ToCompletionEvidence"
+    "private static bool PersistTrackerMutationOrUnknown"
   );
   const proofFallback = /(?:\bFIFO\b|\.Count\b|FirstOrDefault|LastOrDefault|TryDequeue|\bDequeue\(|Task\.Delay|Task\.Wait|WaitAsync|Task\.WhenAny|Thread\.Sleep|Stopwatch|System\.Timers|\bTimer\b|\bPoll(?:ing)?\b|TrySettle)/u;
 
@@ -652,4 +851,21 @@ test("delivery receipt cannot claim causal settlement", () => {
   assert.match(submission, /not causal settlement/u);
   assert.match(protocol, /not business completion or a canonical[\s\S]*causal next-decision state/u);
   assert.doesNotMatch(submission, /WaitFor.*Successor|CompletionProbe|BusinessOutcome/u);
+});
+
+
+test("game-over ready uses the factory-bound terminal owner and exact native intro control", () => {
+  const patches = read("apps/game-mod/NativeFoundationOwnerPatches.cs");
+  const provider = read("components/native-foundation/src/NativeDecisionOwnerReadyProvider.cs");
+  assert.match(patches, /typeof\(NGameOverScreen\), nameof\(NGameOverScreen.Create\)/u);
+  assert.match(patches, /typeof\(NGameOverContinueButton\), "OnEnable"/u);
+  assert.match(patches, /RegisterGameOver\(__result, runState\)/u);
+  assert.match(patches, /ObserveGameOverReady\(__instance\)/u);
+  assert.match(provider, /GameOverOwners.TryGetValue\(screen, out RunState\? run\)/u);
+  assert.match(provider, /ReferenceEquals\(RunManager.Instance.DebugOnlyGetState\(\), run\)/u);
+  assert.match(provider, /!run.IsGameOver[\s\S]*run.Players.Count != 1/u);
+  assert.match(provider, /IsCleaningUp[\s\S]*IsAbandoned/u);
+  assert.match(provider, /ReferenceEquals\(screen.GetNodeOrNull<NGameOverContinueButton>\("%ContinueButton"\), button\)/u);
+  assert.match(provider, /ActiveScreenContext.Instance.IsCurrent\(screen\)/u);
+  assert.doesNotMatch(provider, /Task.Delay|ContinueWith|MoveNext|GetCurrentAction|latestAction/u);
 });

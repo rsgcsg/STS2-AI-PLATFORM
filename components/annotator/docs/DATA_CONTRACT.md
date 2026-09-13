@@ -1,15 +1,24 @@
 # Data Contract
 
 The current recording schemas are defined by
-`src/STS2HumanAnnotator.Core/CurrentContracts.cs`. Wire names ending in `-2`
-are the single current format; they are not a second active product. A current
-session directory contains one immutable manifest, one append-only file per
-observed run, one append-only invalidation stream, a semantic boundary stream,
+`src/STS2HumanAnnotator.Core/CurrentContracts.cs`. Manifest and compatibility decision wire names remain `-2`. Canonical and
+execution-action-space writers use `-3`; their readers also accept `-2`. A current
+session directory contains one immutable manifest, a canonical transition stream,
+an append-only invalidation stream, a semantic boundary stream,
 content-addressed Read/frame/action-space objects, a minimal run journal, and
-an atomically replaced coverage summary. The current store does not create a
-native-action ledger.
+an atomically replaced coverage summary. Compatibility `run-*.jsonl` files are
+optional and may be absent for canonical-only runs; the journal and semantic
+streams retain run identity. The current store does not create a native-action
+ledger.
 
-Each admitted `CurrentDecisionRecord` contains:
+Native-input correlation supports exactly `PlayCardAction`/`play` and
+`UsePotionAction`/`use`, with matching native witness type and exact scoped
+reference mapping. These inputs may lack a public BoundAction at H; the schema-3
+canonical path independently requires their exact operands and exactly-once
+membership in the execution catalog at S. Supporting the input format does not
+make native acceptance, cancellation or missing successor into canonical proof.
+
+Each compatibility `CurrentDecisionRecord` contains:
 
 - exact environment and artifact identity;
 - the full frozen pre Snapshot and catalog digest/count;
@@ -21,8 +30,9 @@ Each admitted `CurrentDecisionRecord` contains:
 
 `audit` independently recomputes and verifies nested Snapshot identity, catalog
 digest/count, chosen-action uniqueness, runtime continuity, sequence monotonicity,
-and exact identities. `export` refuses a failed audit and concatenates run files
-in deterministic order.
+and exact identities. Current `export` emits canonical transitions after a
+closed-session audit. Explicit `export-compatibility` concatenates compatible
+run files; it is not a complete Full-Run export.
 
 Historical `native-action-ledger.jsonl` evidence uses
 `sts2.human-annotator/native-action-ledger-event-2`. Each exact-correlated
@@ -66,7 +76,7 @@ occurrence, not a mutable
 admission ledger, legality engine or second canonical truth.
 
 An execution event may additionally reference one
-`sts2.human-annotator/execution-semantic-action-space-2` object below
+`sts2.human-annotator/execution-semantic-action-space-3` object below
 `semantic-action-spaces/sha256/`. It preserves the exact read-only Native
 Foundation semantic state/catalog captured at the native action-binding
 boundary, the described native action and its exact-once membership. For a
@@ -79,6 +89,23 @@ Human/native action identity. Schema 1 remains readable historical evidence
 under its original same-verb matching rules. This object is evidence of an
 STS2-owned semantic decision, not an Annotator legality engine or Connector
 delivery catalog.
+
+For native PlayCard accepted during public settling, the scoped input is
+correlated by exact subject/operand references at `OnEnqueued`. The trace
+retains `native_input` (action key, verb, subject, arguments and label) with
+`bound_action = null` and `exact_native_input` mapping. This is an observation,
+not a public delivery action or legality proof at H. State/Reads, environment,
+modset and controller gates remain enforced. Failed matching stays fail-closed.
+Schema-3 execution evidence joins `human_native_action_key` to the same exact
+selected native key/operands at `BeforeActionExecuted`; the public-bound and
+native-input bindings are mutually exclusive. Canonical schema 3 carries the
+same XOR representation. A native-input canonical requires native execution
+evidence and cannot use a public-catalog fallback. Cancellation retains the
+input and disposition without creating a successful canonical transition.
+The legacy compatibility decision stream intentionally omits native-input rows;
+consumers must read the versioned canonical/trace contracts, not infer missing
+input from legacy counts. Existing schema-2 consumers need an explicit schema-3
+adapter update; Platform does not implement their training projection.
 
 The timeline stores Human observation H separately from execution-adjacent
 state evidence and records exact action identity,
@@ -113,6 +140,16 @@ meaning. A canonical parent row may therefore name a native terminal/direct
 Commit **or** this exact PlayerChoice continuation, but still requires a
 separate causal successor and no intervening Human effect.
 
+`native_human_continuation_observed` is distinct: it preserves one exact
+screen-owned accepted selection or cancellation inside an already-owned Human
+root. An exact parent/root logical invocation scope binds the typed selector
+factory, and the resulting native screen object is weak-keyed until its own
+terminal callback and completion source agree. The event carries its exact
+parent action witness, owner, mechanism and selected native operands. It does
+not create another root, count as native Commit, settle the parent, or prove
+`S'`. Preview cancellation and an unowned screen exit are not promoted to an
+accepted occurrence.
+
 This stream is not corpus admission or research authority. Current audit only
 promotes current schema containers; predecessor sessions retain their original
 claims only through an explicit archival reader. Evidence is never transferred
@@ -139,7 +176,7 @@ retained in the `audit-native-semantic` report but do not invalidate an
 otherwise valid semantic/canonical session. Malformed JSON, schema/sequence
 errors, identity mismatches, and orphan cross-stream identities remain fatal.
 
-`canonical-transitions.jsonl` schema 2 is the non-authorizing current canonical
+`canonical-transitions.jsonl` schema 3 is the non-authorizing current canonical
 projection and the sole durable canonical truth. A row is written only after
 one complete semantic state, exact-once selected action in the authoritative
 native action space, exact Human/native
@@ -148,7 +185,8 @@ no intervening Human effect and one
 complete causal successor are all present. It references immutable semantic
 frame and typed semantic action-space objects. The action-space object records
 whether it was captured before `GameAction` execution or before a source-local
-native callback admission, plus the exact Human BoundAction binding. Historical
+native callback admission, plus exactly one correlation form: a Human BoundAction
+binding or an exact `native_input` key. Historical
 or not-yet-migrated direct UI evidence may name `public_bound_actions` only when
 its exact frame has the complete typed public catalog and contains the action
 exactly once. Audit
@@ -161,8 +199,8 @@ Canonical sequential training evidence has the stricter contract:
 S_t + complete A(S_t) -> exact A_t in A(S_t) -> causal S_(t+1)
 ```
 
-H and its frozen public BoundAction prove Human choice/correlation but do not
-define S. Acceptance does not define execution order. Execution S is eligible
+H and its exact public BoundAction or native-input correlation prove Human
+choice/correlation but do not define S. Acceptance does not define execution order. Execution S is eligible
 only when its same-boundary authoritative action space contains A exactly once;
 current public deliverability is not substituted for that semantic fact. A
 generic later interactive Snapshot is not causal S' merely because it is
@@ -173,13 +211,15 @@ label by terminology alone.
 
 `SemanticActionReference` may add exact process-local witness, mapping,
 BoundAction and native-mechanism metadata. Missing metadata on historical rows
-retains its prior meaning. The current `game_action` and `direct_ui_commit`
-mechanisms both resolve one already-published frozen BoundAction and converge on
-the same tracker and disposition rules; neither is a second execution API.
+retains its prior meaning. Public-bound-action correlation resolves an
+already-published frozen BoundAction; the `native_input` form described above
+retains exact native operands without inventing that public correlation. Both
+converge on the same tracker and disposition rules and require execution
+S + A(S); neither is a second execution API.
 
-`pack-session` creates `sts2.human-annotator/session-bundle-2`. A current bundle contains
-the untouched raw session, independent audit, deterministic export, the exact
-versioned `CollectionProfile`, a human-origin attestation, a content-identity
+`pack-session` creates `sts2.human-annotator/session-bundle-3`. A current bundle contains
+the untouched raw session, producer audit, deterministic canonical export, the exact
+versioned `HumanCaptureProfile`, a human-origin attestation, a content-identity
 manifest, and a complete `checksums.sha256` inventory. The content identity binds
 session, worker, campaign, profile, run IDs, raw files, export and audit. Existing
 bundles are immutable: an exact retry reuses identical bytes and any changed
@@ -187,8 +227,138 @@ retry fails.
 
 Files are append-only by Recorder behavior, not cryptographically tamper-proof.
 The SHA-256 of an exported JSONL is one source identity, not the whole bundle
-identity. STPD independently verifies raw/export equivalence, checksums, profile
-identity and its own research admission before a bundle enters a corpus. The
-current CLI accepts only the current manifest; predecessor V1 bundles require
-the explicit historical packer. Preserve both raw sessions and accepted bundles
-read-only.
+identity. Evidence independently verifies bundle-3 inventory, typed canonical
+evidence and raw/export equivalence; it does not grant research admission.
+`pack-session-compatibility` explicitly produces bundle 2 with record-2 export.
+Existing STPD record-1/2 consumers require a separately versioned canonical-3
+adapter and their own admission checks before current Full-Run evidence enters a
+corpus. Predecessor bundle contracts retain their archival meanings. Preserve
+both raw sessions and accepted bundles read-only.
+
+## Decision identity extension
+
+[ADR-0006](../../../docs/adr/0006-decision-occurrences-within-causal-roots.md)
+distinguishes `CausalRoot` from `DecisionOccurrence`. New runtime manifests set
+`decision_schema_version: 2`. Every semantic trace action and canonical row
+carries `decision` with `schema_version`, `decision_id`, `causal_root_id`,
+`parent_decision_id`, `surface`, `family`, `decision_kind` and
+`native_owner_witness_id`. Root owners may be null; nested owners must be exact.
+Audit checks earlier parent acceptance in the same session/timeline/run,
+immutable identity, canonical-to-trace equality and required metadata presence.
+
+Nested decisions retain their own frozen execution pre, complete Connector
+catalog, chosen BoundAction and successor or explicit unknown in the existing
+streams. A null native queue ID is intentional: this is a native UI decision,
+not an invented GameAction. Selected cards and available pile provenance remain
+in the content-addressed Snapshot/Read evidence; opaque witnesses never grant
+access to native objects. Cancel/preview/deselect inputs are retained separately.
+Historical continuation-only records have no independent selector S/catalog
+claim and must not be upgraded by a consumer.
+
+## Recording application decision projection
+
+The additive `RecordingCounters.Decisions` snapshot counts accepted roots and
+children, proved/unresolved dispositions and canonical roots/children only after
+the corresponding authoritative append succeeds. `Records` retains its older
+compatibility-record meaning. Recorded-family scope and LastRecord follow the
+canonical stream. Application action metadata optionally copies decision identity,
+pre/successor IDs, catalog count and recorded pile type; old producers omit it.
+These fields do not authorize actions or confer research qualification.
+
+An exact selector input-owner handoff may close a started direct-UI decision
+before its enclosing native Task returns. The durable continuation names that
+exact owner and lineage; no GameAction pause or completion is fabricated. Queued
+GameActions still require their actual pause/finished lifecycle. Current canonical
+family filtering consumes the family already attached at decision admission,
+rather than interpreting the public verb a second time.
+
+## Native launch provenance
+
+`run_started_native` requires both the exact RunState's new-singleplayer setup
+and its native Launch. Saved-singleplayer setup produces `run_resumed_native`;
+a Launch without exact setup provenance produces
+`run_launched_native_origin_unknown`. Neither proves a fresh complete run.
+A prior polling `run_observed_in_progress` does not suppress a later native
+marker. Historical sessions that recorded every Launch as `run_started_native`
+retain their bytes and require source-version-aware qualification; start/end
+counts alone never admit a Full Run.
+
+## Decision identity version 2
+
+New manifests declare `decision_schema_version=2`; audit supports historical 1
+but requires each explicit decision to match its manifest. `native_selector`
+adds an independently witnessed Human input with no Human parent and an exact
+real native action or exact blocking choice context as its causal root. `native_origin` carries
+`native_action_witness_id`, `native_action_type`, `choice_context_type` and
+`factory_mechanism`. The native input witness repeats the exact origin and
+selector-owner identities for typed audit. It is a `direct_ui_commit` decision,
+never a fabricated GameAction or queue entry. Existing root/nested selector
+identities remain valid in version 2. No-origin factories remain fail-closed.
+
+For `BlockingPlayerChoiceContext`, the historical `native_action_witness_id`
+and `native_action_type` fields identify the exact native context object and its
+actual CLR type, not a GameAction. `CardSelectCmd.FromChooseACardScreen` carries
+this context to its screen factory through the exact async invocation. An
+existing exact Event/Reward parent takes precedence; a standalone native choice
+has no invented Human parent. Throwing or mismatched contexts remain fail-closed.
+
+The UI's roots/entries counters count parentless Human decisions, including
+native-origin selector inputs; they do not deduplicate by CausalRootId. Every
+input remains separately represented. Native-origin decisions are eligible for
+the existing nested-selector capture family only after ordinary canonical
+state/action-space/successor validation. Research admission remains external.
+
+The current Full-Run profile is `human-full-run-read-rich-v4`, adding
+`potion_belt.discard` for the native potion popup across rooms. Historical v3
+profiles retain their exact stored meaning. Native-origin decisions can name an
+exact PlayCardAction in GatheringPlayerChoice when no Human parent was admitted;
+this does not assert automatic origin. `unrecorded_human_effect_before_successor`
+means an accepted but uncaptured Human input fenced a pending transition. No
+later frame may be projected as that transition's causal successor.
+
+## Queued execution catalog phase
+
+A `game_action` or an action with `native_queue_id` requires its execution
+semantic action space to have phase `before_execution`. Admission-time native
+catalogs remain useful H evidence but cannot qualify a queued execution S.
+`before_native_action_admission` is valid for direct callbacks without queued
+carriers. Current audit/calibration reject historical rows that violate this
+existing causal boundary; they do not rewrite the historical files or recover
+missing H admission evidence.
+
+## Current writer, compatibility readers and dispositions
+
+Current writers emit canonical-transition-evidence-3 and
+execution-semantic-action-space-3. Schema2 remains readable for concrete
+predecessor data; schema1 is archive-only. Internal normalized trace2 is a
+validator representation, not another production append authority. Current
+bundle3 exports canonical rows; record2/bundle2 are explicit compatibility.
+
+Recording status4/event batch2 separate Pending, Recorded, Unresolved,
+Cancelled, Aborted, Failed closed, Diagnostic and Unsupported. Session totals
+come from successfully appended authoritative facts, not retained UI rows.
+`RealFailures` counts unique in-scope failed decision witness IDs: trace unknown,
+accepted capture loss or canonical persistence loss. It excludes native cancel,
+abort before Commit, presentation cancel, internal diagnostics and unsupported
+non-decisions. Interrupted or failed evidence accounting returns unavailable,
+never a fabricated zero. Repeated diagnostics do not create decisions.
+
+New producer manifests declare `disposition_schema_version=1`. Invalidation2
+then requires explicit `disposition`; `failed_closed` requires `decision_failure`
+with exact decision witness, capture/persistence kind and action family. Capture
+failure names the same immutable HumanOccurrence; persistence failure names the
+actual admitted action. Old manifests without this extension retain unknown
+classification, not inferred all-valid accounting. UI projection cannot author
+these dispositions.
+
+New manifests also declare `close_schema_version=1`. `session_closed` in the
+journal is a close request's terminal log record; completed closure additionally
+requires matching `session-close-receipt.json` (`session-close-1`). The receipt
+is published only after evidence stream flush/close and flushed receipt bytes.
+Close failure keeps accounting unavailable and does not publish application
+Closed. This is exception/durability evidence, not a power-loss atomicity claim.
+
+Compatibility adapter failure after canonical append is diagnostic and cannot
+undo canonical success or strand the decision presentation. A damaged current
+stream still fails audit. Structural validity and a deliverable bundle do not
+assert Human origin, full coverage or research admission.

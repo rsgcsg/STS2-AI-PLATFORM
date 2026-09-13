@@ -16,6 +16,7 @@ import {
 import { evaluateLoadedEvidence, extractGameProcessIds } from "./loaded-evidence.mjs";
 import { waitForLoadedReadiness } from "./loaded-readiness.mjs";
 import { sourceSetIdentity, sourceSetMatches } from "./source-identity.mjs";
+import { readAnnotatorConfiguration, effectiveAnnotatorConfiguration } from "./annotator-configuration.mjs";
 
 const appRoot = import.meta.dirname;
 const platformRoot = path.resolve(appRoot, "../..");
@@ -36,6 +37,7 @@ const installation = resolveWorkstationInstallation({ headlessApi: hostApi });
 const installedDll = path.join(installation.mods_dir, "STS2_PLATFORM.dll");
 const installedManifest = path.join(installation.mods_dir, "STS2_PLATFORM.json");
 const installedIdentity = path.join(installation.mods_dir, "STS2_PLATFORM.identity");
+const annotatorConfig = path.join(installation.mods_dir, "STS2_HUMAN_ANNOTATOR.conf");
 const retiredProductionFiles = [
   "STS2_MCP.dll",
   "STS2_MCP.json",
@@ -65,6 +67,13 @@ function writeJson(file, value) {
   const temporary = `${file}.tmp-${crypto.randomUUID()}`;
   fs.writeFileSync(temporary, `${JSON.stringify(value, null, 2)}\n`);
   fs.renameSync(temporary, file);
+}
+
+function annotatorConfiguration() {
+  return readAnnotatorConfiguration(annotatorConfig, {
+    recording_root: path.join(annotatorRoot, ".local/recordings"),
+    runtime_status_path: runtimeStatus
+  });
 }
 
 function exactIdentity(file) {
@@ -203,6 +212,8 @@ function doctor() {
 function deploy() {
   if (gameRunning()) throw new Error("Fully close Slay the Spire 2 before deployment.");
   const exact = requireBuild();
+  // Validate before any installed bytes/configuration can change.
+  const recordingConfiguration = annotatorConfiguration();
   fs.mkdirSync(installation.mods_dir, { recursive: true });
   const backup = path.join(localRoot, "deployments", new Date().toISOString().replaceAll(":", "-"));
   fs.mkdirSync(backup, { recursive: true });
@@ -243,12 +254,7 @@ function deploy() {
       port: 15526,
       player_environment_native_page_evidence_enabled: false
     });
-    const annotatorConfig = path.join(installation.mods_dir, "STS2_HUMAN_ANNOTATOR.conf");
-    writeJson(annotatorConfig, {
-      recording_root: path.join(annotatorRoot, ".local/recordings"),
-      runtime_status_path: runtimeStatus,
-      successor_timeout_ms: 20000
-    });
+    writeJson(annotatorConfig, recordingConfiguration);
     if (settings) {
       writeJson(settings.file, prepareSoleWindowsModSettings({
         settings: settings.value,
@@ -363,9 +369,10 @@ async function verifyLoaded() {
   const installed = readJson(installedProvenance);
   const expected = installed.artifact;
   const processIds = extractGameProcessIds(gameProcesses(), process.platform);
+  const statusPath = effectiveAnnotatorConfiguration(annotatorConfiguration(), process.env).runtime_status_path;
   const loaded = await waitForLoadedReadiness(async () => {
-    if (!fs.existsSync(runtimeStatus)) throw new Error("Annotator runtime status is unavailable.");
-    const status = readJson(runtimeStatus);
+    if (!fs.existsSync(statusPath)) throw new Error("Annotator runtime status is unavailable.");
+    const status = readJson(statusPath);
     const capabilities = await fetchJson("api/player-environment/capabilities");
     const log = fs.readFileSync(installation.log_file, "utf8");
     const platformIdentity = latestIdentity(log, "[STS2 Platform] identity ");
@@ -379,7 +386,7 @@ async function verifyLoaded() {
       liveUiIdentity,
       installed,
       uiPanelReady: latestUiIdentityIndex >= 0
-        && uiLog.includes("[STS2 Platform Live UI] panel ready; input=K"),
+        && uiLog.includes("[STS2 Platform Live UI] panel ready; input=launcher"),
       gameProcessIds: processIds
     });
     return { ...evaluation, status, capabilities, platformIdentity, liveUiIdentity, log, uiLog };
@@ -394,7 +401,7 @@ async function verifyLoaded() {
     runtime: status,
     connector_capabilities: capabilities,
     ui_toggle_runtime_canary: uiLog.includes(
-      "[STS2 Platform Live UI] toggle; input=K; visible=true")
+      "[STS2 Platform Live UI] toggle; input=launcher; visible=true")
       ? "observed"
       : "not_observed",
     owner_ui_visibility: "pending human runtime evidence",

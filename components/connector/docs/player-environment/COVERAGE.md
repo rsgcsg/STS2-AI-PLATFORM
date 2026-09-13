@@ -72,3 +72,11 @@ There is no arbitrary click/reflection, visual computer-use fallback, Headless
 process lifecycle or profile isolation, Training authority, hidden-state
 projection or arbitrary-version/Mod compatibility claim. Retired V2/V3
 protocols are not fallbacks.
+
+### Native potion popup (PR25 candidate)
+
+`potion_popup` observes the exact visible top-bar popup independently of the
+underlying room. Enabled native use/discard buttons and native close form its
+finite catalog. Delivery revalidates popup, potion, slot and enabled control.
+Opening use can initiate native targeting; delivered input is not potion-effect
+settlement. Source/exact-game coverage requires a fresh Human runtime canary.

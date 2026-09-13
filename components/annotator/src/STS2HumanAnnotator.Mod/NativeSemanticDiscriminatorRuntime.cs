@@ -60,7 +60,8 @@ internal static class NativeSemanticDiscriminatorRuntime
                         captured => RecordCaptureSubphases(
                             store,
                             "native_semantic_discriminator",
-                            captured)))
+                            captured),
+                        semanticNativeActionType: action.GetType().Name))
                 : null);
             string actionWitnessId = NativeWitnessIdentity.Get(action, "game_action");
             store.AppendNativeSemanticDiscriminatorEvent(CreateEvent(

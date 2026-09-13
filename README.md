@@ -71,6 +71,25 @@ The detailed dependency graph and ownership matrix live in
 The [Document Map](docs/DOCUMENT_MAP.md) is the short routing index. Historical
 evidence remains discoverable without being part of the default reading path.
 
+## Collect and view project data
+
+The default SpireAgent collection workflow uses one qualified `STS2_PLATFORM` game Mod and
+one external project workbench. Start from the [STPD developer releases](https://github.com/rsgcsg/STS2-The-Perfect-Defect/releases)
+and follow the [shared project handoff](https://github.com/rsgcsg/STS2-The-Perfect-Defect/blob/main/docs/B_PIPELINE_HANDOFF.md)
+for the exact supported combination, invited email login, computer binding and dedicated campaign.
+A collector does not need to build this repository or install research/model dependencies.
+
+Record in the game, press Recorder **Close**, then inspect **采集记录** in the local workbench:
+sealed evidence moves through packing, the persistent queue, upload and receiver verification.
+The [cloud console](https://hub.2-fire-2.com/app/) shows the same authorized received records;
+only the local workbench knows that computer's unuploaded queue. Login and background device
+upload authorization are separate. A received bundle is not automatically a training Dataset.
+
+[Collection and incident response](docs/ANNOTATOR_COLLECTION.md) owns the Platform half:
+exact Mod/tool identity, native decision quality, immutable evidence and failure reports.
+STPD owns workbench accounts, Hub deployment, cloud operations and research admission.
+The commands below are for **Platform development**, not the everyday collector entry.
+
 ## Portable quick start
 
 The root workspace requires Node.js 20 or newer. Component checks also discover
