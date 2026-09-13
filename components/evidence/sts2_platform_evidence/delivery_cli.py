@@ -15,6 +15,7 @@ from .collection_tool import CollectionTool
 from .delivery import DeliveryOutbox, reconcile_and_drain
 from .delivery_config import DeliveryConfig, doctor, inspect_outbox
 from .delivery_http import HubTransport
+from .delivery_summary import inspect_delivery_status
 
 
 @contextmanager
@@ -50,9 +51,13 @@ def process_lock(root: Path) -> Iterator[None]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="sts2-evidence-delivery")
-    parser.add_argument("command", choices=["run", "status", "doctor"])
+    parser.add_argument("command", choices=["run", "status", "doctor", "summarize"])
     parser.add_argument("--config", type=Path, required=True)
     parser.add_argument("--once", action="store_true")
+    parser.add_argument("--summary", action="store_true")
+    parser.add_argument("--limit", type=int, default=25)
+    parser.add_argument("--offset", type=int, default=0)
+    parser.add_argument("--delivery-id")
     args = parser.parse_args(argv)
     if args.command in {"doctor", "run"}:
         report = doctor(args.config)
@@ -61,7 +66,18 @@ def main(argv: list[str] | None = None) -> int:
             return 0 if report["status"] == "PASS" else 1
     config = DeliveryConfig.load(args.config)
     if args.command == "status":
-        print(json.dumps({"schema": "sts2.evidence/delivery-status-1", "sessions": inspect_outbox(config)}, sort_keys=True))
+        value = inspect_delivery_status(config, limit=args.limit, offset=args.offset, delivery_id=args.delivery_id) \
+            if args.summary else {"schema": "sts2.evidence/delivery-status-1", "sessions": inspect_outbox(config)}
+        print(json.dumps(value, sort_keys=True))
+        return 0
+    if args.command == "summarize":
+        if not (config.outbox_root / "outbox.sqlite3").is_file():
+            print(json.dumps({"schema": "sts2.evidence/delivery-summary-rebuild-1", "rebuilt": 0,
+                              "unavailable": 0, "total": 0, "next_offset": None}, sort_keys=True))
+            return 0
+        with process_lock(config.outbox_root):
+            outbox = DeliveryOutbox(config.outbox_root, **config.identity)
+            print(json.dumps(outbox.rebuild_summaries(limit=args.limit, offset=args.offset), sort_keys=True))
         return 0
     outbox = DeliveryOutbox(config.outbox_root, **config.identity)
     tool = CollectionTool(config.tool_directory, config.tool_release_id, dotnet=config.dotnet)

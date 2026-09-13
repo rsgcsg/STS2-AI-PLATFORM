@@ -5,6 +5,74 @@ observes successful Recorder Close receipts, never game frames or speculative
 successor timing. Recorder, native causal source and the one production Mod are
 unchanged. Close does not imply a complete native run or research admission.
 
+## Application status projection
+
+Applications use the public owner API rather than reading the private outbox:
+
+```python
+from sts2_platform_evidence import inspect_delivery_status
+from sts2_platform_evidence.delivery_config import DeliveryConfig
+
+page = inspect_delivery_status(DeliveryConfig.load(config_path), limit=25, offset=0)
+detail = inspect_delivery_status(DeliveryConfig.load(config_path), delivery_id=outbox_id)
+```
+
+The equivalent CLI is:
+
+```bash
+python -m sts2_platform_evidence.delivery_cli status --summary --config /absolute/delivery.json --limit 25 --offset 0
+python -m sts2_platform_evidence.delivery_cli status --summary --config /absolute/delivery.json --delivery-id <64-hex-outbox-id>
+```
+
+`delivery-status-2` contains `sessions`, global status `counts`, `total`,
+`limit`, `offset`, `next_offset`, global `quality` and the read's `observed_at`.
+Pages are bounded to 1–100 records, newest enrolled SQLite row first. A detail
+lookup never searches all pages. `quality` contains `summaries_available`,
+`summaries_missing`, `canonical`, `real_failures` and `partial`. Totals cover
+known owner projections across the entire outbox, not just the page. With no
+known counts totals are `null`; missing summaries or historical unknown
+dispositions set `partial=true`. A partial zero never establishes no failures
+across the complete outbox.
+
+Each row exposes outbox `id`, safe `session_id`, worker/campaign IDs, exact
+`content_id`/HTTP `upload_id`, delivery `status`, observed `stage`, attempts,
+retry time, safe error category, parsed terminal `receipt` and verified
+`summary`. Receipt extensions, free-text findings, local source paths and URLs
+are omitted. Receipt finding codes remain diagnostic. No receipt ID is guessed
+to be an upload ID. `summary_status=not_materialized` means historical or not
+yet verified metadata is unavailable, never that recording failed.
+
+Stages are `queued`, `packing`, `locally_verified`, `awaiting_upload`,
+`verification_pending`, `retry_wait`, `verified`, `quarantined`, or `incident`.
+They are last observed phases, not worker liveness or byte-percent progress.
+In particular a crashed worker can leave `packing` as its last observation.
+The application displays worker lifecycle separately. Attempts include receipt
+polls. `enrolled_at`, row `observed_at` and `transport_observed_at` are separate
+observations; older missing timestamps remain `null`. Merely reading status
+does not establish fresh cloud contact or overwrite a terminal receipt.
+
+New packs persist safe summary metadata and numeric aggregate columns in the
+existing outbox transaction. Phase and transport sidecars expose already
+observed progress without rescanning source or archives. A missing optional
+phase index cannot adjudicate delivery. Old `status`/`inspect_outbox` calls
+retain `delivery-status-1` for existing operational consumers; that private
+diagnostic view may contain local paths and must not be used for browser UI.
+
+To rebuild summaries for an existing outbox, stop its delivery worker and run:
+
+```bash
+python -m sts2_platform_evidence.delivery_cli summarize --config /absolute/delivery.json --limit 25 --offset 0
+```
+
+Follow `next_offset` until null, then restart the same configured worker.
+This explicit owner operation re-verifies existing bundles and updates only
+rebuildable metadata. It neither packs again, uploads, retries incidents,
+changes delivery status, rewrites raw/bundle/receipt bytes nor invents old
+phase/enrollment times. The worker's OS lock prevents concurrent rebuild.
+Read-only status supports the old outbox schema without migrating it; the next
+owner writer adds nullable projection columns. Corrupt or absent old bundles
+remain unavailable and preserve their original receipt/incident.
+
 ## Fixed collection tool
 
 Build once from an exact clean Platform commit:

@@ -19,6 +19,8 @@ from typing import Any, Protocol
 
 from .collection_tool import CollectionFailure, CollectionTool, canonical, digest, read_json
 from .human_session_bundle import verify_human_session_bundle
+from .human_summary import summarize_verified_human_bundle
+from .delivery_summary import _update_projection, _now
 from .transfer import DirectoryTransferManifest, _inventory
 
 
@@ -84,6 +86,10 @@ class DeliveryOutbox:
                 existing = db.execute("SELECT value FROM config WHERE id=1").fetchone()
                 if existing is None or existing[0] != encoded:
                     raise ValueError("outbox configuration is immutable; use a new outbox for changed identity")
+                columns = {row[1] for row in db.execute("PRAGMA table_info(sessions)")}
+                for name, kind in (("summary", "TEXT"), ("summary_canonical", "INTEGER"), ("summary_real_failures", "INTEGER")):
+                    if name not in columns:
+                        db.execute(f"ALTER TABLE sessions ADD COLUMN {name} {kind}")
                 return
             db.execute("PRAGMA journal_mode=WAL")
             db.executescript("""
@@ -91,7 +97,8 @@ class DeliveryOutbox:
                 CREATE TABLE IF NOT EXISTS sessions (
                     id TEXT PRIMARY KEY, source TEXT NOT NULL, identity TEXT NOT NULL,
                     status TEXT NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
-                    retry_at REAL NOT NULL DEFAULT 0, content_id TEXT, error TEXT, receipt TEXT);
+                    retry_at REAL NOT NULL DEFAULT 0, content_id TEXT, error TEXT, receipt TEXT,
+                    summary TEXT, summary_canonical INTEGER, summary_real_failures INTEGER);
             """)
             db.execute("INSERT OR IGNORE INTO config VALUES(1, ?)", (encoded,))
             if db.execute("SELECT value FROM config WHERE id=1").fetchone()[0] != encoded:
@@ -137,6 +144,8 @@ class DeliveryOutbox:
                     counts["incident"] += 1
                 db.execute("INSERT INTO sessions(id,source,identity,status,error) VALUES(?,?,?,?,?)",
                            (key, str(session), canonical(identity).decode(), status, error))
+                _update_projection(self.root, key, session_id=identity.get("session_id"),
+                                   enrolled_at=_now(), stage="queued" if status == "pending" else status)
         return counts
 
     def drain_one(self, tool: CollectionTool, transport: Transport, *, now: float | None = None) -> dict[str, Any] | None:
@@ -159,6 +168,7 @@ class DeliveryOutbox:
                 if bundle.exists():
                     tool.verify()
                 else:
+                    _update_projection(self.root, key, stage="packing")
                     tool.pack(source, bundle, self.identity["worker_id"], self.identity["campaign_id"])
                 if canonical(_session_identity(source)).decode() != row["identity"]:
                     raise ValueError("sealed source changed during packing")
@@ -166,6 +176,11 @@ class DeliveryOutbox:
                 manifest = DirectoryTransferManifest.from_directory(
                     bundle, content_id=verified.bundle_content_id, artifact_type="human-session-bundle")
                 manifest.write(self.root / "transfers" / f"{key}.json")
+                summary = summarize_verified_human_bundle(verified)
+                db.execute("UPDATE sessions SET summary=?,summary_canonical=?,summary_real_failures=? WHERE id=?",
+                    (canonical(summary).decode(), summary["counts"]["canonical"], summary["counts"]["real_failures"], key))
+                _update_projection(self.root, key, session_id=verified.session_id,
+                    manifest_sha256=manifest.manifest_sha256, stage="locally_verified")
                 metadata = {"schema": "sts2.evidence/delivery-metadata-1", **self.identity,
                             "source_identity": json.loads(row["identity"]),
                             "collection_tool": tool.manifest}
@@ -198,7 +213,53 @@ class DeliveryOutbox:
                 db.execute("UPDATE sessions SET status='incident',attempts=attempts+1,error=? WHERE id=?",
                            (str(error), key))
             result = dict(db.execute("SELECT * FROM sessions WHERE id=?", (key,)).fetchone())
+            _update_projection(self.root, key)
         return result
+
+    def rebuild_summaries(self, *, limit: int = 25, offset: int = 0) -> dict[str, Any]:
+        """Explicit local metadata rebuild; never retry transport or mutate evidence.
+
+        Reverification is intentional here, not on GET. No historical phase or
+        enrollment timestamp is invented. Already terminal receipt bytes and
+        delivery state remain unchanged, including incident/quarantine facts.
+        """
+        if type(limit) is not int or not 1 <= limit <= 100 or type(offset) is not int or offset < 0:
+            raise ValueError("invalid_delivery_page")
+        rebuilt, unavailable = 0, 0
+        with self._db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            rows = list(db.execute("SELECT id,identity,content_id FROM sessions ORDER BY rowid DESC LIMIT ? OFFSET ?",
+                                   (limit, offset)))
+            total = db.execute("SELECT count(*) FROM sessions").fetchone()[0]
+            for row in rows:
+                bundle = self.root / "bundles" / row["id"]
+                if not bundle.is_dir():
+                    unavailable += 1
+                    continue
+                result = verify_human_session_bundle(bundle)
+                if not result.passed:
+                    unavailable += 1
+                    continue
+                verified = result.require_value()
+                identity = json.loads(row["identity"])
+                if (verified.session_id != identity.get("session_id")
+                        or row["content_id"] not in (None, verified.bundle_content_id)):
+                    unavailable += 1
+                    continue
+                transfer = self.root / "transfers" / f"{row['id']}.json"
+                manifest_id = None
+                if transfer.is_file():
+                    manifest = DirectoryTransferManifest.read(transfer)
+                    if manifest.content_id == verified.bundle_content_id:
+                        manifest_id = manifest.manifest_sha256
+                summary = summarize_verified_human_bundle(verified)
+                db.execute("UPDATE sessions SET summary=?,summary_canonical=?,summary_real_failures=? WHERE id=?",
+                    (canonical(summary).decode(), summary["counts"]["canonical"], summary["counts"]["real_failures"], row["id"]))
+                _update_projection(self.root, row["id"], session_id=verified.session_id, manifest_sha256=manifest_id)
+                rebuilt += 1
+        return {"schema": "sts2.evidence/delivery-summary-rebuild-1", "rebuilt": rebuilt,
+                "unavailable": unavailable, "total": total, "limit": limit, "offset": offset,
+                "next_offset": offset + len(rows) if offset + len(rows) < total else None}
 
     def status(self) -> list[dict[str, Any]]:
         with self._db() as db:

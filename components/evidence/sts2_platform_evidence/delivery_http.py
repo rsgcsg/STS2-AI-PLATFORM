@@ -18,6 +18,7 @@ from typing import Any
 
 from .collection_tool import canonical, read_json
 from .delivery import ReceiverVerificationPending, _atomic_json
+from .delivery_summary import _now
 from .transfer import DirectoryTransferManifest, _sha256_file
 
 
@@ -127,12 +128,16 @@ class HubTransport:
         archive = self._archive(bundle, transfer)
         archive_sha = _sha256_file(archive)
         attempt_file = self.cache / f"{transfer.manifest_sha256}.upload.json"
+        def observe(upload_id: str, response: dict[str, Any]) -> None:
+            _atomic_json(attempt_file, {"upload_id": upload_id, "archive_sha256": archive_sha,
+                "archive_bytes": archive.stat().st_size, "status": response.get("status"), "observed_at": _now()})
         if attempt_file.exists():
             previous = read_json(attempt_file)
             if previous.get("archive_sha256") != archive_sha:
                 raise ValueError("persisted upload archive changed")
             upload_id = previous["upload_id"]
             status = self._json("GET", f"/v1/uploads/{upload_id}")
+            observe(upload_id, status)
             receipt = self._disposition(status, allow_upload=True)
             if receipt is not None:
                 return receipt
@@ -145,11 +150,12 @@ class HubTransport:
         upload_id = intent.get("upload_id")
         if not isinstance(upload_id, str) or not upload_id or any(c not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_" for c in upload_id):
             raise ValueError("invalid Hub upload ID")
-        _atomic_json(attempt_file, {"upload_id": upload_id, "archive_sha256": archive_sha})
+        observe(upload_id, intent)
         # An already received content ID can be returned to a newly installed client.
         # The intent endpoint may expose status only; query its durable receipt.
         if intent.get("status") in {"verified", "quarantined"} and not intent.get("receipt"):
             intent = self._json("GET", f"/v1/uploads/{upload_id}")
+            observe(upload_id, intent)
         receipt = self._disposition(intent, allow_upload=True)
         if receipt is not None:
             return receipt
@@ -166,4 +172,5 @@ class HubTransport:
             self._request(urllib.request.Request(url, data=stream, method="PUT",
                 headers={**headers, "Content-Length": str(archive.stat().st_size)}), json_response=False)
         status = self._json("POST", f"/v1/uploads/{upload_id}/complete", {})
+        observe(upload_id, status)
         return self._disposition(status)  # type: ignore[return-value]

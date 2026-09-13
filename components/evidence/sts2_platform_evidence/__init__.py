@@ -27,6 +27,8 @@ from .human_session_bundle import (
 from .collection_tool import CollectionTool
 from .delivery import DeliveryOutbox, reconcile_and_drain
 from .delivery_http import HubTransport
+from .delivery_summary import inspect_delivery_status
+from .human_summary import summarize_verified_human_bundle
 from .store import ContentAddressedStore, StoreReceipt
 from .transfer import (
     DirectoryReceiver,
@@ -40,6 +42,8 @@ __all__ = [
     "CollectionTool",
     "DeliveryOutbox",
     "HubTransport",
+    "inspect_delivery_status",
+    "summarize_verified_human_bundle",
     "reconcile_and_drain",
     "AgentRunEvidence",
     "AgentRunEvidenceVerifier",

@@ -68,6 +68,12 @@ class HubTransportTests(unittest.TestCase):
                                     allowed_upload_hosts=["127.0.0.1"], allow_loopback_http=True)
             with self.assertRaises(ReceiverVerificationPending):
                 transport()(self.bundle, transfer, {"tool_release_id": "b" * 64})
+            observed = json.loads((self.root / "cache" / f"{transfer.manifest_sha256}.upload.json").read_text())
+            self.assertEqual((observed["upload_id"], observed["status"]), ("upload1", "verification_pending"))
+            self.assertGreater(observed["archive_bytes"], 0)
+            self.assertTrue(observed["observed_at"])
+            self.assertNotIn("fixture-secret", json.dumps(observed))
+            self.assertNotIn("upload_url", observed)
             with self.assertRaises(ReceiverVerificationPending):
                 transport()(self.bundle, transfer, {})
             facts["ready"] = True

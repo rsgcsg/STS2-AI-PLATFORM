@@ -73,3 +73,25 @@ The opt-in [delivery service](DELIVERY.md) consumes a fixed collection-tool rele
 reconciles durable Close receipts, and persists packing/upload/receiver state
 outside the game. Its public Python CLI supports background use and status.
 Evidence transfer is separate from game authority and research admission.
+
+## Safe application summaries
+
+`summarize_verified_human_bundle(verified_value)` is the public
+`sts2.evidence/human-bundle-summary-1` projection. The V3 verifier materializes
+its current disposition counts and native run-boundary facts from the same
+already-verified streams; summary reads never rescan raw evidence. Summary
+identity includes bundle content, checksum/export digests and verifier schema.
+The consuming service separately binds its deployed verifier source identity.
+
+The summary preserves accepted/proved/canonical, normal cancellation, abort,
+diagnostic/unsupported invalidation and unresolved counts independently. Real
+failures use the Recorder owner's unique decision-failure accounting, not the
+number of invalidation rows. Historical unsupported dispositions are `null`,
+not zero. V1/V2 remain archival and gain no invented canonical/native facts.
+`run-unassigned` remains an explicit unassigned context, not another played run.
+Native start/terminal observations and exact native victory/defeat outcome do
+not certify uninterrupted Full-Run coverage or research admission.
+
+The [delivery status projection](DELIVERY.md#application-status-projection)
+publishes bounded local lists, exact remote IDs, parsed receipts and global
+quality counts without exposing local paths, raw data or transport credentials.

@@ -70,6 +70,13 @@ class DeliveryPreflightTests(unittest.TestCase):
             self.assertEqual(main(["status", "--config", str(self.config)]), 0)
         self.assertEqual(json.loads(output.getvalue())["sessions"], [])
         self.assertFalse((self.root / "outbox").exists())
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(main(["status", "--summary", "--config", str(self.config), "--limit", "25"]), 0)
+        summary = json.loads(output.getvalue())
+        self.assertEqual(summary["schema"], "sts2.evidence/delivery-status-2")
+        self.assertEqual(summary["sessions"], [])
+        self.assertIsNone(summary["quality"]["real_failures"])
+        self.assertFalse((self.root / "outbox").exists())
 
     def test_missing_token_blocks_run_before_outbox_or_upload(self) -> None:
         with patch.dict(os.environ, {"STPD_HUB_TOKEN": ""}):
