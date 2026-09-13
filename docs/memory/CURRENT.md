@@ -1,7 +1,7 @@
 # Current Context
 
-Resolve live main/develop, release tags, source/BOM, CI and deployed identity before using
-this handoff. Current owning source/runtime truth overrides dated reports.
+Resolve live GitHub refs, main/develop, release tags, source/BOM, CI and deployed identity
+before using this handoff. Current repository/runtime authorities override this file.
 
 The default SpireAgent developer flow is one qualified Platform Mod plus the STPD project
 workbench: download the exact release combination, invited email login, explicit computer
@@ -9,6 +9,8 @@ binding, dedicated campaign consent/setup, Recorder Close, local queue and cloud
 Start at [collection and incident response](../ANNOTATOR_COLLECTION.md); the linked STPD
 B_PIPELINE_HANDOFF owns the complete user/cloud procedure. Platform owns native evidence and
 immutable delivery; STPD owns accounts, external operations and research admission.
+
+## Remaining Platform non-claims
 
 The PR25 rc.4 native gate remains historical: two uninterrupted native starts through natural
 defeat,524 accepted/proved/canonical,0 real failures,53 canonical children with canonical
