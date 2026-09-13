@@ -249,9 +249,14 @@ class DeliveryOutbox:
                 transfer = self.root / "transfers" / f"{row['id']}.json"
                 manifest_id = None
                 if transfer.is_file():
-                    manifest = DirectoryTransferManifest.read(transfer)
-                    if manifest.content_id == verified.bundle_content_id:
-                        manifest_id = manifest.manifest_sha256
+                    try:
+                        manifest = DirectoryTransferManifest.read(transfer)
+                        if manifest.content_id == verified.bundle_content_id:
+                            manifest_id = manifest.manifest_sha256
+                    except (OSError, ValueError, TypeError, KeyError):
+                        # The immutable bundle still verifies. A damaged local
+                        # linkage cannot invent an upload ID or erase a receipt.
+                        pass
                 summary = summarize_verified_human_bundle(verified)
                 db.execute("UPDATE sessions SET summary=?,summary_canonical=?,summary_real_failures=? WHERE id=?",
                     (canonical(summary).decode(), summary["counts"]["canonical"], summary["counts"]["real_failures"], row["id"]))

@@ -85,6 +85,7 @@ class DeliverySummaryTests(unittest.TestCase):
         self.assertEqual(old["status"], "verified")
         quality = inspect_delivery_status(self.config(outbox))["quality"]
         self.assertEqual((quality["summaries_missing"], quality["canonical"], quality["real_failures"]), (1, None, None))
+        next((outbox.root / "transfers").glob("*.json")).write_text("malformed optional linkage")
         outbox = self._outbox()
         self.assertEqual(outbox.rebuild_summaries()["rebuilt"], 1)
         rebuilt = inspect_delivery_status(self.config(outbox))["sessions"][0]
