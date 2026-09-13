@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import process from "node:process";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { readIdentityReport } from "./component-identity.mjs";
 
@@ -96,6 +97,9 @@ function expectPattern(errors, label, value, pattern) {
 }
 
 export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
+  const recordedBuild = "ab4ee5303c8302ae209dd62c4d766a6764ebec51";
+  const buildBom = JSON.parse(execFileSync("git", ["show", `${recordedBuild}:platform-bom.json`],
+    { cwd: platformRoot, encoding: "utf8" }));
   const nativeFoundationComponent = readJson(path.join(platformRoot, "components", "native-foundation", "component.json"));
   const connectorRelease = readJson(path.join(platformRoot, "components", "connector", "release-manifest.json"));
   const connectorManifest = readJson(path.join(platformRoot, "components", "connector", "host", "mod_manifest.json"));
@@ -112,6 +116,8 @@ export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
     path.join(platformRoot, "components", "host-runtime", "src", "connector-release.mjs")
   ));
   return {
+    finalFullRunBuild: recordedBuild,
+    finalFullRunEvidence: buildBom.components.evidence,
     identities: readIdentityReport(platformRoot),
     nativeFoundationComponent,
     connectorRelease,
@@ -172,7 +178,18 @@ export function validatePlatformBom(bom, authorities) {
       expectPattern(errors, "Final Full-Run Human bundle content", human?.bundle_content_id, SHA256);
     }
     expectEqual(errors, "Final Full-Run predecessor transfer", finalCandidate.evidence_transfer_from_predecessor, false);
-    for (const key of ["annotator", "evidence", "live_ui", "game_mod"])
+    // The portable verifier can evolve without changing the Human-tested native
+    // artifact. Keep its recorded identity historical; never relabel the Human
+    // evidence with today's Python package. Current authority is checked above.
+    expectEqual(errors, "Final Full-Run portable evidence scope", finalCandidate.portable_evidence_scope,
+      "historical_verifier_snapshot_not_current_portable_qualification");
+    const historicalEvidence = finalCandidate.components?.evidence;
+    expectEqual(errors, "Final Full-Run recorded build", finalCandidate.workspace_revision_at_build,
+      authorities.finalFullRunBuild);
+    for (const field of ["version", "source_revision", "component_tree_revision", "component_source_digest_sha256"])
+      expectEqual(errors, `Final Full-Run historical evidence ${field}`, historicalEvidence?.[field],
+        authorities.finalFullRunEvidence[field]);
+    for (const key of ["annotator", "live_ui", "game_mod"])
       for (const field of ["version", "source_revision", "component_tree_revision", "component_source_digest_sha256"])
         expectEqual(errors, `Final Full-Run ${key}.${field}`,
           finalCandidate.components?.[key]?.[field], bom.components?.[key]?.[field]);

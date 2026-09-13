@@ -34,3 +34,18 @@ passed at its exact historical source/runtime tuple.
 Delivery preflight now verifies actual fixed-tool/.NET/config/outbox/credential readiness.
 Game Mod deployment preserves explicit operator campaign/status locations. These portable
 repairs do not alter native C# semantics; new campaigns still require their own scoped consent and first-upload gate.
+
+The portable Evidence rc.6 application summary and paginated delivery status
+serve the STPD local/cloud console. Owner dispositions and immutable receipts
+remain authoritative; missing historical summaries remain unknown. GET does not
+reverify raw streams. Explicit stopped-worker `delivery summarize` can rebuild
+metadata for existing bundles. The BOM's closed Full-Run verifier snapshot stays
+historical while `components.evidence` tracks current portable source. This UI
+projection does not qualify new native gameplay or research admission.
+
+The console closeout also corrects an inherited BOM metadata error: B delivery
+updates had relabelled the closed rc.4 Human candidate's portable verifier as
+newer rc.5. Its recorded build `ab4ee5303c8302ae209dd62c4d766a6764ebec51`
+actually records Evidence rc.2. The historical tuple is restored from that Git
+blob and checked against it, while current Evidence remains rc.6. Old commits,
+reports, raw sessions and receipts are untouched; no qualification is transferred.
