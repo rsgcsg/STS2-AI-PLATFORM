@@ -76,3 +76,6 @@ The default developer collection/viewing route is now the [shared workbench hand
 The [workflow release report](evidence/B_UNIFIED_WORKFLOW_RELEASE_2026-09-13.md) separates
 historical Human/Hub verification from final merge/runtime receipts. Native Mod bytes remain
 unchanged; the service/account and portable delivery evidence do not widen the native gate.
+
+For distribution identity use the [explicit packaging metadata correction](evidence/B_WORKFLOW_PACKAGING_IDENTITY_CORRECTION_2026-09-13.md); the older baseline
+BOM digest and private tool-source label were incorrect. Original bytes remain unchanged.

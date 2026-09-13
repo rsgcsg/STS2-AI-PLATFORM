@@ -36,3 +36,6 @@ normal component-source merges, governed release promotion and exact receipt rev
 Retain raw evidence/private state outside Git and preserve archived worktrees during branch
 cleanup. Fix the owning cause, preserve failed evidence, publish a new exact combination and
 requalify only the affected native/service/Human gates. No GPU/model quality follows from B.
+
+Release identity uses the [packaging correction](../evidence/B_WORKFLOW_PACKAGING_IDENTITY_CORRECTION_2026-09-13.md):
+actual BOM file bytes and distinct tool component/workspace revisions, not old copied labels.
