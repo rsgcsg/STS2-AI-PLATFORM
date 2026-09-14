@@ -88,6 +88,30 @@ Build once from an exact clean Platform commit:
 npm --prefix components/annotator run publish:collection-tool -- --output /absolute/new-tool-release
 ```
 
+For an installed collection setup kit, first build the exact clean native Mod,
+then add `--mod-provenance /absolute/native-build/build-provenance.json` to that
+publication command. Publication verifies current compiled source and the adjacent
+DLL SHA before including `game-mod/build-provenance.json` and the bounded Game Mod
+setup tooling in the same immutable file inventory. The setup entry requires
+Node.js 20+ in addition to the packing tool's .NET runtime.
+
+```python
+from sts2_platform_evidence.collection_tool import CollectionTool
+
+tool = CollectionTool(tool_directory, trusted_release_id)
+status = tool.setup_status(recordings_root=recordings_root, game_directory=game_directory)
+# Only after the operator authorizes this destination, with the game stopped:
+prepared = tool.bind_recording_root(recordings_root=recordings_root, game_directory=game_directory)
+```
+
+`game_directory` is optional when Host discovery can find Steam's installation.
+The default provenance is the inventory-pinned file inside the tool; an explicit
+`mod_provenance` must also be in that verified inventory. A legacy packing-only
+release cannot claim setup support. `configured` means the next launch's disk
+configuration; only a fresh owner status with `bound=true` confirms the actual
+current native destination. The owner reports mutation compatibility separately
+and never relaxes it. See [Game Mod setup](../../apps/game-mod/README.md#installed-collection-setup).
+
 Publication runs the portable .NET Annotator Tool build (no game files), copies
 its complete dependency output and the Platform BOM, and writes
 `collection-tool.json`. `release_id` hashes canonical identity plus the exact

@@ -78,6 +78,45 @@ class CollectionTool:
             # Tool output can contain private paths/records. Preserve only in local incident diagnostics.
             raise CollectionFailure("collection tool audit/pack failed", result.stderr[-16384:])
 
+    def setup_status(self, *, recordings_root: str | Path, game_directory: str | Path | None = None,
+                     mod_provenance: str | Path | None = None, node: str = "node") -> dict[str, Any]:
+        """Inspect the current native destination through the fixed Game Mod owner."""
+        return self._setup("status", recordings_root, game_directory, mod_provenance, node)
+
+    def bind_recording_root(self, *, recordings_root: str | Path, game_directory: str | Path | None = None,
+                            mod_provenance: str | Path | None = None, node: str = "node") -> dict[str, Any]:
+        """Bind only while STS2 is stopped; preserve old evidence and unrelated config."""
+        return self._setup("bind", recordings_root, game_directory, mod_provenance, node)
+
+    def _setup(self, command: str, recordings_root: str | Path, game_directory: str | Path | None,
+               mod_provenance: str | Path | None, node: str) -> dict[str, Any]:
+        identity = self.verify()["identity"]
+        entrypoint = "setup/apps/game-mod/collection-setup.mjs"
+        if identity.get("collection_setup_entrypoint") != entrypoint:
+            raise CollectionFailure("collection setup is unavailable in this fixed tool")
+        provenance = Path(mod_provenance) if mod_provenance else self.directory / "game-mod/build-provenance.json"
+        try:
+            relative = provenance.absolute().relative_to(self.directory).as_posix()
+        except ValueError:
+            raise CollectionFailure("collection setup provenance must belong to the verified tool") from None
+        inventory_paths = {row["path"] for row in identity["files"]}
+        if relative not in inventory_paths or entrypoint not in inventory_paths:
+            raise CollectionFailure("collection setup provenance is absent from the verified tool")
+        arguments = [node, str(self.directory / entrypoint), command, "--recordings-root", str(recordings_root),
+                     "--mod-provenance", str(provenance)]
+        if game_directory is not None:
+            arguments.extend(["--game-dir", str(game_directory)])
+        try:
+            result = subprocess.run(arguments, capture_output=True, text=True, timeout=15, check=False)
+        except subprocess.TimeoutExpired:
+            raise CollectionFailure("collection setup exceeded bounded runtime") from None
+        if result.returncode != 0:
+            raise CollectionFailure("collection setup owner failed", result.stderr[-16384:])
+        value = json.loads(result.stdout)
+        if not isinstance(value, dict) or value.get("schema") != "sts2.platform/collection-setup-1":
+            raise CollectionFailure("collection setup owner returned unsupported status")
+        return value
+
 
 class CollectionFailure(ValueError):
     def __init__(self, message: str, diagnostic: str = "") -> None:
