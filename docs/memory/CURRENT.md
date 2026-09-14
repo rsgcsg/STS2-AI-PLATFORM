@@ -18,7 +18,7 @@ parents. See [Human audit](../evidence/PR25_RC4_FULL_RUN_HUMAN_PASS_2026-09-12.m
 Its unchanged DLL SHA is af4dfd93a4236b50aadbff8e9c055a519b20e842c582ab392d7748845df40cc8.
 This is not exhaustive-content/crash-recovery/non-interference/research qualification.
 
-Evidence rc.7 owns fixed-tool closed-session transfer, safe summaries, bounded queries and
+Evidence owns fixed-tool closed-session transfer, safe summaries, bounded queries and
 typed Hub authentication blocking/recovery. Other incidents and signed-storage403 are not
 login failures. `resume-auth` requires stopped-worker/same-device proof and preserves the
 original seal, bundle, archive, upload ID and receipt. [DELIVERY](../../components/evidence/DELIVERY.md)
@@ -37,8 +37,9 @@ B provides no GPU/model-quality claim.
 
 The collection setup candidate adds a fixed-tool Game Mod owner for stopped-game
 recording-root binding and current-process status. Evidence rc.8 exposes that
-inventory-verified API; Host rc.8 provides bounded discovery, while Annotator rc.5
-and Game Mod rc.5 keep candidate package/native version metadata coherent.
+inventory-verified API; Host rc.8 provides bounded discovery. The next candidate
+repairs event Proceed map readiness and post-Close root status; prior Human bytes
+do not qualify these source changes.
 Passive recorder identity and Connector mutation compatibility remain separate.
 The published Host rc.7 pin and historical Full-Run component snapshots retain
 their original identities. New candidate bytes require their own install/load
