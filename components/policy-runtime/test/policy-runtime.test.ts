@@ -555,6 +555,10 @@ describe("runtime integration fake", () => {
     try {
       await expect(client.setMode("auto")).rejects.toMatchObject({ code: "policy_runtime_run_rejected" });
       await expect(client.tick()).rejects.toMatchObject({ code: "policy_runtime_run_rejected" });
+      // A background status refresh between One-Step phases cannot retarget
+      // the tick: the caller retains the run returned by its mode command.
+      await client.readStatus();
+      await expect(client.tick("run-old")).rejects.toMatchObject({ code: "policy_runtime_run_rejected" });
       const response = await fetch(`${replacement.address}/v2/stop`, { method: "POST", headers: { "content-type": "application/json", "x-sts2-policy-run-id": "run-old" }, body: "{}" });
       expect(response.status).toBe(409);
       expect(mode).not.toHaveBeenCalled(); expect(tick).not.toHaveBeenCalled(); expect(stop).not.toHaveBeenCalled();
