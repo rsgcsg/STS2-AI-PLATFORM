@@ -280,8 +280,6 @@ test("final Full-Run candidate cannot borrow historical identity or Human qualif
 
 test("portable verifier changes do not relabel closed native Human evidence", async () => {
   const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
-  assert.notEqual(bom.components.evidence.source_revision,
-    bom.final_full_run_candidate.components.evidence.source_revision);
   assert.deepEqual(validatePlatformBom(bom, await readBomAuthorities(root)), []);
   bom.final_full_run_candidate.components.evidence.source_revision = "f".repeat(40);
   assert.ok(validatePlatformBom(bom, await readBomAuthorities(root))
@@ -291,9 +289,8 @@ test("portable verifier changes do not relabel closed native Human evidence", as
 test("new Live UI consumer source cannot relabel the recorded Human-tested native build", async () => {
   const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
   const authorities = await readBomAuthorities(root);
-  assert.notEqual(bom.components.live_ui.source_revision, bom.final_full_run_candidate.components.live_ui.source_revision);
   assert.deepEqual(validatePlatformBom(bom, authorities), []);
-  bom.final_full_run_candidate.components.live_ui = { ...bom.components.live_ui };
+  bom.final_full_run_candidate.components.live_ui.source_revision = "f".repeat(40);
   assert.ok(validatePlatformBom(bom, authorities).some(error => error.startsWith("Final Full-Run live_ui.source_revision:")));
 });
 
@@ -302,9 +299,8 @@ test("collection setup source and version updates cannot relabel the recorded Hu
   const authorities = await readBomAuthorities(root);
   assert.deepEqual(validatePlatformBom(bom, authorities), []);
   for (const key of ["annotator", "game_mod"]) {
-    assert.notEqual(bom.components[key].source_revision, bom.final_full_run_candidate.components[key].source_revision);
     const mutated = structuredClone(bom);
-    mutated.final_full_run_candidate.components[key] = { ...bom.components[key] };
+    mutated.final_full_run_candidate.components[key].source_revision = "f".repeat(40);
     assert.ok(validatePlatformBom(mutated, authorities).some(error => error.startsWith(`Final Full-Run ${key}.source_revision:`)));
   }
 });
@@ -312,8 +308,23 @@ test("collection setup source and version updates cannot relabel the recorded Hu
 test("published Host pin is separate from a newer local source version", async () => {
   const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
   const authorities = await readBomAuthorities(root);
-  assert.notEqual(bom.public_packages.host_runtime.version, bom.components.host_runtime.version);
   assert.deepEqual(validatePlatformBom(bom, authorities), []);
-  bom.public_packages.host_runtime.release = `host-runtime/v${bom.components.host_runtime.version}`;
-  assert.ok(validatePlatformBom(bom, authorities).some(error => error.startsWith("public Host release:")));
+  const published = structuredClone(bom.public_packages.host_runtime);
+  // Model both a later source version and a legitimate future version sync.
+  for (const version of ["9.9.9-fixture", published.version]) {
+    const fixture = structuredClone(bom);
+    const source = structuredClone(authorities);
+    fixture.components.host_runtime.version = version;
+    source.hostPackage.version = version;
+    source.identities.components["host-runtime"].component_version = version;
+    fixture.public_packages.host_runtime.source_relation = version === published.version
+      ? "same_component_version" : "published_package_precedes_current_source";
+    assert.deepEqual(validatePlatformBom(fixture, source), []);
+    assert.equal(fixture.public_packages.host_runtime.sha256, published.sha256);
+  }
+  Object.assign(bom.public_packages.host_runtime, { version: "9.9.9-fixture",
+    release: "host-runtime/v9.9.9-fixture", asset: "rsgcsg-sts2-host-runtime-9.9.9-fixture.tgz" });
+  assert.ok(validatePlatformBom(bom, authorities).some(error => error.startsWith("published Host version:")));
+  bom.public_packages.host_runtime.sha256 = "f".repeat(64);
+  assert.ok(validatePlatformBom(bom, authorities).some(error => error.startsWith("published Host archive SHA:")));
 });

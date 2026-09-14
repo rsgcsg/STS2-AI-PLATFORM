@@ -98,7 +98,11 @@ function expectPattern(errors, label, value, pattern) {
 
 export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
   const recordedBuild = "ab4ee5303c8302ae209dd62c4d766a6764ebec51";
+  // Immutable host-runtime/v1.1.0-rc.7 source recorded by the runtime-seal report.
+  const publishedHostSource = "dce2c26c0accb0bbbe435191ca371aee9725fa48";
   const buildBom = JSON.parse(execFileSync("git", ["show", `${recordedBuild}:platform-bom.json`],
+    { cwd: platformRoot, encoding: "utf8" }));
+  const publishedHostPackage = JSON.parse(execFileSync("git", ["show", `${publishedHostSource}:components/host-runtime/package.json`],
     { cwd: platformRoot, encoding: "utf8" }));
   const nativeFoundationComponent = readJson(path.join(platformRoot, "components", "native-foundation", "component.json"));
   const connectorRelease = readJson(path.join(platformRoot, "components", "connector", "release-manifest.json"));
@@ -121,6 +125,9 @@ export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
     finalFullRunLiveUi: buildBom.components.live_ui,
     finalFullRunAnnotator: buildBom.components.annotator,
     finalFullRunGameMod: buildBom.components.game_mod,
+    publishedHostSource,
+    publishedHostPackage,
+    publishedHostRelease: buildBom.public_packages.host_runtime,
     identities: readIdentityReport(platformRoot),
     nativeFoundationComponent,
     connectorRelease,
@@ -237,7 +244,11 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "Host Connector protocol pin", bom.components?.player_environment_protocol, pinnedConnector.protocol);
 
   const publicHost = bom.public_packages?.host_runtime;
-  expectPattern(errors, "published Host version", publicHost?.version, /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/u);
+  expectEqual(errors, "published Host source", publicHost?.source_revision, authorities.publishedHostSource);
+  expectEqual(errors, "published Host version", publicHost?.version, authorities.publishedHostPackage.version);
+  expectEqual(errors, "published Host archive SHA", publicHost?.sha256, authorities.publishedHostRelease.sha256);
+  expectEqual(errors, "published Host content SHA", publicHost?.package_content_digest_sha256,
+    authorities.publishedHostRelease.package_content_digest_sha256);
   expectEqual(errors, "public Host release", publicHost?.release, `host-runtime/v${publicHost?.version}`);
   expectEqual(errors, "public Host asset", publicHost?.asset, `rsgcsg-sts2-host-runtime-${publicHost?.version}.tgz`);
   expectEqual(errors, "public Host source relation", publicHost?.source_relation,
