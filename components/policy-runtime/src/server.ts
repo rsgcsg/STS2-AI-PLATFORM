@@ -3,7 +3,7 @@ import type { AddressInfo } from "node:net";
 import type { PolicyRuntime } from "./runtime.js";
 import type { TickResult } from "./contracts.js";
 
-const HTTP_SCHEMA = "sts2.policy-runtime/http-1" as const;
+const HTTP_SCHEMA = "sts2.policy-runtime/http-2" as const;
 
 export interface PolicyRuntimeHttpOptions {
   host?: "127.0.0.1" | "localhost" | "::1";
@@ -70,11 +70,22 @@ export async function startPolicyRuntimeHttpServer(runtime: PolicyRuntime, optio
 async function dispatch(runtime: PolicyRuntime, request: IncomingMessage, response: ServerResponse, maxBodyBytes: number, maxAutoTicks: number, ensureAutoWorker: () => void, onStopped?: () => void): Promise<void> {
   try {
     if (request.method === "GET" && request.url === "/status") { json(response, 200, { schema: HTTP_SCHEMA, status: runtime.status() }); return; }
-    if (request.method !== "POST" || !["/mode", "/tick", "/stop"].includes(request.url ?? "")) { json(response, 404, { schema: HTTP_SCHEMA, error: "not_found" }); return; }
+    if (request.method !== "POST" || !["/v2/mode", "/v2/tick", "/v2/stop"].includes(request.url ?? "")) { json(response, 404, { schema: HTTP_SCHEMA, error: "not_found" }); return; }
     const denied = mutationRequestError(request);
     if (denied) { request.resume(); json(response, denied.status, { schema: HTTP_SCHEMA, error: denied.error }); return; }
+    const runHeader = "x-sts2-policy-run-id";
+    const runHeaderCount = request.rawHeaders.filter((_value, index) => index % 2 === 0 && request.rawHeaders[index]?.toLowerCase() === runHeader).length;
+    const expectedRun = request.headers[runHeader];
+    if (runHeaderCount !== 1 || typeof expectedRun !== "string" || expectedRun.trim() === "") {
+      request.resume(); json(response, 428, { schema: HTTP_SCHEMA, error: "runtime_run_precondition_required" }); return;
+    }
+    // This Runtime's runId is immutable. Validate at the mutation owner, not
+    // through a caller's earlier GET to a port another process can reuse.
+    if (expectedRun !== runtime.status().run_id) {
+      request.resume(); json(response, 409, { schema: HTTP_SCHEMA, error: "runtime_run_mismatch" }); return;
+    }
     const body = await readBody(request, maxBodyBytes);
-    if (request.url === "/mode") {
+    if (request.url === "/v2/mode") {
       const value = strictObject(body, ["mode"]);
       if (value.mode !== "human" && value.mode !== "shadow" && value.mode !== "one_step" && value.mode !== "auto") throw new Error("mode is invalid");
       const status = await runtime.setMode(value.mode);
@@ -82,7 +93,7 @@ async function dispatch(runtime: PolicyRuntime, request: IncomingMessage, respon
       json(response, 200, { schema: HTTP_SCHEMA, status });
       return;
     }
-    if (request.url === "/stop") {
+    if (request.url === "/v2/stop") {
       strictObject(body, []);
       const status = await runtime.stop();
       if (onStopped) {

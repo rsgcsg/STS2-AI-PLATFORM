@@ -1,5 +1,5 @@
 const POLICY_RUNTIME_STATUS_SCHEMA = "sts2.policy-runtime/status-1";
-const POLICY_RUNTIME_HTTP_SCHEMA = "sts2.policy-runtime/http-1";
+const POLICY_RUNTIME_HTTP_SCHEMA = "sts2.policy-runtime/http-2";
 
 export const POLICY_RUNTIME_MODES = Object.freeze(["human", "shadow", "one_step", "auto"]);
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
@@ -148,6 +148,9 @@ export class PolicyRuntimeClient {
     try {
       const response = await fetch(`${this.baseUrl}${pathname}`, { ...init, signal: controller.signal, headers: { accept: "application/json", ...(init.headers ?? {}) } });
       const value = await readJson(response);
+      if ([409, 428].includes(response.status) && value?.schema === POLICY_RUNTIME_HTTP_SCHEMA && ["runtime_run_precondition_required", "runtime_run_mismatch"].includes(value.error)) {
+        throw new PolicyRuntimeError(`Policy Runtime rejected the command before dispatch: ${value.error}`, "policy_runtime_run_rejected");
+      }
       if (!response.ok) throw new PolicyRuntimeError(`Policy Runtime returned HTTP ${response.status}`, "policy_runtime_unavailable");
       return value;
     } catch (error) {
@@ -162,8 +165,8 @@ export class PolicyRuntimeClient {
       const wasUnknown = this.commandOutcomeUnknown;
       const generation = this.unknownGeneration;
       const status = decodeHttpStatus(await this.request("/status"));
-      // A cached pre-command run (or an earlier in-flight GET) cannot identify
-      // the run that received an unacknowledged command.
+      // Only a GET begun after the uncertain command may observe replacement.
+      // The owning server restricts the command to the exact requested run.
       if (wasUnknown && this.commandOutcomeUnknown && generation === this.unknownGeneration) {
         if (this.unknownRunId === null) this.unknownRunId = status.run_id;
         else if (this.unknownRunId !== status.run_id) {
@@ -184,13 +187,16 @@ export class PolicyRuntimeClient {
   }
 
   async command(pathname, body, decode) {
+    if (this.runId === null) await this.readStatus();
+    const expectedRunId = this.runId;
     try {
-      return decode(await this.request(pathname, {
-        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body)
+      return decode(await this.request(`/v2${pathname}`, {
+        method: "POST", headers: { "content-type": "application/json", "x-sts2-policy-run-id": expectedRunId }, body: JSON.stringify(body)
       }));
-    } catch {
+    } catch (error) {
+      if (error instanceof PolicyRuntimeError && error.code === "policy_runtime_run_rejected") throw error;
       this.commandOutcomeUnknown = true;
-      this.unknownRunId = null;
+      this.unknownRunId = expectedRunId;
       this.unknownGeneration += 1;
       throw new PolicyRuntimeError("The Runtime command may still complete. Query status, return to Human, and start a new Runtime run before another policy command; do not retry.", "policy_runtime_command_unknown");
     }

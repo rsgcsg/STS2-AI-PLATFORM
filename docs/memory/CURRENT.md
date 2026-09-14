@@ -1,7 +1,7 @@
 # Current Context
 
-Resolve live GitHub refs, main/develop, release tags, source/BOM, CI and deployed identity
-before using this handoff. Current repository/runtime authorities override this file.
+Resolve current refs, source/BOM, CI and deployed identity; repository/runtime authority
+overrides this routing note.
 
 The default SpireAgent developer flow is one qualified Platform Mod plus the STPD project
 workbench: download the exact release combination, invited email login, explicit computer
@@ -31,16 +31,16 @@ The [B workflow release report](../evidence/B_UNIFIED_WORKFLOW_RELEASE_2026-09-1
 later bounded existing-device email/approval, local/cloud parity and exact Hub qualification.
 New accounts/devices still need their own scoped canary; login is not upload consent.
 
-Normal changes use a short-lived branch from develop, latest-head owner/root/CI gates,
-normal component-source merges, governed release promotion and exact receipt review.
-Retain raw evidence/private state outside Git and preserve archived worktrees during branch
-cleanup. Fix the owning cause, preserve failed evidence, publish a new exact combination and
-requalify only the affected native/service/Human gates. No GPU/model quality follows from B.
+Use short-lived develop topics, exact gates and normal component-source merges. Preserve
+private evidence and archived worktrees; a new combination needs affected qualification.
+B provides no GPU/model-quality claim.
 
 Release identity uses the [packaging correction](../evidence/B_WORKFLOW_PACKAGING_IDENTITY_CORRECTION_2026-09-13.md):
 actual BOM file bytes and distinct tool component/workspace revisions, not old copied labels.
 
-Policy Runtime/Workbench rc.2 is a standalone consumer-package candidate with
+Policy Runtime/Workbench rc.3 is a standalone consumer-package candidate with
 locked public SDK dependencies and installed CPU checks. Publication and real
 model/game gates remain separate; see the Policy Runtime README. A caller's
-command timeout must not cause a repeated tick. CLI POST /stop seals and exits.
+command timeout must not cause a repeated tick. HTTP-2 commands use /v2 paths and the exact Runtime run precondition; old instances fail closed.
+CLI POST /v2/stop seals and exits. Live UI consumer source changed; the qualified Recorder DLL
+and collection tool remain historical exact artifacts, not automatically replaced.

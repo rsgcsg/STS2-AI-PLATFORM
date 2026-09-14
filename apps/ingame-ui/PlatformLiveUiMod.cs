@@ -165,6 +165,7 @@ internal sealed class PlatformLivePanel : IDisposable
     private bool _disposed;
     private int _pollInFlight;
     private PlatformLiveStatus? _pendingStatus;
+    private string? _displayedPolicyRunId;
     private string? _pendingPollError;
     private long _lastRecordingEventSequence;
     private string? _actionFeedSessionId;
@@ -1028,11 +1029,13 @@ internal sealed class PlatformLivePanel : IDisposable
         _command.Text = $"Policy Runtime: setting mode {ToRuntimeMode(mode)}...";
         try
         {
-            await _statusClient.SetModeAsync(ToRuntimeMode(mode));
+            string expectedRunId = _displayedPolicyRunId
+                ?? throw new InvalidOperationException("Observe the Policy Runtime before commanding it.");
+            await _statusClient.SetModeAsync(ToRuntimeMode(mode), expectedRunId);
             ApplyModeButtonState();
             if (mode == PlatformCommandMode.OneStep)
             {
-                await _statusClient.TickAsync();
+                await _statusClient.TickAsync(expectedRunId);
                 _command.Text = "Policy Runtime One-Step completed and returned control according to Runtime status.";
             }
             else
@@ -1055,7 +1058,9 @@ internal sealed class PlatformLivePanel : IDisposable
         _command.Text = "Policy Runtime: ticking with max_ticks=1...";
         try
         {
-            await _statusClient.TickAsync();
+            string expectedRunId = _displayedPolicyRunId
+                ?? throw new InvalidOperationException("Observe the Policy Runtime before commanding it.");
+            await _statusClient.TickAsync(expectedRunId);
             _command.Text = "Policy Runtime tick completed.";
             PushToast("policy.tick", "Policy Runtime tick completed.");
             RefreshVisibleStatus();
@@ -1108,6 +1113,7 @@ internal sealed class PlatformLivePanel : IDisposable
 
     private void ApplyStatus(PlatformLiveStatus status)
     {
+        _displayedPolicyRunId = status.PolicyRuntime?.RunId;
         _connection.Text =
             $"Connector: {status.TransportStatus} | Policy Runtime: {status.PolicyRuntimeTransportStatus} | observed {status.ObservedAt:HH:mm:ss} UTC";
         string policyReason = PlatformLiveLayout.PolicyUnavailableReason(status);

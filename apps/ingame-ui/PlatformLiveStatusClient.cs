@@ -10,8 +10,8 @@ namespace STS2PlatformLiveUi;
 
 public sealed class PlatformLiveStatusClient : IDisposable
 {
-    private const string PolicyRuntimeHttpSchema = "sts2.policy-runtime/http-1";
-    private const string PolicyRuntimeTickSchema = "sts2.policy-runtime/http-1/tick-1";
+    private const string PolicyRuntimeHttpSchema = "sts2.policy-runtime/http-2";
+    private const string PolicyRuntimeTickSchema = "sts2.policy-runtime/http-2/tick-1";
 
     private readonly HttpClient _connectorHttp;
     private readonly HttpClient _policyRuntimeHttp;
@@ -116,22 +116,25 @@ public sealed class PlatformLiveStatusClient : IDisposable
 
     public async Task<PolicyRuntimeStatus> SetModeAsync(
         string mode,
+        string expectedRunId,
         CancellationToken cancellationToken = default)
     {
         ValidateMode(mode);
         PolicyRuntimeHttpStatusResponse response = await PostAsync<PolicyRuntimeHttpStatusResponse>(
             "mode",
             new { mode },
+            expectedRunId,
             cancellationToken);
         EnsurePolicyRuntimeStatus(response.Schema, response.Status);
         return response.Status;
     }
 
-    public async Task<PolicyRuntimeStatus> TickAsync(CancellationToken cancellationToken = default)
+    public async Task<PolicyRuntimeStatus> TickAsync(string expectedRunId, CancellationToken cancellationToken = default)
     {
         PolicyRuntimeTickResponse response = await PostAsync<PolicyRuntimeTickResponse>(
             "tick",
             new { max_ticks = 1 },
+            expectedRunId,
             cancellationToken);
         if (response.Schema != PolicyRuntimeTickSchema)
             throw new JsonException($"Policy Runtime tick schema is unsupported: {response.Schema}");
@@ -157,13 +160,16 @@ public sealed class PlatformLiveStatusClient : IDisposable
     private async Task<T> PostAsync<T>(
         string relativePath,
         object body,
+        string expectedRunId,
         CancellationToken cancellationToken)
     {
-        using HttpResponseMessage response = await _policyRuntimeHttp.PostAsJsonAsync(
-            relativePath,
-            body,
-            JsonOptions,
-            cancellationToken);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedRunId);
+        using var request = new HttpRequestMessage(HttpMethod.Post, "v2/" + relativePath)
+        {
+            Content = JsonContent.Create(body, options: JsonOptions)
+        };
+        request.Headers.Add("X-STS2-Policy-Run-ID", expectedRunId);
+        using HttpResponseMessage response = await _policyRuntimeHttp.SendAsync(request, cancellationToken);
         return await ReadResponseAsync<T>(response, relativePath, cancellationToken);
     }
 
@@ -195,6 +201,8 @@ public sealed class PlatformLiveStatusClient : IDisposable
             throw new JsonException("Policy Runtime software identity is absent.");
         if (status.Policy == null || string.IsNullOrWhiteSpace(status.Policy.ManifestId))
             throw new JsonException("Policy Runtime policy identity is absent.");
+        if (string.IsNullOrWhiteSpace(status.RunId))
+            throw new JsonException("Policy Runtime run identity is absent.");
         if (status.Lifecycle is not ("running" or "stopped")
             || status.Mode is not ("human" or "shadow" or "one_step" or "auto")
             || status.Controller is not ("held" or "released"))

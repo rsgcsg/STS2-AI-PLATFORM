@@ -18,7 +18,7 @@ field drift fails closed before Snapshot observation or policy scoring.
 
 ## Standalone consumer package
 
-Version `0.1.0-rc.2` provides a candidate package for external consumers. Build
+Version `0.1.0-rc.3` provides a candidate package for external consumers. Build
 from a committed component checkout with the checked-in lockfile:
 
 ```bash
@@ -27,7 +27,7 @@ npm --prefix components/policy-runtime run check
 npm --prefix components/policy-runtime run package -- --output /absolute/package-output
 ```
 
-The last command creates `rsgcsg-sts2-policy-runtime-0.1.0-rc.2.tgz`,
+The last command creates `rsgcsg-sts2-policy-runtime-0.1.0-rc.3.tgz`,
 `policy-runtime-package.json` and `checksums.sha256`. It requires committed
 component source and does not publish anything. The package contains compiled
 JavaScript/declarations, CLI entries, license, a component identity record and
@@ -75,7 +75,7 @@ environment field drift fails before observation,
 scoring or controller acquisition. Adapter decisions time out after 30 seconds
 and return to Human before controller acquisition. The CLI publishes its exact
 startup identity before enabling Shadow/Auto drive. `unknown` delivery taints the
-run and is never retried. `POST /stop` or process termination releases the
+run and is never retried. `POST /v2/stop` or process termination releases the
 controller and seals an Agent evidence directory bound to Runtime code, Manifest,
 checkpoint and exact environment identity. After stop succeeds and the response finishes or disconnects,
 the CLI closes its HTTP service and adapter child and exits; an embedding
@@ -86,9 +86,25 @@ verification rejects any digest, identity or event-association drift.
 ## HTTP commands
 
 - `GET /status`
-- `POST /mode` with `{"mode":"human|shadow|one_step|auto"}`
-- `POST /tick` with `{"max_ticks":1}`
-- `POST /stop` with `{}`
+- `POST /v2/mode` with `{"mode":"human|shadow|one_step|auto"}`
+- `POST /v2/tick` with `{"max_ticks":1}`
+- `POST /v2/stop` with `{}`
+
+HTTP envelopes use `sts2.policy-runtime/http-2` (ticks append `/tick-1`). Every
+mutation requires exactly one nonempty `X-STS2-Policy-Run-ID` header containing
+the intended Runtime's `startup.run_id` or previously observed `status.run_id`.
+This is the immutable Policy Runtime / Agent evidence session identity, not a
+native game run ID or an authentication credential. Missing, empty or duplicate
+headers return 428 `runtime_run_precondition_required`; a different run returns
+409 `runtime_run_mismatch`. These rejections invoke no Runtime mutation. The
+server owns this check because a separate pre-command status request cannot
+prevent another process from reusing the port before POST arrives.
+
+The mutation path is also versioned: an older HTTP-1 server does not recognize
+`/v2/*`, and this server rejects the retired unversioned mutation paths. An old
+server that ignores the new header therefore cannot accidentally receive a
+new client's command. There is no fallback to old paths. Keep expected identity
+through all steps of one command; status polling must not silently retarget it.
 
 The service is loopback-only. Every POST requires `Content-Type: application/json`
 (optional UTF-8 charset), a literal supported loopback Host with the bound port,
@@ -101,7 +117,15 @@ Command callers must distinguish their HTTP wait from Runtime execution. A
 request timeout or malformed response after POST does not establish that the
 command was unapplied. Query status, permit an explicit Human handoff or stop,
 and never automatically resubmit a tick. A stopped Runtime cannot be restarted
-through HTTP; launch a fresh process/run for a new exact model/Manifest.
+through HTTP; launch a fresh process/run for a new exact model/Manifest. A
+validated 409/428 precondition rejection is known to be unapplied; it still does
+not authorize automatic command retry or identity substitution.
+
+The rc.3 standalone package and its updated Workbench client do not install a
+game Mod. The matching Live UI source is part of the unified game DLL and needs
+its own exact build/install/load qualification before use. Existing qualified
+Recorder DLLs, collection-tool packages and historical Human evidence keep their
+original identities; source cleanup does not upgrade them.
 
 The `successor` event is a distinct same-environment non-settling observation
 obtained by polling. It is not a native causal `S'` certificate. Agent events

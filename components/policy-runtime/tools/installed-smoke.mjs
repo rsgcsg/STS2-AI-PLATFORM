@@ -29,7 +29,7 @@ const connector = {
 };
 const runtime = new PolicyRuntime({ manifest, connector, policy: (input) => ({ candidate_digest: input.candidate_digest, scores: [1], selected_index: 0 }) });
 const server = await startPolicyRuntimeHttpServer(runtime);
-async function post(address, route, body) { const response = await fetch(`${address}/${route}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }); assert.equal(response.status, 200); return response.json(); }
+async function post(address, route, body, runId = runtime.status().run_id) { const response = await fetch(`${address}/v2/${route}`, { method: "POST", headers: { "content-type": "application/json", "x-sts2-policy-run-id": runId }, body: JSON.stringify(body) }); assert.equal(response.status, 200); return response.json(); }
 try {
   await post(server.address, "mode", { mode: "shadow" });
   assert.equal((await post(server.address, "tick", { max_ticks: 1 })).results[0].type, "shadow");
@@ -65,8 +65,8 @@ try {
   assert.equal(startup.schema, "sts2.policy-runtime/startup-1");
   assert.equal(startup.runtime_version, POLICY_RUNTIME_VERSION);
   assert.equal((await (await fetch(`${startup.address}/status`)).json()).status.mode, "human");
-  await post(startup.address, "stop", {});
-  const exitResult = await Promise.race([childExit, new Promise((_, reject) => { const timer = setTimeout(() => reject(new Error("CLI did not exit after POST /stop")), 5000); timer.unref(); })]);
+  await post(startup.address, "stop", {}, startup.run_id);
+  const exitResult = await Promise.race([childExit, new Promise((_, reject) => { const timer = setTimeout(() => reject(new Error("CLI did not exit after POST /v2/stop")), 5000); timer.unref(); })]);
   assert.deepEqual(exitResult, { code: 0, signal: null });
   const sealed = JSON.parse(await readFile(`evidence/${startup.run_id}/evidence-manifest.json`, "utf8"));
   assert.equal(sealed.complete, true);

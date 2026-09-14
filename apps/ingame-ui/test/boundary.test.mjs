@@ -106,7 +106,11 @@ test("Agent Run uses only existing typed Policy Runtime status and controls", ()
   assert.match(mod, /TickRuntimeAsync\(\)/u);
   assert.match(mod, /Human is the safe default/u);
   assert.match(mod, /PolicyUnavailableReason/u);
-  assert.match(client, /sts2\.policy-runtime\/http-1/u);
+  assert.match(client, /sts2\.policy-runtime\/http-2/u);
+  assert.match(client, /Headers\.Add\("X-STS2-Policy-Run-ID", expectedRunId\)/u);
+  assert.match(client, /HttpMethod\.Post, "v2\/" \+ relativePath/u);
+  assert.match(mod, /SetModeAsync\(ToRuntimeMode\(mode\), expectedRunId\)/u);
+  assert.match(mod, /TickAsync\(expectedRunId\)/u);
   assert.match(contracts, /PolicyRuntime/u);
   assert.doesNotMatch(contracts, /ReadScoreNodes|Contains\("score"/u);
 });
