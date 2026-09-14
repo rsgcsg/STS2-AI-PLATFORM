@@ -152,3 +152,41 @@ test("session destination uses only exact current native session ID", () => {
   assert.equal(nativeRecordingRoot({ session_id: "session-2", recording_directory: path.join(root, "session-1") }), null);
   assert.equal(nativeRecordingRoot({ session_id: "none", recording_directory: "relative" }), null);
 });
+
+test("successful Close reports the native root while retaining the closed session identity", async t => {
+  const f = fixture(t);
+  const closed = { ...f.status, status: "recording_closed", session_id: "session-closed" };
+  f.json(f.statusPath, closed);
+  const running = { ...f.dependencies, listProcesses: () => ["100 SlayTheSpire2"] };
+  const result = await collectionSetup("status", f.options, running);
+  assert.equal(result.status, "bound");
+  assert.equal(result.connected, true);
+  assert.equal(result.bound, true);
+  assert.equal(result.actual_recordings_root, f.root);
+  assert.equal(result.execution_available, false);
+
+  assert.equal((await collectionSetup("status", f.options, {
+    ...running, listProcesses: () => ["101 SlayTheSpire2"]
+  })).bound, false);
+  assert.equal((await collectionSetup("status", f.options, {
+    ...running, readProcessStartedAt: () => "2026-09-15T00:00:02Z"
+  })).bound, false);
+  f.json(f.statusPath, { ...closed, recording_directory: f.original });
+  const mismatch = await collectionSetup("status", f.options, running);
+  assert.equal(mismatch.connected, true);
+  assert.equal(mismatch.bound, false);
+  assert.equal(mismatch.actual_recordings_root, f.original);
+  assert.equal(mismatch.reason, "current_runtime_root_mismatch");
+});
+
+test("only completed Close decodes a direct root with a valid retained session identity", () => {
+  const root = path.resolve("recordings");
+  const closed = { status: "recording_closed", session_id: "session-closed", recording_directory: root };
+  assert.equal(nativeRecordingRoot(closed), root);
+  for (const status of ["recording", "recording_closing", "close_durable_flush_failed", "unknown"])
+    assert.equal(nativeRecordingRoot({ ...closed, status }), null);
+  for (const session_id of [undefined, null, 1, "", "none", ".", "..", "../session-closed", "session\\closed", "session\0closed"])
+    assert.equal(nativeRecordingRoot({ ...closed, session_id }), null);
+  for (const recording_directory of [undefined, null, "relative", `${root}\0`])
+    assert.equal(nativeRecordingRoot({ ...closed, recording_directory }), null);
+});

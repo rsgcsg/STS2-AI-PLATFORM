@@ -82,9 +82,10 @@ stops or controls the game, changes Mod settings or changes native compatibility
 `collection-setup-1` reports `configured` separately from `connected` and `bound`.
 The latter require exact installed bytes, a live Connector capabilities response,
 the current native status, loaded identity and OS process generation. Its native
-destination is the current status `recording_directory`: with an exact session ID
-the store contract identifies its parent as the root; Ready without a session
-reports the root directly. Old receipts, directory scans and elapsed time do not
+destination is the current status `recording_directory`: an open store's exact
+session ID identifies its parent as the root. Ready without a session and
+`recording_closed` report the root directly; Close retains the old session ID
+after disposing its store. Old receipts, directory scans and elapsed time do not
 establish readiness. Native game SHA/MVID remain null when current native status
 does not publish them. Errors retain a code and next action; local paths are private
 operator data and should be omitted from browser-facing projections.

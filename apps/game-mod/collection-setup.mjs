@@ -51,11 +51,18 @@ function latestIdentity(log, prefix) {
   }).at(-1);
 }
 
-// Recorder's current store contract uses root / exact session_id. No directory scan
-// or last recording receipt supplies a current process destination.
+// An open Recorder store uses root / exact session_id. Successful Close disposes
+// the store and reports the configured root, while retaining the closed session ID.
+// No directory scan or last recording receipt supplies a current process destination.
 export function nativeRecordingRoot(status) {
   const directory = status?.recording_directory;
-  if (typeof directory !== "string" || !path.isAbsolute(directory)) return null;
+  if (typeof directory !== "string" || !path.isAbsolute(directory) || directory.includes("\0")) return null;
+  if (status.status === "recording_closed") {
+    const session = status.session_id;
+    if (typeof session !== "string" || !session || ["none", ".", ".."].includes(session)
+        || /[/\\\0]/u.test(session)) return null;
+    return path.resolve(directory);
+  }
   if (status.session_id === "none") return path.resolve(directory);
   if (typeof status.session_id !== "string" || path.basename(directory) !== status.session_id) return null;
   return path.dirname(path.resolve(directory));
