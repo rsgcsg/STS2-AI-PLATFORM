@@ -186,13 +186,17 @@ export class PolicyRuntimeClient {
     if (this.commandOutcomeUnknown) throw new PolicyRuntimeError("A previous Runtime command has an unknown outcome; do not retry. Return to Human and start a new Runtime run.", "policy_runtime_command_unknown");
   }
 
-  async command(pathname, body, decode) {
-    if (this.runId === null) await this.readStatus();
-    const expectedRunId = this.runId;
+  async command(pathname, body, decode, expectedRunId = null) {
+    if (expectedRunId === null) {
+      if (this.runId === null) await this.readStatus();
+      expectedRunId = this.runId;
+    }
     try {
-      return decode(await this.request(`/v2${pathname}`, {
+      const decoded = decode(await this.request(`/v2${pathname}`, {
         method: "POST", headers: { "content-type": "application/json", "x-sts2-policy-run-id": expectedRunId }, body: JSON.stringify(body)
       }));
+      if ((decoded.status ?? decoded).run_id !== expectedRunId) invalid("Policy Runtime command response changed run identity");
+      return decoded;
     } catch (error) {
       if (error instanceof PolicyRuntimeError && error.code === "policy_runtime_run_rejected") throw error;
       this.commandOutcomeUnknown = true;
@@ -211,9 +215,9 @@ export class PolicyRuntimeClient {
   }
 
 
-  async tick() {
+  async tick(expectedRunId = null) {
     this.assertCommandAvailable();
-    return this.command("/tick", { max_ticks: 1 }, decodeHttpTick);
+    return this.command("/tick", { max_ticks: 1 }, decodeHttpTick, expectedRunId);
   }
 }
 
