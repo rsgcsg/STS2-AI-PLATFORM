@@ -78,6 +78,13 @@ can requeue them after the account owner restores same-device authorization.
 Storage failures and historical incidents are not reclassified as login issues.
 Evidence transfer is separate from game authority and research admission.
 
+`completed_delivery(config)` holds the stopped worker's existing process lock
+and yields an immutable completion receipt for a whole delivery generation.
+It checks sealed raw inventory, pinned tool, bundle, archive and verified receipt
+identities, then rechecks before releasing the lock. The consumer owns same-consent
+configuration rollover and native process readiness; failed Human decisions remain
+failed even when their transfer is complete. See the [completion contract](DELIVERY.md#stopped-generation-completion).
+
 ## Safe application summaries
 
 `summarize_verified_human_bundle(verified_value)` is the public
