@@ -1,7 +1,7 @@
 # Current Context
 
-Resolve current refs, source/BOM, CI and deployed identity; repository/runtime authority
-overrides this routing note.
+Resolve live GitHub refs, source/BOM, CI and deployed identity.
+Current repository/runtime authorities override this file.
 
 The default flow uses one qualified Platform Mod plus the STPD
 workbench: download the exact release combination, invited email login, explicit computer
