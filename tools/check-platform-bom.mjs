@@ -119,6 +119,8 @@ export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
     finalFullRunBuild: recordedBuild,
     finalFullRunEvidence: buildBom.components.evidence,
     finalFullRunLiveUi: buildBom.components.live_ui,
+    finalFullRunAnnotator: buildBom.components.annotator,
+    finalFullRunGameMod: buildBom.components.game_mod,
     identities: readIdentityReport(platformRoot),
     nativeFoundationComponent,
     connectorRelease,
@@ -179,9 +181,8 @@ export function validatePlatformBom(bom, authorities) {
       expectPattern(errors, "Final Full-Run Human bundle content", human?.bundle_content_id, SHA256);
     }
     expectEqual(errors, "Final Full-Run predecessor transfer", finalCandidate.evidence_transfer_from_predecessor, false);
-    // Closed Evidence and Live UI snapshots stay bound to their recorded build.
-    // Current source is checked above; new Python or C# consumer source does not
-    // inherit historical qualification. Other component contracts remain unchanged.
+    // Every closed Human component snapshot stays bound to the recorded build.
+    // Current source is checked above and cannot inherit historical qualification.
     expectEqual(errors, "Final Full-Run portable evidence scope", finalCandidate.portable_evidence_scope,
       "historical_verifier_snapshot_not_current_portable_qualification");
     const historicalEvidence = finalCandidate.components?.evidence;
@@ -190,11 +191,13 @@ export function validatePlatformBom(bom, authorities) {
     for (const field of ["version", "source_revision", "component_tree_revision", "component_source_digest_sha256"])
       expectEqual(errors, `Final Full-Run historical evidence ${field}`, historicalEvidence?.[field],
         authorities.finalFullRunEvidence[field]);
-    for (const key of ["annotator", "live_ui", "game_mod"])
+    const historicalComponents = { annotator: authorities.finalFullRunAnnotator,
+      live_ui: authorities.finalFullRunLiveUi, game_mod: authorities.finalFullRunGameMod };
+    for (const [key, historical] of Object.entries(historicalComponents))
       for (const field of ["version", "source_revision", "component_tree_revision", "component_source_digest_sha256"])
         expectEqual(errors, `Final Full-Run ${key}.${field}`,
           finalCandidate.components?.[key]?.[field],
-          key === "live_ui" ? authorities.finalFullRunLiveUi[field] : bom.components?.[key]?.[field]);
+          historical[field]);
     if (!["source_candidate", "loaded_candidate"].includes(finalCandidate.stage))
       errors.push("Final Full-Run candidate stage is invalid");
     if (finalCandidate.stage === "loaded_candidate") {
@@ -233,8 +236,12 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "public Connector artifact MVID", publicConnector?.artifact_mvid, pinnedConnector.artifactMvid);
   expectEqual(errors, "Host Connector protocol pin", bom.components?.player_environment_protocol, pinnedConnector.protocol);
 
-  expectEqual(errors, "public Host release", bom.public_packages?.host_runtime?.release, `host-runtime/v${authorities.hostPackage.version}`);
-  expectEqual(errors, "public Host asset", bom.public_packages?.host_runtime?.asset, `rsgcsg-sts2-host-runtime-${authorities.hostPackage.version}.tgz`);
+  const publicHost = bom.public_packages?.host_runtime;
+  expectPattern(errors, "published Host version", publicHost?.version, /^\d+\.\d+\.\d+(?:-[a-zA-Z0-9.-]+)?$/u);
+  expectEqual(errors, "public Host release", publicHost?.release, `host-runtime/v${publicHost?.version}`);
+  expectEqual(errors, "public Host asset", publicHost?.asset, `rsgcsg-sts2-host-runtime-${publicHost?.version}.tgz`);
+  expectEqual(errors, "public Host source relation", publicHost?.source_relation,
+    publicHost?.version === authorities.hostPackage.version ? "same_component_version" : "published_package_precedes_current_source");
   expectEqual(errors, "runtime Connector source", bom.exact_runtime_candidate?.connector?.source_revision, pinnedConnector.sourceRevision);
   expectEqual(errors, "runtime Connector SHA", bom.exact_runtime_candidate?.connector?.artifact_sha256, pinnedConnector.artifactSha256);
   expectEqual(errors, "runtime Connector MVID", bom.exact_runtime_candidate?.connector?.artifact_mvid, pinnedConnector.artifactMvid);

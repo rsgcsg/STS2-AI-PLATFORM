@@ -35,6 +35,15 @@ Use short-lived develop topics, exact gates and normal component-source merges. 
 private evidence and archived worktrees; a new combination needs affected qualification.
 B provides no GPU/model-quality claim.
 
+The collection setup candidate adds a fixed-tool Game Mod owner for stopped-game
+recording-root binding and current-process status. Evidence rc.8 exposes that
+inventory-verified API; Host rc.8 provides bounded discovery, while Annotator rc.5
+and Game Mod rc.5 keep candidate package/native version metadata coherent.
+Passive recorder identity and Connector mutation compatibility remain separate.
+The published Host rc.7 pin and historical Full-Run component snapshots retain
+their original identities. New candidate bytes require their own install/load
+and any claimed Human gates; setup readiness never borrows those older results.
+
 Release identity uses the [packaging correction](../evidence/B_WORKFLOW_PACKAGING_IDENTITY_CORRECTION_2026-09-13.md):
 actual BOM file bytes and distinct tool component/workspace revisions, not old copied labels.
 

@@ -296,3 +296,24 @@ test("new Live UI consumer source cannot relabel the recorded Human-tested nativ
   bom.final_full_run_candidate.components.live_ui = { ...bom.components.live_ui };
   assert.ok(validatePlatformBom(bom, authorities).some(error => error.startsWith("Final Full-Run live_ui.source_revision:")));
 });
+
+test("collection setup source and version updates cannot relabel the recorded Human artifact", async () => {
+  const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
+  const authorities = await readBomAuthorities(root);
+  assert.deepEqual(validatePlatformBom(bom, authorities), []);
+  for (const key of ["annotator", "game_mod"]) {
+    assert.notEqual(bom.components[key].source_revision, bom.final_full_run_candidate.components[key].source_revision);
+    const mutated = structuredClone(bom);
+    mutated.final_full_run_candidate.components[key] = { ...bom.components[key] };
+    assert.ok(validatePlatformBom(mutated, authorities).some(error => error.startsWith(`Final Full-Run ${key}.source_revision:`)));
+  }
+});
+
+test("published Host pin is separate from a newer local source version", async () => {
+  const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
+  const authorities = await readBomAuthorities(root);
+  assert.notEqual(bom.public_packages.host_runtime.version, bom.components.host_runtime.version);
+  assert.deepEqual(validatePlatformBom(bom, authorities), []);
+  bom.public_packages.host_runtime.release = `host-runtime/v${bom.components.host_runtime.version}`;
+  assert.ok(validatePlatformBom(bom, authorities).some(error => error.startsWith("public Host release:")));
+});

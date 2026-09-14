@@ -93,3 +93,10 @@ Passive collection reports `execution_available` and game `compatibility`
 independently. An unadmitted mutation tuple does not disconnect an otherwise exact
 passive recorder. The existing `verify-loaded` mutation/readiness gate still
 requires Connector execution availability; collection binding cannot grant it.
+
+The rc.5 setup candidate uses Annotator rc.5, Evidence rc.8 and Host tooling rc.8.
+The version updates preserve current recording schemas and all native decision,
+causal and mutation-admission behavior. New SHA/MVID and source identities still
+require their own exact build/install/load evidence. The historical rc.4 Human
+artifact and published Host rc.7 package remain pinned to their original bytes;
+their qualification/publication is not transferred to this candidate.
