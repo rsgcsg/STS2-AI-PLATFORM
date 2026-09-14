@@ -469,7 +469,10 @@ describe("runtime integration fake", () => {
     try {
       const modeResponse = await fetch(`${service.address}/v2/mode`, { method: "POST", headers: { "content-type": "application/json", "x-sts2-policy-run-id": runtime.status().run_id }, body: JSON.stringify({ mode: "auto" }) });
       expect(modeResponse.status).toBe(200);
-      expect((await modeResponse.json()).status.controller).toBe("released");
+      const modeEnvelope = await modeResponse.json();
+      const httpContract = JSON.parse(await readFile(new URL("../../../contracts/policy-runtime/http.schema.json", import.meta.url), "utf8"));
+      expect(modeEnvelope.schema).toBe(httpContract.$id);
+      expect(modeEnvelope.status.controller).toBe("released");
       const tickResponse = await fetch(`${service.address}/v2/tick`, { method: "POST", headers: { "content-type": "application/json", "x-sts2-policy-run-id": runtime.status().run_id }, body: JSON.stringify({ max_ticks: 2 }) });
       expect(tickResponse.status).toBe(200);
       const result = await tickResponse.json() as { results: unknown[] };

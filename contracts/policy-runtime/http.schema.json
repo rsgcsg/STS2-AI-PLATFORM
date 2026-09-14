@@ -1,14 +1,15 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "sts2.policy-runtime/http-1",
+  "$id": "sts2.policy-runtime/http-2",
   "title": "STS2 loopback Policy Runtime HTTP response",
+  "description": "HTTP-2 mutations use /v2/mode, /v2/tick and /v2/stop with exactly one X-STS2-Policy-Run-ID precondition matching the intended Runtime session.",
   "oneOf": [
     {
       "type": "object",
       "additionalProperties": false,
       "required": ["schema", "status"],
       "properties": {
-        "schema": { "const": "sts2.policy-runtime/http-1" },
+        "schema": { "const": "sts2.policy-runtime/http-2" },
         "status": { "$ref": "status.schema.json" }
       }
     },
@@ -17,7 +18,7 @@
       "additionalProperties": false,
       "required": ["schema", "results", "status"],
       "properties": {
-        "schema": { "const": "sts2.policy-runtime/http-1/tick-1" },
+        "schema": { "const": "sts2.policy-runtime/http-2/tick-1" },
         "results": { "type": "array", "minItems": 1, "items": { "type": "object", "required": ["type"] } },
         "status": { "$ref": "status.schema.json" }
       }
@@ -27,7 +28,7 @@
       "additionalProperties": false,
       "required": ["schema", "error"],
       "properties": {
-        "schema": { "const": "sts2.policy-runtime/http-1" },
+        "schema": { "const": "sts2.policy-runtime/http-2" },
         "error": { "type": "string", "minLength": 1 }
       }
     }
