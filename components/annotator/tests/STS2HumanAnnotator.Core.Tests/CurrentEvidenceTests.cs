@@ -1183,6 +1183,160 @@ public sealed class CurrentEvidenceTests
     }
 
     [Theory]
+    [InlineData("complete", true)]
+    [InlineData("incomplete", false)]
+    [InlineData("no_owner_ready", false)]
+    public void EventProceedCloseUsesCommittedExactMapBoundaryWithoutAnotherHumanInput(string condition, bool canonical)
+    {
+        string root = Temp("event-proceed-close");
+        try
+        {
+            HumanCaptureProfile profile = Profile() with
+            {
+                ProfileId = "event-proceed-test",
+                SupportedActionFamilies = new[] { "event_option.proceed" },
+                Reads = new[] { new CaptureReadRequirement("pre", "run_deck", true),
+                    new CaptureReadRequirement("successor", "run_deck", true) }
+            };
+            CurrentRecordingManifest manifest = Manifest(profile) with
+            { DecisionSchemaVersion = 2, DispositionSchemaVersion = 1, CloseSchemaVersion = 1 };
+            string session;
+            using (var store = RecordingSessionStore.Create(root, manifest, profile))
+            {
+                session = store.DirectoryPath;
+                AppendJournal(store, manifest);
+                HistoricalDecisionRecord seed = RecordValidationTests.ValidRecord();
+                var input = new RecordedBoundAction("event-proceed", "activate", "event-option",
+                    new Dictionary<string, string>(), "Continue");
+                CurrentDecisionFrame Frame(string id, string kind, string owner)
+                {
+                    JsonNode snapshot = seed.Pre.Snapshot.DeepClone();
+                    snapshot["snapshot_id"] = id;
+                    snapshot["interaction"]!["kind"] = kind;
+                    snapshot["interaction"]!["interaction_id"] = owner;
+                    snapshot["interaction"]!["content"] = kind == "event_option"
+                        ? JsonNode.Parse("{\"context\":{\"event_id\":\"PAEL\"},\"surface\":{\"options\":[{\"entity_id\":\"event-option\",\"is_proceed\":true}]}}")
+                        : JsonNode.Parse("{\"context\":{\"act_index\":1},\"surface\":{\"travel_enabled\":true,\"next_options\":[{\"entity_id\":\"map-point\"}]}}");
+                    string subject = kind == "event_option" ? input.SubjectReferentId! : "map-point";
+                    snapshot["bound_actions"]!["actions"] = new JsonArray(new JsonObject
+                    {
+                        ["bound_action_id"] = kind == "event_option" ? input.BoundActionId : "travel-map-point", ["verb"] = "activate",
+                        ["subject_referent_id"] = subject, ["arguments"] = new JsonArray(),
+                        ["label"] = kind == "event_option" ? input.Label : "Choose next room"
+                    });
+                    snapshot["referents"] = new JsonArray(new JsonObject
+                    { ["referent_id"] = subject, ["kind"] = "entity", ["role"] = kind == "event_option" ? "option" : "map_point" });
+                    snapshot["bound_actions"]!["materialized_count"] = 1;
+                    return new CurrentDecisionFrame(id, owner, kind, $"sts2.player-environment/surface/{kind}-1",
+                        EvidenceIdentity.Sha256Json(snapshot["bound_actions"]!), 1, snapshot,
+                        PersistReads(store, id).Where(read => read.Kind == "run_deck").ToArray());
+                }
+                CurrentDecisionFrame pre = Frame("event-pre", "event_option", "event-room");
+                CurrentDecisionFrame map = Frame("map-after-proceed", "map_navigation", "map-owner");
+                var action = new SemanticActionReference("event-root", 1, "event-record", "run-0001",
+                    "NEventRoom.OptionButtonClicked", null, pre.SnapshotId)
+                {
+                    NativeMechanism = "direct_ui_commit", RequiresNativePostCommit = true,
+                    Decision = new DecisionOccurrenceIdentity(2, "event-decision", "event-root", null,
+                        "event_option", "event_option.proceed", "root", null),
+                    NativeWitness = seed.NativeWitness with
+                    { Origin = "native_event_option_ui", NativeActionType = "NEventRoom.OptionButtonClicked", SubjectWitnessId = "native-option", ArgumentWitnessIds = new Dictionary<string, string>() },
+                    Mapping = seed.Mapping, BoundAction = input
+                };
+                var nativeCatalog = new ExecutionSemanticActionSpaceEvidence(
+                    ExecutionSemanticActionSpaceContract.SchemaVersion, ExecutionSemanticActionSpaceContract.Schema,
+                    action.ActionWitnessId, "before_native_action_admission", "captured", "event_option",
+                    new string('a', 64), JsonNode.Parse("{\"event\":\"PAEL\",\"is_proceed\":true}")!, new string('b', 64),
+                    new[] { new ExecutionSemanticAction("proceed|event-option|", "proceed_event", "event-option",
+                        input.Arguments, "EventOption.IsProceed") }, "proceed|event-option|", "exact_once", 1,
+                    new[] { "EventOption.IsProceed" }, Array.Empty<string>(), null)
+                { HumanBoundActionId = input.BoundActionId };
+                var tracker = new SemanticBoundaryTracker();
+                var drafts = new List<SemanticBoundaryTraceDraft>();
+                drafts.AddRange(tracker.Accept(action, pre));
+                drafts.AddRange(tracker.ObserveBeforeActionExecution(action.ActionWitnessId,
+                    new SemanticBoundaryObservation(SemanticBoundaryWitnessKinds.BeforeHumanActionExecution,
+                        DateTimeOffset.UnixEpoch, pre.SnapshotId, "interactive", "complete", pre.InteractionId,
+                        pre.InteractionKind, pre, action.ActionWitnessId) { ExecutionSemanticActionSpace = nativeCatalog }));
+                drafts.AddRange(tracker.Started(action.ActionWitnessId));
+
+                // The exact EventOption registration is the same identity
+                // consumed by the native synchronous completion path.
+                var completions = new NativePostCommitCompletionLedger();
+                Assert.True(completions.Register(new NativePostCommitCompletionRegistration(manifest.SessionId, 1,
+                    action.ActionWitnessId, new NativePostCommitCompletionExpectation("event_option", "EventOption.Chosen",
+                        NativeOperandWitnessId: "native-option"))));
+                Assert.True(completions.BindTask(new NativeTaskObservation(manifest.SessionId, 1, "EventOption.Chosen",
+                    "native-sync", NativeOperandWitnessId: "native-option"), action.ActionWitnessId).IsMatched);
+                var completionSignal = new NativeTaskCompletion(manifest.SessionId, 1, "event-commit", "native-sync", true);
+                NativePostCommitCompletion completed = completions.PreviewTaskCompletion(completionSignal).Completion!;
+                var commit = new NativeCompletionEvidence(completed.CompletionId, completed.Family, completed.Kind,
+                    completed.ActionWitnessId, completed.TaskWitnessId, null, completed.NativeOperandWitnessId, null, completed.Succeeded);
+                drafts.AddRange(tracker.Finished(action.ActionWitnessId));
+                drafts.AddRange(tracker.ObserveNativeCommit(action.ActionWitnessId, commit));
+                Assert.DoesNotContain(drafts, draft => draft.Kind == SemanticBoundaryTraceKinds.TransitionProved);
+                Assert.True(completions.CommitTaskCompletion(completionSignal));
+                if (condition != "no_owner_ready")
+                    drafts.AddRange(tracker.ObserveDecisionBoundary(new SemanticBoundaryObservation(
+                        SemanticBoundaryWitnessKinds.NativeDecisionOwnerReady, DateTimeOffset.UnixEpoch.AddSeconds(1),
+                        map.SnapshotId, "interactive", "complete", map.InteractionId, map.InteractionKind, map, null)
+                    {
+                        NativeDecisionOwnerReady = new NativeDecisionOwnerReadyEvidence("map_navigation", "map-owner",
+                            "MegaCrit.Sts2.Core.Nodes.Screens.Map.NMapScreen", "NEventRoom.Proceed->NMapScreen.Open.return"),
+                        StateCompleteness = condition == "incomplete" ? "partial" : "complete",
+                        StateBlockers = condition == "incomplete" ? new[] { "required_read_evidence_unavailable" } : Array.Empty<string>()
+                    }));
+                drafts.AddRange(tracker.CloseUnknown(RecordingClosePolicy.TerminalUnknownReason));
+                Assert.Single(drafts, draft => draft.Kind == (canonical
+                    ? SemanticBoundaryTraceKinds.TransitionProved : SemanticBoundaryTraceKinds.TransitionUnknown));
+                Assert.Single(drafts, draft => draft.Kind == SemanticBoundaryTraceKinds.ActionAccepted);
+                Assert.DoesNotContain(drafts, draft => draft.Kind == (canonical
+                    ? SemanticBoundaryTraceKinds.TransitionUnknown : SemanticBoundaryTraceKinds.TransitionProved));
+
+                long sequence = 0;
+                store.AppendSemanticEvidenceEvents(drafts.Select(draft => new SemanticEvidenceEvent(
+                    SemanticEvidenceContract.SchemaVersion, SemanticEvidenceContract.EventSchema,
+                    $"event-proceed-{++sequence}", manifest.SessionId, manifest.TimelineId, action.RunId, sequence,
+                    DateTimeOffset.UnixEpoch.AddMilliseconds(sequence), draft.Kind, draft.Action, draft.ProofStatus,
+                    draft.RelatedActionWitnessId, draft.Boundary == null ? null : SemanticBoundaryObservationCodec.Encode(draft.Boundary, store.PersistSemanticFrame),
+                    draft.SemanticPre == null ? null : store.PersistSemanticFrame(draft.SemanticPre),
+                    draft.SemanticSuccessor == null ? null : store.PersistSemanticFrame(draft.SemanticSuccessor), draft.Detail,
+                    draft.NonClaims ?? Array.Empty<string>())
+                {
+                    HumanObservationRef = draft.HumanObservation == null ? null : store.PersistSemanticFrame(draft.HumanObservation),
+                    NativeCompletion = draft.NativeCompletion,
+                    ExecutionSemanticActionSpaceRef = draft.ExecutionSemanticActionSpace == null ? null
+                        : store.PersistExecutionSemanticActionSpace(draft.ExecutionSemanticActionSpace)
+                }).ToArray());
+                long journalSequence = 2;
+                void Journal(string kind, string? recordId = null) => store.AppendRunEvent(new RunJournalEvent(
+                    2, CurrentRecordingContract.RunJournalSchema, $"event-proceed-journal-{++journalSequence}",
+                    manifest.SessionId, action.RunId, manifest.TimelineId, journalSequence, DateTimeOffset.UnixEpoch,
+                    kind, recordId, map.SnapshotId, "event Proceed fixture"));
+                Journal("semantic_human_action_accepted", action.RecordId);
+                if (canonical)
+                {
+                    SemanticBoundaryTraceDraft proved = drafts.Single(draft => draft.Kind == SemanticBoundaryTraceKinds.TransitionProved);
+                    CanonicalTransitionEvidence row = SemanticTransitionProjection.CreateCanonical(proved,
+                        store.PersistSemanticFrame(proved.SemanticPre!), store.PersistSemanticFrame(proved.SemanticSuccessor!),
+                        store.PersistExecutionSemanticActionSpace(proved.ExecutionSemanticActionSpace!), manifest.SessionId, manifest.TimelineId);
+                    store.AppendCanonicalTransition(row);
+                    Assert.Equal("event_option.proceed", row.Decision!.Family);
+                    Journal("canonical_transition_recorded", row.TransitionId);
+                    Journal("current_decision_projection_omitted", row.TransitionId);
+                }
+                Journal("session_closed");
+                Assert.Equal(canonical ? 0 : 1, store.GetSnapshot().Counters.Decisions!.RealFailures);
+            }
+            RecordingAuditResult audit = RecordingSessionAuditor.Audit(session);
+            Assert.True(audit.Status == "pass", JsonSerializer.Serialize(audit.Errors));
+            Assert.Equal(canonical ? 1 : 0, File.ReadLines(Path.Combine(session, "canonical-transitions.jsonl")).Count());
+            Assert.True(File.Exists(Path.Combine(session, "session-close-receipt.json")));
+        }
+        finally { Delete(root); }
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public void TrackerSettlementProjectsDurableDecisionAndCanonicalEvidence(bool gameOver)
