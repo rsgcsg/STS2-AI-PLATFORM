@@ -82,7 +82,7 @@ BOM digest and private tool-source label were incorrect. Original bytes remain u
 
 ## External policy package candidate
 
-Policy Runtime and Platform Workbench `0.1.0-rc.2` add a standalone locked
+Policy Runtime and Platform Workbench `0.1.0-rc.3` add a standalone locked
 Runtime package, current-environment status decoding, and explicit unknown
 command handling. The installed CPU gate checks synthetic modes and CLI
 start/stop/sealing without contacting STS2. See the
@@ -90,3 +90,9 @@ start/stop/sealing without contacting STS2. See the
 Release publication and real trained-model Shadow/One-Step/Auto remain separate
 gates. The historical policy candidate and native/Human evidence retain their
 original identities; no Full-Run, causal-successor or model-quality claim follows.
+
+The HTTP-2 Runtime candidate binds versioned mutation routes to the intended immutable
+Runtime run ID. It rejects stale instances and legacy command routes before dispatch.
+Matching Live UI source changed and needs a new native install/load gate if deployed;
+the historical Human-tested Recorder DLL and fixed collection tool remain at their
+qualified identities. The current source is not a new Full-Run Human qualification.

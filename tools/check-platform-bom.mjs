@@ -118,6 +118,7 @@ export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
   return {
     finalFullRunBuild: recordedBuild,
     finalFullRunEvidence: buildBom.components.evidence,
+    finalFullRunLiveUi: buildBom.components.live_ui,
     identities: readIdentityReport(platformRoot),
     nativeFoundationComponent,
     connectorRelease,
@@ -178,9 +179,9 @@ export function validatePlatformBom(bom, authorities) {
       expectPattern(errors, "Final Full-Run Human bundle content", human?.bundle_content_id, SHA256);
     }
     expectEqual(errors, "Final Full-Run predecessor transfer", finalCandidate.evidence_transfer_from_predecessor, false);
-    // The portable verifier can evolve without changing the Human-tested native
-    // artifact. Keep its recorded identity historical; never relabel the Human
-    // evidence with today's Python package. Current authority is checked above.
+    // Closed Evidence and Live UI snapshots stay bound to their recorded build.
+    // Current source is checked above; new Python or C# consumer source does not
+    // inherit historical qualification. Other component contracts remain unchanged.
     expectEqual(errors, "Final Full-Run portable evidence scope", finalCandidate.portable_evidence_scope,
       "historical_verifier_snapshot_not_current_portable_qualification");
     const historicalEvidence = finalCandidate.components?.evidence;
@@ -192,7 +193,8 @@ export function validatePlatformBom(bom, authorities) {
     for (const key of ["annotator", "live_ui", "game_mod"])
       for (const field of ["version", "source_revision", "component_tree_revision", "component_source_digest_sha256"])
         expectEqual(errors, `Final Full-Run ${key}.${field}`,
-          finalCandidate.components?.[key]?.[field], bom.components?.[key]?.[field]);
+          finalCandidate.components?.[key]?.[field],
+          key === "live_ui" ? authorities.finalFullRunLiveUi[field] : bom.components?.[key]?.[field]);
     if (!["source_candidate", "loaded_candidate"].includes(finalCandidate.stage))
       errors.push("Final Full-Run candidate stage is invalid");
     if (finalCandidate.stage === "loaded_candidate") {

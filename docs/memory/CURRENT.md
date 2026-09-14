@@ -3,7 +3,7 @@
 Resolve current refs, source/BOM, CI and deployed identity; repository/runtime authority
 overrides this routing note.
 
-The default SpireAgent developer flow is one qualified Platform Mod plus the STPD project
+The default flow uses one qualified Platform Mod plus the STPD
 workbench: download the exact release combination, invited email login, explicit computer
 binding, dedicated campaign consent/setup, Recorder Close, local queue and cloud receipt.
 Start at [collection and incident response](../ANNOTATOR_COLLECTION.md); the linked STPD

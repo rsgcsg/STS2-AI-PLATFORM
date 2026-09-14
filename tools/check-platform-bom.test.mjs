@@ -287,3 +287,12 @@ test("portable verifier changes do not relabel closed native Human evidence", as
   assert.ok(validatePlatformBom(bom, await readBomAuthorities(root))
     .some(error => error.startsWith("Final Full-Run historical evidence source_revision:")));
 });
+
+test("new Live UI consumer source cannot relabel the recorded Human-tested native build", async () => {
+  const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
+  const authorities = await readBomAuthorities(root);
+  assert.notEqual(bom.components.live_ui.source_revision, bom.final_full_run_candidate.components.live_ui.source_revision);
+  assert.deepEqual(validatePlatformBom(bom, authorities), []);
+  bom.final_full_run_candidate.components.live_ui = { ...bom.components.live_ui };
+  assert.ok(validatePlatformBom(bom, authorities).some(error => error.startsWith("Final Full-Run live_ui.source_revision:")));
+});
