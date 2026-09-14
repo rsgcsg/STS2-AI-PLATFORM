@@ -59,6 +59,18 @@ function decodeModeCommand(value) {
   return validatePolicyMode(value.mode);
 }
 
+function policyRequestError(request, bindHost) {
+  const authority = request.headers.host;
+  const localHost = normalizeHost(bindHost);
+  const hosts = new Set(["127.0.0.1", "localhost", "::1", localHost]);
+  const allowed = [...hosts].map((host) => `${host.includes(":") ? `[${host}]` : host}:${request.socket.localPort}`);
+  const hostCount = request.rawHeaders.filter((value, index) => index % 2 === 0 && value.toLowerCase() === "host").length;
+  if (hostCount !== 1 || !allowed.includes(authority)) return { status: 403, error: "policy_request_host_not_allowed" };
+  if (request.headers.origin !== undefined && request.headers.origin !== `http://${authority}`) return { status: 403, error: "policy_request_origin_not_allowed" };
+  if (!/^application\/json(?:\s*;\s*charset=utf-8)?$/iu.test(request.headers["content-type"] ?? "")) return { status: 415, error: "policy_request_requires_application_json" };
+  return null;
+}
+
 export function createWorkbenchServer(service, options = {}) {
   const bindHost = options.bindHost ?? null;
   const mutatingCommandsAllowed = isLoopbackHost(bindHost);
@@ -87,6 +99,12 @@ export function createWorkbenchServer(service, options = {}) {
           error: "policy_mutation_loopback_only",
           message: "Policy Runtime mutating commands are available only on a loopback Workbench bind."
         })}\n`);
+        return;
+      }
+      const denied = policyRequestError(request, bindHost);
+      if (denied) {
+        request.resume();
+        send(response, denied.status, "application/json; charset=utf-8", `${JSON.stringify({ error: denied.error })}\n`);
         return;
       }
       try {

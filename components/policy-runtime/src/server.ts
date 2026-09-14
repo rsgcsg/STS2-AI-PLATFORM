@@ -13,7 +13,7 @@ export interface PolicyRuntimeHttpOptions {
   autoDrive?: boolean;
   deferAutoDrive?: boolean;
   autoIdleMs?: number;
-  /** CLI owners may close their process after the successful stop response finishes. */
+  /** CLI owners may close after stop succeeds and its response finishes or disconnects. */
   onStopped?: () => Promise<void>;
 }
 
@@ -33,6 +33,7 @@ export async function startPolicyRuntimeHttpServer(runtime: PolicyRuntime, optio
   if (!Number.isSafeInteger(maxBodyBytes) || maxBodyBytes < 1 || !Number.isSafeInteger(maxAutoTicks) || maxAutoTicks < 1) throw new Error("HTTP bounds must be positive integers");
   if (!Number.isSafeInteger(autoIdleMs) || autoIdleMs < 0) throw new Error("autoIdleMs must be a non-negative integer");
   let closing = false;
+  let stoppedNotified = false;
   let autoWorker: Promise<void> | null = null;
   const ensureAutoWorker = (): void => {
     if (!options.autoDrive || autoWorker || closing || !isDrivenMode(runtime.status().mode)) return;
@@ -49,22 +50,29 @@ export async function startPolicyRuntimeHttpServer(runtime: PolicyRuntime, optio
       }
     })().finally(() => { autoWorker = null; if (!closing) ensureAutoWorker(); });
   };
-  const server = createServer((request, response) => { void dispatch(runtime, request, response, maxBodyBytes, maxAutoTicks, ensureAutoWorker, options.onStopped); });
+  const onStopped = options.onStopped ? (): void => {
+    if (stoppedNotified) return;
+    stoppedNotified = true;
+    void options.onStopped!().catch((error: unknown) => serverStopError(error));
+  } : undefined;
+  const server = createServer((request, response) => { void dispatch(runtime, request, response, maxBodyBytes, maxAutoTicks, ensureAutoWorker, onStopped); });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(options.port ?? 0, host, () => { server.removeListener("error", reject); resolve(); }); });
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Policy Runtime HTTP service did not expose a socket address");
   if (!options.deferAutoDrive) ensureAutoWorker();
-  return { server, address: `http://${host}:${(address as AddressInfo).port}`, startDriving: ensureAutoWorker, close: async () => {
+  return { server, address: `http://${host === "::1" ? "[::1]" : host}:${(address as AddressInfo).port}`, startDriving: ensureAutoWorker, close: async () => {
     closing = true;
     await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     await autoWorker;
   } };
 }
 
-async function dispatch(runtime: PolicyRuntime, request: IncomingMessage, response: ServerResponse, maxBodyBytes: number, maxAutoTicks: number, ensureAutoWorker: () => void, onStopped?: () => Promise<void>): Promise<void> {
+async function dispatch(runtime: PolicyRuntime, request: IncomingMessage, response: ServerResponse, maxBodyBytes: number, maxAutoTicks: number, ensureAutoWorker: () => void, onStopped?: () => void): Promise<void> {
   try {
     if (request.method === "GET" && request.url === "/status") { json(response, 200, { schema: HTTP_SCHEMA, status: runtime.status() }); return; }
     if (request.method !== "POST" || !["/mode", "/tick", "/stop"].includes(request.url ?? "")) { json(response, 404, { schema: HTTP_SCHEMA, error: "not_found" }); return; }
+    const denied = mutationRequestError(request);
+    if (denied) { request.resume(); json(response, denied.status, { schema: HTTP_SCHEMA, error: denied.error }); return; }
     const body = await readBody(request, maxBodyBytes);
     if (request.url === "/mode") {
       const value = strictObject(body, ["mode"]);
@@ -77,8 +85,17 @@ async function dispatch(runtime: PolicyRuntime, request: IncomingMessage, respon
     if (request.url === "/stop") {
       strictObject(body, []);
       const status = await runtime.stop();
-      if (onStopped) response.once("finish", () => { void onStopped().catch((error: unknown) => serverStopError(error)); });
-      json(response, 200, { schema: HTTP_SCHEMA, status });
+      if (onStopped) {
+        const notify = (): void => {
+          response.off("finish", notify);
+          response.off("close", notify);
+          onStopped();
+        };
+        response.once("finish", notify);
+        response.once("close", notify);
+        if (response.destroyed || response.writableFinished) notify();
+      }
+      if (!response.destroyed) json(response, 200, { schema: HTTP_SCHEMA, status });
       return;
     }
     const value = body === undefined ? {} : strictObject(body, ["max_ticks"]);
@@ -97,6 +114,18 @@ async function dispatch(runtime: PolicyRuntime, request: IncomingMessage, respon
     const status = error instanceof Error && error.message.includes("body") ? 413 : 400;
     json(response, status, { schema: HTTP_SCHEMA, error: error instanceof Error ? error.message : String(error) });
   }
+}
+
+function mutationRequestError(request: IncomingMessage): { status: number; error: string } | null {
+  const authority = request.headers.host;
+  const port = request.socket.localPort;
+  const hosts = ["127.0.0.1", "localhost", "[::1]"].map((host) => `${host}:${port}`);
+  const hostCount = request.rawHeaders.filter((_value, index) => index % 2 === 0 && request.rawHeaders[index]?.toLowerCase() === "host").length;
+  if (hostCount !== 1 || !authority || !hosts.includes(authority)) return { status: 403, error: "mutation_host_not_allowed" };
+  const origin = request.headers.origin;
+  if (origin !== undefined && origin !== `http://${authority}`) return { status: 403, error: "mutation_origin_not_allowed" };
+  if (!/^application\/json(?:\s*;\s*charset=utf-8)?$/iu.test(request.headers["content-type"] ?? "")) return { status: 415, error: "mutation_requires_application_json" };
+  return null;
 }
 
 function serverStopError(error: unknown): void {

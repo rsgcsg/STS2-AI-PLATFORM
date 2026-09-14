@@ -94,7 +94,8 @@ The checks have separate meanings:
 - Evidence check: Python typed verification, immutable store/transfer/receiver
   and failure paths;
 - Policy Runtime check: typecheck, tests (including the actual Workbench status
-  consumer and command-timeout boundary), deterministic package build, and clean
+  consumer, command-timeout/replacement boundary, disconnected stop cleanup, and
+  direct/proxied HTTP mutation admission), deterministic package build, and clean
   installed-package CPU/CLI smoke with the released Connector SDK;
 - Workbench/Live UI/Game Mod portable checks: presentation/service/lifecycle
   source tests that do not claim exact game loading.

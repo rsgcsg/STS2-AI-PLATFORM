@@ -29,7 +29,9 @@ The only command API is `POST /api/policy/mode` with exactly one JSON field:
 
 Policy Runtime mode changes are accepted only when Workbench is bound to a
 loopback address. A non-loopback bind remains available as a read-only status
-view and returns `403 policy_mutation_loopback_only` for the mode command.
+view and returns `403 policy_mutation_loopback_only` for the mode command. The loopback mode route also requires application/json,
+a supported loopback Host with the bound port, and an absent or exact same
+Origin. It rejects cross-origin browser requests before forwarding to Runtime.
 
 Policy Runtime live status is fetched from `<base-url>/status` and must match
 the strict `sts2.policy-runtime/status-1` shape. Mode changes are forwarded to
@@ -38,8 +40,10 @@ envelope. `one_step` then invokes exactly one `<base-url>/tick` and returns the
 resulting Runtime status; Workbench never submits a BoundAction itself. Status
 requests default to 1.5 seconds and commands to 45 seconds. If a command times
 out or returns an undecodable response, its outcome remains unknown: the client
-blocks further non-Human commands for that run, permits status and Human
-handoff, and clears the block only after observing a new Runtime run ID. It
+blocks further non-Human commands, permits status and Human handoff, and uses
+the first trusted status query begun after the failure to establish the unknown
+run baseline. Only a subsequently observed different run ID clears the block;
+a cached pre-command ID or earlier in-flight query cannot unlock it. It
 never repeats a tick. A caller timeout does not taint or settle the underlying
 Runtime delivery by itself. A
 configured filesystem policy

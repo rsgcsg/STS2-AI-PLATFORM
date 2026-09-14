@@ -77,7 +77,7 @@ and return to Human before controller acquisition. The CLI publishes its exact
 startup identity before enabling Shadow/Auto drive. `unknown` delivery taints the
 run and is never retried. `POST /stop` or process termination releases the
 controller and seals an Agent evidence directory bound to Runtime code, Manifest,
-checkpoint and exact environment identity. After the successful stop response,
+checkpoint and exact environment identity. After stop succeeds and the response finishes or disconnects,
 the CLI closes its HTTP service and adapter child and exits; an embedding
 library owner retains lifecycle control unless it supplies `onStopped`. The directory includes the canonical
 Policy Manifest bytes and the exact child startup adapter attestation; Evidence
@@ -90,8 +90,12 @@ verification rejects any digest, identity or event-association drift.
 - `POST /tick` with `{"max_ticks":1}`
 - `POST /stop` with `{}`
 
-The service is loopback-only. UI clients call these commands; they never submit
-gameplay actions directly.
+The service is loopback-only. Every POST requires `Content-Type: application/json`
+(optional UTF-8 charset), a literal supported loopback Host with the bound port,
+and either no Origin (local service clients) or the exact same HTTP origin.
+Cross-origin browser requests, plain-text POSTs and rebound Host headers are
+rejected before Runtime dispatch. UI clients call these commands; they never
+submit gameplay actions directly.
 
 Command callers must distinguish their HTTP wait from Runtime execution. A
 request timeout or malformed response after POST does not establish that the

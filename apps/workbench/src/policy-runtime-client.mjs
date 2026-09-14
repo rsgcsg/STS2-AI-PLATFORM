@@ -130,6 +130,9 @@ export class PolicyRuntimeClient {
     this.timeoutMs = options.timeoutMs ?? 1500;
     this.commandTimeoutMs = options.commandTimeoutMs ?? 45000;
     this.commandOutcomeUnknown = false;
+    this.unknownRunId = null;
+    this.unknownGeneration = 0;
+    this.statusOperation = Promise.resolve();
     this.runId = null;
     if (!Number.isSafeInteger(this.timeoutMs) || this.timeoutMs < 1) throw new TypeError("Policy Runtime timeoutMs must be a positive integer");
     if (!Number.isSafeInteger(this.commandTimeoutMs) || this.commandTimeoutMs < 1) throw new TypeError("Policy Runtime commandTimeoutMs must be a positive integer");
@@ -155,10 +158,25 @@ export class PolicyRuntimeClient {
   }
 
   async readStatus() {
-    const status = decodeHttpStatus(await this.request("/status"));
-    if (this.runId !== null && this.runId !== status.run_id) this.commandOutcomeUnknown = false;
-    this.runId = status.run_id;
-    return status;
+    const read = async () => {
+      const wasUnknown = this.commandOutcomeUnknown;
+      const generation = this.unknownGeneration;
+      const status = decodeHttpStatus(await this.request("/status"));
+      // A cached pre-command run (or an earlier in-flight GET) cannot identify
+      // the run that received an unacknowledged command.
+      if (wasUnknown && this.commandOutcomeUnknown && generation === this.unknownGeneration) {
+        if (this.unknownRunId === null) this.unknownRunId = status.run_id;
+        else if (this.unknownRunId !== status.run_id) {
+          this.commandOutcomeUnknown = false;
+          this.unknownRunId = null;
+        }
+      }
+      this.runId = status.run_id;
+      return status;
+    };
+    const operation = this.statusOperation.then(read, read);
+    this.statusOperation = operation.then(() => undefined, () => undefined);
+    return operation;
   }
 
   assertCommandAvailable() {
@@ -172,6 +190,8 @@ export class PolicyRuntimeClient {
       }));
     } catch {
       this.commandOutcomeUnknown = true;
+      this.unknownRunId = null;
+      this.unknownGeneration += 1;
       throw new PolicyRuntimeError("The Runtime command may still complete. Query status, return to Human, and start a new Runtime run before another policy command; do not retry.", "policy_runtime_command_unknown");
     }
   }

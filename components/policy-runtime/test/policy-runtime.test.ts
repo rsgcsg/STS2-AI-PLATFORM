@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { request as httpRequest, type ClientRequest } from "node:http";
 import type { PlayerEnvironmentBoundAction, PlayerEnvironmentReceipt, PlayerEnvironmentSnapshot } from "@rsgcsg/sts2-connector-client";
 import { admitWholeDecision } from "../src/admission.js";
 import { candidateOrderDigest } from "../src/digest.js";
@@ -475,6 +476,83 @@ describe("runtime integration fake", () => {
       expect(result.results.length).toBe(2);
       expect(connector.submitCount).toBe(2);
     } finally { await service.close(); }
+  });
+
+  it("rejects cross-origin, non-JSON and rebound-host mutations before Runtime dispatch", async () => {
+    const connector = new FakeConnector(bundle(["a"]));
+    const runtime = new PolicyRuntime({ manifest: manifest(), connector, policy: () => { throw new Error("must not score"); } });
+    const modeSpy = vi.spyOn(runtime, "setMode");
+    const tickSpy = vi.spyOn(runtime, "tick");
+    const stopSpy = vi.spyOn(runtime, "stop");
+    const service = await startPolicyRuntimeHttpServer(runtime, { port: 0 });
+    try {
+      for (const [route, body] of [["mode", { mode: "auto" }], ["tick", { max_ticks: 1 }], ["stop", {}]] as const) {
+        for (const [headers, expected] of [
+          [{ "content-type": "text/plain", origin: "https://untrusted.invalid" }, 403],
+          [{ "content-type": "text/plain" }, 415],
+          [{ "content-type": "application/json", origin: "https://untrusted.invalid" }, 403],
+          [{ "content-type": "application/json", origin: "null" }, 403],
+          [{ "content-type": "application/json", host: "untrusted.invalid" }, 403],
+          [{ "content-type": "application/json", host: "127.0.0.1:1" }, 403]
+        ] as const) {
+          // Raw HTTP preserves the supplied Host; fetch implementations may replace it.
+          const statusCode = await new Promise<number>((resolve, reject) => {
+            const request = httpRequest(`${service.address}/${route}`, { method: "POST", headers }, (response) => { response.resume(); resolve(response.statusCode!); });
+            request.once("error", reject); request.end(JSON.stringify(body));
+          });
+          expect(statusCode, JSON.stringify({ route, headers })).toBe(expected);
+        }
+      }
+      expect(modeSpy).not.toHaveBeenCalled(); expect(tickSpy).not.toHaveBeenCalled(); expect(stopSpy).not.toHaveBeenCalled();
+      for (const origin of [undefined, service.address]) {
+        const response = await fetch(`${service.address}/mode`, { method: "POST", headers: { "content-type": "application/json; charset=utf-8", ...(origin ? { origin } : {}) }, body: JSON.stringify({ mode: "human" }) });
+        expect(response.status).toBe(200);
+      }
+      expect(modeSpy).toHaveBeenCalledTimes(2);
+      expect(connector.submitCount).toBe(0);
+    } finally { await service.close(); }
+  });
+
+  it.each([false, true])("notifies stop cleanup exactly once after success, even when response aborts=%s", async (abortResponse) => {
+    const root = await mkdtemp(join(tmpdir(), "sts2-stop-disconnect-"));
+    const evidence = await AgentRunEvidence.create({ root, policyManifest: manifest(), runtimeVersion: "0.1.0-rc.2", runtimeCodeSha256: "e".repeat(64), mode: "one_step" });
+    let finishScoring!: () => void;
+    const scoring = new Promise<void>((resolve) => { finishScoring = resolve; });
+    let scoringEntered = false;
+    const runtime = new PolicyRuntime({ manifest: manifest(), connector: new FakeConnector(bundle(["a"])), mode: "one_step", evidence, runId: evidence.runId, runtimeIdentity: { version: "0.1.0-rc.2", code_sha256: "e".repeat(64) }, policy: async (input) => {
+      scoringEntered = true; await scoring;
+      return { candidate_digest: input.candidate_digest, scores: [1], selected_index: 0 };
+    } });
+    await evidence.attestAdapter(manifest().adapter);
+    const stopSpy = vi.spyOn(runtime, "stop");
+    let cleanupCount = 0;
+    let cleanupFinished!: () => void;
+    const cleanup = new Promise<void>((resolve) => { cleanupFinished = resolve; });
+    const service = await startPolicyRuntimeHttpServer(runtime, { port: 0, onStopped: async () => { cleanupCount++; await service.close(); cleanupFinished(); } });
+    let responseClosed!: () => void;
+    const disconnected = new Promise<void>((resolve) => { responseClosed = resolve; });
+    service.server.on("request", (request, response) => { if (request.url === "/stop") response.once("close", responseClosed); });
+    const tick = runtime.tick();
+    try {
+      await eventually(() => scoringEntered);
+      let stopRequest!: ClientRequest;
+      const stopped = new Promise<{ statusCode: number; body: string }>((resolve, reject) => {
+        stopRequest = httpRequest(`${service.address}/stop`, { method: "POST", headers: { "content-type": "application/json" } }, (response) => {
+          let body = ""; response.setEncoding("utf8"); response.on("data", (chunk: string) => { body += chunk; });
+          response.once("end", () => resolve({ statusCode: response.statusCode!, body }));
+        });
+        stopRequest.once("error", reject); stopRequest.end("{}");
+      });
+      await eventually(() => stopSpy.mock.calls.length === 1);
+      if (abortResponse) { stopRequest.destroy(new Error("caller disconnected")); await expect(stopped).rejects.toThrow("caller disconnected"); await disconnected; }
+      expect(cleanupCount).toBe(0);
+      finishScoring(); await tick;
+      if (!abortResponse) { const response = await stopped; expect(response.statusCode).toBe(200); expect(JSON.parse(response.body).status.lifecycle).toBe("stopped"); }
+      await cleanup;
+      expect(cleanupCount).toBe(1);
+      expect(service.server.listening).toBe(false);
+      expect(JSON.parse(await readFile(join(evidence.directory, "evidence-manifest.json"), "utf8")).complete).toBe(true);
+    } finally { finishScoring(); await tick; if (service.server.listening) await service.close(); }
   });
 
   it("passes real non-null Runtime environment status through the Workbench consumer", async () => {

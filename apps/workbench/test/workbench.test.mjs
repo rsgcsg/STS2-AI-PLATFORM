@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, writeFile } from "node:fs/promises";
 import { after, before, test } from "node:test";
-import { createServer } from "node:http";
+import { createServer, request as httpRequest } from "node:http";
 import os from "node:os";
 import path from "node:path";
 
@@ -386,4 +386,87 @@ test("non-loopback binds expose status read-only and never forward policy mutati
     await new Promise((resolve, reject) => workbench.close((error) => error ? reject(error) : resolve()));
     await runtime.close();
   }
+});
+
+for (const withEarlierStatus of [false, true]) {
+  test(`unknown command survives cached A to receiving B, with earlier status=${withEarlierStatus}`, async () => {
+    let runId = "run-A";
+    let ticks = 0;
+    let delayStatus = false;
+    let finishEarlierStatus;
+    let earlierStatusEntered;
+    const entered = new Promise((resolve) => { earlierStatusEntered = resolve; });
+    const runtime = await startPolicyRuntime(async (request, response) => {
+      response.setHeader("content-type", "application/json");
+      if (request.url === "/tick") {
+        ticks += 1;
+        request.resume();
+        // The receiving run does work but never acknowledges the command.
+        return;
+      }
+      const status = { ...POLICY_STATUS, run_id: runId };
+      if (request.url === "/status" && delayStatus) {
+        delayStatus = false;
+        finishEarlierStatus = () => response.end(JSON.stringify(policyEnvelope(status)));
+        earlierStatusEntered();
+        return;
+      }
+      request.resume();
+      response.end(JSON.stringify(policyEnvelope(status)));
+    });
+    try {
+      const client = new PolicyRuntimeClient(runtime.baseUrl, { commandTimeoutMs: 100 });
+      assert.equal((await client.readStatus()).run_id, "run-A");
+      let oldStatus;
+      if (withEarlierStatus) {
+        delayStatus = true;
+        oldStatus = client.readStatus();
+        await entered;
+      }
+      runId = "run-B";
+      await assert.rejects(() => client.tick(), { code: "policy_runtime_command_unknown" });
+      if (oldStatus) { finishEarlierStatus(); await oldStatus; }
+      for (let index = 0; index < 2; index += 1) {
+        assert.equal((await client.readStatus()).run_id, "run-B");
+        await assert.rejects(() => client.tick(), { code: "policy_runtime_command_unknown" });
+        await assert.rejects(() => client.setMode("auto"), { code: "policy_runtime_command_unknown" });
+      }
+      assert.equal(ticks, 1);
+      await client.setMode("human");
+      runId = "run-C";
+      assert.equal((await client.readStatus()).run_id, "run-C");
+      await client.setMode("shadow");
+      assert.equal(ticks, 1);
+    } finally {
+      finishEarlierStatus?.();
+      await runtime.close();
+    }
+  });
+}
+
+
+test("Workbench rejects cross-origin and rebound-host policy forwarding", async () => {
+  let forwarded = 0;
+  const server = createWorkbenchServer({ async setPolicyMode() { forwarded++; return { status: POLICY_STATUS }; } }, { bindHost: "127.0.0.1" });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  try {
+    for (const [headers, expected] of [
+      [{ "content-type": "text/plain", origin: "https://untrusted.invalid" }, 403],
+      [{ "content-type": "text/plain" }, 415],
+      [{ "content-type": "application/json", origin: "https://untrusted.invalid" }, 403],
+      [{ "content-type": "application/json", host: "untrusted.invalid" }, 403],
+      [{ "content-type": "application/json", host: "127.0.0.1:1" }, 403]
+    ]) {
+      const status = await new Promise((resolve, reject) => {
+        const request = httpRequest(`${base}/api/policy/mode`, { method: "POST", headers }, (response) => { response.resume(); resolve(response.statusCode); });
+        request.once("error", reject); request.end(JSON.stringify({ mode: "auto" }));
+      });
+      assert.equal(status, expected);
+    }
+    assert.equal(forwarded, 0);
+    const response = await fetch(`${base}/api/policy/mode`, { method: "POST", headers: { "content-type": "application/json", origin: base }, body: JSON.stringify({ mode: "human" }) });
+    assert.equal(response.status, 200);
+    assert.equal(forwarded, 1);
+  } finally { await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve())); }
 });
