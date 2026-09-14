@@ -39,3 +39,8 @@ requalify only the affected native/service/Human gates. No GPU/model quality fol
 
 Release identity uses the [packaging correction](../evidence/B_WORKFLOW_PACKAGING_IDENTITY_CORRECTION_2026-09-13.md):
 actual BOM file bytes and distinct tool component/workspace revisions, not old copied labels.
+
+Policy Runtime/Workbench rc.2 is a standalone consumer-package candidate with
+locked public SDK dependencies and installed CPU checks. Publication and real
+model/game gates remain separate; see the Policy Runtime README. A caller's
+command timeout must not cause a repeated tick. CLI POST /stop seals and exits.

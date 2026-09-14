@@ -50,6 +50,19 @@ async function main(): Promise<void> {
   let port: NdjsonPolicyPort | undefined;
   let runtime: PolicyRuntime | undefined;
   let service: Awaited<ReturnType<typeof startPolicyRuntimeHttpServer>> | undefined;
+  let shuttingDown = false;
+  let resolveExit: (() => void) | undefined;
+  const exit = new Promise<void>((resolvePromise) => { resolveExit = resolvePromise; });
+  const shutdown = async (): Promise<void> => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    try { await runtime?.stop(); } finally {
+      try { await service?.close(); } finally {
+        port?.close();
+        resolveExit?.();
+      }
+    }
+  };
   try {
     port = NdjsonPolicyPort.spawn(options.adapterCommand, options.adapterArgs, {
       cwd: options.adapterCwd ? resolve(options.adapterCwd) : undefined,
@@ -59,7 +72,7 @@ async function main(): Promise<void> {
     await evidence.attestAdapter(adapter);
     const connector = new ConnectorPolicyClient(
       new PlayerEnvironmentRestClient(options.connectorEndpoint, 5_000),
-      { productVersion: "0.1.0-rc.1" }
+      { productVersion: "0.1.0-rc.2" }
     );
     runtime = new PolicyRuntime({
       manifest,
@@ -73,7 +86,8 @@ async function main(): Promise<void> {
     service = await startPolicyRuntimeHttpServer(runtime, {
       port: options.listenPort,
       autoDrive: true,
-      deferAutoDrive: true
+      deferAutoDrive: true,
+      onStopped: shutdown
     });
   } catch (error) {
     try {
@@ -98,18 +112,6 @@ async function main(): Promise<void> {
   })}\n`);
   service.startDriving();
 
-  let shuttingDown = false;
-  let resolveExit: (() => void) | undefined;
-  const exit = new Promise<void>((resolvePromise) => { resolveExit = resolvePromise; });
-  const shutdown = async (): Promise<void> => {
-    if (shuttingDown) return;
-    shuttingDown = true;
-    try { await runtime.stop(); } finally {
-      await service.close();
-      port.close();
-      resolveExit?.();
-    }
-  };
   process.once("SIGINT", () => { void shutdown(); });
   process.once("SIGTERM", () => { void shutdown(); });
   await exit;

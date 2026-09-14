@@ -35,7 +35,13 @@ Policy Runtime live status is fetched from `<base-url>/status` and must match
 the strict `sts2.policy-runtime/status-1` shape. Mode changes are forwarded to
 `<base-url>/mode` and require the strict `sts2.policy-runtime/http-1` status
 envelope. `one_step` then invokes exactly one `<base-url>/tick` and returns the
-resulting Runtime status; Workbench never submits a BoundAction itself. A
+resulting Runtime status; Workbench never submits a BoundAction itself. Status
+requests default to 1.5 seconds and commands to 45 seconds. If a command times
+out or returns an undecodable response, its outcome remains unknown: the client
+blocks further non-Human commands for that run, permits status and Human
+handoff, and clears the block only after observing a new Runtime run ID. It
+never repeats a tick. A caller timeout does not taint or settle the underlying
+Runtime delivery by itself. A
 configured filesystem policy
 status is used only as `filesystem_fallback` when live status is unavailable;
 that domain is marked `partial` and `unavailable`, never ready. Other status

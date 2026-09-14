@@ -13,6 +13,8 @@ export interface PolicyRuntimeHttpOptions {
   autoDrive?: boolean;
   deferAutoDrive?: boolean;
   autoIdleMs?: number;
+  /** CLI owners may close their process after the successful stop response finishes. */
+  onStopped?: () => Promise<void>;
 }
 
 export interface RunningPolicyRuntimeHttpServer {
@@ -47,7 +49,7 @@ export async function startPolicyRuntimeHttpServer(runtime: PolicyRuntime, optio
       }
     })().finally(() => { autoWorker = null; if (!closing) ensureAutoWorker(); });
   };
-  const server = createServer((request, response) => { void dispatch(runtime, request, response, maxBodyBytes, maxAutoTicks, ensureAutoWorker); });
+  const server = createServer((request, response) => { void dispatch(runtime, request, response, maxBodyBytes, maxAutoTicks, ensureAutoWorker, options.onStopped); });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(options.port ?? 0, host, () => { server.removeListener("error", reject); resolve(); }); });
   const address = server.address();
   if (!address || typeof address === "string") throw new Error("Policy Runtime HTTP service did not expose a socket address");
@@ -59,7 +61,7 @@ export async function startPolicyRuntimeHttpServer(runtime: PolicyRuntime, optio
   } };
 }
 
-async function dispatch(runtime: PolicyRuntime, request: IncomingMessage, response: ServerResponse, maxBodyBytes: number, maxAutoTicks: number, ensureAutoWorker: () => void): Promise<void> {
+async function dispatch(runtime: PolicyRuntime, request: IncomingMessage, response: ServerResponse, maxBodyBytes: number, maxAutoTicks: number, ensureAutoWorker: () => void, onStopped?: () => Promise<void>): Promise<void> {
   try {
     if (request.method === "GET" && request.url === "/status") { json(response, 200, { schema: HTTP_SCHEMA, status: runtime.status() }); return; }
     if (request.method !== "POST" || !["/mode", "/tick", "/stop"].includes(request.url ?? "")) { json(response, 404, { schema: HTTP_SCHEMA, error: "not_found" }); return; }
@@ -74,7 +76,9 @@ async function dispatch(runtime: PolicyRuntime, request: IncomingMessage, respon
     }
     if (request.url === "/stop") {
       strictObject(body, []);
-      json(response, 200, { schema: HTTP_SCHEMA, status: await runtime.stop() });
+      const status = await runtime.stop();
+      if (onStopped) response.once("finish", () => { void onStopped().catch((error: unknown) => serverStopError(error)); });
+      json(response, 200, { schema: HTTP_SCHEMA, status });
       return;
     }
     const value = body === undefined ? {} : strictObject(body, ["max_ticks"]);
@@ -93,6 +97,11 @@ async function dispatch(runtime: PolicyRuntime, request: IncomingMessage, respon
     const status = error instanceof Error && error.message.includes("body") ? 413 : 400;
     json(response, status, { schema: HTTP_SCHEMA, error: error instanceof Error ? error.message : String(error) });
   }
+}
+
+function serverStopError(error: unknown): void {
+  process.stderr.write(`Policy Runtime stop cleanup failed: ${error instanceof Error ? error.message : String(error)}\n`);
+  process.exitCode = 1;
 }
 
 function isDrivenMode(mode: string): boolean { return mode === "auto" || mode === "shadow"; }

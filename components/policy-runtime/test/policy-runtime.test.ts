@@ -11,6 +11,8 @@ import { DEFAULT_POLICY_ADAPTER_STARTUP_TIMEOUT_MS, NdjsonPolicyPort } from "../
 import { validateAdapterDecision, validatePolicyDecision, validatePolicyManifest, type ConnectorAdapterClient, type DecisionBundle, type PolicyConnector, type PolicyManifest } from "../src/contracts.js";
 import { startPolicyRuntimeHttpServer } from "../src/server.js";
 import { AgentRunEvidence, verifyEvidenceDirectory } from "../src/evidence.js";
+// @ts-expect-error The Workbench consumer is a JavaScript package; exercise its real decoder.
+import { decodePolicyRuntimeStatus, PolicyRuntimeClient } from "../../../apps/workbench/src/policy-runtime-client.mjs";
 
 const manifest = (): PolicyManifest => ({
   schema: "sts2.policy-runtime/policy-manifest-1",
@@ -473,6 +475,44 @@ describe("runtime integration fake", () => {
       expect(result.results.length).toBe(2);
       expect(connector.submitCount).toBe(2);
     } finally { await service.close(); }
+  });
+
+  it("passes real non-null Runtime environment status through the Workbench consumer", async () => {
+    const connector = new FakeConnector(bundle(["a"]));
+    const runtime = new PolicyRuntime({ manifest: manifest(), connector, mode: "shadow", policy: (input) => ({ candidate_digest: input.candidate_digest, scores: [1], selected_index: 0 }) });
+    expect((await runtime.tick()).type).toBe("shadow");
+    const status = decodePolicyRuntimeStatus(runtime.status());
+    expect(status.environment.host_kind).toBe("test");
+    expect(status.environment.loaded_mod_ids).toEqual(["fixture-mod"]);
+    expect(connector.acquireCount).toBe(0);
+    for (const invalid of [{ host_kind: "invented" }, { loaded_mod_ids: ["duplicate", "duplicate"] }]) {
+      expect(() => decodePolicyRuntimeStatus({ ...status, environment: { ...status.environment, ...invalid } })).toThrow();
+    }
+  });
+
+  it("does not repeat a one-step command after the HTTP caller times out", async () => {
+    const connector = new FakeConnector(bundle(["a"]));
+    let finishScoring!: () => void;
+    const scoring = new Promise<void>((resolve) => { finishScoring = resolve; });
+    const runtime = new PolicyRuntime({ manifest: manifest(), connector, mode: "human", policy: async (input) => {
+      await scoring;
+      return { candidate_digest: input.candidate_digest, scores: [1], selected_index: 0 };
+    } });
+    const service = await startPolicyRuntimeHttpServer(runtime, { port: 0 });
+    const client = new PolicyRuntimeClient(service.address, { commandTimeoutMs: 100 });
+    try {
+      await client.readStatus();
+      await client.setMode("one_step");
+      await expect(client.tick()).rejects.toMatchObject({ code: "policy_runtime_command_unknown" });
+      finishScoring();
+      await eventually(() => connector.submitCount === 1 && runtime.status().mode === "human");
+      await client.readStatus();
+      await expect(client.tick()).rejects.toMatchObject({ code: "policy_runtime_command_unknown" });
+      await expect(client.setMode("one_step")).rejects.toMatchObject({ code: "policy_runtime_command_unknown" });
+      await client.setMode("human");
+      expect(connector.submitCount).toBe(1);
+      expect(runtime.status().tainted).toBe(false);
+    } finally { finishScoring(); await service.close(); }
   });
 
   it("continuously shadows only new Snapshots without acquiring a controller", async () => {

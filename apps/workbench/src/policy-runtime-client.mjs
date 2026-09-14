@@ -87,7 +87,9 @@ export function decodePolicyRuntimeStatus(value) {
   }
   if (status.environment !== null) {
     const environment = object(status.environment, "Policy Runtime environment");
-    exactKeys(environment, ["runtime_instance_id", "environment_fingerprint", "connector_protocol_version", "connector_version", "connector_source_revision", "connector_artifact_sha256", "connector_module_version_id", "game_version", "game_commit", "modset_status", "modset_fingerprint"], "Policy Runtime environment");
+    exactKeys(environment, ["runtime_instance_id", "environment_fingerprint", "host_kind", "connector_protocol_version", "connector_version", "connector_source_revision", "connector_artifact_sha256", "connector_module_version_id", "game_version", "game_commit", "modset_status", "modset_fingerprint", "loaded_mod_ids"], "Policy Runtime environment");
+    if (!["live_ui", "headless", "replay", "test"].includes(environment.host_kind)) invalid("environment.host_kind is invalid");
+    if (!Array.isArray(environment.loaded_mod_ids) || environment.loaded_mod_ids.some((id) => typeof id !== "string" || id.length === 0) || new Set(environment.loaded_mod_ids).size !== environment.loaded_mod_ids.length) invalid("environment.loaded_mod_ids is invalid");
     for (const key of ["runtime_instance_id", "environment_fingerprint", "connector_protocol_version", "connector_version", "modset_status", "modset_fingerprint"]) nonEmpty(environment[key], `environment.${key}`);
     for (const key of ["connector_source_revision", "connector_module_version_id", "game_version", "game_commit"]) stringOrNull(environment[key], `environment.${key}`);
     if (environment.connector_artifact_sha256 !== null && (typeof environment.connector_artifact_sha256 !== "string" || !/^[a-f0-9]{64}$/u.test(environment.connector_artifact_sha256))) invalid("environment.connector_artifact_sha256 is invalid");
@@ -126,7 +128,11 @@ export class PolicyRuntimeClient {
   constructor(baseUrl, options = {}) {
     this.baseUrl = validatePolicyRuntimeBaseUrl(baseUrl);
     this.timeoutMs = options.timeoutMs ?? 1500;
+    this.commandTimeoutMs = options.commandTimeoutMs ?? 45000;
+    this.commandOutcomeUnknown = false;
+    this.runId = null;
     if (!Number.isSafeInteger(this.timeoutMs) || this.timeoutMs < 1) throw new TypeError("Policy Runtime timeoutMs must be a positive integer");
+    if (!Number.isSafeInteger(this.commandTimeoutMs) || this.commandTimeoutMs < 1) throw new TypeError("Policy Runtime commandTimeoutMs must be a positive integer");
   }
 
   get configured() { return this.baseUrl !== null; }
@@ -134,7 +140,8 @@ export class PolicyRuntimeClient {
   async request(pathname, init = {}) {
     if (!this.baseUrl) throw new PolicyRuntimeError("Policy Runtime URL is not configured", "policy_runtime_not_configured");
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const mutation = init.method === "POST";
+    const timer = setTimeout(() => controller.abort(), mutation ? this.commandTimeoutMs : this.timeoutMs);
     try {
       const response = await fetch(`${this.baseUrl}${pathname}`, { ...init, signal: controller.signal, headers: { accept: "application/json", ...(init.headers ?? {}) } });
       const value = await readJson(response);
@@ -147,25 +154,40 @@ export class PolicyRuntimeClient {
     } finally { clearTimeout(timer); }
   }
 
-  async readStatus() { return decodeHttpStatus(await this.request("/status")); }
+  async readStatus() {
+    const status = decodeHttpStatus(await this.request("/status"));
+    if (this.runId !== null && this.runId !== status.run_id) this.commandOutcomeUnknown = false;
+    this.runId = status.run_id;
+    return status;
+  }
+
+  assertCommandAvailable() {
+    if (this.commandOutcomeUnknown) throw new PolicyRuntimeError("A previous Runtime command has an unknown outcome; do not retry. Return to Human and start a new Runtime run.", "policy_runtime_command_unknown");
+  }
+
+  async command(pathname, body, decode) {
+    try {
+      return decode(await this.request(pathname, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body)
+      }));
+    } catch {
+      this.commandOutcomeUnknown = true;
+      throw new PolicyRuntimeError("The Runtime command may still complete. Query status, return to Human, and start a new Runtime run before another policy command; do not retry.", "policy_runtime_command_unknown");
+    }
+  }
 
   async setMode(mode) {
     validatePolicyMode(mode);
-    const status = decodeHttpStatus(await this.request("/mode", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ mode })
-    }));
+    if (mode !== "human") this.assertCommandAvailable();
+    const status = await this.command("/mode", { mode }, decodeHttpStatus);
+    this.runId = status.run_id;
     return { schema: POLICY_RUNTIME_HTTP_SCHEMA, mode, status };
   }
 
 
   async tick() {
-    return decodeHttpTick(await this.request("/tick", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ max_ticks: 1 })
-    }));
+    this.assertCommandAvailable();
+    return this.command("/tick", { max_ticks: 1 }, decodeHttpTick);
   }
 }
 

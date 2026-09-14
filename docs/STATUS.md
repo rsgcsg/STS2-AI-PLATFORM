@@ -79,3 +79,14 @@ unchanged; the service/account and portable delivery evidence do not widen the n
 
 For distribution identity use the [explicit packaging metadata correction](evidence/B_WORKFLOW_PACKAGING_IDENTITY_CORRECTION_2026-09-13.md); the older baseline
 BOM digest and private tool-source label were incorrect. Original bytes remain unchanged.
+
+## External policy package candidate
+
+Policy Runtime and Platform Workbench `0.1.0-rc.2` add a standalone locked
+Runtime package, current-environment status decoding, and explicit unknown
+command handling. The installed CPU gate checks synthetic modes and CLI
+start/stop/sealing without contacting STS2. See the
+[package and consumer boundary](../components/policy-runtime/README.md).
+Release publication and real trained-model Shadow/One-Step/Auto remain separate
+gates. The historical policy candidate and native/Human evidence retain their
+original identities; no Full-Run, causal-successor or model-quality claim follows.

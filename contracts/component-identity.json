@@ -49,7 +49,10 @@
       "contract_paths": [
         "src/contracts.ts",
         "src/policy-port.ts",
-        "src/runtime.ts"
+        "src/runtime.ts",
+        "package.json",
+        "tools/package.mjs",
+        "src/server.ts"
       ]
     },
     "workbench": {
@@ -57,7 +60,8 @@
       "version_file": "package.json",
       "contract_paths": [
         "src/workbench-service.mjs",
-        "src/server.mjs"
+        "src/server.mjs",
+        "src/policy-runtime-client.mjs"
       ]
     },
     "live-ui": {

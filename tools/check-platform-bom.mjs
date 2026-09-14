@@ -1033,11 +1033,19 @@ export function validatePlatformBom(bom, authorities) {
     "loaded_ui_source_precedes_current_component");
   expectEqual(errors, "candidate Connector protocol", policyCandidate?.connector?.protocol,
     bom.components?.player_environment_protocol);
-  expectEqual(errors, "candidate Policy Runtime source", policyCandidate?.policy_runtime?.source_revision,
+  expectEqual(errors, "historical Policy Runtime source", policyCandidate?.policy_runtime?.source_revision,
+    "e19b30315015664a5647ab351cdcefb09417f275");
+  expectEqual(errors, "historical Policy Runtime digest", policyCandidate?.policy_runtime?.source_digest_sha256,
+    "d227321727d07edd2d4c67928edec439c26f156494dd9cfab98d2bac4debf346");
+  expectEqual(errors, "historical Policy Runtime version", policyCandidate?.policy_runtime?.version,
+    "0.1.0-rc.1");
+  expectEqual(errors, "candidate Policy Runtime source relation", policyCandidate?.policy_runtime?.source_relation,
+    "historical_runtime_source_precedes_standalone_consumer_package");
+  expectEqual(errors, "candidate current Policy Runtime source", policyCandidate?.policy_runtime?.current_component_source_revision,
     bom.components?.policy_runtime?.source_revision);
-  expectEqual(errors, "candidate Policy Runtime digest", policyCandidate?.policy_runtime?.source_digest_sha256,
+  expectEqual(errors, "candidate current Policy Runtime digest", policyCandidate?.policy_runtime?.current_component_source_digest_sha256,
     bom.components?.policy_runtime?.component_source_digest_sha256);
-  expectEqual(errors, "candidate Policy Runtime version", policyCandidate?.policy_runtime?.version,
+  expectEqual(errors, "candidate current Policy Runtime version", policyCandidate?.policy_runtime?.current_component_version,
     bom.components?.policy_runtime?.version);
   expectEqual(errors, "candidate current Game Mod version", policyCandidate?.game_mod?.current_component_version,
     bom.components?.game_mod?.version);

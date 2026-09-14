@@ -22,6 +22,16 @@ test("BOM check rejects component and public Connector pin drift", async () => {
   assert.ok(errors.some((error) => error.startsWith("public Connector archive SHA:")));
 });
 
+test("BOM keeps historical policy evidence separate from the standalone package source", async () => {
+  const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
+  const policy = bom.unified_platform_runtime_candidate.policy_runtime;
+  policy.source_revision = bom.components.policy_runtime.source_revision;
+  policy.current_component_source_revision = "0".repeat(40);
+  const errors = validatePlatformBom(bom, await readBomAuthorities(root));
+  assert.ok(errors.some((error) => error.startsWith("historical Policy Runtime source:")));
+  assert.ok(errors.some((error) => error.startsWith("candidate current Policy Runtime source:")));
+});
+
 test("BOM check rejects human gate drift and machine-proven origin claims", async () => {
   const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
   bom.exact_runtime_candidate.gates.annotator_human.runtime_instance_id = "wrong-runtime";

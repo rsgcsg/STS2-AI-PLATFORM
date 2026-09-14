@@ -1,6 +1,6 @@
 {
   "name": "@rsgcsg/sts2-workbench",
-  "version": "0.1.0-rc.1",
+  "version": "0.1.0-rc.2",
   "private": true,
   "description": "Read-only STS2 Platform Workbench foundation",
   "license": "MIT",

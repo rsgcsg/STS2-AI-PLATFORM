@@ -16,6 +16,37 @@ host kind, Connector version/source revision/artifact SHA-256/module version ID,
 Modset status/fingerprint, and the complete ordered list of loaded Mod IDs. Any
 field drift fails closed before Snapshot observation or policy scoring.
 
+## Standalone consumer package
+
+Version `0.1.0-rc.2` provides a candidate package for external consumers. Build
+from a committed component checkout with the checked-in lockfile:
+
+```bash
+npm ci
+npm --prefix components/policy-runtime run check
+npm --prefix components/policy-runtime run package -- --output /absolute/package-output
+```
+
+The last command creates `rsgcsg-sts2-policy-runtime-0.1.0-rc.2.tgz`,
+`policy-runtime-package.json` and `checksums.sha256`. It requires committed
+component source and does not publish anything. The package contains compiled
+JavaScript/declarations, CLI entries, license, a component identity record and
+an npm production shrinkwrap. It has no dependency on a sibling source tree.
+The Connector SDK uses the exact `consumer-sdk/v1.1.0-rc.1` release URL and
+SHA-512 integrity from this component's lockfile; its transitive dependencies
+are also frozen in the packaged shrinkwrap.
+
+Consumers verify the tarball SHA-256 and install that exact tarball/release URL
+with their own lockfile. Invoke the installed `sts2-policy-runtime` executable,
+or import the public `@rsgcsg/sts2-policy-runtime` package and `./child-port`
+export. Pin the component source revision, source and public-contract digests,
+package SHA-256/integrity and protocol from `policy-runtime-package.json`.
+Never substitute a floating branch or raw source import for that pin.
+`check:package` packs twice, compares bytes, installs outside the workspace,
+checks resolved SDK integrity, exercises synthetic modes and starts/stops the
+installed CLI in Human mode. This is CPU package evidence with no game contact.
+It does not establish real-model, game, Full-Run or causal-successor evidence.
+
 ## Process boundary
 
 `sts2-policy-runtime` starts a loopback service and a decision-only NDJSON child.
@@ -46,7 +77,9 @@ and return to Human before controller acquisition. The CLI publishes its exact
 startup identity before enabling Shadow/Auto drive. `unknown` delivery taints the
 run and is never retried. `POST /stop` or process termination releases the
 controller and seals an Agent evidence directory bound to Runtime code, Manifest,
-checkpoint and exact environment identity. The directory includes the canonical
+checkpoint and exact environment identity. After the successful stop response,
+the CLI closes its HTTP service and adapter child and exits; an embedding
+library owner retains lifecycle control unless it supplies `onStopped`. The directory includes the canonical
 Policy Manifest bytes and the exact child startup adapter attestation; Evidence
 verification rejects any digest, identity or event-association drift.
 
@@ -59,3 +92,15 @@ verification rejects any digest, identity or event-association drift.
 
 The service is loopback-only. UI clients call these commands; they never submit
 gameplay actions directly.
+
+Command callers must distinguish their HTTP wait from Runtime execution. A
+request timeout or malformed response after POST does not establish that the
+command was unapplied. Query status, permit an explicit Human handoff or stop,
+and never automatically resubmit a tick. A stopped Runtime cannot be restarted
+through HTTP; launch a fresh process/run for a new exact model/Manifest.
+
+The `successor` event is a distinct same-environment non-settling observation
+obtained by polling. It is not a native causal `S'` certificate. Agent events
+bind decision metadata/scores, Receipt and successor but do not archive every
+pre-decision Snapshot/Read input. Research projections and evaluation protocols
+remain external consumers' responsibility.
