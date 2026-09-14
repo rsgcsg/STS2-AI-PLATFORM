@@ -36,10 +36,11 @@ private evidence and archived worktrees; a new combination needs affected qualif
 B provides no GPU/model-quality claim.
 
 The collection setup candidate adds a fixed-tool Game Mod owner for stopped-game
-recording-root binding and current-process status. Evidence rc.8 exposes that
+recording-root binding and current-process status. Evidence rc.9 exposes that
 inventory-verified API; Host rc.8 provides bounded discovery. The next candidate
-repairs event Proceed map readiness and post-Close root status; prior Human bytes
-do not qualify these source changes.
+repairs event Proceed map readiness and post-Close root status.
+[Post-Human audit](../evidence/PR29_POST_HUMAN_REPAIR_2026-09-15.md) records one real
+loss and the separate transfer PASS; earlier Human bytes do not qualify the repair.
 Passive recorder identity and Connector mutation compatibility remain separate.
 The published Host rc.7 pin and historical Full-Run component snapshots retain
 their original identities. New candidate bytes require their own install/load
