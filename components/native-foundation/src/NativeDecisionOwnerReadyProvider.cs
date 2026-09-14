@@ -38,9 +38,18 @@ public static class NativeDecisionOwnerReadyProvider
     public const string MapProceedMechanism =
         "RunManager.ProceedFromTerminalRewardsScreen->NMapScreen.Open.return";
 
+    public const string EventProceedMechanism =
+        "NEventRoom.Proceed->NMapScreen.Open.return";
+
     // Called at the synchronous native Proceed return, only when that invocation
     // changed its exact map owner from closed to open. Animations are not proof.
-    public static bool ObserveMapProceedReady(NMapScreen screen)
+    public static bool ObserveMapProceedReady(NMapScreen screen) =>
+        ObserveMapReady(screen, MapProceedMechanism);
+
+    public static bool ObserveEventProceedReady(NMapScreen screen) =>
+        ObserveMapReady(screen, EventProceedMechanism);
+
+    private static bool ObserveMapReady(NMapScreen screen, string nativeMechanism)
     {
         if (!ReferenceEquals(NMapScreen.Instance, screen) || !screen.IsOpen
             || !screen.IsVisibleInTree() || !ActiveScreenContext.Instance.IsCurrent(screen)
@@ -50,7 +59,7 @@ public static class NativeDecisionOwnerReadyProvider
             return false;
         Observed?.Invoke(new NativeDecisionOwnerReadyObservation(
             "map_navigation", screen, screen.GetType().FullName ?? screen.GetType().Name,
-            MapProceedMechanism));
+            nativeMechanism));
         return true;
     }
 

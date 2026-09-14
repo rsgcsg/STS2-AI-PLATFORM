@@ -9,7 +9,7 @@ namespace STS2HumanAnnotator.Core;
 /// </summary>
 public static class CurrentRecordingContract
 {
-    public const string ProductVersion = "0.3.0-rc.5";
+    public const string ProductVersion = "0.3.0-rc.6";
     public const int SchemaVersion = 2;
     public const string RecordSchema = "sts2.human-annotator/decision-record-2";
     public const string ManifestSchema = "sts2.human-annotator/recording-manifest-2";
@@ -157,8 +157,8 @@ public static class FullRunCoverageContract
                 "next exact event boundary"),
             new("event_option.proceed", FullRunCoverageClassifications.InScopeImplemented,
                 "NEventRoom.OptionButtonClicked proceed", "NEventRoom/EventOption", "NativeRoomDecisionProvider",
-                "NEventRoom.OptionButtonClicked -> EventOption.Chosen", "EventOption.Chosen task completion",
-                "next exact event boundary"),
+                "NEventRoom.OptionButtonClicked -> EventOption.Chosen", "exact synchronous Chosen return or task completion",
+                "exact NEventRoom.Proceed map-owner return or next Human execution boundary"),
             new("shop_room.open", FullRunCoverageClassifications.InScopeImplemented,
                 "NMerchantRoom.OpenInventory", "NMerchantRoom", "NativeRoomDecisionProvider",
                 "NMerchantRoom.OpenInventory", "inventory owner open", "next shop inventory boundary"),

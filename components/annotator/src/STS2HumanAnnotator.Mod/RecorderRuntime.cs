@@ -2296,8 +2296,12 @@ internal static partial class RecorderRuntime
         bool durablyAccepted = false;
         bool semanticStreamMayContainPartialAppend = false;
         string pendingActionWitnessId = actionWitnessIdOverride ?? $"ui-action-{Guid.NewGuid():N}";
+        // The public event verb is always activate. Keep the native option
+        // semantics frozen at ingress instead of reinterpreting that verb.
+        string? nativeFamily = nativeActionType == "NEventRoom.OptionButtonClicked"
+            && nativeSemanticSelection?.Verb == "proceed_event" ? "event_option.proceed" : null;
         var acceptedOccurrence = new HumanActionOccurrenceEvidence(pendingActionWitnessId, nativeActionType,
-            SupportedFamilyForNativeAction(nativeActionType) ?? nativeActionType, match.BoundAction?.Verb ?? "accepted",
+            nativeFamily ?? SupportedFamilyForNativeAction(nativeActionType) ?? nativeActionType, match.BoundAction?.Verb ?? "accepted",
             witness.SubjectWitnessId, witness.ArgumentWitnessIds, null, null, null, null, nativeActionType, "failed_closed");
         try
         {
@@ -2333,6 +2337,8 @@ internal static partial class RecorderRuntime
         {
             RequiresNativePostCommit = completionExpectation != null
         };
+            if (nativeFamily != null)
+                action = action with { Decision = action.Decision! with { Family = nativeFamily } };
             if (nestedInput != null)
                 action = action with { Decision = action.Decision! with {
                     CausalRootId = nestedInput.Parent.CausalRootId,
