@@ -1,5 +1,12 @@
 # STS2 AI Platform
 
+> **Historical repository — development has moved.** Use
+> [STS2-The-Pefect-Defect-Project](https://github.com/rsgcsg/STS2-The-Pefect-Defect-Project)
+> for development, installation, deployment, collection, data tools and maintenance.
+> Both source histories are preserved there. This repository retains original
+> tags/releases/evidence for reproducibility; the material below describes its historical scope.
+> Do not deploy new services or open new feature branches from this repository.
+
 STS2 AI Platform is the shared, model-neutral environment foundation for
 programs that use the real Slay the Spire 2 runtime. It brings the runtime,
 fair-player automation, native-human evidence, evidence logistics, and
