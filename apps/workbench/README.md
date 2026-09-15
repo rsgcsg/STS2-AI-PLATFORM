@@ -29,13 +29,23 @@ The only command API is `POST /api/policy/mode` with exactly one JSON field:
 
 Policy Runtime mode changes are accepted only when Workbench is bound to a
 loopback address. A non-loopback bind remains available as a read-only status
-view and returns `403 policy_mutation_loopback_only` for the mode command.
+view and returns `403 policy_mutation_loopback_only` for the mode command. The loopback mode route also requires application/json,
+a supported loopback Host with the bound port, and an absent or exact same
+Origin. It rejects cross-origin browser requests before forwarding to Runtime.
 
 Policy Runtime live status is fetched from `<base-url>/status` and must match
 the strict `sts2.policy-runtime/status-1` shape. Mode changes are forwarded to
-`<base-url>/mode` and require the strict `sts2.policy-runtime/http-1` status
-envelope. `one_step` then invokes exactly one `<base-url>/tick` and returns the
-resulting Runtime status; Workbench never submits a BoundAction itself. A
+`<base-url>/v2/mode` and require the strict `sts2.policy-runtime/http-2` status
+envelope. `one_step` then invokes exactly one `<base-url>/v2/tick` and returns the
+resulting Runtime status; Workbench never submits a BoundAction itself. Status
+requests default to 1.5 seconds and commands to 45 seconds. If a command times
+out or returns an undecodable response, its outcome remains unknown: the client
+blocks further non-Human commands, permits status and Human handoff, and uses
+the first trusted status query begun after the failure to establish the unknown
+run baseline. Only a subsequently observed different run ID clears the block;
+a cached pre-command ID or earlier in-flight query cannot unlock it. It
+never repeats a tick. A caller timeout does not taint or settle the underlying
+Runtime delivery by itself. A
 configured filesystem policy
 status is used only as `filesystem_fallback` when live status is unavailable;
 that domain is marked `partial` and `unavailable`, never ready. Other status
@@ -64,3 +74,8 @@ npm test
 The Workbench status DTO labels every domain with `source`, `freshness`,
 `partial` and `unavailable`. `policy_runtime`/`live` is the only live Policy
 claim; `filesystem`/`filesystem_fallback` is intentionally weaker evidence.
+
+Policy commands use the HTTP-2 `/v2/*` routes and the previously observed Runtime
+run ID. Reuse of the loopback port cannot retarget an outstanding command, even
+when an older HTTP-1 server occupies it. Missing observations are read before the
+first command; rejected identity checks never retry a command automatically.

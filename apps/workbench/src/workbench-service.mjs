@@ -232,7 +232,7 @@ export function createWorkbenchService(roots = {}, options = {}) {
     async setPolicyMode(mode) {
       const changed = await policyRuntime.setMode(mode);
       if (mode !== "one_step") return changed;
-      const ticked = await policyRuntime.tick();
+      const ticked = await policyRuntime.tick(changed.status.run_id);
       return { ...changed, status: ticked.status, tick: ticked.result };
     }
   });

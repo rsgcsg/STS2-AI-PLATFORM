@@ -1,7 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { request as httpRequest, type ClientRequest } from "node:http";
 import type { PlayerEnvironmentBoundAction, PlayerEnvironmentReceipt, PlayerEnvironmentSnapshot } from "@rsgcsg/sts2-connector-client";
 import { admitWholeDecision } from "../src/admission.js";
 import { candidateOrderDigest } from "../src/digest.js";
@@ -11,6 +12,8 @@ import { DEFAULT_POLICY_ADAPTER_STARTUP_TIMEOUT_MS, NdjsonPolicyPort } from "../
 import { validateAdapterDecision, validatePolicyDecision, validatePolicyManifest, type ConnectorAdapterClient, type DecisionBundle, type PolicyConnector, type PolicyManifest } from "../src/contracts.js";
 import { startPolicyRuntimeHttpServer } from "../src/server.js";
 import { AgentRunEvidence, verifyEvidenceDirectory } from "../src/evidence.js";
+// @ts-expect-error The Workbench consumer is a JavaScript package; exercise its real decoder.
+import { decodePolicyRuntimeStatus, PolicyRuntimeClient } from "../../../apps/workbench/src/policy-runtime-client.mjs";
 
 const manifest = (): PolicyManifest => ({
   schema: "sts2.policy-runtime/policy-manifest-1",
@@ -464,15 +467,183 @@ describe("runtime integration fake", () => {
     const runtime = new PolicyRuntime({ manifest: manifest(), connector, mode: "human", runId: "run-1", staleRefresh: { maxAttempts: 2, baseBackoffMs: 0 }, successorPoll: { maxAttempts: 2, baseBackoffMs: 0 }, sleep: async () => {}, policy: (input) => ({ candidate_digest: input.candidate_digest, scores: Array(input.candidate_count).fill(1), selected_index: 0 }) });
     const service = await startPolicyRuntimeHttpServer(runtime, { port: 0, maxAutoTicks: 2 });
     try {
-      const modeResponse = await fetch(`${service.address}/mode`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "auto" }) });
+      const modeResponse = await fetch(`${service.address}/v2/mode`, { method: "POST", headers: { "content-type": "application/json", "x-sts2-policy-run-id": runtime.status().run_id }, body: JSON.stringify({ mode: "auto" }) });
       expect(modeResponse.status).toBe(200);
-      expect((await modeResponse.json()).status.controller).toBe("released");
-      const tickResponse = await fetch(`${service.address}/tick`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ max_ticks: 2 }) });
+      const modeEnvelope = await modeResponse.json();
+      const httpContract = JSON.parse(await readFile(new URL("../../../contracts/policy-runtime/http.schema.json", import.meta.url), "utf8"));
+      expect(modeEnvelope.schema).toBe(httpContract.$id);
+      expect(modeEnvelope.status.controller).toBe("released");
+      const tickResponse = await fetch(`${service.address}/v2/tick`, { method: "POST", headers: { "content-type": "application/json", "x-sts2-policy-run-id": runtime.status().run_id }, body: JSON.stringify({ max_ticks: 2 }) });
       expect(tickResponse.status).toBe(200);
       const result = await tickResponse.json() as { results: unknown[] };
       expect(result.results.length).toBe(2);
       expect(connector.submitCount).toBe(2);
     } finally { await service.close(); }
+  });
+
+  it("rejects cross-origin, non-JSON and rebound-host mutations before Runtime dispatch", async () => {
+    const connector = new FakeConnector(bundle(["a"]));
+    const runtime = new PolicyRuntime({ manifest: manifest(), connector, policy: () => { throw new Error("must not score"); } });
+    const modeSpy = vi.spyOn(runtime, "setMode");
+    const tickSpy = vi.spyOn(runtime, "tick");
+    const stopSpy = vi.spyOn(runtime, "stop");
+    const service = await startPolicyRuntimeHttpServer(runtime, { port: 0 });
+    try {
+      for (const [route, body] of [["mode", { mode: "auto" }], ["tick", { max_ticks: 1 }], ["stop", {}]] as const) {
+        for (const [headers, expected] of [
+          [{ "content-type": "text/plain", origin: "https://untrusted.invalid" }, 403],
+          [{ "content-type": "text/plain" }, 415],
+          [{ "content-type": "application/json", origin: "https://untrusted.invalid" }, 403],
+          [{ "content-type": "application/json", origin: "null" }, 403],
+          [{ "content-type": "application/json", host: "untrusted.invalid" }, 403],
+          [{ "content-type": "application/json", host: "127.0.0.1:1" }, 403]
+        ] as const) {
+          // Raw HTTP preserves the supplied Host; fetch implementations may replace it.
+          const statusCode = await new Promise<number>((resolve, reject) => {
+            const request = httpRequest(`${service.address}/v2/${route}`, { method: "POST", headers }, (response) => { response.resume(); resolve(response.statusCode!); });
+            request.once("error", reject); request.end(JSON.stringify(body));
+          });
+          expect(statusCode, JSON.stringify({ route, headers })).toBe(expected);
+        }
+      }
+      expect(modeSpy).not.toHaveBeenCalled(); expect(tickSpy).not.toHaveBeenCalled(); expect(stopSpy).not.toHaveBeenCalled();
+      for (const origin of [undefined, service.address]) {
+        const response = await fetch(`${service.address}/v2/mode`, { method: "POST", headers: { "x-sts2-policy-run-id": runtime.status().run_id, "content-type": "application/json; charset=utf-8", ...(origin ? { origin } : {}) }, body: JSON.stringify({ mode: "human" }) });
+        expect(response.status).toBe(200);
+      }
+      expect(modeSpy).toHaveBeenCalledTimes(2);
+      expect(connector.submitCount).toBe(0);
+    } finally { await service.close(); }
+  });
+
+  it("rejects missing, duplicate, empty and foreign Runtime run preconditions before all mutations", async () => {
+    const connector = new FakeConnector(bundle(["a"]));
+    const runtime = new PolicyRuntime({ manifest: manifest(), connector, runId: "run-current", policy: () => { throw new Error("must not score"); } });
+    const mode = vi.spyOn(runtime, "setMode"), tick = vi.spyOn(runtime, "tick"), stop = vi.spyOn(runtime, "stop");
+    const service = await startPolicyRuntimeHttpServer(runtime, { port: 0 });
+    try {
+      for (const [route, body] of [["mode", { mode: "auto" }], ["tick", { max_ticks: 1 }], ["stop", {}]] as const) {
+        for (const [expectedRun, code] of [[undefined, 428], ["", 428], [["run-current", "run-current"], 428], ["run-previous", 409]] as const) {
+          const result = await new Promise<{ code: number; body: string }>((resolve, reject) => {
+            const request = httpRequest(`${service.address}/v2/${route}`, { method: "POST", headers: { "content-type": "application/json", ...(expectedRun === undefined ? {} : { "x-sts2-policy-run-id": expectedRun as string | string[] }) } }, (response) => {
+              let data = ""; response.setEncoding("utf8"); response.on("data", (chunk: string) => { data += chunk; });
+              response.once("end", () => resolve({ code: response.statusCode!, body: data }));
+            });
+            request.once("error", reject); request.end(JSON.stringify(body));
+          });
+          expect(result.code).toBe(code);
+          expect(JSON.parse(result.body)).toEqual({ schema: "sts2.policy-runtime/http-2", error: code === 428 ? "runtime_run_precondition_required" : "runtime_run_mismatch" });
+        }
+        const old = await fetch(`${service.address}/${route}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+        expect(old.status).toBe(404);
+      }
+      expect(mode).not.toHaveBeenCalled(); expect(tick).not.toHaveBeenCalled(); expect(stop).not.toHaveBeenCalled();
+      expect(connector.acquireCount).toBe(0); expect(connector.submitCount).toBe(0);
+    } finally { await service.close(); }
+  });
+
+  it("does not mutate a replacement Runtime on the same port after a successful earlier status", async () => {
+    const connector = new FakeConnector(bundle(["a"]));
+    const old = new PolicyRuntime({ manifest: manifest(), connector, runId: "run-old", policy: () => { throw new Error("must not score"); } });
+    const previous = await startPolicyRuntimeHttpServer(old, { port: 0 });
+    const client = new PolicyRuntimeClient(previous.address);
+    await client.readStatus();
+    await previous.close();
+    const runtime = new PolicyRuntime({ manifest: manifest(), connector, runId: "run-replacement", policy: () => { throw new Error("must not score"); } });
+    const mode = vi.spyOn(runtime, "setMode"), tick = vi.spyOn(runtime, "tick"), stop = vi.spyOn(runtime, "stop");
+    const replacement = await startPolicyRuntimeHttpServer(runtime, { port: Number(new URL(previous.address).port) });
+    try {
+      await expect(client.setMode("auto")).rejects.toMatchObject({ code: "policy_runtime_run_rejected" });
+      await expect(client.tick()).rejects.toMatchObject({ code: "policy_runtime_run_rejected" });
+      // A background status refresh between One-Step phases cannot retarget
+      // the tick: the caller retains the run returned by its mode command.
+      await client.readStatus();
+      await expect(client.tick("run-old")).rejects.toMatchObject({ code: "policy_runtime_run_rejected" });
+      const response = await fetch(`${replacement.address}/v2/stop`, { method: "POST", headers: { "content-type": "application/json", "x-sts2-policy-run-id": "run-old" }, body: "{}" });
+      expect(response.status).toBe(409);
+      expect(mode).not.toHaveBeenCalled(); expect(tick).not.toHaveBeenCalled(); expect(stop).not.toHaveBeenCalled();
+      expect(runtime.status().lifecycle).toBe("running"); expect(connector.submitCount).toBe(0);
+    } finally { await replacement.close(); }
+  });
+
+  it.each([false, true])("notifies stop cleanup exactly once after success, even when response aborts=%s", async (abortResponse) => {
+    const root = await mkdtemp(join(tmpdir(), "sts2-stop-disconnect-"));
+    const evidence = await AgentRunEvidence.create({ root, policyManifest: manifest(), runtimeVersion: "0.1.0-rc.3", runtimeCodeSha256: "e".repeat(64), mode: "one_step" });
+    let finishScoring!: () => void;
+    const scoring = new Promise<void>((resolve) => { finishScoring = resolve; });
+    let scoringEntered = false;
+    const runtime = new PolicyRuntime({ manifest: manifest(), connector: new FakeConnector(bundle(["a"])), mode: "one_step", evidence, runId: evidence.runId, runtimeIdentity: { version: "0.1.0-rc.3", code_sha256: "e".repeat(64) }, policy: async (input) => {
+      scoringEntered = true; await scoring;
+      return { candidate_digest: input.candidate_digest, scores: [1], selected_index: 0 };
+    } });
+    await evidence.attestAdapter(manifest().adapter);
+    const stopSpy = vi.spyOn(runtime, "stop");
+    let cleanupCount = 0;
+    let cleanupFinished!: () => void;
+    const cleanup = new Promise<void>((resolve) => { cleanupFinished = resolve; });
+    const service = await startPolicyRuntimeHttpServer(runtime, { port: 0, onStopped: async () => { cleanupCount++; await service.close(); cleanupFinished(); } });
+    let responseClosed!: () => void;
+    const disconnected = new Promise<void>((resolve) => { responseClosed = resolve; });
+    service.server.on("request", (request, response) => { if (request.url === "/v2/stop") response.once("close", responseClosed); });
+    const tick = runtime.tick();
+    try {
+      await eventually(() => scoringEntered);
+      let stopRequest!: ClientRequest;
+      const stopped = new Promise<{ statusCode: number; body: string }>((resolve, reject) => {
+        stopRequest = httpRequest(`${service.address}/v2/stop`, { method: "POST", headers: { "content-type": "application/json", "x-sts2-policy-run-id": runtime.status().run_id } }, (response) => {
+          let body = ""; response.setEncoding("utf8"); response.on("data", (chunk: string) => { body += chunk; });
+          response.once("end", () => resolve({ statusCode: response.statusCode!, body }));
+        });
+        stopRequest.once("error", reject); stopRequest.end("{}");
+      });
+      await eventually(() => stopSpy.mock.calls.length === 1);
+      if (abortResponse) { stopRequest.destroy(new Error("caller disconnected")); await expect(stopped).rejects.toThrow("caller disconnected"); await disconnected; }
+      expect(cleanupCount).toBe(0);
+      finishScoring(); await tick;
+      if (!abortResponse) { const response = await stopped; expect(response.statusCode).toBe(200); expect(JSON.parse(response.body).status.lifecycle).toBe("stopped"); }
+      await cleanup;
+      expect(cleanupCount).toBe(1);
+      expect(service.server.listening).toBe(false);
+      expect(JSON.parse(await readFile(join(evidence.directory, "evidence-manifest.json"), "utf8")).complete).toBe(true);
+    } finally { finishScoring(); await tick; if (service.server.listening) await service.close(); }
+  });
+
+  it("passes real non-null Runtime environment status through the Workbench consumer", async () => {
+    const connector = new FakeConnector(bundle(["a"]));
+    const runtime = new PolicyRuntime({ manifest: manifest(), connector, mode: "shadow", policy: (input) => ({ candidate_digest: input.candidate_digest, scores: [1], selected_index: 0 }) });
+    expect((await runtime.tick()).type).toBe("shadow");
+    const status = decodePolicyRuntimeStatus(runtime.status());
+    expect(status.environment.host_kind).toBe("test");
+    expect(status.environment.loaded_mod_ids).toEqual(["fixture-mod"]);
+    expect(connector.acquireCount).toBe(0);
+    for (const invalid of [{ host_kind: "invented" }, { loaded_mod_ids: ["duplicate", "duplicate"] }]) {
+      expect(() => decodePolicyRuntimeStatus({ ...status, environment: { ...status.environment, ...invalid } })).toThrow();
+    }
+  });
+
+  it("does not repeat a one-step command after the HTTP caller times out", async () => {
+    const connector = new FakeConnector(bundle(["a"]));
+    let finishScoring!: () => void;
+    const scoring = new Promise<void>((resolve) => { finishScoring = resolve; });
+    const runtime = new PolicyRuntime({ manifest: manifest(), connector, mode: "human", policy: async (input) => {
+      await scoring;
+      return { candidate_digest: input.candidate_digest, scores: [1], selected_index: 0 };
+    } });
+    const service = await startPolicyRuntimeHttpServer(runtime, { port: 0 });
+    const client = new PolicyRuntimeClient(service.address, { commandTimeoutMs: 100 });
+    try {
+      await client.readStatus();
+      await client.setMode("one_step");
+      await expect(client.tick()).rejects.toMatchObject({ code: "policy_runtime_command_unknown" });
+      finishScoring();
+      await eventually(() => connector.submitCount === 1 && runtime.status().mode === "human");
+      await client.readStatus();
+      await expect(client.tick()).rejects.toMatchObject({ code: "policy_runtime_command_unknown" });
+      await expect(client.setMode("one_step")).rejects.toMatchObject({ code: "policy_runtime_command_unknown" });
+      await client.setMode("human");
+      expect(connector.submitCount).toBe(1);
+      expect(runtime.status().tainted).toBe(false);
+    } finally { finishScoring(); await service.close(); }
   });
 
   it("continuously shadows only new Snapshots without acquiring a controller", async () => {
@@ -481,7 +652,7 @@ describe("runtime integration fake", () => {
     const runtime = new PolicyRuntime({ manifest: manifest(), connector, mode: "human", runId: "run-shadow", staleRefresh: { maxAttempts: 2, baseBackoffMs: 0 }, sleep: async () => {}, policy: (input) => { scoreCount += 1; return { candidate_digest: input.candidate_digest, scores: [1], selected_index: 0 }; } });
     const service = await startPolicyRuntimeHttpServer(runtime, { port: 0, autoDrive: true, maxAutoTicks: 2, autoIdleMs: 5 });
     try {
-      const response = await fetch(`${service.address}/mode`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ mode: "shadow" }) });
+      const response = await fetch(`${service.address}/v2/mode`, { method: "POST", headers: { "content-type": "application/json", "x-sts2-policy-run-id": runtime.status().run_id }, body: JSON.stringify({ mode: "shadow" }) });
       expect(response.status).toBe(200);
       await eventually(() => scoreCount === 1);
       await new Promise((resolve) => setTimeout(resolve, 20));

@@ -6,6 +6,34 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { componentGitState } from "../../../tools/component-git.mjs";
+import { sourceSetIdentity, sourceSetMatches } from "../../../apps/game-mod/source-identity.mjs";
+
+export const setupFiles = [
+  "apps/game-mod/collection-setup.mjs",
+  "apps/game-mod/annotator-configuration.mjs",
+  "apps/game-mod/loaded-evidence.mjs",
+  "components/host-runtime/src/game-installation.mjs",
+  "components/host-runtime/src/game-processes.mjs"
+];
+
+export function copyCollectionSetup(workspaceRoot, staging, modProvenance) {
+  for (const relative of setupFiles) {
+    const destination = path.join(staging, "setup", relative);
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.copyFileSync(path.join(workspaceRoot, relative), destination);
+  }
+  if (modProvenance) {
+    const provenance = JSON.parse(fs.readFileSync(modProvenance, "utf8"));
+    if (provenance.schema !== "sts2.platform/game-mod-build-provenance-1"
+        || !sourceSetMatches(provenance.source, sourceSetIdentity(workspaceRoot)))
+      throw new Error("Collection setup requires exact current native build provenance.");
+    const dll = path.join(path.dirname(modProvenance), "STS2_PLATFORM.dll");
+    const sha = crypto.createHash("sha256").update(fs.readFileSync(dll)).digest("hex");
+    if (sha !== provenance.artifact?.sha256) throw new Error("Collection setup native build bytes differ.");
+    fs.mkdirSync(path.join(staging, "game-mod"), { recursive: true });
+    fs.copyFileSync(modProvenance, path.join(staging, "game-mod/build-provenance.json"));
+  }
+}
 
 export function canonical(value) {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
@@ -31,7 +59,7 @@ export function inventory(directory) {
   return files.sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0);
 }
 
-export function publishCollectionTool(componentRoot, output, { dotnet = "dotnet" } = {}) {
+export function publishCollectionTool(componentRoot, output, { dotnet = "dotnet", modProvenance } = {}) {
   const state = componentGitState(componentRoot);
   if (state.workspaceWorktreeStatus !== "clean")
     throw new Error("Collection tool release requires an exact clean workspace; commit first.");
@@ -44,6 +72,7 @@ export function publishCollectionTool(componentRoot, output, { dotnet = "dotnet"
       "-c", "Release", "-o", staging, "--self-contained", "false", "-p:UseAppHost=false"],
     { stdio: "inherit" });
     fs.copyFileSync(path.join(state.workspaceRoot, "platform-bom.json"), path.join(staging, "platform-bom.json"));
+    copyCollectionSetup(state.workspaceRoot, staging, modProvenance);
     if (componentGitState(componentRoot).workspaceWorktreeStatus !== "clean"
         || componentGitState(componentRoot).workspaceRevision !== state.workspaceRevision)
       throw new Error("Source identity changed during collection tool publication");
@@ -54,7 +83,10 @@ export function publishCollectionTool(componentRoot, output, { dotnet = "dotnet"
       component_tree_revision: state.componentTreeRevision,
       entrypoint: "sts2-human-annotator.dll",
       supported_recording_schema: "sts2.human-annotator/recording-manifest-2",
-      output_schema: "sts2.human-annotator/session-bundle-3", files: inventory(staging)
+      output_schema: "sts2.human-annotator/session-bundle-3",
+      collection_setup_entrypoint: "setup/apps/game-mod/collection-setup.mjs",
+      ...(modProvenance ? { collection_setup_provenance: "game-mod/build-provenance.json" } : {}),
+      files: inventory(staging)
     };
     const release_id = crypto.createHash("sha256").update(canonical(identity)).digest("hex");
     fs.writeFileSync(path.join(staging, "collection-tool.json"),
@@ -69,7 +101,7 @@ export function publishCollectionTool(componentRoot, output, { dotnet = "dotnet"
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const args = process.argv.slice(2);
-  if (args.length !== 2 || args[0] !== "--output")
-    throw new Error("usage: publish-collection-tool.mjs --output /absolute/new-release-directory");
-  console.log(JSON.stringify(publishCollectionTool(path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."), args[1]), null, 2));
+  if (![2, 4].includes(args.length) || args[0] !== "--output" || (args.length === 4 && args[2] !== "--mod-provenance"))
+    throw new Error("usage: publish-collection-tool.mjs --output /absolute/new-release-directory [--mod-provenance /absolute/build-provenance.json]");
+  console.log(JSON.stringify(publishCollectionTool(path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."), args[1], { modProvenance: args[3] }), null, 2));
 }

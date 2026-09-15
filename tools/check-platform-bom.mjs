@@ -98,7 +98,11 @@ function expectPattern(errors, label, value, pattern) {
 
 export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
   const recordedBuild = "ab4ee5303c8302ae209dd62c4d766a6764ebec51";
+  // Immutable host-runtime/v1.1.0-rc.7 source recorded by the runtime-seal report.
+  const publishedHostSource = "dce2c26c0accb0bbbe435191ca371aee9725fa48";
   const buildBom = JSON.parse(execFileSync("git", ["show", `${recordedBuild}:platform-bom.json`],
+    { cwd: platformRoot, encoding: "utf8" }));
+  const publishedHostPackage = JSON.parse(execFileSync("git", ["show", `${publishedHostSource}:components/host-runtime/package.json`],
     { cwd: platformRoot, encoding: "utf8" }));
   const nativeFoundationComponent = readJson(path.join(platformRoot, "components", "native-foundation", "component.json"));
   const connectorRelease = readJson(path.join(platformRoot, "components", "connector", "release-manifest.json"));
@@ -118,6 +122,12 @@ export async function readBomAuthorities(platformRoot = PLATFORM_ROOT) {
   return {
     finalFullRunBuild: recordedBuild,
     finalFullRunEvidence: buildBom.components.evidence,
+    finalFullRunLiveUi: buildBom.components.live_ui,
+    finalFullRunAnnotator: buildBom.components.annotator,
+    finalFullRunGameMod: buildBom.components.game_mod,
+    publishedHostSource,
+    publishedHostPackage,
+    publishedHostRelease: buildBom.public_packages.host_runtime,
     identities: readIdentityReport(platformRoot),
     nativeFoundationComponent,
     connectorRelease,
@@ -178,9 +188,8 @@ export function validatePlatformBom(bom, authorities) {
       expectPattern(errors, "Final Full-Run Human bundle content", human?.bundle_content_id, SHA256);
     }
     expectEqual(errors, "Final Full-Run predecessor transfer", finalCandidate.evidence_transfer_from_predecessor, false);
-    // The portable verifier can evolve without changing the Human-tested native
-    // artifact. Keep its recorded identity historical; never relabel the Human
-    // evidence with today's Python package. Current authority is checked above.
+    // Every closed Human component snapshot stays bound to the recorded build.
+    // Current source is checked above and cannot inherit historical qualification.
     expectEqual(errors, "Final Full-Run portable evidence scope", finalCandidate.portable_evidence_scope,
       "historical_verifier_snapshot_not_current_portable_qualification");
     const historicalEvidence = finalCandidate.components?.evidence;
@@ -189,10 +198,13 @@ export function validatePlatformBom(bom, authorities) {
     for (const field of ["version", "source_revision", "component_tree_revision", "component_source_digest_sha256"])
       expectEqual(errors, `Final Full-Run historical evidence ${field}`, historicalEvidence?.[field],
         authorities.finalFullRunEvidence[field]);
-    for (const key of ["annotator", "live_ui", "game_mod"])
+    const historicalComponents = { annotator: authorities.finalFullRunAnnotator,
+      live_ui: authorities.finalFullRunLiveUi, game_mod: authorities.finalFullRunGameMod };
+    for (const [key, historical] of Object.entries(historicalComponents))
       for (const field of ["version", "source_revision", "component_tree_revision", "component_source_digest_sha256"])
         expectEqual(errors, `Final Full-Run ${key}.${field}`,
-          finalCandidate.components?.[key]?.[field], bom.components?.[key]?.[field]);
+          finalCandidate.components?.[key]?.[field],
+          historical[field]);
     if (!["source_candidate", "loaded_candidate"].includes(finalCandidate.stage))
       errors.push("Final Full-Run candidate stage is invalid");
     if (finalCandidate.stage === "loaded_candidate") {
@@ -231,8 +243,16 @@ export function validatePlatformBom(bom, authorities) {
   expectEqual(errors, "public Connector artifact MVID", publicConnector?.artifact_mvid, pinnedConnector.artifactMvid);
   expectEqual(errors, "Host Connector protocol pin", bom.components?.player_environment_protocol, pinnedConnector.protocol);
 
-  expectEqual(errors, "public Host release", bom.public_packages?.host_runtime?.release, `host-runtime/v${authorities.hostPackage.version}`);
-  expectEqual(errors, "public Host asset", bom.public_packages?.host_runtime?.asset, `rsgcsg-sts2-host-runtime-${authorities.hostPackage.version}.tgz`);
+  const publicHost = bom.public_packages?.host_runtime;
+  expectEqual(errors, "published Host source", publicHost?.source_revision, authorities.publishedHostSource);
+  expectEqual(errors, "published Host version", publicHost?.version, authorities.publishedHostPackage.version);
+  expectEqual(errors, "published Host archive SHA", publicHost?.sha256, authorities.publishedHostRelease.sha256);
+  expectEqual(errors, "published Host content SHA", publicHost?.package_content_digest_sha256,
+    authorities.publishedHostRelease.package_content_digest_sha256);
+  expectEqual(errors, "public Host release", publicHost?.release, `host-runtime/v${publicHost?.version}`);
+  expectEqual(errors, "public Host asset", publicHost?.asset, `rsgcsg-sts2-host-runtime-${publicHost?.version}.tgz`);
+  expectEqual(errors, "public Host source relation", publicHost?.source_relation,
+    publicHost?.version === authorities.hostPackage.version ? "same_component_version" : "published_package_precedes_current_source");
   expectEqual(errors, "runtime Connector source", bom.exact_runtime_candidate?.connector?.source_revision, pinnedConnector.sourceRevision);
   expectEqual(errors, "runtime Connector SHA", bom.exact_runtime_candidate?.connector?.artifact_sha256, pinnedConnector.artifactSha256);
   expectEqual(errors, "runtime Connector MVID", bom.exact_runtime_candidate?.connector?.artifact_mvid, pinnedConnector.artifactMvid);
@@ -1033,11 +1053,19 @@ export function validatePlatformBom(bom, authorities) {
     "loaded_ui_source_precedes_current_component");
   expectEqual(errors, "candidate Connector protocol", policyCandidate?.connector?.protocol,
     bom.components?.player_environment_protocol);
-  expectEqual(errors, "candidate Policy Runtime source", policyCandidate?.policy_runtime?.source_revision,
+  expectEqual(errors, "historical Policy Runtime source", policyCandidate?.policy_runtime?.source_revision,
+    "e19b30315015664a5647ab351cdcefb09417f275");
+  expectEqual(errors, "historical Policy Runtime digest", policyCandidate?.policy_runtime?.source_digest_sha256,
+    "d227321727d07edd2d4c67928edec439c26f156494dd9cfab98d2bac4debf346");
+  expectEqual(errors, "historical Policy Runtime version", policyCandidate?.policy_runtime?.version,
+    "0.1.0-rc.1");
+  expectEqual(errors, "candidate Policy Runtime source relation", policyCandidate?.policy_runtime?.source_relation,
+    "historical_runtime_source_precedes_standalone_consumer_package");
+  expectEqual(errors, "candidate current Policy Runtime source", policyCandidate?.policy_runtime?.current_component_source_revision,
     bom.components?.policy_runtime?.source_revision);
-  expectEqual(errors, "candidate Policy Runtime digest", policyCandidate?.policy_runtime?.source_digest_sha256,
+  expectEqual(errors, "candidate current Policy Runtime digest", policyCandidate?.policy_runtime?.current_component_source_digest_sha256,
     bom.components?.policy_runtime?.component_source_digest_sha256);
-  expectEqual(errors, "candidate Policy Runtime version", policyCandidate?.policy_runtime?.version,
+  expectEqual(errors, "candidate current Policy Runtime version", policyCandidate?.policy_runtime?.current_component_version,
     bom.components?.policy_runtime?.version);
   expectEqual(errors, "candidate current Game Mod version", policyCandidate?.game_mod?.current_component_version,
     bom.components?.game_mod?.version);

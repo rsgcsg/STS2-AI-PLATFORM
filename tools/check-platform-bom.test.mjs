@@ -22,6 +22,16 @@ test("BOM check rejects component and public Connector pin drift", async () => {
   assert.ok(errors.some((error) => error.startsWith("public Connector archive SHA:")));
 });
 
+test("BOM keeps historical policy evidence separate from the standalone package source", async () => {
+  const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
+  const policy = bom.unified_platform_runtime_candidate.policy_runtime;
+  policy.source_revision = bom.components.policy_runtime.source_revision;
+  policy.current_component_source_revision = "0".repeat(40);
+  const errors = validatePlatformBom(bom, await readBomAuthorities(root));
+  assert.ok(errors.some((error) => error.startsWith("historical Policy Runtime source:")));
+  assert.ok(errors.some((error) => error.startsWith("candidate current Policy Runtime source:")));
+});
+
 test("BOM check rejects human gate drift and machine-proven origin claims", async () => {
   const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
   bom.exact_runtime_candidate.gates.annotator_human.runtime_instance_id = "wrong-runtime";
@@ -270,10 +280,51 @@ test("final Full-Run candidate cannot borrow historical identity or Human qualif
 
 test("portable verifier changes do not relabel closed native Human evidence", async () => {
   const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
-  assert.notEqual(bom.components.evidence.source_revision,
-    bom.final_full_run_candidate.components.evidence.source_revision);
   assert.deepEqual(validatePlatformBom(bom, await readBomAuthorities(root)), []);
   bom.final_full_run_candidate.components.evidence.source_revision = "f".repeat(40);
   assert.ok(validatePlatformBom(bom, await readBomAuthorities(root))
     .some(error => error.startsWith("Final Full-Run historical evidence source_revision:")));
+});
+
+test("new Live UI consumer source cannot relabel the recorded Human-tested native build", async () => {
+  const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
+  const authorities = await readBomAuthorities(root);
+  assert.deepEqual(validatePlatformBom(bom, authorities), []);
+  bom.final_full_run_candidate.components.live_ui.source_revision = "f".repeat(40);
+  assert.ok(validatePlatformBom(bom, authorities).some(error => error.startsWith("Final Full-Run live_ui.source_revision:")));
+});
+
+test("collection setup source and version updates cannot relabel the recorded Human artifact", async () => {
+  const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
+  const authorities = await readBomAuthorities(root);
+  assert.deepEqual(validatePlatformBom(bom, authorities), []);
+  for (const key of ["annotator", "game_mod"]) {
+    const mutated = structuredClone(bom);
+    mutated.final_full_run_candidate.components[key].source_revision = "f".repeat(40);
+    assert.ok(validatePlatformBom(mutated, authorities).some(error => error.startsWith(`Final Full-Run ${key}.source_revision:`)));
+  }
+});
+
+test("published Host pin is separate from a newer local source version", async () => {
+  const bom = JSON.parse(fs.readFileSync(path.join(root, "platform-bom.json"), "utf8"));
+  const authorities = await readBomAuthorities(root);
+  assert.deepEqual(validatePlatformBom(bom, authorities), []);
+  const published = structuredClone(bom.public_packages.host_runtime);
+  // Model both a later source version and a legitimate future version sync.
+  for (const version of ["9.9.9-fixture", published.version]) {
+    const fixture = structuredClone(bom);
+    const source = structuredClone(authorities);
+    fixture.components.host_runtime.version = version;
+    source.hostPackage.version = version;
+    source.identities.components["host-runtime"].component_version = version;
+    fixture.public_packages.host_runtime.source_relation = version === published.version
+      ? "same_component_version" : "published_package_precedes_current_source";
+    assert.deepEqual(validatePlatformBom(fixture, source), []);
+    assert.equal(fixture.public_packages.host_runtime.sha256, published.sha256);
+  }
+  Object.assign(bom.public_packages.host_runtime, { version: "9.9.9-fixture",
+    release: "host-runtime/v9.9.9-fixture", asset: "rsgcsg-sts2-host-runtime-9.9.9-fixture.tgz" });
+  assert.ok(validatePlatformBom(bom, authorities).some(error => error.startsWith("published Host version:")));
+  bom.public_packages.host_runtime.sha256 = "f".repeat(64);
+  assert.ok(validatePlatformBom(bom, authorities).some(error => error.startsWith("published Host archive SHA:")));
 });

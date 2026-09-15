@@ -88,6 +88,30 @@ Build once from an exact clean Platform commit:
 npm --prefix components/annotator run publish:collection-tool -- --output /absolute/new-tool-release
 ```
 
+For an installed collection setup kit, first build the exact clean native Mod,
+then add `--mod-provenance /absolute/native-build/build-provenance.json` to that
+publication command. Publication verifies current compiled source and the adjacent
+DLL SHA before including `game-mod/build-provenance.json` and the bounded Game Mod
+setup tooling in the same immutable file inventory. The setup entry requires
+Node.js 20+ in addition to the packing tool's .NET runtime.
+
+```python
+from sts2_platform_evidence.collection_tool import CollectionTool
+
+tool = CollectionTool(tool_directory, trusted_release_id)
+status = tool.setup_status(recordings_root=recordings_root, game_directory=game_directory)
+# Only after the operator authorizes this destination, with the game stopped:
+prepared = tool.bind_recording_root(recordings_root=recordings_root, game_directory=game_directory)
+```
+
+`game_directory` is optional when Host discovery can find Steam's installation.
+The default provenance is the inventory-pinned file inside the tool; an explicit
+`mod_provenance` must also be in that verified inventory. A legacy packing-only
+release cannot claim setup support. `configured` means the next launch's disk
+configuration; only a fresh owner status with `bound=true` confirms the actual
+current native destination. The owner reports mutation compatibility separately
+and never relaxes it. See [Game Mod setup](../../apps/game-mod/README.md#installed-collection-setup).
+
 Publication runs the portable .NET Annotator Tool build (no game files), copies
 its complete dependency output and the Platform BOM, and writes
 `collection-tool.json`. `release_id` hashes canonical identity plus the exact
@@ -267,6 +291,63 @@ verified immutable objects, reject content collisions, and independently verify
 staged bytes before receipt. Expired presigned URLs are refreshed by repeating
 the same intent, reusing the exact archive. Upload, structural verification,
 Human origin, Full-Run qualification and STPD admission remain separate facts.
+
+## Stopped-generation completion
+
+Evidence `0.1.0-rc.9` adds an operator-only Python context for consumers that
+need to retire a completed queue without rewriting its campaign/tool identity:
+
+```python
+from sts2_platform_evidence import completed_delivery
+from sts2_platform_evidence.delivery_config import DeliveryConfig
+
+config = DeliveryConfig.load(delivery_config_path)
+with completed_delivery(config) as completed:
+    proposed_receipt = completed.to_dict()
+    # Keep any dependent local operation inside the owner lock.
+# Publish only after successful exit, or roll back publication if exit raises.
+```
+
+The context takes the existing worker lifetime lock and reads SQLite with
+`mode=ro`, including committed WAL state. It does not initialize/migrate an
+outbox, pack or re-audit a session, execute a tool, query the cloud, or change
+delivery records. The existing lock file and SQLite reader coordination are the
+only filesystem effects. A missing old outbox is not a completed generation.
+
+Every recording-root entry must be an enrolled sealed session, with unchanged
+Close identity and raw inventory. Every row must be `verified`; pending,
+authentication-blocked, incident and quarantined rows block completion. The
+check verifies the pinned tool, bundle/session/worker/campaign identities, exact
+raw copy and transfer manifest, delivery metadata, archive members and hashes,
+durable upload identity and matching local terminal receipt. Symlinks, special
+files, extra queue entries and partial artifacts fail closed. A valid empty
+configured outbox with an empty recording root is complete. A verified bundle
+with failed Human decisions is also transfer-complete; its failures are preserved.
+
+`DeliveryCompletion` is frozen and `to_dict()` returns an independent dictionary
+with schema `sts2.evidence/delivery-completion-1`. The receipt includes the full
+normalized config digest; recording/outbox/tool paths; fixed tool, worker and
+campaign IDs; session count; full raw inventory and durable outbox byte digests;
+and sorted per-session source, bundle content, transfer, metadata, archive,
+upload and receiver-receipt identities. `completion_sha256` hashes the canonical
+dictionary excluding that field. Metadata/receipt digests name file bytes;
+the transfer digest names its canonical protocol manifest. Receipts contain
+private local paths and belong in protected local consumer state.
+
+Public receipt equality does not depend on observation time, file timestamps,
+inodes, lock metadata, SQLite physical representation or optional UI telemetry.
+It binds upload/archive identity without binding the sidecar's observation time.
+The context separately guards all persistent queue bytes, full logical database
+rows and directory/file replacement, and repeats the complete verification after
+normal yield. Until that exit succeeds, its receipt is provisional. A consumer
+that publishes an active pointer inside the context must undo it if exit raises.
+Exceptions release the worker lock; no context result grants future immutability.
+
+The consumer remains responsible for stopping its Workbench, proving native
+game/recorder readiness through Game Mod, preserving the source configuration,
+checking current same-device consent and performing one atomic active-pointer
+change. This context provides local retained-receipt integrity, not fresh remote
+availability, new Human qualification, research admission or rollover authority.
 
 ## Qualification
 

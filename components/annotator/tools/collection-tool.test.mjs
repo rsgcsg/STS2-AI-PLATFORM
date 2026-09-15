@@ -4,7 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { canonical, inventory, publishCollectionTool } from "./publish-collection-tool.mjs";
+import { canonical, copyCollectionSetup, inventory, publishCollectionTool, setupFiles } from "./publish-collection-tool.mjs";
 
 test("release identity sorts nested keys and binds exact dependency bytes", () => {
   assert.equal(canonical({ z: [{ b: 2, a: 1 }], a: "你好" }), '{"a":"你好","z":[{"a":1,"b":2}]}');
@@ -27,5 +27,20 @@ test("release publication refuses dirty source before invoking any build", () =>
     fs.writeFileSync(path.join(directory, "source"), "two");
     assert.throws(() => publishCollectionTool(directory, path.join(directory, "out"), { dotnet: "must-not-run" }), /clean workspace/);
     assert.equal(fs.existsSync(path.join(directory, "out")), false);
+  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
+});
+
+test("installed setup copies its owning dependency closure and runs without a source checkout", () => {
+  const directory = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "collection-installed-")));
+  try {
+    const workspaceRoot = path.resolve(import.meta.dirname, "../../..");
+    copyCollectionSetup(workspaceRoot, directory);
+    assert.deepEqual(inventory(directory).map(row => row.path), setupFiles.map(file => `setup/${file}`).sort());
+    const result = JSON.parse(execFileSync(process.execPath, [path.join(directory, "setup/apps/game-mod/collection-setup.mjs"),
+      "status", "--game-dir", path.join(directory, "absent-game"), "--recordings-root", path.join(directory, "recordings"),
+      "--mod-provenance", path.join(directory, "absent-provenance.json")], { cwd: directory, encoding: "utf8" }));
+    assert.equal(result.schema, "sts2.platform/collection-setup-1");
+    assert.equal(result.bound, false);
+    assert.equal(result.reason, "installation_unavailable");
   } finally { fs.rmSync(directory, { recursive: true, force: true }); }
 });

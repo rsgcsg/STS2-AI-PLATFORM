@@ -23,13 +23,38 @@ public sealed class CarrierIngressSourceTests
         int start = source.IndexOf("internal static class NativeTreasureProceedCompletionPatch");
         int end = source.IndexOf("internal static class NativeRewardClaimStartPatch", start);
         string patch = source[start..end];
-        Assert.Contains("__result.IsCompletedSuccessfully && !__state.MapWasOpen", patch);
-        Assert.Contains("context.ActionWitnessId == root", patch);
-        Assert.Contains("ReferenceEquals(NMapScreen.Instance, map)", patch);
+        Assert.Contains("NativeSynchronousOwnerHandoff.Matches(__result, map, __state.MapWasOpen", patch);
+        Assert.Contains("NMapScreen.Instance, map.IsOpen, root, context.ActionWitnessId", patch);
         int commit = patch.IndexOf("RecorderRuntime.ObserveSemanticUiNativeCommit");
         int boundary = patch.IndexOf("NativeDecisionOwnerReadyProvider.ObserveMapProceedReady");
         int queued = patch.IndexOf("RecorderRuntime.QueueNativePostCommitBoundary");
         Assert.True(commit >= 0 && boundary > commit && queued > boundary);
+        Assert.Contains("return;", patch[boundary..queued]);
+    }
+
+    [Fact]
+    public void EventProceedCarriesItsExactMapAndNativeFamilyBeforeReturningToHumanInput()
+    {
+        string source = Source("NativeUiPatches.cs");
+        int start = source.IndexOf("internal static class NativeEventOptionPatch");
+        int end = source.IndexOf("internal static class NativeEventOptionCompletionPatch", start);
+        string patch = source[start..end];
+        Assert.Contains("option.IsProceed ? \"proceed_event\" : \"choose_event_option\"", patch);
+        Assert.Contains("NativeUiCompletionRootBindings.TryGet(\n                        option", patch);
+        Assert.Contains("actionWitnessId == __state.Scope.ActionWitnessId", patch);
+        Assert.Contains("NativeSynchronousOwnerHandoff.Matches(task, map, __state.MapWasOpen", patch);
+        Assert.Contains("NMapScreen.Instance, map.IsOpen, actionWitnessId, HumanActionScope.Current?.ActionWitnessId", patch);
+        int accepted = patch.IndexOf("ObserveAcceptedSemanticUiAction");
+        int commit = patch.IndexOf("ObserveSemanticUiNativeCommit");
+        int ready = patch.IndexOf("ObserveEventProceedReady");
+        int queued = patch.IndexOf("QueueNativePostCommitBoundary");
+        Assert.True(accepted >= 0 && commit > accepted && ready > commit && queued > ready);
+        Assert.Contains("NativeUiCompletionRootBindings.TakeIfMatches(option, actionWitnessId)", patch[commit..ready]);
+        Assert.Contains("return;", patch[ready..queued]);
+
+        string runtime = Source("RecorderRuntime.cs");
+        Assert.Contains("nativeSemanticSelection?.Verb == \"proceed_event\" ? \"event_option.proceed\" : null", runtime);
+        Assert.Contains("Decision = action.Decision! with { Family = nativeFamily }", runtime);
     }
 
     [Fact]

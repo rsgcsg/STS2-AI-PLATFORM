@@ -1,3 +1,4 @@
+import { listGameProcesses } from "./game-processes.mjs";
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
 import { createWriteStream, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -66,45 +67,7 @@ export function withExplicitConnectorCanary(environment, connectorCanary) {
   return resolved;
 }
 
-export function listGameProcesses(
-  platform = process.platform,
-  { spawnProcess = spawnSync, failClosed = false } = {}
-) {
-  if (platform === "win32") {
-    const result = spawnProcess("tasklist", ["/FO", "CSV", "/NH"], {
-      encoding: "utf8",
-      windowsHide: true
-    });
-    if (result.error || result.status !== 0) {
-      if (failClosed) {
-        throw new Error(
-          `Could not enumerate Windows STS2 processes: ${
-            result.error?.message ?? result.stderr ?? `tasklist exited ${result.status}`
-          }`
-        );
-      }
-      return [];
-    }
-    return result.stdout.split("\n")
-      .map((line) => line.trim())
-      .filter((line) => /^"?SlayTheSpire2\.exe"?(?:,|$)/iu.test(line));
-  }
-  const result = spawnProcess("ps", ["-Ao", "pid=,command="], { encoding: "utf8" });
-  if (result.error || result.status !== 0) {
-    if (failClosed) {
-      throw new Error(
-        `Could not enumerate STS2 processes: ${
-          result.error?.message ?? result.stderr ?? `ps exited ${result.status}`
-        }`
-      );
-    }
-    return [];
-  }
-  return result.stdout.split("\n")
-    .map((line) => line.trim())
-    .filter((line) => /(?:Slay the Spire 2|SlayTheSpire2)(?:\s|$)/u.test(line))
-    .filter((line) => !line.includes("tools/headless.mjs"));
-}
+export { listGameProcesses } from "./game-processes.mjs";
 
 export async function readJson(endpoint, route, timeoutMs = 2500) {
   try {
