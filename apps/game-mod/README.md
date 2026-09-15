@@ -53,3 +53,51 @@ Mod builds do not generate those callbacks.
 
 `installed`, `loaded`, `launcher-visible`, Human action evidence and Policy evidence
 are separate claims.
+
+## Installed collection setup
+
+The fixed Collection Tool can include this component's bounded `collection-setup`
+CLI, its Host process/discovery dependencies and exact native build provenance.
+The Evidence `CollectionTool.setup_status` and `bind_recording_root` methods
+verify that complete release inventory before invoking the owner. Consumers need
+Node.js 20+ and the installed game; they do not need a Platform checkout.
+
+```bash
+node /absolute/tool/setup/apps/game-mod/collection-setup.mjs status \
+  --game-dir /absolute/game --recordings-root /persistent/campaign-recordings \
+  --mod-provenance /absolute/tool/game-mod/build-provenance.json
+node /absolute/tool/setup/apps/game-mod/collection-setup.mjs bind \
+  --game-dir /absolute/game --recordings-root /persistent/campaign-recordings \
+  --mod-provenance /absolute/tool/game-mod/build-provenance.json
+```
+
+`bind` requires all STS2 processes stopped and no Annotator environment override.
+It refuses symlinks, ambiguous/predecessor installations, session directories and
+unsafe roots. It preserves unrelated configuration options, the status location
+and old recording bytes, archives the exact previous config and atomically changes
+only `recording_root`. A failed replacement leaves the old config intact. To undo
+a binding, stop STS2 and restore the reported backup bytes. Setup never launches,
+stops or controls the game, changes Mod settings or changes native compatibility.
+
+`collection-setup-1` reports `configured` separately from `connected` and `bound`.
+The latter require exact installed bytes, a live Connector capabilities response,
+the current native status, loaded identity and OS process generation. Its native
+destination is the current status `recording_directory`: an open store's exact
+session ID identifies its parent as the root. Ready without a session and
+`recording_closed` report the root directly; Close retains the old session ID
+after disposing its store. Old receipts, directory scans and elapsed time do not
+establish readiness. Native game SHA/MVID remain null when current native status
+does not publish them. Errors retain a code and next action; local paths are private
+operator data and should be omitted from browser-facing projections.
+
+Passive collection reports `execution_available` and game `compatibility`
+independently. An unadmitted mutation tuple does not disconnect an otherwise exact
+passive recorder. The existing `verify-loaded` mutation/readiness gate still
+requires Connector execution availability; collection binding cannot grant it.
+
+The rc.5 setup candidate uses Annotator rc.5, Evidence rc.8 and Host tooling rc.8.
+The version updates preserve current recording schemas and all native decision,
+causal and mutation-admission behavior. New SHA/MVID and source identities still
+require their own exact build/install/load evidence. The historical rc.4 Human
+artifact and published Host rc.7 package remain pinned to their original bytes;
+their qualification/publication is not transferred to this candidate.

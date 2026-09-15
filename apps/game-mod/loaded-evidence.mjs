@@ -24,7 +24,7 @@ export function extractGameProcessIds(processRecords, platform) {
   });
 }
 
-export function evaluateLoadedEvidence({
+function evaluateIdentityEvidence({
   status,
   capabilities,
   platformIdentity,
@@ -32,7 +32,7 @@ export function evaluateLoadedEvidence({
   installed,
   uiPanelReady,
   gameProcessIds
-}) {
+}, requireExecution) {
   const errors = [];
   const expected = installed.artifact;
   const source = installed.source;
@@ -56,7 +56,7 @@ export function evaluateLoadedEvidence({
 
   if (!sameHostIdentity(capabilities.host?.implementation, expected)) errors.push("connector_capabilities_artifact_mismatch");
   if (capabilities.host?.implementation?.source_revision !== source.components.connector.source_revision) errors.push("connector_capabilities_source_revision_mismatch");
-  if (capabilities.execution_available !== true) errors.push("connector_execution_not_available");
+  if (requireExecution && capabilities.execution_available !== true) errors.push("connector_execution_not_available");
   if (capabilities.game?.modset?.status !== "exact_platform_modset") errors.push("unified_modset_not_exact");
   if (capabilities.game?.modset?.loaded_mod_ids?.length !== 1
       || capabilities.game.modset.loaded_mod_ids[0] !== "STS2_PLATFORM") {
@@ -77,4 +77,14 @@ export function evaluateLoadedEvidence({
   }
 
   return { ready: errors.length === 0, errors };
+}
+
+// Passive collection needs exact current identity, not Connector gameplay admission.
+// Mutation verification below retains its existing execution availability gate.
+export function evaluateCollectionLoadedEvidence(evidence) {
+  return evaluateIdentityEvidence(evidence, false);
+}
+
+export function evaluateLoadedEvidence(evidence) {
+  return evaluateIdentityEvidence(evidence, true);
 }

@@ -33,7 +33,7 @@ export class ConnectorPolicyClient implements PolicyConnector {
     this.options = {
       productId: options.productId ?? "sts2-policy-runtime",
       productName: options.productName ?? "STS2 Policy Runtime",
-      productVersion: options.productVersion ?? "0.1.0-rc.1",
+      productVersion: options.productVersion ?? "0.1.0-rc.3",
       clientInstanceId: options.clientInstanceId
     };
   }

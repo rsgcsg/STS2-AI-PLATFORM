@@ -1278,12 +1278,11 @@ internal static class NativeTreasureProceedCompletionPatch
         // Proceed's ordinary terminal-reward branch opens the map synchronously.
         // Observe Commit and the distinct input-owner boundary before returning
         // to Human input, not after a frame-loop completion transport delay.
-        if (__result.IsCompletedSuccessfully && !__state.MapWasOpen
-            && __state.Map is { IsOpen: true } map
-            && ReferenceEquals(NMapScreen.Instance, map)
-            && NativeUiCompletionRootBindings.TryGet(__state.Owner, out string? root)
+        if (NativeUiCompletionRootBindings.TryGet(__state.Owner, out string? root)
             && root != null && HumanActionScope.Current is { } context
-            && context.ActionWitnessId == root
+            && __state.Map is { } map
+            && NativeSynchronousOwnerHandoff.Matches(__result, map, __state.MapWasOpen,
+                NMapScreen.Instance, map.IsOpen, root, context.ActionWitnessId)
             && context.CompletionExpectation is { } completion
             && completion.AcceptsKind("RunManager.ProceedFromTerminalRewardsScreen"))
         {
@@ -1997,7 +1996,9 @@ internal static class NativeEventOptionPatch
         NativeUiScopeEntry Scope,
         EventOption? Option,
         string? Verb,
-        NEventRoom? Room);
+        NEventRoom? Room,
+        NMapScreen? Map,
+        bool MapWasOpen);
 
     internal static MethodBase TargetMethod() =>
         AccessTools.Method(
@@ -2038,7 +2039,9 @@ internal static class NativeEventOptionPatch
                     new Dictionary<string, object>(StringComparer.Ordinal))),
             option,
             verb,
-            __instance);
+            __instance,
+            NMapScreen.Instance,
+            NMapScreen.Instance?.IsOpen == true);
         // Chosen can synchronously open a selector before this callback returns.
         if (__state.Scope.Entered)
             __state = __state with { Scope = __state.Scope with {
@@ -2088,6 +2091,22 @@ internal static class NativeEventOptionPatch
                         out string? actionWitnessId)
                     && actionWitnessId != null)
                 {
+                    // The native Proceed branch opens the exact map before
+                    // Chosen and this outer callback return. Preserve that
+                    // owner handoff now; Task completion alone is only Commit.
+                    if (verb == "proceed_event" && __state.Map is { } map
+                        && actionWitnessId == __state.Scope.ActionWitnessId
+                        && NativeSynchronousOwnerHandoff.Matches(task, map, __state.MapWasOpen,
+                            NMapScreen.Instance, map.IsOpen, actionWitnessId, HumanActionScope.Current?.ActionWitnessId))
+                    {
+                        if (RecorderRuntime.ObserveSemanticUiNativeCommit(
+                            actionWitnessId, "event_option", "EventOption.Chosen", nativeOperand: option))
+                        {
+                            NativeUiCompletionRootBindings.TakeIfMatches(option, actionWitnessId);
+                            NativeDecisionOwnerReadyProvider.ObserveEventProceedReady(map);
+                        }
+                        return;
+                    }
                     RecorderRuntime.QueueNativePostCommitBoundary(
                         task,
                         "EventOption.Chosen",

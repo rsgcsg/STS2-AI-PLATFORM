@@ -25,7 +25,9 @@
       "contract_paths": [
         "src/host-driver.mjs",
         "src/host-execution-profile.mjs",
-        "consumers/python/sts2_headless"
+        "consumers/python/sts2_headless",
+        "src/workstation-api.mjs",
+        "src/game-processes.mjs"
       ]
     },
     "annotator": {
@@ -33,7 +35,8 @@
       "version_file": "package.json",
       "contract_paths": [
         "src/STS2HumanAnnotator.Core",
-        "docs/DATA_CONTRACT.md"
+        "docs/DATA_CONTRACT.md",
+        "tools/publish-collection-tool.mjs"
       ]
     },
     "evidence": {
@@ -49,7 +52,10 @@
       "contract_paths": [
         "src/contracts.ts",
         "src/policy-port.ts",
-        "src/runtime.ts"
+        "src/runtime.ts",
+        "package.json",
+        "tools/package.mjs",
+        "src/server.ts"
       ]
     },
     "workbench": {
@@ -57,7 +63,8 @@
       "version_file": "package.json",
       "contract_paths": [
         "src/workbench-service.mjs",
-        "src/server.mjs"
+        "src/server.mjs",
+        "src/policy-runtime-client.mjs"
       ]
     },
     "live-ui": {
@@ -74,7 +81,10 @@
       "contract_paths": [
         "UnifiedPlatformMod.cs",
         "STS2Platform.GameMod.csproj",
-        "mod_manifest.json"
+        "mod_manifest.json",
+        "collection-setup.mjs",
+        "loaded-evidence.mjs",
+        "annotator-configuration.mjs"
       ]
     }
   }
