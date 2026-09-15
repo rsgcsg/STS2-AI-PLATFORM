@@ -55,3 +55,5 @@ model/game gates remain separate; see the Policy Runtime README. A caller's
 command timeout must not cause a repeated tick. HTTP-2 commands use /v2 paths and the exact Runtime run precondition; old instances fail closed.
 CLI POST /v2/stop seals and exits. Live UI consumer source changed; the qualified Recorder DLL
 and collection tool remain historical exact artifacts, not automatically replaced.
+
+[Bounded B workflow acceptance](../evidence/B_WORKFLOW_BOUNDED_ACCEPTANCE_2026-09-15.md) records the new zero-failure continued-run audit and owner-authorized engineering integration; continuous Full-Run remains unclaimed.
